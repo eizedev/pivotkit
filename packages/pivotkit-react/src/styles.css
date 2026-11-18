@@ -78,7 +78,7 @@
     --pk-shelf-pad: 4px;
     --pk-shelf-pad-block: calc(var(--pk-shelf-pad) + 2px);
     --pk-shelf-min: 17em;
-    --pk-zone-border: var(--pk-border);
+    --pk-zone-border: var(--pk-border-strong);
     --pk-chip-gap: 6px;
     --pk-chip-h: 2.2em;
     --pk-add-gap: 12px;
@@ -991,7 +991,7 @@
 }
 
 /* a shelf: its head (title, "i", "+ Add") at its left, its chips beside it, wrapping inside its cell;
-   a cell too narrow for that puts the head above the chips (below). A light frame at rest; during a
+   a cell too narrow for that puts the head above the chips (below). A frame at rest; during a
    drag the same frame turns dashed, so nothing moves. */
 .pk-zone {
     container: pk-zone / inline-size;

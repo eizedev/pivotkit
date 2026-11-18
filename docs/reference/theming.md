@@ -108,7 +108,7 @@ size through the element.
 | `--pk-section-indent`<br>`--pk-section-bg`<br>`--pk-section-pad` | The open zones' panel: its indent to the heading's text, its background and its padding (its corners are `--pk-radius`). On a phone the panel takes no indent and half its side padding | `26px`<br>`var(--pk-surface-2)`<br>`6px` | as light |
 | `--pk-shelf-gap`<br>`--pk-shelf-pad`<br>`--pk-shelf-pad-block` | The zones as shelves in a grid: the room between shelves; a shelf's padding at its sides; its padding at its top and bottom | `4px`<br>`4px`<br>`calc(var(--pk-shelf-pad) + 2px)` | as light |
 | `--pk-shelf-min` | The least width of a half of the zones' grid. Where a half would be narrower, the shelves stand in one column | `17em` | as light |
-| `--pk-zone-border` | The light frame of each zone at rest. While something is dragged it turns into the dashed `--pk-drop-border` | `var(--pk-border)` | `var(--pk-border)` |
+| `--pk-zone-border` | The frame of each zone at rest. While something is dragged it turns into the dashed `--pk-drop-border` | `var(--pk-border-strong)` | `var(--pk-border-strong)` |
 | `--pk-chip-gap`<br>`--pk-chip-h` | The room between chips and between a shelf's title and its chips; a chip's height, also the least height of a shelf's title row | `6px`<br>`2.2em` | as light |
 | `--pk-add-gap`<br>`--pk-add-hover` | "+ Add" in each zone: its distance from the zone's title and "i"; its background on hover and while its menu is open (its text is `--pk-accent`) | `12px`<br>`var(--pk-accent-soft)` | as light |
 | `--pk-tab-mark` | The line in `--pk-accent` on top of the tab shown (Table, Chart) | `3px` | as light |

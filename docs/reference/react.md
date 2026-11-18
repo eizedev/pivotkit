@@ -912,7 +912,7 @@ Each zone is a shelf: its title, its "i" and "+ Add" on the left, its chips flow
 - A chip never widens its shelf. The chips wrap inside it, so the drop targets stay in place.
 - A shelf narrower than 28em puts its title row above the chips, with "+ Add" at its right end.
   That happens on a phone and in the halves of a medium report.
-- Each shelf has a light frame (`--pk-zone-border`). While something is dragged, the frame turns
+- Each shelf has a frame (`--pk-zone-border`). While something is dragged, the frame turns
   into the dashed drop outline. Its width stays the same, so the shelves do not move.
 - "+ Add" (`addField`, named by `addFieldTo`) opens the zone's menu of every field. It loads with
   the menus. After a pick the focus goes to the new chip, and a status region inside the section

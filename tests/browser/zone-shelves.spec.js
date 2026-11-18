@@ -358,7 +358,7 @@ test("an i opened and closed by the keyboard, the mouse elsewhere: a hover still
 });
 
 test.describe("shelves", () => {
-    test("wide, typical: Filters and Columns share a line, so do Rows and Values; at rest a light frame, no dashed outline", async ({ page }) => {
+    test("wide, typical: Filters and Columns share a line, so do Rows and Values; at rest a frame, no dashed outline", async ({ page }) => {
         await open(page);
         const b = await boxes(page);
         expect(b.filters.y).toBe(b.cols.y);
@@ -374,10 +374,10 @@ test.describe("shelves", () => {
         });
         expect(side.chipLeft).toBeGreaterThanOrEqual(side.headRight);
         expect(Math.abs(side.headMid - side.chipMid)).toBeLessThanOrEqual(2);
-        // at rest: a light solid frame (--pk-zone-border), no dashed outline; a drag only changes its
+        // at rest: a solid frame (--pk-zone-border), no dashed outline; a drag only changes its
         // style and colour, so nothing moves (#605)
         const rest = await page.locator('[data-zone="filters"]').evaluate((el) => ({ style: getComputedStyle(el).borderTopStyle, color: getComputedStyle(el).borderTopColor, width: getComputedStyle(el).borderTopWidth }));
-        expect(rest).toEqual({ style: "solid", color: "rgb(221, 225, 231)", width: "1.5px" });
+        expect(rest).toEqual({ style: "solid", color: "rgb(195, 201, 210)", width: "1.5px" });
         // an empty shelf still says what it is for
         await expect(page.locator('[data-zone="filters"] .pk-zone-hint')).toBeVisible();
         // the section's hint mentions Add

@@ -129,13 +129,13 @@ test.describe("the cells stay where they are", () => {
 });
 
 test.describe("each zone's frame and hint", () => {
-    test("a light frame at rest from --pk-zone-border, the --pk-border colour by default; a host's colour takes effect", async ({ page }) => {
+    test("a frame at rest from --pk-zone-border, the --pk-border-strong colour by default; a host's colour takes effect", async ({ page }) => {
         await open(page, { width: 1440 });
-        const frame = () => page.locator('[data-zone="filters"]').evaluate((el) => ({ style: getComputedStyle(el).borderTopStyle, color: getComputedStyle(el).borderTopColor, border: getComputedStyle(el).getPropertyValue("--pk-border").trim() }));
+        const frame = () => page.locator('[data-zone="filters"]').evaluate((el) => ({ style: getComputedStyle(el).borderTopStyle, color: getComputedStyle(el).borderTopColor, border: getComputedStyle(el).getPropertyValue("--pk-border-strong").trim() }));
         const rest = await frame();
         expect(rest.style).toBe("solid");
-        expect(rest.border).toBe("#dde1e7");
-        expect(rest.color).toBe("rgb(221, 225, 231)");
+        expect(rest.border).toBe("#c3c9d2");
+        expect(rest.color).toBe("rgb(195, 201, 210)");
         await page.addStyleTag({ content: ".pk-root { --pk-zone-border: rgb(200, 30, 40); }" });
         // the frame's colour has a transition
         await expect.poll(async () => (await frame()).color).toBe("rgb(200, 30, 40)");

@@ -22,7 +22,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   A chip never widens a zone, so the drop targets stay in place while fields are added
   ([#605](https://github.com/eizedev/pivotkit/issues/605)).
 - A zone narrower than 28em puts its title row above its chips, as on a phone.
-- Each zone has a light frame, from the new token `--pk-zone-border`, and a little more height,
+- Each zone has a frame, from the new token `--pk-zone-border`, and a little more height,
   from the new token `--pk-shelf-pad-block`. `--pk-shelf-min` is now the least width of a half of
   the grid.
 - The Filters hint is shorter: "Add or drop a field to filter".
