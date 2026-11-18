@@ -39,8 +39,13 @@ async function load(page, file, sheet) {
 
 /** Builds a view of `row` by the sum of `value` and saves it as `name` in the browser store. */
 async function saveView(page, row, value, name) {
-    await drag(page, page.locator(`.pk-field[data-field="${row}"]`), page.locator('[data-zone="rows"]'));
-    await drag(page, page.locator(`.pk-field[data-field="${value}"]`), page.locator('[data-zone="values"]'));
+    // dropped at a shelf's end, right of its chips: the middle of a shelf can be over one of them
+    const end = async (zone) => {
+        const box = await page.locator(`[data-zone="${zone}"]`).boundingBox();
+        return { toPosition: { x: box.width - 20, y: box.height / 2 } };
+    };
+    await drag(page, page.locator(`.pk-field[data-field="${row}"]`), page.locator('[data-zone="rows"]'), await end("rows"));
+    await drag(page, page.locator(`.pk-field[data-field="${value}"]`), page.locator('[data-zone="values"]'), await end("values"));
     await expect.poll(() => chips(page, "rows")).toEqual([row]);
     await toolbar(page, "views");
     await page.getByTestId("save-as").click();
@@ -73,8 +78,9 @@ test("sheet 3, a saved view, reload, the same workbook again: opening the view r
     // the sheet is read again from the same file, then the view is shown on it
     await expect(page.getByTestId("source-line")).toHaveText("quarters.xlsx, sheet “Q3”, only in this browser");
     await expect.poll(() => chips(page, "rows")).toEqual(["Product"]);
-    // the sums of Q3's rows (the playground shows a revenue also as an amount next to it)
-    await expect.poll(async () => (await tableRows(page)).map((r) => r.slice(0, 2))).toEqual([["Alpha", "35"], ["Beta", "70"], ["Grand Total", "105"]]);
+    // the sums of Q3's rows in the value dropped last, at the end of Values (the playground's start
+    // view shows a revenue also as an amount, before it)
+    await expect.poll(async () => (await tableRows(page)).map((r) => [r[0], r.at(-1)])).toEqual([["Alpha", "35"], ["Beta", "70"], ["Grand Total", "105"]]);
     await expect(page.getByTestId("view-name")).toContainText("Q3 products");
     // the view file downloaded from it names the sheet too
     await toolbar(page, "views");

@@ -381,6 +381,8 @@ function Report(props) {
     // the host's start state (zones), else by the report's height; a new start state from the host
     // starts over from it
     const [folded, setFolded] = useState(/** @type {boolean | null} */ (zonesStart(zonesProp)));
+    // the zones are open only because nothing is placed yet (a low report): see layoutFolded
+    const foldOpenWhileEmpty = useRef(false);
     const [zonesSeen, setZonesSeen] = useState(zonesProp);
     if (zonesProp !== zonesSeen) {
         setZonesSeen(zonesProp);
@@ -703,6 +705,11 @@ function Report(props) {
                 return false;
             }
             const changed = history.commit(next, stepText(note), tag);
+            // the user placed the first field of an empty low report: its zones stay open, as if
+            // opened by hand, so they do not fold under the user's hand (a view loaded folds them)
+            if (changed && note.step === "added" && foldOpenWhileEmpty.current) {
+                setFolded(false);
+            }
             if (changed) {
                 changesRef.current += 1;
                 setChanges(changesRef.current);
@@ -787,12 +794,12 @@ function Report(props) {
     }, [plan.swap, view, encoded, locale, limits, computed, result]);
     const chartResult = chartComputed.result;
     const empty = isEmptyView(view);
-    // a low report with no field placed opens its zones, so "+ Add" is there to start with; they stay
-    // open as the first fields come in, as if the user had opened them (the host's `zones` wins)
-    if (empty && short && folded === null) {
-        setFolded(false);
-    }
-    const layoutFolded = folded ?? short;
+    // a low report with no field placed shows its zones, so "+ Add" is there to start with (the host's
+    // `zones` and the user's click win); the first field the user places keeps them open (commit)
+    const layoutFolded = folded ?? (short && !empty);
+    useEffect(() => {
+        foldOpenWhileEmpty.current = empty && short && folded === null;
+    });
     const gridState = useMemo(() => {
         if (!result || view.display !== "table" || empty) {
             return { grid: null, error: null };
