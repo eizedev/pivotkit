@@ -70,18 +70,37 @@
     --pk-section-indent: 26px;
     --pk-section-bg: var(--pk-surface-2);
     --pk-section-pad: 6px;
-    /* the zones as shelves: the room between shelves and between chips, a shelf's padding, the width
-       below which a shelf takes a line of its own, a chip's height; "+ Add" after the zone's title
-       and "i", and its background on hover and while its menu is open */
+    /* the zones as shelves in a grid: the room between shelves and between chips, a shelf's padding at
+       its sides and at its top and bottom, the least width of a half (narrower: one column), its frame
+       at rest, a chip's height; "+ Add" after the zone's title and "i", and its background on hover and
+       while its menu is open */
     --pk-shelf-gap: 4px;
     --pk-shelf-pad: 4px;
+    --pk-shelf-pad-block: calc(var(--pk-shelf-pad) + 2px);
     --pk-shelf-min: 17em;
+    --pk-zone-border: var(--pk-border-strong);
     --pk-chip-gap: 6px;
     --pk-chip-h: 2.2em;
     --pk-add-gap: 12px;
     --pk-add-hover: var(--pk-accent-soft);
     /* the line on top of the tab shown (Table, Chart) */
     --pk-tab-mark: 3px;
+    /* the tabs Table and Chart: background and text of a tab not shown, and of the tab shown */
+    --pk-tab-bg: transparent;
+    --pk-tab-text: var(--pk-muted);
+    --pk-tab-selected-bg: var(--pk-surface);
+    --pk-tab-selected-text: var(--pk-accent);
+    /* a button that shows only its icon (.pk-icon-btn: a field's menu, Close, the field list's fold):
+       its icon's colour, and its background on hover or while its menu is open */
+    --pk-icon-button-text: var(--pk-muted);
+    --pk-icon-button-hover-bg: var(--pk-surface-3);
+    /* the frame of a button (the toolbar's, Table settings, Enlarge), at rest and on hover */
+    --pk-button-border: var(--pk-border);
+    --pk-button-border-hover: var(--pk-border-strong);
+    /* the main action of a dialog (Apply, Save, Load): its fill and frame, text, fill on hover */
+    --pk-primary-bg: var(--pk-accent);
+    --pk-primary-text: var(--pk-accent-text);
+    --pk-primary-hover-bg: color-mix(in srgb, var(--pk-accent) 88%, var(--pk-text));
     /* the chart tooltip's series names: a longer one ends in "…" */
     --pk-tooltip-name-w: 12em;
     --pk-duration: 180ms;
@@ -331,7 +350,7 @@
     gap: 0.45em;
     height: 2.35em;
     padding: 0 0.8em;
-    border: 1px solid var(--pk-border);
+    border: 1px solid var(--pk-button-border);
     border-radius: var(--pk-radius-sm);
     background: var(--pk-surface);
     color: var(--pk-text);
@@ -342,7 +361,7 @@
 
 .pk-btn:hover:not(:disabled, .pk-off) {
     background: var(--pk-surface-3);
-    border-color: var(--pk-border-strong);
+    border-color: var(--pk-button-border-hover);
 }
 
 .pk-btn:active:not(:disabled, .pk-off) {
@@ -364,14 +383,14 @@
 }
 
 .pk-btn.pk-primary {
-    background: var(--pk-accent);
-    border-color: var(--pk-accent);
-    color: var(--pk-accent-text);
+    background: var(--pk-primary-bg);
+    border-color: var(--pk-primary-bg);
+    color: var(--pk-primary-text);
     font-weight: var(--pk-weight-strong);
 }
 
 .pk-btn.pk-primary:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--pk-accent) 88%, var(--pk-text));
+    background: var(--pk-primary-hover-bg);
 }
 
 .pk-caret {
@@ -388,7 +407,7 @@
     border: 0;
     border-radius: var(--pk-radius-sm);
     background: transparent;
-    color: var(--pk-muted);
+    color: var(--pk-icon-button-text);
     cursor: pointer;
     transition: background var(--pk-duration), color var(--pk-duration);
 }
@@ -396,7 +415,7 @@
 /* hovered, or its menu or dialog open */
 .pk-icon-btn:hover,
 .pk-icon-btn[aria-haspopup][aria-expanded="true"] {
-    background: var(--pk-surface-3);
+    background: var(--pk-icon-button-hover-bg);
     color: var(--pk-text);
 }
 
@@ -857,11 +876,21 @@
 
 /* ---- zones and chips ---- */
 
-/* the shelves flow: side by side while they fit, a line of its own for one that needs it */
-.pk-zones {
-    display: flex;
-    flex-wrap: wrap;
+/* the shelves in a grid: one column on a main area below 640 px, two equal halves from there (Filters
+   and Columns on top, Rows and Values below). A half is at least --pk-shelf-min, or the grid keeps one
+   column; at least 50% less the gap, so never three. The track sizes ignore the chips, so a chip never
+   widens its cell and the drop targets stay put. The skeleton's places take the same grid
+   (.pk-skel-main is a pk-main container too). */
+:is(.pk-zones, .pk-skel-zones) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--pk-shelf-gap);
+}
+
+@container pk-main (width >= 640px) {
+    :is(.pk-zones, .pk-skel-zones) {
+        grid-template-columns: repeat(auto-fit, minmax(max(var(--pk-shelf-min), calc(50% - var(--pk-shelf-gap))), 1fr));
+    }
 }
 
 /* the section of the zones: a rule above and below it, its heading row (the fold button, Swap beside
@@ -961,25 +990,28 @@
     }
 }
 
-/* a shelf: its head (title, "i", "+ Add") at its left, its chips beside it. Its natural width is
-   all of that in one line; short of room it takes a line of its own and its chips wrap. The dashed
-   outline is there at rest too, transparent, so it shows during a drag without moving anything. */
+/* a shelf: its head (title, "i", "+ Add") at its left, its chips beside it, wrapping inside its cell;
+   a cell too narrow for that puts the head above the chips (below). A frame at rest; during a
+   drag the same frame turns dashed, so nothing moves. */
 .pk-zone {
+    container: pk-zone / inline-size;
     position: relative;
     display: flex;
-    flex: 1 1 auto;
+    flex-wrap: wrap;
+    /* a cell its row's neighbour makes higher keeps its lines at its top */
+    align-content: flex-start;
     align-items: flex-start;
     gap: var(--pk-chip-gap);
-    min-width: min(100%, var(--pk-shelf-min));
-    max-width: 100%;
-    padding: var(--pk-shelf-pad);
-    border: 1.5px dashed transparent;
+    min-width: 0;
+    padding: var(--pk-shelf-pad-block) var(--pk-shelf-pad);
+    border: 1.5px solid var(--pk-zone-border);
     border-radius: var(--pk-radius);
     background: var(--pk-surface-2);
     transition: background var(--pk-duration), border-color var(--pk-duration), box-shadow var(--pk-duration);
 }
 
 .pk-zone.pk-dropping {
+    border-style: dashed;
     border-color: var(--pk-drop-border);
 }
 
@@ -1073,7 +1105,8 @@
 
 .pk-chips {
     display: flex;
-    flex: 1 1 auto;
+    /* beside the head, never below it by its own width: only the head's full width moves it down */
+    flex: 1 1 0;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--pk-chip-gap);
@@ -2568,8 +2601,8 @@
     border: 1px solid transparent;
     border-bottom: 0;
     border-radius: var(--pk-radius-sm) var(--pk-radius-sm) 0 0;
-    background: none;
-    color: var(--pk-muted);
+    background: var(--pk-tab-bg);
+    color: var(--pk-tab-text);
     font: inherit;
     font-weight: var(--pk-weight-strong);
     cursor: pointer;
@@ -2582,8 +2615,8 @@
 
 .pk-tab[aria-selected="true"] {
     border-color: var(--pk-border);
-    background: var(--pk-surface);
-    color: var(--pk-accent);
+    background: var(--pk-tab-selected-bg);
+    color: var(--pk-tab-selected-text);
 }
 
 .pk-tab[aria-selected="true"]::after {
@@ -3538,18 +3571,15 @@
     transition: transform calc(var(--pk-duration) * 1.4) var(--pk-ease), visibility 0s;
 }
 
-/* a phone: the shelf's title row above its chips, so a chip has the shelf's width for its name and
-   its badges ("15 of 45", "Top 10"); the title and its "i" at the left, "+ Add" at the row's end */
-@container pk-main (width < 400px) {
-    .pk-zone {
-        flex-wrap: wrap;
-    }
-
-    .pk-zone .pk-zone-head {
+/* a narrow shelf (a phone, a half of the grid on a medium report): its title row above its chips, so
+   a chip has the shelf's width for its name and its badges ("15 of 45", "Top 10"); the title and its
+   "i" at the left, "+ Add" at the row's end */
+@container pk-zone (width < 26em) {
+    .pk-zone-head {
         width: 100%;
     }
 
-    .pk-zone .pk-zone-add {
+    .pk-zone-add {
         margin-inline-start: auto;
     }
 }
@@ -3735,6 +3765,7 @@
 }
 
 .pk-skel-main {
+    container: pk-main / inline-size;
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -3752,13 +3783,6 @@
 
 .pk-skel-grow {
     flex: 1;
-}
-
-/* the shelves' places: two side by side, one per line where a shelf's least width does not fit twice */
-.pk-skel-zones {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--pk-shelf-gap);
 }
 
 .pk-skel-table {
@@ -3795,9 +3819,7 @@
 }
 
 .pk-skel-zone {
-    flex: 1 1 calc(50% - var(--pk-shelf-gap));
-    min-width: min(100%, var(--pk-shelf-min));
-    height: calc(var(--pk-chip-h) + 2 * var(--pk-shelf-pad));
+    height: calc(var(--pk-chip-h) + 2 * var(--pk-shelf-pad-block));
     border-radius: var(--pk-radius);
 }
 

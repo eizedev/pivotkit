@@ -43,8 +43,14 @@ export function useActiveDrag() {
 /** Chips first: the pointer is inside a chip and its zone at once, the chip gives the position. */
 function collision(args) {
     if (!args.pointerCoordinates) {
-        // keyboard
-        return closestCenter(args);
+        // keyboard: each move puts the item's centre on its target's centre (keyboardCoordinates). Before
+        // the first move (the item where it started) a chip is over its own place, also where its zone's
+        // centre lies nearer than its own (a zone of two lines of chips in a half of the grid)
+        const list = closestCenter(args);
+        const own = list.find((c) => c.id === args.active.id);
+        const start = args.active.rect.current.initial;
+        const unmoved = start && Math.abs(args.collisionRect.left - start.left) < 1 && Math.abs(args.collisionRect.top - start.top) < 1;
+        return own && unmoved ? [own, ...list.filter((c) => c !== own)] : list;
     }
     const hits = pointerWithin(args);
     const list = hits.length ? hits : rectIntersection(args);

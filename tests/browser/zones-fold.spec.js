@@ -66,6 +66,9 @@ test("desktop: zones that grow with more fields fold, though the box keeps its h
         await page.getByTestId(`field-menu-${field}`).click();
         await page.getByRole("menuitem", { name: "Add to Rows" }).click();
     }
+    // the menu closed over the grown section: the pointer resting on it holds the fold (the next test);
+    // away from it, the zones fold
+    await page.mouse.move(5, 5);
     await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
     const after = await settled(page);
     expect(after.height).toBe(fits.height);

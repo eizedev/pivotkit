@@ -7,6 +7,12 @@
 // status line says what happened. Real pointer and keyboard input, the sales data.
 import { chips, drag, expect, test } from "./fixtures.js";
 
+/**
+ * Arial, or Liberation Sans with Arial's widths on Linux: a test whose shelves must wrap or fit at a
+ * given width measures the same chips on every platform.
+ */
+const ARIAL = '.pk-root { --pk-font: Arial, "Liberation Sans", sans-serif; }';
+
 /** The data-testid of the element in focus (inside the report, shadow roots included). */
 const focused = (page) => page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.className);
 
@@ -358,14 +364,19 @@ test("an i opened and closed by the keyboard, the mouse elsewhere: a hover still
 });
 
 test.describe("shelves", () => {
-    test("wide, typical: Filters and Columns share a line, so do Rows and Values; at rest no dashed outline", async ({ page }) => {
+    test("wide, typical: Filters and Columns share a line, so do Rows and Values; at rest a frame, no dashed outline", async ({ page }) => {
         await open(page);
         const b = await boxes(page);
         expect(b.filters.y).toBe(b.cols.y);
         expect(b.rows.y).toBe(b.values.y);
         expect(b.rows.y).toBeGreaterThan(b.filters.y);
-        // one line each: a shelf is as high as a chip and its padding, not a box of two lines
-        expect(b.rows.h).toBeLessThan(56);
+        // one line each where the chips fit: a shelf is as high as a chip and its padding, not a box of
+        // two lines. Rows with Region and Country needs a little more than its half next to the field
+        // list (#605): its chips wrap inside it, and Values beside it keeps the same height
+        expect(b.filters.h).toBeLessThan(56);
+        expect(b.cols.h).toBeLessThan(56);
+        expect(b.rows.w).toBe(b.values.w);
+        expect(b.rows.h).toBe(b.values.h);
         // the title, its i and + Add at the left, the chips beside them on the same line
         const side = await page.locator('[data-zone="rows"]').evaluate((zone) => {
             const head = zone.querySelector(".pk-zone-head").getBoundingClientRect();
@@ -374,9 +385,11 @@ test.describe("shelves", () => {
         });
         expect(side.chipLeft).toBeGreaterThanOrEqual(side.headRight);
         expect(Math.abs(side.headMid - side.chipMid)).toBeLessThanOrEqual(2);
-        // at rest: no dashed outline, the border is there but transparent (no jump when it shows)
+        // at rest: a solid frame (--pk-zone-border), no dashed outline; a drag only changes its
+        // style and colour, so nothing moves (#605)
         const rest = await page.locator('[data-zone="filters"]').evaluate((el) => ({ style: getComputedStyle(el).borderTopStyle, color: getComputedStyle(el).borderTopColor, width: getComputedStyle(el).borderTopWidth }));
-        expect(rest.color).toBe("rgba(0, 0, 0, 0)");
+        // its width stays the same during a drag (the drag test below)
+        expect(rest).toMatchObject({ style: "solid", color: "rgb(195, 201, 210)" });
         // an empty shelf still says what it is for
         await expect(page.locator('[data-zone="filters"] .pk-zone-hint')).toBeVisible();
         // the section's hint mentions Add
@@ -384,7 +397,7 @@ test.describe("shelves", () => {
         await expect(page.locator(".pk-info-pop")).toContainText("or use Add in each one");
     });
 
-    test("wide, many fields: a full shelf takes a line of its own and its chips wrap inside it", async ({ page }) => {
+    test("wide, many fields: a full shelf keeps its half of the grid and its chips wrap inside it", async ({ page }) => {
         await open(page);
         for (const field of ["Product", "Channel", "Category", "Month"]) {
             await (await addMenu(page, "rows")).getByTestId(`add-pick-${field}`).click();
@@ -393,13 +406,10 @@ test.describe("shelves", () => {
             await (await addMenu(page, "values")).getByTestId(`add-pick-${field}`).click();
         }
         const b = await boxes(page);
-        const panel = await page.locator(".pk-zones").evaluate((el) => {
-            const s = getComputedStyle(el);
-            return Math.round(el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight));
-        });
-        // Rows has a line of its own, the whole width, and Values is below it
-        expect(Math.abs(b.rows.w - panel)).toBeLessThanOrEqual(1);
-        expect(b.values.y).toBeGreaterThan(b.rows.y);
+        // Rows keeps its cell: as wide as Values beside it, on the same line (#605)
+        expect(Math.abs(b.rows.w - b.values.w)).toBeLessThanOrEqual(1);
+        expect(b.values.y).toBe(b.rows.y);
+        expect(b.values.x).toBeGreaterThan(b.rows.right);
         // and its chips wrap: more than one line of chips, none outside the shelf
         const tops = await page.locator('[data-zone="rows"] .pk-chip').evaluateAll((els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().top)))]);
         expect(tops.length).toBeGreaterThan(1);
@@ -431,24 +441,57 @@ test.describe("shelves", () => {
     });
 });
 
-test("a chip removed by a click: the shelf that slides under the resting pointer opens no description", async ({ page }) => {
-    // the playground's test window: Rows and Values share a line, and without Country Values moves
-    // left, its "i" under the pointer that pressed Country's x
+test("a chip removed: the shelf that slides under the resting pointer opens no description", async ({ page }) => {
+    // one column (a host's --pk-shelf-min wider than a half), Rows with two lines of chips: removing
+    // the chip on its second line moves Values up, its "i" under a pointer that rests there
     await open(page, { width: 1280, height: 1000 });
-    await page.getByRole("button", { name: "Remove Country" }).click();
-    expect(await chips(page, "rows")).toEqual(["Region"]);
+    await page.addStyleTag({ content: ".pk-root { --pk-shelf-min: 40em; }" });
+    await page.addStyleTag({ content: ARIAL });
+    // fields until the chips need a second line: the last one stands alone on it
+    for (const field of ["Product", "Channel", "Category", "Month"]) {
+        await (await addMenu(page, "rows")).getByTestId(`add-pick-${field}`).click();
+        await expect.poll(() => chips(page, "rows")).toContain(field);
+        if ((await boxes(page)).rows.h > 56) break;
+    }
+    const b = await boxes(page);
+    expect(b.values.y).toBeGreaterThan(b.rows.y + b.rows.h - 1);
+    expect(b.rows.h).toBeGreaterThan(56);
+    const last = (await chips(page, "rows")).at(-1);
+    const remove = page.getByRole("button", { name: `Remove ${last}` });
+    const info = page.getByTestId("zone-info-values");
+    // where the "i" of Values lands: removed once, measured, put back
+    await remove.focus();
+    await page.keyboard.press("Enter");
+    await expect.poll(async () => (await boxes(page)).rows.h).toBeLessThan(56);
+    const at = await info.boundingBox();
+    await page.getByTestId("undo").click();
+    await expect.poll(() => chips(page, "rows")).toContain(last);
+    expect((await boxes(page)).rows.h).toBeGreaterThan(56);
+    // the pointer rests there, over Rows; the chip is removed by the keyboard and Values slides under it
+    await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
+    await expect(page.locator(".pk-info-pop")).toHaveCount(0);
+    await remove.focus();
+    await page.keyboard.press("Enter");
+    await expect.poll(() => chips(page, "rows")).not.toContain(last);
+    expect(await info.evaluate((el) => el.matches(":hover"))).toBe(true);
     await page.waitForTimeout(800);
     await expect(page.locator(".pk-info-pop")).toHaveCount(0);
     // a move over an "i" still shows its description
-    await page.getByTestId("zone-info-values").hover();
+    await page.mouse.move(at.x + at.width / 2 + 1, at.y + at.height / 2);
     await expect(page.locator(".pk-info-pop")).toBeVisible();
 });
 
 test.describe("drag and drop on shelves", () => {
     test("1440: the outlines show while a field from the list is dragged; it lands on an empty shelf; a chip moves to another shelf", async ({ page }) => {
         await open(page);
+        // Rows with Region on one line and Country on the next: the drop below lands on the first
+        // line's free end
+        await page.addStyleTag({ content: ARIAL });
         const from = page.locator('[data-field="Channel"] .pk-handle');
         const to = page.locator('[data-zone="filters"]');
+        // each shelf's box and frame width: the same at rest and during the drag, so no drop target moves
+        const geometry = () => page.locator("[data-zone]").evaluateAll((els) => els.map((el) => { const r = el.getBoundingClientRect(); return [r.left, r.top, r.width, r.height, getComputedStyle(el).borderTopWidth]; }));
+        const rest = await geometry();
         const a = await from.boundingBox();
         const b = await to.boundingBox();
         await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
@@ -457,10 +500,10 @@ test.describe("drag and drop on shelves", () => {
         await page.mouse.move(b.x + b.width - 40, b.y + b.height / 2, { steps: 16 });
         // every shelf shows its dashed outline while the drag lasts (polled: the colour comes in with a
         // transition, and a slow engine reads its first frame)
-        const during = () => page.locator("[data-zone]").evaluateAll((els) => els.map((el) => ({ style: getComputedStyle(el).borderTopStyle, color: getComputedStyle(el).borderTopColor })));
-        await expect.poll(async () => (await during()).every((s) => s.color !== "rgba(0, 0, 0, 0)")).toBe(true);
-        expect((await during()).some((s) => s.style === "dashed")).toBe(true);
+        const during = () => page.locator("[data-zone]:not(.pk-over)").evaluateAll((els) => els.map((el) => getComputedStyle(el).borderTopStyle));
         await expect(to).toHaveClass(/pk-over/);
+        await expect.poll(async () => (await during()).every((style) => style === "dashed")).toBe(true);
+        expect(await geometry()).toEqual(rest);
         await page.mouse.move(b.x + b.width - 39, b.y + b.height / 2, { steps: 2 });
         await page.mouse.up();
         await page.waitForTimeout(100);

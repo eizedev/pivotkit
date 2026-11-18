@@ -623,7 +623,7 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
         await expect(page.getByTestId(`chip-menu-${chip}`)).toHaveAccessibleName(title);
     };
 
-    test("a desktop shows every badge whole; a phone cuts a rule to “…” and keeps the name; the chip's tooltip says it all", async ({ page }) => {
+    test("a desktop shows every badge whole where the zones have room; a phone cuts a rule to “…” and keeps the name; the chip's tooltip says it all", async ({ page }) => {
         // room for the open zones with their heading next to the view's notes
         await page.setViewportSize({ width: 1440, height: 1000 });
         // the chip of the hands-on test: a field named "Month" by month of the year, 2025 only, two months
@@ -652,11 +652,14 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
             sort: [{ field: "City", order: "desc" }],
             values: [{ field: "Mean °C", agg: "sum", showAs: "percentOfGrandTotal", format: "percent" }]
         });
+        // in a half of the zones' grid next to the field list (#605): the name whole, the title says it all
         parts = await chipParts(page, SHORT);
-        expect(parts.badges).toEqual([{ text: "2025 +1", whole: true }, { text: "Average of Mean °C > 10", whole: true }]);
         expect(parts.name).toMatchObject({ text: SHORT, whole: true });
         expect(parts.title).toBe(`${SHORT}, 2025, from Jun, Average of Mean °C > 10`);
         await titleIsName(page, SHORT, parts.title);
+        // a wider report gives the halves the room: every badge and name whole
+        await page.setViewportSize({ width: 1920, height: 1000 });
+        await expect.poll(async () => (await chipParts(page, SHORT)).badges).toEqual([{ text: "2025 +1", whole: true }, { text: "Average of Mean °C > 10", whole: true }]);
         parts = await chipParts(page, "City");
         expect(parts.badges).toEqual([{ text: "Top 5", whole: true }]);
         expect(parts.title).toBe("City, Top 5, sorted Z to A");
@@ -666,7 +669,7 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
         expect(parts).toMatchObject({ badges: [], name: { text: share, whole: true }, title: share });
         await titleIsName(page, share, share);
         // a quick choice next to the filter count (a time line, the months of its last year, one month
-        // unticked): its words take more than half the zone's width next to the field list, so that folds
+        // unticked): long words, so the field list folds to its rail for the zones' room
         const yearsN = thisYear - lastYear + 1;
         await openView(page, "weather", {
             derived: [{ name: SHORT, field: "Date", by: "yearMonth" }],

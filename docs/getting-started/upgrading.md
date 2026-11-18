@@ -159,6 +159,19 @@ claude plugin update pivotkit-mcp@pivotkit
 
 Then restart Claude Code.
 
+## From 0.8.0 to 0.8.1 { #from-0-8-0 }
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| [The zones form an even grid](#zone-grid) | your theme sets `--pk-shelf-min`, or your tests or screenshots show the open zones | check the value; update screenshots |
+
+### The zones form an even grid { #zone-grid }
+
+From 640 px of the report's main area, the four zones form a 2×2 grid of equal halves. Below that
+they stand in one column. `--pk-shelf-min` is now the least width of a half. Where a half would be
+narrower, the zones stand in one column. Each zone also has a frame (`--pk-zone-border`) and 4 px more
+height (`--pk-shelf-pad-block`) ([theming](../reference/theming.md)).
+
 ## From 0.7 to 0.8 { #from-0-7 }
 
 This applies to pivotkit-server and pivotkit-mcp 0.2.0 too, which move to 0.3.0 with pivotkit 0.8.
