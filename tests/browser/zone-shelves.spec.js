@@ -473,7 +473,9 @@ test("a chip removed: the shelf that slides under the resting pointer opens no d
     await remove.focus();
     await page.keyboard.press("Enter");
     await expect.poll(() => chips(page, "rows")).not.toContain(last);
-    expect(await info.evaluate((el) => el.matches(":hover"))).toBe(true);
+    // the engine marks the "i" as hovered when it next updates hover after the layout shift; WebKit
+    // on macOS does that later than the chips' render, so the wait starts once it is hovered
+    await expect.poll(() => info.evaluate((el) => el.matches(":hover"))).toBe(true);
     await page.waitForTimeout(800);
     await expect(page.locator(".pk-info-pop")).toHaveCount(0);
     // a move over an "i" still shows its description
