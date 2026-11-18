@@ -24,6 +24,8 @@ export const en = {
     dateYearsCombined: "{years} combined",
     dateYearOnly: "{years} only",
     dateRangeTitle: "{field}: the data's first and last date, before filters",
+    dateRangeData: "Data before filters: {range}",
+    dateRangeField: "{field} before filters: {range}",
     /** the name of the report's region landmark */
     report: "Pivot report",
     core: /** @type {import("pivotkit-core").Labels} */ (REPORT_LABELS.en),
@@ -389,6 +391,8 @@ export const de = {
     dateYearsCombined: "{years} zusammengefasst",
     dateYearOnly: "nur {years}",
     dateRangeTitle: "{field}: erstes und letztes Datum der Daten, vor den Filtern",
+    dateRangeData: "Daten vor den Filtern: {range}",
+    dateRangeField: "{field} vor den Filtern: {range}",
     report: "Pivot-Bericht",
     core: /** @type {import("pivotkit-core").Labels} */ (REPORT_LABELS.de),
     zones: { rows: "Zeilen", cols: "Spalten", values: "Werte", filters: "Filter" },

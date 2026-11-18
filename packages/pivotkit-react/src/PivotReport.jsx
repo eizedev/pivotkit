@@ -836,10 +836,10 @@ function Report(props) {
             }
             const entry = info.get(sourceOf(view, field).toLowerCase());
             const range = dateRangeText(dateSpan(encoded, sourceOf(view, field)), dateLocale);
-            const description = [entry?.description, range].filter(Boolean).join(" · ");
+            const description = [entry?.description, range && fill(labels.dateRangeData, { range })].filter(Boolean).join(" · ");
             return description ? { ...entry, description } : undefined;
         },
-        [info, view, encoded, dateLocale]
+        [info, view, encoded, dateLocale, labels]
     );
     const fieldInfo = useMemo(() => {
         const entries = new Map(info);
@@ -1770,7 +1770,7 @@ function Report(props) {
                                 <span className="pk-row-count" data-testid="row-count">
                                     {result ? rowCount(result.rows.length, result.encoded.length, labels, locale) : ""}
                                 </span>
-                                {context.ranges.map(({ field, text }) => <span key={field} data-testid="date-range" title={fill(labels.dateRangeTitle, { field: fieldLabel(field, labels.core) })}>{context.ranges.length > 1 ? `${fieldLabel(field, labels.core)}: ` : ""}{text}</span>)}
+                                {context.ranges.map(({ field, text }) => <span key={field} data-testid="date-range" title={fill(labels.dateRangeTitle, { field: fieldLabel(field, labels.core) })}>{context.ranges.length > 1 ? fill(labels.dateRangeField, { field: fieldLabel(field, labels.core), range: text }) : fill(labels.dateRangeData, { range: text })}</span>)}
                                 {importMod ? <importMod.SourceLine api={api} /> : null}
                                 {rowLabel && showTable ? (
                                     <span className="pk-row-label" data-testid="row-label">

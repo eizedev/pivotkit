@@ -9,6 +9,7 @@ for (const lang of ["en", "de"]) {
         await expect(page.getByTestId("date-range")).toContainText("2023");
         await expect(page.getByTestId("date-range")).toContainText("2025");
         // the range is the data's, before filters: its tooltip says so
+        await expect(page.getByTestId("date-range")).toContainText(lang === "en" ? "Data before filters:" : "Daten vor den Filtern:");
         await expect(page.getByTestId("date-range")).toHaveAttribute("title", lang === "en" ? "Date: the data's first and last date, before filters" : "Date: erstes und letztes Datum der Daten, vor den Filtern");
         const years = lang === "en" ? "2023–2025 combined" : "2023–2025 zusammengefasst";
         // the table's title names the years; the chip keeps the plain name, its tooltip has the years
@@ -19,7 +20,7 @@ for (const lang of ["en", "de"]) {
         await page.locator('[data-zone="cols"] [data-testid^="chip-menu-"]').click();
         await page.getByTestId("topic-group").click();
         const menu = page.locator(".pk-chip-menu");
-        await expect(menu).toContainText(lang === "en" ? "Data:" : "Daten:");
+        await expect(menu).toContainText(lang === "en" ? "Data before filters: Jan 1, 2023 – Dec 31, 2025 (1,096 days)" : "Daten vor den Filtern:");
         await expect(menu).toContainText(lang === "en" ? "One item per period" : "Ein Eintrag pro Zeitraum");
         await expect(menu).toContainText(lang === "en" ? "3 years together" : "3 Jahre zusammen");
     });
@@ -67,6 +68,13 @@ test("one year by weekday: plain items, the year in the title #109", async ({pag
     await expect(table).toContainText("Weekday · 2025 only");
     await expect(table).toContainText("Mon");
     await expect(table).not.toContainText("Mon 2025");
+    // the file has the plain name and items, as the command line writes them
+    await page.getByTestId("export").click();
+    const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
+    const text = await readFile(await download.path(), "utf8");
+    expect(text).not.toContain("only");
+    expect(text).toMatch(/^\W?"?Weekday"?,/m);
+    expect(text).toMatch(/^"?Mon"?,/m);
 });
 
 test("field information and footer use the loaded view locale #109", async ({page}) => {
@@ -77,6 +85,8 @@ test("field information and footer use the loaded view locale #109", async ({pag
     await expect(page.getByTestId("date-range")).toContainText(expected);
     await page.locator('.pk-field[data-field="Date"]').getByTestId("field-info").click();
     await expect(page.locator(".pk-popover")).toContainText(expected);
+    // the "i" says the range is the data's before filters, as the footer and the Group level do
+    await expect(page.locator(".pk-popover")).toContainText("Data before filters:");
 });
 
 for (const theme of ["light", "dark"]) {
@@ -144,9 +154,12 @@ test("single cyclic month shows observed non-Gregorian endpoints; the export kee
     await page.getByTestId("export").click();
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
     const text = await readFile(await download.path(), "utf8");
-    // the file holds pivotkit-core's item, as the command line and the server write it
+    // the file holds pivotkit-core's item, as the command line and the server write it: the month
+    // name of the key's date in the year 2000 (derive.js), here in the Islamic calendar
     expect(text).not.toContain(`${first} – ${last}`);
-    expect(text.trim().split(/\r?\n/)).toHaveLength(3);
+    const jan = await page.evaluate((loc) => new Intl.DateTimeFormat(loc, {month: "short", timeZone: "UTC"}).format(Date.UTC(2000, 0, 1)), locale);
+    const lines = text.split(/\r?\n/).map((line) => line.replace(/^\uFEFF?"?/, ""));
+    expect(lines.some((line) => line.startsWith(jan))).toBe(true);
 });
 
 
@@ -161,9 +174,12 @@ test("combined cyclic months display Gregorian grouping keys in other calendars;
     await page.getByTestId("export").click();
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
     const text = await readFile(await download.path(), "utf8");
-    // pivotkit-core's items and the field's plain name, as the command line and the server write them
+    // pivotkit-core's items and the field's plain name, as the command line and the server write them:
+    // the month names of the keys' dates in the year 2000 (derive.js), here in the Islamic calendar
     expect(text).not.toContain("combined");
-    expect(text.trim().split(/\r?\n/)).toHaveLength(14);
+    const [jan, dec] = await page.evaluate((loc) => [0, 11].map((m) => new Intl.DateTimeFormat(loc, {month: "short", timeZone: "UTC"}).format(Date.UTC(2000, m, 1))), locale);
+    expect(text).toContain(jan);
+    expect(text).toContain(dec);
 });
 
 test("drill title retains combined cyclic field context #109", async ({page}) => {

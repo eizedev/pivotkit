@@ -176,7 +176,8 @@ unit:
 
 The chip names the grouping in words: "Created by month", in German "Erstellt nach Monat". The
 **Group** level of the chip's menu changes the unit. Its first line gives the data's first and last
-date and the number of days. Below is one column under two headings. Each unit shows an example from
+date before filters and the number of days: "Data before filters: Jan 1, 2023 – Dec 31, 2025
+(1,096 days)". Below is one column under two headings. Each unit shows an example from
 your data on its right, such as "Q1 2024 … Q4 2025 (8)". A choice applies and closes the menu, since
 the chip is another field then.
 
@@ -209,19 +210,22 @@ When filters leave one year:
 - The items of a month or a quarter carry it: "Jan 2025".
 - A weekday, an hour or a week keeps its items plain. The title says "Date by weekday · 2025 only".
 
-The footer gives the first and last date of the data next to the row count. It does so when a date
-is in Rows, Columns or Filters. The range is the data's before filters, as its tooltip says. The
-date's **i** in the field list and the Group level show the same range.
+The footer gives the first and last date of the data next to the row count: "Data before filters:
+Jan 1, 2023 – Dec 31, 2025". It does so when a date is in Rows, Columns or Filters. The date's **i**
+in the field list and the Group level show the same range, with the same words.
 
 ![The footer with the rows and the data's date range, the column title "Date by month of year · 2023–2025 combined"](../assets/screenshots/date-context-light.png#only-light)
 ![The footer with the rows and the data's date range, the column title "Date by month of year · 2023–2025 combined"](../assets/screenshots/date-context-dark.png#only-dark)
 
 ??? note "Details of the date range and the combined years"
-    - With more than one date in the report, the footer names the field before each range.
+    - With more than one date in the report, the footer names the field before each range: "Date
+      before filters: …".
     - The name lists up to 32 years. More end in "…". Gaps stay gaps: "2019, 2021–2023".
     - The years are for reading only. The saved view keeps the field's name. The exported files
       hold the plain name and the plain items, as the command line and the server write them. The
       drill-down's title shows the years.
+    - A chart image (PNG) and the chart in an HTML report show what the screen shows, with the
+      years in the titles. An image is a picture of the report.
     - Years before 1 AD carry their era: "5 BC".
     - In a language setting with another calendar, the items of one year name their months in that
       calendar. Combined months keep the Gregorian month names, as the grouping does.

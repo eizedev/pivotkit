@@ -49,7 +49,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ([#580](https://github.com/eizedev/pivotkit/issues/580)).
 - Theme tokens for the zones' section (`--pk-section-*`) and the tab shown (`--pk-tab-mark`)
   ([#580](https://github.com/eizedev/pivotkit/issues/580)).
-- The data's date range before filters: in the footer next to the row count, and in a date
+- The data's date range before filters ("Data before filters: …"): in the footer next to the row count, and in a date
   field's "i". The title of a cyclic grouping such as "Month of year" in the table and the chart
   says which years it combines: "Date by month of year · 2023–2025 combined". With one year left,
   month and quarter items carry it ("Jan 2025"); weekday, hour and week say "· 2025 only" in the

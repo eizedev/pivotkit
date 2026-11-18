@@ -251,7 +251,7 @@ export const de = {
     groupNone: "Keine Gruppierung (jedes Datum mit Uhrzeit)",
     groupTimeline: "Ein Eintrag pro Zeitraum",
     groupCyclic: "Gleicher Zeitraum, Jahre zusammengefasst",
-    groupDataRange: {one: "Daten: {range} ({count} Tag)", other: "Daten: {range} ({count} Tage)"},
+    groupDataRange: {one: "Daten vor den Filtern: {range} ({count} Tag)", other: "Daten vor den Filtern: {range} ({count} Tage)"},
     groupYearsTogether: {one: "{count} Jahr zusammen", other: "{count} Jahre zusammen"},
     unitHints: {
         year: "2025", yearQuarter: "Q1 2025", yearMonth: "Jan. 2025", yearWeek: "2025-W03", day: "15.01.2025",
