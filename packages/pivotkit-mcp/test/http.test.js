@@ -65,8 +65,14 @@ test("a body over 2 MiB is refused with 413 before it is parsed", async () => {
     const dir = workspace();
     const server = await httpServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir });
     try {
-        const res = await raw(server.url, { method: "POST", headers: POST, body: `{"x":"${"a".repeat(2_200_000)}"}` });
+        const body = `{"x":"${"a".repeat(2_200_000)}"}`;
+        // the whole answer arrives: the server reads the rest of the body before it closes, no reset
+        const res = await raw(server.url, { method: "POST", headers: POST, body });
         assert.equal(res.status, 413);
+        // refused on its declared size, before a byte of the body is read: only that check names a size
+        const refused = server.log.find((l) => l.event === "refused" && l.reason === "body_too_large");
+        assert.ok(refused, JSON.stringify(server.log));
+        assert.deepEqual([refused.limit, refused.size, res.headers["x-request-id"]], [2_097_152, Buffer.byteLength(body), refused.requestId]);
     } finally {
         await server.close();
     }
