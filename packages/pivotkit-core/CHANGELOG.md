@@ -8,6 +8,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `numberRepeats(names)` numbers a name that comes again: "Sum of Units (2)"
+  ([#581](https://github.com/eizedev/pivotkit/issues/581)).
 - Three chart settings in the view, with their schema and `CATALOG.chartZooms` ([#36](https://github.com/eizedev/pivotkit/issues/36)):
   - `chart.zoom` (`"auto"`, `"on"`, `"off"`): `decorateOption` takes it as `zoom` and adds a zoom
     slider (ECharts `dataZoom`) under the category axis, with the labels laid out for its window.
@@ -65,6 +67,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
+- A value that is in the view twice is told apart: the second is "Sum of Units (2)" in the grid's
+  `valueNames`, its header, the exports and the chart's series
+  ([#581](https://github.com/eizedev/pivotkit/issues/581)).
 - A bar lights up alone under the pointer: `decorateOption` sets `emphasis.focus: "self"` on bars,
   and `toEChartsOption` sets `axisPointer.triggerEmphasis: false` for them. The category under the
   pointer no longer lights up every bar. Lines keep `focus: "series"`

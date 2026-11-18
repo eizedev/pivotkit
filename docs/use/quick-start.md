@@ -5,7 +5,7 @@ description: Your first pivotkit report in six steps, with a picture of each - r
 
 # Quick start
 
-You build a report by putting fields into four boxes, the **zones**:
+You build a report by putting fields into four places, the **zones**:
 
 - **Rows** and **Columns** split the table.
 - **Values** says what the table computes in its cells.
@@ -45,7 +45,8 @@ a value shows the rows behind it.
 ## 4. Split the columns
 
 Drag **Category** into **Columns**, or choose "Add to Columns" in its menu. The menu is the three
-dots next to the field. Each region then has a value per category, with totals at the right and at
+dots next to the field. **+ Add** next to the title **Columns** does the same: pick **Category** in
+its list. Each region then has a value per category, with totals at the right and at
 the bottom.
 
 ![Revenue per region and category, with totals](../assets/screenshots/quick-columns-light.png#only-light)

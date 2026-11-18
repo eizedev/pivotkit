@@ -4,12 +4,18 @@
  * what a click on a field of the field list does, and the zones folded into one line, in words.
  */
 
-import { MAX_DATE_MS, fieldLabel, formatter, relativeDateRange } from "pivotkit-core";
+import { MAX_DATE_MS, fieldLabel, formatter, numberRepeats, relativeDateRange } from "pivotkit-core";
 import { fill, plural } from "./labels.js";
 import { hiddenNot, ruleOp } from "./view-ops.js";
 
 /** A rule's short text, inverted in words when its `not` has no word of its own (hiddenNot). */
 const withNot = (f, text, labels) => (hiddenNot(f) ? fill(labels.notRule, { rule: text }) : text);
+
+/**
+ * The names of a view's values, the chips' and the table headers': a repeated one numbered as the
+ * exports name it ("Sum of Revenue (2)", pivotkit-core's numberRepeats).
+ */
+export const valueLabels = (values, labels) => numberRepeats(values.map((v) => valueLabel(v, labels)));
 
 /** "Sum of Revenue", "% of grand total of Revenue", or the value's own name. */
 export function valueLabel(spec, labels) {

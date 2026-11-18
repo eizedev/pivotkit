@@ -59,8 +59,9 @@ The report adapts to its own width, not the window's.
 
 | Report width | Layout |
 | --- | --- |
-| Wide | The field list on the left, the zones in a 2 x 2 grid. |
+| Wide | The field list on the left, the zones as shelves side by side while they fit. |
 | Narrow: below 640 px of the report's own width | The field list is a drawer that **Fields** in the toolbar opens. Menus open as sheets from the bottom of the window. |
+| Below 400 px | Each zone's title and its **i** stand in a row above its chips, so field names stay whole. **+ Add** sits at the right end of that row. |
 
 ![The report at phone width: toolbar, the zones folded under their heading, one tip, the tabs with their icon buttons, and the table below](../assets/screenshots/phone-light.png#only-light){ width="320" }
 ![The report at phone width: toolbar, the zones folded under their heading, one tip, the tabs with their icon buttons, and the table below](../assets/screenshots/phone-dark.png#only-dark){ width="320" }
@@ -114,6 +115,8 @@ A report is low below 600 px of height, a narrow one below 820 px. Then it start
 folded. The heading **Fields in the report** stays, and next to it, in the same line, what is
 placed: "Rows: Team · Columns: Priority · Values: Count of Ticket". At most one tip shows.
 
+- When the zones need more room than the report has, they fold after you leave the area, not while
+  you work in it. Adding, moving or removing fields never folds them under your hand.
 - A click on the heading or on what is placed folds or opens the zones. The chevron on its left
   turns.
 - The **i** next to the heading says what the section is for.
@@ -122,7 +125,12 @@ placed: "Rows: Team · Columns: Priority · Values: Count of Ticket". At most on
 - **Swap rows and columns** sits at the right end of the heading row. It works while the zones are
   folded too.
 - A drag from the field list or the table opens the zones while it lasts.
-- Your click holds until the page is loaded again.
+- Your click holds until the page is loaded again, also after **Start over** or **New, empty
+  report**.
+- A report with no field placed starts with its zones open, so **+ Add** is there to start with.
+  They stay open as you add fields. On a phone, fold them again with the heading once the report is
+  built, so the result has the room. A saved view or a template loaded into an empty report folds
+  them as any loaded view does.
 
 The report's box can be lower than its toolbar, its zones, its tips and the least height of the
 result need. The least height is 240 px, 280 px on a narrow report. In that case:

@@ -70,6 +70,16 @@
     --pk-section-indent: 26px;
     --pk-section-bg: var(--pk-surface-2);
     --pk-section-pad: 6px;
+    /* the zones as shelves: the room between shelves and between chips, a shelf's padding, the width
+       below which a shelf takes a line of its own, a chip's height; "+ Add" after the zone's title
+       and "i", and its background on hover and while its menu is open */
+    --pk-shelf-gap: 4px;
+    --pk-shelf-pad: 4px;
+    --pk-shelf-min: 17em;
+    --pk-chip-gap: 6px;
+    --pk-chip-h: 2.2em;
+    --pk-add-gap: 12px;
+    --pk-add-hover: var(--pk-accent-soft);
     /* the line on top of the tab shown (Table, Chart) */
     --pk-tab-mark: 3px;
     /* the chart tooltip's series names: a longer one ends in "…" */
@@ -847,14 +857,16 @@
 
 /* ---- zones and chips ---- */
 
+/* the shelves flow: side by side while they fit, a line of its own for one that needs it */
 .pk-zones {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--pk-shelf-gap);
 }
 
 /* the section of the zones: a rule above and below it, its heading row (the fold button, Swap beside
-   it), and the zones open in a tinted panel indented to the heading's text */
+   it), and the zones open in a tinted panel indented to the heading's text: the shelves stand on it
+   in the report's surface, so an empty shelf reads as a place without an outline */
 .pk-zone-section {
     display: flex;
     flex-direction: column;
@@ -949,21 +961,26 @@
     }
 }
 
+/* a shelf: its head (title, "i", "+ Add") at its left, its chips beside it. Its natural width is
+   all of that in one line; short of room it takes a line of its own and its chips wrap. The dashed
+   outline is there at rest too, transparent, so it shows during a drag without moving anything. */
 .pk-zone {
     position: relative;
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-height: 4.6em;
-    padding: 8px 10px 10px;
-    border: 1.5px dashed var(--pk-drop-border);
+    flex: 1 1 auto;
+    align-items: flex-start;
+    gap: var(--pk-chip-gap);
+    min-width: min(100%, var(--pk-shelf-min));
+    max-width: 100%;
+    padding: var(--pk-shelf-pad);
+    border: 1.5px dashed transparent;
     border-radius: var(--pk-radius);
     background: var(--pk-surface-2);
     transition: background var(--pk-duration), border-color var(--pk-duration), box-shadow var(--pk-duration);
 }
 
 .pk-zone.pk-dropping {
-    border-color: color-mix(in srgb, var(--pk-accent) 55%, var(--pk-border));
+    border-color: var(--pk-drop-border);
 }
 
 .pk-zone.pk-over {
@@ -979,9 +996,41 @@
 
 .pk-zone-head {
     display: flex;
+    flex: none;
     align-items: center;
     gap: 0.5em;
     min-width: 0;
+    min-height: var(--pk-chip-h);
+}
+
+/* "+ Add": right after the title and its "i", --pk-add-gap from them */
+.pk-zone-add {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 0.25em;
+    min-height: var(--pk-target);
+    margin-inline-start: calc(var(--pk-add-gap) - 0.5em);
+    padding: 0 0.45em 0 0.3em;
+    border: 0;
+    border-radius: var(--pk-radius-sm);
+    background: none;
+    color: var(--pk-accent);
+    font: inherit;
+    font-size: var(--pk-small);
+    font-weight: var(--pk-weight-strong);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background var(--pk-duration);
+}
+
+.pk-zone-add:hover,
+.pk-zone-add[aria-expanded="true"] {
+    background: var(--pk-add-hover);
+}
+
+.pk-zone-add .pk-caret {
+    display: none;
 }
 
 /* Swap rows and columns, at the end of the section's heading row: works folded too */
@@ -1024,9 +1073,13 @@
 
 .pk-chips {
     display: flex;
+    flex: 1 1 auto;
     flex-wrap: wrap;
-    gap: 6px;
-    min-height: 2.2em;
+    align-items: center;
+    gap: var(--pk-chip-gap);
+    min-width: 0;
+    min-height: var(--pk-chip-h);
+    margin: 0;
     padding: 0;
     list-style: none;
 }
@@ -1042,7 +1095,7 @@
     align-items: center;
     gap: 4px;
     max-width: 100%;
-    height: 2.2em;
+    height: var(--pk-chip-h);
     padding: 0 2px 0 3px;
     border: 1px solid var(--pk-border);
     border-radius: 999px;
@@ -1243,6 +1296,43 @@
 .pk-chip-menu {
     width: 420px;
     max-width: min(420px, calc(100vw - 16px));
+}
+
+/* a mark after an entry's text (the menu of "+ Add": the zones a field is in) */
+.pk-tag {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 0.25em;
+    margin-left: auto;
+    padding: 0 0.45em;
+    border-radius: 999px;
+    background: var(--pk-surface-3);
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+    font-weight: var(--pk-weight-normal);
+    white-space: nowrap;
+}
+
+.pk-tag + .pk-tag {
+    margin-left: 0.3em;
+}
+
+/* the menu of "+ Add": a field's type icon in its type's colour, as in the field list */
+.pk-add-type-string .pk-option-icon {
+    color: var(--pk-type-string);
+}
+
+.pk-add-type-number .pk-option-icon {
+    color: var(--pk-type-number);
+}
+
+.pk-add-type-date .pk-option-icon {
+    color: var(--pk-type-date);
+}
+
+.pk-add-type-boolean .pk-option-icon {
+    color: var(--pk-type-boolean);
 }
 
 /* a badge in words (a rule, a value condition): its text shortens to "…" when its chip is short of
@@ -3446,34 +3536,8 @@
     transition: transform calc(var(--pk-duration) * 1.4) var(--pk-ease), visibility 0s;
 }
 
-/* zones stacked, one line each, when the main area is too narrow for two zones side by side: in the
-   narrow layout, and in the medium one when the field list leaves less than 640 px (a half-width card) */
-@container pk-main (width < 640px) {
-    .pk-zones {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 6px;
-    }
-
-    .pk-zone {
-        flex-direction: row;
-        align-items: center;
-        min-height: 3em;
-        padding: 6px 8px;
-    }
-
-    .pk-zone-head {
-        width: 6.5em;
-        flex: none;
-    }
-
-    .pk-chips {
-        flex: 1;
-        min-width: 0;
-    }
-}
-
-/* a phone: the zone's name above its chips, so a chip has the zone's width for its name and its
-   badges ("15 of 45", "Top 10") */
+/* a phone: the shelf's title row above its chips, so a chip has the shelf's width for its name and
+   its badges ("15 of 45", "Top 10"); the title and its "i" at the left, "+ Add" at the row's end */
 @container pk-main (width < 400px) {
     .pk-zone {
         flex-wrap: wrap;
@@ -3481,6 +3545,10 @@
 
     .pk-zone .pk-zone-head {
         width: 100%;
+    }
+
+    .pk-zone .pk-zone-add {
+        margin-inline-start: auto;
     }
 }
 
@@ -3684,10 +3752,11 @@
     flex: 1;
 }
 
+/* the shelves' places: two side by side, one per line where a shelf's least width does not fit twice */
 .pk-skel-zones {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--pk-shelf-gap);
 }
 
 .pk-skel-table {
@@ -3724,7 +3793,9 @@
 }
 
 .pk-skel-zone {
-    height: 4.2em;
+    flex: 1 1 calc(50% - var(--pk-shelf-gap));
+    min-width: min(100%, var(--pk-shelf-min));
+    height: calc(var(--pk-chip-h) + 2 * var(--pk-shelf-pad));
     border-radius: var(--pk-radius);
 }
 
@@ -3934,7 +4005,7 @@
 /* ---- touch screens: the small controls get a hit area a finger finds (44 px) ---- */
 
 @media (pointer: coarse) {
-    .pk-root :is(.pk-chip-x, .pk-info, .pk-field-menu, .pk-handle, .pk-tip-x, .pk-toast-x, .pk-issues-x, .pk-th-sort) {
+    .pk-root :is(.pk-chip-x, .pk-info, .pk-field-menu, .pk-handle, .pk-tip-x, .pk-toast-x, .pk-issues-x, .pk-th-sort, .pk-zone-add) {
         min-width: var(--pk-target-touch);
         min-height: var(--pk-target-touch);
     }

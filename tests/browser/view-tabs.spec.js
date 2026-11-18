@@ -2,6 +2,7 @@
 // More with Help first, and the section "Fields in the report" with its fold button and Swap (#580).
 // Real pointer clicks and keys; both sizes the design was made for.
 import { test as plain } from "@playwright/test";
+import { encodeViewLink } from "pivotkit-core/link";
 import { expect, test, toolbar } from "./fixtures.js";
 
 /** The test id of the element with the focus, through shadow roots. */
@@ -210,12 +211,12 @@ test("the section: one row; the fold button names the section and, folded, says 
     await expect(fold).toHaveAttribute("aria-expanded", "true");
     // open: no summary and no hint line
     await expect(sub).toHaveCount(0);
-    await expect(page.locator(".pk-zone-section").getByText("Drag fields into Filters, Columns, Rows and Values.")).toBeHidden();
+    await expect(page.locator(".pk-zone-section").getByText("Drag fields into Filters, Columns, Rows and Values, or use Add in each one.")).toBeHidden();
     // the hint is in the section's "i", the zones' own button
     const info = page.getByTestId("zones-info");
     await expect(info).toHaveAccessibleName("About Fields in the report");
     await info.hover();
-    await expect(page.locator(".pk-info-pop")).toContainText("Drag fields into Filters, Columns, Rows and Values.");
+    await expect(page.locator(".pk-info-pop")).toContainText("Drag fields into Filters, Columns, Rows and Values, or use Add in each one.");
     await fold.click();
     await expect(fold).toHaveAttribute("aria-expanded", "false");
     await expect(page.locator(".pk-zone")).toHaveCount(0);
@@ -310,10 +311,27 @@ plain("a zones value the report does not know is ignored with one console warnin
     expect(warnings.length).toBe(1);
 });
 
-test("the open zones with their heading need room: a desktop report of 640 px starts folded, one of 760 px open", async ({ page }) => {
+test("the open zones with their heading need room: a desktop report a little lower than they need starts folded, one a little higher open", async ({ page }) => {
+    // many fields, so the open shelves need more than the low report's 600 px: their need decides
+    const many = encodeViewLink({
+        rows: ["Source system", "Operating system", "Location", "Type"],
+        cols: ["Status"],
+        values: [{ field: "Cost", agg: "sum" }, { field: "Disk GB", agg: "average" }, { field: "Cost", agg: "average" }]
+    });
+    const at = (height) => `?data=assets&lang=en&height=${height}#pivot-playground=${many}`;
     await page.setViewportSize({ width: 1440, height: 900 });
-    for (const [height, expanded] of [[640, "false"], [760, "true"]]) {
-        await page.goto(`?data=sales&lang=en&height=${height}`);
+    // what the open zones with their heading need: the report's height less the result's room above its least
+    await page.goto(at(2000));
+    await page.locator('[data-testid="pivot-table"]').waitFor();
+    await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "true");
+    const need = await page.locator(".pk-root").evaluate((el) => {
+        const result = el.querySelector(".pk-result");
+        const least = parseFloat(getComputedStyle(result).getPropertyValue("--pk-result-least")) || 0;
+        return Math.ceil(el.getBoundingClientRect().height - (result.getBoundingClientRect().height - least));
+    });
+    expect(need - 24).toBeGreaterThanOrEqual(600);
+    for (const [height, expanded] of [[need - 24, "false"], [need + 24, "true"]]) {
+        await page.goto(at(height));
         await page.locator('[data-testid="pivot-table"]').waitFor();
         await expect(page.getByTestId("layout-summary"), `${height} px`).toHaveAttribute("aria-expanded", expanded);
     }
