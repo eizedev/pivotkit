@@ -85,7 +85,9 @@ test.describe("a field's menu by keyboard", () => {
         expect(parseFloat(await hint.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(14);
         await menu.getByTestId("group-quarter").click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Created by quarter of year"]);
-        await expect(page.locator('[data-zone="rows"]')).toContainText("2025–2026 combined");
+        // the table's title names the combined years; the chip keeps the plain name
+        await expect(page.getByTestId("pivot-table")).toContainText("2025–2026 combined");
+        await expect(page.locator('[data-zone="rows"] .pk-chip-name')).not.toContainText("combined");
     });
 });
 

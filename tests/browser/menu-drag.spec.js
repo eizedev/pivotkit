@@ -79,7 +79,7 @@ async function monthFilterWithPick(page) {
     const menu = page.locator(".pk-chip-menu");
     await menu.locator(".pk-value", { hasText: "Jan" }).getByRole("checkbox").click();
     await expect(menu.getByTestId("filter-summary-head")).toHaveText("11 of 12 months shown");
-    await expect(page.locator('[data-zone="cols"] .pk-chip-label')).not.toHaveText(`${MONTH} · 2023–2025 combined`);
+    await expect(page.locator('[data-zone="cols"] .pk-chip-label')).not.toHaveText(MONTH);
     return menu;
 }
 
@@ -148,7 +148,7 @@ test.describe("a press inside a chip's menu never drags the chip", () => {
         await expect(menu.getByTestId("filter-summary-head")).toHaveText("All 12 months shown");
         expect(await chips(page, "cols")).toEqual([MONTH]);
         expect(await chips(page, "values")).toEqual([MEAN]);
-        await expect(page.locator('[data-zone="cols"] .pk-chip-label')).toHaveText(`${MONTH} · 2023–2025 combined`);
+        await expect(page.locator('[data-zone="cols"] .pk-chip-label')).toHaveText(MONTH);
     });
 
     test("Reset filter pressed and the mouse moved off over Values: nothing changes", async ({ page }) => {

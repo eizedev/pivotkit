@@ -794,6 +794,8 @@ function Report(props) {
             return { result: null, error };
         }
     }, [plan.swap, view, encoded, locale, limits, computed, result]);
+    // a chip keeps the plain name; its tooltip names the years its date grouping combines
+    const titleOf = useCallback((/** @type {string} */ field) => context.titles.get(field), [context]);
     const chartContext = useMemo(() => chartComputed.result === computed.result ? context : dateContext(chartComputed.result, labels), [chartComputed.result, computed.result, context, labels]);
     const chartResult = chartContext.result;
     const empty = isEmptyView(view);
@@ -1645,7 +1647,7 @@ function Report(props) {
                             <Zones
                                 view={view}
                                 types={types}
-                                labels={context.labels}
+                                labels={labels}
                                 commit={commit}
                                 encoded={encoded}
                                 locale={dateLocale}
@@ -1655,6 +1657,7 @@ function Report(props) {
                                 onFold={() => setFolded(!layoutFolded)}
                                 defaultsOf={defaultsOf}
                                 infoOf={infoOf}
+                                titleOf={titleOf}
                                 earlier={history.earlier}
                                 explain={zoneSwitch.on}
                                 showInfo={fieldSwitch.on}
