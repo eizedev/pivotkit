@@ -730,36 +730,50 @@ test("a POST presign whose connection drops is not tried again", async () => {
 
 test("the presign request gets what is left of timeMs after waiting for a slot, not all of it", async () => {
     let presigns = 0;
-    let gaveUp = false;
     const sign = presignRoute();
+    /** @type {() => void} */
+    let ended = () => {};
+    const thirdEnded = new Promise((resolve) => {
+        ended = () => resolve(undefined);
+    });
     routes.set("POST /presign", (entry, res) => {
         presigns++;
         if (presigns < 3) {
             sign(entry, res);
             return;
         }
-        // the third presign answers after 800 ms: by then its upload's time (1500 ms, 1000 of them waiting) is up
-        let closed = false;
-        res.on("close", () => {
-            closed = true;
-        });
-        setTimeout(() => {
-            gaveUp = closed;
-            if (!closed) {
-                sign(entry, res);
-            }
-        }, 800);
+        // the third presign never answers: only its caller's time limit ends it
+        res.on("close", ended);
     });
-    routes.set("PUT *", (entry, res) => setTimeout(() => bucket()(entry, res), 1000));
-    const { context, log } = await contextOf(presignOptions({ timeMs: 1500 }));
+    // a PUT holds its slot for 2000 ms, so the third upload waits about that long for one
+    routes.set("PUT *", (entry, res) => setTimeout(() => bucket()(entry, res), 2000));
+    // the time limit each presign request got from its caller, and when it asked
+    const fetch = uploadMeans.fetch;
+    /** @type {{ limit: number, at: number }[]} */
+    const asks = [];
+    uploadMeans.fetch = (url, init) => {
+        if (new URL(url).pathname === "/presign") {
+            asks.push({ limit: init.timeMs, at: Date.now() });
+        }
+        return fetch(url, init);
+    };
+    const { context, log } = await contextOf(presignOptions({ timeMs: 3000 }));
     try {
+        const called = Date.now();
         const three = [1, 2, 3].map((n) => failureOf(withRequestId(`Budget_Id0${n}`, () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }))));
         const errors = await Promise.all(three);
         assert.deepEqual(errors.map((e) => e?.code ?? null), [null, null, "UPLOAD_FAILED"]);
         assert.equal(log.find((l) => l.requestId === "Budget_Id03" && l.upload)?.upload, "TIMEOUT");
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        assert.equal(gaveUp, true, "the presign request was ended at the deadline");
+        assert.equal(asks.length, 3);
+        // the third presign request was ended, by its caller's time limit
+        await thirdEnded;
+        // When the third upload's clock started, counted from the calls: its limit plus the time until it
+        // asked, less timeMs. On a busy machine it starts up to some 350 ms after the first upload's.
+        // A limit that does not take off the wait for a slot puts the start at the end of that wait.
+        const started = asks[2].limit + (asks[2].at - called) - 3000;
+        assert.ok(started < 1000, `the third presign got ${asks[2].limit} ms after ${asks[2].at - called} ms, not what was left`); // wall time: the slot wait against a late start
     } finally {
+        uploadMeans.fetch = fetch;
         await context.close();
     }
 });
