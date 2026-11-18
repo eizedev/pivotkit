@@ -25,6 +25,24 @@ const onTop = (locator) =>
         return r.bottom <= window.innerHeight && (hit === el || el.contains(hit));
     });
 
+/**
+ * Moves the pointer to `at` and says whether the hover tip is still shown once the pointer has rested
+ * there `ms`, counted on the page's clock from the move's own event. A wait in the test would add the
+ * round trips to the browser to the rest: on a slow runner (CI's WebKit on Linux) they took it past
+ * the time a tip waits for a pointer on its way (WAY_TIME in info.jsx), and the tip closed as it should.
+ */
+async function restAt(page, at, ms) {
+    await page.evaluate(() => {
+        window.__pkMovedAt = null;
+        document.addEventListener("pointermove", () => { window.__pkMovedAt = performance.now(); }, { capture: true, once: true });
+    });
+    await page.mouse.move(at.x, at.y);
+    return page.evaluate((rest) => new Promise((done) => {
+        const since = window.__pkMovedAt ?? performance.now();
+        setTimeout(() => done(Boolean(document.querySelector(".pk-info-pop")?.checkVisibility())), Math.max(0, since + rest - performance.now()));
+    }), ms);
+}
+
 test.describe("popovers outside the report's clip", () => {
     test("the filter of a field low in the list, in a report lower than the window: Apply is shown", async ({ page }) => {
         await page.setViewportSize({ width: 1280, height: 900 });
@@ -136,8 +154,7 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
             const gap = below ? [b.y + b.height, t.y] : [t.y + t.height, b.y];
             expect(gap[1] - gap[0], "a gap between the i and its tip").toBeGreaterThan(1);
             // in the gap, at the i's centre line: neither on the i nor on the tip
-            await page.mouse.move(b.x + b.width / 2, (gap[0] + gap[1]) / 2);
-            await page.waitForTimeout(800);
+            expect(await restAt(page, { x: b.x + b.width / 2, y: (gap[0] + gap[1]) / 2 }, 800), "the tip after 800 ms in the gap").toBe(true);
             await expect(tip).toBeVisible();
             // on from there onto the tip: it stays
             await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2, { steps: 3 });
@@ -204,8 +221,7 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
             return hit?.closest(".pk-info-pop") ? "tip" : hit?.closest(".pk-info") ? "i" : "neither";
         }, at);
         expect(where).toBe("neither");
-        await page.mouse.move(at.x, at.y);
-        await page.waitForTimeout(800);
+        expect(await restAt(page, at, 800), "the tip after 800 ms beside the i").toBe(true);
         await expect(tip).toBeVisible();
         // resting there is no way anywhere: it closes within about two seconds, the menu stays
         await expect(tip).toHaveCount(0, { timeout: 3000 });
