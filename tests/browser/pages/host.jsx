@@ -9,7 +9,7 @@
 // PowerShell Universal does on its light/dark switch and Sync-UDElement): "Mount again" with the same
 // data, "New data" with other rows under another dataKey (a second click goes back to the first rows); both start the controlled view again at the
 // host's start view, as a remounted PowerShell Universal component does; ?two a second report under its own
-// storageKey; ?nokey leaves storageKey out; "Mount empty" mounts it with no rows yet (a host without
+// storageKey; ?nokey leaves storageKey out; ?zonesopen keeps the zones open (zones="open"); "Mount empty" mounts it with no rows yet (a host without
 // `loading` whose data is on its way), which come 300 ms later. "Mount twice" mounts it again and once
 // more in the host's layout effect right after, so the report mounted between is gone before it
 // renders a second time; "Mount twice, 30 ms apart" as PowerShell Universal's Sync-UDElement does
@@ -106,6 +106,8 @@ function Host() {
         ...(query.has("xss") ? { chartOptions: { tooltip: { formatter: '<img src="x" onerror="window.__xss = true">' }, series: { barMaxWidth: 10 } } } : {}),
         ...(query.has("import") ? { allowImport: true, plugins: [xlsxReader], onDataLoad: (d) => (window.__loads.push(d), window.__order.push(`data:${d.cause}`), !(d.sheet && d.sheet === window.__refuseSheet)), templateStore: "browser", storageKey: "host-import", source: { id: "sales", name: "Sales" } } : {}),
         ...(query.has("nokey") ? { storageKey: undefined } : {}),
+        // the zones open whatever their room: a test about history reads the chips, not the fold
+        ...(query.has("zonesopen") ? { zones: "open" } : {}),
         // Source data and the drill-down's exports with only these columns (a new object on every render)
         ...(query.has("exportcolumns") ? { exportData: { columns: query.get("exportcolumns").split(",") } } : {}),
         // Source data with every column

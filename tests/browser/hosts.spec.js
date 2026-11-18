@@ -115,7 +115,9 @@ test.describe("server rendering", () => {
 // Explicit host acknowledgements test the pending window without relying on machine speed.
 for (const intermediate of [false, true]) {
     test(`delayed controlled history keeps two steps (intermediate echo: ${intermediate}) #141`, async ({ page }) => {
-        await page.goto("pages/host.html?manualecho");
+        // the zones open throughout: the shelves' height follows their chips, and in this 702 px box
+        // a change of chips can fold them where fonts are wider (CI's Linux), hiding the chips read here
+        await page.goto("pages/host.html?manualecho&zonesopen");
         await openZones(page);
         await page.getByRole("button", { name: "Remove Country" }).click();
         await expect.poll(() => page.evaluate(() => window.__order.length)).toBe(1);

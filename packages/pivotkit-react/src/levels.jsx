@@ -104,6 +104,9 @@ export function MenuList({ label, labelledBy, className, close, children, testId
                 e.preventDefault();
                 e.stopPropagation();
                 items[i].focus();
+                // whole in the menu's scrolling list: a focus scrolls only as far as each engine
+                // decides (Firefox on Linux left the last row cut at the list's edge)
+                items[i].scrollIntoView?.({ block: "nearest" });
             }
         };
         const seg = /** @type {HTMLElement} */ (e.target).closest("[data-pk-seg]");

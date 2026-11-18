@@ -455,12 +455,11 @@ test.describe("drag and drop on shelves", () => {
         await page.mouse.down();
         await page.mouse.move(a.x + 20, a.y + 20, { steps: 4 });
         await page.mouse.move(b.x + b.width - 40, b.y + b.height / 2, { steps: 16 });
-        // every shelf shows its dashed outline while the drag lasts
-        const during = await page.locator("[data-zone]").evaluateAll((els) => els.map((el) => ({ style: getComputedStyle(el).borderTopStyle, color: getComputedStyle(el).borderTopColor })));
-        for (const s of during) {
-            expect(s.color).not.toBe("rgba(0, 0, 0, 0)");
-        }
-        expect(during.some((s) => s.style === "dashed")).toBe(true);
+        // every shelf shows its dashed outline while the drag lasts (polled: the colour comes in with a
+        // transition, and a slow engine reads its first frame)
+        const during = () => page.locator("[data-zone]").evaluateAll((els) => els.map((el) => ({ style: getComputedStyle(el).borderTopStyle, color: getComputedStyle(el).borderTopColor })));
+        await expect.poll(async () => (await during()).every((s) => s.color !== "rgba(0, 0, 0, 0)")).toBe(true);
+        expect((await during()).some((s) => s.style === "dashed")).toBe(true);
         await expect(to).toHaveClass(/pk-over/);
         await page.mouse.move(b.x + b.width - 39, b.y + b.height / 2, { steps: 2 });
         await page.mouse.up();
