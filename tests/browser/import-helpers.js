@@ -39,6 +39,7 @@ export const fieldNames = (scope) => scope.locator(".pk-field-list [data-field]"
  */
 export async function dataMenu(scope) {
     await scope.getByRole("toolbar").first().waitFor();
+    // a Locator has page(), a Page has not
     await twoFrames("page" in scope ? scope.page() : scope);
     const own = scope.getByTestId("data");
     if (await own.count()) {

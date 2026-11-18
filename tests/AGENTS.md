@@ -60,6 +60,10 @@ npm run bench:browser                                     # benchmark, 100k to 1
   It keeps Firefox from opening the native picker on the second pick.
 - A mouse drag waits until its target shows it takes the drop, then releases. `drag()` in `fixtures.js` does this.
   A busy WebKit can take the release before it has drawn the last moves, and the drop is lost.
+- A test looks for a toolbar button, its own or in More, after `twoFrames(page)` from `fixtures.js`.
+  The toolbar moves buttons into More again while the report lays out.
+- A test that rests the pointer for a time counts it on the page's clock, not with a wait in the test.
+  `restAt()` in `popover-clip.spec.js` does this for the info tips.
 
 ## Browser test pages
 

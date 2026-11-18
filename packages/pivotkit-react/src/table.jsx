@@ -431,9 +431,12 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         }
         const next = focusNext.current;
         if (next && current && current.r === next.r && current.c === next.c) {
-            focusNext.current = null;
-            const td = table.current?.querySelector(`td[data-r="${current.r}"][data-c="${current.c}"]`);
-            /** @type {HTMLElement | null} */ (td)?.focus({ preventScroll: false });
+            // a virtual table may not show the row yet: the request waits for a render that does
+            const td = /** @type {HTMLElement | null} */ (table.current?.querySelector(`td[data-r="${current.r}"][data-c="${current.c}"]`));
+            if (td) {
+                focusNext.current = null;
+                td.focus({ preventScroll: false });
+            }
         }
     });
 
