@@ -910,7 +910,7 @@ Each zone is a shelf: its title, its "i" and "+ Add" on the left, its chips flow
   on top, Rows and Values below. Below 640 px they stand in one column.
 - A half is at least `--pk-shelf-min` wide. Where it would be narrower, the grid keeps one column.
 - A chip never widens its shelf. The chips wrap inside it, so the drop targets stay in place.
-- A shelf narrower than 28em puts its title row above the chips, with "+ Add" at its right end.
+- A shelf narrower than 26em puts its title row above the chips, with "+ Add" at its right end.
   That happens on a phone and in the halves of a medium report.
 - Each shelf has a frame (`--pk-zone-border`). While something is dragged, the frame turns
   into the dashed drop outline. Its width stays the same, so the shelves do not move.

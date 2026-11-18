@@ -3574,7 +3574,7 @@
 /* a narrow shelf (a phone, a half of the grid on a medium report): its title row above its chips, so
    a chip has the shelf's width for its name and its badges ("15 of 45", "Top 10"); the title and its
    "i" at the left, "+ Add" at the row's end */
-@container pk-zone (width < 28em) {
+@container pk-zone (width < 26em) {
     .pk-zone-head {
         width: 100%;
     }
