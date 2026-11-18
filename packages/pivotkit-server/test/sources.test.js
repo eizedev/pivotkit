@@ -593,8 +593,10 @@ test("params: an operator's pattern never runs unbounded: a slow one is refused 
         assert.equal(matchWithin(new RegExp(`^(?:${pattern})$`, "u"), text), null, pattern);
         assert.ok(cpu() < MATCH_MS * 10, `${pattern}: cut after ${Math.round(cpu())} ms of CPU`);
     }
-    assert.equal(matchWithin(/^[a-z]+$/u, "abc"), true);
-    assert.equal(matchWithin(/^[a-z]+$/u, "ab1"), false);
+    // the answer of a fast match: true or false. Its limit is MATCH_MS of wall time, which a busy
+    // machine can use up before the match runs (1 of 60 runs under load); the lines above check the limit
+    assert.equal(matchWithin(/^[a-z]+$/u, "abc", 10_000), true);
+    assert.equal(matchWithin(/^[a-z]+$/u, "ab1", 10_000), false);
     // a declaration that skipped the check (a host's own code): the value is refused, in time, as BUSY
     // (#528: a match that runs out of time twice cannot tell a slow pattern from a busy server)
     const again = cpuClock();
