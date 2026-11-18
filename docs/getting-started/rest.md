@@ -12,6 +12,9 @@ In ten minutes you do the following:
 - check a view
 - render it into an Excel file and download it
 
+The REST service is at `/api/v1`. Its OpenAPI document sits at the server's root, `/openapi.json`,
+not under `/api/v1`.
+
 You need Node 22 or later. Without Node, use [Server in 5 minutes](server-in-5-minutes.md). It starts
 the container image with one command, and the server makes a token itself.
 [Container image](../reference/container.md) has the details.

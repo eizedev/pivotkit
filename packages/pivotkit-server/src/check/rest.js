@@ -36,7 +36,7 @@ export async function section(options, _registry, runtime) {
         items.push(plain("OpenAPI document: off"));
     } else {
         const who = (r.openapi ?? "auth") === "auth" ? "needs auth" : "public";
-        items.push(plain(`OpenAPI document: ${where.openapi}${where.base ? "" : ", at the server's root"}; ${who}`));
+        items.push(plain(`OpenAPI document: ${where.openapi}; ${who}`));
     }
     if (options.policy?.results) items.push(plain("file downloads: allowed for every caller (policy.results)"));
     return { items, upgrade: [] };

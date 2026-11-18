@@ -136,6 +136,7 @@ test("a 404 names the OpenAPI document's full address: under http.publicUrl, els
     const env = { env: { PIVOTKIT_TOKEN: TOKEN } };
     // the misplaced document, an unknown route under /api/v1 and a path nobody serves: one answer
     const detailOf = async (extra) => {
+        // without pivotkit-mcp's handler (enable: rest), so a path nobody serves reaches serve.js's own 404
         const server = await restServer({ ...base, ...extra }, env);
         try {
             const details = new Set();
@@ -150,12 +151,12 @@ test("a 404 names the OpenAPI document's full address: under http.publicUrl, els
             await server.close();
         }
     };
-    assert.equal(await detailOf({ http: { publicUrl: "https://pk.example.com/" } }), "no such route; the REST service is at https://pk.example.com/api/v1, its OpenAPI document at https://pk.example.com/openapi.json");
-    assert.equal(await detailOf({ rest: { openapi: "public" } }), "no such route; the REST service is at /api/v1, its OpenAPI document at the server's root, /openapi.json");
+    assert.equal(await detailOf({ http: { publicUrl: "https://pk.example.com/" } }), "no such route; the REST service is at https://pk.example.com/api/v1, its OpenAPI document at https://pk.example.com/openapi.json (not under /api/v1)");
+    assert.equal(await detailOf({ rest: { openapi: "public" } }), "no such route; the REST service is at /api/v1, its OpenAPI document at /openapi.json, at the server's root (not under /api/v1)");
     // a document that is not served is not named
     assert.equal(await detailOf({ rest: { openapi: "off" } }), "no such route; the REST service is at /api/v1");
     // a public URL's path is kept; its user name, password, query and fragment are never shown
-    assert.equal(await detailOf({ http: { publicUrl: "https://user:secret@pk.example.com/reports//?a=b#c" } }), "no such route; the REST service is at https://pk.example.com/reports/api/v1, its OpenAPI document at https://pk.example.com/reports/openapi.json");
+    assert.equal(await detailOf({ http: { publicUrl: "https://user:secret@pk.example.com/reports//?a=b#c" } }), "no such route; the REST service is at https://pk.example.com/reports/api/v1, its OpenAPI document at https://pk.example.com/reports/openapi.json (not under /api/v1)");
 });
 
 test("save is an input of POST /views/render, not of the file route", () => {

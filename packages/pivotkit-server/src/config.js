@@ -467,29 +467,30 @@ export const OPENAPI_PATH = "/openapi.json";
 /**
  * Where people find the REST service and its OpenAPI document, for messages: full addresses under
  * http.publicUrl (its origin and path; a user name, password, query or fragment is never shown),
- * else the paths. openapi is null where rest.openapi "off" serves no document.
+ * else the paths. Readers took a bare "/openapi.json" next to "/api/v1" as relative to it, so
+ * without a public URL the document's place is said in words. openapi is null where rest.openapi
+ * "off" serves no document. (http.publicUrl is checked as an http(s) address at start.)
  * @param {ServerOptions} options
- * @returns {{ rest: string, openapi: string | null, base: string | null }}
+ * @returns {{ rest: string, openapi: string | null }}
  */
 export function restAddressesOf(options) {
-    const url = options.http?.publicUrl && URL.canParse(options.http.publicUrl) ? new URL(options.http.publicUrl) : null;
+    const url = options.http?.publicUrl ? new URL(options.http.publicUrl) : null;
     const base = url ? `${url.origin}${url.pathname.replace(/\/+$/, "")}` : null;
-    const served = (options.rest?.openapi ?? "auth") !== "off";
-    return { rest: `${base ?? ""}${REST_BASE}`, openapi: served ? `${base ?? ""}${OPENAPI_PATH}` : null, base };
+    if ((options.rest?.openapi ?? "auth") === "off") {
+        return { rest: `${base ?? ""}${REST_BASE}`, openapi: null };
+    }
+    const openapi = base ? `${base}${OPENAPI_PATH}` : `${OPENAPI_PATH}, at the server's root`;
+    return { rest: `${base ?? ""}${REST_BASE}`, openapi };
 }
 
 /**
- * The detail of a 404 for a path nobody serves. Readers took a bare "/openapi.json" next to
- * "/api/v1" as relative to it, so without a public URL the document's place is said in words.
+ * The detail of a 404 for a path nobody serves: where the REST service and its OpenAPI document are.
  * @param {ServerOptions} options
  */
 export function noRouteDetail(options) {
     const where = restAddressesOf(options);
-    if (!where.openapi) {
-        return `no such route; the REST service is at ${where.rest}`;
-    }
-    const openapi = where.base ? where.openapi : `the server's root, ${where.openapi}`;
-    return `no such route; the REST service is at ${where.rest}, its OpenAPI document at ${openapi}`;
+    const rest = `no such route; the REST service is at ${where.rest}`;
+    return where.openapi ? `${rest}, its OpenAPI document at ${where.openapi} (not under ${REST_BASE})` : rest;
 }
 
 /**
