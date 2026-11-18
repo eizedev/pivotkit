@@ -127,7 +127,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 ### Security
 
 - The HTML report leaves out the row count where the policy withholds it (`rows: false`). To show
-  the count again, the policy sets `rows: true` ([#547](https://github.com/eizedev/pivotkit/issues/547)).
+  the count again, the policy sets `rows: true` ([#547](https://github.com/eizedev/pivotkit/issues/547),
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#rows-withheld)).
 
 ## [0.2.0] - 2026-11-16
 

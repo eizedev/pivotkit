@@ -53,30 +53,33 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
    of a workbook. pivotkit reads German numbers and dates, title lines above the header and leading
    zeros ("01067") correctly. Undo brings the application's data back. Nothing is uploaded. See
    [load your own data](use/load-data.md).
-2. **Filters that say what they keep.** Pick items from a list that shows each item's row count.
+2. **Table and chart, each with its settings.** Table and Chart are tabs, each with its own settings. "+ Add" puts
+   a field into a zone without dragging. Charts zoom along a long axis, hide series from the legend,
+   stack to 100 % and draw an average, a trend or a target. See [charts](use/charts.md).
+3. **Filters that say what they keep.** Pick items from a list that shows each item's row count.
    Take a range such as "last 3 months" or "this quarter" that stays right over time. Take a top 10
    with ties, or a rule on a total ("Sum of Revenue > 1,000"). Each filter says how many items it
    keeps. The footer gives the data's date range, and a grouping such as "Month of year" says
    which years it combines. See [filters](use/filters.md) and [dates](use/values.md#dates-and-number-ranges).
-3. **Excel with the layout kept.** The workbook keeps merged headers, bold totals and number
+4. **Excel with the layout kept.** The workbook keeps merged headers, bold totals and number
    formats. Colour scales and data bars become Excel's own conditional formats. Besides the table's
    exports, you can download the rows behind the table as CSV or JSON for your own analysis. See
    [export](use/export.md) and [the table or the rows](use/export.md#the-table-or-the-rows-behind-it).
-4. **Keyboard and screen reader for every action.** Every step has a button or a menu entry, so drag
+5. **Keyboard and screen reader for every action.** Every step has a button or a menu entry, so drag
    and drop is never the only way. Chips move with the arrow keys and say where they are. See
    [keyboard and screen readers](use/keyboard.md).
-5. **Safe views, reports without a browser.** A report is a small JSON view. It holds names only
+6. **Safe views, reports without a browser.** A report is a small JSON view. It holds names only
    and cannot run code: see [security](security.md#views-are-untrusted-input). `pivotkit render`
    makes the same report from the view on the command line or in CI, as HTML, CSV or Excel.
    `pivotkit describe --suggest` makes a first view from the fields of a CSV or Excel file. See
    [command line](getting-started/cli.md).
-6. **Live data from files, HTTP APIs and code.** You run the REST service and the MCP server. They
+7. **Live data from files, HTTP APIs and code.** You run the REST service and the MCP server. They
    read a file, call an [HTTP API](reference/sources.md#http) or run your
    [own code](reference/sources.md#code) with the caller's parameters. They keep a load for a short
    time per caller. An AI model gets field names and counts. It gets rows only where the policy
    shows them: see [what reaches an AI model](model-data.md). Every result says when its data is
    from: "Data as of" in the server's HTML reports, a document property in its Excel files.
-7. **Reports that reach people.** A report the server writes comes with a
+8. **Reports that reach people.** A report the server writes comes with a
    [download link](reference/delivery.md) that expires. Where the data is not open to everyone, the
    link is bound to the person's sign-in. The server can also send the report to a
    [store you run](reference/delivery.md#upload): S3, Azure Blob Storage or a file service of your

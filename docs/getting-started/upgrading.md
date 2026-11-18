@@ -184,6 +184,12 @@ configuration, under "New in this version", with a link to each section below.
 | [Views that set a new chart setting](../concepts/views.md) | a 0.7 tool reads views or links saved with 0.8 | nothing; a view file leaves out the new chart settings while they hold their default. A view that sets one, such as a hidden series, gets an `unknownKey` warning from a 0.7 reader, which then ignores it |
 | [On a touch screen, the chart opens the rows on the second tap](../use/charts.md#read-the-chart) | your app runs on phones or tablets and uses `onCellClick` or the drill-down from the chart | nothing for people; the first tap on an element shows its tooltip, the second calls `onCellClick` and opens the rows. Your own touch tests now tap twice |
 | [A workbook of a chart view says where the chart is](#chart-not-in-xlsx) | a script or a client renders `xlsx` for a view that shows the chart, and treats any finding as a failure | let the warning `chartNotInXlsx` pass, or render `html` or `svg` for the chart. Reconnect MCP clients to see the new tool description |
+| **Breaking:** [An unknown locale is refused or replaced](#unknown-locale) | a script passes `--locale` to the command line, or a view or host names a locale the runtime has no data for | give a locale tag the runtime knows, such as `en-US` or `de-DE` |
+| [The HTML report leaves out a withheld row count](#rows-withheld) | a source's policy sets `rows: false`, and people read the row count in html reports | nothing, or set `rows: true` to show the count again |
+| [A slow parameter check answers `BUSY`](#params-busy) | a source has a parameter with a `pattern`, and a script treats every error the same | retry on 503 `BUSY` after `Retry-After` |
+| [`params` on a server without parameters](#no-params) | a script sends `params` to a server where no source takes parameters, and matches the error text | match on the code `INVALID_INPUT`, not the text |
+| [`itemCase` names the item in `suggestion`](#item-case) | your front end shows only a finding's `message` | show `suggestion` too |
+| [The command line refuses `--filter Revenue>1000`](#filter-short-form) | a script passes a comparison or `!=` to `--filter` | give the filter as JSON, as the error says |
 
 ### Versions move together { #versions-0-8 }
 
@@ -443,6 +449,47 @@ old output schema already allows the new `requestId`.
 An Excel workbook holds the table. For a view that shows the chart, `render` and `render_view` add
 the warning `chartNotInXlsx`: the chart is in `html` or `svg`. The `render_view` description says
 so too. MCP clients see it after they reconnect.
+
+### An unknown locale is refused or replaced { #unknown-locale }
+
+A locale the runtime has no data for, such as `xx-XX`, no longer falls back to the machine's locale.
+The same view therefore formats the same on every machine.
+
+- The command line refuses `--locale xx-XX` as a usage error, exit 2.
+- In a view, the locale gets the issue `unknownLocale`. The report then takes the `locale` option or
+  `en-US`.
+- A `locale` option the runtime does not know takes `en-US`. `computePivot` reports the warning
+  `unknownLocale` at the path `locale`.
+
+### The HTML report leaves out a withheld row count { #rows-withheld }
+
+A source's policy can withhold the data's row count with `rows: false`. The HTML report then leaves
+the count out of `{{rows}}` and its details too. Set `rows: true` in the policy to show the count
+again.
+
+### A slow parameter check answers `BUSY` { #params-busy }
+
+A parameter's `pattern` is checked with a time limit. A value whose check runs out of time twice
+answers 503 `BUSY` with `Retry-After: 2`. Before, it answered `INVALID_INPUT`. A request whose
+pattern checks take over 150 ms in all answers `BUSY` too. Retry such a request.
+
+### `params` on a server without parameters { #no-params }
+
+On a server where no source takes parameters, a request with `params` answers `INVALID_INPUT` with
+the message "this server has no source that takes params; leave params out (GET /sources lists
+the sources)". Match on the code, not the text.
+
+### `itemCase` names the item in `suggestion` { #item-case }
+
+The finding `itemCase` no longer names the item meant in its `message`. The item is in
+`suggestion`, as for every other finding. A front end that shows only `message` shows `suggestion`
+too.
+
+### The command line refuses `--filter Revenue>1000` { #filter-short-form }
+
+The short form of `--filter` keeps the rows of one item: `Field=Item`. A comparison such as
+`Revenue>1000`, or `Country!=Germany`, is a usage error, exit 2. The error gives the JSON filter
+meant, such as `{"field":"Revenue","type":"compare","op":">","value":1000}`.
 
 ## From 0.6 to 0.7 { #from-0-6-1 }
 

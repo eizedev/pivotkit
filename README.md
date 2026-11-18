@@ -8,6 +8,8 @@
 pivotkit is Excel's PivotTable for web applications and the command line. People load their data,
 build a report by dragging fields and take it to Excel. The same report renders again in CI.
 
+Table and Chart are tabs with their own settings, and "+ Add" places a field without dragging. Charts zoom, hide series, stack to 100 % and draw reference lines.
+
 | Who you are | What you want | Quickest start |
 | --- | --- | --- |
 | A user | a report from your data, by clicking | Try the [live demo](https://pivotkit.eize.dev/demo/), then build a first report in six steps with the [quick start](https://pivotkit.eize.dev/use/quick-start/). |
