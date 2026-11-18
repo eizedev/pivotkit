@@ -148,6 +148,9 @@ Switch it off with `mcp.data: false` (MCP) and by not giving any profile `data: 
 
 ## Recipients { #recipients }
 
+[Network requests](security.md#network) lists every request pivotkit can make. Nothing goes to the
+pivotkit project.
+
 Whoever holds a token, or signs in with OAuth, receives what its policy allows. The reports written
 for it are in the output directory. Treat token holders as recipients of that data:
 

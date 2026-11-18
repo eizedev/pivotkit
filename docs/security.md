@@ -1,6 +1,6 @@
 ---
 title: Security
-description: Why pivotkit is not access control, how it treats views and loaded files as untrusted input, keeps memory use bounded, renders no markup from data, writes safe exports, what its MCP server lets a model see and its REST service lets a program fetch, and runs under a strict Content-Security-Policy.
+description: Why pivotkit is not access control, every network request it can make, how it treats views and loaded files as untrusted input, keeps memory use bounded, renders no markup from data, writes safe exports, what its MCP server lets a model see and its REST service lets a program fetch, and runs under a strict Content-Security-Policy.
 ---
 
 # Security
@@ -63,6 +63,67 @@ own code, not a barrier against a person with developer tools.
 Nothing is stored or sent: the browser makes the file. Its size counts against `limits.cells`, rows
 times fields, default 2,000,000. pivotkit checks it before it builds the file. While the browser makes
 the file, it holds about twice the CSV's size. For JSON it holds a few times the file's size.
+
+## Network requests { #network }
+
+pivotkit sends nothing home. It has none of these:
+
+- telemetry or usage statistics
+- update or version checks
+- error reporting
+- fonts, scripts or images from another host
+
+Each part makes only the requests below. Nothing else leaves it.
+
+The report in the browser, pivotkit-react and pivotkit-element:
+
+- its own code chunks, such as the chart and the exports, from where you serve your app or `dist/`
+- the import worker that reads a person's file: pivotkit-element's own, from the page's origin
+  ([the import worker](reference/element.md#the-import-worker)), or the one a React app starts
+  through [`importWorker`](reference/react.md#prop-importworker)
+
+It fetches no data. The host passes the rows.
+
+The REST service and the MCP server request only addresses that the operator writes in the
+configuration or on the command line:
+
+- an [HTTP source](reference/sources.md#http) and its backend sign-in
+- the OAuth issuer's metadata, key set and token endpoint. The token endpoint also serves the token
+  exchange and the [sign-in links](reference/delivery.md#sign-in) of downloads.
+- an [upload store](reference/delivery.md#upload)
+- the OpenAPI document that `pivotkit-server source-from-openapi` reads
+- the server's own `/healthz` on 127.0.0.1, for `pivotkit-server healthcheck`
+  ([health](reference/container.md#health))
+
+`check-config` and `check-source` make the same requests to check them.
+[HTTP sources and outbound requests](#http-sources) says how the server guards these requests.
+
+The command line, `pivotkit`:
+
+- the server named with `--url` or `PIVOTKIT_URL`, for its REST service
+  ([with a server](reference/cli.md#with-a-server))
+- for `pivotkit login`, `token` and `logout`: the server's sign-in metadata, then its issuer's
+  metadata, device code, token and revocation endpoints ([sign in](reference/cli.md#sign-in))
+
+Without a server, the command line reads and writes local files only.
+
+Some addresses only appear in output. pivotkit never requests them:
+
+- `$schema` and `$id` in view files and JSON Schemas
+- the `type` of a REST error, which names its entry in the [REST reference](reference/rest.md)
+- documentation links in messages, on the MCP server's start page and in its OAuth metadata
+
+The `User-Agent` header of each request:
+
+| Request | `User-Agent` |
+| --- | --- |
+| the command line to a server's REST service | `pivotkit-cli/<version>` |
+| the command line's sign-in, to a host that is not loopback | Node's default, `node` |
+| the command line's sign-in, to a loopback address | none |
+| the server's request for the issuer's key set | the jose library's, `jose/v<version>` |
+| `pivotkit-server healthcheck` | Node's default, `node` |
+| every other request of the server | none |
+| the report in the browser | the browser's own |
 
 ## Views are untrusted input
 
@@ -765,8 +826,8 @@ version in the URL, or host `dist/` yourself.
 ## This documentation site
 
 The theme's script in the header of this site asks api.github.com for the repository's stars, forks and
-latest release, from the reader's browser. pivotkit itself, in your app, sends nothing to a third
-party. It loads only its own chunks from where you host it.
+latest release, from the reader's browser. pivotkit in your app makes no such request: see
+[Network requests](#network).
 
 ## Dependencies
 

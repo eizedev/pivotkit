@@ -242,6 +242,9 @@ The image has a `HEALTHCHECK` that runs `pivotkit-server healthcheck` every 30 s
 ([commands](rest.md#running)). It does not see a `--config` or `--port` flag of the start command.
 Use one of these two ways for the port.
 
+The health check's request stays inside the container. The image makes no request of its own.
+[Network requests](../security.md#network) lists every request the server can make.
+
 `/readyz` answers 200 only when the server can take work, and 503 otherwise. The server can take
 work when the OAuth issuer is loaded, the workers are up and the output directory is writable. Use
 `/readyz` as a readiness probe.
