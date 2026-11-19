@@ -15,7 +15,7 @@ import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/cli
 import { callerOf, checkConfig, createContext, present, validateOptions } from "pivotkit-server";
 import { renderFile, serverTextOf } from "pivotkit-server/internal";
 import { createGuardedFetch } from "../src/sources/fetch.js";
-import { httpMeans, jsonDepth, pointerValue, tableOf } from "../src/sources/http.js";
+import { httpMeans, jsonDepth, pointerValue, tableBuilder, tableOf } from "../src/sources/http.js";
 import { compileTemplate, expandUrl } from "../src/sources/template.js";
 import { checkSource, paramFlags } from "../src/check-source.js";
 import { loadRunner } from "../src/sources/run.js";
@@ -394,6 +394,29 @@ test("paging: a next pointer, a Link header, page numbers and offsets; pages sta
  */
 const READINGS = Object.freeze({ streamed: { asOf: "/at" }, whole: { asOf: "/items/0/at" } });
 
+/** The words of limits.rows for a reading: a streamed answer stops at the first row over it (#648). */
+const ROWS_OVER = Object.freeze({ streamed: "more rows than the limit of 40 (limits.rows)", whole: "60 rows exceed the limit of 40 (limits.rows)" });
+
+// the streamed reader counted every row to the end of the answer to name the total: an answer of
+// many rows cost main-thread time for nothing. It stops at the first row over limits.rows (#648):
+// here the backend never ends its answer, and the read ends at once anyway
+test("limits.rows: a streamed answer is given up at the first row over the limit, before the answer ends", async () => {
+    let open = null;
+    routes.set("/v1/endless", (_req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.write(`{"items":[${Array.from({ length: 50 }, (_, i) => JSON.stringify({ name: `vm-${i}`, cpu: i })).join(",")},`);
+        open = res;
+    });
+    const context = await contextOf({ ...optionsOf(), limits: { rows: 40 }, sources: { endless: { http: { backend: "platform", path: "/endless", rows: "/items" }, timeMs: 20_000, policy: POLICY } } });
+    try {
+        const e = await failure(describe(context, undefined, LOCAL, "endless"));
+        assert.deepEqual([e.code, e.message], ["LIMIT_EXCEEDED", "more rows than the limit of 40 (limits.rows)"]);
+    } finally {
+        open?.destroy();
+        await context.close();
+    }
+});
+
 for (const [reading, how] of Object.entries(READINGS)) {
     test(`limits (${reading}): all pages' bytes (http.maxBytes), limits.rows while paging, deep nesting and a body that is no JSON`, async () => {
         const many = Array.from({ length: 60 }, (_, i) => ({ name: `vm-${i}`, cpu: i, state: "running" }));
@@ -410,7 +433,7 @@ for (const [reading, how] of Object.entries(READINGS)) {
             const big = await failure(describe(context, undefined, LOCAL, "big"));
             assert.deepEqual([big.code, big.message], ["LIMIT_EXCEEDED", "the source big answered more than 2,000 bytes (http.maxBytes)"]);
             const rows = await failure(describe(context, undefined, LOCAL, "rows"));
-            assert.deepEqual([rows.code, rows.message], ["LIMIT_EXCEEDED", "60 rows exceed the limit of 40 (limits.rows)"]);
+            assert.deepEqual([rows.code, rows.message], ["LIMIT_EXCEEDED", ROWS_OVER[reading]]);
             for (const id of ["deep", "text"]) {
                 const e = await failure(describe(context, undefined, LOCAL, id));
                 assert.deepEqual([e.code, e.reason, e.details.retryable], ["SOURCE_UNAVAILABLE", "setup", false], id);
@@ -513,6 +536,54 @@ test("a JSON answer that names its rows twice is refused: the server cannot tell
         assert.deepEqual([e.code, e.reason], ["SOURCE_UNAVAILABLE", "setup"]);
         assert.ok(context.lines.some((l) => /cannot be read \(bad_body\)/.test(l.message ?? "")), "the operator's warning says the body cannot be read");
     } finally {
+        await context.close();
+    }
+});
+
+// the columns the caller's levels hide are dropped as each row arrives, not first when the whole
+// answer is in: they never take memory (#649). A name is decided as the table names it ("Email (2)"
+// next to a hidden "Email" is hidden too), objects and lists alike
+test("rows: with the caller's levels, hidden columns are left out of every row as it arrives", () => {
+    const limits = { rows: 100, columns: 10, importCells: 1000, textLength: 50 };
+    const log = { debug() {} };
+    const levels = { default: "show", fields: { email: "hide", secret: "hide" } };
+    const builder = tableBuilder(/** @type {any} */ (limits), { id: "t", log, levels });
+    builder.add({ name: "a", email: "HIDDENMARK-1", cpu: 1 });
+    builder.add({ name: "b", Email: "HIDDENMARK-2", secret: "HIDDENMARK-3", cpu: 2, state: "up" });
+    const objects = builder.finish();
+    assert.deepEqual(objects, { columns: ["name", "cpu", "state"], rows: [["a", 1, null], ["b", 2, "up"]], dropped: 3 });
+    assert.doesNotMatch(JSON.stringify(objects), /HIDDENMARK/);
+    const lists = tableOf([["name", "secret", "cpu"], ["a", "HIDDENMARK", 1]], /** @type {any} */ (limits), { id: "t", log, levels });
+    assert.deepEqual(lists, { columns: ["name", "cpu"], rows: [["a", 1]], dropped: 1 });
+    // the limits still count every column the answer has
+    const narrow = tableBuilder(/** @type {any} */ ({ ...limits, columns: 2 }), { id: "t", log, levels });
+    narrow.add({ name: "a", email: "x", cpu: 1 });
+    assert.throws(() => narrow.finish(), /limits\.columns/);
+});
+
+// the same through a load: the source's table builder gets the caller's levels, so what it has built
+// when the answer is in holds no hidden column (#649)
+test("a streamed load builds its table without the caller's hidden columns", async () => {
+    routes.set("/v1/customers/acme/vms", json({ items: VMS, generatedAt: "2026-02-03T04:05:06Z" }));
+    const built = [];
+    const original = httpMeans.tableBuilder;
+    httpMeans.tableBuilder = (limits, how) => {
+        const builder = original(limits, how);
+        return { ...builder, finish: () => {
+            const table = builder.finish();
+            built.push(table);
+            return table;
+        } };
+    };
+    const context = await contextOf(optionsOf());
+    try {
+        await describe(context, { customer: "acme" });
+        assert.equal(built.length, 1);
+        assert.deepEqual(built[0].columns, ["name", "cpu", "state"]);
+        assert.equal(built[0].dropped, 2);
+        assert.doesNotMatch(JSON.stringify(built[0]), /example\.com|prod|test/);
+    } finally {
+        httpMeans.tableBuilder = original;
         await context.close();
     }
 });

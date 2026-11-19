@@ -127,6 +127,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   that uses a hidden field took its place, so a missing hint told that such a view exists.
 - `list_sources` and `GET /sources` give at most 10,000 characters of view descriptions per source.
   Later views keep their name and title (#646).
+- A streamed JSON answer of an HTTP source stops at the first row over `limits.rows`. The error
+  says "more rows than the limit of 40 (limits.rows)" instead of counting the whole answer
+  first (#648).
+- An HTTP source's JSON answer leaves out the columns the caller's policy hides while its rows
+  arrive, not after the whole answer is in. With one of seven columns hidden, the main thread's peak
+  heap fell by about 9 % for a 20 MB answer (`bench/server`, #649).
 
 ## [0.3.2] - 2026-11-19
 

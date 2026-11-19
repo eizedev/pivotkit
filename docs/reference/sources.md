@@ -328,8 +328,9 @@ signed the backend's certificate.
 What the server holds while it reads an answer depends on its format:
 
 - **JSON**: one row's bytes at a time, the body around the rows, and the table built so far. A row
-  becomes a list of plain values when it arrives. The whole body and its parsed objects are
-  never held at once.
+  becomes a list of plain values when it arrives, without the columns the caller's policy hides.
+  The whole body and its parsed objects are never held at once. The read stops at the first row
+  over `limits.rows`.
 - **JSON whose `asOf` or `next` points into the rows**: each page's whole body and its parsed value
   while the server reads the page. Point `asOf` and `next` outside the rows to avoid this.
 - **CSV**: the whole body, up to `maxBytes`. A worker then reads it into the compact table. The CSV

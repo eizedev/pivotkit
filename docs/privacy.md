@@ -294,10 +294,12 @@ column. This holds for the loads it keeps per person, the data sets a compute wo
 notes of a read. It holds for a signed-in person and for a caller whose data the server does not
 keep.
 
-To drop a column, though, the server reads all of the data first:
+To drop a column, though, the server reads the data first:
 
 - a code source's rows as `load` returns them
-- an HTTP source's body and, for JSON, its parsed rows, in the main thread
+- an HTTP source's JSON answer one row at a time, in the main thread. A row's hidden values are left
+  out as it arrives
+- an HTTP source's CSV body, in the main thread
 - for CSV, the decoded text and every cell, in the worker that reads it
 
 These are freed once the server has read the data. As in any process, freed memory can hold their
