@@ -174,6 +174,15 @@ Then restart Claude Code.
   Before, they refused it.
 - The tools' schemas and descriptions changed. MCP clients reconnect to read them.
 
+## From 0.8.1 to 0.8.2 { #from-0-8-1 }
+
+This applies to pivotkit-server and pivotkit-mcp 0.3.1 too, which move to 0.3.2.
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| pivotkit-mcp 0.3.2 needs pivotkit-server 0.3.2 | you run pivotkit-server and pivotkit-mcp | [update both in one command](#update-global) |
+| [A 404 and `check-config` name the OpenAPI document's full address](../reference/rest.md#openapi) | a script reads `check-config`'s REST lines, or matches the `detail` of a 404 | expect `REST:` with the full address and `OpenAPI document: <address>; needs auth` (or `public`, or `off`) in place of `/openapi.json: needs auth`; match a 404 on its `code`, `NOT_FOUND` |
+
 ## From 0.8.0 to 0.8.1 { #from-0-8-0 }
 
 This applies to pivotkit-server and pivotkit-mcp 0.3.0 too, which move to 0.3.1.
