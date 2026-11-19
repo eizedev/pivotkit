@@ -269,6 +269,10 @@ The server keeps in its memory, never on disk:
   at most a quarter of `compute.memoryMb` and stay until newer ones push them out or the server
   replaces the worker.
 - **Exchanged backend tokens**, per person, at most until the person's own token expires.
+- **The last read of a source every caller reads alike**: its row count and `dataAsOf`, until the
+  process restarts. Such a source is a file source or a shared code source. The
+  [source list](reference/rest.md#source-list) gives them to every caller who may use the source.
+  For a code source without its own time, `dataAsOf` tells when someone last loaded it.
 - **The keys of that data.** The person, their groups, claims and values are there only as a keyed
   digest, with a random key per process. A memory dump does not show them in clear text, while the
   data itself is there.

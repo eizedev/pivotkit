@@ -135,6 +135,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Loads have time limits, coalescing and per-source and per-identity limits (`sources/run.js`).
 - `test/code-sources.test.js` waits for the load runner's events (`LOAD_HOOKS`), never for a fixed time.
 - Last good data is served only after a transient failure.
+- `noteRead` in `registry.js` keeps a source's last row count and dataAsOf for list_sources.
+  It keeps them only for a source every caller reads alike: `sameForAll`.
 - The process cache and kept data sets are bounded in entries and bytes.
 - A kept data set copies its texts first. A reader's slices would keep the whole file alive.
 - Every read ends with `forgetLastSubject`. V8 keeps the last regular expression's subject.

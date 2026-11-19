@@ -64,6 +64,12 @@ const INLINE_OUTPUT = {
     }
 };
 
+/** What list_sources says about a source's data where the server knows it from its last read. */
+const LAST_READ = {
+    rows: { type: "integer", description: "How many rows the source holds, as of its last read. Absent: not read yet, the rows depend on who asks or on params, or the policy keeps the count back." },
+    dataAsOf: { type: "string", description: "When the data of the source's last read is from, in UTC to the second. Absent where rows is absent for any reason but the policy." }
+};
+
 /** The operations whose results carry dataAsOf. */
 const OVER_DATA = new Set(["describe_source", "suggest_view", "validate_view", "describe_view", "render_view", "create_link", "draft_schedule"]);
 
@@ -82,6 +88,11 @@ export function presentedOutput(name) {
         const items = base.properties.sources.items;
         extra.sources = { ...base.properties.sources, items: { ...items, properties: { ...items.properties, records: { type: "boolean", description: "REST only: true where you may read the source's rows (POST /api/v1/sources/records). Absent: you may not." } } } };
         extra.hint = { type: "string", description: "Why no source is listed and what to do: the sign-in lacks the scopes of the sources there are (only when none is listed)." };
+    }
+    if (name === "list_sources") {
+        // what the server knows of a source's data from its last read (registry.js noteRead)
+        const items = /** @type {any} */ (extra.sources).items;
+        extra.sources = { ...(/** @type {any} */ (extra.sources)), items: { ...items, properties: { ...items.properties, ...LAST_READ } } };
     }
     if (name === "render_view") {
         Object.assign(extra, {
@@ -302,6 +313,8 @@ async function compute(context, name, input, resolved, caller, signal) {
         // the policy decides "values" by the statistics of the data this run read: bound to it here
         const policy = withStats(resolved.policy, ran.stats);
         noteAutoValues(context, resolved.spec, policy);
+        // the row count and dataAsOf list_sources gives (registry.js noteRead)
+        context.registry.noteRead(resolved.spec, ran);
         return { ...ran, policy };
     } catch (e) {
         const allShown = resolved.policy.default === "show" && [...resolved.policy.fields.values()].every((l) => l === "show");

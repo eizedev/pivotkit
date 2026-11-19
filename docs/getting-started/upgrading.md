@@ -164,6 +164,7 @@ Then restart Claude Code.
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
+| [Row count and data date in the source list](#source-list-rows) | you read `GET /sources` or `list_sources` | none. MCP clients see the new keys in the output schema after they reconnect |
 
 ### Rows of a source for a signed-in person { #records-route }
 
@@ -179,6 +180,13 @@ The server refuses `records` in the server's policy, a source's policy and `file
 refuses a source's `records.maxRows` above `rest.records.maxRows`. `GET /sources` adds
 `"records": true` to the sources a person may read the rows of. `check-config` has a section
 `Rows (REST)` once a profile has `records`.
+
+### Row count and data date in the source list { #source-list-rows }
+
+`GET /sources` and `list_sources` add `rows` and `dataAsOf` to a source once the server has read its
+data ([the rules](../reference/rest.md#source-list)). A source whose rows depend on the caller or on
+parameters gets neither. MCP clients see the two keys in the output schema after they reconnect.
+Sessions that stay connected keep working: the old schema allows more keys.
 
 ## From 0.8.1 to 0.8.2 { #from-0-8-1 }
 

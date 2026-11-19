@@ -6,6 +6,12 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Added
+
+- `list_sources` gives a source's row count (`rows`) and `dataAsOf` where pivotkit-server knows them
+  from the last read. Clients see the two keys in the output schema after they reconnect
+  ([row count and data date](https://pivotkit.eize.dev/reference/rest/#source-list), #617).
+
 ## [0.3.2] - 2026-11-19
 
 ### Changed

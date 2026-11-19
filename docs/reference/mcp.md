@@ -34,7 +34,7 @@ service: sources, policy, workers, output, sign-in. pivotkit-server brings
 
 | Tool | What it does | Writes |
 | --- | --- | --- |
-| `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes | - |
+| `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes, and where known its row count and data date ([REST](rest.md#source-list) has the rules) | - |
 | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views from its own fields | - |
 | `suggest_view` | A draft view from a source's fields (marked `Draft:`), with what each part took and could take instead (`picks`). A `layout` replaces parts of it | - |
 | `get_view_guide` | How to write a view: its keys, the vocabulary (aggregators, filter types, date groupings), five example views | - |
@@ -50,7 +50,8 @@ from the data), then the JSON. A view with errors is not a tool error: `ok` or `
 `findings` say what to fix.
 
 Every result over a source's data has `dataAsOf`. That is every tool but `list_sources` and
-`get_view_guide`. `dataAsOf` says when the data is from, in UTC to the second
+`get_view_guide`. `list_sources` gives `rows` and `dataAsOf` per source from the source's last read,
+where every caller reads the same rows ([the rules](rest.md#source-list)). `dataAsOf` says when the data is from, in UTC to the second
 (`"2026-11-15T08:00:00Z"`):
 
 - a file's modification time

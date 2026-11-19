@@ -45,7 +45,7 @@ The routes are RPC-style (`POST /views/validate`), one per operation of the
 
 | Route | Operation | What it does |
 | --- | --- | --- |
-| `GET /sources` | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes |
+| `GET /sources` | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes, and where known its row count and data date ([below](#source-list)) |
 | `GET /sources/{id}` | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views |
 | `POST /sources/describe` | `describe_source` | The same, with `{ "source": "<id>" }` |
 | `POST /views/suggest` | `suggest_view` | A draft view from the source's fields, with the fields it picked (`picks`). A `layout` replaces the parts it gives |
@@ -223,6 +223,28 @@ The server decides findings per field. A finding about a field's items carries t
 A filter on an item of a `summary` field that does not exist validates and renders an empty report.
 Nothing says why, since saying so would tell that the item does not exist. Only for a view of `show`
 fields does a render whose filters keep no rows have the warning `noRowsKept`.
+
+### Row count and data date in the list { #source-list }
+
+`GET /sources` gives a source's `rows` and `dataAsOf` once the server has read its data. A host page
+can show the row count and the data date from the list alone. The list never reads data itself.
+
+```json
+{ "id": "sales", "title": "Sales", "kind": "source", "link": false, "schedulable": true,
+  "rows": 2000, "dataAsOf": "2026-11-16T00:19:40Z" }
+```
+
+- Both values come from the source's last read: any REST route or MCP tool over its data, by any
+  caller.
+- Before the first read, both are absent.
+- After the data changes, the list keeps the last read's values until a route reads the data again.
+  `dataAsOf` says which data the count is from.
+- Only a source whose rows are the same for every caller gets them: a `file` source, and a code
+  source with `cacheShared` and without parameters.
+- A source with parameters, an HTTP source, a source bound to a person and a `perPerson` code source
+  get neither: their rows depend on who asks or on the values.
+- `rows` follows the caller's policy. With `rows: false`, the caller gets `dataAsOf` without `rows`,
+  as `describe_source` keeps the count back.
 
 ## Exposure policy and profiles { #profiles }
 

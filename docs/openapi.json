@@ -2553,6 +2553,14 @@
                 "records": {
                   "type": "boolean",
                   "description": "REST only: true where you may read the source's rows (POST /api/v1/sources/records). Absent: you may not."
+                },
+                "rows": {
+                  "type": "integer",
+                  "description": "How many rows the source holds, as of its last read. Absent: not read yet, the rows depend on who asks or on params, or the policy keeps the count back."
+                },
+                "dataAsOf": {
+                  "type": "string",
+                  "description": "When the data of the source's last read is from, in UTC to the second. Absent where rows is absent for any reason but the policy."
                 }
               }
             }
