@@ -7,7 +7,8 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ConfigError, IMAGE_PATHS, STATE_ENV, builtInConfig, checkConfig, configFrom, prepareHttpServe, serve, validateOptions } from "pivotkit-server";
+import { ConfigError, checkConfig, serve, validateOptions } from "pivotkit-server";
+import { IMAGE_PATHS, STATE_ENV, builtInConfig, configFrom, prepareHttpServe } from "pivotkit-server/internal";
 import { BIN, BY_REGION, call, factsOf, tempDir, workspace } from "./helpers.js";
 
 const POSIX = process.platform !== "win32";
@@ -194,7 +195,7 @@ test("a symbolic link (a mounted Secret) is read, never written; a link to nothi
 /** The start's preparation in a child process, its token file's value on stdout. */
 const childPrepare = (state) =>
     new Promise((resolve) => {
-        const code = `const { prepareHttpServe } = await import("pivotkit-server"); const { readFileSync } = await import("node:fs"); await prepareHttpServe({}, { env: {}, host: "0.0.0.0", tokenEnv: "PIVOTKIT_TOKEN", stateDir: ${JSON.stringify(state)} }); process.stdout.write(readFileSync(${JSON.stringify(join(state, "secrets", "admin.token"))}, "utf8"));`;
+        const code = `const { prepareHttpServe } = await import("pivotkit-server/internal"); const { readFileSync } = await import("node:fs"); await prepareHttpServe({}, { env: {}, host: "0.0.0.0", tokenEnv: "PIVOTKIT_TOKEN", stateDir: ${JSON.stringify(state)} }); process.stdout.write(readFileSync(${JSON.stringify(join(state, "secrets", "admin.token"))}, "utf8"));`;
         const child = spawn(process.execPath, ["--input-type=module", "-e", code], { cwd: process.cwd() });
         let out = "";
         child.stdout.on("data", (c) => (out += c));

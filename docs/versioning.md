@@ -48,7 +48,8 @@ A security fix may close an unsafe default in a minor or patch release. Such a c
 These are the parts a break can hit. A change to them follows [the promise](#the-promise).
 
 - The view file format.
-- The JavaScript exports of each package.
+- The JavaScript exports of each package. [JavaScript exports](reference/service-exports.md) lists
+  those of the services.
 - The React props.
 - The web component's attributes, properties and events.
 - The plugin API.
@@ -66,7 +67,8 @@ These are not public interface. They can change in any release:
 - The look and CSS details.
 - The theme tokens (`--pk-*`). A minor release can change them. The changelog names the change.
 - The wording of messages. Match on the code, not on the text.
-- Internal modules, the ones no package exports.
+- Internal modules: the ones no package exports, and the `internal` entry points that this
+  repository's packages share, such as `pivotkit-server/internal`.
 - The layout of an exported workbook beyond its values.
 
 ## How a deprecation works

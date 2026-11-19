@@ -4,7 +4,8 @@
  * expose and exits. The flags are one table (FLAGS): the parser and the help are made from it.
  */
 
-import { ConfigError, SHARED_FLAGS, flagLines, httpFlags, optionsFrom as sharedOptionsFrom, startErrorLine, startFields, startFormatOf, stopOnSignals } from "pivotkit-server";
+import { ConfigError } from "pivotkit-server";
+import { SHARED_FLAGS, flagLines, httpFlags, optionsFrom as sharedOptionsFrom, startErrorLine, startFields, startFormatOf, stopOnSignals } from "pivotkit-server/internal";
 import { VERSION, createMcpContext } from "./context.js";
 
 /** @type {Readonly<Record<string, { type: "string" | "boolean", multiple?: boolean, short?: string, value?: string, text: string }>>} */
@@ -58,7 +59,7 @@ export async function run(argv, io) {
         }
         const { options, values, stateDir } = await optionsFrom(argv, io.env);
         if (values["check-config"]) {
-            const { checkConfig, discover } = await import("pivotkit-server");
+            const [{ checkConfig }, { discover }] = await Promise.all([import("pivotkit-server"), import("pivotkit-server/internal")]);
             // the issuer is asked only where it is used: over HTTP
             const { text, problems } = await checkConfig(options, { http: Boolean(values.http), env: io.env, ...(values.http ? { discover, stateDir } : {}) });
             io.stdout.write(text);

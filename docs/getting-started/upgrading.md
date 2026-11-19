@@ -166,6 +166,7 @@ Then restart Claude Code.
 | [The element reads `"false"` as off](#element-false) | a page writes `save-templates`, `can-publish`, `allow-import` or `loading` with the value `"false"` | nothing, unless you meant it as on: then leave the value out |
 | [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
 | [A link names a source's parameters in the page's query string](#link-params) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
+| **Breaking:** [Fewer JavaScript exports of pivotkit-server](#internal-exports) | your code imports from `pivotkit-server`, `pivotkit-server/policy` or `pivotkit-mcp/policy` a name that [JavaScript exports](../reference/service-exports.md) does not list | use a listed name, or tell us in an issue what you need |
 | [Named views, and a layout for links and drafts](#named-views) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients |
 | [Row count and data date in the source list](#source-list-rows) | you read `GET /sources` or `list_sources` | none. MCP clients see the new keys in the output schema after they reconnect |
 | [One print template for the whole server](#output-template) | you want one design for every html report of a server | set `output.template` |
@@ -208,6 +209,19 @@ wrote `allow-import="false"` offered loading files. Now it does not. `share-link
 - The tool's description changed. MCP clients reconnect to read it.
 - Query values land in access logs, history and the `Referer` header. The host page sends
   `Referrer-Policy: same-origin` or `no-referrer` ([security](../security.md#link-params)).
+
+### Fewer JavaScript exports of pivotkit-server { #internal-exports }
+
+`pivotkit-server`, `pivotkit-server/policy` and `pivotkit-mcp/policy` export only the names that
+[JavaScript exports](../reference/service-exports.md) lists. pivotkit-mcp imports the rest from
+`pivotkit-server/internal`. That entry point is no public interface: any release can change it.
+
+- A host that builds its own server with the listed names changes nothing.
+- A host that imported another name, such as `planState` or `renderFile`, gets an error at start
+  that names it. Use a listed name, or open an issue that says what you need.
+- Install pivotkit-server and pivotkit-mcp of one release in one command. A pivotkit-mcp of this
+  release beside an older pivotkit-server stops at start with an error about `pivotkit-server/internal`.
+  An older pivotkit-mcp beside this pivotkit-server stops with an error about a missing export.
 
 ### Named views, and a layout for links and drafts { #named-views }
 

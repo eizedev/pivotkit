@@ -69,6 +69,12 @@ test("a pivotkit-mcp of another release: serve and mcp say so with both versions
     const subpath = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "subpath-export.js" }, timeout: 30_000 });
     assert.equal(subpath.status, 2, subpath.stderr);
     assert.match(startError(subpath.stderr).split("\n")[0], /^pivotkit-server: pivotkit-mcp 0\.0\.1 does not fit pivotkit-server [^ ]+ \(it needs pivotkit-server \^0\.0\.1; The requested module 'pivotkit-server\/policy' does not provide an export named 'EXPORT_OF_ANOTHER_RELEASE'\)\. Install/);
+    // the same for an entry point this pivotkit-server does not have (pivotkit-server/internal of a later
+    // release): named, without the path of the installed package
+    const entry = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "subpath-missing.js" }, timeout: 30_000 });
+    assert.equal(entry.status, 2, entry.stderr);
+    assert.match(startError(entry.stderr).split("\n")[0], /^pivotkit-server: pivotkit-mcp 0\.0\.1 does not fit pivotkit-server [^ ]+ \(it needs pivotkit-server \^0\.0\.1; this pivotkit-server has no entry point pivotkit-server\/entry-of-another-release\)\. Install/);
+    assert.ok(!entry.stderr.includes("package.json"), entry.stderr);
     // a missing export of another package is no mismatch of the two: its own error stays
     const other = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "core-export.js" }, timeout: 30_000 });
     assert.equal(other.status, 2, other.stderr);
@@ -219,7 +225,7 @@ test("healthcheck probes the port serve listens on: --port, then http.port of th
 });
 
 test("stopOnSignals: SIGTERM or SIGINT closes the server once and exits 0; a close that throws is logged and exits 1", async () => {
-    const { stopOnSignals } = await import("pivotkit-server");
+    const { stopOnSignals } = await import("pivotkit-server/internal");
     const { EventEmitter } = await import("node:events");
     for (const [signal, fails] of [["SIGTERM", false], ["SIGINT", true]]) {
         const signals = new EventEmitter();

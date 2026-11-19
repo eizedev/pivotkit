@@ -39,8 +39,12 @@
       "default": "./src/rest/index.js"
     },
     "./policy": {
-      "types": "./types/policy.d.ts",
-      "default": "./src/policy.js"
+      "types": "./types/policy-entry.d.ts",
+      "default": "./src/policy-entry.js"
+    },
+    "./internal": {
+      "types": "./types/internal.d.ts",
+      "default": "./src/internal.js"
     },
     "./package.json": "./package.json"
   },

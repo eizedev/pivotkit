@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { Validator } from "@cfworker/json-schema";
 import { checkInput } from "pivotkit-report/operations";
 import { openApiDocument, REST_ROUTES } from "pivotkit-server/rest";
-import { presentedInput, presentedOutput } from "pivotkit-server";
+import { presentedInput, presentedOutput } from "pivotkit-server/internal";
 import { RECORDS_INPUT, RECORDS_OUTPUT } from "../src/records.js";
 import { TOKEN, call, restServer, workspace } from "./helpers.js";
 

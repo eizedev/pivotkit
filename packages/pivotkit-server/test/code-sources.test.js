@@ -8,7 +8,8 @@ import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/cli
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { OperationError } from "pivotkit-report/operations";
-import { CODE_DEFAULTS, ConfigError, SourceError, callerOf, checkConfig, createContext, present, serverTextOf, validateOptions } from "pivotkit-server";
+import { CODE_DEFAULTS, ConfigError, SourceError, callerOf, checkConfig, createContext, present, validateOptions } from "pivotkit-server";
+import { serverTextOf } from "pivotkit-server/internal";
 import { LOAD_CACHE, createLoadCache, encodedBytes } from "../src/sources/cache.js";
 import { LOAD_HOOKS, LOAD_LIMITS, createLoadRunner, isTransient, loadRunner, ownError, sourceFailure } from "../src/sources/run.js";
 import { createComputer } from "../src/compute.js";

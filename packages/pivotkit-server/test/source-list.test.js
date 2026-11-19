@@ -5,7 +5,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { callerOf, createContext, present, presentedOutput } from "pivotkit-server";
+import { callerOf, createContext, present } from "pivotkit-server";
+import { presentedOutput } from "pivotkit-server/internal";
 import { BY_REGION, call, restServer, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);

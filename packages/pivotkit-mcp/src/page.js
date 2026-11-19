@@ -8,7 +8,7 @@
  */
 
 import { OPERATIONS } from "pivotkit-report/operations";
-import { docsLink } from "pivotkit-server";
+import { docsLink } from "pivotkit-server/internal";
 
 /** Text as HTML. */
 const esc = (text) => String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);

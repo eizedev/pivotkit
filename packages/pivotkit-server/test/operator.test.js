@@ -11,7 +11,8 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { unzipSync, strFromU8 } from "fflate";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
-import { ConfigError, callerOf, checkConfig, createContext, groupRefusal, groupsOf, offeredScopes, profileOf, validateOptions } from "pivotkit-server";
+import { ConfigError, callerOf, checkConfig, createContext, groupRefusal, offeredScopes, validateOptions } from "pivotkit-server";
+import { groupsOf, profileOf } from "pivotkit-server/internal";
 import { listHint } from "../src/scopes.js";
 import { BY_REGION, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
 

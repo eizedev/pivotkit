@@ -82,6 +82,14 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   csv, tsv, txt, json and xlsx files". The codes stay
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#neutral-texts)).
 - A download sign-in with another issuer than `auth.issuer` points to the docs instead of an issue.
+- Breaking: `pivotkit-server` exports only its public names. The names pivotkit-mcp shares with it
+  move to `pivotkit-server/internal`, which is no public interface. `pivotkit-server/policy` exports
+  the policy's public part. A host that imported a moved name reads the
+  [upgrading page](https://pivotkit.eize.dev/getting-started/upgrading/#internal-exports) (#561).
+- A new page lists every export of the services
+  ([JavaScript exports](https://pivotkit.eize.dev/reference/service-exports/)).
+- A pivotkit-mcp that imports an entry point this pivotkit-server lacks is refused with both
+  versions, as one that imports a missing name is.
 
 ### Fixed
 
