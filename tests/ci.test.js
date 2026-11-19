@@ -287,6 +287,19 @@ test("CI measures the web component's size on the Node major pivotkit-element's 
     assert.match(job, new RegExp(`node: \\[[^\\]]*"${SIZE_NODE}"`));
 });
 
+// node reads an argument after "node -e <script>" as its own option when it starts with "-": a token
+// such as "-WlNw..." ends the step with "bad option" (#660). A workflow hands values to an inline
+// script through the environment instead
+test("no workflow passes a value to an inline node script as an argument", () => {
+    const dir = new URL(".github/workflows/", root);
+    for (const file of readdirSync(dir)) {
+        const lines = readFileSync(new URL(file, dir), "utf8").split("\n");
+        lines.forEach((line, i) => {
+            if (/\bnode -e\b/.test(line)) assert.doesNotMatch(line, /process\.argv/, `${file}:${i + 1} reads process.argv in node -e`);
+        });
+    }
+});
+
 // pivotkit-cli's file handling (junctions, drive letters, device names) and the whole of
 // pivotkit-server (workers, output directory, download markers, listen, state, sign-in, secret
 // files) are tested on Windows and macOS too, not only on Linux

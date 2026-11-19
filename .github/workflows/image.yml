@@ -115,8 +115,9 @@ jobs:
           wait_healthy r2
           raced="$(docker exec r1 pivotkit-server token show admin)"
           test "$(docker exec r2 pivotkit-server token show admin)" = "$raced"
+          # the token goes through the environment: as an argument, one that starts with "-" is a node option
           for n in r1 r2; do
-            docker exec "$n" /nodejs/bin/node -e "fetch('http://127.0.0.1:3333/api/v1/sources',{headers:{authorization:'Bearer '+process.argv.at(-1)}}).then(r=>process.exit(r.status===200?0:1),()=>process.exit(1))" "$raced"
+            docker exec -e PK_TOKEN="$raced" "$n" /nodejs/bin/node -e "fetch('http://127.0.0.1:3333/api/v1/sources',{headers:{authorization:'Bearer '+process.env.PK_TOKEN}}).then(r=>process.exit(r.status===200?0:1),()=>process.exit(1))"
           done
           docker rm -f r1 r2
       - name: What a start refuses
