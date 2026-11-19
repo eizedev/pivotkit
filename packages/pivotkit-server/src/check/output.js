@@ -28,7 +28,7 @@ import { templateItems } from "./sources.js";
 /** The server's print template (output.template) and its problems, read and parsed as the start does. */
 async function serverTemplate(options) {
     const template = (await checkTemplates(options)).find((t) => t.id === null);
-    return template ? [plain(`print template: ${template.file}, for every html report whose source has none (inline: and file: data too)`), ...templateItems(template)] : [];
+    return template ? [plain(`print template: ${template.file}, for every html report whose source has none, data sent in the request too`), ...templateItems(template)] : [];
 }
 
 /** @type {import("./index.js").Section} */

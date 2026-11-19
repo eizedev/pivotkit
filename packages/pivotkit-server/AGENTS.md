@@ -155,6 +155,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Its `TODO` values are refused at start (`todoPaths` in `options/base.js`).
 - Read a print template only through `readTemplateFile` in `print-template.js`.
 - `templateOf` in `registry.js` picks it: the source's, else `output.template`, else the built-in.
+  `runResolved` reads it for html renders only, so a missing file fails nothing else.
 
 ## REST
 

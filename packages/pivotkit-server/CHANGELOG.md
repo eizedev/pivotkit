@@ -9,8 +9,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 ### Added
 
 - `output.template` is the print template of every html report whose source sets none. Data sent in
-  the request (`inline:`) and, over MCP, `file:` paths take it too. The server reads it on every request and
-  checks it at start and in `check-config`, as it does `sources.<id>.template`
+  the request (`inline:`) and, over MCP, `file:` paths take it too. The server reads it on every
+  html render and checks it at start and in `check-config`, as it does `sources.<id>.template`
   ([print template](https://pivotkit.eize.dev/reference/print-template/), #614).
 - `POST /api/v1/sources/records` answers the rows of one source to a person who signed in: an OAuth
   token with a subject, or an external issuer's token with a subject. A profile grants it per source

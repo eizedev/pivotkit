@@ -76,7 +76,7 @@ test("output.template: the start refuses what the parser refuses and warns of a 
 test("check-config names output.template and reports its problems as for a source's template", async () => {
     const good = withTemplates({ "house.html": branded("HOUSE") });
     const ok = await checkConfig({ output: { dir: "out", template: "data/house.html" }, baseDir: good }, { http: false });
-    assert.match(factsOf(ok.text), /^ {2}print template: data\/house\.html, for every html report whose source has none \(inline: and file: data too\)$/m);
+    assert.match(factsOf(ok.text), /^ {2}print template: data\/house\.html, for every html report whose source has none, data sent in the request too$/m);
     assert.doesNotMatch(ok.text, /PROBLEM/);
 
     const bad = withTemplates({ "house.html": BROKEN });
@@ -101,6 +101,21 @@ test("a missing output.template fails html reports only: csv, describe and valid
         assert.equal((await present(context, "validate_view", { source: "sales", view: BY_REGION }, LOCAL)).result.valid, true);
         const html = await present(context, "render_view", { source: "inline:", data: TICKETS, view: BY_REGION, format: "html" }, LOCAL).catch((e) => e);
         assert.equal(html.code, "FILE_NOT_AVAILABLE");
+    } finally {
+        await context.close();
+    }
+});
+
+test("a missing source template fails that source's html reports only, and a file put back applies again", async () => {
+    const dir = withTemplates({ "own.html": branded("OWN DESIGN") });
+    const context = await createContext({ log: "off", sources: { sales: { file: "data/sales.csv", template: "data/own.html", policy: { default: "show" } } }, output: { dir: "out" }, baseDir: dir });
+    try {
+        rmSync(join(dir, "data", "own.html"));
+        assert.equal((await present(context, "render_view", { source: "sales", view: BY_REGION, format: "csv" }, LOCAL)).result.ok, true);
+        const html = await present(context, "render_view", { source: "sales", view: BY_REGION, format: "html" }, LOCAL).catch((e) => e);
+        assert.equal(html.code, "FILE_NOT_AVAILABLE");
+        writeFileSync(join(dir, "data", "own.html"), branded("OWN DESIGN AGAIN"));
+        assert.match(await htmlOf(context, dir, { source: "sales" }), /OWN DESIGN AGAIN/);
     } finally {
         await context.close();
     }
