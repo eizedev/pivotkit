@@ -28,6 +28,8 @@ curl -s -H "Content-Type: application/json" \
 - Lets the operator decide per field what a caller may see. Profiles give one token, OAuth client or
   group more access to values and downloads.
 - Signs callers in with static tokens, tokens it issues itself that expire, or OAuth 2.1.
+- Hands the rows of a source to a person who signed in, where a profile allows it, so a host
+  application's page can show a live report. It is off by default and sends only fields at `show`.
 - Is the shared core of [pivotkit-mcp](https://www.npmjs.com/package/pivotkit-mcp).
   `pivotkit-server serve` runs the REST service. With pivotkit-mcp installed, the command also runs
   the MCP endpoint on the same port.

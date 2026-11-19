@@ -17,6 +17,7 @@ carries it. It makes no compliance claim.
 | [Source data loaded for a caller](#memory) (code and HTTP sources) | the server's memory | until newer loads push it out (at most 64 loads and `sourceCache.maxMb`, default 256 MiB, a quarter per person or shared source) or a restart | the caller it was loaded for, through the policy |
 | [Reports](#retention) | files in `output.dir` | 30 days by default (`output.maxAgeDays`), or until `output.maxFiles`/`output.maxMb` push them out | whoever opens their link, or can read the directory |
 | [Schedule drafts](#retention) | files in `output.dir` | while waiting for approval, until the host or you remove them, or `output.draftMaxAgeDays` where you set it; once the host sets another `status`, as reports | whoever can read the directory, such as the host that approves them |
+| [Rows of a source](#records) (`POST /api/v1/sources/records`, off by default) | the person's host application and browser; in the server only while the answer is written | as the host application keeps them | the person, and the host application that fetched them for the person |
 | [Data sent in a request](#inline) (`inline:`) | the server's memory for one call; a report over it in `output.dir` | the call; the report as any report | the sender, through the model or program it uses |
 | [Cache keys](#memory) | the server's memory | as long as their data | nobody: values, groups and claims only as a keyed digest |
 | [Exchanged backend tokens](#memory) | the server's memory | at most until the person's own token expires | the backend they are for |
@@ -145,6 +146,33 @@ pivotkit handles it as such:
 - The log names it `inline:` with its number of rows and columns, never a value.
 
 Switch it off with `mcp.data: false` (MCP) and by not giving any profile `data: true` (REST).
+
+## Rows of a source { #records }
+
+The [rows route](reference/rest.md#records) hands the rows of a source to a person, where a profile
+names the source in `records`. It is off by default. Once you grant it, this leaves the server:
+
+| What | Leaves or stays | To whom |
+| --- | --- | --- |
+| Every row of the source | leaves | the person, through the host application's server and page |
+| A field at `show` for the person's profile | leaves, every value | as above |
+| A field at `values` or `summary` | stays. Its name is in `withheld` | the person learns the name only |
+| A field at `hide` | stays, also its name | nobody |
+| A view's filters | do not limit the rows | every row leaves, whatever the view filters |
+| The person's subject | stays, unless `audit.subject` puts it in the log | the log's readers |
+| The rows, kept after the answer | nothing stays in the server | - |
+
+- A view's filters do not limit the rows. A view only says which fields the page needs. Filters are
+  no permission. Limit the rows with a source parameter, or with a backend that answers per person.
+- The rows pass through the host application. It holds the whole answer in its memory, and the page
+  holds it in the browser. The browser is not access control: whoever opens the page can read the
+  rows ([security](security.md#rest)).
+- A static or signed token never gets rows, since it names no person. A machine's OAuth token with
+  a subject looks like a person. Give no such client a profile with `records`.
+- Under a profile whose default is `show`, a column the data gains later leaves too. List the fields
+  to show instead.
+- The `records` log line names the source, the counts and the profile, never a value.
+- `check-config` lists per profile the sources and the fields that would leave.
 
 ## Recipients { #recipients }
 
