@@ -16,7 +16,7 @@
 
 import { readdir } from "node:fs/promises";
 import { basename } from "node:path";
-import { closest, fromViewFile, viewFileFields } from "pivotkit-core";
+import { VIEW_ISSUES, closest, fromViewFile, normalize, viewFileFields } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
 import { readSafe } from "pivotkit-cli/files";
 import { OperationError, findingText } from "pivotkit-report/operations";
@@ -72,10 +72,14 @@ export function nameOfFile(file) {
     return lower.endsWith(".pivotkit.json") ? file.slice(0, -".pivotkit.json".length) : lower.endsWith(".json") ? file.slice(0, -".json".length) : null;
 }
 
-/** A reader's error as a problem's words: a CliError names the file by its name; a system error's message holds the path. */
-function readProblem(error, file) {
+/**
+ * A reader's error as a problem's words, naming the file as the configuration does (`shown`): a
+ * CliError's reason after its file name; a system error by its code only (its message holds the full path).
+ */
+function readProblem(error, shown) {
     const e = /** @type {any} */ (error);
-    return { text: e?.name === "CliError" ? String(e.message) : `${basename(file)}: cannot be read (${e?.code ?? "unreadable"})`, missing: MISSING.has(e?.code) };
+    const reason = e?.name === "CliError" ? String(e.message).replace(/^[^:]*: /, "") : `cannot be read (${e?.code ?? "unreadable"})`;
+    return { text: `${findingText(shown)}: ${reason}`, missing: MISSING.has(e?.code) };
 }
 
 /**
@@ -91,10 +95,31 @@ function namedOf(name, given, file) {
     if (read.failed || !read.view) {
         return { problem: `not a view (${read.issues.at(-1)?.message ?? read.failed})` };
     }
+    // what the view's own shape refuses, whatever the data: a list that is none, an unknown key or filter type
+    const shape = shapeErrorOf(read.view);
+    if (shape) {
+        return { problem: `not a view (${shape})` };
+    }
     const doc = typeof given === "string" ? JSON.parse(given) : given;
     const title = read.name || name;
     // a bare view takes its title along, so a link and a draft are named after it
     return { view: { name, title, description: read.description, doc: read.envelope || read.name ? doc : { name: title, view: read.view }, view: read.view, needs: viewFileFields(read.view), file } };
+}
+
+/**
+ * The first error of a view that does not depend on the data (VIEW_ISSUES' schema errors), as
+ * "<path>: <message>", or null. Field names are checked against the data later (check-config).
+ * @param {Record<string, unknown>} view
+ */
+function shapeErrorOf(view) {
+    let issues;
+    try {
+        issues = normalize(view, null).issues;
+    } catch (e) {
+        return String(/** @type {any} */ (e)?.message ?? e);
+    }
+    const error = issues.find((i) => i.severity === "error" && /** @type {any} */ (VIEW_ISSUES)[i.code]?.schema === true);
+    return error ? findingText(`${error.path ? `${error.path}: ` : ""}${error.message}`) : null;
 }
 
 /** A view file's text, read the safe way. Throws the reader's error. */
@@ -143,7 +168,7 @@ export async function viewsOf(options, id) {
             entries = await readdir(pathOf(options, source.viewsDir), { withFileTypes: true });
         } catch (e) {
             const code = /** @type {any} */ (e)?.code;
-            problems.push({ key: "viewsDir", name: null, text: `${basename(folder)}: ${code === "ENOENT" ? "not found" : `cannot be read (${code ?? "unreadable"})`}`, missing: MISSING.has(code) });
+            problems.push({ key: "viewsDir", name: null, text: `${findingText(folder)}: ${code === "ENOENT" ? "not found" : `cannot be read (${code ?? "unreadable"})`}`, missing: MISSING.has(code) });
         }
         const files = entries
             .filter((e) => (e.isFile() || e.isSymbolicLink()) && nameOfFile(e.name) !== null)
@@ -188,6 +213,33 @@ export async function checkViews(options) {
         }
     }
     return out;
+}
+
+/** The problems already logged, per context: a broken file is said once, not on every call. */
+const logged = new WeakMap();
+
+/**
+ * Logs each problem of a source's views once per context: a file dropped in while the server runs
+ * that is no view is left out, and the log says why.
+ * @param {any} context
+ * @param {string} id
+ * @param {ViewProblem[]} problems
+ */
+function warnOnce(context, id, problems) {
+    if (!context?.log || !problems.length) {
+        return;
+    }
+    if (!logged.has(context)) {
+        logged.set(context, new Set());
+    }
+    const seen = logged.get(context);
+    for (const p of problems) {
+        const line = `sources.${id}.${p.key}: ${p.text}`;
+        if (!seen.has(line) && seen.size < MAX_VIEWS * 10) {
+            seen.add(line);
+            context.log.warn(`${line}; ${p.name ? `the view ${p.name} is` : "its views are"} left out until it can be read (check-config says more)`, { source: id });
+        }
+    }
 }
 
 /** Whether a caller may know of a view: no field it uses is hidden from the caller. */
@@ -241,7 +293,8 @@ export function valueFields(view) {
  * @returns {Promise<Array<{ name: string, title: string, description?: string }>>}
  */
 export async function viewListFor(context, id, policy) {
-    const { views } = await viewsOf(context.options, id);
+    const { views, problems } = await viewsOf(context.options, id);
+    warnOnce(context, id, problems);
     return views
         .filter((v) => knownUnder(policy, v))
         .map((v) => {
@@ -262,6 +315,10 @@ export async function viewListFor(context, id, policy) {
  */
 export async function withNamedView(context, op, input, resolved, how = {}) {
     if (!isViewName(input?.view)) {
+        // a text that is no JSON of a view was meant as a name: say what a name is
+        if (NAMED_VIEW_OPERATIONS.has(op) && typeof input?.view === "string" && !/^\s*[{["]/.test(input.view)) {
+            throw new OperationError("INVALID_INPUT", `view is neither a view's JSON nor a view's name: a name has letters, digits, - and _, at most 80; ${how.surface === "rest" ? "GET /sources" : "list_sources"} lists the views`);
+        }
         return input;
     }
     if (!NAMED_VIEW_OPERATIONS.has(op)) {
@@ -276,9 +333,7 @@ export async function withNamedView(context, op, input, resolved, how = {}) {
     const known = views.filter((v) => knownUnder(resolved.policy, v));
     const found = known.find((v) => v.name === name);
     if (!found) {
-        for (const p of problems.filter((p) => p.name === name)) {
-            context.log?.warn(`sources.${id}.${p.key}: ${p.text}; the view ${name} is left out until it can be read`, { source: id });
-        }
+        warnOnce(context, id, problems);
         const near = closest(name, known.map((v) => v.name));
         throw new OperationError("INVALID_INPUT", `no view "${name}" for the source ${id}; ${near ? `did you mean "${near}"? ` : ""}${how.surface === "rest" ? "GET /sources" : "list_sources"} lists the views`);
     }

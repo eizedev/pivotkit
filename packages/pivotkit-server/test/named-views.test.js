@@ -157,6 +157,10 @@ test("a name that is no view says which ones there are; validate_view and descri
             assert.equal(named.status, 400, route);
             assert.match(named.data.detail, /a view by name works in render_view, create_link and draft_schedule/, route);
         }
+        // a text that is neither JSON nor a name says what a name is
+        const spaced = await call(`${server.api}/views/render`, { token: TOKEN, body: { source: "sales", view: "by region" } });
+        assert.equal(spaced.status, 400);
+        assert.match(spaced.data.detail, /^view is neither a view's JSON nor a view's name: a name has letters, digits, - and _/);
         // a view as JSON text is still read as a view, not as a name
         const text = await call(`${server.api}/views/render`, { token: TOKEN, body: { source: "sales", view: JSON.stringify(BROWSER_VIEW), format: "csv" } });
         assert.equal(text.status, 200, JSON.stringify(text.data));
@@ -173,6 +177,14 @@ test("a view file dropped into the folder while the server runs is there on the 
         assert.ok(listed.views.some((v) => v.name === "by-quarter" && v.title === "By quarter"), JSON.stringify(listed.views));
         const rendered = await call(`${server.api}/views/render`, { token: TOKEN, body: { source: "sales", view: "by-quarter", format: "csv" } });
         assert.equal(rendered.status, 200, JSON.stringify(rendered.data));
+        // a file dropped in that is no view: left out, and the log says why, once
+        writeFileSync(join(dir, "data", "views", "late.pivotkit.json"), "{ half");
+        for (let i = 0; i < 2; i++) {
+            const again = (await call(`${server.api}/sources`, { token: TOKEN })).data.sources.find((s) => s.id === "sales");
+            assert.ok(!again.views.some((v) => v.name === "late"));
+        }
+        const warned = server.log.filter((l) => String(l.msg ?? l.message ?? "").includes("late.pivotkit.json: not a view"));
+        assert.equal(warned.length, 1, JSON.stringify(server.log.slice(-3)));
     } finally {
         await server.close();
     }
@@ -218,7 +230,16 @@ test("check-config lists each source's views and the fields each needs; a broken
     const said = [];
     const started = await createContext(options, { env: { T1: TOKEN, T2: OTHER_TOKEN }, stderr: { write: (t) => said.push(String(t)) } });
     await started.close();
-    assert.ok(said.some((t) => t.includes("sources.sales.views.gone: gone.json: not found")), said.join(""));
+    assert.ok(said.some((t) => t.includes("sources.sales.views.gone: views-extra/gone.json: not found")), said.join(""));
+
+    // a view whose shape is wrong whatever the data (rows is no list): no view, the start stops
+    const shape = namedWorkspace();
+    writeFileSync(join(shape, "data", "views", "broken.json"), JSON.stringify({ rows: "Region" }));
+    await assert.rejects(createContext(namedServerOptions(shape), { env: { T1: TOKEN, T2: OTHER_TOKEN } }), (e) => e instanceof ConfigError && /^sources\.sales\.viewsDir: broken\.json: not a view \(rows: /.test(e.message));
+    // a view that names a field the file does not have: a warning that names the view and the field
+    const typo = namedWorkspace();
+    const lacking = await checkConfig(namedServerOptions(typo, { views: { ...VIEWS, typo: { rows: ["Regoin"] } } }), { http: false, env: { T1: TOKEN, T2: OTHER_TOKEN } });
+    assert.match(factsOf(lacking.text), /^WARNING \(Named views\): sources\.sales: the view typo needs Regoin, which the data does not have; render_view answers with errors for it$/m);
 });
 
 test("the options: a view name is letters, digits, - and _; an entry is a file or a view; the folder is a path", () => {

@@ -13,11 +13,12 @@
  */
 
 import { checkViews } from "../views.js";
+import { fieldKey } from "../policy.js";
 import { nameText } from "./sources.js";
-import { heading, plain, problem } from "./format.js";
+import { heading, plain, problem, warning } from "./format.js";
 
 /** @type {import("./index.js").Section} */
-export async function section(options, _registry, _runtime) {
+export async function section(options, _registry, runtime) {
     const sources = await checkViews(options);
     if (!sources.length) {
         return { items: [], upgrade: [] };
@@ -27,6 +28,13 @@ export async function section(options, _registry, _runtime) {
         items.push(plain(`${id}:`));
         for (const v of views) {
             items.push(plain(`${v.name} (${v.file ?? "in the configuration"}): needs ${v.needs.map(nameText).join(", ") || "no field"}`, 2));
+            // a file source's columns, as check/sources.js read them: a field the data does not have
+            const names = runtime.columns?.get(id)?.names;
+            const known = names ? new Set(names.map(fieldKey)) : null;
+            const lacking = known ? v.needs.filter((f) => !known.has(fieldKey(f))) : [];
+            if (lacking.length) {
+                items.push(warning(`sources.${id}: the view ${v.name} needs ${lacking.map(nameText).join(", ")}, which the data does not have; render_view answers with errors for it`));
+            }
         }
         for (const p of problems) {
             items.push(problem(`sources.${id}.${p.key}: ${p.text}`, p.missing ? { effect: "the server starts; its views are left out until it can be read" } : { stops: true }));

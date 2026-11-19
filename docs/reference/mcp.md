@@ -51,8 +51,10 @@ from the data), then the JSON. A view with errors is not a tool error: `ok` or `
 
 `validate_view`, `render_view`, `create_link` and `draft_schedule` take exactly one of `view` or
 `layout`. A layout is a view by field names. The answer of `validate_view` and `render_view` holds
-the `view` it made. `render_view`, `create_link` and `draft_schedule` also take the name of a
-[named view](sources.md#views) as `view`.
+the `view` it made.
+
+`render_view`, `create_link` and `draft_schedule` also take the name of a
+[named view](sources.md#views) as `view`. A caller does not read a named view's content.
 
 Every result over a source's data has `dataAsOf`. That is every tool but `list_sources` and
 `get_view_guide`. `dataAsOf` says when the data is from, in UTC to the second

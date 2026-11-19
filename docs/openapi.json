@@ -3430,7 +3430,7 @@
             "pattern": "^(?!file:)"
           },
           "view": {
-            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text.",
+            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text. Or the name of a view the operator published for the source (GET /sources lists them).",
             "anyOf": [
               {
                 "$ref": "#/components/schemas/View"
@@ -3441,7 +3441,7 @@
               },
               {
                 "type": "string",
-                "description": "A view or a view file as JSON text."
+                "description": "A view or a view file as JSON text, or a named view's name."
               }
             ]
           },
@@ -3802,7 +3802,7 @@
             "pattern": "^(?!file:)"
           },
           "view": {
-            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text.",
+            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text. Or the name of a view the operator published for the source (GET /sources lists them).",
             "anyOf": [
               {
                 "$ref": "#/components/schemas/View"
@@ -3813,7 +3813,7 @@
               },
               {
                 "type": "string",
-                "description": "A view or a view file as JSON text."
+                "description": "A view or a view file as JSON text, or a named view's name."
               }
             ]
           },
@@ -4028,7 +4028,7 @@
             "pattern": "^(?!file:)"
           },
           "view": {
-            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text.",
+            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text. Or the name of a view the operator published for the source (GET /sources lists them).",
             "anyOf": [
               {
                 "$ref": "#/components/schemas/View"
@@ -4039,7 +4039,7 @@
               },
               {
                 "type": "string",
-                "description": "A view or a view file as JSON text."
+                "description": "A view or a view file as JSON text, or a named view's name."
               }
             ]
           },
@@ -4380,7 +4380,7 @@
             "pattern": "^(?!file:)"
           },
           "view": {
-            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text.",
+            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text. Or the name of a view the operator published for the source (GET /sources lists them).",
             "anyOf": [
               {
                 "$ref": "#/components/schemas/View"
@@ -4391,7 +4391,7 @@
               },
               {
                 "type": "string",
-                "description": "A view or a view file as JSON text."
+                "description": "A view or a view file as JSON text, or a named view's name."
               }
             ]
           },

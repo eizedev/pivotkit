@@ -44,12 +44,17 @@ whole view. A view a person saved in the browser (Views, Download view) works as
 }
 ```
 
-- `views` maps a name to a view file's path or to a view written in place. A view written in place
-  is a view file, a `{ "name", "view" }` object or a bare view.
+- `views` maps a name to a view file's path or to a view written in place.
+- A view written in place is one of these:
+    - a view file (`"format": "pivotkit-view"`)
+    - `{ "name": "...", "view": { ... } }`, with both keys
+    - a bare view, such as `{ "rows": ["Region"] }`
 - `viewsDir` is a folder of view files. Each file's name without `.pivotkit.json` or `.json` is its
-  view's name. The browser's `by-region.pivotkit.json` is the view `by-region`.
+  view's name. The browser's `by-region.pivotkit.json` is the view `by-region`. Folders inside it
+  are not read.
 - A name has letters, digits, `-` and `_`, at most 80 characters.
-- A view's title is the view file's `name`, else the view's name.
+- A view's title is the view file's `name`, else the view's name. Its description is the view
+  file's `description`.
 - Paths are relative to the configuration file.
 
 Where views appear:
@@ -58,7 +63,7 @@ Where views appear:
 - `render_view`, `create_link` and `draft_schedule` take a name as `view`, such as
   `"view": "by-region"`. A view's JSON text still works as before.
 - `validate_view` and `describe_view` take the view itself, not a name.
-- A link and a draft name the source they were made for, not the source a view file names.
+- A view file's `source` is ignored. A link and a draft name the source the caller asked for.
 
 ???+ note "What a caller learns of a view"
 
@@ -75,9 +80,15 @@ Where views appear:
       dropped into the folder is there on the next call. No restart is needed.
     - A file is read the safe way: no device, no swapped symbolic link, at most 256 KiB.
     - A source publishes at most 100 views. More files in the folder are left out.
-    - The start and `check-config` read every view. A file that is no view stops the start. So do a
-      name that is taken twice and a file whose name is no view name.
-    - A file or folder that is not there is a warning. Its views are left out until it can be read.
+    - The start and `check-config` read every view and check its shape, such as `rows` being a list.
+      They do not stop on field names, since the data may change.
+    - These stop the start: a file that is no view, a name taken twice, a file whose name is no view
+      name.
+    - A file or folder that is not there is a `PROBLEM` the server starts with. Its views are left
+      out until it can be read.
+    - A file that turns broken while the server runs is left out. The log says why, once.
+    - For a file source, `check-config` warns about a view that needs a field the data does not
+      have.
     - `check-config` lists the views per source and the fields each one needs:
 
     ```text
