@@ -13,7 +13,9 @@ Build your own server with them as [In your own server](rest.md#embed) shows.
 
 ## `pivotkit-server` { #server }
 
-The options, the context, and the HTTP helpers.
+The options, the context, the errors, and the helpers for requests.
+
+### Start and run
 
 | Name | What it is |
 | --- | --- |
@@ -26,15 +28,25 @@ The options, the context, and the HTTP helpers.
 | `loadConfig` | Reads a configuration file. |
 | `validateOptions` | Checks options and throws a `ConfigError` for a mistake. |
 | `checkConfig` | The report that `check-config` prints. [Details](sources.md#check-source) |
+
+### Errors
+
+| Name | What it is |
+| --- | --- |
 | `ConfigError` | The error of a wrong option or configuration file. |
 | `OperationError` | The error of an operation, with a code such as `INVALID_INPUT`. [Codes](rest.md#errors) |
 | `SourceError` | The error a code source throws to answer with a code. [Details](sources.md#code) |
 | `SOURCE_ERROR_CODES` | The codes a `SourceError` may carry. |
-| `CODE_DEFAULTS` | The defaults of a code source: `timeMs`, `ttl`, `maxStale` and `cacheShared`. |
 | `SecretError` | The error when pivotkit cannot read a secret. Its code is `SECRET`. |
+
+### Options and defaults
+
+| Name | What it is |
+| --- | --- |
 | `readSecret` | Reads a secret reference on every use. [Details](rest.md#embed) |
-| `SECRET_REF` | The form of a secret reference: `{ "env": "NAME" }` or `{ "file": "path" }`. |
+| `SECRET_REF` | The option schema of a secret reference, `{ "env": "NAME" }` or `{ "file": "path" }`, for options of your own. |
 | `OPTION_KEYS` | Every option key, nested as the options object is. |
+| `CODE_DEFAULTS` | The defaults of a code source: `timeMs`, `ttl`, `maxStale` and `cacheShared`. |
 | `SERVER_LIMITS` | The import limits a server uses unless you set them: `fileBytes` and `unpackedBytes`. |
 | `COMPUTE_DEFAULTS` | The defaults of the compute workers: `workers`, `timeMs`, `memoryMb` and `queueMs`. |
 | `DEFAULT_ALGORITHMS` | The JWT signature algorithms accepted by default. |
@@ -42,6 +54,11 @@ The options, the context, and the HTTP helpers.
 | `POLICY_DEFAULTS` | The policy a source has unless you set one. |
 | `DEFAULT_PORT` | The port `serve` listens on by default: 3333. |
 | `VERSION` | The package's version. |
+
+### Requests
+
+| Name | What it is |
+| --- | --- |
 | `BODY_BYTES` | The largest body of a caller who is not signed in: 2 MiB. |
 | `MAX_BODY_BYTES` | The largest body a cap function may give a signed-in caller: 64 MiB. |
 | `bodyBytesOf` | The server's own body cap for its options. |

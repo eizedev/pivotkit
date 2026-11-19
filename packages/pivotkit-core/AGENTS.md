@@ -19,7 +19,7 @@ node scripts/schemas.js          # rebuild schema/ after a table change
 
 - Public: `src/index.js`, `export.js`, `chart-style.js`, `link.js`, `templates.js`, `import.js`.
 - Every other module is internal.
-- `src/internal.js` (`pivotkit-core/internal`) shares helpers with this repository's packages. It is no public API: docs never name it.
+- `src/internal.js` (`pivotkit-core/internal`) shares helpers with this repository's packages. It is no public API: no docs page lists its names.
 - A new public function is exported from an entry and listed in `test/api.test.js`.
 - Also document it in `docs/reference/core.md`.
 - `test/api.test.js` fails for an export that no page of `docs/reference/` names in code font.

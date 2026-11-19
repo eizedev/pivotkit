@@ -1,12 +1,13 @@
 /*
  * pivotkit-server/internal: what pivotkit-mcp and this repository's tests share with pivotkit-server,
- * so each is defined once. Not public API: no docs page names it, and any release may change it.
+ * so each is defined once. Not public API: no docs page lists its names, and any release may change
+ * them.
  * pivotkit-mcp imports it from the pivotkit-server of its own release.
  */
 
 export { TOKEN_ENV, MCP_TOKEN_ENV } from "./context.js";
 export { presentedInput, presentedOutput, renderFile, findingsText, saveLogFields } from "./present.js";
-export { pathOf, restResourceOf, ENDPOINTS, REST_BASE, SOURCE_ID } from "./config.js";
+export { pathOf, restResourceOf, ENDPOINTS, SOURCE_ID } from "./config.js";
 export { createAuthCore, AuthRefusal, bearerOf, discover, scopesOf, profileOf, groupsOf, GROUPS_REFUSED, NOT_IN_GROUP, resourceMetadataUrlOf, TOKEN_MIN } from "./auth.js";
 export { allowedHosts, hostRefusal, hostRefusedLine, HOST_HINT, clientAddress, LOCAL_HOSTS } from "./checks.js";
 export { createLimits, REQUEST_LIMITS, limitKeyOf } from "./limits.js";

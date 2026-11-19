@@ -1,6 +1,6 @@
 // The public entry points of pivotkit-server: what each exports, and that a reference page names every
 // export (docs/versioning.md: every JS export is public interface). What only this repository's
-// packages share is pivotkit-server/internal, which no docs page names.
+// packages share is pivotkit-server/internal, whose names no docs page lists.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -21,7 +21,7 @@ test("the package exports its documented entry points and nothing else", () => {
         "AUTO_VALUES", "POLICY_DEFAULTS", "POLICY_LEVELS", "autoLevel", "deniedWord", "exposeFindings", "exposeSource", "levelInfo", "levelOf", "listsAll", "resolvePolicy", "stricter", "touchesClosed", "withStats"
     ]);
     // the internal entry holds no name of the public ones: one place per name
-    assert.deepEqual(Object.keys(internal).filter((name) => name in server || name in policy), []);
+    assert.deepEqual(Object.keys(internal).filter((name) => name in server || name in rest || name in policy), []);
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
     assert.deepEqual(Object.keys(pkg.exports), [".", "./rest", "./policy", "./internal", "./package.json"]);
 });
