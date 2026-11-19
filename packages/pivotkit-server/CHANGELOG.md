@@ -15,9 +15,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   root. A 404 no longer points to the document when `rest.openapi` is `"off"`
   ([The OpenAPI document](https://pivotkit.eize.dev/reference/rest/#openapi), #609).
 - An HTTP source reads a JSON answer while it arrives. Each row becomes a table row at once, so the
-  server never holds the whole body and its parsed objects together. With 500,000 rows the peak
-  memory of a load drops by about a third. A body that has its rows' key twice in one object is
-  refused (`SOURCE_UNAVAILABLE`). CSV answers are read as before
+  server never holds the whole body and its parsed objects together. The peak memory of a first
+  call fell from about 390 to 300 MB for a 20 MiB answer, and from about 910 to 590 MB for
+  500,000 rows, measured on one laptop. A body that has its rows twice, through a repeated name,
+  is refused (`SOURCE_UNAVAILABLE`). CSV answers are read as before
   ([Memory while a source loads](https://pivotkit.eize.dev/reference/sources/#http-memory), #620).
 
 ## [0.3.1] - 2026-11-18

@@ -211,8 +211,9 @@ worker that had computed a report over the file added about 470 MB.
 
 An HTTP source's first call loads the backend's answer and computes over it. This table shows how
 much the server process grew during that call. The main thread and the workers count together. It
-ran with Node 26 on macOS, with seven columns, one of them hidden, as the median of three runs.
-The 66 MB and 34 MB answers needed a larger `http.maxBytes` and `limits.fileBytes`.
+ran on one laptop with Node 26 on macOS, with seven columns, one of them hidden. Each value is the
+median of three runs and only a rough order. The 66 MB and 34 MB answers needed a larger
+`http.maxBytes` and `limits.fileBytes`.
 
 | Answer | Rows | Size | Memory added |
 | --- | ---: | ---: | ---: |
@@ -224,8 +225,13 @@ The 66 MB and 34 MB answers needed a larger `http.maxBytes` and `limits.fileByte
 | CSV | 500,000 | 34 MB | about 640 MB |
 
 The server reads a JSON answer while it arrives, as [memory](../reference/sources.md#http-memory)
-explains. It holds a CSV answer whole until a worker has read it. `node bench/server/http-source.js` in the repository runs
-the measurement on your machine.
+explains. It holds a CSV answer whole until a worker has read it.
+
+To measure on your own machine, run this in a checkout of the repository. It needs `openssl`.
+
+```bash
+node bench/server/http-source.js --formats json,csv --sizes 100000,20MiB --runs 3
+```
 
 A report runs on one worker thread. Give the pod about one CPU per worker that should compute at the
 same time. The example requests half a CPU and sets no CPU limit.

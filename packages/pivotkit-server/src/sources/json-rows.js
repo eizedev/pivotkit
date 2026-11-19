@@ -8,10 +8,11 @@
  * - The rest of the body (everything outside the rows' list) is kept as bytes, with the list left
  *   empty, and parsed with JSON.parse at the end: the asOf and next pointers and check-source's keys
  *   read it as they read the whole body. A body that is no JSON fails there or in a row.
- * - Between the rows only whitespace and one comma may stand; a leading byte order mark is skipped.
+ * - Between the rows only whitespace and one comma may stand. A byte order mark is skipped at the
+ *   start of the body only.
  * - Nesting is counted over the whole body, strings left out, as jsonDepth counts it.
  * - The rows' list is the value at the pointer's own keys (a list's index written as JSON Pointer
- *   writes it). A body that has a list there twice (a name repeated in one object) is refused:
+ *   writes it). A body that has a list there twice (a name repeated on the way to it) is refused:
  *   JSON.parse would take the last one, which is only known after the first was read.
  *
  * The scan works on bytes: every byte JSON gives a meaning to is ASCII, and in UTF-8 no byte of a
@@ -58,7 +59,9 @@ const INDEX = /^(?:0|[1-9]\d{0,8})$/;
  * @param {{ maxDepth: number, onRow: (row: unknown) => void }} how
  */
 export function rowsReader(keys, how) {
-    const decoder = new TextDecoder("utf-8", { fatal: true });
+    // ignoreBOM: a byte order mark inside the body is a character, which JSON.parse refuses; the
+    // one at the start is skipped below
+    const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
     /** The body outside the rows, as copies of its pieces. */
     const outside = [];
     /** @type {Level[]} */
@@ -306,7 +309,8 @@ export function rowsReader(keys, how) {
         if (place !== "outside" || inString) {
             fail("the answer is no JSON");
         }
-        const text = decode(outside.length ? outside : [new Uint8Array(0)]);
+        // a second byte order mark at the start is dropped too, as parsed() in http.js drops it
+        const text = decode(outside.length ? outside : [new Uint8Array(0)]).replace(/^\uFEFF/, "");
         outside.length = 0;
         try {
             return JSON.parse(text);
