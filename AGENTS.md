@@ -29,7 +29,7 @@ The root `package.json` lists the workspaces in build order. `npm run types` and
 - `packages/<name>/` - one package each: `src/`, `test/`, `README.md`, `CHANGELOG.md`.
 - `examples/` - the playground, the web component and Angular examples, print templates, a reader plugin.
 - `tests/` - repository-wide tests and the Playwright browser tests.
-- `bench/browser/` - the browser benchmark. It is not a test.
+- `bench/` - benchmarks, not tests: `browser/` the report in browsers, `server/` an HTTP source's memory.
 - `scripts/` - generators and checks. Each script says in its header what it does.
 - `docker/` - the container image and its examples.
 - `docs/` - the documentation site, built with Zensical.
