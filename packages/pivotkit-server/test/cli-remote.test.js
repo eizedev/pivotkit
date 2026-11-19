@@ -149,3 +149,34 @@ test("pivotkit --url without a token: render's refusal names the server's policy
         await server.close();
     }
 });
+
+test("pivotkit render --numbers shown --flat-header: the same csv from a local file and from the server's source (#553)", async () => {
+    const csv = "Region,Channel,Sales\nNorth,Web,0.1\nNorth,Web,0.2\nNorth,Shop,1.23456\nSouth,Web,2.5\n";
+    const dir = workspace({ "t.csv": csv });
+    writeFileSync(join(dir, "t.csv"), csv);
+    const server = await restServer(
+        {
+            sources: { t: { file: "data/t.csv" } },
+            policy: { profiles: { export: { results: true } } },
+            auth: { mode: "token", tokens: [{ name: "exporter", env: "EXPORTER", profile: "export" }] },
+            baseDir: dir
+        },
+        { env: { EXPORTER: TOKEN } }
+    );
+    try {
+        const who = { cwd: dir, token: TOKEN };
+        const layout = ["--rows", "Region", "--cols", "Channel", "--values", "sum:Sales", "-f", "csv"];
+        for (const flags of [["--numbers", "shown", "--flat-header"], ["--numbers", "full"], ["--flat-header"]]) {
+            const local = await pivotkit(["render", "t.csv", ...layout, ...flags], who);
+            const remote = await pivotkit(["render", ...layout, ...flags, "--url", server.api, "--source", "t"], who);
+            assert.equal(local.code, 0, local.stderr);
+            assert.equal(remote.code, 0, remote.stderr);
+            // the server's file starts with a byte order mark; stdout of a local render has none
+            assert.equal(remote.stdout.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n"), local.stdout.replace(/\r\n/g, "\n"), flags.join(" "));
+        }
+        const shown = await pivotkit(["render", "t.csv", ...layout, "--numbers", "shown", "--flat-header"], who);
+        assert.match(shown.stdout, /^Region,Shop,Web,Grand Total\r?\nNorth,1\.23,0\.3,1\.53\r?\n/);
+    } finally {
+        await server.close();
+    }
+});
