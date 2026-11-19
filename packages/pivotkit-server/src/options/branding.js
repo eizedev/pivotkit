@@ -15,7 +15,7 @@
  *
  * Every key is optional; without them every surface says pivotkit and links pivotkit's site. A key is
  * declared here once, never also in config.js or another fragment (options/index.js refuses a second
- * declaration).
+ * declaration). `http.page` is the exception: config.js declares it with this file's schema (PAGE).
  */
 
 import { createRequire } from "node:module";
@@ -81,9 +81,14 @@ export const KEYS = Object.freeze({
                 icon: "string"
             }
         }
-    },
-    http: { page: { or: [{ const: false }, { const: true }, { object: { sources: "boolean", url: { custom: (/** @type {unknown} */ v) => addressProblems(v) } } }] } }
+    }
 });
+
+/**
+ * The schema of `http.page`. config.js declares the key among http's own, where it was first (its
+ * place in the table and in messages stays); its rules are this file's.
+ */
+export const PAGE = Object.freeze({ or: [{ const: false }, { const: true }, { object: { sources: "boolean", url: { custom: (/** @type {unknown} */ v) => addressProblems(v) } } }] });
 
 /**
  * The base of the documentation links: the operator's `branding.docsUrl` with a trailing slash,

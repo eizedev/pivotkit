@@ -15,6 +15,7 @@ import { POLICY_LEVELS } from "./policy.js";
 import { STATS_DISTINCT } from "./stats.js";
 import { expiryOf } from "./signed-tokens.js";
 import { FRAGMENTS, composeSlots } from "./options/index.js";
+import { PAGE } from "./options/branding.js";
 import { CREATE_NEEDS_FILE, ConfigError } from "./options/shared.js";
 
 /** The error of a wrong option (options/shared.js, so a fragment can throw it without importing this module). */
@@ -183,7 +184,7 @@ const BASE_SLOTS = {
     // a profile's and files.policy's keys; a source's and the server's add the "values" settings,
     // which belong to the data, not to a caller (a profile never gets the automatic rule) or a file: path
     policy: { default: { enum: POLICY_LEVELS }, fields: { map: { enum: POLICY_LEVELS } }, items: "integer", rows: "boolean", counts: "boolean", inline: { or: [{ const: false }, { object: { cells: "integer", bytes: "integer" } }] }, results: "boolean" },
-    http: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer", maxConnectionsPerAddress: "integer" },
+    http: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: PAGE, enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer", maxConnectionsPerAddress: "integer" },
     auth: {
         mode: { enum: ["none", "token", "oauth"] },
         allowUnauthenticated: "boolean",

@@ -274,8 +274,8 @@ test("a backend's answers as a caller gets them, alike on REST and MCP; a backen
         set(403);
         rest = await restOf("all");
         assert.deepEqual([rest.status, rest.data.code, rest.data.detail, rest.data.retryable], [502, "SOURCE_UNAVAILABLE", serverTextOf("SOURCE_UNAVAILABLE", "refused"), false]);
-        assert.match(rest.data.detail, /refused pivotkit's access; ask the operator/);
-        assert.match(await mcpOf("all"), /^SOURCE_UNAVAILABLE: the source's backend refused pivotkit's access; ask the operator and give the request id \(source all; trying again will not help; request id [A-Za-z0-9_-]{11}\)$/);
+        assert.match(rest.data.detail, /refused this server's access; ask the operator/);
+        assert.match(await mcpOf("all"), /^SOURCE_UNAVAILABLE: the source's backend refused this server's access; ask the operator and give the request id \(source all; trying again will not help; request id [A-Za-z0-9_-]{11}\)$/);
         set(404);
         rest = await restOf("all");
         assert.equal(rest.data.detail, serverTextOf("SOURCE_UNAVAILABLE", "setup"));

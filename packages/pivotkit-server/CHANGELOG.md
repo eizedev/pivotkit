@@ -27,6 +27,26 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   ([headers](https://pivotkit.eize.dev/reference/rest/#headers)).
 - `npm run bench:records -w pivotkit-server` measures the route's memory and CPU against a render
   ([sizing](https://pivotkit.eize.dev/reference/rest/#records-sizing)).
+- Branding for intranet deployments, all optional
+  ([your own name and links](https://pivotkit.eize.dev/reference/branding/), #608, #612):
+    - `branding.name` puts the operator's name on the download pages, the OpenAPI title and the
+      `resource_name` ("<name> REST"), and the realm of a static token's 401.
+    - `branding.docsUrl` is the base of every documentation link: a problem's `type`, the OAuth
+      metadata, the OpenAPI document, `check-config` and the start error.
+      With `null` there is none, and a problem's `type` is `about:blank`.
+    - `branding.icon`, a PNG of at most 64 KiB, is served at `/icon.png` without sign-in. The
+      download pages show it as their favicon.
+    - `http.page.url` sends `/` to the operator's page, also on a REST-only server.
+    - `check-config` reports them in a section `Branding`.
+    - `source-from-openapi --config <file>` links its notes under the file's `branding.docsUrl`.
+
+### Changed
+
+- Two texts callers read name the server instead of pivotkit. `SOURCE_UNAVAILABLE` says "the
+  source's backend refused this server's access", and `UNSUPPORTED_FORMAT` says "the server reads
+  csv, tsv, txt, json and xlsx files". The codes stay
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#neutral-texts)).
+- A download sign-in with another issuer than `auth.issuer` points to the docs instead of an issue.
 
 ## [0.3.2] - 2026-11-19
 

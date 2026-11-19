@@ -184,3 +184,11 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `test/conformance.test.js` checks that MCP and REST answer alike.
 - `test/cli-remote.test.js` runs the CLI against the service.
 - Use the `tempDir` of `test/helpers.js` for files on disk.
+
+## Branding
+
+- `src/branding.js` holds the operator's name, documentation base, icon and page (`context.branding`).
+- Every documentation link goes through `docsLink`. `null` docs means no link, never pivotkit's site.
+- A handler binds its problems with `problemsFor(docs)`. Never call `typeOf` without the docs.
+- Identifiers stay pivotkit's: tool names, the view format, cookies, variables, log fields.
+- `test/branding.test.js` sweeps every route for the site's address. A new route joins the sweep.

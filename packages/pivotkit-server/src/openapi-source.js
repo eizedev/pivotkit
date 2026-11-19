@@ -1287,10 +1287,11 @@ export async function sourceFromOpenApiCommand(argv, io, means = {}) {
     if (rest.length !== 1 || !flags.operation) {
         return usage(io, rest.length !== 1 ? "name one OpenAPI document, a file or an https:// URL" : '--operation names the operation (its operationId, or "GET /path")');
     }
-    const docs = flags.config === undefined ? DOCS_SITE : await configDocs(flags.config);
-    if (typeof docs === "object" && docs !== null) {
-        return usage(io, docs.problem);
+    const read = flags.config === undefined ? { docs: DOCS_SITE } : await configDocs(flags.config);
+    if ("problem" in read) {
+        return usage(io, read.problem);
     }
+    const docs = read.docs;
     try {
         const doc = readDocument(await loadDocumentText(rest[0], means));
         const documentUrl = /^https?:\/\//i.test(rest[0]) ? rest[0] : undefined;
@@ -1314,7 +1315,7 @@ export async function sourceFromOpenApiCommand(argv, io, means = {}) {
  * file. Only that key is read: the configuration may still hold the TODO values of an earlier block,
  * which the server refuses.
  * @param {string} file
- * @returns {Promise<string | null | { problem: string }>}
+ * @returns {Promise<{ docs: string | null } | { problem: string }>}
  */
 async function configDocs(file) {
     let options;
@@ -1325,7 +1326,7 @@ async function configDocs(file) {
     }
     const given = options?.branding?.docsUrl;
     const problems = given === undefined ? [] : docsUrlProblems(given);
-    return problems.length ? { problem: `--config: branding.docsUrl: ${problems.join("; ")}` } : docsOf(options);
+    return problems.length ? { problem: `--config: branding.docsUrl: ${problems.join("; ")}` } : { docs: docsOf(options) };
 }
 
 /** A usage error: the message and the usage line, exit 2. */

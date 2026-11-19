@@ -78,6 +78,9 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.policy.object.profiles.map.object = withRecords(expected.policy.object.profiles.map.object);
     expected.rest.object.records = { object: { maxRows: "integer", maxCells: "integer", concurrency: "integer", idleMs: "integer" } };
     expected.sources.map.object.records = { object: { maxRows: "integer" } };
+    // branding (options/branding.js, the last fragment): http.page's url (config.js keeps the key in its place), and branding last of the top keys
+    expected.http.object.page = { or: [{ const: false }, { const: true }, { object: { sources: "boolean", url: { custom: "fn" } } }] };
+    expected.branding = { object: { name: { custom: "fn" }, docsUrl: { custom: "fn" }, icon: "string" } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
@@ -114,7 +117,7 @@ test("options: every fragment has frozen keys in known slots and a validate; eac
     for (const f of FRAGMENTS.slice(1)) {
         assert.ok(names.includes(f.name), f.name);
     }
-    assert.deepEqual(names, ["sources", "http", "code", "inline", "output", "downloads", "upload", "access", "credentials", "signed", "external", "issuer", "operator", "profiles", "records", "rest", "log"]);
+    assert.deepEqual(names, ["sources", "http", "code", "inline", "output", "downloads", "upload", "access", "credentials", "signed", "external", "issuer", "operator", "profiles", "records", "rest", "log", "branding"]);
 });
 
 test("options: an unknown key is still refused with the name meant, also for keys no fragment declares yet", () => {

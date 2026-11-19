@@ -1119,7 +1119,9 @@ Every error is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem doc
   "status": 404, "code": "SOURCE_NOT_FOUND", "detail": "no source \"salse\"; did you mean \"sales\"?; GET /sources lists them" }
 ```
 
-`code` is stable. `detail` says what went wrong and what to do. It names a file by its base name at
+`code` is stable. `type` is the error's row in the [table below](#errors) under
+`branding.docsUrl`, or `about:blank` when it is `null` ([documentation links](branding.md#docs)).
+`detail` says what went wrong and what to do. It names a file by its base name at
 most, never its content. A 5xx answer carries a fixed text, never an error's message. 429 and 503
 carry `Retry-After`.
 
@@ -1133,7 +1135,7 @@ when, where it is known.
     - `true` for a failure that may pass: an error with a network code (`ECONNRESET`, `ETIMEDOUT`
       and the like), the source's time limit, a backend's 429, 502, 503 or 504, a `SourceError`
       marked `transient`, or too many loads of the source running.
-    - `false` for any other error: the backend refused pivotkit's access or answered another status
+    - `false` for any other error: the backend refused this server's access or answered another status
       such as 500, a source not set up correctly, or an error of a code source's `load` without a
       network code.
 - `NOT_ALLOWED`, `INVALID_INPUT` and `DATA_NOT_AVAILABLE` from a source: `false`. These come from a
@@ -1177,7 +1179,7 @@ Rows go by status, then by code. The answers of the download links come last.
 | 422 | <a id="error-view-has-errors"></a>`VIEW_HAS_ERRORS` | The file route for a view with errors (with `findings`) |
 | 429 | <a id="error-rate-limited"></a>`RATE_LIMITED` | A [limit](#limits) |
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else. The details are only in the log, with `--log debug` |
-| 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running. `detail` is one of pivotkit's fixed texts: not available right now, the source's backend refused pivotkit's access, or the source is not set up correctly. `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
+| 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running. `detail` is one of pivotkit's fixed texts: not available right now, the source's backend refused this server's access, or the source is not set up correctly. `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
 | 502 | <a id="error-upload-failed"></a>`UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload) (`retryable` says whether trying again may help); the report stays in the output directory |
 | 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, two [large bodies](#data) read already, a parameter's pattern not checked in time, or too many [rows requests](#records-limits); starting or stopping; the OAuth issuer not loaded yet |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
@@ -1328,7 +1330,8 @@ default is REST, and MCP when pivotkit-mcp is installed.
 - An unknown flag is a usage error (exit 2) that points to `--help`.
 
 It is one configuration for both endpoints. Only the REST service reads `rest.*`. Only the MCP
-endpoint reads `http.page` and `http.allowOrigins`.
+endpoint reads `http.allowOrigins` and shows the page of `http.page`. `http.page.url` sends `/` to
+your own page on a REST-only server too ([your own name and links](branding.md#page)).
 
 `/healthz` answers `{ "ok": true }` while the process runs. `/readyz` answers 200 when the server can
 take work, and 503 otherwise:
@@ -1366,11 +1369,13 @@ example in Task Manager, ends it at once.
 | `output.downloads` | on (plain links for open sources) | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` |
 | `output.upload` | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method`, `timeMs`, `maxBytes`, `keepLocal`, `bind`, `intranet` |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json`, at the server's root |
+| `branding.name`, `.docsUrl`, `.icon` | pivotkit's | The name end users see, the base of the documentation links or `null` for none, and an icon ([your own name and links](branding.md)) |
 
 Behind a reverse proxy:
 
 - Forward `/api/v1/`, `/openapi.json`, `/.well-known/oauth-protected-resource/api/v1` and
   `/downloads/`. With MCP, also forward `/mcp`, `/.well-known/` and `/`.
+- With `branding.icon`, forward `/icon.png`. With `http.page.url`, forward `/`.
 - Keep the `Host` header, or add the proxy's name to `http.allowHosts`.
 - Set `http.publicUrl`.
 - Set `http.trustProxy` when the proxy adds the client's address to `X-Forwarded-For`. Otherwise
@@ -1386,7 +1391,7 @@ Behind a reverse proxy:
 For nginx:
 
 ```nginx
-location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|downloads/|healthz$|readyz$|$) {
+location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|downloads/|healthz$|readyz$|icon\.png$|$) {
     proxy_pass http://127.0.0.1:3333;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

@@ -145,8 +145,8 @@ The functions are listed in the [pivotkit-core reference](core.md#view-files).
 - A reader ignores keys it does not know, in the envelope and in `extensions`.
 - A reader refuses a `formatVersion` newer than it knows, and a view with a newer `view.version`. It
   never reads the file as an older one, since saving it again would drop what the newer version
-  added. pivotkit-react says "This view comes from a newer version of pivotkit and cannot be read
-  here. Update pivotkit to open it."
+  added. pivotkit-react says "This view comes from a newer version and cannot be read here. Update
+  the application to open it."
 - `formatVersion` is the integer 1 or 2. A reader refuses any other value and never reads it as one of
   them:
     - A value above 2 (`3`, `2.5`, `"3"`) counts as a newer version.

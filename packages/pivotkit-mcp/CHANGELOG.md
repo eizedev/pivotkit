@@ -6,6 +6,18 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Added
+
+- Branding for intranet deployments
+  ([your own name and links](https://pivotkit.eize.dev/reference/branding/), #608, #612):
+    - `branding.name` is the `serverInfo.title`, the OAuth metadata's `resource_name` and the
+      quick-start page's title. The page's client configurations and a static token's realm use it
+      as a short identifier. `serverInfo.name` stays `pivotkit-mcp`.
+    - `branding.icon` is `serverInfo.icons` and the page's favicon, and is served at `/icon.png`.
+    - `branding.docsUrl` sets the page's and the metadata's documentation links. With `null` there
+      are none.
+    - `http.page.url` sends `/`, and a browser that opens `/mcp`, to the operator's page.
+
 ## [0.3.2] - 2026-11-19
 
 ### Changed

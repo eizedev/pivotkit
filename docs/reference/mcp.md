@@ -370,7 +370,8 @@ one probably meant.
 | `http.allowHosts` | `--allow-host name` | localhost names | Host names the server answers to (DNS rebinding protection) |
 | `http.allowOrigins` | `--allow-origin name` | none | Browser origins (host names) allowed to call |
 | - | `--state-dir dir` | `$PIVOTKIT_STATE_DIR` | `--http`: where the server makes, at its first start, the token and keys it needs when none is given ([made at the first start](rest.md#first-start)). Nothing over stdio |
-| `http.page` | - | on | The quick-start page. `{ "sources": true }` lists source ids on it. `false` turns it off |
+| `http.page` | - | on | The quick-start page. `{ "sources": true }` lists source ids on it. `false` turns it off. `{ "url": "https://..." }` sends `/` to your own page instead ([your page](branding.md#page)) |
+| `branding.name`, `.docsUrl`, `.icon` | - | pivotkit's | The name clients and people see, the base of the documentation links or `null` for none, and an icon ([your own name and links](branding.md)) |
 | `http.graceMs` | - | 25000 | How long a stop (SIGTERM or SIGINT, [stopping](rest.md#running)) waits for running requests |
 | `http.maxConnectionsPerAddress` | - | 32, none with `http.trustProxy` | Connections one address may hold, loopback excepted. `0`: no bound ([Streamable HTTP](#http)) |
 | `mcp.rateLimit.perMinute`, `.burst` | - | 120, 30 | HTTP: requests per minute of one caller, with up to `burst` at once after a pause. A caller is the person an OAuth token names, a static token's name, or `local` without sign-in. An OAuth token without a subject counts for its client. The people of one OAuth client together get eight times both |
@@ -561,7 +562,7 @@ since the same call does not work when tried again.
 | `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page or over data sent in the request; a schedule over a `file:` source, data sent in the request, or a source with a token exchange or a parameter bound to a claim ([backend sign-in](sources.md#http-claims)) |
 | `BUSY`, `TIMEOUT` | No worker free within `queueMs`, or a parameter's pattern [could not be checked in time](#configuration); a call over `timeMs` |
-| `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors), [HTTP sources](sources.md#http-errors)). The text is one of pivotkit's fixed texts (not available right now, the backend refused pivotkit's access, not set up correctly), with the source's id and whether trying again may work |
+| `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors), [HTTP sources](sources.md#http-errors)). The text is one of pivotkit's fixed texts (not available right now, the backend refused this server's access, not set up correctly), with the source's id and whether trying again may work |
 | `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`); an HTTP source's backend answered 401, 403 or 404 for the values given |
 | `UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload). A fixed text with the request id and whether trying again may work. The report stays in the output directory |
 | `INTERNAL` | Anything else: "internal error". The details are only in the log, with `--log debug` |
@@ -670,11 +671,14 @@ Without authentication, the server answers:
 - `/healthz` (`{ "ok": true }`, for a supervisor or a proxy)
 - the OAuth discovery documents
 - the **quick-start page** at `/`: what the server is, its endpoint, client configurations to copy,
-  the auth mode and the tools. A browser that opens `/mcp` is sent there.
+  the auth mode and the tools. A browser that opens `/mcp` is sent there. With `http.page.url`,
+  both go to your own page instead ([your page](branding.md#page)).
+- the operator's icon at `/icon.png`, with `branding.icon` set
 
 The page lists source ids only when `http.page.sources` is true (default only with auth `none`), and
 only sources without scopes. It never lists paths, fields or data. It loads nothing from elsewhere
-and has no script (`Content-Security-Policy: default-src 'none'`).
+and has no script (`Content-Security-Policy: default-src 'none'`). With `branding.icon`, the policy
+also allows the icon as a `data:` image.
 
 The server listens on 127.0.0.1 unless `--host` says otherwise. It refuses another address without
 authentication unless `--allow-unauthenticated` says the network is trusted. There are no sessions:
@@ -684,7 +688,8 @@ Behind a reverse proxy:
 
 - Keep the server on 127.0.0.1 when the proxy runs on the same machine.
 - Terminate TLS at the proxy.
-- Forward `/mcp`, `/.well-known/`, `/downloads/` ([download links](delivery.md)) and `/`.
+- Forward `/mcp`, `/.well-known/`, `/downloads/` ([download links](delivery.md)) and `/`. With
+  `branding.icon`, also `/icon.png`.
 - Keep the `Host` header, or add the proxy's name with `--allow-host`.
 - Set `--public-url`.
 - Turn response buffering off for `/mcp`.

@@ -325,10 +325,10 @@ export const en = {
     viewFailed: {
         empty: "Paste a view or choose a file first.",
         tooLarge: "This is too large for a view.",
-        notJson: "This is neither a view in JSON nor a pivotkit link.",
-        notView: "This is not a pivotkit view.",
-        newer: "This view comes from a newer version of pivotkit and cannot be read here. Update pivotkit to open it.",
-        badLink: "This link is damaged or not a pivotkit link.",
+        notJson: "This is neither a view in JSON nor a link to a report.",
+        notView: "This is not a view.",
+        newer: "This view comes from a newer version and cannot be read here. Update the application to open it.",
+        badLink: "This link is damaged or not a link to a report.",
         file: "The file could not be read."
     },
     // filters
@@ -643,10 +643,10 @@ export const de = {
     viewFailed: {
         empty: "Zuerst eine Ansicht einfügen oder eine Datei wählen.",
         tooLarge: "Das ist zu groß für eine Ansicht.",
-        notJson: "Das ist weder eine Ansicht als JSON noch ein pivotkit-Link.",
-        notView: "Das ist keine pivotkit-Ansicht.",
-        newer: "Diese Ansicht stammt aus einer neueren pivotkit-Version und kann hier nicht gelesen werden. Zum Öffnen pivotkit aktualisieren.",
-        badLink: "Dieser Link ist beschädigt oder kein pivotkit-Link.",
+        notJson: "Das ist weder eine Ansicht als JSON noch ein Link zu einem Bericht.",
+        notView: "Das ist keine Ansicht.",
+        newer: "Diese Ansicht stammt aus einer neueren Version und kann hier nicht gelesen werden. Zum Öffnen die Anwendung aktualisieren.",
+        badLink: "Dieser Link ist beschädigt oder kein Link zu einem Bericht.",
         file: "Die Datei konnte nicht gelesen werden."
     },
     valueConditions: { compare: "{value} {op} {number}", between: "{value} zwischen {from} und {to}", notBetween: "{value} nicht zwischen {from} und {to}" },

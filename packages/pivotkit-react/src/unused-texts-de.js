@@ -45,11 +45,11 @@ export const de = {
         other: "es wird weggelassen"
     },
     codes: {
-        notView: "das ist keine pivotkit-Ansicht - der Bericht beginnt leer",
+        notView: "das ist keine Ansicht - der Bericht beginnt leer",
         notJson: "das ist kein gültiges JSON - der Bericht beginnt leer",
         tooLarge: "die Ansicht ist zu groß - der Bericht beginnt leer",
         badVersion: "die Ansicht hat eine unbekannte Version - der Bericht beginnt leer",
-        newerVersion: "die Ansicht stammt aus einem neueren pivotkit - der Bericht beginnt leer; aktualisieren Sie pivotkit, um sie zu öffnen",
+        newerVersion: "die Ansicht stammt aus einer neueren Version - der Bericht beginnt leer; aktualisieren Sie die Anwendung, um sie zu öffnen",
         noMigration: "die Ansicht lässt sich nicht auf diese Version bringen - der Bericht beginnt leer",
         unknownKey: "diese Einstellung ist hier unbekannt - sie wird ignoriert",
         notList: "das ist keine Liste - nichts davon wird verwendet",

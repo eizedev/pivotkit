@@ -346,7 +346,7 @@ test("REST and MCP: a refused sign-in answers with pivotkit's fixed text; no sec
         const rest = await call(`${s.api}/sources/describe`, { body: { source: "vms" } });
         assert.deepEqual([rest.status, rest.data.code, rest.data.detail, rest.data.retryable], [502, "SOURCE_UNAVAILABLE", serverTextOf("SOURCE_UNAVAILABLE", "refused"), false]);
         const mcp = String(/** @type {any} */ ((await client.callTool({ name: "describe_source", arguments: { source: "vms" } })).content)[0].text);
-        assert.match(mcp, /^SOURCE_UNAVAILABLE: the source's backend refused pivotkit's access/);
+        assert.match(mcp, /^SOURCE_UNAVAILABLE: the source's backend refused this server's access/);
         clean("the REST answer", JSON.stringify(rest.data));
         clean("the MCP answer", mcp);
         clean("the log", JSON.stringify(s.log));
@@ -764,7 +764,7 @@ test("check-source: the sign-in's outcome (status, error code, scope, expires_in
     out = await checkSource(cc, "vms", {}, { fetch: httpMeans.fetch });
     assert.equal(out.ok, false);
     assert.match(out.text, /the token endpoint answered 401 \(invalid_client\)/);
-    assert.match(out.text, /a caller gets: SOURCE_UNAVAILABLE: the source's backend refused pivotkit's access/);
+    assert.match(out.text, /a caller gets: SOURCE_UNAVAILABLE: the source's backend refused this server's access/);
     clean("check-source", out.text);
     // a missing secret: the reference named
     tokenCache.clear();

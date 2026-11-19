@@ -237,7 +237,7 @@ test("signIn.issuer: compared with auth.issuer after normalising; a spelling dif
         assert.throws(() => validateOptions(options(spelling)), /^ConfigError: output\.downloads\.signIn\.issuer: must be auth\.issuer exactly; it differs only in its spelling \(a trailing slash, upper-case letters in the scheme or host, a default port\), and tokens name the issuer as auth\.issuer does: leave signIn\.issuer out$/, spelling);
     }
     // another issuer (another Authentik application, another realm, a path in other case): the per-application case points to the follow-up
-    const another = /^ConfigError: output\.downloads\.signIn\.issuer: must be auth\.issuer \("https:\/\/auth\.example\.com\/application\/o\/pivotkit\/"\), not "[^"]+": a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did; leave it out\. A download sign-in with an issuer of its own \(a provider with one issuer per application, such as Authentik\) is https:\/\/github\.com\/eizedev\/pivotkit\/issues\/441$/;
+    const another = /^ConfigError: output\.downloads\.signIn\.issuer: must be auth\.issuer \("https:\/\/auth\.example\.com\/application\/o\/pivotkit\/"\), not "[^"]+": a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did; leave it out\. A download sign-in with an issuer of its own \(a provider with one issuer per application, such as Authentik\) is not supported yet \(https:\/\/pivotkit\.eize\.dev\/reference\/delivery\/#sign-in-issuer\)$/;
     for (const other of [
         "https://auth.example.com/application/o/pivotkit-downloads/",
         "https://auth.example.com/application/o/Pivotkit/",

@@ -509,15 +509,17 @@ const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => `&#${c.char
 /**
  * A short page: a heading (also the title), its body as HTML (escaped by the caller) and, for a
  * one-time link, the button. A page of status 500 or more names the request's id, for the operator.
- * The operator's name (branding.name) heads it: "<name> report".
- * @param {{ name: string }} brand  branding.js's
+ * The operator's name (branding.name) heads it: "<name> report"; the operator's icon
+ * (branding.icon) is its favicon, a data: image its policy then allows.
+ * @param {{ name: string, icon: { src: string } | null }} brand  branding.js's
  */
 function pageOf(brand, heading, body, { status = 200, form = false, headers = {} } = {}) {
     // the request id where the operator has something to look up: a failure of the server's own
     const tail = form ? `<form method="post"><button type="submit">Download</button></form><p id="status" role="status"></p><script>${PAGE_SCRIPT}</script>` : status >= 500 ? `<p class="ref">Request id: ${escapeHtml(requestId() ?? newRequestId())}</p>` : "";
     const brandLine = `${escapeHtml(brand.name)} report`;
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(heading)} - ${brandLine}</title><style>${PAGE_STYLE}</style></head><body><main><p class="brand">${brandLine}</p><h1>${escapeHtml(heading)}</h1>${body}${tail}</main></body></html>`;
-    return new Response(html, { status, headers: { ...BASE_HEADERS, "content-security-policy": PAGE_CSP, "content-type": "text/html; charset=utf-8", ...headers } });
+    const icon = brand.icon ? `<link rel="icon" type="image/png" href="${brand.icon.src}">` : "";
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(heading)} - ${brandLine}</title>${icon}<style>${PAGE_STYLE}</style></head><body><main><p class="brand">${brandLine}</p><h1>${escapeHtml(heading)}</h1>${body}${tail}</main></body></html>`;
+    return new Response(html, { status, headers: { ...BASE_HEADERS, "content-security-policy": brand.icon ? `${PAGE_CSP}; img-src data:` : PAGE_CSP, "content-type": "text/html; charset=utf-8", ...headers } });
 }
 
 /** Whether a request asks for JSON rather than a page (a program, not a browser). */
@@ -528,7 +530,7 @@ const wantsJson = (request) => {
 
 /**
  * The answer of a code: a page for a browser, a problem document for a program.
- * @param {{ name: string, docs: string | null }} brand  branding.js's: the page's name, the problem's documentation base
+ * @param {{ name: string, docs: string | null, icon: { src: string } | null }} brand  branding.js's: the page's name and icon, the problem's documentation base
  * @param {Request} request
  * @param {keyof typeof ANSWERS} code
  * @param {Record<string, string>} [headers]
