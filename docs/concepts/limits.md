@@ -213,6 +213,12 @@ They also count against limits of their own, `REPORT_LIMITS`:
 Before it parses them, the command line reads a view file of at most 4 MB and a template of at most
 1 MB. It reads data files up to `fileBytes` ([pivotkit-cli](../reference/cli.md#files)).
 
+pivotkit-server reads a print template of at most 1 MiB. A source's [named views](../reference/sources.md#views)
+count against two limits of their own:
+
+- 100 views per source, in the configuration and its folder together
+- 256 KiB per view file, and per view written in the configuration
+
 ### Why the defaults are what they are
 
 Measured in Node 26 on arm64. Other engines and machines differ.

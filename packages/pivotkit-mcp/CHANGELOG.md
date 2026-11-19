@@ -12,6 +12,14 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   `list_sources` names `linkParams`. The tool's description says so: MCP clients reconnect to read it
   ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), #619).
 
+### Changed
+
+- `create_link` and `draft_schedule` take a `layout` instead of a `view`, as `render_view` does.
+  The schema's placeholder `layout` that refused every layout is gone (#469).
+- `render_view`, `create_link` and `draft_schedule` take the name of a view the operator published
+  ([named views](https://pivotkit.eize.dev/reference/sources/#views), #616). MCP clients reconnect
+  to read the new schemas.
+
 ## [0.3.2] - 2026-11-19
 
 ### Changed
