@@ -13,7 +13,7 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Changed
 
-- **Breaking:** needs Node 24 or later. Node 22 is no longer supported, and CI tests Node 24 and 26
+- **Breaking:** needs Node 24 or later. Node 22 is no longer supported
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
 - `create_link` and `draft_schedule` take exactly one of `view` or `layout`, through the same
   `viewOrLayout` as `validate_view` and `render_view`. `view` is no longer required (#469).

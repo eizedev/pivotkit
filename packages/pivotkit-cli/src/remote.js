@@ -174,7 +174,7 @@ export async function readToken(values, ctx) {
 /**
  * Whether Node routes fetch through the environment's proxy, as Node's documentation dates it:
  * NODE_USE_ENV_PROXY=1 since v24.0.0 and v22.21.0, --use-env-proxy since v24.5.0 and v22.21.0
- * (neither in 23).
+ * (neither in 23). It answers for the Node that runs, also one below the engines floor.
  * @param {Record<string, string | undefined>} env
  * @param {string} [version]  Node's, for tests
  */
@@ -187,7 +187,7 @@ export function nodeUsesEnvProxy(env, version = process.versions.node) {
 }
 
 /** What the proxy note says about Node's versions (Node's documentation). */
-export const ENV_PROXY_VERSIONS = "NODE_USE_ENV_PROXY=1 or --use-env-proxy (Node 24.5.0 or later)";
+export const ENV_PROXY_VERSIONS = "NODE_USE_ENV_PROXY=1, or --use-env-proxy from Node 24.5.0";
 
 /** What a network error says about the proxy variables (none of their values). */
 function proxyNote(server, env) {

@@ -15,10 +15,10 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
-- **Breaking:** needs Node 24 or later. Node 22 is no longer supported, and CI tests Node 24 and 26
+- **Breaking:** needs Node 24 or later. Node 22 is no longer supported
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
-- A network error with a proxy variable set names `NODE_USE_ENV_PROXY=1` and `--use-env-proxy` for
-  Node 24 only. The flag needs Node 24.5.0 or later.
+- A network error with a proxy variable set names `NODE_USE_ENV_PROXY=1`, or `--use-env-proxy` from
+  Node 24.5.0. It names no Node 22 release.
 
 ## [0.4.0] - 2026-11-18
 

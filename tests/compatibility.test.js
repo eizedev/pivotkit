@@ -1,7 +1,8 @@
 // docs/compatibility.md states the lowest Node, browser, React and ECharts versions and the Node
 // versions CI runs. They are part of the versioning promise (docs/versioning.md), so they must be the
 // ones of package.json's engines, pivotkit-react's peer dependencies, docs/browser-support.md, the
-// esbuild targets of the browser builds and .github/workflows/ci.yml.
+// esbuild targets of the browser builds and .github/workflows/ci.yml. Every other page that names the
+// lowest Node or the container image's Node names the same one as engines and docker/Dockerfile.
 // Not covered: whether the code really runs in those lowest browsers (CI runs Playwright's current
 // engines only), and the status column of the page, which the reviews check by hand.
 import { test } from "node:test";
@@ -67,4 +68,35 @@ test("the compatibility page names pivotkit-react's React and ECharts ranges as 
     const peers = json("packages/pivotkit-react/package.json").peerDependencies;
     assert.match(page(), new RegExp(`^\\| React for pivotkit-react: \`${peers.react}\` \\|`, "m"));
     assert.match(page(), new RegExp(`^\\| Apache ECharts for pivotkit-react: \`${peers.echarts}\` \\|`, "m"));
+});
+
+/** The Markdown files people read about installing pivotkit: the README files, the docs and the repository's guides. Changelogs and decision records keep history. */
+function currentStateDocs() {
+    const top = readdirSync(root).filter((name) => name.endsWith(".md"));
+    const packages = readdirSync(new URL("packages/", root)).map((name) => `packages/${name}/README.md`);
+    const docs = readdirSync(new URL("docs/", root), { recursive: true }).filter((path) => path.endsWith(".md") && !path.startsWith("decisions")).map((path) => `docs/${path}`);
+    const agents = ["docker/AGENTS.md", ...readdirSync(new URL("packages/", root)).map((name) => `packages/${name}/AGENTS.md`)];
+    return [...top, ...packages, ...docs, ...agents].filter((path) => {
+        try {
+            read(path);
+            return true;
+        } catch {
+            return false;
+        }
+    });
+}
+
+test("every page that names the lowest Node names the one of package.json's engines", () => {
+    const lowest = json("package.json").engines.node.match(/^>=(\d+)$/)[1];
+    const wrong = currentStateDocs().flatMap((path) => [...read(path).matchAll(/Node(?:\.js)? (\d+) or later/g)].filter((m) => m[1] !== lowest).map((m) => `${path}: ${m[0]}`));
+    assert.deepEqual(wrong, [], `engines.node is >=${lowest}`);
+});
+
+test("every page that names the container image's Node names the Dockerfile's distroless base", () => {
+    const dockerfile = read("docker/Dockerfile");
+    const base = dockerfile.match(/^ARG RUNTIME_IMAGE=gcr\.io\/distroless\/nodejs(\d+)-/m)?.[1];
+    assert.ok(base, "docker/Dockerfile has no distroless nodejs base");
+    assert.equal(dockerfile.match(/^ARG BUILD_IMAGE=node:(\d+)-/m)?.[1], base, "the build image and the runtime image have different Node majors");
+    const wrong = [...currentStateDocs(), "docker/Dockerfile"].flatMap((path) => [...read(path).matchAll(/distroless Node (\d+)/gi)].filter((m) => m[1] !== base).map((m) => `${path}: ${m[0]}`));
+    assert.deepEqual(wrong, [], `the image runs on distroless nodejs${base}`);
 });

@@ -76,7 +76,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
-- **Breaking:** needs Node 24 or later. Node 22 is no longer supported, and CI tests Node 24 and 26
+- **Breaking:** needs Node 24 or later. Node 22 is no longer supported
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
 - The container image runs on a distroless Node 24 base (#519).
 - An HTTP source reads a JSON answer while it arrives. Each row becomes a table row at once, so the
