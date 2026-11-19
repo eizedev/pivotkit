@@ -22,7 +22,7 @@ const tickets = (count, extra = {}) =>
 /**
  * Time bounds as ratios of times taken in the same process, so a slow runner and coverage change them
  * little; the unit is the unpacking of the same sheet (the fastest of three). Measured for the
- * used-range test, plain and under coverage (Node 26; CI Node 24 and 26 alike): a read is 1.0-1.2
+ * used-range test, plain and under coverage (Node 26; CI Node 22 and 24 alike): a read is 1.0-1.2
  * times the scan before parsing (up to 1.3 under full CPU load), the parse after it (read minus
  * scan) 0.1-1.3 times the unpacking, the scan 3.2-5.7 times the unpacking. With the filter passing
  * the empty rows on to the parser: 1.8-3.5 times the scan, the parse 6.5-24 times the unpacking. For

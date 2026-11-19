@@ -74,7 +74,7 @@ test("the compatibility page names pivotkit-react's React and ECharts ranges as 
 function currentStateDocs() {
     const top = readdirSync(root).filter((name) => name.endsWith(".md"));
     const packages = readdirSync(new URL("packages/", root)).map((name) => `packages/${name}/README.md`);
-    const docs = readdirSync(new URL("docs/", root), { recursive: true }).filter((path) => path.endsWith(".md") && !path.startsWith("decisions")).map((path) => `docs/${path}`);
+    const docs = readdirSync(new URL("docs/", root), { recursive: true }).filter((path) => path.endsWith(".md") && path.split(/[\\/]/)[0] !== "decisions").map((path) => `docs/${path}`);
     const agents = ["docker/AGENTS.md", ...readdirSync(new URL("packages/", root)).map((name) => `packages/${name}/AGENTS.md`)];
     return [...top, ...packages, ...docs, ...agents].filter((path) => {
         try {
@@ -88,8 +88,9 @@ function currentStateDocs() {
 
 test("every page that names the lowest Node names the one of package.json's engines", () => {
     const lowest = json("package.json").engines.node.match(/^>=(\d+)$/)[1];
-    const wrong = currentStateDocs().flatMap((path) => [...read(path).matchAll(/Node(?:\.js)? (\d+) or later/g)].filter((m) => m[1] !== lowest).map((m) => `${path}: ${m[0]}`));
-    assert.deepEqual(wrong, [], `engines.node is >=${lowest}`);
+    const found = currentStateDocs().flatMap((path) => [...read(path).matchAll(/Node(?:\.js)?\s+(\d+)\s+or\s+later/g)].map((m) => [path, m]));
+    assert.ok(found.some(([path]) => path === "README.md"), "README.md names no lowest Node");
+    assert.deepEqual(found.filter(([, m]) => m[1] !== lowest).map(([path, m]) => `${path}: ${m[0]}`), [], `engines.node is >=${lowest}`);
 });
 
 test("every page that names the container image's Node names the Dockerfile's distroless base", () => {
@@ -97,6 +98,7 @@ test("every page that names the container image's Node names the Dockerfile's di
     const base = dockerfile.match(/^ARG RUNTIME_IMAGE=gcr\.io\/distroless\/nodejs(\d+)-/m)?.[1];
     assert.ok(base, "docker/Dockerfile has no distroless nodejs base");
     assert.equal(dockerfile.match(/^ARG BUILD_IMAGE=node:(\d+)-/m)?.[1], base, "the build image and the runtime image have different Node majors");
-    const wrong = [...currentStateDocs(), "docker/Dockerfile"].flatMap((path) => [...read(path).matchAll(/distroless Node (\d+)/gi)].filter((m) => m[1] !== base).map((m) => `${path}: ${m[0]}`));
-    assert.deepEqual(wrong, [], `the image runs on distroless nodejs${base}`);
+    const found = [...currentStateDocs(), "docker/Dockerfile"].flatMap((path) => [...read(path).matchAll(/distroless\s+Node\s+(\d+)/gi)].map((m) => [path, m]));
+    assert.ok(found.some(([path]) => path === "docs/reference/container.md"), "docs/reference/container.md names no Node of the image");
+    assert.deepEqual(found.filter(([, m]) => m[1] !== base).map(([path, m]) => `${path}: ${m[0]}`), [], `the image runs on distroless nodejs${base}`);
 });

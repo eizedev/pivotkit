@@ -185,9 +185,9 @@ Node 24 or later. Node 22 is no longer supported.
 - The [compatibility page](../compatibility.md#node) lists the Node versions CI tests.
 - On Node 22, npm installs the packages with an `EBADENGINE` warning. With `engine-strict=true`, it
   refuses them.
-- On Node 22, the packages may still start. Nothing is tested or fixed for it.
+- Nothing is tested on Node 22 any more, and no fix is made for it.
 - The container image brings its own Node 24, on a distroless base. Pull the new image as usual. An
-  image you build on top of it runs Node 24 too.
+  image built `FROM` it keeps Node 24.
 
 ### Rows of a source for a signed-in person { #records-route }
 
