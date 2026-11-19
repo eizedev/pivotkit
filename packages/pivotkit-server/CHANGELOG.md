@@ -95,6 +95,13 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 - A missing print template fails only html reports. Other formats, `describe_source` and
   `validate_view` over the source answer as usual (#614).
+- A named view that uses a column the file gives no header ("Column 2") is not listed, and its name
+  answers as one that does not exist. Such a column is hidden from every caller (#645).
+- A file in a source's `viewsDir` whose name is no view name, such as `My view (1).json`, is
+  skipped with a warning. It stopped the start (#646).
+- A view file whose name holds ":" is named whole in a problem (#646).
+- `list_sources` and `GET /sources` give at most 10,000 characters of view descriptions per source.
+  Later views keep their name and title (#646).
 
 ## [0.3.2] - 2026-11-19
 

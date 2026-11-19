@@ -146,6 +146,25 @@ test("a view that needs a hidden field answers as a view that does not exist; on
     }
 });
 
+// a column the file gives no header is hidden from everyone (policy.js UNNAMED_WHY): the reader names it
+// "Column N", and a view that uses it is not listed and answers as one that does not exist, though
+// the listing is decided without the data (#645)
+test("a view that uses a column without a header is not listed and answers as a view that does not exist", async () => {
+    const dir = workspace({ "sales.csv": "Region,,Sales\nNorth,HIDDENMARK,10\nSouth,HIDDENMARK,20\n" });
+    const views = { "by-region": { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] }, "by-blank": { rows: ["Column 2"], values: [{ field: "Sales", agg: "sum" }] }, "by-blank-again": { rows: ["column 2 (2)"] } };
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" }, views } }, output: { dir: "out" }, auth: { mode: "token", tokens: [{ name: "plain", env: "T1" }] }, baseDir: dir }, { env: { T1: TOKEN } });
+    try {
+        const listed = await call(`${server.api}/sources`, { token: TOKEN });
+        assert.deepEqual(listed.data.sources[0].views.map((v) => v.name), ["by-region"]);
+        const unknown = await call(`${server.api}/views/render`, { token: TOKEN, body: { source: "sales", view: "no-such", format: "csv" } });
+        const blank = await call(`${server.api}/views/render`, { token: TOKEN, body: { source: "sales", view: "by-blank", format: "csv" } });
+        assert.equal(blank.status, 400, JSON.stringify(blank.data));
+        assert.equal(blank.data.detail.replace("by-blank", "X"), unknown.data.detail.replace("no-such", "X"));
+    } finally {
+        await server.close();
+    }
+});
+
 test("a name that is no view says which ones there are; validate_view and describe_view take the view itself", async () => {
     const { server } = await namedServer();
     try {
@@ -299,6 +318,44 @@ test("a request for one view reads that view only; more than 100 views in the fo
         assert.ok(said.some((t) => t.includes("sources.sales.viewsDir: 1 more view files left out: at most 100 views per source")), said.join(""));
         const listed = await present(context, "list_sources", {}, { scopes: null, client: "test" });
         assert.equal(listed.result.sources[0].views.length, 100);
+    } finally {
+        await context.close();
+    }
+});
+
+// smaller follow-ups (#646): a browser download with a name that is no view name is skipped with a
+// warning, not a stop; a file name with ":" is said whole; the descriptions one source lists are capped
+test("a file whose name is no view name is skipped with a warning; the server starts", async () => {
+    const dir = namedWorkspace();
+    writeFileSync(join(dir, "data", "views", "My view (1).json"), JSON.stringify({ rows: ["Region"] }));
+    const checked = await checkConfig(namedServerOptions(dir), { http: false, env: { T1: TOKEN, T2: OTHER_TOKEN } });
+    assert.match(factsOf(checked.text), /^WARNING \(Named views\): sources\.sales\.viewsDir: My view \(1\)\.json: its name is no view name: letters, digits, - and _ before \.pivotkit\.json or \.json; the file is skipped$/m);
+    assert.doesNotMatch(checked.text, /does not start/);
+    const said = [];
+    const context = await createContext(namedServerOptions(dir), { env: { T1: TOKEN, T2: OTHER_TOKEN }, stderr: { write: (t) => said.push(String(t)) } });
+    try {
+        assert.ok(said.some((t) => t.includes("My view (1).json: its name is no view name")), said.join(""));
+    } finally {
+        await context.close();
+    }
+});
+
+test("a view file whose name holds \":\" is named whole in a problem", { skip: process.platform === "win32" && "Windows file names cannot hold \":\"" }, async () => {
+    const dir = namedWorkspace();
+    writeFileSync(join(dir, "views-extra", "big:one.json"), " ".repeat(300_000));
+    const checked = await checkConfig(namedServerOptions(dir, { views: { ...VIEWS, big: "views-extra/big:one.json" } }), { http: false, env: { T1: TOKEN, T2: OTHER_TOKEN } });
+    assert.match(factsOf(checked.text), /^PROBLEM: sources\.sales\.views\.big: views-extra\/big:one\.json: 300,000 bytes exceed the limit of 262,144 \(limits\.view\) -> the server does not start$/m);
+});
+
+test("list_sources gives at most 10,000 characters of view descriptions per source; later views keep their name and title", async () => {
+    const dir = workspace();
+    const views = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`v${String(i).padStart(2, "0")}`, { format: "pivotkit-view", formatVersion: 2, name: `View ${i}`, description: "d".repeat(500), view: { rows: ["Region"] } }]));
+    const context = await createContext({ sources: { sales: { file: "data/sales.csv", views } }, baseDir: dir });
+    try {
+        const listed = (await present(context, "list_sources", {}, { scopes: null, client: "test" })).result.sources[0].views;
+        assert.equal(listed.length, 30);
+        assert.equal(listed.filter((v) => v.description).length, 20);
+        assert.deepEqual(listed.at(-1), { name: "v29", title: "View 29" });
     } finally {
         await context.close();
     }

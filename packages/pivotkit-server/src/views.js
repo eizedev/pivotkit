@@ -21,7 +21,7 @@ import { cleanText } from "pivotkit-core/import";
 import { readSafe } from "pivotkit-cli/files";
 import { OperationError, findingText } from "pivotkit-report/operations";
 import { pathOf } from "./config.js";
-import { levelOf } from "./policy.js";
+import { fieldKey, levelOf } from "./policy.js";
 import { MAX_VIEWS, VIEW_BYTES, VIEW_NAME } from "./options/views.js";
 
 export { MAX_VIEWS, VIEW_BYTES, VIEW_NAME };
@@ -34,6 +34,9 @@ const CARRIES_VIEW = new Set(["create_link", "draft_schedule"]);
 
 /** The most characters of a view's description in a listing (as a field's description). */
 const DESCRIPTION_TEXT = 500;
+
+/** The most characters of view descriptions one source lists: later views keep their name and title. */
+const DESCRIPTIONS_TEXT = 10_000;
 
 /** The levels at which a caller may see a field's values listed. */
 const VALUES_SEEN = new Set(["show", "values"]);
@@ -58,6 +61,7 @@ export const isViewName = (value) => typeof value === "string" && VIEW_NAME.test
  * @property {string | null} name  the view's name, where the problem is one view's
  * @property {string} text  what is wrong, naming a file or folder as the configuration or the folder's listing spells it
  * @property {boolean} missing  the file or folder is not there or cannot be read now: the server starts
+ * @property {boolean} [skipped]  a file the folder holds that is no view file by its name: left out with a warning, the server starts
  */
 
 /** The reader's codes of a file that is not there or cannot be read now, as for a print template. */
@@ -78,7 +82,10 @@ export function nameOfFile(file) {
  */
 function readProblem(error, shown) {
     const e = /** @type {any} */ (error);
-    const reason = e?.name === "CliError" ? String(e.message).replace(/^[^:]*: /, "") : `cannot be read (${e?.code ?? "unreadable"})`;
+    // a CliError's message starts with the file's name, which may hold ":" itself
+    const prefix = `${basename(shown)}: `;
+    const message = String(e?.message);
+    const reason = e?.name === "CliError" ? (message.startsWith(prefix) ? message.slice(prefix.length) : message) : `cannot be read (${e?.code ?? "unreadable"})`;
     return { text: `${findingText(shown)}: ${reason}`, missing: MISSING.has(e?.code) };
 }
 
@@ -162,7 +169,8 @@ export async function viewsOf(options, id, how = {}) {
         for (const [i, file] of files.entries()) {
             const name = /** @type {string} */ (nameOfFile(file));
             if (!VIEW_NAME.test(name)) {
-                problems.push({ key: "viewsDir", name: null, text: `${findingText(file)}: its name is no view name: letters, digits, - and _ before .pivotkit.json or .json`, missing: false });
+                // a browser download such as "My view (1).json": left out, the server starts
+                problems.push({ key: "viewsDir", name: null, text: `${findingText(file)}: its name is no view name: letters, digits, - and _ before .pivotkit.json or .json`, missing: false, skipped: true });
                 continue;
             }
             if (taken.has(name)) {
@@ -242,8 +250,21 @@ function warnOnce(context, id, problems) {
     }
 }
 
-/** Whether a caller may know of a view: no field it uses is hidden from the caller. */
-const knownUnder = (policy, view) => view.needs.every((f) => levelOf(policy, f) !== "hide");
+/**
+ * How the reader (pivotkit-core's import-table.js) names a column the file gives no header:
+ * "Column 7", or "Column 7 (2)" where that name is taken.
+ */
+const UNNAMED_NAME = /^column \d+(?: \(\d+\))?$/;
+
+/**
+ * Whether a field may be a column without a header, which the data hides from every caller
+ * (policy.js levelInfo, UNNAMED_WHY). Which columns are such is known only once the data is read,
+ * and a view is listed without it: a field so named without a rule of its own counts as one.
+ */
+const maybeUnnamed = (policy, field) => UNNAMED_NAME.test(fieldKey(field)) && !policy.fields.has(fieldKey(field));
+
+/** Whether a caller may know of a view: no field it uses is hidden from the caller, or may be. */
+const knownUnder = (policy, view) => view.needs.every((f) => levelOf(policy, f) !== "hide" && !maybeUnnamed(policy, f));
 
 /** An own list of a view, or none. */
 const listOf = (obj, key) => (obj && typeof obj === "object" && Object.hasOwn(obj, key) && Array.isArray(obj[key]) ? obj[key] : []);
@@ -297,10 +318,13 @@ export function valueFields(view) {
 export async function viewListFor(context, id, policy) {
     const { views, problems } = await viewsOf(context.options, id);
     warnOnce(context, id, problems);
+    let room = DESCRIPTIONS_TEXT;
     return views
         .filter((v) => knownUnder(policy, v))
         .map((v) => {
-            const description = cleanText(v.description).slice(0, DESCRIPTION_TEXT);
+            const text = cleanText(v.description).slice(0, DESCRIPTION_TEXT);
+            const description = text.length <= room ? text : "";
+            room -= description.length;
             return { name: v.name, title: findingText(v.title), ...(description ? { description } : {}) };
         });
 }

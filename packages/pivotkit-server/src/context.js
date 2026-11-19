@@ -103,11 +103,11 @@ export async function createContext(options, runtime = {}) {
     // a source's named views that are no view: refused now, not first when a caller asks for one; a
     // file or folder that is not there yet is a warning, as a missing template
     for (const { id, problems } of await checkViews(options)) {
-        for (const { key, text, missing } of problems) {
-            if (!missing) {
+        for (const { key, text, missing, skipped } of problems) {
+            if (!missing && !skipped) {
                 throw new ConfigError(`sources.${id}.${key}: ${text}`);
             }
-            log.warn(`sources.${id}.${key}: ${text}; those views are left out; check-config says more`);
+            log.warn(`sources.${id}.${key}: ${text}; ${skipped ? "the file is skipped" : "those views are left out; check-config says more"}`);
         }
     }
     // a backend's sign-in whose secret cannot be read: said at start, not first to a caller

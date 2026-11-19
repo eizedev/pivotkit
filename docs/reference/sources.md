@@ -83,11 +83,15 @@ Where views appear:
       file swapped while it is read is refused.
     - A request for one view reads only that view's file.
     - A source publishes at most 100 views: those in the configuration, then the folder's first files
-      by name. More files are left out, with a `PROBLEM` the server starts with.
+      by name. More files are left out, with a `PROBLEM` the server starts with. A file added while
+      the server runs whose name sorts early can push the last view out.
+    - A listing gives each view's description up to 500 characters, and at most 10,000 characters
+      of descriptions per source. Later views keep their name and title.
     - The start and `check-config` read every view and check what needs no data: `rows` being a
       list, an unknown key or aggregator. They do not stop on field names, since the data may change.
-    - These stop the start: a file that is no view, a name taken twice, a file whose name is no view
-      name.
+    - These stop the start: a file that is no view, a name taken twice.
+    - A file in the folder whose name is no view name, such as a browser's `My view (1).json`, is
+      skipped with a warning. Rename it to use it.
     - A file or folder that is not there is a `PROBLEM` the server starts with. Its views are left
       out until it can be read.
     - A file that turns broken while the server runs is left out. The log says why, once.

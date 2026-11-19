@@ -37,7 +37,8 @@ export async function section(options, _registry, runtime) {
             }
         }
         for (const p of problems) {
-            items.push(problem(`sources.${id}.${p.key}: ${p.text}`, p.missing ? { effect: "the server starts; those views are left out" } : { stops: true }));
+            const key = `sources.${id}.${p.key}: ${p.text}`;
+            items.push(p.skipped ? warning(`${key}; the file is skipped`) : problem(key, p.missing ? { effect: "the server starts; those views are left out" } : { stops: true }));
         }
     }
     return { items, upgrade: [] };
