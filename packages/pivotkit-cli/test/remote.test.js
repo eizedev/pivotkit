@@ -87,7 +87,7 @@ function workdir() {
 }
 
 /** Runs the CLI with the token in PIVOTKIT_TOKEN and the server's address in --url. */
-const remote = (server, args, { env = {}, cwd } = {}) => run([...args, "--url", server.url], { cwd: cwd ?? workdir(), env: { PIVOTKIT_TOKEN: TOKEN, ...env } });
+const remote = (server, args, { env = {}, cwd, timeout } = {}) => run([...args, "--url", server.url], { cwd: cwd ?? workdir(), env: { PIVOTKIT_TOKEN: TOKEN, ...env }, timeout });
 
 test("200: sources lists the server's sources, with the token, the user agent and the server's origin", async () => {
     const server = await fakeServer((req, res) => json(res, { sources: [{ id: "sales", title: "Sales", kind: "source", link: false, schedulable: false }, { id: "hr", title: "People", kind: "source", link: false, schedulable: false }] }));
@@ -738,7 +738,8 @@ test("hostile sizes: 400,000 sources list without a stack overflow; an answer ne
         res.end(req.url.endsWith("/sources") ? many : deep);
     });
     try {
-        const list = await remote(server, ["sources", "-q"]);
+        // 400,000 lines through a pipe took over 30 s on a busy Windows runner (#661)
+        const list = await remote(server, ["sources", "-q"], { timeout: 120_000 });
         assert.equal(list.code, 0, list.stderr.slice(0, 500));
         assert.equal(list.stdout.split("\n").length - 1, 400_000);
         const nested = await remote(server, ["validate", "view.json", "--source", "sales", "--json"]);
