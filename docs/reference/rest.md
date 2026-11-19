@@ -45,8 +45,8 @@ The routes are RPC-style (`POST /views/validate`), one per operation of the
 
 | Route | Operation | What it does |
 | --- | --- | --- |
-| `GET /sources` | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes |
-| `GET /sources/{id}` | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views |
+| `GET /sources` | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes, its [named views](sources.md#views) |
+| `GET /sources/{id}` | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views, its named views |
 | `POST /sources/describe` | `describe_source` | The same, with `{ "source": "<id>" }` |
 | `POST /views/suggest` | `suggest_view` | A draft view from the source's fields, with the fields it picked (`picks`). A `layout` replaces the parts it gives |
 | `GET /views/guide` | `get_view_guide` | How to write a view: its keys, the vocabulary, example views |
@@ -64,10 +64,14 @@ A POST takes its input as JSON (`Content-Type: application/json`), at most 2 MiB
 A view with errors is no error. The answer is 200 with `ok` or `valid` false, and its `findings` say
 what to fix. The file route answers 422.
 
-`validate`, `render` and `render/file` take a `layout` instead of a `view`. A layout is the view by
-field names (rows, columns, values, groupings), as the command line's layout flags write it
-([layout](report.md#operations)). The answer then holds the `view` it made. `suggest` takes a layout
-too, and its parts replace those of the draft.
+`validate`, `render`, `render/file`, `link` and `schedules/draft` take a `layout` instead of a
+`view`. A layout is the view by field names (rows, columns, values, groupings), as the command line's
+layout flags write it ([layout](report.md#operations)). `validate` and `render` then answer with the
+`view` it made. `suggest` takes a layout too, and its parts replace those of the draft.
+
+`render`, `render/file`, `link` and `schedules/draft` also take the name of a
+[named view](sources.md#views) as `view`, such as `"view": "by-region"`. `GET /sources` lists the
+names.
 
 `source` is the id of a source the operator configured, or `inline:` for
 [data sent in the request](#data). Over REST, the server refuses files by path (`file:`) with

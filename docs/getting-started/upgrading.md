@@ -159,6 +159,21 @@ claude plugin update pivotkit-mcp@pivotkit
 
 Then restart Claude Code.
 
+## From 0.8.2 to the next release { #from-0-8-2 }
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| [Named views, and a layout for links and drafts](#named-views) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients |
+
+### Named views, and a layout for links and drafts { #named-views }
+
+- A source can publish [named views](../reference/sources.md#views) with `views` and `viewsDir`.
+  `render_view`, `create_link` and `draft_schedule` take a view's name as `view`.
+- `list_sources` and `describe_source` add `views` to a source that has some.
+- `create_link` and `draft_schedule` take a `layout` instead of a `view`, as `render_view` does.
+  Before, they refused it.
+- The tools' schemas and descriptions changed. MCP clients reconnect to read them.
+
 ## From 0.8.0 to 0.8.1 { #from-0-8-0 }
 
 This applies to pivotkit-server and pivotkit-mcp 0.3.0 too, which move to 0.3.1.

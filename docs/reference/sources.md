@@ -21,7 +21,71 @@ A configured source is one of these kinds:
 | Code | `load`: a function of a library host | Loaded in the host's thread, computed in a worker; see [Code sources](#code) |
 
 Every kind has the same exposure policy, scopes and field descriptions, and its results carry
-`dataAsOf` ([pivotkit-mcp](mcp.md), [REST](rest.md)).
+`dataAsOf` ([pivotkit-mcp](mcp.md), [REST](rest.md)). Every kind can publish
+[named views](#views).
+
+## Named views { #views }
+
+A named view is a view the operator publishes for a source. A caller passes its name instead of the
+whole view. A view a person saved in the browser (Views, Download view) works as it is.
+
+```json
+{
+  "sources": {
+    "sales": {
+      "file": "data/sales.csv",
+      "views": {
+        "by-region": "views/by-region.pivotkit.json",
+        "top-5": { "name": "Top 5 products", "view": { "rows": ["Product"], "values": [{ "field": "Sales", "agg": "sum" }] } }
+      },
+      "viewsDir": "views/sales"
+    }
+  }
+}
+```
+
+- `views` maps a name to a view file's path or to a view written in place. A view written in place
+  is a view file, a `{ "name", "view" }` object or a bare view.
+- `viewsDir` is a folder of view files. Each file's name without `.pivotkit.json` or `.json` is its
+  view's name. The browser's `by-region.pivotkit.json` is the view `by-region`.
+- A name has letters, digits, `-` and `_`, at most 80 characters.
+- A view's title is the view file's `name`, else the view's name.
+- Paths are relative to the configuration file.
+
+Where views appear:
+
+- `list_sources` and `describe_source` list each view's `name`, `title` and `description`.
+- `render_view`, `create_link` and `draft_schedule` take a name as `view`, such as
+  `"view": "by-region"`. A view's JSON text still works as before.
+- `validate_view` and `describe_view` take the view itself, not a name.
+- A link and a draft name the source they were made for, not the source a view file names.
+
+???+ note "What a caller learns of a view"
+
+    - A view that uses a field hidden from the caller is not listed. Its name answers as a name that
+      does not exist.
+    - A link or a draft carries the view itself. A view that holds values of a field the caller sees
+      at `summary` gets no link or draft (`NOT_ALLOWED`). Values are a filter's items, a custom sort
+      order, collapsed groups or hidden chart series. `render_view` still makes its report as a file.
+    - A view's findings follow the policy as any view's do.
+
+??? note "Reading, limits and check-config"
+
+    - The files are read on every request, as a [print template](print-template.md) is. A file
+      dropped into the folder is there on the next call. No restart is needed.
+    - A file is read the safe way: no device, no swapped symbolic link, at most 256 KiB.
+    - A source publishes at most 100 views. More files in the folder are left out.
+    - The start and `check-config` read every view. A file that is no view stops the start. So do a
+      name that is taken twice and a file whose name is no view name.
+    - A file or folder that is not there is a warning. Its views are left out until it can be read.
+    - `check-config` lists the views per source and the fields each one needs:
+
+    ```text
+    Named views (2):
+      sales:
+        by-region (views/sales/by-region.pivotkit.json): needs Region, Sales
+        top-5 (in the configuration): needs Product, Sales
+    ```
 
 ## HTTP sources { #http }
 

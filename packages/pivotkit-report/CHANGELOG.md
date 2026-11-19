@@ -6,6 +6,11 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Changed
+
+- `create_link` and `draft_schedule` take exactly one of `view` or `layout`, through the same
+  `viewOrLayout` as `validate_view` and `render_view`. `view` is no longer required (#469).
+
 ## [0.4.0] - 2026-11-18
 
 ### Added
