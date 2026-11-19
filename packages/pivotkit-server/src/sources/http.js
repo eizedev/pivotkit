@@ -5,11 +5,14 @@
  * or query value.
  *
  * Where it runs: the requests (guardedFetch, sources/fetch.js), parsing JSON (nested at most
- * MAX_DEPTH deep; one answer of at most maxBytes, parsed synchronously) and finding the rows (a JSON
- * Pointer, own properties only) in the main thread, where a backend's credentials would stay; the rows as plain values (a
- * nested value as JSON text) go to a worker, which encodes them and runs the operation as a table
- * job. A CSV answer's bytes are read in a worker (compute.js read), which gives back a packed table
- * (packed.js) without the hidden columns; that table is kept and goes to the operation's worker.
+ * MAX_DEPTH deep) and finding the rows (a JSON Pointer, own properties only) in the main thread,
+ * where a backend's credentials would stay; the rows as plain values (a nested value as JSON text)
+ * go to a worker, which encodes them and runs the operation as a table job. A JSON answer is read
+ * while it streams (sources/json-rows.js): each row becomes a row of the table (tableBuilder) as it
+ * arrives, so the page's bytes and its parsed objects are never held whole. Where the asOf or next
+ * pointer reaches into the rows, the page is read whole instead (parsed). A CSV answer's bytes are
+ * read in a worker (compute.js read), which gives back a packed table (packed.js) without the hidden
+ * columns; that table is kept and goes to the operation's worker.
  *
  * Loading goes through sources/run.js like a code source's: the source's timeMs for all pages, one
  * load in flight per key, the load limits, kept data for ttl seconds per caller (the identity is
@@ -40,6 +43,7 @@ import { asOfText } from "./as-of.js";
 import { backendHeaders, dropToken } from "./auth.js";
 import { guardedFetch, GuardedFetchError, upstreamCauseOf } from "./fetch.js";
 export { upstreamCauseOf };
+import { AnswerShapeError, rowsReader } from "./json-rows.js";
 import { canonicalJson, configHashOf, privatePart, tableKeyOf } from "./keys.js";
 import { SourceError, loadRunner, ownError } from "./run.js";
 import { expandUrl, loggedPath } from "./template.js";
@@ -287,51 +291,131 @@ function columnNames(raw) {
  * @returns {{ columns: string[], rows: unknown[][] }}
  */
 export function tableOf(rows, limits, how) {
-    if (!rows.length) {
-        return { columns: [], rows: [] };
+    const table = tableBuilder(limits, how);
+    for (const row of rows) {
+        table.add(row);
     }
-    const lists = Array.isArray(rows[0]);
-    if (rows.some((r) => (lists ? !Array.isArray(r) : r === null || typeof r !== "object" || Array.isArray(r)))) {
-        throw shapeFailure(how.id, how.log, "the rows are neither all objects nor all lists");
-    }
-    /** @type {unknown[]} */
-    let header;
+    return table.finish();
+}
+
+/**
+ * tableOf one row at a time, for rows that arrive while an answer streams: each row becomes a list
+ * of plain values at once. After a row of another shape or a limit, it keeps no more rows but goes
+ * on counting, so finish() fails as tableOf of all the rows fails: a shape first, then
+ * limits.columns, then limits.importCells.
+ * @param {import("pivotkit-core").Limits} limits
+ * @param {{ id: string, log: any }} how
+ */
+export function tableBuilder(limits, how) {
+    /** Whether the rows are lists (the first one the header); null before the first row. */
+    let lists = /** @type {boolean | null} */ (null);
+    let header = /** @type {unknown[]} */ ([]);
+    /** Objects' keys, in the order first seen, and their column. */
+    const index = new Map();
     /** @type {unknown[][]} */
-    let body;
-    if (lists) {
-        header = /** @type {unknown[]} */ (rows[0]);
-        if (header.length > limits.columns) {
-            throw overLimit("columns", header.length, limits.columns, "columns");
-        }
-        body = /** @type {unknown[][]} */ (rows.slice(1)).map((r) => header.map((_, i) => plainOf(r[i], limits.textLength)));
-    } else {
-        /** @type {Map<string, number>} */
-        const index = new Map();
-        for (const row of rows) {
-            for (const key of Object.keys(/** @type {object} */ (row))) {
-                if (!index.has(key)) {
-                    index.set(key, index.size);
-                    if (index.size > limits.columns) {
-                        throw overLimit("columns", index.size, limits.columns, "columns");
+    let body = [];
+    let count = 0;
+    let badShape = false;
+    let columnsOver = 0;
+    /** Whether rows are still kept (no shape or limit failed yet). */
+    let keep = true;
+    const drop = () => {
+        keep = false;
+        body = [];
+    };
+    return {
+        /** @param {unknown} row */
+        add(row) {
+            if (lists === null) {
+                lists = Array.isArray(row);
+                if (lists) {
+                    header = /** @type {unknown[]} */ (row);
+                    if (header.length > limits.columns) {
+                        columnsOver = header.length;
+                        drop();
+                    }
+                    return;
+                }
+            }
+            if (lists ? !Array.isArray(row) : row === null || typeof row !== "object" || Array.isArray(row)) {
+                badShape = true;
+                drop();
+                return;
+            }
+            count++;
+            if (lists) {
+                if (keep && count * header.length > limits.importCells) {
+                    drop();
+                }
+                if (keep) {
+                    const values = /** @type {unknown[]} */ (row);
+                    body.push(header.map((_, i) => plainOf(values[i], limits.textLength)));
+                }
+                return;
+            }
+            if (!columnsOver) {
+                for (const key of Object.keys(/** @type {object} */ (row))) {
+                    if (!index.has(key)) {
+                        index.set(key, index.size);
+                        if (index.size > limits.columns) {
+                            columnsOver = index.size;
+                            drop();
+                            break;
+                        }
                     }
                 }
             }
-        }
-        header = [...index.keys()];
-        body = rows.map((row) => {
-            const out = new Array(index.size).fill(null);
-            for (const [key, i] of index) {
-                if (Object.hasOwn(/** @type {object} */ (row), key)) {
-                    out[i] = plainOf(/** @type {any} */ (row)[key], limits.textLength);
+            if (keep && count * index.size > limits.importCells) {
+                drop();
+            }
+            if (keep) {
+                const out = new Array(index.size).fill(null);
+                for (const [key, i] of index) {
+                    if (Object.hasOwn(/** @type {object} */ (row), key)) {
+                        out[i] = plainOf(/** @type {any} */ (row)[key], limits.textLength);
+                    }
+                }
+                body.push(out);
+            }
+        },
+        /** @returns {{ columns: string[], rows: unknown[][] }} */
+        finish() {
+            if (lists === null) {
+                return { columns: [], rows: [] };
+            }
+            if (badShape) {
+                throw shapeFailure(how.id, how.log, "the rows are neither all objects nor all lists");
+            }
+            if (columnsOver) {
+                throw overLimit("columns", columnsOver, limits.columns, "columns");
+            }
+            const width = lists ? header.length : index.size;
+            if (count * width > limits.importCells) {
+                throw overLimit("importCells", count * width, limits.importCells, "cells");
+            }
+            // an object's row is as wide as the keys seen up to it
+            for (const row of body) {
+                while (row.length < width) {
+                    row.push(null);
                 }
             }
-            return out;
-        });
+            return { columns: columnNames(lists ? header : [...index.keys()]), rows: body };
+        }
+    };
+}
+
+/**
+ * Whether a JSON answer is read while it streams: not where the asOf or next pointer reaches into
+ * the rows, which the streamed body leaves out.
+ * @param {import("../options/http.js").HttpSettings} settings
+ */
+export function streamsRows(settings) {
+    if (settings.format === "csv") {
+        return false;
     }
-    if (body.length * header.length > limits.importCells) {
-        throw overLimit("importCells", body.length * header.length, limits.importCells, "cells");
-    }
-    return { columns: columnNames(header), rows: body };
+    const next = settings.paging && "next" in settings.paging ? settings.paging.next : null;
+    const inside = (/** @type {string[] | null | undefined} */ keys) => Boolean(keys) && /** @type {string[]} */ (keys).length > settings.rows.length && settings.rows.every((k, i) => /** @type {string[]} */ (keys)[i] === k);
+    return !inside(settings.asOf) && !inside(next);
 }
 
 /** The next page's address of a Link header (rel="next"), or null. */
@@ -371,8 +455,10 @@ export async function loadHttp(settings, values, how) {
     }
     let headers = { ...fixed, ...(await signIn(how.trace?.auth)) };
     let retried = false;
-    /** @type {unknown[]} */
-    const rows = [];
+    const table = tableBuilder(how.limits, { id, log: how.log });
+    const streams = streamsRows(settings);
+    /** The rows of the pages read so far (a list's header counted). */
+    let total = 0;
     let bytes = 0;
     let pages = 0;
     /** @type {unknown} */
@@ -387,10 +473,34 @@ export async function loadHttp(settings, values, how) {
     let probing = false;
     while (url) {
         seen.add(url.href);
+        /** This page's rows while it streams (a 2xx answer only), and how many it had. */
+        let reader = /** @type {ReturnType<typeof rowsReader> | null} */ (null);
+        let status = 0;
+        const consume = (/** @type {number} */ code) => {
+            status = code;
+            if (code < 200 || code > 299) {
+                return null;
+            }
+            let count = 0;
+            reader = rowsReader(settings.rows, {
+                maxDepth: MAX_DEPTH,
+                // rows past limits.rows or of the page after maxPages are counted, not kept
+                onRow: (row) => {
+                    count++;
+                    if (!probing && total + count <= how.limits.rows) {
+                        table.add(row);
+                    }
+                }
+            });
+            return /** @type {(piece: Uint8Array) => void} */ (/** @type {any} */ (reader).push);
+        };
         let answer;
         try {
-            answer = await fetch(url, { headers, signal: how.signal, maxBytes: maxBytes - bytes, timeMs: Math.max(settings.timeMs - (Date.now() - started), 1), allowPrivate: settings.intranet, allowIpLiterals: settings.allowIpLiterals });
+            answer = await fetch(url, { headers, signal: how.signal, maxBytes: maxBytes - bytes, timeMs: Math.max(settings.timeMs - (Date.now() - started), 1), allowPrivate: settings.intranet, allowIpLiterals: settings.allowIpLiterals, ...(streams ? { consume } : {}) });
         } catch (e) {
+            if (e instanceof AnswerShapeError) {
+                throw shapeFailure(id, how.log, e.message, upstreamFields(settings, started, "bad_body", status));
+            }
             throw e instanceof GuardedFetchError ? fetchFailure(e, { id, log: how.log, maxBytes, settings, started }) : e;
         }
         if (answer.status === 401 && !retried && dropToken(settings.auth, how.caller, headers)) {
@@ -401,8 +511,8 @@ export async function loadHttp(settings, values, how) {
             continue;
         }
         pages++;
-        bytes += answer.body.length;
-        how.trace?.pages.push({ status: answer.status, type: String(answer.headers["content-type"] ?? "").slice(0, 100), bytes: answer.body.length });
+        bytes += answer.size;
+        how.trace?.pages.push({ status: answer.status, type: String(answer.headers["content-type"] ?? "").slice(0, 100), bytes: answer.size });
         how.log.debug(`the source ${id}: GET ${loggedPath(template, extra)} answered ${answer.status}`, { source: id, status: answer.status, requestId: requestId() });
         if (answer.status < 200 || answer.status > 299) {
             how.log.warn(`the source ${id}: the backend answered ${answer.status}`, { source: id, status: answer.status, template: template.text, ...upstreamFields(settings, started, "http_status", answer.status) });
@@ -415,7 +525,8 @@ export async function loadHttp(settings, values, how) {
         if (settings.format === "csv") {
             return { table: null, upload: { bytes: answer.body, format: "csv" }, asOf: asOfText(new Date()) ?? "", pages, bytes };
         }
-        const body = parsed(answer.body, { id, log: how.log, upstream: () => upstreamFields(settings, started, "bad_body", answer.status) });
+        const upstream = () => upstreamFields(settings, started, "bad_body", answer.status);
+        const body = reader ? endOf(reader, { id, log: how.log, upstream }) : parsed(answer.body, { id, log: how.log, upstream });
         if (pages === 1 && settings.asOf) {
             asOfValue = pointerValue(body, settings.asOf);
         }
@@ -431,19 +542,24 @@ export async function loadHttp(settings, values, how) {
             how.log.warn(`the source ${id}: the answer ${what} ${settings.rowsText || '"" (the whole body)'} (http.rows)`, { source: id, ...upstreamFields(settings, started, "bad_body", answer.status) });
             throw shapeFailure(id, how.log, `the rows' pointer ${settings.rowsText || '""'} matched ${found === undefined ? "nothing" : "no list"}`);
         }
+        // a streamed page's list is empty in its body: its rows went to the table as they arrived
+        const count = reader ? /** @type {any} */ (reader).rows : found.length;
         if (probing) {
-            if (found.length) {
+            if (count) {
                 throw ownError(new OperationError("LIMIT_EXCEEDED", `the source ${id} has more than ${settings.maxPages} pages (http.maxPages)`));
             }
             break;
         }
-        if (rows.length + found.length > how.limits.rows) {
-            throw overLimit("rows", rows.length + found.length, how.limits.rows, "rows");
+        if (total + count > how.limits.rows) {
+            throw overLimit("rows", total + count, how.limits.rows, "rows");
         }
-        for (const row of found) {
-            rows.push(row);
+        if (!reader) {
+            for (const row of found) {
+                table.add(row);
+            }
         }
-        url = nextPage(settings, body, answer.headers, url, found.length, seen, how.log);
+        total += count;
+        url = nextPage(settings, body, answer.headers, url, count, seen, how.log);
         if (url && settings.paging && "page" in settings.paging) {
             extra = { [settings.paging.page]: Number(extra[settings.paging.page]) + 1 };
             url = expandUrl(template, values, extra);
@@ -465,7 +581,21 @@ export async function loadHttp(settings, values, how) {
     if (asOfValue !== undefined && asOfText(typeof asOfValue === "string" || typeof asOfValue === "number" ? asOfValue : null, { epoch: "s" }) === null) {
         how.log.debug(`the source ${id}: its asOf did not parse; the time it arrived stands in`, { source: id });
     }
-    return { table: tableOf(rows, how.limits, { id, log: how.log }), upload: null, asOf, pages, bytes };
+    return { table: table.finish(), upload: null, asOf, pages, bytes };
+}
+
+/**
+ * A streamed JSON answer's body around its rows (the rows' list empty), parsed; a body that is no
+ * JSON is the source's failure, as parsed() says.
+ * @param {ReturnType<typeof rowsReader>} reader
+ * @param {{ id: string, log: any, upstream: () => Record<string, unknown> }} how
+ */
+function endOf(reader, how) {
+    try {
+        return reader.end();
+    } catch (e) {
+        throw e instanceof AnswerShapeError ? shapeFailure(how.id, how.log, e.message, how.upstream()) : e;
+    }
 }
 
 /**
