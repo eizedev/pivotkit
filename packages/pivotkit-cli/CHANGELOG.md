@@ -10,7 +10,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 - `pivotkit render --numbers full|shown` and `--flat-header`: csv and json numbers rounded to the
   decimals the view shows, and a csv with one header row, as the services write them. They work on
-  local data and with a server ([#553](https://github.com/eizedev/pivotkit/issues/553)).
+  local data and with a server. Without them, the output stays as it was: full precision and a
+  header row per column field ([#553](https://github.com/eizedev/pivotkit/issues/553)).
 
 ## [0.4.0] - 2026-11-18
 

@@ -810,7 +810,6 @@ function formatOf(output) {
     return EXTENSIONS[ext];
 }
 
-/** Warnings for options given that do nothing in the format (their `formats` in the table). */
 /**
  * The render_view inputs of render's flags, the same locally and with a server: the title, the
  * chart, how numbers are written and the flat header.
@@ -825,6 +824,7 @@ function renderInputs(values) {
     };
 }
 
+/** Warnings for options given that do nothing in the format (their `formats` in the table). */
 function ignoredOptions(values, format) {
     return Object.entries(optionsOf("render"))
         .filter(([name, spec]) => spec.formats && values[name] !== undefined && !spec.formats.includes(format))

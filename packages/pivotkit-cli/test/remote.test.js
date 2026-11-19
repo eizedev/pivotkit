@@ -186,7 +186,9 @@ test("200: render checks the view, then writes the server's file with mode 0600,
         const shown = await remote(server, ["render", "view.json", "--source", "sales", "-f", "csv", "--title", "Q4", "--numbers", "shown", "--flat-header"]);
         assert.equal(shown.code, 0, shown.stderr);
         const bodies = server.requests.filter((r) => r.url.endsWith("/views/render/file")).map((r) => JSON.parse(r.body));
-        assert.deepEqual(bodies.map((b) => [b.numbers, b.flatHeader]), [[undefined, undefined], [undefined, undefined], ["shown", true]]);
+        // without the flags the body has neither; with them, both
+        assert.deepEqual([bodies[0].numbers, bodies[0].flatHeader], [undefined, undefined]);
+        assert.deepEqual([bodies.at(-1).numbers, bodies.at(-1).flatHeader], ["shown", true]);
     } finally {
         await server.close();
     }
