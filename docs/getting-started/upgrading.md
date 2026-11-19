@@ -200,7 +200,8 @@ wrote `allow-import="false"` offered loading files. Now it does not. `share-link
 
 `create_link` (MCP and `POST /api/v1/views/link`) writes the values of the parameters in
 `sources.<id>.linkParams` into the page's query string
-([link parameters](../concepts/sharing.md#link-params)). Without the list, links stay as they are.
+([link parameters](../concepts/sharing.md#link-params)). Without the list, a link carries no
+parameters, and `create_link` given some warns with `paramsNotCarried`.
 
 - `create_link` with a list refuses any other parameter with `INVALID_INPUT`.
 - The server does not start with a list that names a parameter bound to a claim, an undeclared one,
