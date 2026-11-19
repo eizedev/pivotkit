@@ -179,6 +179,8 @@ export function createComputer(options = {}, internal = {}) {
     const pool = [];
     /** How many table jobs went with their table, and how many without (the worker had kept it). */
     const sent = { tables: 0, cached: 0 };
+    /** How many pieces of rows answers came from the workers (one per pull: tests check none comes unasked). */
+    let piecesIn = 0;
     /** @type {Array<() => void>} calls waiting for a free worker */
     const waiting = [];
     let closed = false;
@@ -415,6 +417,7 @@ export function createComputer(options = {}, internal = {}) {
                     return;
                 }
                 if (msg.piece) {
+                    piecesIn++;
                     const piece = msg.piece instanceof Uint8Array ? msg.piece : new Uint8Array(msg.piece);
                     waiter?.resolve(piece);
                     waiter = null;
@@ -629,6 +632,8 @@ export function createComputer(options = {}, internal = {}) {
         },
         /** How many table jobs with a key went with their table and how many without it (tests). */
         sent: () => ({ ...sent }),
+        /** How many pieces of rows answers came from the workers (tests: one per read of an answer). */
+        pieces: () => piecesIn,
         /** The workers alive (0 once closed). */
         size: () => (closed ? 0 : pool.filter((s) => !s.exited).length),
         async close() {

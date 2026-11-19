@@ -442,6 +442,25 @@ test("a large answer goes out in pieces", async () => {
     }
 });
 
+test("the worker writes a piece only when the answer is read, so no second copy of the answer builds up", async () => {
+    const h = await handlerOf({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } } }, { "sales.csv": bigCsv(40_000) });
+    try {
+        const response = await h.ask(await h.person(), { source: "sales" });
+        const reader = /** @type {ReadableStream<Uint8Array>} */ (response.body).getReader();
+        await reader.read(); // the members before data
+        await reader.read(); // the first piece
+        assert.equal(h.context.computer.pieces(), 1);
+        // nothing more comes while nobody reads
+        await new Promise((r) => setTimeout(r, 300));
+        assert.equal(h.context.computer.pieces(), 1, "the worker sent pieces nobody asked for");
+        await reader.read();
+        assert.equal(h.context.computer.pieces(), 2);
+        await reader.cancel();
+    } finally {
+        await h.close();
+    }
+});
+
 test("two people with different rights never get each other's rows", async () => {
     // a code source that loads each person's own rows
     const load = async (_params, { caller }) => [0, 1, 2].map((i) => ({ Region: `${caller.subject}-region-${i}`, Sales: i, Secret: `${caller.subject}-secret-${i}` }));
