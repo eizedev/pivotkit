@@ -165,7 +165,8 @@ test("allow-import is a boolean attribute; the plugins are a property", () => {
 });
 
 test('every boolean attribute reads "false" as off, in any case and with spaces (#548)', () => {
-    // a boolean attribute: present without a value is on. Found from the table, so a new one is checked too
+    // a boolean attribute: present without a value is on. Found from the table: a new one fails the
+    // list below until it is added, and is then checked like the others
     const booleans = ATTRIBUTES.filter((d) => d.kind !== "json" && fromAttribute(d, "") === true);
     assert.deepEqual(booleans.map((d) => d.attr).sort(), ["allow-import", "can-publish", "drill-down", "drill-down-export", "export-data", "loading", "save-templates", "share-link"]);
     for (const d of booleans) {

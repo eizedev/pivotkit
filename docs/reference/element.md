@@ -89,10 +89,12 @@ pivotkit-react's `build.js`). pivotkit does not support older browsers.
 Properties with an attribute reflect it, as native elements do. `report.theme = "dark"` sets
 `theme="dark"`, and `null` removes it.
 
-A boolean attribute is on when it is there, without a value or with any value but one. The value
-`"false"`, in any case, turns it off. So `<pivot-report allow-import="false">` offers no file loading, as a
-page that writes its settings as text expects. Setting the property to `false` removes the
-attribute. `drill-down` is on by default, so it gets `"false"` instead.
+A boolean attribute is on when it is present. The value `"false"`, in any case, turns it off:
+`<pivot-report allow-import="false">` offers no file loading. `export-data` also takes a JSON
+object, and `share-link` a URL (see their rows).
+
+Setting a boolean property to `false` removes its attribute. `drill-down` is on by default, so its
+attribute becomes `"false"` instead.
 
 The element parses `view` and `default-view` as JSON objects. It ignores a text that is not one and
 writes a console warning. Setting the property does not write the attribute.
