@@ -37,7 +37,7 @@ import { identityKey } from "../auth.js";
 import { overLimit, withoutHiddenRows } from "../data.js";
 import { isPacked, packedBytes } from "../packed.js";
 import { httpSettingsOf } from "../options/http.js";
-import { fieldKey } from "../policy.js";
+import { fieldKey, levelOf } from "../policy.js";
 import { requestId } from "../request-id.js";
 import { asOfText } from "./as-of.js";
 import { backendHeaders, dropToken } from "./auth.js";
@@ -266,20 +266,21 @@ function plainOf(value, max) {
 }
 
 /**
- * A backend's column names, cleaned (no control or direction characters, trimmed, capped), one name
- * per field (a name that repeats one without regard to case gets " (2)").
- * @param {unknown[]} raw
+ * A backend's column names one at a time, in the order the columns come: cleaned (no control or
+ * direction characters, trimmed, capped), one name per field (a name that repeats one without regard
+ * to case gets " (2)"). The same names as for all at once, so a column can be named as it first comes.
+ * @returns {(name: unknown, i: number) => string}
  */
-function columnNames(raw) {
+function columnNamer() {
     const seen = new Set();
-    return raw.map((name, i) => {
+    return (name, i) => {
         let clean = cleanText(String(name ?? "")).trim().slice(0, NAME_TEXT) || `column ${i + 1}`;
         for (let n = 2; seen.has(fieldKey(clean)); n++) {
             clean = `${clean.replace(/ \(\d+\)$/, "")} (${n})`;
         }
         seen.add(fieldKey(clean));
         return clean;
-    });
+    };
 }
 
 /**
@@ -287,8 +288,8 @@ function columnNames(raw) {
  * or lists (the first one the header). Checked against limits.columns and limits.importCells.
  * @param {unknown[]} rows
  * @param {import("pivotkit-core").Limits} limits
- * @param {{ id: string, log: any }} how
- * @returns {{ columns: string[], rows: unknown[][] }}
+ * @param {{ id: string, log: any, levels?: import("../data.js").SourceSpec["levels"] }} how  levels: tableBuilder's
+ * @returns {{ columns: string[], rows: unknown[][], dropped?: number }}
  */
 export function tableOf(rows, limits, how) {
     const table = tableBuilder(limits, how);
@@ -302,16 +303,35 @@ export function tableOf(rows, limits, how) {
  * tableOf one row at a time, for rows that arrive while an answer streams: each row becomes a list
  * of plain values at once. After a row of another shape or a limit, it keeps no more rows but goes
  * on counting, so finish() fails as tableOf of all the rows fails: a shape first, then
- * limits.columns, then limits.importCells.
+ * limits.columns, then limits.importCells. With the caller's levels, a column they hide is named as
+ * it first comes and its values are never kept (finish() counts them in `dropped`); the limits still
+ * count every column.
  * @param {import("pivotkit-core").Limits} limits
- * @param {{ id: string, log: any }} how
+ * @param {{ id: string, log: any, levels?: import("../data.js").SourceSpec["levels"] }} how
  */
 export function tableBuilder(limits, how) {
     /** Whether the rows are lists (the first one the header); null before the first row. */
     let lists = /** @type {boolean | null} */ (null);
     let header = /** @type {unknown[]} */ ([]);
-    /** Objects' keys, in the order first seen, and their column. */
+    /** Objects' keys, in the order first seen, and their place in a kept row (-1: hidden). */
     const index = new Map();
+    /** A list header's kept columns, by their place in the header. */
+    let keptOfHeader = /** @type {number[]} */ ([]);
+    /** The kept columns' names, in their order. */
+    const names = /** @type {string[]} */ ([]);
+    const nameOf = columnNamer();
+    const policy = how.levels ? { default: how.levels.default, fields: new Map(Object.entries(how.levels.fields)) } : null;
+    let dropped = 0;
+    /** Names the column at place `i`; its place in a kept row, or -1 where the levels hide it. */
+    const placeOf = (raw, i) => {
+        const name = nameOf(raw, i);
+        if (policy && levelOf(policy, name) === "hide") {
+            dropped++;
+            return -1;
+        }
+        names.push(name);
+        return names.length - 1;
+    };
     /** @type {unknown[][]} */
     let body = [];
     let count = 0;
@@ -333,7 +353,9 @@ export function tableBuilder(limits, how) {
                     if (header.length > limits.columns) {
                         columnsOver = header.length;
                         drop();
+                        return;
                     }
+                    keptOfHeader = header.map((name, i) => [placeOf(name, i), i]).filter(([at]) => at >= 0).map(([, i]) => i);
                     return;
                 }
             }
@@ -349,14 +371,14 @@ export function tableBuilder(limits, how) {
                 }
                 if (keep) {
                     const values = /** @type {unknown[]} */ (row);
-                    body.push(header.map((_, i) => plainOf(values[i], limits.textLength)));
+                    body.push(keptOfHeader.map((i) => plainOf(values[i], limits.textLength)));
                 }
                 return;
             }
             if (!columnsOver) {
                 for (const key of Object.keys(/** @type {object} */ (row))) {
                     if (!index.has(key)) {
-                        index.set(key, index.size);
+                        index.set(key, index.size < limits.columns ? placeOf(key, index.size) : -1);
                         if (index.size > limits.columns) {
                             columnsOver = index.size;
                             drop();
@@ -369,16 +391,16 @@ export function tableBuilder(limits, how) {
                 drop();
             }
             if (keep) {
-                const out = new Array(index.size).fill(null);
-                for (const [key, i] of index) {
-                    if (Object.hasOwn(/** @type {object} */ (row), key)) {
-                        out[i] = plainOf(/** @type {any} */ (row)[key], limits.textLength);
+                const out = new Array(names.length).fill(null);
+                for (const [key, at] of index) {
+                    if (at >= 0 && Object.hasOwn(/** @type {object} */ (row), key)) {
+                        out[at] = plainOf(/** @type {any} */ (row)[key], limits.textLength);
                     }
                 }
                 body.push(out);
             }
         },
-        /** @returns {{ columns: string[], rows: unknown[][] }} */
+        /** @returns {{ columns: string[], rows: unknown[][], dropped?: number }} */
         finish() {
             if (lists === null) {
                 return { columns: [], rows: [] };
@@ -393,16 +415,33 @@ export function tableBuilder(limits, how) {
             if (count * width > limits.importCells) {
                 throw overLimit("importCells", count * width, limits.importCells, "cells");
             }
-            // an object's row is as wide as the keys seen up to it
+            // an object's row is as wide as the kept keys seen up to it
             for (const row of body) {
-                while (row.length < width) {
+                while (row.length < names.length) {
                     row.push(null);
                 }
             }
-            return { columns: columnNames(lists ? header : [...index.keys()]), rows: body };
+            return { columns: names, rows: body, ...(policy ? { dropped } : {}) };
         }
     };
 }
+
+/**
+ * A JSON answer's table under the caller's levels: the loader dropped the hidden columns already, as
+ * the rows came; withoutHiddenRows checks again, and `dropped` counts both.
+ * @param {import("../data.js").SourceSpec["levels"]} levels
+ * @param {{ columns: string[], rows: unknown[][], dropped?: number }} table
+ */
+function shownOf(levels, table) {
+    const shown = withoutHiddenRows(levels, table);
+    return { ...shown, dropped: shown.dropped + (table.dropped ?? 0) };
+}
+
+/** A source with a page after http.maxPages. */
+const morePages = (id, max) => ownError(new OperationError("LIMIT_EXCEEDED", `the source ${id} has more than ${max} pages (http.maxPages)`));
+
+/** A streamed answer past limits.rows, said at its first row over it: the total is not counted. */
+const moreRows = (max) => ownError(new OperationError("LIMIT_EXCEEDED", `more than ${max.toLocaleString("en-US")} rows, over the limit of ${max.toLocaleString("en-US")} (limits.rows)`));
 
 /**
  * Whether a JSON answer is read while it streams: not where the asOf or next pointer reaches into
@@ -439,7 +478,7 @@ function linkNext(value) {
  * Loads an HTTP source's data: every page, its rows as a table, when the data is from.
  * @param {import("../options/http.js").HttpSettings} settings
  * @param {Record<string, string | number | boolean> | null} values  the caller's checked values
- * @param {{ signal: AbortSignal, limits: import("pivotkit-core").Limits, log: any, declared: Record<string, any> | undefined, caller: import("../registry.js").Caller, fetch?: typeof guardedFetch, trace?: LoadTrace }} how
+ * @param {{ signal: AbortSignal, limits: import("pivotkit-core").Limits, log: any, declared: Record<string, any> | undefined, caller: import("../registry.js").Caller, fetch?: typeof guardedFetch, trace?: LoadTrace, levels?: import("../data.js").SourceSpec["levels"] }} how  levels: the caller's, whose hidden columns are never kept
  * @returns {Promise<{ table: { columns: string[], rows: unknown[][] } | null, upload: { bytes: Uint8Array, format: "csv" } | null, asOf: string, pages: number, bytes: number }>}
  */
 export async function loadHttp(settings, values, how) {
@@ -455,7 +494,7 @@ export async function loadHttp(settings, values, how) {
     }
     let headers = { ...fixed, ...(await signIn(how.trace?.auth)) };
     let retried = false;
-    const table = tableBuilder(how.limits, { id, log: how.log });
+    const table = tableBuilder(how.limits, { id, log: how.log, ...(how.levels ? { levels: how.levels } : {}) });
     const streams = streamsRows(settings);
     /** The rows of the pages read so far (a list's header counted). */
     let total = 0;
@@ -484,12 +523,17 @@ export async function loadHttp(settings, values, how) {
             let count = 0;
             reader = rowsReader(settings.rows, {
                 maxDepth: MAX_DEPTH,
-                // rows past limits.rows or of the page after maxPages are counted, not kept
+                // the first row past limits.rows, or any row of the page after maxPages, ends the read:
+                // the rest of the answer is not counted (a total would cost time for nothing)
                 onRow: (row) => {
                     count++;
-                    if (!probing && total + count <= how.limits.rows) {
-                        table.add(row);
+                    if (probing) {
+                        throw morePages(id, settings.maxPages);
                     }
+                    if (total + count > how.limits.rows) {
+                        throw moreRows(how.limits.rows);
+                    }
+                    table.add(row);
                 }
             });
             return /** @type {(piece: Uint8Array) => void} */ (/** @type {any} */ (reader).push);
@@ -546,7 +590,7 @@ export async function loadHttp(settings, values, how) {
         const count = reader ? /** @type {any} */ (reader).rows : found.length;
         if (probing) {
             if (count) {
-                throw ownError(new OperationError("LIMIT_EXCEEDED", `the source ${id} has more than ${settings.maxPages} pages (http.maxPages)`));
+                throw morePages(id, settings.maxPages);
             }
             break;
         }
@@ -746,7 +790,8 @@ export async function loadFor(computer, resolved, caller, log, signal = undefine
     const limits = { ...LIMITS, ...spec.limits };
     // a load's table (its serial: a new load is a new key) under the caller's levels and limits
     const tableKeyFor = (serial) => tableKeyOf({ kind: "http", id: `${name}:${spec.id}`, configHash: canonicalJson([configHash, serial, spec.timeZone ?? null]), params: values, identity, levels: spec.levels, limits: spec.limits });
-    const ran = await loadRunner.runLoad(key, (loadSignal) => loadHttp(settings, values, { signal: loadSignal, limits, log, declared: source.params, caller }), {
+    // the caller's levels: the columns they hide are left out while the rows arrive (tableBuilder)
+    const ran = await loadRunner.runLoad(key, (loadSignal) => loadHttp(settings, values, { signal: loadSignal, limits, log, declared: source.params, caller, levels: spec.levels }), {
         // hidden columns never kept: a JSON answer's rows without them, a CSV answer read in a worker
         // (outside the source's timeMs, within compute.timeMs) into a packed table without them
         prepare: async ({ table, upload, asOf, pages, bytes }, readSignal) => {
@@ -756,7 +801,7 @@ export async function loadFor(computer, resolved, caller, log, signal = undefine
                 // key), so the bytes go straight to the operation's worker, which drops the hidden columns
                 return { table: null, upload, notes: [], asOf, pages, bytes, serial };
             }
-            const read = upload ? await readCsv(computer, spec, upload, tableKeyFor(serial), asOf, readSignal) : { table: withoutHiddenRows(spec.levels, /** @type {any} */ (table)), notes: [] };
+            const read = upload ? await readCsv(computer, spec, upload, tableKeyFor(serial), asOf, readSignal) : { table: shownOf(spec.levels, /** @type {any} */ (table)), notes: [] };
             return { ...read, asOf, pages, bytes, serial };
         },
         source: name,
