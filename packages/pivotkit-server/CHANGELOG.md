@@ -22,6 +22,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
     - The security page says where query values land and which `Referrer-Policy` the host page
       sends ([security](https://pivotkit.eize.dev/security/#link-params)).
 
+## [0.3.2] - 2026-11-19
+
 ### Changed
 
 - A 404 and `check-config` name the full address of the REST service and of its OpenAPI document.
@@ -882,7 +884,8 @@ First release.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.1...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.2...HEAD
+[0.3.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.1...pivotkit-server@0.3.2
 [0.3.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.0...pivotkit-server@0.3.1
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.2.0...pivotkit-server@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.1.1...pivotkit-server@0.2.0
