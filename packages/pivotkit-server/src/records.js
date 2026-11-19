@@ -43,6 +43,7 @@ import { asOfMembers } from "./sources/as-of.js";
 import { isPerson } from "./sources/auth.js";
 import { runResolved } from "./sources/index.js";
 import { PARAMS_INPUT } from "./sources/input.js";
+import { findNamedView, isViewName } from "./views.js";
 
 /** The most fields a request may name. */
 export const RECORDS_FIELDS = 1000;
@@ -56,7 +57,7 @@ export const RECORDS_INPUT = Object.freeze({
         source: { type: "string", minLength: 1, maxLength: 1024, pattern: "^(?!file:)", description: "A source id from GET /sources whose records is true." },
         params: PARAMS_INPUT,
         fields: { type: "array", minItems: 1, maxItems: RECORDS_FIELDS, items: { type: "string", minLength: 1, maxLength: 1024 }, description: "The fields to answer, in this order (names match case-insensitively). Each must be at show for you. Without fields or view: every field at show." },
-        view: { type: ["object", "string"], description: "A view (or its JSON text) that says which fields are needed: the fields it uses. Its filters are not applied: every row of the source leaves." }
+        view: { type: ["object", "string"], description: "A view, its JSON text, or the name of one of the source's views (GET /sources lists them) that says which fields are needed: the fields it uses. Its filters are not applied: every row of the source leaves." }
     }
 });
 
@@ -134,7 +135,13 @@ export function createRecords(context) {
         let writer = null;
         try {
             const resolved = await context.registry.resolve(input.source, caller, { files: false, surface: "rest" }, input.params);
-            const ran = /** @type {any} */ (await runResolved(context, RECORDS_JOB, input.view !== undefined ? { view: input.view } : {}, resolved, caller, { signal: how.signal }));
+            // a view by name: the operator's view, decided before the load (views.js)
+            const view = isViewName(input.view) ? await namedViewFor(context, input.source, input.view, resolved.policy, problemOf) : input.view;
+            if (view instanceof Response) {
+                release();
+                return view;
+            }
+            const ran = /** @type {any} */ (await runResolved(context, RECORDS_JOB, view !== undefined ? { view } : {}, resolved, caller, { signal: how.signal }));
             writer = ran.writer;
             /** @type {import("./compute.js").RecordsHead} */
             const head = ran.outcome.head;
@@ -180,6 +187,29 @@ export function createRecords(context) {
     }
 
     return { answer, held: () => places.held() };
+}
+
+/**
+ * A named view of the source for a rows request: the view to read the fields from, or the refusal
+ * to send. A view that needs a hidden field is not found (findNamedView answers as for a name that
+ * is not there). One that needs a field at values or summary is NOT_ALLOWED: its detail and
+ * `notShown` name only those fields, which the caller may know of.
+ * @param {any} context
+ * @param {string} id
+ * @param {string} name
+ * @param {import("./policy.js").Policy} policy
+ * @param {typeof plainProblemOf} problemOf
+ * @returns {Promise<Record<string, unknown> | Response>}
+ */
+async function namedViewFor(context, id, name, policy, problemOf) {
+    const named = await findNamedView(context, id, name, policy, { surface: "rest" });
+    const notShown = named.needs.filter((f) => !["show", "hide"].includes(levelOf(policy, f)));
+    if (notShown.length) {
+        const one = notShown.length === 1;
+        const detail = `the view ${named.name} needs ${notShown.map(nameText).join(", ")}, which ${one ? "is" : "are"} not at show for you, so its rows cannot leave; ask for the fields at show, or ask the operator`;
+        return problemOf(new OperationError("NOT_ALLOWED", detail), { extra: { notShown } });
+    }
+    return named.doc;
 }
 
 /**

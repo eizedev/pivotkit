@@ -19,6 +19,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   the first byte, 503 `BUSY` beyond the requests at once or for a second request of the same
   person. A reader idle too long, or one that has not read the answer within `writeMs`, loses its
   place, so a slow reader keeps others at `BUSY` for seconds, not for `compute.timeMs` (#636).
+- `POST /api/v1/sources/records` takes the name of a source's view as `view`. A view that uses a
+  field at `values` or `summary` answers 403 `NOT_ALLOWED` naming only those fields. One that uses a
+  hidden field answers as a name that does not exist (#644).
 - `GET /api/v1/sources` adds `"records": true` to each source the caller may read the rows of.
 - `GET /api/v1/sources` and MCP `list_sources` give a source's row count (`rows`) and `dataAsOf`
   once the server has read its data. Only a file source and a shared code source without parameters

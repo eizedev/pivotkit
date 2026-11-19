@@ -459,6 +459,41 @@ test("a stalled reader loses its slot after idleMs", async () => {
 
 // a reader that takes a piece just inside idleMs each time held the place for up to compute.timeMs,
 // so at the default concurrency of 1 everyone else got 503 BUSY that long (#636)
+// a view by name (#644): the operator's named view says which fields leave. One that needs a field
+// below show is NOT_ALLOWED and names only the fields the caller may know of; one that needs a hidden
+// field answers as a view that does not exist
+test("a named view: its fields leave; one with a field at summary is NOT_ALLOWED naming it; one with a hidden field is no view", async () => {
+    const views = {
+        "by-region": { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] },
+        "by-team": { rows: ["Team", "Region"], values: [{ field: "Sales", agg: "sum" }] },
+        "by-customer": { rows: ["Customer"], values: [{ field: "Sales", agg: "sum" }] }
+    };
+    const { server, person } = await serverOf({ sources: { sales: { file: "data/sales.csv", policy: { fields: { Customer: "hide" } }, views } } });
+    try {
+        const token = await person({ sub: "ana" });
+        const ok = await rows(server, token, { source: "sales", view: "by-region" });
+        assert.equal(ok.status, 200, ok.text);
+        assert.deepEqual(ok.data.columns, ["Region", "Sales"]);
+        assert.doesNotMatch(ok.text, MARKS);
+        const team = await rows(server, token, { source: "sales", view: "by-team" });
+        assert.equal(team.status, 403, team.text);
+        assert.equal(team.data.code, "NOT_ALLOWED");
+        assert.deepEqual(team.data.notShown, ["Team"]);
+        assert.match(team.data.detail, /^the view by-team needs Team, which is not at show for you/);
+        assert.doesNotMatch(team.text, MARKS);
+        const customer = await rows(server, token, { source: "sales", view: "by-customer" });
+        const unknown = await rows(server, token, { source: "sales", view: "no-such-view" });
+        assert.deepEqual([customer.status, customer.data.code], [400, "INVALID_INPUT"]);
+        assert.equal(customer.data.detail, unknown.data.detail.replace("no-such-view", "by-customer"), "a hidden field's view reads as one that is not there");
+        assert.doesNotMatch(customer.text, /Customer/);
+        // every refusal gave its place back
+        const again = await rows(server, token, { source: "sales", view: "by-region" });
+        assert.equal(again.status, 200);
+    } finally {
+        await server.close();
+    }
+});
+
 test("a slow reader loses its place after writeMs, also when it reads within idleMs", async () => {
     const h = await handlerOf({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } }, rest: { records: { idleMs: 1000, writeMs: 1500, concurrency: 1 } } }, { "sales.csv": bigCsv(40_000) });
     try {

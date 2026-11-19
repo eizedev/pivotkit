@@ -604,6 +604,9 @@ Only fields at `show` for the caller leave.
 | a field at `values` or `summary` | 403 `NOT_ALLOWED`. `detail` names the fields, `notShown` lists them for programs |
 | a hidden field | 400 `INVALID_INPUT`, as for a field that does not exist. Neither is named |
 | a view with errors, or one that uses a hidden field | 400 `INVALID_INPUT`. Check the view with `POST /views/validate` |
+| a [named view](sources.md#views) by its name | the fields it uses |
+| a named view that uses a field at `values` or `summary` | 403 `NOT_ALLOWED`. `detail` and `notShown` name those fields only |
+| a named view that uses a hidden field | 400 `INVALID_INPUT`, as for a name that does not exist |
 
 ```json
 { "type": "https://pivotkit.eize.dev/reference/rest/#error-not-allowed", "title": "Not allowed",
