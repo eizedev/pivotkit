@@ -254,7 +254,7 @@ export function resolveInline(reg, _ref, caller, how, params) {
         policy,
         source: null,
         link: null,
-        template: undefined,
+        template: reg.templateOf(null),
         params: null,
         descriptions: null,
         // the caller's own data, which may be about a person: closed for delivery (registry.js

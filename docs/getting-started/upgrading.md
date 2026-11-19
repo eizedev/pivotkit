@@ -168,6 +168,7 @@ Then restart Claude Code.
 | [A link names a source's parameters in the page's query string](#link-params) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
 | [Named views, and a layout for links and drafts](#named-views) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients |
 | [Row count and data date in the source list](#source-list-rows) | you read `GET /sources` or `list_sources` | none. MCP clients see the new keys in the output schema after they reconnect |
+| [One print template for the whole server](#output-template) | you want one design for every html report of a server | set `output.template` |
 
 ### Rows of a source for a signed-in person { #records-route }
 
@@ -221,6 +222,16 @@ wrote `allow-import="false"` offered loading files. Now it does not. `share-link
 data ([the rules](../reference/rest.md#source-list)). A source whose rows depend on the caller or on
 parameters gets neither. MCP clients see the two keys in the output schema after they reconnect.
 Sessions that stay connected keep working: the old schema allows more keys.
+
+### One print template for the whole server { #output-template }
+
+`output.template` sets the print template of every html report whose source sets none. Data sent in
+the request (`inline:`) and, over MCP, `file:` paths take it too, so one server has one design. A
+source's own `sources.<id>.template` still wins. The start and `check-config` check it as they check
+a source's template. Without the key, nothing changes.
+
+A template can set `--pk-chart-axis` to draw the chart's axis line apart from the table's lines.
+Without it, the axis keeps `--pk-border`.
 
 ## From 0.8.1 to 0.8.2 { #from-0-8-1 }
 

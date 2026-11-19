@@ -199,6 +199,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - with the same table and chart as on the screen
     - with two templates to start from, Corporate and Minimal, from `pivotkit example templates`
       ([your own corporate design](reference/corporate-design.md))
+    - with one template per source or one for the whole server, in the services
 - `pivotkit-cli` ([command line](getting-started/cli.md), [pivotkit-cli](reference/cli.md)):
     - `pivotkit example`, `render`, `validate` and `describe`.
     - A draft view from a file's fields (`describe --suggest`), and a report without a view file

@@ -52,6 +52,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   ([named views](https://pivotkit.eize.dev/reference/sources/#views), #616).
 - A caller never learns of a view that uses a field hidden from it. A view that holds values of a
   field the caller sees at `summary` gets no link and no draft.
+- `output.template` is the print template of every html report whose source sets none. Data sent in
+  the request (`inline:`) and, over MCP, `file:` paths take it too. The server reads it on every
+  html render and checks it at start and in `check-config`, as it does `sources.<id>.template`
+  ([print template](https://pivotkit.eize.dev/reference/print-template/), #614).
 
 ### Changed
 
@@ -61,6 +65,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   500,000 rows, measured on one laptop. A body that repeats a key on the way to the rows after
   them is refused (`SOURCE_UNAVAILABLE`). CSV answers are read as before
   ([Memory while a source loads](https://pivotkit.eize.dev/reference/sources/#http-memory), #620).
+
+### Fixed
+
+- A missing print template fails only html reports. Other formats, `describe_source` and
+  `validate_view` over the source answer as usual (#614).
 
 ## [0.3.2] - 2026-11-19
 
