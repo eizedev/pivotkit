@@ -41,7 +41,7 @@ service: sources, policy, workers, output, sign-in. pivotkit-server brings
 | `validate_view` | Errors and warnings of a view (or a `layout`: a view by field names) against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) | - |
 | `describe_view` | A view in plain parts (rows, columns, values, filters in words) with the same findings | - |
 | `render_view` | The report of a view, a named view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory. The workbook holds the table. For a view that shows the chart, the finding `chartNotInXlsx` says the chart is in `html` or `svg`. Inline where the policy allows. Over HTTP, a [download link](delivery.md) in the text and as a `resource_link` where the report gets one. With `save: false`, csv or json inline only ([below](#inline-only)) | a new file, none with `save: false` |
-| `create_link` | A link that opens the view, a named view or a `layout` in the source's report page (only for sources with `link`). The values of the source's `linkParams` go into the page's query string ([link parameters](../concepts/sharing.md#link-params)) | - |
+| `create_link` | A link that opens the view, a named view or a `layout` in the source's report page (only for sources with `link`). The values of the source's `linkParams` go into the page's query string ([link parameters](../concepts/sharing.md#link-params)). Without the list, the answer warns with `paramsNotCarried` | - |
 | `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host. It takes a view, a named view or a `layout`. It runs and sends nothing | a new file |
 
 Every tool has an input and an output JSON Schema (draft 2020-12). It returns its result as
@@ -341,7 +341,7 @@ one probably meant.
 | `sources.<id>.sheet` | - | first visible | A workbook's sheet |
 | `sources.<id>.policy` | - | the server's | The source's exposure policy |
 | `sources.<id>.link`, `.linkKey` | - | none | The page that shows this source's reports, for create_link; the report's key there |
-| `sources.<id>.linkParams` | - | none | The parameters a link from create_link may carry in the page's query string, such as `["customer"]` ([link parameters](../concepts/sharing.md#link-params)). Declared `params` only, never one bound to a claim, and every required one. Without the list, create_link reads the params and the link carries none |
+| `sources.<id>.linkParams` | - | none | The parameters a link from create_link may carry in the page's query string, such as `["customer"]` ([link parameters](../concepts/sharing.md#link-params)). Declared `params` only, never one bound to a claim, and every required one. Without the list, create_link reads the params, the link carries none, and the answer warns with `paramsNotCarried` |
 | `sources.<id>.views`, `.viewsDir` | - | none | [Named views](sources.md#views): a name to a view file or a view, and a folder of view files. Read on every request, checked at start and by `check-config` |
 | `sources.<id>.template` | - | `output.template`, else built-in | An HTML [print template](print-template.md) for render_view's html. Its path is relative to the configuration file, at most 1 MiB. Its `--pk-*` colours reach the chart ([details](print-template.md#template-design)). Read and checked at start and by `check-config`. A template with an unknown placeholder, over 1 MiB or not a regular file keeps the server from starting. A missing one starts the server with a warning (a `PROBLEM` the server starts with in `check-config`) and fails that source's html reports with `SOURCE_UNAVAILABLE` |
 | `sources.<id>.scopes` | - | none | OAuth or token scopes a caller needs to see and use it |
@@ -392,8 +392,8 @@ one probably meant.
 | `log.level` | `--log level` | info | `debug`, `info`, `warn`, `error` or `off`. `"log": "debug"` is short for the level. Variable: `$PIVOTKIT_LOG_LEVEL` ([operations](operations.md#settings)) |
 | `log.format` | `--log-format format` | auto | `auto` (text on a terminal, JSON otherwise), `text` or `json`. Variable: `$PIVOTKIT_LOG_FORMAT` |
 | `log.address` | `--log-address on\|off` | on | The client's address on a request's lines (HTTP). Variable: `$PIVOTKIT_LOG_ADDRESS` |
-| `audit.subject` | - | off | `hash` or `plain`: the person (`auth.subjectClaim` of an OAuth token) on the `call`, `request` and `download` [log lines](#logging) |
-| `audit.key` | - | a random key per start. With a state directory, `<state>/secrets/audit.key` | `hash`: the key (at least 16 characters), `{ "env": "NAME" }` or `{ "file": "path" }` (`"create": true` makes a missing file). Read at start, with OAuth only |
+| `audit.subject` | - | off | `hash` or `plain`: the person (`auth.subjectClaim` of an OAuth token, or the `sub` of an external issuer's token) on the `call`, `request` and `download` [log lines](#logging) |
+| `audit.key` | - | a random key per start. With a state directory, `<state>/secrets/audit.key` | `hash`: the key (at least 16 characters), `{ "env": "NAME" }` or `{ "file": "path" }` (`"create": true` makes a missing file). Read at start, with OAuth or `auth.externalIssuers` only |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
 | - | `--check-config` | - | Print whether the server would start and what it would expose, then exit. It shows the sources, each field's level and why, the fields the automatic values rule gives or would give `values`, files, output and auth. Exit 1 when it finds a problem ([reading it](rest.md#check-config)). A policy rule that names no column of the data is a warning (exit 0) |
 
@@ -608,8 +608,8 @@ where you ask for it with `audit.subject`, as `subject`, and never their groups 
 line holds a view, a value or a token. A call's line holds no file path. Lines at start can name the
 operator's own file paths. The log is the supervisor's to keep and rotate.
 
-`audit.subject` names the person of an OAuth token (its `auth.subjectClaim`) on `call`, `request`
-and `download` lines. A refused request never names one. A static token's caller is named by the
+`audit.subject` names the person of an OAuth token (its `auth.subjectClaim`) or of an external
+issuer's token (its `sub`) on `call`, `request` and `download` lines. A refused request never names one. A static token's caller is named by the
 token's `client` already.
 
 | `audit.subject` | `subject` on the line |
