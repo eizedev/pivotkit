@@ -69,6 +69,9 @@ Years from 1 AD have no era in the label. The key stays the astronomical year, s
 time: 0 is 1 BC, -1 is 2 BC. The year of a grouping is Gregorian even in a locale with another
 calendar, because its key is Gregorian.
 
+The same holds for `month`, the month of the year. Its key is the data's Gregorian month, and its
+label names that month in the locale's language. With `en-US-u-ca-islamic-civil`, key 1 is "Jan".
+
 ## Grouping when a date is placed
 
 In the UI, the report groups a date as soon as you put it on rows or columns. The span of its values
