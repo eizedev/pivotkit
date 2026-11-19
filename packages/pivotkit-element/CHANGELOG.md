@@ -6,6 +6,13 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-11-19
+
+### Fixed
+
+- Bundles pivotkit-react 0.8.2. The arrow keys in a long table no longer leave the focus one cell
+  behind. See pivotkit-react's changelog ([#416](https://github.com/eizedev/pivotkit/issues/416)).
+
 ## [0.8.1] - 2026-11-18
 
 ### Added
@@ -525,7 +532,8 @@ First release.
   thousands separators, CSV percentages and calculations as the table shows them, heatmaps without
   grey empty cells.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.1...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.2...HEAD
+[0.8.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.1...pivotkit-element@0.8.2
 [0.8.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.0...pivotkit-element@0.8.1
 [0.8.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.7.0...pivotkit-element@0.8.0
 [0.7.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.6.1...pivotkit-element@0.7.0
