@@ -64,7 +64,7 @@ export async function resolveFilePath(reg, ref, caller, how, params, resolveId) 
         policy,
         source: null,
         link: null,
-        template: await reg.templateOf(null),
+        template: reg.templateOf(null),
         params: null,
         descriptions: null,
         sourceClosed: reg.fileClosed,

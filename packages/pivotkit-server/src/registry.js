@@ -212,14 +212,15 @@ export async function createRegistry(options, { log = null } = {}) {
         levelsOf,
         fileClosed: closedUnder(options, files.policy),
         /**
-         * The print template of a source's html reports, read on every request: its own
-         * (sources.<id>.template), else the server's (output.template), else none (the built-in).
+         * The print template of a source's html reports: its own (sources.<id>.template), else the
+         * server's (output.template), else none (the built-in). A reader, not the text: runResolved
+         * reads it on each html render only, so a missing file fails those and nothing else.
          * @param {{ template?: string } | null} source  null: data sent in the request or a file: path
-         * @returns {Promise<string | undefined>}
+         * @returns {(() => Promise<string>) | null}
          */
         templateOf: (source) => {
             const file = source?.template ?? options.output?.template;
-            return file ? readTemplate(pathOf(options, file)) : Promise.resolve(undefined);
+            return file ? () => readTemplate(pathOf(options, file)) : null;
         },
         filePolicyOf: (caller) => (profileOf(caller) ? resolvePolicy(options.policy, files.policy, profileOf(caller), { file: true }) : filePolicy)
     };
@@ -252,7 +253,7 @@ export async function createRegistry(options, { log = null } = {}) {
             const kind = kindOf(source);
             const values = normalizeParams(source.params, params, caller, ref);
             const policy = resolvePolicy(options.policy, source.policy, profileOf(caller));
-            const template = await reg.templateOf(source);
+            const template = reg.templateOf(source);
             return {
                 sourceKind: kind,
                 policy,

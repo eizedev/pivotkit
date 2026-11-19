@@ -164,7 +164,7 @@ Then restart Claude Code.
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
-| [One print template for the whole server](#output-template) | your server serves html reports over data sent in the request or `file:` paths, or many sources share one template | set `output.template` if you want one design |
+| [One print template for the whole server](#output-template) | you want one design for every html report of a server | set `output.template` |
 
 ### Rows of a source for a signed-in person { #records-route }
 
@@ -184,7 +184,7 @@ refuses a source's `records.maxRows` above `rest.records.maxRows`. `GET /sources
 ### One print template for the whole server { #output-template }
 
 `output.template` sets the print template of every html report whose source sets none. Data sent in
-the request (`inline:`) and `file:` paths take it too, so one server has one design. A source's own
+the request (`inline:`) and, over MCP, `file:` paths take it too, so one server has one design. A source's own
 `sources.<id>.template` still wins. The start and `check-config` check it as they check a source's
 template. Without the key, nothing changes.
 

@@ -28,13 +28,13 @@ export async function readTemplateFile(path) {
 const MISSING = new Set(["NOT_FOUND", "ENOENT", "EACCES", "EPERM", "ENOTDIR", "ELOOP"]);
 
 /**
- * What is wrong with a source's template, if anything. `missing`: the file is not there or cannot be
+ * What is wrong with a print template (a source's or output.template), if anything. `missing`: the file is not there or cannot be
  * read now (the start warns, as for a missing source file, and the source's html reports fail until
  * it can be read). `problem`: what keeps the server from starting: the parser's message (`unknown
  * placeholder {{titel}} (line 7); did you mean {{title}}?`), a file over the limit, not a regular
  * file. Both name the file by its name, never its full path.
  * @param {import("./config.js").ServerOptions} options
- * @param {string} file  sources.<id>.template as configured
+ * @param {string} file  sources.<id>.template or output.template as configured
  * @returns {Promise<{ missing: string | null, problem: string | null }>}
  */
 export async function templateProblem(options, file) {
@@ -56,7 +56,7 @@ export async function templateProblem(options, file) {
 }
 
 /** Whose html reports fail while the server's template (output.template) cannot be read. */
-export const DEFAULT_TEMPLATE_REPORTS = "html reports without a template of their own";
+const DEFAULT_TEMPLATE_REPORTS = "html reports without a template of their own";
 
 /**
  * The templates of the configuration: each source's in the configuration's order, then the server's

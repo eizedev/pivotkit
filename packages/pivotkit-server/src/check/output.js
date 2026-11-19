@@ -37,7 +37,7 @@ export async function section(options, registry) {
     if (!out.dir) {
         return { items: [heading("Output: none (reports only as inline csv or json where the policy allows)"), ...(await serverTemplate(options))], upgrade: [] };
     }
-    const items = [heading(`Output: ${out.dir}`), ...(await serverTemplate(options))];
+    const items = [heading(`Output: ${out.dir}`)];
     // drafts are made over configured sources not bound to a person (registry.js schedulable)
     const drafts = Object.values(options.sources ?? {}).some((s) => s && !personBound(options, s));
     const upgrade = [
@@ -60,6 +60,7 @@ export async function section(options, registry) {
     if (!info && !notMade) {
         items.push(plain("will be created at start"));
     }
+    items.push(...(await serverTemplate(options)));
     if (info && !found) {
         items.push(problem("output.dir: not a directory", stop));
     } else if (notMade === "dangling") {

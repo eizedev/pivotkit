@@ -26,7 +26,7 @@ take two keys:
 
 - `sources.<id>.template`: the template of one source's html reports.
 - `output.template`: the template of every other html report. That includes data sent in the
-  request (`inline:`) and files by path (`file:`).
+  request (`inline:`) and, over MCP, files by path (`file:`).
 
 A source's own template wins over `output.template`. Without either, the built-in template applies.
 

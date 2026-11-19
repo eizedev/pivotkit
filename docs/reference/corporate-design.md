@@ -157,4 +157,4 @@ The tests check both templates this way:
 | --- | --- |
 | Command line | `pivotkit render <view> --data <file> --template corporate.template.html -o report.html` ([pivotkit-cli](cli.md)) |
 | Code | `render(view, rows, { format: "html", template: await readFile("corporate.template.html", "utf8"), echarts })` ([pivotkit-report](report.md)) |
-| Server | `output.template` in its configuration, a path relative to the configuration file. It applies to every HTML report, also over data sent in the request. `sources.<id>.template` sets one source's own ([pivotkit-mcp options](mcp.md)). `check-config` and the start check it, so a typo in a placeholder stops the start with the line it is on. |
+| Server | `output.template` in its configuration sets the design of the whole server, also for data sent in the request. `sources.<id>.template` overrides it for one source. Both are paths relative to the configuration file ([pivotkit-mcp options](mcp.md)). `check-config` and the start check it, so a typo in a placeholder stops the start with the line it is on. |

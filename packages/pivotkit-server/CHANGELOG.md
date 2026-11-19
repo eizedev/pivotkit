@@ -9,7 +9,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 ### Added
 
 - `output.template` is the print template of every html report whose source sets none. Data sent in
-  the request (`inline:`) and `file:` paths take it too. The server reads it on every request and
+  the request (`inline:`) and, over MCP, `file:` paths take it too. The server reads it on every request and
   checks it at start and in `check-config`, as it does `sources.<id>.template`
   ([print template](https://pivotkit.eize.dev/reference/print-template/), #614).
 - `POST /api/v1/sources/records` answers the rows of one source to a person who signed in: an OAuth
@@ -31,6 +31,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   ([headers](https://pivotkit.eize.dev/reference/rest/#headers)).
 - `npm run bench:records -w pivotkit-server` measures the route's memory and CPU against a render
   ([sizing](https://pivotkit.eize.dev/reference/rest/#records-sizing)).
+
+### Fixed
+
+- A missing print template fails only html reports. Other formats, `describe_source` and
+  `validate_view` over the source answer as usual (#614).
 
 ## [0.3.2] - 2026-11-19
 

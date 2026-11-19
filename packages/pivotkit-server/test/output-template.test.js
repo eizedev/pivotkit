@@ -4,7 +4,7 @@
 // request.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ConfigError, callerOf, checkConfig, createContext, present } from "pivotkit-server";
 import { BY_REGION, factsOf, workspace } from "./helpers.js";
@@ -88,4 +88,20 @@ test("check-config names output.template and reports its problems as for a sourc
     const gone = await checkConfig({ output: { template: "data/house.html" }, baseDir: none }, { http: false });
     assert.match(factsOf(gone.text), /^PROBLEM: output\.template: house\.html: not found -> the server starts; html reports without a template of their own fail until it can be read$/m);
     assert.equal(gone.stops, 0);
+});
+
+test("a missing output.template fails html reports only: csv, describe and validate still answer", async () => {
+    const dir = withTemplates({ "house.html": branded("HOUSE DESIGN") });
+    const context = await createContext({ log: "off", sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } }, output: { dir: "out", template: "data/house.html" }, baseDir: dir });
+    try {
+        rmSync(join(dir, "data", "house.html"));
+        const csv = await present(context, "render_view", { source: "sales", view: BY_REGION, format: "csv" }, LOCAL);
+        assert.equal(csv.result.ok, true);
+        assert.ok((await present(context, "describe_source", { source: "sales" }, LOCAL)).result.fields.length > 0);
+        assert.equal((await present(context, "validate_view", { source: "sales", view: BY_REGION }, LOCAL)).result.valid, true);
+        const html = await present(context, "render_view", { source: "inline:", data: TICKETS, view: BY_REGION, format: "html" }, LOCAL).catch((e) => e);
+        assert.equal(html.code, "FILE_NOT_AVAILABLE");
+    } finally {
+        await context.close();
+    }
 });
