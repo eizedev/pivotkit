@@ -309,7 +309,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
   header row.
 - More ([data in the request](reference/mcp.md#data)):
     - When the data is from (`dataAsOf`), in every result and in the html and xlsx files the
-      services write.
+      services write. The source list gives it with the row count
+      ([source list](reference/rest.md#source-list)).
     - The request id in every result, to find its log line.
     - A small table of the model's own (`inline:`). It is capped, and `mcp.data: false` switches it
       off.

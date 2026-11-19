@@ -65,6 +65,12 @@ const INLINE_OUTPUT = {
     }
 };
 
+/** What list_sources says about a source's data where the server knows it from its last read. */
+const LAST_READ = {
+    rows: { type: "integer", description: "How many rows the source held at its last read. Absent before a first read, for a source whose rows depend on who asks or on params, and where the policy keeps the count back." },
+    dataAsOf: { type: "string", description: "When the data of that read is from, in UTC to the second. Absent before a first read and for a source whose rows depend on who asks or on params." }
+};
+
 /** The views of a source a caller may use by name (views.js viewListFor). */
 const VIEW_LIST = {
     type: "array",
@@ -91,7 +97,8 @@ export function presentedOutput(name) {
     }
     if (name === "list_sources") {
         const items = base.properties.sources.items;
-        extra.sources = { ...base.properties.sources, items: { ...items, properties: { ...items.properties, views: VIEW_LIST, records: { type: "boolean", description: "REST only: true where you may read the source's rows (POST /api/v1/sources/records). Absent: you may not." } } } };
+        // named views (views.js), REST's rows route (records.js) and what the server knows of the data from its last read (registry.js noteRead)
+        extra.sources = { ...base.properties.sources, items: { ...items, properties: { ...items.properties, views: VIEW_LIST, records: { type: "boolean", description: "REST only: true where you may read the source's rows (POST /api/v1/sources/records). Absent: you may not." }, ...LAST_READ } } };
         extra.hint = { type: "string", description: "Why no source is listed and what to do: the sign-in lacks the scopes of the sources there are (only when none is listed)." };
     }
     if (name === "render_view") {
@@ -322,6 +329,8 @@ async function compute(context, name, input, resolved, caller, how = {}) {
         // a link or draft of a named view: only where the caller may see the values it holds
         checkCarriedView(name, given.named, policy);
         noteAutoValues(context, resolved.spec, policy);
+        // the row count and dataAsOf list_sources gives (registry.js noteRead)
+        context.registry.noteRead(resolved.spec, ran);
         return { ...ran, policy };
     } catch (e) {
         const allShown = resolved.policy.default === "show" && [...resolved.policy.fields.values()].every((l) => l === "show");
