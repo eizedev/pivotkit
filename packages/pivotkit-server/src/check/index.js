@@ -45,7 +45,7 @@ import * as log from "./log.js";
  * @property {(issuer: string, rules: import("../issuer.js").IssuerRules, how: { signal: AbortSignal }) => Promise<unknown>} [discover]  loads an issuer's metadata (auth.js discover); without it no issuer is asked
  * @property {import("../state.js").StatePlan | null} [state]  over HTTP: the state directory's defaults and the secrets made at start (state.js planState)
  * @property {string | null} [unusedToken]  over HTTP: the warning for a token's variable set while auth stays none (state.js unusedTokenText)
- * @property {Map<string, { names: string[], stats: any }>} columns  filled by check/sources.js
+ * @property {Map<string, { names: string[], stats: any, unnamed?: string[] }>} columns  filled by check/sources.js
  * @property {Map<string, string> | null} [everyColumn]  every column of every source by its policy key (null: not all known); set by check/sources.js
  */
 

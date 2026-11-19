@@ -56,7 +56,8 @@ export async function section(options, _registry, runtime) {
                 continue;
             }
             const source = /** @type {any} */ (options.sources?.[id]);
-            const policy = resolvePolicy(options.policy, source.policy, p);
+            // the columns the file gives no header are hidden, as the route reads them (check/sources.js)
+            const policy = { ...resolvePolicy(options.policy, source.policy, p), ...(runtime.columns.get(id)?.unnamed ? { unnamed: new Set(runtime.columns.get(id).unnamed.map(fieldKey)) } : {}) };
             const columns = runtime.columns.get(id);
             const ownMax = source.records?.maxRows;
             if (ownMax !== undefined) {

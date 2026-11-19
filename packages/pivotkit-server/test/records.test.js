@@ -126,6 +126,14 @@ test("a field at values, summary or hide never appears, also when fields or a vi
         assert.equal(unknown.status, 400);
         assert.equal(hidden.data.detail, unknown.data.detail);
         assert.doesNotMatch(hidden.text, /Customer|HIDDENMARK/i);
+        // every spelling of the hidden field, and a view as JSON text, answer alike
+        for (const variant of ["customer", "CUSTOMER", " Customer ", "Customer (2)", "Column 7"]) {
+            const answer = await rows(server, token, { source: "sales", fields: ["Region", variant] });
+            assert.equal(answer.data.detail, unknown.data.detail, variant);
+        }
+        const textView = await rows(server, token, { source: "sales", view: JSON.stringify({ rows: ["customer"], values: [{ field: "Sales", agg: "sum" }] }) });
+        assert.equal(textView.status, 400);
+        assert.doesNotMatch(textView.text, /customer|HIDDENMARK/i);
         // a field below show: NOT_ALLOWED, its name in detail and notShown, never a value
         for (const field of ["Team", "Product"]) {
             const below = await rows(server, token, { source: "sales", fields: ["Region", field] });
@@ -185,6 +193,8 @@ test("NOT_ALLOWED without the right, and for every caller without a person", asy
         const missing = await rows(server, await person({ profile: "plain" }), { source: "nowhere" });
         assert.equal(missing.status, 403);
         assert.equal(missing.data.detail, plain.data.detail, "a source that is not there answers alike");
+        // a host application's token without a subject is refused at sign-in already (record 0014)
+        assert.equal((await rows(server, await person({ sub: null }), { source: "sales" })).status, 401);
         // a static token whose profile names the source: no person
         await refused(TOKEN, "a static token");
         // a signed token of the server, with that profile
@@ -423,6 +433,24 @@ test("a stalled reader loses its slot after idleMs", async () => {
     }
 });
 
+test("a reader that leaves mid-answer frees its place at once", async () => {
+    const h = await handlerOf({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } }, rest: { records: { concurrency: 1 } } }, { "sales.csv": bigCsv(40_000) });
+    try {
+        const token = await h.person({ sub: "ana" });
+        const first = await h.ask(token, { source: "sales" });
+        const reader = /** @type {ReadableStream} */ (first.body).getReader();
+        await reader.read();
+        assert.equal((await h.ask(await h.person({ sub: "ben" }), { source: "sales" })).status, 503);
+        await reader.cancel();
+        const next = await h.ask(await h.person({ sub: "ben" }), { source: "sales" });
+        assert.equal(next.status, 200);
+        await next.body?.cancel();
+        assert.ok(h.lines.some((l) => l.event === "records" && l.reason === "client"));
+    } finally {
+        await h.close();
+    }
+});
+
 test("a large answer goes out in pieces", async () => {
     const h = await handlerOf({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } } }, { "sales.csv": bigCsv(40_000) });
     try {
@@ -586,6 +614,12 @@ test("check-config lists per profile the sources it may read rows of and the fie
     assert.match(section, /profile staff: sales\n\s+sales: Region, Sales, OrderDate leave; Product, Team stay/);
     assert.match(section, /profile narrow: sales\n\s+sales: Region leave; Product, Team, Sales, OrderDate stay/);
     assert.doesNotMatch(section, /plain|Customer/, "a profile without the right, and a hidden field, are not listed");
+});
+
+test("check-config does not list a column without a header as leaving: the route hides it", async () => {
+    const { options } = setup({ sources: { blank: { file: "data/blank.csv", policy: { default: "show" } } }, profiles: { staff: { ...PROFILES.staff, records: ["sales", "blank"] } } }, { "sales.csv": CSV, "blank.csv": "Region,,Sales\nNorth,HIDDENMARKX,1\n" });
+    const text = factsOf((await checkConfig(options, { http: true, env: { OPS: TOKEN }, rest: true })).text);
+    assert.match(text, /\n\s+blank: Region, Sales leave\n/);
 });
 
 test("check-config reports a problem for an unknown source id in records", async () => {

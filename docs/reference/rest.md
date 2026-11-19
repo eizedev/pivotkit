@@ -325,7 +325,7 @@ which only the file route reads.
 
 | Key | Default | What it is |
 | --- | --- | --- |
-| `policy.profiles.<name>` | none | A profile: `default` (show, values or summary), `fields`, `items`, `rows`, `counts`, `inline`, `results` |
+| `policy.profiles.<name>` | none | A profile: `default` (show, values or summary), `fields`, `items`, `rows`, `counts`, `inline`, `results`, `records` ([rows route](#records)) |
 | `policy.results`, `sources.<id>.policy.results` | false | Downloads through the file route for callers without a profile, per source |
 | `auth.tokens[].profile` | none | A static token's profile |
 | `auth.clientProfiles` | none | OAuth client id (`azp` or `client_id`) to profile: `{ "report-bot": "export" }` |
@@ -503,7 +503,8 @@ curl -s -H "Authorization: Bearer $PERSON_TOKEN" -H "Content-Type: application/j
   pivotkit-core's `encode` reads it as it is.
 - A date is ISO text without an offset, such as `2026-11-18` or `2026-11-18T08:30:00`. It means the
   same day and time in every time zone.
-- `rowCount` is every row of the source.
+- `rowCount` is every row of the source. The policy's `rows: false` and `counts: false` do not
+  hide it here, since `data` holds every row anyway.
 - `withheld` names the fields at `values` or `summary` for the caller. They are left out.
 - `dataAsOf` and `stale` are as on every other route.
 
@@ -604,6 +605,11 @@ The defaults are a first guess. Real row counts will set them better.
 - The server checks the fields and the limits before it writes the first byte.
 - Beyond `concurrency`, or for a second request of the same person, the answer is 503 `BUSY` with
   `Retry-After` and `retryable: true`.
+- With the default of 1, the route serves one person at a time. One person whose source loads
+  slowly, or who reads slowly, keeps the others at 503 `BUSY` for up to `compute.timeMs`. Raise
+  `concurrency` and `compute.workers` together for more people at once.
+- `auth.toolScopes` cannot name this route, since it is no operation. `rest.requiredScopes` and the
+  source's `scopes` apply.
 - The places for [large bodies](#data) count per client, so they are not used here.
 - One request holds a [compute worker](mcp.md#configuration) while its answer is written. Keep
   `concurrency` below `compute.workers`, so reports still find a worker. `check-config` warns
@@ -1179,7 +1185,8 @@ Rows go by status, then by code. The answers of the download links come last.
 
 ## Headers of every answer { #headers }
 
-Every answer of `/api/v1` carries these headers, errors included:
+Every answer of `/api/v1` carries these headers, errors included. The one exception is the answer
+to a CORS preflight (`OPTIONS`), which carries no body:
 
 | Header | Value | Why |
 | --- | --- | --- |
