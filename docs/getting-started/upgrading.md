@@ -159,6 +159,26 @@ claude plugin update pivotkit-mcp@pivotkit
 
 Then restart Claude Code.
 
+## From 0.8.2 to the next release { #from-0-8-2 }
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| [A link names a source's parameters in the page's query string](#link-params) | you run the MCP server, or a host page opens links from `create_link` for a source with parameters | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
+
+### A link names a source's parameters in the page's query string { #link-params }
+
+`create_link` (MCP and `POST /api/v1/views/link`) writes the values of the parameters in
+`sources.<id>.linkParams` into the page's query string
+([link parameters](../concepts/sharing.md#link-params)). Without the list, links stay as they are.
+
+- `create_link` with a list refuses any other parameter with `INVALID_INPUT`.
+- The server does not start with a list that names a parameter bound to a claim, an undeclared one,
+  or leaves out a required one.
+- `GET /sources` and `list_sources` add `linkParams` to such a source.
+- The tool's description changed. MCP clients reconnect to read it.
+- Query values land in access logs, history and the `Referer` header. The host page sends
+  `Referrer-Policy: same-origin` or `no-referrer` ([security](../security.md#link-params)).
+
 ## From 0.8.0 to 0.8.1 { #from-0-8-0 }
 
 This applies to pivotkit-server and pivotkit-mcp 0.3.0 too, which move to 0.3.1.

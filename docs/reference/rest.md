@@ -54,7 +54,7 @@ The routes are RPC-style (`POST /views/validate`), one per operation of the
 | `POST /views/describe` | `describe_view` | A view in plain parts with the same findings |
 | `POST /views/render` | `render_view` | The report as `xlsx` (default), `html`, `csv`, `json` or `svg`, saved in the output directory |
 | `POST /views/render/file` | `render_view` | The same report as the answer itself, a download ([below](#downloads)) |
-| `POST /views/link` | `create_link` | A link that opens the view in the source's report page |
+| `POST /views/link` | `create_link` | A link that opens the view in the source's report page, with the source's link parameters in the page's query string ([link parameters](../concepts/sharing.md#link-params)) |
 | `POST /schedules/draft` | `draft_schedule` | A draft of a scheduled report for a person to approve. It runs and sends nothing |
 
 A POST takes its input as JSON (`Content-Type: application/json`), at most 2 MiB. A caller that may
@@ -123,7 +123,10 @@ A source with parameters takes their values as `params` with its id in a POST bo
 - Describe such a source with `POST /sources/describe`. `GET /sources/{id}` carries no params, so it
   answers `INVALID_INPUT` for a source with required ones. Its `detail` names
   `POST /sources/describe`.
-- `GET /sources` lists the parameters.
+- `GET /sources` lists the parameters. Its `linkParams` names those a link may carry.
+- `POST /views/link` takes only the parameters in `linkParams`, where the source has the list. It
+  writes their values into the page's query string
+  ([link parameters](../concepts/sharing.md#link-params)). Any other answers `INVALID_INPUT`.
 - The routes take `params` only when a configured source declares any
   ([parameters](mcp.md#configuration)). Otherwise a request with `params` answers `INVALID_INPUT`
   with the `detail` "this server has no source that takes params; leave params out (GET /sources

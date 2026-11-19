@@ -167,6 +167,49 @@ if (link.view && link.src) {
 }
 ```
 
+### Parameters in the page's address { #link-params }
+
+A link from the services' `create_link` can name a source's parameters, such as a customer. Their
+values go into the page's query string, so a host's backend can read them. The view stays in the
+fragment:
+
+`https://reports.example.com/tickets?customer=acme#pivot-tickets=1.…`
+
+- The operator lists the parameters a link may carry, per source: `sources.<id>.linkParams`
+  ([options](../reference/mcp.md#configuration)). Without the list, a link carries none.
+- `create_link` refuses any other parameter with `INVALID_INPUT` and names the allowed ones.
+- A parameter bound to a sign-in claim never goes into a link. The server refuses such a list.
+- The server checks the values with the source's parameter rules before it makes the link.
+- A query that the configured page address holds stays. A name the link sets replaces the same name
+  there.
+
+Anyone can write such an address by hand. So the page passes on only the names `list_sources` or
+`GET /sources` gives as the source's `linkParams`. The backend that loads the rows checks the values
+again, with the viewer's rights.
+
+How the query relates to the fragment:
+
+- The fragment's `src.params`, read with `allowParams`, stay as they are. Copy link writes them, such
+  as a workbook's `sheet`.
+- Where the query and the fragment name the same parameter, the query wins.
+- Only `create_link` writes the query. Copy link drops the query, unless the host passes a
+  `shareLink` that keeps it ([links](#links-for-developers)).
+
+```js
+import { readViewLink } from "pivotkit-core/link";
+
+const linkParams = ["customer"];   // the source's linkParams from GET /sources
+const link = readViewLink(location.hash, "tickets", { allowParams: ["sheet"] });
+const query = new URLSearchParams(location.search);
+const params = { ...link.src?.params };
+for (const name of linkParams) {
+    if (query.has(name)) params[name] = query.get(name);   // the query wins
+}
+```
+
+Values in a query string land in access logs, in the browser's history and in the `Referer` header.
+[Security](../security.md#link-params) says what to list and which `Referrer-Policy` to send.
+
 ## Keeping the view per tab
 
 `persistView="session"` (attribute `persist-view="session"`) keeps the view in the tab's

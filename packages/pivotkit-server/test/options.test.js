@@ -70,6 +70,9 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.auth.object.signedTokens = { object: { dir: "string", maxDays: "integer" } };
     // tokens other systems issue (options/external.js, after signed)
     expected.auth.object.externalIssuers = { list: { object: { issuer: "string", typ: "string", maxMinutes: "integer", scopes: "strings", profiles: "strings", profile: "string", keys: { list: { object: { kid: "string", publicKey: secretRef } } } } } };
+    // the params a link may carry (config.js, #619): after linkKey
+    const source = expected.sources.map.object;
+    expected.sources.map.object = Object.fromEntries(Object.entries(source).flatMap(([k, v]) => (k === "linkKey" ? [[k, v], ["linkParams", "strings"]] : [[k, v]])));
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });

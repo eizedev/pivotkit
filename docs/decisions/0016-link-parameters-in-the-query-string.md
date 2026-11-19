@@ -1,8 +1,8 @@
 ---
 title: Link parameters in the page's query string
 description: create_link writes a source's parameters into the page's query string, from a list per source, so a host application's backend can read them. The view stays in the fragment.
-status: proposed
-date: 2026-11-18
+status: accepted
+date: 2026-11-19
 ---
 
 # 0016 Link parameters in the page's query string

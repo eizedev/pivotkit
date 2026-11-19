@@ -2387,6 +2387,13 @@
                 "link": {
                   "type": "boolean"
                 },
+                "linkParams": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "The params a link (create_link) may carry, in the page's address. Others are refused there."
+                },
                 "schedulable": {
                   "type": "boolean"
                 },

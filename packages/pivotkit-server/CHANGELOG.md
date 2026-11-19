@@ -6,6 +6,22 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `create_link` (`POST /views/link`) writes a source's parameters into the page's query string,
+  such as `?customer=acme`. The view stays in the fragment. A host application's backend reads the
+  query ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), #619).
+    - `sources.<id>.linkParams` lists the parameters a link may carry. Any other answers
+      `INVALID_INPUT` and names the allowed ones. Without the list, a link carries none, as before.
+    - The server refuses a list with a parameter bound to a claim, an undeclared one, or without a
+      required one.
+    - The values pass the source's parameter rules before the server makes the link.
+    - A query the configured page address holds stays. A name the link sets replaces it there.
+    - `GET /sources` and `list_sources` name the list as `linkParams`. `check-config` prints it under
+      the source's link.
+    - The security page says where query values land and which `Referrer-Policy` the host page
+      sends ([security](https://pivotkit.eize.dev/security/#link-params)).
+
 ### Changed
 
 - A 404 and `check-config` name the full address of the REST service and of its OpenAPI document.
