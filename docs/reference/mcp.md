@@ -50,8 +50,8 @@ from the data), then the JSON. A view with errors is not a tool error: `ok` or `
 `findings` say what to fix.
 
 Every result over a source's data has `dataAsOf`. `list_sources` gives it per source where it is
-known ([the rules](rest.md#source-list)). `get_view_guide` reads no data and has none. `dataAsOf` says when the data is from, in UTC to the second
-(`"2026-11-15T08:00:00Z"`):
+known ([the rules](rest.md#source-list)). `get_view_guide` reads no data and has none. `dataAsOf`
+says when the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`):
 
 - a file's modification time
 - for a library host's code source, its own `asOf` (see below), else when `load()` gave the data.

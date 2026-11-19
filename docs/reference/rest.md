@@ -113,9 +113,9 @@ Every answer that works carries `requestId`, the id of the request's [log lines]
 `X-Request-Id` header. Give it to the operator when an answer looks wrong.
 
 Every answer over a source's data carries `dataAsOf`. `GET /sources` gives it per source where it is
-known ([below](#source-list)). `GET /views/guide` reads no data and has none. `dataAsOf` says when the data is from, in UTC to the second. It is a file's
-modification time, or a code source's own time or the time it gave the data. The server parses the
-time and writes it again in this one form.
+known ([below](#source-list)). `GET /views/guide` reads no data and has none. `dataAsOf` says when
+the data is from, in UTC to the second. It is a file's modification time, or a code source's own
+time or the time it gave the data. The server parses the time and writes it again in this one form.
 
 A source with parameters takes their values as `params` with its id in a POST body
 (`{ "source": "vms", "params": { "customer": "acme" } }`). Such a source is an
@@ -240,6 +240,8 @@ can show the row count and the data date from the list alone. The list never rea
   To fill them after a start, read the source once, for example with `POST /sources/describe`.
 - After the data changes, the list keeps the last read's values until a route reads the data again.
   `dataAsOf` says which data the count is from.
+- A read whose data is older than the list's never replaces it. So after a file is restored with
+  an older modification time, the list shows the old values until a restart.
 - Only a source whose rows are the same for every caller gets them: a `file` source, and a code
   source with `cacheShared` and without parameters.
 - A source with parameters, an HTTP source, a source bound to a person and a `perPerson` code source
