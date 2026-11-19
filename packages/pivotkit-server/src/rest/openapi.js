@@ -16,6 +16,7 @@ import { presentedInput, presentedOutput } from "../present.js";
 import { PROBLEM_CODES } from "./problem.js";
 import { multipartInputSchema } from "./multipart.js";
 import { REST_ROUTES } from "./routes.js";
+import { NAMED_VIEW_OPERATIONS } from "../views.js";
 import { RECORDS_INPUT, RECORDS_OUTPUT } from "../records.js";
 
 const require = createRequire(import.meta.url);
@@ -72,17 +73,23 @@ const VIEW_INPUT = {
     anyOf: [{ $ref: "#/components/schemas/View" }, { type: "object", description: "A view file (format pivotkit-view)." }, { type: "string", description: "A view or a view file as JSON text." }]
 };
 
+/** A view in an input that takes a named view's name too (views.js NAMED_VIEW_OPERATIONS). */
+const NAMED_VIEW_INPUT = {
+    description: `${VIEW_INPUT.description} Or the name of a view the operator published for the source (GET /sources lists them).`,
+    anyOf: [...VIEW_INPUT.anyOf.slice(0, 2), { type: "string", description: "A view or a view file as JSON text, or a named view's name." }]
+};
+
 /** An input schema with the view referenced. */
-function withViewRef(schema) {
+function withViewRef(schema, name) {
     const out = structuredClone(schema);
     if (out.properties?.view) {
-        out.properties.view = VIEW_INPUT;
+        out.properties.view = NAMED_VIEW_OPERATIONS.has(name) ? NAMED_VIEW_INPUT : VIEW_INPUT;
     }
     return out;
 }
 
 /** An operation's input schema with the view referenced. */
-const inputSchema = (name, offers, fileRoute = false) => withViewRef(presentedInput(name, { files: false, offers, fileRoute }));
+const inputSchema = (name, offers, fileRoute = false) => withViewRef(presentedInput(name, { files: false, offers, fileRoute }), name);
 
 /** The multipart body of an operation that takes a source, where data may be sent: the file and the input. */
 const multipartBody = (name, offers, fileRoute = false) => ({
@@ -91,7 +98,7 @@ const multipartBody = (name, offers, fileRoute = false) => ({
         required: ["data"],
         properties: {
             data: { type: "string", contentMediaType: "application/octet-stream", description: "The file: csv, tsv, json or xlsx (by the file name's extension, else the part's content type)." },
-            input: { ...withViewRef(multipartInputSchema(name, offers, fileRoute)), description: 'The operation\'s input as JSON: source may be left out (it is "inline:"); data holds only name, asOf, sheet and sha256.' }
+            input: { ...withViewRef(multipartInputSchema(name, offers, fileRoute), name), description: 'The operation\'s input as JSON: source may be left out (it is "inline:"); data holds only name, asOf, sheet and sha256.' }
         }
     },
     encoding: { input: { contentType: "application/json" } }

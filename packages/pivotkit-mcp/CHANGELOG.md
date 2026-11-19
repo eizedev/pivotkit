@@ -15,6 +15,14 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   from the last read. Clients see the two keys in the output schema after they reconnect
   ([row count and data date](https://pivotkit.eize.dev/reference/rest/#source-list), #617).
 
+### Changed
+
+- `create_link` and `draft_schedule` take a `layout` instead of a `view`, as `render_view` does.
+  The schema's placeholder `layout` that refused every layout is gone (#469).
+- `render_view`, `create_link` and `draft_schedule` take the name of a view the operator published
+  ([named views](https://pivotkit.eize.dev/reference/sources/#views), #616). MCP clients reconnect
+  to read the new schemas.
+
 ## [0.3.2] - 2026-11-19
 
 ### Changed

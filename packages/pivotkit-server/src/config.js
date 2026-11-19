@@ -47,6 +47,8 @@ export { ConfigError } from "./options/shared.js";
  * @property {string} [linkKey]  the report's key on that page, when it has more than one
  * @property {string[]} [linkParams]  the params a link from create_link may carry in the page's query string (link-params.js)
  * @property {string} [template]  an HTML print template file for render_view's html
+ * @property {Record<string, string | Record<string, unknown>>} [views]  named views: a view file's path or a view, by name (options/views.js)
+ * @property {string} [viewsDir]  a folder of view files, each a named view (options/views.js)
  * @property {string[]} [scopes]  OAuth scopes a caller needs to see and use the source
  * @property {PolicyOptions} [policy]
  * @property {Record<string, { type: "string" | "integer" | "number" | "boolean", required?: boolean, description?: string, example?: string | number | boolean, enum?: Array<string | number>, pattern?: string, minLength?: number, maxLength?: number, minimum?: number, maximum?: number, format?: "date", default?: string | number | boolean, claim?: string }>} [params]  values a caller passes with the source (a code source gets them: load(params, { caller })); claim: filled from that claim of the caller's verified token, never from the caller

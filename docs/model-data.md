@@ -176,14 +176,14 @@ counts.
 
 | Tool | What the model gets |
 | --- | --- |
-| `list_sources` | Each source it may use: id, title, description, whether a link or a schedule works, and its parameters with type, description, example, list of values and pattern. Where known, the row count (`rows`) and `dataAsOf` of the source's last read ([the rules](reference/rest.md#source-list)). Also how much data it may send. The list leaves out a source whose scopes the token lacks. |
-| `describe_source` | The rows. Per field: its name, type, level, counts, what its level lists (see above), the operator's description, and the aggregators and filters it takes. Also `hiddenFields`, `withheld`, `hint`, example views and `dataAsOf`. `notes` say how the data was read: renamed or dropped columns, a sheet's or JSON property's names, how many values did not convert. |
+| `list_sources` | Each source it may use: id, title, description, whether a link or a schedule works, and its parameters with type, description, example, list of values and pattern. Its named views by name, title and description. Where known, the row count (`rows`) and `dataAsOf` of the source's last read ([the rules](reference/rest.md#source-list)). Also how much data it may send. The list leaves out a source whose scopes the token lacks. |
+| `describe_source` | The rows. Per field: its name, type, level, counts, what its level lists (see above), the operator's description, and the aggregators and filters it takes. Also `hiddenFields`, `withheld`, `hint`, example views, named views and `dataAsOf`. `notes` say how the data was read: renamed or dropped columns, a sheet's or JSON property's names, how many values did not convert. |
 | `suggest_view` | A draft view and `picks` from the fields' names and types: no value, no count. |
 | `get_view_guide` | How to write a view: pivotkit's own text, nothing of yours. |
 | `validate_view`, `describe_view` | Findings with field names, the items the model wrote, and the data's spelling for `show` and `values` fields. Also the view in words, the fields it uses and `dataAsOf`. |
 | `render_view` | The file's name, over stdio its path. A link where the report gets one. Counts and an inline result only where every field of the view is `show`. |
-| `create_link` | A link to the source's report page with the view in it: field names and filter items. The values of the source's `linkParams` go into the page's address. The page loads the data, not the link. |
-| `draft_schedule` | The draft with the view, formats, when and recipients by name, and where it is saved. |
+| `create_link` | A link to the source's report page with the view in it: field names and filter items. The values of the source's `linkParams` go into the page's address. The page loads the data, not the link. A named view that holds values of a field at `summary` gets no link. |
+| `draft_schedule` | The draft with the view, formats, when and recipients by name, and where it is saved. A named view that holds values of a field at `summary` gets no draft. |
 
 ## What else the model reads { #other }
 
@@ -196,6 +196,8 @@ Besides the fields, a model reads:
     - a source's id, `title` and `description`, in `list_sources`
     - a field's `description`, at every level but `hide`
     - a parameter's `description`, `example`, `enum` and `pattern`
+    - a [named view](reference/sources.md#views)'s name, title and description. A view that uses a
+      field hidden from the caller is not listed.
     - whether a source takes a link or a schedule
     - the cap of [data it may send](#model-writes)
 - **File names**: with `files.list` (`--list-files`), `list_sources` lists the data files of the

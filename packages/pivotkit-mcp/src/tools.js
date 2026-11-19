@@ -22,23 +22,12 @@ function descriptionOf(name) {
     return base;
 }
 
-/** The tools that take a view but no layout: a model that sends a layout gets one short error, not the schema's. */
-const VIEW_ONLY = new Set(["create_link", "draft_schedule"]);
-
 /**
- * The tool's input schema: presentedInput, and for a tool of VIEW_ONLY a `layout` it refuses itself
- * (the SDK checks the schema before the tool runs and would list every property it misses).
+ * The tool's input schema: presentedInput.
  * @param {string} name
  * @param {any} [offers]  the extra inputs the server offers on MCP (context.offers.mcp)
  */
-function inputSchemaOf(name, offers) {
-    const schema = /** @type {any} */ (presentedInput(name, { offers }));
-    if (!VIEW_ONLY.has(name)) {
-        return schema;
-    }
-    const layout = { description: "Not taken here: give the layout to validate_view, which returns the view it makes, and pass that view." };
-    return { ...schema, properties: { ...schema.properties, layout }, required: schema.required.filter((/** @type {string} */ key) => key !== "view") };
-}
+const inputSchemaOf = (name, offers) => /** @type {any} */ (presentedInput(name, { offers }));
 
 /** The annotations of a tool from the table's. */
 const annotationsOf = (op) => ({ title: op.title, readOnlyHint: op.annotations.readOnly, destructiveHint: false, idempotentHint: op.annotations.idempotent, openWorldHint: false });
@@ -133,9 +122,6 @@ export function registerTools(server, context, caller) {
                     try {
                         if (caller.scopes !== null && !scopes.every((s) => caller.scopes?.has(s))) {
                             throw new OperationError("NOT_ALLOWED", `your token may not use ${name}`);
-                        }
-                        if (VIEW_ONLY.has(name) && args?.layout !== undefined) {
-                            throw new OperationError("INVALID_INPUT", `${name} takes a view, not a layout: give the layout to validate_view, which returns the view it makes, and pass that view here`);
                         }
                         const { text, result, link } = await present(context, name, args ?? {}, caller, { signal: ctx?.mcpReq?.signal });
                         context.log.call({ ...entry, ok: true, status: 200, ms: Date.now() - started });

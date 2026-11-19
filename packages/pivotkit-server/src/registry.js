@@ -329,6 +329,14 @@ export async function createRegistry(options, { log = null } = {}) {
             }
         },
 
+        /**
+         * A configured source's policy for a caller, as resolve gives it, without reading anything
+         * (the views list_sources names, views.js).
+         * @param {string} id
+         * @param {Caller} caller
+         */
+        policyOf: (id, caller) => resolvePolicy(options.policy, sources.get(id)?.policy, profileOf(caller)),
+
         /** The ids of every source (the quick-start page, --check-config). */
         ids: () => [...sources.keys()],
 

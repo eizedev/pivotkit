@@ -229,8 +229,8 @@ These front ends are the [command line](cli.md), the [MCP server](mcp.md) and th
 | `validate_view` | `validate` | `POST /views/validate` | Findings and the fields the view uses; with a `layout` instead of a `view`, also the `view` it makes |
 | `describe_view` | `describe <view>` | `POST /views/describe` | describeView in parts, with findings |
 | `render_view` | `render` | `POST /views/render` | render(); the file comes back as `file`, the front end puts it somewhere; a `layout` instead of a `view` (the CLI's layout flags), with the `view` it made in the result; `locale` for a view or layout that names none, `numbers` and `flatHeader` |
-| `create_link` | - | `POST /views/link` | A link into the source's page (`env.link`) |
-| `draft_schedule` | - | `POST /schedules/draft` | A draft report document (`pivotkit-report-draft`, version 0) for a person to approve |
+| `create_link` | - | `POST /views/link` | A link into the source's page (`env.link`); a `layout` instead of a `view` |
+| `draft_schedule` | - | `POST /schedules/draft` | A draft report document (`pivotkit-report-draft`, version 0) for a person to approve; a `layout` instead of a `view` |
 
 ```js
 import { encode } from "pivotkit-core";
