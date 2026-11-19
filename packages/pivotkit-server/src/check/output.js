@@ -1,8 +1,8 @@
 /*
  * check-config's section for the output directory (output.*): where reports go, whether the
  * directory is there or will be made, what the start refuses (createContext in context.js: the same
- * checks, so a PROBLEM here that stops the start is one there), how full it may get, the drafts'
- * share of it, and how long reports and drafts stay.
+ * checks, so a PROBLEM here that stops the start is one there), the server's print template
+ * (output.template), how full it may get, the drafts' share of it, and how long reports and drafts stay.
  *
  *   Output: reports
  *     /srv/pivotkit/reports
@@ -22,14 +22,22 @@ import { draftBytesCap, draftCap, expiredIn, reportsIn, waitingDrafts } from "..
 import { bytesText, countText } from "../text.js";
 import { personBound } from "../sources/auth.js";
 import { heading, plain, problem, warning } from "./format.js";
+import { checkTemplates } from "../print-template.js";
+import { templateItems } from "./sources.js";
+
+/** The server's print template (output.template) and its problems, read and parsed as the start does. */
+async function serverTemplate(options) {
+    const template = (await checkTemplates(options)).find((t) => t.id === null);
+    return template ? [plain(`print template: ${template.file}, for every html report whose source has none (inline: and file: data too)`), ...templateItems(template)] : [];
+}
 
 /** @type {import("./index.js").Section} */
 export async function section(options, registry) {
     const out = options.output ?? {};
     if (!out.dir) {
-        return { items: [heading("Output: none (reports only as inline csv or json where the policy allows)")], upgrade: [] };
+        return { items: [heading("Output: none (reports only as inline csv or json where the policy allows)"), ...(await serverTemplate(options))], upgrade: [] };
     }
-    const items = [heading(`Output: ${out.dir}`)];
+    const items = [heading(`Output: ${out.dir}`), ...(await serverTemplate(options))];
     // drafts are made over configured sources not bound to a person (registry.js schedulable)
     const drafts = Object.values(options.sources ?? {}).some((s) => s && !personBound(options, s));
     const upgrade = [

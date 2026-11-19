@@ -1,5 +1,6 @@
 /*
- * A source's print template (sources.<id>.template): one reader for a request, the start and
+ * A print template, a source's (sources.<id>.template) or the server's for every html report whose
+ * source has none (output.template): one reader for a request, the start and
  * check-config, so the three refuse the same file with the same words. The file is read the safe way
  * (no device, no symbolic-link swap, at most TEMPLATE_BYTES) and checked by pivotkit-report's
  * parseTemplate, which a render_view in html runs again on every request (the file may change).
@@ -54,18 +55,26 @@ export async function templateProblem(options, file) {
     }
 }
 
+/** Whose html reports fail while the server's template (output.template) cannot be read. */
+export const DEFAULT_TEMPLATE_REPORTS = "html reports without a template of their own";
+
 /**
- * The sources that have a template, in the configuration's order, with what is wrong with each
- * (templateProblem; both null: it is fine).
+ * The templates of the configuration: each source's in the configuration's order, then the server's
+ * (output.template, id null), with what is wrong with each (templateProblem; both null: it is fine).
+ * `key` is the option's path and `reports` whose html reports fail while it is missing, for messages.
  * @param {import("./config.js").ServerOptions} options
- * @returns {Promise<Array<{ id: string, file: string, missing: string | null, problem: string | null }>>}
+ * @returns {Promise<Array<{ id: string | null, key: string, reports: string, file: string, missing: string | null, problem: string | null }>>}
  */
 export async function checkTemplates(options) {
     const out = [];
     for (const [id, source] of Object.entries(options.sources ?? {})) {
         if (typeof source?.template === "string") {
-            out.push({ id, file: source.template, ...(await templateProblem(options, source.template)) });
+            out.push({ id, key: `sources.${id}.template`, reports: `html reports of ${id}`, file: source.template, ...(await templateProblem(options, source.template)) });
         }
+    }
+    const file = options.output?.template;
+    if (typeof file === "string") {
+        out.push({ id: null, key: "output.template", reports: DEFAULT_TEMPLATE_REPORTS, file, ...(await templateProblem(options, file)) });
     }
     return out;
 }

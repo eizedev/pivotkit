@@ -44,6 +44,8 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.sourceCache = { object: { maxMb: "integer" } };
     // how long a schedule draft may wait for approval (config.js), after maxAgeDays
     expected.output.object.draftMaxAgeDays = "integer";
+    // the server's print template (config.js, #614), after draftMaxAgeDays
+    expected.output.object.template = "string";
     // download links (options/downloads.js)
     const secretRef = { custom: "fn" };
     expected.output.object.downloads = { object: { enabled: "boolean", expiresMinutes: "integer", bind: { enum: ["signIn", "once", "none"] }, key: secretRef, allowInsecureUrl: "boolean", signIn: { object: { clientId: "string", clientSecret: secretRef, issuer: "string", scopes: "strings", tokenUrl: "string" } } } };

@@ -42,6 +42,18 @@ import { heading, plain, problem, warning } from "./format.js";
  */
 const denyListText = (path) => `${path}: "show" by default with hidden fields is a deny list: a column the data gains later is shown unless someone hides it; prefer "hide" by default and give the fields to show the level show`;
 
+/**
+ * The PROBLEM lines of a print template (an entry of checkTemplates), as the start decides: what the
+ * parser refuses stops it, a file that is not there does not (that template's html reports fail).
+ * @param {{ key: string, reports: string, missing: string | null, problem: string | null }} template
+ */
+export const templateItems = (template) => {
+    if (template.problem) {
+        return [problem(`${template.key}: ${template.problem}`, { stops: true })];
+    }
+    return template.missing ? [problem(`${template.key}: ${template.missing}`, { effect: `the server starts; ${template.reports} fail until it can be read` })] : [];
+};
+
 /** A column's name as check-config prints it: cleaned of control and direction characters, capped. */
 export const nameText = (name) => findingText(name).slice(0, 80);
 
@@ -49,7 +61,7 @@ export const nameText = (name) => findingText(name).slice(0, 80);
 export async function section(options, registry, runtime) {
     const items = [];
     const sources = await registry.check();
-    const templates = new Map((await checkTemplates(options)).map((t) => [t.id, t]));
+    const templates = new Map((await checkTemplates(options)).filter((t) => t.id !== null).map((t) => [t.id, t]));
     // every column of every source by its policy key, in the data's spelling; null: not all known
     /** @type {Map<string, string> | null} */
     let everyColumn = registry.allow.length ? null : new Map();
@@ -103,11 +115,7 @@ export async function section(options, registry, runtime) {
         const template = templates.get(s.id);
         if (template) {
             items.push(plain(`template: ${template.file}`, 2));
-            if (template.problem) {
-                items.push(problem(`sources.${s.id}.template: ${template.problem}`, { stops: true }));
-            } else if (template.missing) {
-                items.push(problem(`sources.${s.id}.template: ${template.missing}`, { effect: `the server starts; html reports of ${s.id} fail until it can be read` }));
-            }
+            items.push(...templateItems(template));
         }
         // rows longer than the header (data.js withoutLongRows): left out wherever a field is below show;
         // with the source's own policy all show, no caller of it loses them (profiles aside)

@@ -87,12 +87,12 @@ export async function createContext(options, runtime = {}) {
     });
     // a source's print template the parser refuses: refused now, not first on an html report; one
     // that is not there yet (a deploy that copies it later) is a warning, as a missing source file
-    for (const { id, missing, problem } of await checkTemplates(options)) {
+    for (const { key, reports, missing, problem } of await checkTemplates(options)) {
         if (problem) {
-            throw new ConfigError(`sources.${id}.template: ${problem}`);
+            throw new ConfigError(`${key}: ${problem}`);
         }
         if (missing) {
-            log.warn(`sources.${id}.template: ${missing}; html reports of ${id} fail until it can be read`);
+            log.warn(`${key}: ${missing}; ${reports} fail until it can be read`);
         }
     }
     // a backend's sign-in whose secret cannot be read: said at start, not first to a caller
@@ -394,7 +394,7 @@ export const SHARED_OUTPUT_TEXT = "output.dir is the configuration's directory o
  * @returns {Promise<string[]>}
  */
 export async function ownFileDirs(options) {
-    const files = [...Object.values(options.sources ?? {}).flatMap((s) => [s.file, s.template]), ...(options.auth?.tokens ?? []).map((t) => t.file)].filter((f) => typeof f === "string");
+    const files = [...Object.values(options.sources ?? {}).flatMap((s) => [s.file, s.template]), options.output?.template, ...(options.auth?.tokens ?? []).map((t) => t.file)].filter((f) => typeof f === "string");
     const dirs = await Promise.all(files.map((f) => realpath(pathOf(options, f)).then(dirname, () => null)));
     const base = options.baseDir ? await realpath(options.baseDir).catch(() => null) : null;
     return [...dirs, base].filter((d) => d !== null);

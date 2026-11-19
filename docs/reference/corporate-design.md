@@ -72,6 +72,7 @@ Minimal follows the theme of the site you read this in. The chart keeps its ligh
     | `--pk-surface-2`, `--pk-muted` | Header cells; secondary text (the company name, the footer) |
     | `--pk-surface-raised` | Not drawn by the HTML report (the report on a page draws its menus and the chart's tooltip with it); set so the block works there too |
     | `--pk-border`, `--pk-border-strong`, `--pk-grid` | The table's lines, the chart's axis and grid |
+    | `--pk-chart-axis` (not set) | The chart's axis line apart from the table's lines; `--pk-border` when not set |
     | `--pk-total`, `--pk-total-strong` | Subtotal and grand total rows |
     | `--pk-chart-1` ... `--pk-chart-8` | The chart's series, and data bars (`--pk-chart-1`) |
     | `--pk-chart-reference` (not set) | A target line and the lines of a stack's total; `--pk-muted` when not set |
@@ -156,4 +157,4 @@ The tests check both templates this way:
 | --- | --- |
 | Command line | `pivotkit render <view> --data <file> --template corporate.template.html -o report.html` ([pivotkit-cli](cli.md)) |
 | Code | `render(view, rows, { format: "html", template: await readFile("corporate.template.html", "utf8"), echarts })` ([pivotkit-report](report.md)) |
-| Server | `sources.<id>.template` in its configuration, a path relative to the configuration file. It applies to every HTML report of that source ([pivotkit-mcp options](mcp.md)). `check-config` and the start check it, so a typo in a placeholder stops the start with the line it is on. |
+| Server | `output.template` in its configuration, a path relative to the configuration file. It applies to every HTML report, also over data sent in the request. `sources.<id>.template` sets one source's own ([pivotkit-mcp options](mcp.md)). `check-config` and the start check it, so a typo in a placeholder stops the start with the line it is on. |

@@ -6,6 +6,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `chartThemeFrom` reads the axis line's colour from `--pk-chart-axis`, else `--pk-border` as before.
+  A print template or a host can draw the axis apart from the table's lines
+  ([theming](https://pivotkit.eize.dev/reference/theming/), #614).
+
 ## [0.8.0] - 2026-11-18
 
 ### Added

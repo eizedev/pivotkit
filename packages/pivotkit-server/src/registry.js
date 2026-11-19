@@ -211,6 +211,16 @@ export async function createRegistry(options, { log = null } = {}) {
         notFound,
         levelsOf,
         fileClosed: closedUnder(options, files.policy),
+        /**
+         * The print template of a source's html reports, read on every request: its own
+         * (sources.<id>.template), else the server's (output.template), else none (the built-in).
+         * @param {{ template?: string } | null} source  null: data sent in the request or a file: path
+         * @returns {Promise<string | undefined>}
+         */
+        templateOf: (source) => {
+            const file = source?.template ?? options.output?.template;
+            return file ? readTemplate(pathOf(options, file)) : Promise.resolve(undefined);
+        },
         filePolicyOf: (caller) => (profileOf(caller) ? resolvePolicy(options.policy, files.policy, profileOf(caller), { file: true }) : filePolicy)
     };
 
@@ -242,7 +252,7 @@ export async function createRegistry(options, { log = null } = {}) {
             const kind = kindOf(source);
             const values = normalizeParams(source.params, params, caller, ref);
             const policy = resolvePolicy(options.policy, source.policy, profileOf(caller));
-            const template = source.template ? await readTemplate(pathOf(options, source.template)) : undefined;
+            const template = await reg.templateOf(source);
             return {
                 sourceKind: kind,
                 policy,

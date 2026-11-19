@@ -232,7 +232,7 @@ function inlinePolicy(options, caller) {
  * @param {{ surface?: "mcp" | "rest", data?: unknown, upload?: { bytes: Uint8Array, format: string, sheet?: string, name?: string, asOf?: string } }} how
  * @param {unknown} [params]
  */
-export function resolveInline(reg, _ref, caller, how, params) {
+export async function resolveInline(reg, _ref, caller, how, params) {
     const surface = how.surface ?? "mcp";
     if (!maySendData(reg.options, caller, surface)) {
         throw dataRefusal(surface, { offered: restDataOffered(reg.options) });
@@ -254,7 +254,7 @@ export function resolveInline(reg, _ref, caller, how, params) {
         policy,
         source: null,
         link: null,
-        template: undefined,
+        template: await reg.templateOf(null),
         params: null,
         descriptions: null,
         // the caller's own data, which may be about a person: closed for delivery (registry.js
