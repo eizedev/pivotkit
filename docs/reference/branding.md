@@ -36,7 +36,7 @@ The server checks the values at start. A wrong value stops the start and names t
 
 `branding.name` replaces pivotkit's name where people and clients show it:
 
-- the download pages: "Team reports report" in the title and above the heading, and the icon
+- the download pages: "Team reports report" in the title and over the heading, and the icon
 - the MCP server's `serverInfo.title`, its page's title and heading
 - the OpenAPI document's title: "Team reports REST"
 - the OAuth metadata: `resource_name` "Team reports REST" for REST, "Team reports" for MCP
@@ -50,8 +50,8 @@ digits and dashes, such as `team-reports`. A name without any of these gives `pi
 ## Documentation links { #docs }
 
 Give `branding.docsUrl` the address of your own copy of this site. The server adds the same paths
-as on pivotkit.eize.dev, such as `reference/rest/#error-source-not-found`. The site is built from
-`docs/` in the repository with Zensical. A copy of the published site works too.
+as on pivotkit.eize.dev, such as `reference/rest/#error-source-not-found`. Zensical builds the site
+from `docs/` in the repository. A copy of the published site works too.
 
 With `branding.docsUrl: null`, the server hands out no documentation link:
 
@@ -113,8 +113,8 @@ setting changes them:
   whole page.
 - the MCP server's instructions and tool descriptions, which tell the model how pivotkit works
 
-Exports carry no product name: an xlsx file names no author or company, and CSV, JSON, SVG and PNG
-carry no metadata.
+Exports carry no product name. An xlsx file names no author or company. CSV, JSON, SVG and PNG
+files carry no metadata.
 
 ## Check it { #check }
 
