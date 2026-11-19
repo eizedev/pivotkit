@@ -595,7 +595,7 @@ export const OPERATIONS = Object.freeze({
                             description: { type: "string" },
                             kind: { enum: ["source", "file"] },
                             link: { type: "boolean" },
-                            linkParams: { type: "array", items: { type: "string" }, description: "The params a link (create_link) may carry, in the page's address. Others are refused there." },
+                            linkParams: { type: "array", items: { type: "string" }, description: "The params a link (create_link) may carry, in the page's query string. create_link takes only these names for this source." },
                             schedulable: { type: "boolean" },
                             params: {
                                 type: "array",

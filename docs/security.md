@@ -786,7 +786,11 @@ So:
 
 - List only parameters whose values may show up there. A customer's short name may. A person's name
   or an account number usually may not.
-- The host page sends `Referrer-Policy: same-origin` or `no-referrer`.
+- The host page sends `Referrer-Policy: same-origin` or `no-referrer`. Set it as a response header
+  of the page, or as `<meta name="referrer" content="same-origin">` in its `<head>`. pivotkit does
+  not serve that page, so the host sets it. Current browsers default to
+  `strict-origin-when-cross-origin`: other sites get the origin only. Same-site requests still get
+  the full address, and a page or browser with a weaker policy sends it everywhere.
 - A value in a link proves nothing. Anyone can write the address by hand. The host loads the rows
   with the viewer's own rights, and pivotkit-server checks the values on every request.
 - A parameter bound to a sign-in claim never goes into a link. The server does not start with such a

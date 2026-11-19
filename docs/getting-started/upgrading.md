@@ -163,7 +163,7 @@ Then restart Claude Code.
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
-| [A link names a source's parameters in the page's query string](#link-params) | you run the MCP server, or a host page opens links from `create_link` for a source with parameters | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
+| [A link names a source's parameters in the page's query string](#link-params) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
 
 ### A link names a source's parameters in the page's query string { #link-params }
 

@@ -183,7 +183,29 @@ fragment:
 - A query that the configured page address holds stays. A name the link sets replaces the same name
   there.
 
+- A required parameter is always in the list: `create_link` needs it to read the source.
 - An empty list (`"linkParams": []`) refuses every parameter in `create_link`.
+
+A source with a link that carries the customer. It is an [HTTP source](../reference/sources.md#http)
+or a code source, since only those take `params`:
+
+```json
+{
+  "sources": {
+    "tickets": {
+      "http": { "url": "https://support.example.com/api/customers/{customer}/tickets" },
+      "params": { "customer": { "type": "string", "required": true, "pattern": "^[a-z0-9-]{1,40}$" } },
+      "link": "https://reports.example.com/tickets",
+      "linkKey": "tickets",
+      "linkParams": ["customer"],
+      "policy": { "default": "hide", "fields": { "Status": "show", "Opened": "show" } }
+    }
+  }
+}
+```
+
+`create_link` with `"params": { "customer": "acme" }` then answers
+`https://reports.example.com/tickets?customer=acme#pivot-tickets=1.…`.
 
 Anyone can write such an address by hand. pivotkit's report does not read the query. The host page
 does, and passes on only the names `list_sources` or `GET /sources` gives as the source's
@@ -208,6 +230,9 @@ for (const name of linkParams) {
     if (query.has(name)) params[name] = query.get(name);   // the query wins
 }
 ```
+
+The key of `readViewLink` is the source's `linkKey`, or `null` without one. Values from the query are
+texts, also for a number or a boolean. The backend that loads the rows reads and checks them again.
 
 Values in a query string land in access logs, in the browser's history and in the `Referer` header.
 [Security](../security.md#link-params) says what to list and which `Referrer-Policy` to send.

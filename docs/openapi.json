@@ -34,7 +34,7 @@
       "get": {
         "operationId": "listSources",
         "summary": "List the data sources",
-        "description": "The data sources this caller may use: id, title, whether a link or a schedule works for them.",
+        "description": "The data sources this caller may use: id, title, whether a link or a schedule works for them, and the params a link may carry (linkParams).",
         "tags": [
           "sources"
         ],
@@ -711,7 +711,7 @@
       "post": {
         "operationId": "createLink",
         "summary": "Create a link to a view",
-        "description": "A link that opens the view in the source's report page, where a person sees the data with their own rights. Only for sources with link: true; a view with errors gets no link.",
+        "description": "A link that opens the view in the source's report page, where a person sees the data with their own rights. Only for sources with link: true; a view with errors gets no link. Where GET /sources names linkParams for the source, params takes only those names, and their values go into the page's query string.",
         "tags": [
           "views"
         ],
@@ -2392,7 +2392,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "The params a link (create_link) may carry, in the page's address. Others are refused there."
+                  "description": "The params a link (create_link) may carry, in the page's query string. create_link takes only these names for this source."
                 },
                 "schedulable": {
                   "type": "boolean"
