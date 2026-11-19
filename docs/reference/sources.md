@@ -153,8 +153,10 @@ who can read the configuration file reads that value too.
 
 ### Reading the answer { #http-rows }
 
-- The server parses the body as JSON in its own thread. Each page is at most `maxBytes`. A body
-  nested deeper than 64 levels, or one that is no JSON, answers `SOURCE_UNAVAILABLE`.
+- The server reads the body as JSON in its own thread, while it arrives. Each row becomes a row of
+  the table at once. See [memory](#http-memory) for what the server holds meanwhile.
+- All pages together are at most `maxBytes`. A body nested deeper than 64 levels, or one that is no
+  JSON, answers `SOURCE_UNAVAILABLE`. So does a body that has its rows' key twice in one object.
 - The rows' pointer reads the body's own keys only.
 - Rows are objects or lists. In objects, the keys are the fields, in the order first seen. In lists,
   the first list is the header.
@@ -225,9 +227,20 @@ it starts. The container image takes it as an environment variable too. On a cer
 `check-source` says so. When the variable is set, it says that its file holds no authority that
 signed the backend's certificate.
 
-The server holds each page's body in memory while it reads and parses it, up to `maxBytes` per load.
+### Memory while a source loads { #http-memory }
+
+What the server holds while it reads an answer depends on its format:
+
+- **JSON**: one row's bytes at a time, the body around the rows, and the table built so far. A row
+  becomes a list of plain values when it arrives. The whole body and its parsed objects are
+  never held at once.
+- **JSON whose `asOf` or `next` points into the rows**: each page's whole body and its parsed value
+  while the server reads the page. Point `asOf` and `next` outside the rows to avoid this.
+- **CSV**: the whole body, up to `maxBytes`. A worker then reads it into the compact table. The CSV
+  reader needs the whole text to find the encoding, the separator, and the header.
+
 The rows of a kept load stay in memory for `ttl`, bounded as for code sources. Keep `maxBytes` near
-what a source needs.
+what a source needs. [Memory and workers](../getting-started/kubernetes.md#sizing) has measurements.
 
 ### Backend sign-in { #http-auth }
 

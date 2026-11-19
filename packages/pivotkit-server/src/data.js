@@ -290,7 +290,8 @@ function withoutHidden(table, hide) {
 /**
  * A table loaded in the main thread (columns, rows as lists) without the columns the levels hide,
  * before it is kept (an HTTP source's answer): `dropped` says how many went, so tableData still
- * counts them as hidden.
+ * counts them as hidden. The rows are the caller's own and are changed in place, so a large answer
+ * is not held twice.
  * @param {{ default: string, fields: Record<string, string> }} levels
  * @param {{ columns: string[], rows: unknown[][] }} table
  * @returns {{ columns: string[], rows: unknown[][], dropped: number }}
@@ -301,7 +302,13 @@ export function withoutHiddenRows(levels, table) {
         return { columns: table.columns, rows: table.rows, dropped: 0 };
     }
     const keep = table.columns.map((c, i) => (hide.includes(fieldKey(c)) ? -1 : i)).filter((i) => i >= 0);
-    return { columns: keep.map((i) => table.columns[i]), rows: table.rows.map((row) => keep.map((i) => row[i])), dropped: hide.length };
+    for (const row of table.rows) {
+        for (let j = 0; j < keep.length; j++) {
+            row[j] = row[keep[j]];
+        }
+        row.length = keep.length;
+    }
+    return { columns: keep.map((i) => table.columns[i]), rows: table.rows, dropped: hide.length };
 }
 
 /** Reader notes without those about a hidden column: nothing about it reaches the model. */

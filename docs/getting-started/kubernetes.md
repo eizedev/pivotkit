@@ -209,6 +209,24 @@ image. Take it as a rough order and check your own data with `kubectl top pod`. 
 file of 30 MB with 700,000 rows and 6 columns. The process used about 100 MB without work. Each
 worker that had computed a report over the file added about 470 MB.
 
+An HTTP source's first call loads the backend's answer and computes over it. This table shows how
+much the server process grew during that call. The main thread and the workers count together. It
+ran with Node 26 on macOS, with seven columns, one of them hidden, as the median of three runs.
+The 66 MB and 34 MB answers needed a larger `http.maxBytes` and `limits.fileBytes`.
+
+| Answer | Rows | Size | Memory added |
+| --- | ---: | ---: | ---: |
+| JSON | 100,000 | 13 MB | about 250 MB |
+| JSON | 151,550 | 20 MB | about 300 MB |
+| JSON | 500,000 | 66 MB | about 590 MB |
+| CSV | 100,000 | 7 MB | about 240 MB |
+| CSV | 293,222 | 20 MB | about 440 MB |
+| CSV | 500,000 | 34 MB | about 640 MB |
+
+The server reads a JSON answer while it arrives, as [memory](../reference/sources.md#http-memory)
+explains. It holds a CSV answer whole until a worker has read it. `node bench/server/http-source.js` in the repository runs
+the measurement on your machine.
+
 A report runs on one worker thread. Give the pod about one CPU per worker that should compute at the
 same time. The example requests half a CPU and sets no CPU limit.
 
