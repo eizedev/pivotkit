@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ConfigError, callerOf, checkConfig, createContext, present } from "pivotkit-server";
-import { BY_REGION, factsOf, workspace } from "./helpers.js";
+import { BY_REGION, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
 
@@ -26,6 +26,18 @@ function withTemplates(files) {
         writeFileSync(join(dir, "data", name), text);
     }
     return dir;
+}
+
+/** The fixed text of a print template the server cannot read now (#653). */
+const TEMPLATE_GONE = "the server's print template is not available now; tell the operator and give the request id";
+
+/**
+ * A render whose print template cannot be read: the server's fault, said with a fixed text. Not a
+ * 404 that reads like a missing source, and not the template's file name.
+ */
+function assertTemplateUnavailable(error, file) {
+    assert.deepEqual([error.code, error.status, error.message, error.details?.retryable], ["SOURCE_UNAVAILABLE", 502, TEMPLATE_GONE, false]);
+    assert.ok(!JSON.stringify({ message: error.message, details: error.details }).includes(file));
 }
 
 /** An html report's text, as the server saved it. */
@@ -100,9 +112,28 @@ test("a missing output.template fails html reports only: csv, describe and valid
         assert.ok((await present(context, "describe_source", { source: "sales" }, LOCAL)).result.fields.length > 0);
         assert.equal((await present(context, "validate_view", { source: "sales", view: BY_REGION }, LOCAL)).result.valid, true);
         const html = await present(context, "render_view", { source: "inline:", data: TICKETS, view: BY_REGION, format: "html" }, LOCAL).catch((e) => e);
-        assert.equal(html.code, "FILE_NOT_AVAILABLE");
+        assertTemplateUnavailable(html, "house.html");
     } finally {
         await context.close();
+    }
+});
+
+test("a missing print template over REST: 502 SOURCE_UNAVAILABLE with the fixed text, no file name, an error line for the operator", async () => {
+    const dir = withTemplates({ "own.html": branded("OWN DESIGN") });
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv", template: "data/own.html", policy: { default: "show" } } }, output: { dir: "out" }, auth: { mode: "token", tokens: [{ name: "ops", env: "OPS" }] }, baseDir: dir }, { env: { OPS: TOKEN } });
+    try {
+        rmSync(join(dir, "data", "own.html"));
+        const answer = await call(`${server.api}/views/render`, { token: TOKEN, body: { source: "sales", view: BY_REGION, format: "html" } });
+        assert.deepEqual([answer.status, answer.data.code, answer.data.detail, answer.data.retryable], [502, "SOURCE_UNAVAILABLE", TEMPLATE_GONE, false]);
+        assert.ok(!JSON.stringify(answer.data).includes("own.html"));
+        const line = server.log.find((l) => l.event === "request" && l.status === 502);
+        assert.deepEqual([line?.level, line?.code], ["error", "SOURCE_UNAVAILABLE"]);
+        // the operator's line under the same id: the file by its name and the reader's code, no path
+        const warned = server.log.filter((l) => l.event === "warning" && l.requestId === answer.data.requestId);
+        assert.deepEqual(warned.map((l) => [l.level, l.msg, l.cause]), [["warn", "the print template own.html cannot be read (NOT_FOUND); its html reports fail until it can", "NOT_FOUND"]]);
+        assert.ok(!JSON.stringify(server.log).includes(dir), "no line holds the template's full path");
+    } finally {
+        await server.close();
     }
 });
 
@@ -113,7 +144,7 @@ test("a missing source template fails that source's html reports only, and a fil
         rmSync(join(dir, "data", "own.html"));
         assert.equal((await present(context, "render_view", { source: "sales", view: BY_REGION, format: "csv" }, LOCAL)).result.ok, true);
         const html = await present(context, "render_view", { source: "sales", view: BY_REGION, format: "html" }, LOCAL).catch((e) => e);
-        assert.equal(html.code, "FILE_NOT_AVAILABLE");
+        assertTemplateUnavailable(html, "own.html");
         writeFileSync(join(dir, "data", "own.html"), branded("OWN DESIGN AGAIN"));
         assert.match(await htmlOf(context, dir, { source: "sales" }), /OWN DESIGN AGAIN/);
     } finally {

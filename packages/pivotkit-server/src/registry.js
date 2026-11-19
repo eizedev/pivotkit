@@ -12,7 +12,6 @@ import { closest } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
 import { OperationError } from "pivotkit-report/operations";
 import { pathOf, serverLimitsOf } from "./config.js";
-import { asOperationError } from "./data.js";
 import { fieldKey, resolvePolicy } from "./policy.js";
 import { isPerson, personBound } from "./sources/auth.js";
 import { FILE_PREFIX, INLINE_ID, KINDS, kindOf } from "./sources/index.js";
@@ -20,7 +19,7 @@ import { resolveFilePath } from "./sources/file.js";
 import { resolveInline } from "./sources/inline.js";
 import { normalizeParams, paramsList } from "./sources/params.js";
 import { checkLinkParams, linkEntriesOf, linkParamsOf, notCarriedOf, withLinkQuery } from "./link-params.js";
-import { readTemplateFile } from "./print-template.js";
+import { readTemplateFile, templateUnavailable } from "./print-template.js";
 import { asOfMembers } from "./sources/as-of.js";
 
 export { FILE_PREFIX };
@@ -388,12 +387,17 @@ export async function createRegistry(options, { log = null } = {}) {
         return { default: policy.default, fields: Object.fromEntries(policy.fields), counts: policy.counts, rows: policy.rows };
     }
 
-    /** An operator's template file, read the safe way (print-template.js, as at start and in check-config). */
+    /**
+     * An operator's template file, read the safe way (print-template.js, as at start and in
+     * check-config). A file that cannot be read now is the server's fault: a fixed text, no file name.
+     */
     async function readTemplate(path) {
         try {
             return await readTemplateFile(path);
         } catch (e) {
-            throw asOperationError(e, path);
+            const { error, warning } = templateUnavailable(path, e);
+            log?.warn(...warning);
+            throw error;
         }
     }
 }

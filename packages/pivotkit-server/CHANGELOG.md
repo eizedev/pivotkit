@@ -95,6 +95,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 - A missing print template fails only html reports. Other formats, `describe_source` and
   `validate_view` over the source answer as usual (#614).
+- An html render whose print template cannot be read answers 502 `SOURCE_UNAVAILABLE` with a fixed
+  text and `retryable: false`. It was 404 `FILE_NOT_AVAILABLE`, which read like a missing source and
+  named the template's file. A warning line names the file and the reader's code for the operator
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#template-unavailable), #653).
+- A 503 `BUSY` answer logs at `warn`, not `error`: the server is full, not broken. Every other 5xx
+  stays at `error` (#638).
 - `create_link` over a source with a link and params but no `linkParams` warns with
   `paramsNotCarried`: the link carries none of the params given, so the page opens without them
   (#641).

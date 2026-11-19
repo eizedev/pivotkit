@@ -12,6 +12,7 @@ import { isRequestId, requestId } from "../request-id.js";
 import { REST_ERRORS } from "pivotkit-cli/rest";
 import { hostRefusedLine } from "../checks.js";
 import { PARAMS_BUSY_TEXT } from "../sources/params.js";
+import { TEMPLATE_UNAVAILABLE_TEXT } from "../print-template.js";
 import { DOCS_SITE } from "../options/branding.js";
 
 
@@ -39,7 +40,7 @@ const SERVER_TEXT = { BUSY: "the server is busy with other reports; try again in
 /** Other fixed texts of a code, picked by the error's `reason` (a SourceError's, sources/run.js SOURCE_REASONS; a pattern check's, sources/params.js). */
 const SERVER_TEXT_BY_REASON = Object.freeze({
     BUSY: Object.freeze({ params: PARAMS_BUSY_TEXT, records: "too many rows requests run at once, or one of yours still runs; try again in a moment" }),
-    SOURCE_UNAVAILABLE: Object.freeze({ refused: "the source's backend refused this server's access; ask the operator and give the request id", setup: "the source is not set up correctly; ask the operator and give the request id" })
+    SOURCE_UNAVAILABLE: Object.freeze({ refused: "the source's backend refused this server's access; ask the operator and give the request id", setup: "the source is not set up correctly; ask the operator and give the request id", template: TEMPLATE_UNAVAILABLE_TEXT })
 });
 
 /**

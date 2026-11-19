@@ -343,7 +343,7 @@ one probably meant.
 | `sources.<id>.link`, `.linkKey` | - | none | The page that shows this source's reports, for create_link; the report's key there |
 | `sources.<id>.linkParams` | - | none | The parameters a link from create_link may carry in the page's query string, such as `["customer"]` ([link parameters](../concepts/sharing.md#link-params)). Declared `params` only, never one bound to a claim, and every required one. Without the list, create_link reads the params, the link carries none, and the answer warns with `paramsNotCarried` |
 | `sources.<id>.views`, `.viewsDir` | - | none | [Named views](sources.md#views): a name to a view file or a view, and a folder of view files. Read on every request, checked at start and by `check-config` |
-| `sources.<id>.template` | - | `output.template`, else built-in | An HTML [print template](print-template.md) for render_view's html. Its path is relative to the configuration file, at most 1 MiB. Its `--pk-*` colours reach the chart ([details](print-template.md#template-design)). Read and checked at start and by `check-config`. A template with an unknown placeholder, over 1 MiB or not a regular file keeps the server from starting. A missing one starts the server with a warning (a `PROBLEM` the server starts with in `check-config`) and fails that source's html reports |
+| `sources.<id>.template` | - | `output.template`, else built-in | An HTML [print template](print-template.md) for render_view's html. Its path is relative to the configuration file, at most 1 MiB. Its `--pk-*` colours reach the chart ([details](print-template.md#template-design)). Read and checked at start and by `check-config`. A template with an unknown placeholder, over 1 MiB or not a regular file keeps the server from starting. A missing one starts the server with a warning (a `PROBLEM` the server starts with in `check-config`) and fails that source's html reports with `SOURCE_UNAVAILABLE` |
 | `sources.<id>.scopes` | - | none | OAuth or token scopes a caller needs to see and use it |
 | `sources.<id>.fields.<name>.description` | - | none | The operator's words about a field (at most 500 characters), shown by describe_source at every level but `hide`. Control and direction characters are removed |
 | `sources.<id>.http` | - | none | An [HTTP source](sources.md#http): an operator's backend, its address with `{name}` for a parameter, where the rows are, paging and limits, its sign-in (`http.auth`: a secret header, client credentials or a token exchange, [backend sign-in](sources.md#http-auth)) |
@@ -366,7 +366,7 @@ one probably meant.
 | `output.maxMb` | - | 1024 | MiB of reports and drafts the directory may hold. A new report deletes the oldest reports until it fits |
 | `output.maxAgeDays` | - | 30 | Delete reports, and schedule drafts no longer waiting for approval, older than this many days from the top level of the output directory, at start and every hour. Also delete the temporary files of writes the server was killed in (older than an hour). `0`: no age limit. The default applies only to a directory of the reports' own (see [REST](rest.md#running)) |
 | `output.draftMaxAgeDays` | - | 0 (never) | Delete schedule drafts that still wait for approval when they are older than this many days, at start and every hour |
-| `output.template` | - | built-in | The [print template](print-template.md) of every html report whose source sets none: data sent in the request (`inline:`) and, over MCP, `file:` paths too. So one server has one design. The server reads and checks it as it does `sources.<id>.template`: on every html render, at start and in `check-config`. A missing one fails those html reports and nothing else |
+| `output.template` | - | built-in | The [print template](print-template.md) of every html report whose source sets none: data sent in the request (`inline:`) and, over MCP, `file:` paths too. So one server has one design. The server reads and checks it as it does `sources.<id>.template`: on every html render, at start and in `check-config`. A missing one fails those html reports with `SOURCE_UNAVAILABLE` and nothing else |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
 | `policy.data`, `policy.profiles.<name>.data` | - | MCP: on | `false`: the caller may not send [its own data](#data) (`inline:`). REST needs `true` |
 | `mcp.data` | - | 500 rows, 5000 cells, 262144 bytes | `false` switches [data in the request](#data) off. `{ "rows", "cells", "bytes" }` lowers the cap. A value above the built-in one is an error |
@@ -573,7 +573,7 @@ since the same call does not work when tried again.
 | `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page or over data sent in the request; a schedule over a `file:` source, data sent in the request, or a source with a token exchange or a parameter bound to a claim ([backend sign-in](sources.md#http-claims)) |
 | `BUSY`, `TIMEOUT` | No worker free within `queueMs`, or a parameter's pattern [could not be checked in time](#configuration); a call over `timeMs` |
-| `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors), [HTTP sources](sources.md#http-errors)). The text is one of pivotkit's fixed texts (not available right now, the backend refused this server's access, not set up correctly), with the source's id and whether trying again may work |
+| `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors), [HTTP sources](sources.md#http-errors)). An html render whose print template the server cannot read. The text is one of pivotkit's fixed texts (not available right now, the backend refused this server's access, not set up correctly, the server's print template is not available now), with the source's id and whether trying again may work |
 | `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`); an HTTP source's backend answered 401, 403 or 404 for the values given |
 | `UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload). A fixed text with the request id and whether trying again may work. The report stays in the output directory |
 | `INTERNAL` | Anything else: "internal error". The details are only in the log, with `--log debug` |
@@ -594,9 +594,10 @@ request and trace ids and how to ship the log.
 | `warning` | A problem that does not stop the server |
 | `stopped` | Written after an HTTP server stops |
 
-A call line is `info` when it worked, `warn` for an error a REST caller would get as 4xx, and `error`
-for 5xx. `requestId` is random (11 characters). It is the same on every line of one call, in its
-result's `requestId`, at the end of its error and, over HTTP, in the answer's `X-Request-Id` header.
+A call line is `info` when it worked, `warn` for an error a REST caller would get as 4xx or as
+503 `BUSY`, and `error` for other 5xx. `requestId` is random (11 characters). It is the same on
+every line of one call, in its result's `requestId`, at the end of its error and, over HTTP, in the
+answer's `X-Request-Id` header.
 
 Over HTTP, a request's lines name the client's `address` unless `log.address` is `off`. With
 `http.trustProxy`, that is the forwarded client, else the socket's peer. Where the socket's peer
