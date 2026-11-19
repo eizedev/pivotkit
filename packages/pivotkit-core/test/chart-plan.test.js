@@ -50,6 +50,13 @@ test("chartThemeFrom reads the --pk-* tokens of any style; decorateOption marks 
     assert.deepEqual([weightOf("500"), weightOf("bold"), weightOf(""), weightOf("5000")], [500, undefined, undefined, undefined]);
 });
 
+test("chartThemeFrom: the axis line takes --pk-chart-axis, else --pk-border, so a template can draw it apart from the table's lines", () => {
+    const themeOf = (tokens) => chartThemeFrom({ getPropertyValue: (n) => tokens[n] ?? "" });
+    assert.equal(themeOf({ "--pk-border": "#444444", "--pk-chart-axis": " #222222 " }).axisColor, "#222222");
+    assert.equal(themeOf({ "--pk-border": "#444444" }).axisColor, "#444444");
+    assert.equal(themeOf({ "--pk-border": "#444444", "--pk-chart-axis": "#222222" }).gridColor, "#444444", "the grid keeps its own tokens");
+});
+
 test("decorateOption: readColor keeps a heatmap's colours ECharts can mix; an end it reads no colour for takes DEFAULT_THEME's (#386)", () => {
     const tokens = { "--pk-heat-low": "oklch(0.95 0.03 250)", "--pk-heat-high": "#003366" };
     const style = { getPropertyValue: (n) => tokens[n] ?? "" };

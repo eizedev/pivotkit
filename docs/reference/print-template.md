@@ -20,9 +20,15 @@ fills in:
 - It escapes every value.
 - It checks the template before it renders anything.
 
-So a value can never become markup, a link or code. The REST service and the MCP server also check a
-source's template (`sources.<id>.template`) at start and in `check-config`. A typo stops the start,
-not the first report.
+So a value can never become markup, a link or code. The REST service and the MCP server also check
+their templates at start and in `check-config`. A typo stops the start, not the first report. They
+take two keys:
+
+- `sources.<id>.template`: the template of one source's html reports.
+- `output.template`: the template of every other html report. That includes data sent in the
+  request (`inline:`) and, over MCP, files by path (`file:`).
+
+A source's own template wins over `output.template`. Without either, the built-in template applies.
 
 ## Placeholders
 

@@ -141,7 +141,7 @@ export function chartThemeFrom(style) {
     const theme = {
         colors,
         textColor: v("--pk-muted") || undefined,
-        axisColor: v("--pk-border") || undefined,
+        axisColor: v("--pk-chart-axis") || v("--pk-border") || undefined,
         gridColor: v("--pk-grid") || v("--pk-border") || undefined,
         fontFamily: v("font-family") || undefined,
         backgroundColor: "transparent",
