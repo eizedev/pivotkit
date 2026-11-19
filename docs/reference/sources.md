@@ -70,16 +70,20 @@ Where views appear:
     - A view that uses a field hidden from the caller is not listed. Its name answers as a name that
       does not exist.
     - A link or a draft carries the view itself. A view that holds values of a field the caller sees
-      at `summary` gets no link or draft (`NOT_ALLOWED`). Values are a filter's items, a custom sort
-      order, collapsed groups or hidden chart series. `render_view` still makes its report as a file.
+      at `summary` gets no link or draft (`NOT_ALLOWED`). A field at `show` or `values` is fine.
+    - Values are a filter's items, a custom sort order, collapsed groups, and hidden series or series
+      colours of the chart. `render_view` still makes its report as a file.
     - A view's findings follow the policy as any view's do.
 
 ??? note "Reading, limits and check-config"
 
     - The files are read on every request, as a [print template](print-template.md) is. A file
       dropped into the folder is there on the next call. No restart is needed.
-    - A file is read the safe way: no device, no swapped symbolic link, at most 256 KiB.
-    - A source publishes at most 100 views. More files in the folder are left out.
+    - A file is read the safe way: a regular file, at most 256 KiB. A symbolic link is followed, and a
+      file swapped while it is read is refused.
+    - A request for one view reads only that view's file.
+    - A source publishes at most 100 views. More files in the folder are left out, with a `PROBLEM`
+      the server starts with.
     - The start and `check-config` read every view and check its shape, such as `rows` being a list.
       They do not stop on field names, since the data may change.
     - These stop the start: a file that is no view, a name taken twice, a file whose name is no view

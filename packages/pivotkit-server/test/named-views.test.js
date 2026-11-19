@@ -250,3 +250,56 @@ test("the options: a view name is letters, digits, - and _; an entry is a file o
     assert.throws(() => validateOptions({ sources: { sales: { file: "sales.csv", viewsDir: 3 } } }), ConfigError);
     validateOptions(base({ "by-region_2": "a.json", inline: { rows: ["Region"] } }));
 });
+
+test("a link or draft of a named view: values of a field at values may go, a chart's series colours at summary may not", async () => {
+    const dir = namedWorkspace();
+    const views = {
+        alice: VIEWS.alice,
+        colours: { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }], display: "chart", chart: { type: "bar", colors: [{ name: "North", color: "#ff0000" }] } }
+    };
+    const options = (policy) => ({ ...namedServerOptions(dir), sources: { sales: { file: "data/sales.csv", link: "https://reports.example.com/sales", policy, views } } });
+    for (const [policy, alice, colours] of [
+        [{ default: "show", fields: { Customer: "values" } }, 200, 200],
+        [{ default: "show", fields: { Region: "summary" } }, 200, 403],
+        [{ default: "show", fields: { Customer: "summary" } }, 403, 200]
+    ]) {
+        const server = await restServer(options(policy), { env: { T1: TOKEN, T2: OTHER_TOKEN } });
+        try {
+            const a = await call(`${server.api}/views/link`, { token: TOKEN, body: { source: "sales", view: "alice" } });
+            assert.equal(a.status, alice, `alice under ${JSON.stringify(policy)}: ${JSON.stringify(a.data)}`);
+            const c = await call(`${server.api}/views/link`, { token: TOKEN, body: { source: "sales", view: "colours" } });
+            assert.equal(c.status, colours, `colours under ${JSON.stringify(policy)}: ${JSON.stringify(c.data)}`);
+            if (colours === 403) {
+                assert.doesNotMatch(JSON.stringify(c.data), /#ff0000/);
+            }
+        } finally {
+            await server.close();
+        }
+    }
+});
+
+test("a request for one view reads that view only; more than 100 views in the folder start the server and leave the rest out", async () => {
+    const { server, dir } = await namedServer();
+    try {
+        // a sibling that turned broken does not keep a good view from rendering
+        writeFileSync(join(dir, "views-extra", "by-product.json"), "{ broken");
+        const rendered = await call(`${server.api}/views/render`, { token: TOKEN, body: { source: "sales", view: "by-region", format: "csv" } });
+        assert.equal(rendered.status, 200, JSON.stringify(rendered.data));
+    } finally {
+        await server.close();
+    }
+    const many = workspace();
+    mkdirSync(join(many, "views"));
+    for (let i = 0; i < 101; i++) {
+        writeFileSync(join(many, "views", `v${String(i).padStart(3, "0")}.json`), JSON.stringify({ rows: ["Region"] }));
+    }
+    const said = [];
+    const context = await createContext({ sources: { sales: { file: "data/sales.csv", viewsDir: "views" } }, baseDir: many }, { stderr: { write: (t) => said.push(String(t)) } });
+    try {
+        assert.ok(said.some((t) => t.includes("sources.sales.viewsDir: 1 more view files left out: at most 100 views per source")), said.join(""));
+        const listed = await present(context, "list_sources", {}, { scopes: null, client: "test" });
+        assert.equal(listed.result.sources[0].views.length, 100);
+    } finally {
+        await context.close();
+    }
+});

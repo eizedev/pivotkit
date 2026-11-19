@@ -22,7 +22,7 @@ import { INLINE_SOURCE_TEXT, extraInputs, listExtras } from "./sources/input.js"
 import { inlineHow } from "./sources/inline.js";
 import { requestId } from "./request-id.js";
 import { identityBasisOf } from "./auth.js";
-import { NAMED_VIEW_OPERATIONS, viewListFor, withNamedView } from "./views.js";
+import { NAMED_VIEW_OPERATIONS, checkCarriedView, viewListFor, withNamedView } from "./views.js";
 
 export { OUTPUT_MARK, draftCap, prune } from "./output.js";
 
@@ -315,9 +315,11 @@ async function compute(context, name, input, resolved, caller, how = {}) {
     try {
         // a view's name (a named view, views.js) becomes the view before the operation runs
         const given = await withNamedView(context, name, input, resolved, how);
-        const ran = await runResolved(context, name, given, resolved, caller, { signal: how.signal });
+        const ran = await runResolved(context, name, given.input, resolved, caller, { signal: how.signal });
         // the policy decides "values" by the statistics of the data this run read: bound to it here
         const policy = withStats(resolved.policy, ran.stats);
+        // a link or draft of a named view: only where the caller may see the values it holds
+        checkCarriedView(name, given.named, policy);
         noteAutoValues(context, resolved.spec, policy);
         return { ...ran, policy };
     } catch (e) {

@@ -129,37 +129,20 @@ async function readViewFile(path) {
 
 /**
  * The views a source publishes, in the configuration's order and then the folder's by file name, and
- * what is wrong with the others. Reads every file again (they may change).
+ * what is wrong with the others. Reads the files again on every call (they may change). With `only`,
+ * it reads only the file of that name: a request for one view reads one file. The names, their limit
+ * and their order come from the configuration and the folder's listing, never from what a file holds.
  * @param {import("./config.js").ServerOptions} options
  * @param {string} id  a configured source's id
+ * @param {{ only?: string }} [how]
  * @returns {Promise<{ views: NamedView[], problems: ViewProblem[] }>}
  */
-export async function viewsOf(options, id) {
+export async function viewsOf(options, id, how = {}) {
     const source = Object.hasOwn(options.sources ?? {}, id) ? /** @type {any} */ (options.sources)[id] : undefined;
-    /** @type {NamedView[]} */
-    const views = [];
+    /** @type {Array<{ key: string, name: string, entry: string | Record<string, unknown>, shown: string | null }>} the views by name, before any is read */
+    const named = Object.entries(source?.views ?? {}).map(([name, entry]) => ({ key: `views.${name}`, name, entry, shown: typeof entry === "string" ? entry : null }));
     /** @type {ViewProblem[]} */
     const problems = [];
-    const add = (key, name, built) => {
-        if ("problem" in built) {
-            problems.push({ key, name, text: built.file ? `${basename(built.file)}: ${built.problem}` : built.problem, missing: false });
-        } else {
-            views.push(built.view);
-        }
-    };
-    for (const [name, entry] of Object.entries(source?.views ?? {})) {
-        const key = `views.${name}`;
-        if (typeof entry !== "string") {
-            add(key, name, namedOf(name, entry, null));
-            continue;
-        }
-        try {
-            const built = namedOf(name, await readViewFile(pathOf(options, entry)), entry);
-            add(key, name, "problem" in built ? { ...built, file: entry } : built);
-        } catch (e) {
-            problems.push({ key, name, ...readProblem(e, entry) });
-        }
-    }
     if (typeof source?.viewsDir === "string") {
         const folder = source.viewsDir.replace(/[\\/]+$/, "");
         /** @type {import("node:fs").Dirent[]} */
@@ -174,7 +157,7 @@ export async function viewsOf(options, id) {
             .filter((e) => (e.isFile() || e.isSymbolicLink()) && nameOfFile(e.name) !== null)
             .map((e) => e.name)
             .sort();
-        const taken = new Set(views.map((v) => v.name));
+        const taken = new Set(named.map((v) => v.name));
         for (const [i, file] of files.entries()) {
             const name = /** @type {string} */ (nameOfFile(file));
             if (!VIEW_NAME.test(name)) {
@@ -185,17 +168,30 @@ export async function viewsOf(options, id) {
                 problems.push({ key: "viewsDir", name, text: `${file}: a view named ${name} is there already`, missing: false });
                 continue;
             }
-            if (views.length >= MAX_VIEWS) {
-                problems.push({ key: "viewsDir", name: null, text: `${files.length - i} more view files left out: at most ${MAX_VIEWS} views per source`, missing: false });
+            if (named.length >= MAX_VIEWS) {
+                // left out, as a file that cannot be read: the start goes on, check-config says so
+                problems.push({ key: "viewsDir", name: null, text: `${files.length - i} more view files left out: at most ${MAX_VIEWS} views per source`, missing: true });
                 break;
             }
             taken.add(name);
-            try {
-                const built = namedOf(name, await readViewFile(pathOf(options, `${folder}/${file}`)), `${folder}/${file}`);
-                add("viewsDir", name, "problem" in built ? { ...built, file } : built);
-            } catch (e) {
-                problems.push({ key: "viewsDir", name, ...readProblem(e, file) });
+            named.push({ key: "viewsDir", name, entry: `${folder}/${file}`, shown: file });
+        }
+    }
+    /** @type {NamedView[]} */
+    const views = [];
+    for (const { key, name, entry, shown } of named) {
+        if (how.only !== undefined && name !== how.only) {
+            continue;
+        }
+        try {
+            const built = typeof entry === "string" ? namedOf(name, await readViewFile(pathOf(options, entry)), entry) : namedOf(name, entry, null);
+            if ("problem" in built) {
+                problems.push({ key, name, text: shown ? `${basename(shown)}: ${built.problem}` : built.problem, missing: false });
+            } else {
+                views.push(built.view);
             }
+        } catch (e) {
+            problems.push({ key, name, ...readProblem(e, /** @type {string} */ (shown)) });
         }
     }
     return { views, problems };
@@ -250,7 +246,8 @@ const listOf = (obj, key) => (obj && typeof obj === "object" && Object.hasOwn(ob
 
 /**
  * The fields whose values a view holds: a filter's items or values, a custom sort order, the
- * collapsed groups and the chart's hidden series (of the fields on rows and columns). A grouping
+ * collapsed groups, the chart's hidden series and its colours by series name (of the fields on rows
+ * and columns). A grouping
  * counts as its source field.
  * @param {Record<string, any>} view
  * @returns {string[]}
@@ -279,7 +276,8 @@ export function valueFields(view) {
     if (listOf(collapsed, "cols").length) {
         out.push(...cols);
     }
-    if (listOf(view.chart, "hidden").length) {
+    // a chart's hidden series and its colours by series name: items of the fields on rows and columns
+    if (listOf(view.chart, "hidden").length || listOf(view.chart, "colors").some((c) => c && typeof c === "object")) {
         out.push(...rows, ...cols);
     }
     return [...new Set(out)];
@@ -304,14 +302,36 @@ export async function viewListFor(context, id, policy) {
 }
 
 /**
- * An operation's input with a view's name replaced by the view, for the source the caller resolved;
- * the input as it is when its `view` is no name. INVALID_INPUT for a name no view the caller may know
- * of has, NOT_ALLOWED for a link or draft of a view that holds values the caller may not see listed.
+ * The view of a name for a caller: one the caller may know of (no field it uses is hidden), read
+ * alone. INVALID_INPUT, with the nearest name the caller may know of, for any other name: one that
+ * is not there and one the caller may not know of answer alike.
+ * @param {any} context  createContext's
+ * @param {string} id  a configured source's id
+ * @param {string} name
+ * @param {import("./policy.js").Policy} policy  the caller's for the source
+ * @param {{ surface?: "mcp" | "rest" }} [how]
+ * @returns {Promise<NamedView>}
+ */
+export async function findNamedView(context, id, name, policy, how = {}) {
+    const { views, problems } = await viewsOf(context.options, id, { only: name });
+    const found = views.find((v) => v.name === name && knownUnder(policy, v));
+    if (found) {
+        return found;
+    }
+    warnOnce(context, id, problems);
+    const near = closest(name, (await viewListFor(context, id, policy)).map((v) => v.name));
+    throw new OperationError("INVALID_INPUT", `no view "${name}" for the source ${id}; ${near ? `did you mean "${near}"? ` : ""}${how.surface === "rest" ? "GET /sources" : "list_sources"} lists the views`);
+}
+
+/**
+ * An operation's input with a view's name replaced by the view, for the source the caller resolved,
+ * and the view; the input as it is (and no view) when its `view` is no name.
  * @param {any} context  createContext's
  * @param {string} op
  * @param {Record<string, any>} input
  * @param {any} resolved  the registry's resolve of input.source
  * @param {{ surface?: "mcp" | "rest" }} [how]
+ * @returns {Promise<{ input: Record<string, any>, named: NamedView | null }>}
  */
 export async function withNamedView(context, op, input, resolved, how = {}) {
     if (!isViewName(input?.view)) {
@@ -319,7 +339,7 @@ export async function withNamedView(context, op, input, resolved, how = {}) {
         if (NAMED_VIEW_OPERATIONS.has(op) && typeof input?.view === "string" && !/^\s*[{["]/.test(input.view)) {
             throw new OperationError("INVALID_INPUT", `view is neither a view's JSON nor a view's name: a name has letters, digits, - and _, at most 80; ${how.surface === "rest" ? "GET /sources" : "list_sources"} lists the views`);
         }
-        return input;
+        return { input, named: null };
     }
     if (!NAMED_VIEW_OPERATIONS.has(op)) {
         throw new OperationError("INVALID_INPUT", `${op} takes the view itself; a view by name works in render_view, create_link and draft_schedule`);
@@ -327,19 +347,21 @@ export async function withNamedView(context, op, input, resolved, how = {}) {
     if (resolved?.spec?.kind !== "source") {
         throw new OperationError("INVALID_INPUT", "a view by name needs a source of the operator's; with a file or data sent along, give the view itself");
     }
-    const id = resolved.spec.id;
-    const name = input.view;
-    const { views, problems } = await viewsOf(context.options, id);
-    const known = views.filter((v) => knownUnder(resolved.policy, v));
-    const found = known.find((v) => v.name === name);
-    if (!found) {
-        warnOnce(context, id, problems);
-        const near = closest(name, known.map((v) => v.name));
-        throw new OperationError("INVALID_INPUT", `no view "${name}" for the source ${id}; ${near ? `did you mean "${near}"? ` : ""}${how.surface === "rest" ? "GET /sources" : "list_sources"} lists the views`);
-    }
-    if (CARRIES_VIEW.has(op) && valueFields(found.view).some((f) => !VALUES_SEEN.has(levelOf(resolved.policy, f)))) {
+    const named = await findNamedView(context, resolved.spec.id, input.view, resolved.policy, how);
+    return { input: { ...input, view: named.doc }, named };
+}
+
+/**
+ * NOT_ALLOWED where an answer would carry a named view (a link, a draft) that holds values of a
+ * field the caller may not see listed. Runs after the operation, with the policy bound to the data's
+ * statistics, so a field at "values" (also by the automatic rule) counts as listed.
+ * @param {string} op
+ * @param {NamedView | null} named
+ * @param {import("./policy.js").Policy} policy  with statistics (withStats)
+ */
+export function checkCarriedView(op, named, policy) {
+    if (named && CARRIES_VIEW.has(op) && valueFields(named.view).some((f) => !VALUES_SEEN.has(levelOf(policy, f)))) {
         const what = op === "create_link" ? "a link" : "a draft";
-        throw new OperationError("NOT_ALLOWED", `the view ${name} holds values of a field whose values you may not see, and ${what} would carry them; render_view makes its report as a file`);
+        throw new OperationError("NOT_ALLOWED", `the view ${named.name} holds values of a field whose values you may not see, and ${what} would carry them; render_view makes its report as a file`);
     }
-    return { ...input, view: found.doc };
 }

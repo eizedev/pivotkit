@@ -37,7 +37,7 @@ export async function section(options, _registry, runtime) {
             }
         }
         for (const p of problems) {
-            items.push(problem(`sources.${id}.${p.key}: ${p.text}`, p.missing ? { effect: "the server starts; its views are left out until it can be read" } : { stops: true }));
+            items.push(problem(`sources.${id}.${p.key}: ${p.text}`, p.missing ? { effect: "the server starts; those views are left out" } : { stops: true }));
         }
     }
     return { items, upgrade: [] };

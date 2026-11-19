@@ -103,7 +103,7 @@ export async function createContext(options, runtime = {}) {
             if (!missing) {
                 throw new ConfigError(`sources.${id}.${key}: ${text}`);
             }
-            log.warn(`sources.${id}.${key}: ${text}; its views are left out until it can be read`);
+            log.warn(`sources.${id}.${key}: ${text}; those views are left out; check-config says more`);
         }
     }
     // a backend's sign-in whose secret cannot be read: said at start, not first to a caller

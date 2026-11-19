@@ -440,7 +440,9 @@ part.
 ## The AI client { #ai-client }
 
 An MCP client sends what the model sees (descriptions, findings, inline results) to the model's
-provider. What the policy shows a model is what that provider receives.
+provider. What the policy shows a model is what that provider receives. That includes the titles
+and descriptions of [named views](reference/sources.md#views). A view that uses a field hidden from
+the caller is not listed.
 [What reaches an AI model](model-data.md) shows it per level and per client. See also
 [Security: the MCP server](security.md#mcp).
 
