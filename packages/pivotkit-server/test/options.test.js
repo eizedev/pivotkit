@@ -73,6 +73,14 @@ test("options: the composed table is today's, in today's order, plus the shared 
     // the params a link may carry (config.js, #619): after linkKey
     const source = expected.sources.map.object;
     expected.sources.map.object = Object.fromEntries(Object.entries(source).flatMap(([k, v]) => (k === "linkKey" ? [[k, v], ["linkParams", "strings"]] : [[k, v]])));
+    // the rows route (options/records.js, after external): a policy's records after data, rest.records, a source's records
+    const withRecords = (policy) => Object.fromEntries(Object.entries(policy).flatMap(([k, v]) => (k === "data" ? [[k, v], ["records", "strings"]] : [[k, v]])));
+    expected.sources.map.object.policy.object = withRecords(expected.sources.map.object.policy.object);
+    expected.files.object.policy.object = withRecords(expected.files.object.policy.object);
+    expected.policy.object = withRecords(expected.policy.object);
+    expected.policy.object.profiles.map.object = withRecords(expected.policy.object.profiles.map.object);
+    expected.rest.object.records = { object: { maxRows: "integer", maxCells: "integer", concurrency: "integer", idleMs: "integer" } };
+    expected.sources.map.object.records = { object: { maxRows: "integer" } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
@@ -109,7 +117,7 @@ test("options: every fragment has frozen keys in known slots and a validate; eac
     for (const f of FRAGMENTS.slice(1)) {
         assert.ok(names.includes(f.name), f.name);
     }
-    assert.deepEqual(names, ["sources", "http", "code", "inline", "output", "downloads", "upload", "access", "credentials", "signed", "external", "issuer", "operator", "profiles", "rest", "log"]);
+    assert.deepEqual(names, ["sources", "http", "code", "inline", "output", "downloads", "upload", "access", "credentials", "signed", "external", "issuer", "operator", "profiles", "records", "rest", "log"]);
 });
 
 test("options: an unknown key is still refused with the name meant, also for keys no fragment declares yet", () => {

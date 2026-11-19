@@ -71,30 +71,30 @@ export function bodyTooLargeText(options, cap) {
 export const LARGE_BODIES = 2;
 
 /**
- * The places for large bodies: a caller that may send data holds one while its body is read and its
- * request runs, so a few such callers cannot fill the memory together, and one caller holds at most
- * one, so it cannot take every place itself.
- * @param {number} [size]
+ * A few places, at most `size` held at once and one per holder: the large bodies (a caller that may
+ * send data holds one while its body is read and its request runs, so a few such callers cannot fill
+ * the memory together) and the rows requests (records.js: one per person while its answer is written).
+ * @param {number} size
  */
-export function createLargeBodies(size = LARGE_BODIES) {
-    /** @type {Set<string>} the callers holding a place */
+export function createPlaces(size) {
+    /** @type {Set<string>} the holders */
     const holders = new Set();
     return {
         /**
-         * A place for a caller, or null when all are held or the caller holds one: a function that gives
-         * it back (once).
-         * @param {string} caller  its client (a token's name, an OAuth client id)
+         * A place for a holder, or null when all are held or the holder holds one: a function that
+         * gives it back (once).
+         * @param {string} holder  a caller's client (large bodies), a person's identity key (rows)
          */
-        take(caller) {
-            if (holders.size >= size || holders.has(caller)) {
+        take(holder) {
+            if (holders.size >= size || holders.has(holder)) {
                 return null;
             }
-            holders.add(caller);
+            holders.add(holder);
             let given = false;
             return () => {
                 if (!given) {
                     given = true;
-                    holders.delete(caller);
+                    holders.delete(holder);
                 }
             };
         },
@@ -102,6 +102,13 @@ export function createLargeBodies(size = LARGE_BODIES) {
         held: () => holders.size
     };
 }
+
+/**
+ * The places for large bodies (createPlaces), by the caller's client, so one caller cannot take
+ * every place itself.
+ * @param {number} [size]
+ */
+export const createLargeBodies = (size = LARGE_BODIES) => createPlaces(size);
 
 /**
  * The most bytes any REST request's body may have, whoever calls: what a body's declared size is

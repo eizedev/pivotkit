@@ -8,6 +8,7 @@ import { Validator } from "@cfworker/json-schema";
 import { checkInput } from "pivotkit-report/operations";
 import { openApiDocument, REST_ROUTES } from "pivotkit-server/rest";
 import { presentedInput, presentedOutput } from "pivotkit-server";
+import { RECORDS_INPUT, RECORDS_OUTPUT } from "../src/records.js";
 import { TOKEN, call, restServer, workspace } from "./helpers.js";
 
 const META = JSON.parse(readFileSync(new URL("./fixtures/openapi-3.1-schema.json", import.meta.url), "utf8"));
@@ -64,6 +65,13 @@ test("docs/openapi.json is what openApiDocument() makes (run node scripts/openap
 test("every example passes its input check and its output schema; the view schema is pivotkit-core's", () => {
     const doc = openApiDocument();
     for (const route of REST_ROUTES) {
+        if (route.answer === "records") {
+            // the rows route is no operation of the table: its own schemas (records.js)
+            assert.doesNotThrow(() => checkInput(RECORDS_INPUT, route.example.input), route.id);
+            const result = new Validator(/** @type {any} */ (structuredClone(RECORDS_OUTPUT)), "2020-12", false).validate(route.example.output);
+            assert.ok(result.valid, `${route.id}: ${JSON.stringify(result.errors.slice(0, 3))}`);
+            continue;
+        }
         assert.doesNotThrow(() => checkInput(presentedInput(route.operation, { files: false }), route.example.input), route.id);
         if (route.answer === "json") {
             const result = new Validator(/** @type {any} */ (presentedOutput(route.operation)), "2020-12", false).validate(route.example.output);

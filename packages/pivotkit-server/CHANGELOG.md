@@ -8,6 +8,25 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Added
 
+- `POST /api/v1/sources/records` answers the rows of one source to a person who signed in: an OAuth
+  token with a subject, or an external issuer's token with a subject. A profile grants it per source
+  with `records`. It is off by default. Only fields at `show` leave, in the columnar shape
+  pivotkit-core's `encode` reads, written in pieces. A field below `show` answers 403
+  `NOT_ALLOWED` with `notShown`; a hidden one answers as one that does not exist. A view's filters
+  do not limit the rows ([rows route](https://pivotkit.eize.dev/reference/rest/#records), #615).
+- `rest.records.maxRows` (50,000), `.maxCells` (1,000,000), `.concurrency` (1), `.idleMs` (30 s) and `sources.<id>.records.maxRows`
+  bound the route: 413 `LIMIT_EXCEEDED` before the first byte, 503 `BUSY` beyond the requests at
+  once or for a second request of the same person, and a reader idle too long loses its place.
+- `GET /api/v1/sources` adds `"records": true` to each source the caller may read the rows of.
+- `check-config` lists per profile the sources and the fields that would leave. It reports an
+  unknown source id, a static or signed token whose profile reads rows, a source without a field at
+  `show`, and a profile whose default is `show`.
+- A `records` log line per answer: source, rows, columns, profile and the person as `audit.subject`
+  says. Never a value.
+- The REST reference lists the headers of every answer in one place
+  ([headers](https://pivotkit.eize.dev/reference/rest/#headers)).
+- `npm run bench:records -w pivotkit-server` measures the route's memory and CPU against a render
+  ([sizing](https://pivotkit.eize.dev/reference/rest/#records-sizing)).
 - `create_link` (`POST /views/link`) writes a source's parameters into the page's query string,
   such as `?customer=acme`. The view stays in the fragment. A host application's backend reads the
   query ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), #619).

@@ -232,6 +232,9 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - Policy profiles per token, OAuth client, group or scope, and a default profile. A profile can
       allow more values, downloads, and data sent with the request as JSON or as a csv, tsv, json or
       xlsx file.
+    - The rows of a source for a person who signed in, where a profile allows it, so a host
+      application's backend can show a live report. Off by default, fields at `show` only
+      ([rows route](reference/rest.md#records)).
     - The person in the log only when the operator asks for it.
     - CORS off by default, and limits per caller.
     - `check-config` says whether the server starts. It prints each field's level per source and

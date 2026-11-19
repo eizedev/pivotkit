@@ -272,7 +272,7 @@ export async function logUnanswered(log, scope, response, fields = {}) {
 }
 
 /** The events whose level and outcome follow their status (or `ok`). */
-const OUTCOME_EVENTS = new Set(["call", "request", "download", "refused"]);
+const OUTCOME_EVENTS = new Set(["call", "request", "download", "records", "refused"]);
 
 /**
  * A log on a stream.
@@ -334,7 +334,7 @@ export function createLog(settings, stream, { service = "pivotkit-server", versi
     };
 
     /**
-     * A line of an event whose level follows its status (or `ok`): call, request, download, refused.
+     * A line of an event whose level follows its status (or `ok`): call, request, download, records, refused.
      * @param {string} event
      * @param {(entry: Record<string, any>, ok: boolean) => string} msgOf
      * @returns {(entry: Record<string, any>, how?: { level?: "debug" | "info" }) => void}  how.level: a refusal kept to the debug log, or one at info (a download link nobody has)
@@ -363,6 +363,8 @@ export function createLog(settings, stream, { service = "pivotkit-server", versi
         request: outcomeLine("request", (entry, ok) => `${nameOf(entry.operation)} ${ok ? "ok" : "failed"}`),
         /** A file handed out: by a REST caller's file route or a download link. */
         download: outcomeLine("download", (_entry, ok) => (ok ? "file sent" : "download failed")),
+        /** The rows of a source handed out (records.js): written once its answer ended, whole or cut. Counts only, never a value. */
+        records: outcomeLine("records", (_entry, ok) => (ok ? "rows sent" : "rows cut off")),
         /** An HTTP request refused before it reached a tool (Host, Origin, token, size, limits): its `reason`. */
         refused: outcomeLine("refused", (entry) => `request refused${typeof entry.reason === "string" ? `: ${entry.reason}` : ""}`),
         /** The server is serving: written at every level but off. */

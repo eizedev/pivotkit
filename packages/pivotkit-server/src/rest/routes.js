@@ -10,6 +10,9 @@ import { OPERATIONS } from "pivotkit-report/operations";
 
 export { REST_BASE } from "../config.js";
 
+/** The rows route's path (records.js). */
+export const RECORDS_PATH = "/sources/records";
+
 const VIEW = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
 const FINDING = { severity: "error", code: "unknownField", path: "rows[0]", message: 'unknown field "Regoin"', suggestion: "Region" };
 
@@ -96,7 +99,7 @@ const WORDS = {
  * @property {string} path  under REST_BASE; "{id}" is a path parameter
  * @property {string} summary
  * @property {string} description
- * @property {"json" | "file"} answer
+ * @property {"json" | "file" | "records"} answer  records: the rows route (records.js), whose `operation` is no operation of the table
  * @property {boolean} takesSource  the operation's input has a source: data may be sent with it (inline:)
  * @property {{ input: Record<string, unknown>, output: Record<string, unknown> }} example
  */
@@ -114,8 +117,18 @@ export const REST_ROUTES = Object.freeze([
         description: 'Runs a view over a source and answers with the file itself (Content-Disposition: attachment). Allowed only for callers whose policy profile has results: true, or, over data the caller sends with source "inline:", data: true; a view with errors answers 422 with its findings.',
         answer: /** @type {const} */ ("file"),
         example: { input: { source: "sales", view: VIEW, format: "csv" }, output: {} }
+    },
+    {
+        id: "readRecords",
+        operation: "records",
+        method: /** @type {const} */ ("POST"),
+        path: RECORDS_PATH,
+        summary: "Read the rows of a source",
+        description: "The rows of one source for a person who signed in (an OAuth token with a subject, or a host application's token for its person), where the caller's profile names the source in records. Only fields at show leave; a field at values or summary is NOT_ALLOWED with notShown, a hidden one answers as an unknown one. A view's filters are not applied. The answer is columnar ({ columns, types, data }) and comes in pieces. Off by default.",
+        answer: /** @type {const} */ ("records"),
+        example: { input: { source: "sales", fields: ["Region", "Sales"] }, output: { columns: ["Region", "Sales"], types: ["string", "number"], rowCount: 2, dataAsOf: "2026-11-18T08:00:00Z", withheld: ["Customer"], requestId: "Ab3_xY9-k2Q", data: [["North", "South"], [10, 20]] } }
     }
-].map((route) => Object.freeze({ ...route, takesSource: Boolean(/** @type {any} */ (OPERATIONS[route.operation].input)?.properties?.source) })));
+].map((route) => Object.freeze({ ...route, takesSource: route.answer !== "records" && Boolean(/** @type {any} */ (OPERATIONS[route.operation].input)?.properties?.source) })));
 
 /** "describe_source" as "describeSource". */
 function camel(name) {

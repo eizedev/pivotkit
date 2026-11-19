@@ -22,6 +22,7 @@ import { INLINE_SOURCE_TEXT, extraInputs, listExtras } from "./sources/input.js"
 import { inlineHow } from "./sources/inline.js";
 import { requestId } from "./request-id.js";
 import { identityBasisOf } from "./auth.js";
+import { mayReadRecords } from "./records.js";
 
 export { OUTPUT_MARK, draftCap, prune } from "./output.js";
 
@@ -78,6 +79,8 @@ export function presentedOutput(name) {
         Object.assign(extra, AS_OF_OUTPUT);
     }
     if (name === "list_sources") {
+        const items = base.properties.sources.items;
+        extra.sources = { ...base.properties.sources, items: { ...items, properties: { ...items.properties, records: { type: "boolean", description: "REST only: true where you may read the source's rows (POST /api/v1/sources/records). Absent: you may not." } } } };
         extra.hint = { type: "string", description: "Why no source is listed and what to do: the sign-in lacks the scopes of the sources there are (only when none is listed)." };
     }
     if (name === "render_view") {
@@ -279,7 +282,7 @@ export function jsonDepth(text, max = Infinity) {
 }
 
 /** Refuses an input nested deeper than INPUT_DEPTH. */
-function checkDepth(input) {
+export function checkDepth(input) {
     if (depthOf(input) > INPUT_DEPTH) {
         throw new OperationError("INVALID_INPUT", `the input is nested deeper than ${INPUT_DEPTH} levels`);
     }
@@ -399,7 +402,8 @@ export function findingsText(valid, findings) {
 /** Each operation's work after (or instead of) its run. */
 const STEPS = {
     async list_sources(_args, context, caller, how) {
-        const sources = await context.registry.list(caller, how);
+        // REST names the sources whose rows the caller may read (records.js); MCP has no such route
+        const sources = (await context.registry.list(caller, how)).map((source) => (how.surface === "rest" && mayReadRecords(context.options, caller, source.id) ? { ...source, records: true } : source));
         const hint = listHint(context, caller, sources, how);
         // an empty list says what to do instead of naming a tool there is nothing to call with
         const next = sources.length ? "Call describe_source with one of the ids." : (hint ?? "Ask the operator which sources this sign-in may use.");
