@@ -3,6 +3,8 @@
 [pivotkit](https://pivotkit.eize.dev/)'s reports for programs over HTTP. pivotkit-server is a REST
 service under `/api/v1`. It lists data sources, checks pivot views, renders reports into Excel, HTML,
 CSV, JSON or SVG files and makes links.
+An operator can publish [named views](https://pivotkit.eize.dev/reference/sources/#views) per source,
+such as view files saved in the browser.
 
 ## Install
 

@@ -11,7 +11,9 @@ JSON), and the server runs it and hands the result to the user as a file or a li
 
 ## Workflow
 
-1. `list_sources`: find the source the user means. If none fits, say so; do not guess an id.
+1. `list_sources`: find the source the user means. If none fits, say so; do not guess an id. A
+   source may list `views` the operator published: when one is what the user asks for, pass its
+   `name` as `view` to `render_view`, `create_link` or `draft_schedule` and skip steps 2 to 4.
 2. `describe_source`: the fields with their types and counts. Use only these field names, spelled
    exactly. `examples` holds views built from this source's fields: start from one. When the user
    wants "a first look" without saying what, `suggest_view` makes a draft (`picks` say what it took
@@ -21,7 +23,7 @@ JSON), and the server runs it and hands the result to the user as a file or a li
 4. Write the view, or a `layout` (the same by field names: `{ "rows": ["Region"], "cols":
    ["OrderDate"], "groups": [{ "field": "OrderDate", "by": "yearQuarter" }], "values": [{ "field":
    "Sales", "agg": "sum" }] }`; a date on rows or cols is grouped by its span, or by quarter where the operator does not show it, unless `groups` says how),
-   which `validate_view` and `render_view` take instead of `view`. `validate_view` it. Every error names its place (`path`); a `suggestion` is the name
+   which `validate_view`, `render_view`, `create_link` and `draft_schedule` take instead of `view`. `validate_view` it. Every error names its place (`path`); a `suggestion` is the name
    or item meant. Fix and validate again until it is valid.
 5. `render_view` (`format`: `xlsx` for Excel, the default; `html` for a report to read or print, with
    `chart: "on"` for a chart above the table; `csv` or `json` for data; `svg` for the chart alone).

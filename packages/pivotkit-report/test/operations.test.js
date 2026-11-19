@@ -140,6 +140,44 @@ test("draft_schedule: a draft document and its file, never an address as recipie
     await assert.rejects(OPERATIONS.draft_schedule.run(input, { ...env, data: async () => ({ data: encoded, name: "x", schedulable: false }) }), (e) => e.code === "NOT_SCHEDULABLE");
 });
 
+test("create_link and draft_schedule take a layout instead of a view: exactly one of them, as render_view does", async () => {
+    // a layout with groups cannot be passed as a view (groups is no view key): the link carries the view it makes
+    const layout = { rows: ["Region"], cols: ["Date"], values: [{ field: "Sales" }], groups: [{ field: "Date", by: "year" }] };
+    for (const name of ["create_link", "draft_schedule"]) {
+        const schema = /** @type {any} */ (OPERATIONS[name].input);
+        assert.ok(schema.properties.layout?.properties?.groups, `${name}: the layout of the schema is the operations' LAYOUT`);
+        assert.ok(!schema.required.includes("view"), `${name}: view is no longer required`);
+    }
+    const { result } = await OPERATIONS.create_link.run({ source: "sales", layout }, env);
+    conforms("create_link", result);
+    assert.equal(result.ok, true);
+    const { readViewLink } = await import("pivotkit-core/link");
+    const back = readViewLink(new URL(result.url).hash, null);
+    assert.deepEqual(back.view.rows, ["Region"]);
+    assert.deepEqual(back.view.values, [{ field: "Sales", agg: "sum" }]);
+    assert.equal(back.view.derived?.[0]?.field, "Date");
+    assert.equal(back.view.derived?.[0]?.by, "year");
+    // the link's name: the one asked for, else the layout's
+    assert.equal(back.name.length > 0, true);
+    assert.equal(readViewLink(new URL((await OPERATIONS.create_link.run({ source: "sales", layout, name: "Sales by year" }, env)).result.url).hash, null).name, "Sales by year");
+
+    const draftInput = { source: "sales", layout, name: "Weekly sales", formats: ["xlsx"], every: { unit: "day", at: "07:00" }, recipients: ["Sales team"] };
+    const draft = await OPERATIONS.draft_schedule.run(draftInput, env);
+    conforms("draft_schedule", draft.result);
+    assert.equal(draft.result.ok, true);
+    assert.deepEqual(draft.result.draft.view.view.rows, ["Region"]);
+    assert.equal(draft.result.draft.view.view.derived[0].by, "year");
+
+    for (const [name, input] of [["create_link", { source: "sales" }], ["draft_schedule", { ...draftInput, layout: undefined }]]) {
+        await assert.rejects(OPERATIONS[name].run(input, env), (e) => e.code === "INVALID_INPUT" && e.message === "input needs a view or a layout", name);
+        await assert.rejects(OPERATIONS[name].run({ ...input, view: VIEW_GUIDE.examples[0].view, layout }, env), (e) => e.code === "INVALID_INPUT" && e.message === "input takes a view or a layout, not both", name);
+    }
+    // no page to link to: NO_LINK before the data is read, a layout or not
+    let read = 0;
+    await assert.rejects(OPERATIONS.create_link.run({ source: "sales", layout }, { ...env, link: async () => null, data: async (id) => (read++, env.data(id)) }), (e) => e.code === "NO_LINK");
+    assert.equal(read, 0);
+});
+
 test("findings carry no control or direction characters and are capped; every error code has an HTTP status", () => {
     for (const text of HOSTILE) {
         const f = findingOf({ severity: "warning", code: "x", path: text, message: `${text}\u202e${"y".repeat(500)}`, params: { suggestion: text } });

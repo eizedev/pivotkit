@@ -40,6 +40,14 @@ All notable changes to `pivotkit-server` are documented in this file. The format
       the source's link.
     - The security page says where query values land and which `Referrer-Policy` the host page
       sends ([security](https://pivotkit.eize.dev/security/#link-params)).
+- Named views per source. `sources.<id>.views` maps a name to a view file or a view.
+  `sources.<id>.viewsDir` is a folder of view files, such as the ones the browser downloads.
+  `list_sources` and `describe_source` list them. `render_view`, `create_link` and
+  `draft_schedule` take a name as `view`. The files are read on every request. The start and
+  `check-config` check them, and `check-config` lists the fields each view needs
+  ([named views](https://pivotkit.eize.dev/reference/sources/#views), #616).
+- A caller never learns of a view that uses a field hidden from it. A view that holds values of a
+  field the caller sees at `summary` gets no link and no draft.
 - Branding for intranet deployments, all optional
   ([your own name and links](https://pivotkit.eize.dev/reference/branding/), #608, #612):
     - `branding.name` puts the operator's name on the download pages, the OpenAPI title and the

@@ -165,6 +165,7 @@ Then restart Claude Code.
 | --- | --- | --- |
 | [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
 | [A link names a source's parameters in the page's query string](#link-params) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
+| [Named views, and a layout for links and drafts](#named-views) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients |
 | [Your own name and links](#branding) | you run the server under your own name, or in a network without access to pivotkit.eize.dev | nothing until you need it: the defaults are pivotkit's |
 | [Texts without the product name](#neutral-texts) | a program or a log rule matches the words of an error, or of pivotkit-react's messages about a loaded view | match the error's `code` instead, or update the words |
 
@@ -196,6 +197,15 @@ refuses a source's `records.maxRows` above `rest.records.maxRows`. `GET /sources
 - The tool's description changed. MCP clients reconnect to read it.
 - Query values land in access logs, history and the `Referer` header. The host page sends
   `Referrer-Policy: same-origin` or `no-referrer` ([security](../security.md#link-params)).
+
+### Named views, and a layout for links and drafts { #named-views }
+
+- A source can publish [named views](../reference/sources.md#views) with `views` and `viewsDir`.
+  `render_view`, `create_link` and `draft_schedule` take a view's name as `view`.
+- `list_sources` and `describe_source` add `views` to a source that has some.
+- `create_link` and `draft_schedule` take a `layout` instead of a `view`, as `render_view` does.
+  Before, they refused it.
+- The tools' schemas and descriptions changed. MCP clients reconnect to read them.
 
 ### Your own name and links { #branding }
 
