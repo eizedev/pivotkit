@@ -527,6 +527,9 @@ gets at each level, and how to set them per client.
       failure is `UPLOAD_FAILED` with a fixed text and the request id.
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host. Recipients are names, never addresses.
+- **Named views**: a [named view](reference/sources.md#views) is the operator's file, read on every
+  request. Its title and description reach the model. Read a view file a person saved in the
+  browser before you drop it into the folder.
 - **Connections**:
     - at most 256 at once
     - 16 of them kept for loopback clients, for the health check
