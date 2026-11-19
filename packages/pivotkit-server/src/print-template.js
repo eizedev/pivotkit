@@ -8,7 +8,9 @@
 
 import { basename } from "node:path";
 import { readSafe } from "pivotkit-cli/files";
+import { OperationError } from "pivotkit-report/operations";
 import { parseTemplate } from "pivotkit-report/template";
+import { errorDetails } from "./request-id.js";
 import { pathOf } from "./config.js";
 
 /**
@@ -17,6 +19,22 @@ import { pathOf } from "./config.js";
  * caller never learns the file's name.
  */
 export const TEMPLATE_UNAVAILABLE_TEXT = "the server's print template is not available now; tell the operator and give the request id";
+
+/**
+ * A render's print template that cannot be read now: the caller's error (TEMPLATE_UNAVAILABLE_TEXT)
+ * and the operator's warning, which names the file by its name and the reader's code, never its path.
+ * @param {string} path  the full path
+ * @param {unknown} error  the reader's error
+ * @returns {{ error: OperationError, warning: [string, Record<string, string>] }}
+ */
+export function templateUnavailable(path, error) {
+    const code = /** @type {any} */ (error)?.code;
+    const cause = typeof code === "string" && /^[A-Z_]{1,40}$/.test(code) ? code : "unreadable";
+    return {
+        error: Object.assign(new OperationError("SOURCE_UNAVAILABLE", TEMPLATE_UNAVAILABLE_TEXT, errorDetails({ retryable: false })), { reason: "template", cause: error }),
+        warning: [`the print template ${basename(path)} cannot be read (${cause}); its html reports fail until it can`, { cause }]
+    };
+}
 
 /** The largest template file read, in bytes (limits.template in messages). */
 export const TEMPLATE_BYTES = 1_048_576;
@@ -31,7 +49,10 @@ export async function readTemplateFile(path) {
     return new TextDecoder().decode(await readSafe(path, { cwd: "/", allow: [], maxBytes: TEMPLATE_BYTES, limit: "template" }));
 }
 
-/** The reader's codes of a template file that is not there or cannot be read now: said like a missing source file. */
+/**
+ * The reader's codes of a template file that is not there or cannot be read now: at start and in
+ * check-config, said like a missing source file. A render answers templateUnavailable's error.
+ */
 const MISSING = new Set(["NOT_FOUND", "ENOENT", "EACCES", "EPERM", "ENOTDIR", "ELOOP"]);
 
 /**

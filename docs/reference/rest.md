@@ -1398,7 +1398,7 @@ example in Task Manager, ends it at once.
 | `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their MiB (1,048,576 bytes each) the directory may hold, at its top level: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`). A new report deletes the oldest reports until it fits, one write at a time. Drafts are counted but never deleted to make room. They may take at most half of `output.maxFiles` and half of `output.maxMb`, and a draft over that answers 409 `NO_OUTPUT`. Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories. A file named with the mark by hand counts as pivotkit's. Nothing is deleted where the output directory is the configuration file's directory or holds a source, print template or token file. There a full directory answers 409 `NO_OUTPUT`, and the start warns. With `output.maxAgeDays` written explicitly, the server does not start there |
 | `output.maxAgeDays` | 30 | `0`: no age limit. Otherwise the server deletes reports (the files marked `.pivotkit-out.`) and schedule drafts no longer waiting for approval (`.pivotkit-out.report.json` whose `status` is not `"draft"`) older than this many days from the top level of the output directory, at start and every hour. It also deletes the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour). Other files and subdirectories stay. Use a directory of its own. The server refuses to start with a limit you write when the output directory is the configuration file's directory or holds a source, print template or token file. There the default does not apply (no age limit) |
 | `output.draftMaxAgeDays` | 0 (never) | Delete schedule drafts that still wait for approval (`status` `"draft"`) when they are older than this many days, at start and every hour. It works with `output.maxAgeDays: 0` too. Like `output.maxAgeDays`, the server refuses to start with it where the output directory holds the operator's own files |
-| `output.template` | built-in | The [print template](print-template.md) of every html report whose source sets none, data sent in the request too. A source's `sources.<id>.template` wins. A missing file fails html reports only |
+| `output.template` | built-in | The [print template](print-template.md) of every html report whose source sets none, data sent in the request too. A source's `sources.<id>.template` wins. A missing file fails html reports only, with 502 `SOURCE_UNAVAILABLE` |
 | `output.downloads` | on (plain links for open sources) | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` |
 | `output.upload` | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method`, `timeMs`, `maxBytes`, `keepLocal`, `bind`, `intranet` |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json`, at the server's root |
@@ -1852,9 +1852,9 @@ to ship the log.
 | `warning` | A problem that does not stop the server |
 | `stopped` | Written after a stop |
 
-A request line is `info` when it worked, `warn` for 4xx and 503 `BUSY`, and `error` for other 5xx. `requestId` is random
-(11 characters). It is the same on every line of one request, in its answer's body (`requestId`)
-and in the `X-Request-Id` header of every answer.
+A request line is `info` when it worked, `warn` for 4xx and 503 `BUSY`, and `error` for other
+5xx. `requestId` is random (11 characters). It is the same on every line of one request, in its
+answer's body (`requestId`) and in the `X-Request-Id` header of every answer.
 
 The client is the static token's name or the OAuth client id. The person is on `request` and
 `download` lines only with `audit.subject` ([audit](mcp.md#logging)). Their groups and other claims

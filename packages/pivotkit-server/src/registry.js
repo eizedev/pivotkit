@@ -19,8 +19,7 @@ import { resolveFilePath } from "./sources/file.js";
 import { resolveInline } from "./sources/inline.js";
 import { normalizeParams, paramsList } from "./sources/params.js";
 import { checkLinkParams, linkEntriesOf, linkParamsOf, withLinkQuery } from "./link-params.js";
-import { TEMPLATE_UNAVAILABLE_TEXT, readTemplateFile } from "./print-template.js";
-import { errorDetails } from "./request-id.js";
+import { readTemplateFile, templateUnavailable } from "./print-template.js";
 import { asOfMembers } from "./sources/as-of.js";
 
 export { FILE_PREFIX };
@@ -396,7 +395,9 @@ export async function createRegistry(options, { log = null } = {}) {
         try {
             return await readTemplateFile(path);
         } catch (e) {
-            throw Object.assign(new OperationError("SOURCE_UNAVAILABLE", TEMPLATE_UNAVAILABLE_TEXT, errorDetails({ retryable: false })), { reason: "template", cause: e });
+            const { error, warning } = templateUnavailable(path, e);
+            log?.warn(...warning);
+            throw error;
         }
     }
 }

@@ -97,7 +97,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `validate_view` over the source answer as usual (#614).
 - An html render whose print template cannot be read answers 502 `SOURCE_UNAVAILABLE` with a fixed
   text and `retryable: false`. It was 404 `FILE_NOT_AVAILABLE`, which read like a missing source and
-  named the template's file ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#template-unavailable), #653).
+  named the template's file. A warning line names the file and the reader's code for the operator
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#template-unavailable), #653).
 - A 503 `BUSY` answer logs at `warn`, not `error`: the server is full, not broken. Every other 5xx
   stays at `error` (#638).
 

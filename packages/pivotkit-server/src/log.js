@@ -136,7 +136,10 @@ export const formatOf = (format, stream) => (format === "auto" ? (stream?.isTTY 
  */
 export const levelOfStatus = (status, entry = {}) => (status >= 500 && !isBusy(entry) ? "error" : status >= 400 ? "warn" : "info");
 
-/** Whether a line is of a BUSY answer: by its code, or by a refused line's reason. */
+/**
+ * Whether a line is of a BUSY answer: by its code, or by a refused line's reason. A new refusal
+ * that answers BUSY logs its reason through REFUSAL_REASONS.BUSY, or it counts as a fault.
+ */
 const isBusy = (entry) => entry.code === "BUSY" || (entry.code === undefined && entry.reason === REFUSAL_REASONS.BUSY);
 
 /** The fields the text format leaves out: the same on every line of a process (started names them) or meant for a log shipper. */

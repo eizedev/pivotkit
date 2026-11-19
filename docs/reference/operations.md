@@ -134,8 +134,8 @@ Lines of calls, requests, downloads and refusals add:
   these by its status.
 
 The level of a `call`, `request`, `download` or `refused` line follows its status: `info` below 400,
-`warn` for 4xx, `error` for 5xx. A 503 `BUSY` is `warn`: the server is full, not broken, and the client
-may try again. A refused request is `warn` or `error`, except the two routine ones above
+`warn` for 4xx, `error` for 5xx. A 503 `BUSY` is `warn`: the server is full, not broken, and the
+client may try again. A refused request is `warn` or `error`, except the two routine ones above
 (`method_not_allowed`, `not_found`), which are `debug`.
 
 Every error answer (4xx and 5xx) has one line under the `requestId` of its `X-Request-Id`: its own
@@ -211,7 +211,7 @@ time=2026-11-15T11:12:45.066Z level=warn event=request msg="describe_source fail
 
 | Code | What it says about the server |
 | --- | --- |
-| `SOURCE_UNAVAILABLE` | A backend or a source's code failed. The `warning` line of the same `requestId` has the `cause` |
+| `SOURCE_UNAVAILABLE` | A backend or a source's code failed, or the print template cannot be read. The `warning` line of the same `requestId` has the `cause` |
 | `DATA_NOT_AVAILABLE` | The backend refused or did not know the data (401, 403, 404 of a parameterised source) |
 | `TIMEOUT`, `BUSY` | The compute workers or the queue are at their limit (`compute.*`) |
 | `INTERNAL` | An unexpected error. The `error` line of the same `requestId` has its class, and `--log debug` its message |
