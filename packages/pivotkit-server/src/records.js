@@ -19,7 +19,8 @@
  *    LIMIT_EXCEEDED before the first byte;
  * 7. the answer, written in pieces: { columns, types, rowCount, dataAsOf, withheld, requestId, data }.
  *    The worker writes `data` one piece per read of the answer; a reader idle for rest.records.idleMs
- *    loses its place and its answer is cut. The whole job is bounded by compute.timeMs.
+ *    loses its place and its answer is cut, and so does one that has not read it all within
+ *    rest.records.writeMs. The whole job is bounded by compute.timeMs.
  *
  * A `records` log line closes every answer that started: source, row and column counts, profile and
  * the person as audit.subject says. Never a value.
@@ -160,7 +161,7 @@ export function createRecords(context) {
             writer.write(chosen.columns, PIECE_CHARS);
             const started = Date.now();
             const line = { ...callerFields(caller), ...(id ? { requestId: id } : {}), source: input.source, profile: caller.profile, rows: head.rows, columns: columns.length };
-            const stream = answerStream(prefix, writer, bounds.idleMs, (outcome) => {
+            const stream = answerStream(prefix, writer, bounds, (outcome) => {
                 release();
                 // a cut answer went out as 200 already: its line has no status, so it is a warning
                 context.log.records({ ...line, ms: Date.now() - started, ...(outcome.ok ? { status: 200 } : { ok: false, reason: outcome.reason }) });
@@ -234,41 +235,48 @@ export function choose(head, policy, input, problemOf = plainProblemOf) {
 
 /**
  * The answer's body: the members before `data`, the worker's pieces (one per read), then the end.
- * A reader that reads nothing for `idleMs` gets an error and the job stops; a reader that leaves
- * (cancel) stops it too. `onEnd` is told once how it ended: ok, or why not (idle, client, timeout,
- * error).
+ * A reader that reads nothing for `idleMs`, or has not read it all within `writeMs`, gets an error
+ * and the job stops, so a slow reader cannot hold its place for compute.timeMs; a reader that leaves
+ * (cancel) stops it too. `onEnd` is told once how it ended: ok, or why not (idle, slow, client,
+ * timeout, error).
  * @param {string} prefix
  * @param {import("./compute.js").RecordsWriter} writer
- * @param {number} idleMs
+ * @param {{ idleMs: number, writeMs: number }} bounds
  * @param {(outcome: { ok: boolean, reason?: string }) => void} onEnd
  * @returns {ReadableStream<Uint8Array>}
  */
-function answerStream(prefix, writer, idleMs, onEnd) {
+function answerStream(prefix, writer, { idleMs, writeMs }, onEnd) {
     const encoder = new TextEncoder();
     let started = false;
     let ended = false;
     /** @type {ReturnType<typeof setTimeout> | undefined} */
     let idle;
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    let whole;
     const finish = (outcome) => {
         if (!ended) {
             ended = true;
             clearTimeout(idle);
+            clearTimeout(whole);
             onEnd(outcome);
         }
+    };
+    /** Cuts the answer: the reader gets an error, the job stops, the place is free. */
+    const cut = (controller, setting, reason) => {
+        controller.error(new OperationError("TIMEOUT", `the answer was not read in time (rest.records.${setting})`));
+        void writer.stop();
+        finish({ ok: false, reason });
     };
     /** Waits for the next read; a reader idle too long loses its place. */
     const arm = (controller) => {
         clearTimeout(idle);
-        idle = setTimeout(() => {
-            controller.error(new OperationError("TIMEOUT", "the answer was not read in time (rest.records.idleMs)"));
-            void writer.stop();
-            finish({ ok: false, reason: "idle" });
-        }, idleMs);
+        idle = setTimeout(() => cut(controller, "idleMs", "idle"), idleMs);
     };
     return new ReadableStream(
         {
             start(controller) {
                 arm(controller);
+                whole = setTimeout(() => cut(controller, "writeMs", "slow"), writeMs);
             },
             async pull(controller) {
                 clearTimeout(idle);

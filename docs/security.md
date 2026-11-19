@@ -648,7 +648,8 @@ and the sign-in above hold for it too. What differs:
       control ([pivotkit is not access control](#pivotkit-is-not-access-control)).
     - Each answer is bounded before its first byte: rows and cells, at most `rest.records.concurrency`
       at once and one per person, `compute.timeMs` for the whole request. A reader that stalls for
-      `rest.records.idleMs` loses its place.
+      `rest.records.idleMs`, or has not read the answer within `rest.records.writeMs`, loses its
+      place.
     - Every answer carries `Cache-Control: no-store` ([headers](reference/rest.md#headers)).
 - **No files by path**: `file:` sources are refused, whatever the MCP server's `files.allowDirs` says.
   Inline results are off unless the operator turns them on, since a program can enumerate through

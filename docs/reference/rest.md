@@ -627,6 +627,7 @@ limit wins.
 | `rest.records.maxCells` | 1000000 | The most values of one answer: rows times fields (1 to 100,000,000) |
 | `rest.records.concurrency` | 1 | Rows requests at once over all callers, one per person (1 to 64). Keep it below `compute.workers` (default 2) |
 | `rest.records.idleMs` | 30000 | A reader that reads nothing for this long loses its place (1000 to 600000) |
+| `rest.records.writeMs` | 10000, at most `compute.timeMs` | A reader that has not read the whole answer within this time loses its place (1000 to 600000, not above `compute.timeMs`) |
 | `sources.<id>.records.maxRows` | `rest.records.maxRows` | A lower row limit for one source. It cannot be higher than the server's |
 
 The defaults are a first guess. Real row counts will set them better.
@@ -637,17 +638,22 @@ The defaults are a first guess. Real row counts will set them better.
 - The server checks the fields and the limits before it writes the first byte.
 - Beyond `concurrency`, or for a second request of the same person, the answer is 503 `BUSY` with
   `Retry-After` and `retryable: true`.
-- With the default of 1, the route serves one person at a time. One person whose source loads
-  slowly, or who reads slowly, keeps the others at 503 `BUSY` for up to `compute.timeMs`. Raise
-  `concurrency` and `compute.workers` together for more people at once.
+- With the default of 1, the route serves one person at a time. A slow reader keeps the others at
+  503 `BUSY` for up to `writeMs`. A source that loads slowly keeps them there while it loads, up to
+  its own time limit and `compute.timeMs`. The place is taken before the load, so at most
+  `concurrency` loads hold data at once. Raise `concurrency` and `compute.workers` together for
+  more people at once.
+- `writeMs` cuts an honest reader on a slow link too. The default answer of 50,000 rows is about
+  4 MiB ([sizing](#records-sizing)), which needs about 4 Mbit/s within 10 s.
 - `auth.toolScopes` cannot name this route, since it is no operation. `rest.requiredScopes` and the
   source's `scopes` apply.
 - The places for [large bodies](#data) count per client, so they are not used here.
 - One request holds a [compute worker](mcp.md#configuration) while its answer is written. Keep
   `concurrency` below `compute.workers`, so reports still find a worker. `check-config` warns
   otherwise.
-- The whole request, reading and writing, must end within `compute.timeMs`. A slow reader's answer
-  is cut off then, and the connection ends without the closing bracket.
+- The whole request, reading and writing, must end within `compute.timeMs`, and the writing within
+  `writeMs`. A slow reader's answer is cut off then, and the connection ends without the closing
+  bracket.
 - The answer has no `Content-Length`. Read it to its end, then parse it.
 
 ### A host backend fetches the rows { #records-host }
@@ -701,7 +707,7 @@ document.querySelector("pivot-report").data = { columns, types, data };
 
 - On an error, the problem's `code` says what to do: 503 `BUSY` means try again after
   `Retry-After` seconds; `notShown` names the fields to leave out.
-- An answer that does not parse was cut off (an idle reader, `compute.timeMs`). Ask again.
+- An answer that does not parse was cut off (an idle or slow reader, `compute.timeMs`). Ask again.
 - A backend short of memory can pipe `answer.body` to its own answer instead of reading the text.
 - The answer is the person's rows. Keep `Cache-Control: no-store` on your own answer.
 - The page holds every row. The browser is not access control: send only what the person may see.
@@ -711,7 +717,8 @@ document.querySelector("pivot-report").data = { columns, types, data };
 
 Every answer that started ends with a `records` line: the source, the rows and columns, the profile,
 `client` and `ms`, how long the answer took to read. With `audit.subject` it names the person too. It never holds a value. An answer cut
-off has `outcome: "error"` and `reason`: `idle`, `client` (the reader left), `timeout` or `error`.
+off has `outcome: "error"` and `reason`: `idle`, `slow` (not read within `writeMs`), `client` (the reader left), `timeout` or
+`error`.
 
 ### Sizing { #records-sizing }
 
