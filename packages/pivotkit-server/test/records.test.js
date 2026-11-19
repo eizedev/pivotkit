@@ -408,7 +408,7 @@ test("a stalled reader loses its slot after idleMs", async () => {
         const next = await h.ask(token, { source: "sales" });
         assert.equal(next.status, 200);
         await next.body?.cancel();
-        assert.ok(h.lines.some((l) => l.event === "records" && l.outcome === "error" && l.reason === "idle"), JSON.stringify(h.lines.filter((l) => l.event === "records")));
+        assert.ok(h.lines.some((l) => l.event === "records" && l.outcome === "error" && l.level === "warn" && l.reason === "idle"), JSON.stringify(h.lines.filter((l) => l.event === "records")));
     } finally {
         await h.close();
     }

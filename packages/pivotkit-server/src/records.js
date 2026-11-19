@@ -157,7 +157,8 @@ export function createRecords(context) {
             const line = { ...callerFields(caller), ...(id ? { requestId: id } : {}), source: input.source, profile: caller.profile, rows: head.rows, columns: columns.length };
             const stream = answerStream(prefix, writer, bounds.idleMs, (outcome) => {
                 release();
-                context.log.records({ ...line, status: outcome.ok ? 200 : 500, ok: outcome.ok, ...(outcome.reason ? { reason: outcome.reason } : {}) });
+                // a cut answer went out as 200 already: its line has no status, so it is a warning
+                context.log.records({ ...line, ...(outcome.ok ? { status: 200 } : { ok: false, reason: outcome.reason }) });
             });
             writer = null;
             return new Response(stream, { status: 200, headers: { ...SAFE_HEADERS, "content-type": "application/json" } });
