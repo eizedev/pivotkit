@@ -252,8 +252,8 @@ test("check-config: the security pointer, a name already in the page's query, a 
     assert.match(facts, /\n {4}link params, in the page's query string: customer, size, region, note, ref, day\n {6}who can read them: https:\/\/pivotkit\.eize\.dev\/security\/#link-params\n/);
     assert.match(facts, /WARNING \(Sources\): sources\.tickets\.linkParams: customer is in the query of sources\.tickets\.link too; a link replaces that value/);
     assert.match(facts, /WARNING \(Sources\): sources\.tickets\.linkParams: note has no pattern or enum; any value of up to 30 letters, digits and \. _ ~ - goes into the page's address \(sources\.tickets\.params\.note\.pattern\)/);
-    // customer has a pattern, region an enum, size is a number, day a date: no such warning
     assert.match(facts, /WARNING \(Sources\): sources\.tickets\.linkParams: ref has no pattern or enum; any value of up to 64 letters/);
+    // customer has a pattern, region an enum, size is a number, day a date: no such warning
     assert.equal((facts.match(/has no pattern or enum/g) ?? []).length, 2, facts);
     assert.match(facts, /\n {4}link params: none; create_link reads customer, size, region and the link carries none \(sources\.open\.linkParams\)\n/);
     // without documentation links, no pointer
