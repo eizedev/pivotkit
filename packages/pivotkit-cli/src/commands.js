@@ -126,6 +126,8 @@ export const COMMANDS = Object.freeze({
             chart: { type: "string", value: "when", choices: ["auto", "on", "off"], formats: ["html"], text: "html: the chart above the table: auto (when the view shows the chart), on or off." },
             width: { type: "string", value: "px", where: "local", formats: ["svg", "html"], text: "svg, html: the chart's width (default 800)." },
             height: { type: "string", value: "px", where: "local", formats: ["svg", "html"], text: "svg, html: the chart's height (default 480)." },
+            numbers: { type: "string", value: "how", choices: ["full", "shown"], formats: ["csv", "json"], text: "csv, json: numbers with full precision (full, the default) or rounded to the decimals the view shows (shown), as the services write them." },
+            "flat-header": { type: "boolean", formats: ["csv"], text: 'csv: one header row instead of one per column field; each column says its labels joined with " / ".' },
             bom: { type: "string", value: "when", where: "local", choices: ["auto", "on", "off"], formats: ["csv"], text: "csv: a byte order mark first, so Excel reads UTF-8: auto (in a file of -o, not on stdout), on or off." },
             lenient: { type: "boolean", where: "local", text: "Write the output also when the view has errors (as the report shows it); the exit code is still 1." },
             strict: { type: "boolean", text: "Warnings are findings too (exit 1)." }
