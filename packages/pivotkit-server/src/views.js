@@ -351,7 +351,7 @@ export async function findNamedView(context, id, name, policy, how = {}) {
     warnOnce(context, id, problems);
     // the nearest of the names the caller may know of: a nearer view the caller may not know of
     // neither shows up nor takes the place of the hint (all views read, on this failure only)
-    const known = names.length > 1 ? (await viewsOf(context.options, id)).views.filter((v) => v.name !== name && knownUnder(policy, v)).map((v) => v.name) : [];
+    const known = names.some((n) => n !== name) ? (await viewsOf(context.options, id)).views.filter((v) => v.name !== name && knownUnder(policy, v)).map((v) => v.name) : [];
     const near = closest(name, known);
     throw new OperationError("INVALID_INPUT", `no view "${name}" for the source ${id}; ${near ? `did you mean "${near}"? ` : ""}${how.surface === "rest" ? "GET /sources" : "list_sources"} lists the views`);
 }
