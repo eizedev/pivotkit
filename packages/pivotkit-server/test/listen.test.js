@@ -383,7 +383,7 @@ test("a broken chunked body after a slow precheck: the request ends, and a stop 
     const started = performance.now();
     await listening.close();
     const ms = performance.now() - started;
-    assert.ok(ms < 5_000, `close took ${Math.round(ms)} ms`);
+    assert.ok(ms < 5_000, `close took ${Math.round(ms)} ms`); // wall time: a stop waits on timers and sockets
     assert.equal(problems, 1, "the unread body is answered as one the server cannot read, which frees what the precheck took");
 });
 
@@ -409,7 +409,7 @@ test("a complete body whose client leaves during a slow precheck: the request en
     const started = performance.now();
     await listening.close();
     const ms = performance.now() - started;
-    assert.ok(ms < 5_000, `close took ${Math.round(ms)} ms`);
+    assert.ok(ms < 5_000, `close took ${Math.round(ms)} ms`); // wall time: a stop waits on timers and sockets
     assert.equal(problems, 1);
 });
 
