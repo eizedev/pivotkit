@@ -159,6 +159,27 @@ claude plugin update pivotkit-mcp@pivotkit
 
 Then restart Claude Code.
 
+## From 0.8.2 to the next release { #from-0-8-2 }
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
+
+### Rows of a source for a signed-in person { #records-route }
+
+`POST /api/v1/sources/records` answers the rows of one source to a person who signed in
+([rows route](../reference/rest.md#records)). It is off until a profile names the source. It adds
+these keys:
+
+- `policy.profiles.<name>.records`: the source ids the profile may read the rows of
+- `rest.records.maxRows`, `.maxCells`, `.concurrency` and `.idleMs`: the route's limits
+- `sources.<id>.records.maxRows`: a lower row limit for one source
+
+The server refuses `records` in the server's policy, a source's policy and `files.policy`. It also
+refuses a source's `records.maxRows` above `rest.records.maxRows`. `GET /sources` adds
+`"records": true` to the sources a person may read the rows of. `check-config` has a section
+`Rows (REST)` once a profile has `records`.
+
 ## From 0.8.1 to 0.8.2 { #from-0-8-1 }
 
 This applies to pivotkit-server and pivotkit-mcp 0.3.1 too, which move to 0.3.2.
