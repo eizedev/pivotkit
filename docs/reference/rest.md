@@ -45,7 +45,7 @@ The routes are RPC-style (`POST /views/validate`), one per operation of the
 
 | Route | Operation | What it does |
 | --- | --- | --- |
-| `GET /sources` | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes, its [named views](sources.md#views) |
+| `GET /sources` | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes, its [named views](sources.md#views), and where known its row count and data date ([below](#source-list)) |
 | `GET /sources/{id}` | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views, its named views |
 | `POST /sources/describe` | `describe_source` | The same, with `{ "source": "<id>" }` |
 | `POST /views/suggest` | `suggest_view` | A draft view from the source's fields, with the fields it picked (`picks`). A `layout` replaces the parts it gives |
@@ -116,10 +116,10 @@ Over an open source (`"policy": { "default": "show" }`, title Sales), the same r
 Every answer that works carries `requestId`, the id of the request's [log lines](#logging) and its
 `X-Request-Id` header. Give it to the operator when an answer looks wrong.
 
-Every answer over a source's data carries `dataAsOf`. That is every route but `GET /sources` and
-`GET /views/guide`. `dataAsOf` says when the data is from, in UTC to the second. It is a file's
-modification time, or a code source's own time or the time it gave the data. The server parses the
-time and writes it again in this one form.
+Every answer over a source's data carries `dataAsOf`. `GET /sources` gives it per source where it is
+known ([below](#source-list)). `GET /views/guide` reads no data and has none. `dataAsOf` says when
+the data is from, in UTC to the second. It is a file's modification time, or a code source's own
+time or the time it gave the data. The server parses the time and writes it again in this one form.
 
 A source with parameters takes their values as `params` with its id in a POST body
 (`{ "source": "vms", "params": { "customer": "acme" } }`). Such a source is an
@@ -230,6 +230,31 @@ The server decides findings per field. A finding about a field's items carries t
 A filter on an item of a `summary` field that does not exist validates and renders an empty report.
 Nothing says why, since saying so would tell that the item does not exist. Only for a view of `show`
 fields does a render whose filters keep no rows have the warning `noRowsKept`.
+
+### Row count and data date in the list { #source-list }
+
+`GET /sources` gives a source's `rows` and `dataAsOf` once the server has read its data. A host page
+can show the row count and the data date from the list alone. The list never reads data itself.
+
+```json
+{ "id": "sales", "title": "Sales", "kind": "source", "link": false, "schedulable": true,
+  "rows": 2000, "dataAsOf": "2026-11-16T00:19:40Z" }
+```
+
+- Both values come from the source's last read: any REST route or MCP tool over its data, by any
+  caller. The rows route counts too.
+- Before the first read, both are absent. They are kept in memory only, so a restart clears them.
+  To fill them after a start, read the source once, for example with `POST /sources/describe`.
+- After the data changes, the list keeps the last read's values until a route reads the data again.
+  `dataAsOf` says which data the count is from.
+- A read whose data is older than the list's never replaces it. So after a file is restored with
+  an older modification time, the list shows the old values until a restart.
+- Only a source whose rows are the same for every caller gets them: a `file` source, and a code
+  source with `cacheShared` and without parameters.
+- A source with parameters, an HTTP source, a source bound to a person and a `perPerson` code source
+  get neither: their rows depend on who asks or on the values.
+- `rows` follows the caller's policy. With [`rows: false`](mcp.md#policy), the caller gets
+  `dataAsOf` without `rows`, as `describe_source` keeps the count back.
 
 ## Exposure policy and profiles { #profiles }
 
@@ -1126,7 +1151,9 @@ Every error is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem doc
   "status": 404, "code": "SOURCE_NOT_FOUND", "detail": "no source \"salse\"; did you mean \"sales\"?; GET /sources lists them" }
 ```
 
-`code` is stable. `detail` says what went wrong and what to do. It names a file by its base name at
+`code` is stable. `type` is the error's row in the [table below](#errors) under
+`branding.docsUrl`, or `about:blank` when it is `null` ([documentation links](branding.md#docs)).
+`detail` says what went wrong and what to do. It names a file by its base name at
 most, never its content. A 5xx answer carries a fixed text, never an error's message. 429 and 503
 carry `Retry-After`.
 
@@ -1140,7 +1167,7 @@ when, where it is known.
     - `true` for a failure that may pass: an error with a network code (`ECONNRESET`, `ETIMEDOUT`
       and the like), the source's time limit, a backend's 429, 502, 503 or 504, a `SourceError`
       marked `transient`, or too many loads of the source running.
-    - `false` for any other error: the backend refused pivotkit's access or answered another status
+    - `false` for any other error: the backend refused this server's access or answered another status
       such as 500, a source not set up correctly, or an error of a code source's `load` without a
       network code.
 - `NOT_ALLOWED`, `INVALID_INPUT` and `DATA_NOT_AVAILABLE` from a source: `false`. These come from a
@@ -1180,11 +1207,11 @@ Rows go by status, then by code. The answers of the download links come last.
 | 413 | <a id="error-body-too-large"></a>`BODY_TOO_LARGE`, <a id="error-limit-exceeded"></a>`LIMIT_EXCEEDED` | The body over 2 MiB (over `rest.data.maxBytes` for a caller that may send data); a file, the data sent, a view or the work over a limit; with `save: false`, a result over the `inline` limits; [rows](#records-limits) over `rest.records` |
 | 415 | <a id="error-unsupported-media-type"></a>`UNSUPPORTED_MEDIA_TYPE`, <a id="error-unsupported-format"></a>`UNSUPPORTED_FORMAT` | A POST whose `Content-Type` is not `application/json` (curl's `-d` alone sends a form) nor, where data may be sent, `multipart/form-data`; a file sent in no data format; a source file in no data format |
 | 422 | <a id="error-data-mismatch"></a>`DATA_MISMATCH` | [Data sent in the request](#data) whose `rowCount` differs from the rows sent, or a file whose SHA-256 differs from `sha256` |
-| 422 | <a id="error-invalid-file"></a>`INVALID_FILE`, <a id="error-not-regular-file"></a>`NOT_REGULAR_FILE`, <a id="error-hard-link"></a>`HARD_LINK`, <a id="error-invalid-template"></a>`INVALID_TEMPLATE` | The source's file or print template (`sources.<id>.template`, a [print template](print-template.md) whose `--pk-*` colours reach the chart, [options](mcp.md)) cannot be used |
+| 422 | <a id="error-invalid-file"></a>`INVALID_FILE`, <a id="error-not-regular-file"></a>`NOT_REGULAR_FILE`, <a id="error-hard-link"></a>`HARD_LINK`, <a id="error-invalid-template"></a>`INVALID_TEMPLATE` | The source's file or print template (`sources.<id>.template` or `output.template`, a [print template](print-template.md) whose `--pk-*` colours reach the chart, [options](mcp.md)) cannot be used |
 | 422 | <a id="error-view-has-errors"></a>`VIEW_HAS_ERRORS` | The file route for a view with errors (with `findings`) |
 | 429 | <a id="error-rate-limited"></a>`RATE_LIMITED` | A [limit](#limits) |
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else. The details are only in the log, with `--log debug` |
-| 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running. `detail` is one of pivotkit's fixed texts: not available right now, the source's backend refused pivotkit's access, or the source is not set up correctly. `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
+| 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running. `detail` is one of pivotkit's fixed texts: not available right now, the source's backend refused this server's access, or the source is not set up correctly. `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
 | 502 | <a id="error-upload-failed"></a>`UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload) (`retryable` says whether trying again may help); the report stays in the output directory |
 | 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, two [large bodies](#data) read already, a parameter's pattern not checked in time, or too many [rows requests](#records-limits); starting or stopping; the OAuth issuer not loaded yet |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
@@ -1335,7 +1362,8 @@ default is REST, and MCP when pivotkit-mcp is installed.
 - An unknown flag is a usage error (exit 2) that points to `--help`.
 
 It is one configuration for both endpoints. Only the REST service reads `rest.*`. Only the MCP
-endpoint reads `http.page` and `http.allowOrigins`.
+endpoint reads `http.allowOrigins` and shows the page of `http.page`. `http.page.url` sends `/` to
+your own page on a REST-only server too ([your own name and links](branding.md#page)).
 
 `/healthz` answers `{ "ok": true }` while the process runs. `/readyz` answers 200 when the server can
 take work, and 503 otherwise:
@@ -1370,14 +1398,17 @@ example in Task Manager, ends it at once.
 | `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their MiB (1,048,576 bytes each) the directory may hold, at its top level: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`). A new report deletes the oldest reports until it fits, one write at a time. Drafts are counted but never deleted to make room. They may take at most half of `output.maxFiles` and half of `output.maxMb`, and a draft over that answers 409 `NO_OUTPUT`. Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories. A file named with the mark by hand counts as pivotkit's. Nothing is deleted where the output directory is the configuration file's directory or holds a source, print template or token file. There a full directory answers 409 `NO_OUTPUT`, and the start warns. With `output.maxAgeDays` written explicitly, the server does not start there |
 | `output.maxAgeDays` | 30 | `0`: no age limit. Otherwise the server deletes reports (the files marked `.pivotkit-out.`) and schedule drafts no longer waiting for approval (`.pivotkit-out.report.json` whose `status` is not `"draft"`) older than this many days from the top level of the output directory, at start and every hour. It also deletes the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour). Other files and subdirectories stay. Use a directory of its own. The server refuses to start with a limit you write when the output directory is the configuration file's directory or holds a source, print template or token file. There the default does not apply (no age limit) |
 | `output.draftMaxAgeDays` | 0 (never) | Delete schedule drafts that still wait for approval (`status` `"draft"`) when they are older than this many days, at start and every hour. It works with `output.maxAgeDays: 0` too. Like `output.maxAgeDays`, the server refuses to start with it where the output directory holds the operator's own files |
+| `output.template` | built-in | The [print template](print-template.md) of every html report whose source sets none, data sent in the request too. A source's `sources.<id>.template` wins. A missing file fails html reports only |
 | `output.downloads` | on (plain links for open sources) | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` |
 | `output.upload` | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method`, `timeMs`, `maxBytes`, `keepLocal`, `bind`, `intranet` |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json`, at the server's root |
+| `branding.name`, `.docsUrl`, `.icon` | pivotkit's | The name end users see, the base of the documentation links or `null` for none, and an icon ([your own name and links](branding.md)) |
 
 Behind a reverse proxy:
 
 - Forward `/api/v1/`, `/openapi.json`, `/.well-known/oauth-protected-resource/api/v1` and
   `/downloads/`. With MCP, also forward `/mcp`, `/.well-known/` and `/`.
+- With `branding.icon`, forward `/icon.png`. With `http.page.url`, forward `/`.
 - Keep the `Host` header, or add the proxy's name to `http.allowHosts`.
 - Set `http.publicUrl`.
 - Set `http.trustProxy` when the proxy adds the client's address to `X-Forwarded-For`. Otherwise
@@ -1393,7 +1424,7 @@ Behind a reverse proxy:
 For nginx:
 
 ```nginx
-location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|downloads/|healthz$|readyz$|$) {
+location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|downloads/|healthz$|readyz$|icon\.png$|$) {
     proxy_pass http://127.0.0.1:3333;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

@@ -21,6 +21,7 @@ import { resolveInline } from "./sources/inline.js";
 import { normalizeParams, paramsList } from "./sources/params.js";
 import { checkLinkParams, linkEntriesOf, linkParamsOf, withLinkQuery } from "./link-params.js";
 import { readTemplateFile } from "./print-template.js";
+import { asOfMembers } from "./sources/as-of.js";
 
 export { FILE_PREFIX };
 
@@ -194,6 +195,31 @@ export async function createRegistry(options, { log = null } = {}) {
 
     const closedSources = new Map([...sources.keys()].map((id) => [id, isClosedForDelivery(options, id)]));
 
+    /**
+     * Whether every caller who may use a source reads the same rows: an operator's file, or a code
+     * source shared by all callers (cacheShared) without params. Never a source bound to a person, a
+     * perPerson code source or an HTTP source (its data is kept per caller).
+     */
+    const sameForAll = (id, source) => {
+        const perCaller = bound.has(id) || source.perPerson === true;
+        const perCall = Object.keys(source.params ?? {}).length > 0;
+        const shared = Boolean(source.file) || Boolean(source.load && source.cacheShared === true);
+        return shared && !perCaller && !perCall;
+    };
+    /** @type {Map<string, { rows: number, dataAsOf: string }>} the last read of such a source: what list_sources says about its data */
+    const lastRead = new Map();
+    /**
+     * A source's row count and dataAsOf from its last read, the count only where the caller's policy
+     * shows it (the caller's profile, profileOf).
+     */
+    const lastReadFor = (id, source, profile) => {
+        const read = lastRead.get(id);
+        if (!read) {
+            return {};
+        }
+        return { ...(resolvePolicy(options.policy, source.policy, profile).rows === false ? {} : { rows: read.rows }), dataAsOf: read.dataAsOf };
+    };
+
     /** A source's field descriptions by field key, cleaned (no control or direction characters) and capped. */
     const descriptionsOf = (source) => {
         const entries = Object.entries(source.fields ?? {}).filter(([, f]) => typeof f?.description === "string" && f.description);
@@ -212,6 +238,17 @@ export async function createRegistry(options, { log = null } = {}) {
         notFound,
         levelsOf,
         fileClosed: closedUnder(options, files.policy),
+        /**
+         * The print template of a source's html reports: its own (sources.<id>.template), else the
+         * server's (output.template), else none (the built-in). A reader, not the text: runResolved
+         * reads it on each html render only, so a missing file fails those and nothing else.
+         * @param {{ template?: string } | null} source  null: data sent in the request or a file: path
+         * @returns {(() => Promise<string>) | null}
+         */
+        templateOf: (source) => {
+            const file = source?.template ?? options.output?.template;
+            return file ? () => readTemplate(pathOf(options, file)) : null;
+        },
         filePolicyOf: (caller) => (profileOf(caller) ? resolvePolicy(options.policy, files.policy, profileOf(caller), { file: true }) : filePolicy)
     };
 
@@ -247,7 +284,7 @@ export async function createRegistry(options, { log = null } = {}) {
             }
             const values = normalizeParams(source.params, params, caller, ref);
             const policy = resolvePolicy(options.policy, source.policy, profileOf(caller));
-            const template = source.template ? await readTemplate(pathOf(options, source.template)) : undefined;
+            const template = reg.templateOf(source);
             return {
                 sourceKind: kind,
                 policy,
@@ -268,10 +305,12 @@ export async function createRegistry(options, { log = null } = {}) {
          * @param {{ files?: boolean }} [how]  files: false lists no file: sources (REST)
          */
         async list(caller, how = {}) {
-            /** @type {Array<{ id: string, title: string, description?: string, kind: "source" | "file", link: boolean, linkParams?: string[], schedulable: boolean, params?: ReturnType<typeof paramsList> }>} */
+            const profile = profileOf(caller);
+            /** @type {Array<{ id: string, title: string, description?: string, kind: "source" | "file", link: boolean, linkParams?: string[], schedulable: boolean, params?: ReturnType<typeof paramsList>, rows?: number, dataAsOf?: string }>} */
             const out = [...sources.entries()]
                 .filter(([id, s]) => usable(caller, id, s))
-                .map(([id, s]) => ({ id, title: s.title ?? id, ...(s.description ? { description: s.description } : {}), kind: /** @type {const} */ ("source"), link: Boolean(s.link), ...(linkParamsOf(s) ? { linkParams: linkParamsOf(s) } : {}), schedulable: !bound.has(id), ...(s.params && paramsList(s.params).length ? { params: paramsList(s.params) } : {}) }));
+                .map(([id, s]) => ({ id, title: s.title ?? id, ...(s.description ? { description: s.description } : {}), kind: /** @type {const} */ ("source"), link: Boolean(s.link), ...(linkParamsOf(s) ? { linkParams: linkParamsOf(s) } : {}), schedulable: !bound.has(id), ...(s.params && paramsList(s.params).length ? { params: paramsList(s.params) } : {}) }))
+                .map((entry) => ({ ...entry, ...lastReadFor(entry.id, sources.get(entry.id), profile) }));
             if (files.list && allow.length && holds(caller, files.scopes) && how.files !== false) {
                 for (const dir of allow) {
                     const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
@@ -283,6 +322,22 @@ export async function createRegistry(options, { log = null } = {}) {
                 }
             }
             return out;
+        },
+
+        /**
+         * Keeps what a read of a source's data said (its row count and dataAsOf) for list_sources,
+         * for a source whose rows are the same for every caller (sameForAll).
+         * @param {{ id: string, kind: string }} spec  the resolved source's
+         * @param {{ stats?: { rows: number } | null, asOf?: string | null }} read  the run's
+         */
+        noteRead(spec, read) {
+            const source = spec.kind === "source" ? sources.get(spec.id) : undefined;
+            const { dataAsOf } = asOfMembers(read);
+            // reads that end out of order: an older data set never replaces a newer one
+            const newer = dataAsOf && !(lastRead.get(spec.id)?.dataAsOf > dataAsOf);
+            if (source && sameForAll(spec.id, source) && Number.isSafeInteger(read.stats?.rows) && newer) {
+                lastRead.set(spec.id, { rows: /** @type {number} */ (read.stats?.rows), dataAsOf });
+            }
         },
 
         /**

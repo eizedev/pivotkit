@@ -5,9 +5,10 @@
  *
  * - "string", "number", "theme", "height": the attribute is the property's storage (reflected), as
  *   with a native element: setting the property sets the attribute, null or undefined removes it.
- * - "flag": a boolean attribute (present = true). "on-unless-false": true unless the attribute is
- *   "false" (drill-down defaults to on). "off-unless-set": present = true, but "false" is off, for
- *   a switch that lets rows out (drill-down-export), as export-data reads "false".
+ * - Every boolean attribute reads "false" (any case, trimmed) as off, so a page that writes
+ *   `share-link="false"` does not switch it on. Any other value is on, as HTML reads it.
+ * - "flag": present = true, absent or "false" = false. "on-unless-false": true unless the attribute
+ *   is "false" (drill-down defaults to on).
  * - "flag-or-url": present = true, a value other than "" and "true" is a URL ("false" turns it
  *   off).
  * - "flag-or-json": present = true, "false" off, a JSON object that object (Source data's
@@ -18,7 +19,7 @@
  */
 
 /**
- * @typedef {"string" | "number" | "theme" | "height" | "flag" | "on-unless-false" | "off-unless-set" | "flag-or-url" | "flag-or-json" | "session" | "on-off" | "json"} AttributeKind
+ * @typedef {"string" | "number" | "theme" | "height" | "flag" | "on-unless-false" | "flag-or-url" | "flag-or-json" | "session" | "on-off" | "json"} AttributeKind
  * @typedef {{ attr: string, prop: string, kind: AttributeKind }} AttributeDef
  */
 
@@ -33,7 +34,7 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "drill-down", prop: "drillDown", kind: "on-unless-false" },
     { attr: "drill-down-limit", prop: "drillDownLimit", kind: "number" },
     { attr: "export-data", prop: "exportData", kind: "flag-or-json" },
-    { attr: "drill-down-export", prop: "drillDownExport", kind: "off-unless-set" },
+    { attr: "drill-down-export", prop: "drillDownExport", kind: "flag" },
     { attr: "save-templates", prop: "saveTemplates", kind: "flag" },
     { attr: "template-store", prop: "templateStore", kind: "string" },
     { attr: "can-publish", prop: "canPublish", kind: "flag" },
@@ -72,6 +73,12 @@ function warnOnce(text) {
 }
 
 /**
+ * Whether a boolean attribute's value says off: "false" in any case, with spaces around it.
+ * @param {string} value
+ */
+const isFalse = (value) => value.trim().toLowerCase() === "false";
+
+/**
  * The property value of an attribute value.
  * @param {AttributeDef} def
  * @param {string | null} value  the attribute, null when absent
@@ -80,14 +87,12 @@ function warnOnce(text) {
 export function fromAttribute(def, value) {
     switch (def.kind) {
         case "flag":
-            return value !== null;
+            return value !== null && !isFalse(value);
         case "on-unless-false":
-            return value === null || value.trim().toLowerCase() !== "false";
-        case "off-unless-set":
-            return value !== null && value.trim().toLowerCase() !== "false";
+            return value === null || !isFalse(value);
         case "flag-or-json": {
             const text = value?.trim() ?? null;
-            if (text === null || text.toLowerCase() === "false") {
+            if (text === null || isFalse(text)) {
                 return false;
             }
             if (text === "" || text.toLowerCase() === "true") {
@@ -101,7 +106,7 @@ export function fromAttribute(def, value) {
         }
         case "flag-or-url": {
             const text = value?.trim() ?? null;
-            if (text === null || text.toLowerCase() === "false") {
+            if (text === null || isFalse(text)) {
                 return undefined;
             }
             return text === "" || text.toLowerCase() === "true" ? true : text;
@@ -144,7 +149,6 @@ export function fromAttribute(def, value) {
 export function toAttribute(def, value) {
     switch (def.kind) {
         case "flag":
-        case "off-unless-set":
             return value ? "" : null;
         case "on-unless-false":
             return value === false ? "false" : null;

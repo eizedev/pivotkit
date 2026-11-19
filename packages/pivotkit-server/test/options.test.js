@@ -44,6 +44,8 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.sourceCache = { object: { maxMb: "integer" } };
     // how long a schedule draft may wait for approval (config.js), after maxAgeDays
     expected.output.object.draftMaxAgeDays = "integer";
+    // the server's print template (config.js, #614), after draftMaxAgeDays
+    expected.output.object.template = "string";
     // download links (options/downloads.js)
     const secretRef = { custom: "fn" };
     expected.output.object.downloads = { object: { enabled: "boolean", expiresMinutes: "integer", bind: { enum: ["signIn", "once", "none"] }, key: secretRef, allowInsecureUrl: "boolean", signIn: { object: { clientId: "string", clientSecret: secretRef, issuer: "string", scopes: "strings", tokenUrl: "string" } } } };
@@ -81,8 +83,11 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.policy.object.profiles.map.object = withRecords(expected.policy.object.profiles.map.object);
     expected.rest.object.records = { object: { maxRows: "integer", maxCells: "integer", concurrency: "integer", idleMs: "integer" } };
     expected.sources.map.object.records = { object: { maxRows: "integer" } };
-    // named views (options/views.js, the last fragment): a source's views and viewsDir
+    // named views (options/views.js, after records): a source's views and viewsDir
     Object.assign(expected.sources.map.object, { views: { custom: "fn" }, viewsDir: "string" });
+    // branding (options/branding.js, the last fragment): http.page's url (config.js keeps the key in its place), and branding last of the top keys
+    expected.http.object.page = { or: [{ const: false }, { const: true }, { object: { sources: "boolean", url: { custom: "fn" } } }] };
+    expected.branding = { object: { name: { custom: "fn" }, docsUrl: { custom: "fn" }, icon: "string" } };
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
@@ -119,7 +124,7 @@ test("options: every fragment has frozen keys in known slots and a validate; eac
     for (const f of FRAGMENTS.slice(1)) {
         assert.ok(names.includes(f.name), f.name);
     }
-    assert.deepEqual(names, ["sources", "views", "http", "code", "inline", "output", "downloads", "upload", "access", "credentials", "signed", "external", "issuer", "operator", "profiles", "records", "rest", "log"]);
+    assert.deepEqual(names, ["sources", "views", "http", "code", "inline", "output", "downloads", "upload", "access", "credentials", "signed", "external", "issuer", "operator", "profiles", "records", "rest", "log", "branding"]);
 });
 
 test("options: an unknown key is still refused with the name meant, also for keys no fragment declares yet", () => {

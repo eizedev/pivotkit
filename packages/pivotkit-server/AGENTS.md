@@ -139,6 +139,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Loads have time limits, coalescing and per-source and per-identity limits (`sources/run.js`).
 - `test/code-sources.test.js` waits for the load runner's events (`LOAD_HOOKS`), never for a fixed time.
 - Last good data is served only after a transient failure.
+- `noteRead` in `registry.js` keeps a source's last row count and dataAsOf for list_sources.
+  It keeps them only for a source every caller reads alike: `sameForAll`.
 - The process cache and kept data sets are bounded in entries and bytes.
 - A kept data set copies its texts first. A reader's slices would keep the whole file alive.
 - Every read ends with `forgetLastSubject`. V8 keeps the last regular expression's subject.
@@ -158,6 +160,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - The server never imports `openapi-source.js`. Only the runner's command does.
 - Its `TODO` values are refused at start (`todoPaths` in `options/base.js`).
 - Read a print template only through `readTemplateFile` in `print-template.js`.
+- `templateOf` in `registry.js` picks it: the source's, else `output.template`, else the built-in.
+  `runResolved` reads it for html renders only, so a missing file fails nothing else.
 - `src/views.js` owns named views (`sources.<id>.views`, `viewsDir`). Read a view file only through it.
 - `withNamedView` in `compute` (`present.js`) is the one place a view's name becomes the view.
 - A view that uses a field hidden from the caller answers as a missing one.
@@ -193,3 +197,11 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `test/conformance.test.js` checks that MCP and REST answer alike.
 - `test/cli-remote.test.js` runs the CLI against the service.
 - Use the `tempDir` of `test/helpers.js` for files on disk.
+
+## Branding
+
+- `src/branding.js` holds the operator's name, documentation base, icon and page (`context.branding`).
+- Every documentation link goes through `docsLink`. `null` docs means no link, never pivotkit's site.
+- A handler binds its problems with `problemsFor(docs)`. Never call `typeOf` without the docs.
+- Identifiers stay pivotkit's: tool names, the view format, cookies, variables, log fields.
+- `test/branding.test.js` sweeps every route for the site's address. A new route joins the sweep.

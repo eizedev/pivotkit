@@ -163,10 +163,15 @@ Then restart Claude Code.
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
+| [The element reads `"false"` as off](#element-false) | a page writes `save-templates`, `can-publish`, `allow-import` or `loading` with the value `"false"` | nothing, unless you meant it as on: then leave the value out |
 | [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
 | [A link names a source's parameters in the page's query string](#link-params) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
 | **Breaking:** [Fewer JavaScript exports of pivotkit-server](#internal-exports) | your code imports from `pivotkit-server`, `pivotkit-server/policy` or `pivotkit-mcp/policy` a name that [JavaScript exports](../reference/service-exports.md) does not list | use a listed name, or tell us in an issue what you need |
 | [Named views, and a layout for links and drafts](#named-views) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients |
+| [Row count and data date in the source list](#source-list-rows) | you read `GET /sources` or `list_sources` | none. MCP clients see the new keys in the output schema after they reconnect |
+| [One print template for the whole server](#output-template) | you want one design for every html report of a server | set `output.template` |
+| [Your own name and links](#branding) | you run the server under your own name, or in a network without access to pivotkit.eize.dev | nothing until you need it: the defaults are pivotkit's |
+| [Texts without the product name](#neutral-texts) | a program or a log rule matches the words of an error, or of pivotkit-react's messages about a loaded view | match the error's `code` instead, or update the words |
 
 ### Rows of a source for a signed-in person { #records-route }
 
@@ -182,6 +187,14 @@ The server refuses `records` in the server's policy, a source's policy and `file
 refuses a source's `records.maxRows` above `rest.records.maxRows`. `GET /sources` adds
 `"records": true` to the sources a person may read the rows of. `check-config` has a section
 `Rows (REST)` once a profile has `records`.
+
+### The element reads `"false"` as off { #element-false }
+
+Every boolean attribute of `<pivot-report>` reads `"false"`, in any case, as off. Before,
+`save-templates`, `can-publish`, `allow-import` and `loading` were on with any value. A page that
+wrote `allow-import="false"` offered loading files. Now it does not. `share-link`, `export-data`,
+`drill-down` and `drill-down-export` read it this way already
+([the attributes](../reference/element.md#properties-and-attributes)).
 
 ### A link names a source's parameters in the page's query string { #link-params }
 
@@ -218,6 +231,45 @@ refuses a source's `records.maxRows` above `rest.records.maxRows`. `GET /sources
 - `create_link` and `draft_schedule` take a `layout` instead of a `view`, as `render_view` does.
   Before, they refused it.
 - The tools' schemas and descriptions changed. MCP clients reconnect to read them.
+
+### Row count and data date in the source list { #source-list-rows }
+
+`GET /sources` and `list_sources` add `rows` and `dataAsOf` to a source once the server has read its
+data ([the rules](../reference/rest.md#source-list)). A source whose rows depend on the caller or on
+parameters gets neither. MCP clients see the two keys in the output schema after they reconnect.
+Sessions that stay connected keep working: the old schema allows more keys.
+
+### One print template for the whole server { #output-template }
+
+`output.template` sets the print template of every html report whose source sets none. Data sent in
+the request (`inline:`) and, over MCP, `file:` paths take it too, so one server has one design. A
+source's own `sources.<id>.template` still wins. The start and `check-config` check it as they check
+a source's template. Without the key, nothing changes.
+
+A template can set `--pk-chart-axis` to draw the chart's axis line apart from the table's lines.
+Without it, the axis keeps `--pk-border`.
+
+### Your own name and links { #branding }
+
+New optional settings put your name, your documentation address and your icon on what people and
+clients see ([your own name and links](../reference/branding.md)):
+
+- `branding.name`, `branding.docsUrl` (`null` for no documentation links) and `branding.icon`
+- `http.page.url`: `/` sends a browser to your own page, on a REST-only server too
+
+Without them, every answer stays as it was. `check-config` has a section `Branding` once you set one.
+
+### Texts without the product name { #neutral-texts }
+
+Some texts that people read no longer name pivotkit. Their codes stay the same.
+
+- `SOURCE_UNAVAILABLE`: "the source's backend refused this server's access; ..."
+- `UNSUPPORTED_FORMAT`: "<name>: the server reads csv, tsv, txt, json and xlsx files"
+- pivotkit-react's messages about a loaded view: "This is not a view.", "This is neither a view in
+  JSON nor a link to a report.", "This link is damaged or not a link to a report." and "This view
+  comes from a newer version and cannot be read here. Update the application to open it."
+
+A host that sets these texts through `labels` keeps its own.
 
 ## From 0.8.1 to 0.8.2 { #from-0-8-1 }
 

@@ -143,7 +143,7 @@ test.describe("sharing a view", () => {
 
     test("a damaged link and one with fields the data lacks say so in plain words", async ({ page }) => {
         await page.goto("?data=sales#pivot-playground=1.broken");
-        await expect(page.locator(".pk-toasts")).toContainText("This link is damaged or not a pivotkit link.");
+        await expect(page.locator(".pk-toasts")).toContainText("This link is damaged or not a link to a report.");
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
     });
 
@@ -179,7 +179,7 @@ test.describe("sharing a view", () => {
         await expect(page.getByTestId("load-view-text")).toBeFocused();
         await page.getByTestId("load-view-text").fill("{ nope");
         await page.getByTestId("load-view-apply").click();
-        await expect(page.getByTestId("load-view-problem")).toHaveText("This is neither a view in JSON nor a pivotkit link.");
+        await expect(page.getByTestId("load-view-problem")).toHaveText("This is neither a view in JSON nor a link to a report.");
         await page.getByTestId("load-view-text").fill(JSON.stringify({ rows: ["Product", "Planet"], values: [{ field: "Units", agg: "sum" }] }));
         await page.getByTestId("load-view-apply").click();
         // a bare view: no source to compare, but a field the data lacks: asked first
@@ -242,13 +242,13 @@ test.describe("sharing a view", () => {
         await expect.poll(() => chips(page, "values")).toEqual(["Average of Sunshine h"]);
     });
 
-    test("a view file of a newer format is refused with the advice to update pivotkit", async ({ page }) => {
+    test("a view file of a newer format is refused with the advice to update the application", async ({ page }) => {
         await page.goto("?data=sales");
         await toolbar(page, "views");
         await page.getByTestId("load-view").click();
         await page.getByTestId("load-view-text").fill(JSON.stringify({ format: "pivotkit-view", formatVersion: 3, view: { rows: ["Region"] } }));
         await page.getByTestId("load-view-apply").click();
-        await expect(page.getByTestId("load-view-problem")).toContainText("Update pivotkit to open it.");
+        await expect(page.getByTestId("load-view-problem")).toContainText("Update the application to open it.");
     });
 
     test("a host's page: the view is kept for the tab (persistView), chartOptions and loading change nothing else", async ({ page }) => {

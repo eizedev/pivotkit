@@ -114,6 +114,21 @@ test("the route answers the show fields only, as encode() reads them, and names 
     }
 });
 
+test("a read through the rows route fills the source list's rows and dataAsOf", async () => {
+    const { server, person } = await serverOf();
+    try {
+        const token = await person();
+        const before = (await call(`${server.api}/sources`, { token })).data.sources.find((s) => s.id === "sales");
+        assert.equal(before.rows, undefined);
+        const answer = await rows(server, token, { source: "sales" });
+        assert.equal(answer.status, 200, answer.text);
+        const after = (await call(`${server.api}/sources`, { token })).data.sources.find((s) => s.id === "sales");
+        assert.deepEqual([after.rows, after.dataAsOf], [5, answer.data.dataAsOf]);
+    } finally {
+        await server.close();
+    }
+});
+
 test("a field at values, summary or hide never appears, also when fields or a view names it; no error names a hidden field", async () => {
     const { server, person } = await serverOf();
     try {

@@ -34,7 +34,7 @@ service: sources, policy, workers, output, sign-in. pivotkit-server brings
 
 | Tool | What it does | Writes |
 | --- | --- | --- |
-| `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes and those a link may carry (`linkParams`), its [named views](sources.md#views) | - |
+| `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes and those a link may carry (`linkParams`), its [named views](sources.md#views), and where known its row count and data date ([REST](rest.md#source-list) has the rules) | - |
 | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views from its own fields, its named views | - |
 | `suggest_view` | A draft view from a source's fields (marked `Draft:`), with what each part took and could take instead (`picks`). A `layout` replaces parts of it | - |
 | `get_view_guide` | How to write a view: its keys, the vocabulary (aggregators, filter types, date groupings), five example views | - |
@@ -57,9 +57,9 @@ the `view` it made.
 [named view](sources.md#views) as `view`. A link and a draft carry the view itself, so a view that
 holds values of a field the caller sees at `summary` gets neither.
 
-Every result over a source's data has `dataAsOf`. That is every tool but `list_sources` and
-`get_view_guide`. `dataAsOf` says when the data is from, in UTC to the second
-(`"2026-11-15T08:00:00Z"`):
+Every result over a source's data has `dataAsOf`. `list_sources` gives it per source where it is
+known ([the rules](rest.md#source-list)). `get_view_guide` reads no data and has none. `dataAsOf`
+says when the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`):
 
 - a file's modification time
 - for a library host's code source, its own `asOf` (see below), else when `load()` gave the data.
@@ -343,7 +343,7 @@ one probably meant.
 | `sources.<id>.link`, `.linkKey` | - | none | The page that shows this source's reports, for create_link; the report's key there |
 | `sources.<id>.linkParams` | - | none | The parameters a link from create_link may carry in the page's query string, such as `["customer"]` ([link parameters](../concepts/sharing.md#link-params)). Declared `params` only, never one bound to a claim, and every required one. Without the list, create_link reads the params and the link carries none |
 | `sources.<id>.views`, `.viewsDir` | - | none | [Named views](sources.md#views): a name to a view file or a view, and a folder of view files. Read on every request, checked at start and by `check-config` |
-| `sources.<id>.template` | - | built-in | An HTML [print template](print-template.md) for render_view's html. Its path is relative to the configuration file, at most 1 MiB. Its `--pk-*` colours reach the chart ([details](print-template.md#template-design)). Read and checked at start and by `check-config`. A template with an unknown placeholder, over 1 MiB or not a regular file keeps the server from starting. A missing one starts the server with a warning (a `PROBLEM` the server starts with in `check-config`) and fails that source's html reports |
+| `sources.<id>.template` | - | `output.template`, else built-in | An HTML [print template](print-template.md) for render_view's html. Its path is relative to the configuration file, at most 1 MiB. Its `--pk-*` colours reach the chart ([details](print-template.md#template-design)). Read and checked at start and by `check-config`. A template with an unknown placeholder, over 1 MiB or not a regular file keeps the server from starting. A missing one starts the server with a warning (a `PROBLEM` the server starts with in `check-config`) and fails that source's html reports |
 | `sources.<id>.scopes` | - | none | OAuth or token scopes a caller needs to see and use it |
 | `sources.<id>.fields.<name>.description` | - | none | The operator's words about a field (at most 500 characters), shown by describe_source at every level but `hide`. Control and direction characters are removed |
 | `sources.<id>.http` | - | none | An [HTTP source](sources.md#http): an operator's backend, its address with `{name}` for a parameter, where the rows are, paging and limits, its sign-in (`http.auth`: a secret header, client credentials or a token exchange, [backend sign-in](sources.md#http-auth)) |
@@ -366,6 +366,7 @@ one probably meant.
 | `output.maxMb` | - | 1024 | MiB of reports and drafts the directory may hold. A new report deletes the oldest reports until it fits |
 | `output.maxAgeDays` | - | 30 | Delete reports, and schedule drafts no longer waiting for approval, older than this many days from the top level of the output directory, at start and every hour. Also delete the temporary files of writes the server was killed in (older than an hour). `0`: no age limit. The default applies only to a directory of the reports' own (see [REST](rest.md#running)) |
 | `output.draftMaxAgeDays` | - | 0 (never) | Delete schedule drafts that still wait for approval when they are older than this many days, at start and every hour |
+| `output.template` | - | built-in | The [print template](print-template.md) of every html report whose source sets none: data sent in the request (`inline:`) and, over MCP, `file:` paths too. So one server has one design. The server reads and checks it as it does `sources.<id>.template`: on every html render, at start and in `check-config`. A missing one fails those html reports and nothing else |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
 | `policy.data`, `policy.profiles.<name>.data` | - | MCP: on | `false`: the caller may not send [its own data](#data) (`inline:`). REST needs `true` |
 | `mcp.data` | - | 500 rows, 5000 cells, 262144 bytes | `false` switches [data in the request](#data) off. `{ "rows", "cells", "bytes" }` lowers the cap. A value above the built-in one is an error |
@@ -380,7 +381,8 @@ one probably meant.
 | `http.allowHosts` | `--allow-host name` | localhost names | Host names the server answers to (DNS rebinding protection) |
 | `http.allowOrigins` | `--allow-origin name` | none | Browser origins (host names) allowed to call |
 | - | `--state-dir dir` | `$PIVOTKIT_STATE_DIR` | `--http`: where the server makes, at its first start, the token and keys it needs when none is given ([made at the first start](rest.md#first-start)). Nothing over stdio |
-| `http.page` | - | on | The quick-start page. `{ "sources": true }` lists source ids on it. `false` turns it off |
+| `http.page` | - | on | The quick-start page. `{ "sources": true }` lists source ids on it. `false` turns it off. `{ "url": "https://..." }` sends `/` to your own page instead ([your page](branding.md#page)) |
+| `branding.name`, `.docsUrl`, `.icon` | - | pivotkit's | The name clients and people see, the base of the documentation links or `null` for none, and an icon ([your own name and links](branding.md)) |
 | `http.graceMs` | - | 25000 | How long a stop (SIGTERM or SIGINT, [stopping](rest.md#running)) waits for running requests |
 | `http.maxConnectionsPerAddress` | - | 32, none with `http.trustProxy` | Connections one address may hold, loopback excepted. `0`: no bound ([Streamable HTTP](#http)) |
 | `mcp.rateLimit.perMinute`, `.burst` | - | 120, 30 | HTTP: requests per minute of one caller, with up to `burst` at once after a pause. A caller is the person an OAuth token names, a static token's name, or `local` without sign-in. An OAuth token without a subject counts for its client. The people of one OAuth client together get eight times both |
@@ -571,7 +573,7 @@ since the same call does not work when tried again.
 | `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page or over data sent in the request; a schedule over a `file:` source, data sent in the request, or a source with a token exchange or a parameter bound to a claim ([backend sign-in](sources.md#http-claims)) |
 | `BUSY`, `TIMEOUT` | No worker free within `queueMs`, or a parameter's pattern [could not be checked in time](#configuration); a call over `timeMs` |
-| `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors), [HTTP sources](sources.md#http-errors)). The text is one of pivotkit's fixed texts (not available right now, the backend refused pivotkit's access, not set up correctly), with the source's id and whether trying again may work |
+| `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors), [HTTP sources](sources.md#http-errors)). The text is one of pivotkit's fixed texts (not available right now, the backend refused this server's access, not set up correctly), with the source's id and whether trying again may work |
 | `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`); an HTTP source's backend answered 401, 403 or 404 for the values given |
 | `UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload). A fixed text with the request id and whether trying again may work. The report stays in the output directory |
 | `INTERNAL` | Anything else: "internal error". The details are only in the log, with `--log debug` |
@@ -680,11 +682,14 @@ Without authentication, the server answers:
 - `/healthz` (`{ "ok": true }`, for a supervisor or a proxy)
 - the OAuth discovery documents
 - the **quick-start page** at `/`: what the server is, its endpoint, client configurations to copy,
-  the auth mode and the tools. A browser that opens `/mcp` is sent there.
+  the auth mode and the tools. A browser that opens `/mcp` is sent there. With `http.page.url`,
+  both go to your own page instead ([your page](branding.md#page)).
+- the operator's icon at `/icon.png`, with `branding.icon` set
 
 The page lists source ids only when `http.page.sources` is true (default only with auth `none`), and
 only sources without scopes. It never lists paths, fields or data. It loads nothing from elsewhere
-and has no script (`Content-Security-Policy: default-src 'none'`).
+and has no script (`Content-Security-Policy: default-src 'none'`). With `branding.icon`, the policy
+also allows the icon as a `data:` image.
 
 The server listens on 127.0.0.1 unless `--host` says otherwise. It refuses another address without
 authentication unless `--allow-unauthenticated` says the network is trusted. There are no sessions:
@@ -694,7 +699,8 @@ Behind a reverse proxy:
 
 - Keep the server on 127.0.0.1 when the proxy runs on the same machine.
 - Terminate TLS at the proxy.
-- Forward `/mcp`, `/.well-known/`, `/downloads/` ([download links](delivery.md)) and `/`.
+- Forward `/mcp`, `/.well-known/`, `/downloads/` ([download links](delivery.md)) and `/`. With
+  `branding.icon`, also `/icon.png`.
 - Keep the `Host` header, or add the proxy's name with `--allow-host`.
 - Set `--public-url`.
 - Turn response buffering off for `/mcp`.

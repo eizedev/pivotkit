@@ -45,4 +45,5 @@ export { serve, createServerHandler, DEFAULT_PORT } from "./serve.js";
  * @typedef {import("./context.js").ServerContext} ServerContext
  * @typedef {import("./present.js").PresentOptions} PresentOptions
  * @typedef {import("./listen.js").FetchHandler} FetchHandler
+ * @typedef {import("./branding.js").Branding} Branding
  */

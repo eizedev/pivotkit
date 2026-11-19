@@ -276,7 +276,7 @@ whose pages reach `maxPages` and still name a next page answers `LIMIT_EXCEEDED`
 | 2xx | the data | |
 | 400, 422 | `INVALID_INPUT` "the backend did not accept these parameters" | false |
 | 401, 403, 404 on a source with parameters | `DATA_NOT_AVAILABLE` (404) "nothing you may see for customer=xyz: check the value", one answer for all three so other customers' names cannot be probed | false |
-| 401, 403 on a source without parameters | `SOURCE_UNAVAILABLE` "the source's backend refused pivotkit's access; ask the operator and give the request id" | false |
+| 401, 403 on a source without parameters | `SOURCE_UNAVAILABLE` "the source's backend refused this server's access; ask the operator and give the request id" | false |
 | 404 on a source without parameters, a redirect, an address it may not reach, an answer the settings do not fit | `SOURCE_UNAVAILABLE` "the source is not set up correctly; ask the operator and give the request id" | false |
 | 429, 502, 503, 504, a timeout, a network error | `SOURCE_UNAVAILABLE` "the source is not available right now; ...", `Retry-After` passed on | true |
 | anything else | `SOURCE_UNAVAILABLE` | false |
@@ -443,7 +443,7 @@ tokens", Authorization, Token Handling; Security Best Practices, Token Passthrou
 
 | What happened | Caller gets | `retryable` |
 | --- | --- | --- |
-| The token endpoint refused (4xx), e.g. `invalid_client`, `invalid_grant` | `SOURCE_UNAVAILABLE` "the source's backend refused pivotkit's access; ..." | false |
+| The token endpoint refused (4xx), e.g. `invalid_client`, `invalid_grant` | `SOURCE_UNAVAILABLE` "the source's backend refused this server's access; ..." | false |
 | A secret is missing, the token endpoint cannot be reached by its address rules, its answer holds no bearer token | `SOURCE_UNAVAILABLE` "the source is not set up correctly; ..." | false |
 | The token endpoint failed (5xx, 429), its own time limit (10 s), a network error | `SOURCE_UNAVAILABLE` "the source is not available right now; ..." | false |
 | The source's `timeMs` ended while pivotkit still waited for a token | `SOURCE_UNAVAILABLE` "the source is not available right now; ...", or the same caller's last good data with `stale` | true |
@@ -809,7 +809,7 @@ The example compiles with strict TypeScript. pivotkit-server's types give `load`
 | `sources.<id>.timeMs` | 30000 ms | The longest `load` may take, at most 600000 (ten minutes); the signal is aborted then |
 | `sources.<id>.ttl` | none (only `version` decides) | Seconds a load is reused; `0` only shares loads that run at the same time |
 | `sources.<id>.maxStale` | 3600 s | How old the last good data may be to stand in after a transient failure; `0` turns it off |
-| `sources.<id>.cacheShared` | `false` | The data is the same for every caller: one copy for all, and `load` gets `caller: null` |
+| `sources.<id>.cacheShared` | `false` | The data is the same for every caller: one copy for all, and `load` gets `caller: null`. Without params, the source list gives its row count and data date ([source list](rest.md#source-list)) |
 | `sourceCache.maxMb` | 256 | Top level: the loaded data of code and HTTP sources the process keeps, in MiB (1 to 65536); see [bounds](#code-cache) |
 | `sources.<id>.perPerson` | `false` | The data differs per caller (each person sees their own): its reports count as closed for [download links](delivery.md), so only the person who asked can open them (a sign-in link) or no link is given. Not with `cacheShared` |
 
@@ -885,7 +885,7 @@ These options apply to `SOURCE_UNAVAILABLE` only:
   failure transient unless `transient` says otherwise.
 - `retryAfter`, in whole seconds, becomes the answer's `Retry-After`.
 - `reason` picks pivotkit's text:
-    - `"refused"`: "the source's backend refused pivotkit's access; ask the operator ..."
+    - `"refused"`: "the source's backend refused this server's access; ask the operator ..."
     - `"setup"`: "the source is not set up correctly; ask the operator ..."
     - none: "the source is not available right now; ..."
 

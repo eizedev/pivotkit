@@ -396,7 +396,9 @@ the [download links](../reference/delivery.md) under `/downloads/`.
 
 These answer without a token:
 
-- the quick-start page at `/`. `http.page: false` turns it off.
+- the quick-start page at `/`. `http.page: false` turns it off. `http.page.url` sends it to
+  your own page ([your own name and links](../reference/branding.md#page)).
+- `/icon.png`, with `branding.icon` set
 - `/healthz` and `/readyz`
 - the [download links](../reference/delivery.md) under `/downloads/`. The link is the credential.
 

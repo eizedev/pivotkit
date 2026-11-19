@@ -13,6 +13,7 @@ export { allowedHosts, hostRefusal, hostRefusedLine, HOST_HINT, clientAddress, L
 export { createLimits, REQUEST_LIMITS, limitKeyOf } from "./limits.js";
 export { isLoopback, connectionLimitsOf, refusedText, GRACE_MS, CONNECTION_LIMITS, SIGNED_IN, takeSignIn } from "./listen.js";
 export { stopOnSignals } from "./stop.js";
+export { brandingOfContext, brandingAnswer, pageRedirect, docsLink } from "./branding.js";
 export { CALLER_LOG_FIELDS, flushed, LOG_DEFAULTS, LOG_LEVELS, LOG_FORMATS, REFUSED_REASONS, SEVERITY, SOURCE_LOG_TEXT, logSettingsOf, logUnanswered, noteAnswered, noteProtocolRefusal, refusalReason, startErrorLine, startFields } from "./log.js";
 export { newRequestId, isRequestId, REQUEST_ID, requestScope, withRequestScope, withRequestIdHeader, traceIdOf, upstreamRequestIdOf } from "./request-id.js";
 export { hostProblem, serverTextOf } from "./rest/problem.js";

@@ -77,6 +77,14 @@ test("the template's colours over the host's tokens, as the page shows them; the
     assert.ok(marks.has("#c0392b") && marks.has("#00ff00") && !marks.has("#0000ff"), [...marks].join(" "));
 });
 
+test("the chart's axis line takes the template's --pk-chart-axis; the table's lines keep --pk-border", async () => {
+    const r = await report(withCss("<style>:root{--pk-chart-axis:#ab1234;--pk-border:#cd5678}</style>"));
+    const strokes = new Set([...r.text.matchAll(/<path [^>]*stroke="(#[0-9a-f]{3,6})"/gi)].map((m) => m[1].toLowerCase()));
+    assert.ok(strokes.has("#ab1234"), [...strokes].join(" "));
+    assert.ok(!strokes.has("#cd5678"), "the axis does not take --pk-border when --pk-chart-axis is set");
+    assert.match(r.text, /\.pk-table th,\.pk-table td\{border:1px solid var\(--pk-border\)/);
+});
+
 test("data bars and colour scales of the table take the template's colours", async () => {
     const bars = await render(BAR_CELLS, SALES, { format: "html", template: withCss("<style>:root{--pk-chart-1:#c0392b}</style>"), ...FIXED });
     assert.match(bars.text, /--pk-bar-color:#c0392b/);

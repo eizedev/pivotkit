@@ -18,6 +18,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   bound the route: 413 `LIMIT_EXCEEDED` before the first byte, 503 `BUSY` beyond the requests at
   once or for a second request of the same person, and a reader idle too long loses its place.
 - `GET /api/v1/sources` adds `"records": true` to each source the caller may read the rows of.
+- `GET /api/v1/sources` and MCP `list_sources` give a source's row count (`rows`) and `dataAsOf`
+  once the server has read its data. Only a file source and a shared code source without parameters
+  get them, and `rows` only where the caller's policy shows the row count
+  ([row count and data date](https://pivotkit.eize.dev/reference/rest/#source-list), #617).
 - `check-config` lists per profile the sources and the fields that would leave. It reports an
   unknown source id, a static or signed token whose profile reads rows, a source without a field at
   `show`, and a profile whose default is `show`.
@@ -48,6 +52,22 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   ([named views](https://pivotkit.eize.dev/reference/sources/#views), #616).
 - A caller never learns of a view that uses a field hidden from it. A view that holds values of a
   field the caller sees at `summary` gets no link and no draft.
+- `output.template` is the print template of every html report whose source sets none. Data sent in
+  the request (`inline:`) and, over MCP, `file:` paths take it too. The server reads it on every
+  html render and checks it at start and in `check-config`, as it does `sources.<id>.template`
+  ([print template](https://pivotkit.eize.dev/reference/print-template/), #614).
+- Branding for intranet deployments, all optional
+  ([your own name and links](https://pivotkit.eize.dev/reference/branding/), #608, #612):
+    - `branding.name` puts the operator's name on the download pages, the OpenAPI title and the
+      `resource_name` ("<name> REST"), and the realm of a static token's 401.
+    - `branding.docsUrl` is the base of every documentation link: a problem's `type`, the OAuth
+      metadata, the OpenAPI document, `check-config` and the start error.
+      With `null` there is none, and a problem's `type` is `about:blank`.
+    - `branding.icon`, a PNG of at most 64 KiB, is served at `/icon.png` without sign-in. The
+      download pages show it as their favicon.
+    - `http.page.url` sends `/` to the operator's page, also on a REST-only server.
+    - `check-config` reports them in a section `Branding`.
+    - `source-from-openapi --config <file>` links its notes under the file's `branding.docsUrl`.
 
 ### Changed
 
@@ -57,6 +77,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   500,000 rows, measured on one laptop. A body that repeats a key on the way to the rows after
   them is refused (`SOURCE_UNAVAILABLE`). CSV answers are read as before
   ([Memory while a source loads](https://pivotkit.eize.dev/reference/sources/#http-memory), #620).
+- Two texts callers read name the server instead of pivotkit. `SOURCE_UNAVAILABLE` says "the
+  source's backend refused this server's access", and `UNSUPPORTED_FORMAT` says "the server reads
+  csv, tsv, txt, json and xlsx files". The codes stay
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#neutral-texts)).
+- A download sign-in with another issuer than `auth.issuer` points to the docs instead of an issue.
 - Breaking: `pivotkit-server` exports only its public names. The names pivotkit-mcp shares with it
   move to `pivotkit-server/internal`, which is no public interface. `pivotkit-server/policy` exports
   the policy's public part. A host that imported a moved name reads the
@@ -65,6 +90,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   ([JavaScript exports](https://pivotkit.eize.dev/reference/service-exports/)).
 - A pivotkit-mcp that imports an entry point this pivotkit-server lacks is refused with both
   versions, as one that imports a missing name is.
+
+### Fixed
+
+- A missing print template fails only html reports. Other formats, `describe_source` and
+  `validate_view` over the source answer as usual (#614).
 
 ## [0.3.2] - 2026-11-19
 

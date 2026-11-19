@@ -8,6 +8,7 @@
  *   const rest = await createRestHandler(context);   // pivotkit-server/rest
  */
 
+import { brandingOf } from "./branding.js";
 import { createRequire } from "node:module";
 import { access, constants, lstat, mkdir, realpath, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
@@ -65,6 +66,7 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  * @property {{ dir: string, baseUrl: string | null, maxFiles: number, maxMb: number, maxAgeDays: number, draftMaxAgeDays: number, cleanUp: boolean, showPath: boolean } | null} output  cleanUp: the oldest reports may be deleted to make room (not where the operator's own files lie)
  * @property {any} log  the log (log.js)
  * @property {import("./sources/input.js").Offers} offers  the extra inputs each surface offers (fixed at start)
+ * @property {import("./branding.js").Branding} branding  the operator's name, documentation links, icon and page (fixed at start)
  * @property {string} authMode
  * @property {string} version
  * @property {(how: { env?: Record<string, string | undefined>, loopback: boolean }) => Promise<any>} auth
@@ -83,17 +85,19 @@ export async function createContext(options, runtime = {}) {
     validateOptions(options);
     const service = runtime.service ?? { name: "pivotkit-server", version: VERSION };
     const log = createLog(options.log ?? "info", runtime.stderr ?? process.stderr, { service: service.name, version: service.version, env: runtime.env ?? process.env });
+    // the icon is read now: a file that is missing or no PNG stops the start, as check-config says
+    const branding = await brandingOf(options);
     const registry = await createRegistry(options, { log }).catch((e) => {
         throw e?.code === "ALLOW_DIR_NOT_FOUND" || e?.code === "ALLOW_DIR_NOT_DIRECTORY" ? new ConfigError(`files.allowDirs: ${e.message.replace(/^--allow-dir /, "")}`) : e;
     });
     // a source's print template the parser refuses: refused now, not first on an html report; one
     // that is not there yet (a deploy that copies it later) is a warning, as a missing source file
-    for (const { id, missing, problem } of await checkTemplates(options)) {
+    for (const { key, reports, missing, problem } of await checkTemplates(options)) {
         if (problem) {
-            throw new ConfigError(`sources.${id}.template: ${problem}`);
+            throw new ConfigError(`${key}: ${problem}`);
         }
         if (missing) {
-            log.warn(`sources.${id}.template: ${missing}; html reports of ${id} fail until it can be read`);
+            log.warn(`${key}: ${missing}; ${reports} fail until it can be read`);
         }
     }
     // a source's named views that are no view: refused now, not first when a caller asks for one; a
@@ -197,6 +201,7 @@ export async function createContext(options, runtime = {}) {
         output,
         log,
         offers: offersOf(options),
+        branding,
         authMode: options.auth?.mode ?? "none",
         version: VERSION,
 
@@ -405,7 +410,7 @@ export const SHARED_OUTPUT_TEXT = "output.dir is the configuration's directory o
  * @returns {Promise<string[]>}
  */
 export async function ownFileDirs(options) {
-    const files = [...Object.values(options.sources ?? {}).flatMap((s) => [s.file, s.template, ...Object.values(s.views ?? {})]), ...(options.auth?.tokens ?? []).map((t) => t.file)].filter((f) => typeof f === "string");
+    const files = [...Object.values(options.sources ?? {}).flatMap((s) => [s.file, s.template, ...Object.values(s.views ?? {})]), options.output?.template, ...(options.auth?.tokens ?? []).map((t) => t.file)].filter((f) => typeof f === "string");
     const dirs = await Promise.all(files.map((f) => realpath(pathOf(options, f)).then(dirname, () => null)));
     // a folder of named views is the operator's itself
     const viewDirs = await Promise.all(Object.values(options.sources ?? {}).map((s) => (typeof s.viewsDir === "string" ? realpath(pathOf(options, s.viewsDir)).catch(() => null) : null)));

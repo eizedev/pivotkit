@@ -36,7 +36,8 @@ import { levelOf } from "./policy.js";
 import { checkDepth } from "./present.js";
 import { PIECE_CHARS } from "./records-writer.js";
 import { requestId } from "./request-id.js";
-import { SAFE_HEADERS, problem, problemOf } from "./rest/problem.js";
+import { SAFE_HEADERS, problemOf as plainProblemOf, problemsFor } from "./rest/problem.js";
+import { brandingOfContext } from "./branding.js";
 import { asOfMembers } from "./sources/as-of.js";
 import { isPerson } from "./sources/auth.js";
 import { runResolved } from "./sources/index.js";
@@ -98,6 +99,7 @@ const count = (n) => n.toLocaleString("en-US");
  */
 export function createRecords(context) {
     const options = context.options;
+    const { problem, problemOf } = problemsFor(brandingOfContext(context).docs);
     const bounds = recordsBoundsOf(options);
     const places = createPlaces(bounds.concurrency);
 
@@ -135,7 +137,9 @@ export function createRecords(context) {
             writer = ran.writer;
             /** @type {import("./compute.js").RecordsHead} */
             const head = ran.outcome.head;
-            const chosen = choose(head, resolved.policy, input);
+            // the row count and dataAsOf list_sources gives (registry.js noteRead)
+            context.registry.noteRead(resolved.spec, { stats: { rows: head.rows }, asOf: ran.asOf });
+            const chosen = choose(head, resolved.policy, input, problemOf);
             if ("refused" in chosen) {
                 await writer.stop();
                 return chosen.refused;
@@ -184,9 +188,10 @@ export function createRecords(context) {
  * @param {import("./compute.js").RecordsHead} head
  * @param {import("./policy.js").Policy} policy
  * @param {Record<string, any>} input
+ * @param {typeof plainProblemOf} [problemOf]  the handler's, bound to its documentation links (problemsFor)
  * @returns {{ columns: number[], withheld: string[] } | { refused: Response }}
  */
-export function choose(head, policy, input) {
+export function choose(head, policy, input, problemOf = plainProblemOf) {
     const levels = head.columns.map((c) => levelOf(policy, c.name));
     const visible = (i) => levels[i] !== "hide";
     const withheld = head.columns.filter((_, i) => visible(i) && levels[i] !== "show").map((c) => c.name);

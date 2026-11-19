@@ -6,6 +6,18 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `chartThemeFrom` reads the axis line's colour from `--pk-chart-axis`, else `--pk-border` as before.
+  A print template or a host can draw the axis apart from the table's lines
+  ([theming](https://pivotkit.eize.dev/reference/theming/), #614).
+
+### Fixed
+
+- A `month` grouping (month of the year) names the data's Gregorian month in a locale with another
+  calendar, such as `en-US-u-ca-islamic-civil`. January was "Ram." in exports and in the CLI's
+  output ([#596](https://github.com/eizedev/pivotkit/issues/596)).
+
 ## [0.8.0] - 2026-11-18
 
 ### Added

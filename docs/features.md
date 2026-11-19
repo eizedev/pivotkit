@@ -199,6 +199,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - with the same table and chart as on the screen
     - with two templates to start from, Corporate and Minimal, from `pivotkit example templates`
       ([your own corporate design](reference/corporate-design.md))
+    - with one template per source or one for the whole server, in the services
 - `pivotkit-cli` ([command line](getting-started/cli.md), [pivotkit-cli](reference/cli.md)):
     - `pivotkit example`, `render`, `validate` and `describe`.
     - A draft view from a file's fields (`describe --suggest`), and a report without a view file
@@ -277,6 +278,10 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
       request's reason.
     - `X-Request-Id` on every answer.
     - Examples for Docker's `gelf` and `syslog` drivers.
+- Your own name and links for intranet deployments ([your own name and links](reference/branding.md)):
+    - The name people and clients see, and an icon.
+    - Your own documentation address, or no documentation links at all.
+    - `/` sends a browser to your own page.
 
 ## AI clients (MCP) { #mcp }
 
@@ -308,7 +313,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
   header row.
 - More ([data in the request](reference/mcp.md#data)):
     - When the data is from (`dataAsOf`), in every result and in the html and xlsx files the
-      services write.
+      services write. The source list gives it with the row count
+      ([source list](reference/rest.md#source-list)).
     - The request id in every result, to find its log line.
     - A small table of the model's own (`inline:`). It is capped, and `mcp.data: false` switches it
       off.

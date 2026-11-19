@@ -21,7 +21,8 @@ import { bodyBytesOf } from "./limits.js";
 import { DOWNLOADS_PATH, DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
 import { bytesText } from "./text.js";
-import { hostProblem, problem } from "./rest/problem.js";
+import { problemsFor } from "./rest/problem.js";
+import { brandingAnswer, docsOf } from "./branding.js";
 import { logUnanswered, noteAnswered, refusalReason, startFields } from "./log.js";
 import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
 import { logNotes, openAddressRefusal, prepareHttpServe } from "./state.js";
@@ -41,9 +42,10 @@ export const MCP_PACKAGE = "pivotkit-mcp";
  * release is a ConfigError that names both versions (releaseMismatch): one whose declared range of
  * pivotkit-server does not hold this version, and one that imports a name this pivotkit-server does
  * not export. A range that cannot be read (a path, a tag) is not refused.
+ * @param {string | null} [docs]  the documentation's base for the message (branding.js docsOf)
  * @returns {Promise<any>}
  */
-export async function loadMcp() {
+export async function loadMcp(docs = undefined) {
     let mcp;
     try {
         mcp = await import(MCP_PACKAGE);
@@ -55,7 +57,7 @@ export async function loadMcp() {
         // a missing export is a SyntaxError of the import, before any of pivotkit-mcp runs; only one
         // of pivotkit-server's (or a subpath's, pivotkit-server/policy) is a mismatch of the two
         if (e instanceof SyntaxError && /requested module 'pivotkit-server(?:\/[^']*)?'/.test(String(e.message))) {
-            throw await releaseMismatch(e);
+            throw await releaseMismatch(e, installedVersions(), docs);
         }
         // an entry point a later pivotkit-mcp imports (pivotkit-server/internal) that this release lacks;
         // named without the installed package's path
@@ -68,7 +70,7 @@ export async function loadMcp() {
     const versions = installedVersions();
     const needs = versions.mcp?.dependencies?.["pivotkit-server"];
     if (typeof needs === "string" && fitsRange(needs, VERSION) === false) {
-        throw await releaseMismatch(null, { ...versions, server: { version: VERSION } });
+        throw await releaseMismatch(null, { ...versions, server: { version: VERSION } }, docs);
     }
     return mcp;
 }
@@ -120,14 +122,16 @@ function installedVersions() {
  * cannot read is left out; an import's own message is kept.
  * @param {{ message: string } | null} e  the import's error; null when only the declared range does not fit
  * @param {{ mcp: any, server: any }} [versions]
+ * @param {string | null} [docs]  the documentation's base (branding.js docsOf); pivotkit's site when left out
  */
-async function releaseMismatch(e, { mcp, server } = installedVersions()) {
+async function releaseMismatch(e, { mcp, server } = installedVersions(), docs = undefined) {
     const needs = mcp?.dependencies?.["pivotkit-server"];
     const why = [...(needs ? [`it needs pivotkit-server ${needs}`] : []), ...(e ? [e.message] : [])].join("; ");
-    const { UPGRADING_URL } = await import("./check/index.js");
+    const { upgradingUrlOf } = await import("./check/index.js");
+    const guide = upgradingUrlOf(docs === undefined ? docsOf(undefined) : docs);
     return new ConfigError(
         `pivotkit-mcp ${mcp?.version ?? "(version unknown)"} does not fit pivotkit-server ${server?.version ?? VERSION}${why ? ` (${why})` : ""}. ` +
-            `Install pivotkit-server and pivotkit-mcp of one release in one command: ${UPGRADING_URL}#update`
+            `Install pivotkit-server and pivotkit-mcp of one release in one command${guide ? `: ${guide}#update` : "."}`
     );
 }
 
@@ -139,7 +143,7 @@ async function releaseMismatch(e, { mcp, server } = installedVersions()) {
  */
 export async function createServerHandler(options, runtime) {
     const asked = options.http?.enable;
-    const mcpModule = !asked || asked.includes("mcp") ? await loadMcp() : null;
+    const mcpModule = !asked || asked.includes("mcp") ? await loadMcp(docsOf(options)) : null;
     if (asked?.includes("mcp") && !mcpModule) {
         throw new ConfigError('http.enable: "mcp" needs the package pivotkit-mcp beside pivotkit-server (npm install pivotkit-mcp)');
     }
@@ -162,6 +166,8 @@ export async function createServerHandler(options, runtime) {
         const mcp = enable.includes("mcp") && mcpModule ? await mcpModule.createHttpHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
         const hosts = allowedHosts(options);
         const trustProxy = options.http?.trustProxy ?? false;
+        // the answers of this handler name the operator's documentation (branding.js)
+        const { problem, hostProblem } = problemsFor(context.branding.docs);
         const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
         // a path nobody serves names the REST service and its OpenAPI document by their full address
         const noRoute = rest ? noRouteDetail(options) : "no such route";
@@ -239,6 +245,11 @@ export async function createServerHandler(options, runtime) {
                 const refused = hostRefusal(request, hosts);
                 if (refused) {
                     return hostProblem(context.log, request, refused);
+                }
+                // without MCP, the icon and the operator's page at / (http.page.url) are answered here
+                const branded = brandingAnswer(context.branding, request);
+                if (branded) {
+                    return branded;
                 }
                 // a path nobody serves: on the debug log only, so a scan does not fill the log
                 context.log.refused({ status: 404, reason: refusalReason("NOT_FOUND") }, { level: "debug" });

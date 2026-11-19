@@ -37,12 +37,14 @@ export const kindOf = (source) => (source.http ? "http" : source.load ? "code" :
  * @param {{ signal?: AbortSignal }} [how]  signal: the caller's request; a load stops waiting for it when it fires
  * @returns {Promise<{ outcome: import("pivotkit-report/operations").OperationOutcome, hidden: number, stats: import("../stats.js").SourceStats | null, asOf?: string | null, stale?: { since: string } | null, suppliedAsOf?: string | null }>}
  */
-export function runResolved(context, op, input, resolved, caller, how = {}) {
+export async function runResolved(context, op, input, resolved, caller, how = {}) {
     if (op === "draft_schedule" && resolved.personBound) {
         // a schedule runs later without anyone signed in: no person's token, no person's claims
         throw new OperationError("NOT_SCHEDULABLE", `a schedule runs without a signed-in person, and the source ${resolved.spec.id} loads its data for the person who asks; render the report now instead`);
     }
-    const base = { link: resolved.link, template: resolved.template, locale: context.options.locale, timeZone: context.options.timeZone };
+    // the print template only where it is used: an html render (registry.js templateOf)
+    const template = resolved.template && op === "render_view" && input.format === "html" ? await resolved.template() : undefined;
+    const base = { link: resolved.link, template, locale: context.options.locale, timeZone: context.options.timeZone };
     // the signal stays in this thread: base and the spec are posted to a worker
     return KINDS[/** @type {keyof typeof KINDS} */ (resolved.sourceKind)].run(context.computer, op, withoutExtras(input), resolved, base, caller, context.log, { signal: how.signal });
 }

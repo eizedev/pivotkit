@@ -7,7 +7,8 @@
  *    answered right after it, before the Origin check and the body cap, which are the MCP clients';
  * 2. the Origin check: a present Origin must be allowed (none by default), else 403;
  * 3. the routes without authentication: /healthz, the OAuth discovery documents, the quick-start page
- *    at / (a browser that opens /mcp is sent there);
+ *    at / (a browser that opens /mcp is sent there), or the operator's page instead (http.page.url),
+ *    and the operator's icon at /icon.png (branding.icon);
  * 4. for /mcp: the refused-token limit of the address, authentication (auth.js, once per request:
  *    the precheck's result is kept for the route), the caller's rate and concurrency limits
  *    (mcp.rateLimit, mcp.concurrency, as the REST service has them), then the SDK, which checks the
@@ -18,10 +19,10 @@
 
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
 import { BODY_BYTES, ConfigError, DEFAULT_PORT, callerOf, requestScopeFor, serveFetch } from "pivotkit-server";
-import { DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, hostProblem, hostRefusal, hostRefusedLine, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logNotes, logUnanswered, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server/internal";
+import { DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, brandingAnswer, brandingOfContext, pageRedirect, hostProblem, hostRefusal, hostRefusedLine, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logNotes, logUnanswered, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server/internal";
 import { MCP_TOKEN_ENV, createMcpContext } from "./context.js";
 import { createAuth, refusedClientOf } from "./auth.js";
-import { quickStartPage } from "./page.js";
+import { pageCsp, quickStartPage } from "./page.js";
 
 /** The MCP endpoint's path. */
 export const ENDPOINT = "/mcp";
@@ -145,6 +146,8 @@ export async function createHttpHandler(context, runtime = {}) {
     };
     const trustProxy = http.trustProxy ?? false;
     const downloads = createDownloadHandler(context, { env: runtime.env ?? process.env, loopback: runtime.loopback ?? isLoopback(http.host ?? "127.0.0.1") });
+    // the operator's name, links, icon and page (pivotkit-server's branding.js)
+    const branding = brandingOfContext(context);
     const page = http.page === false ? null : { sources: typeof http.page === "object" && http.page.sources !== undefined ? http.page.sources : auth.mode === "none" };
 
     /**
@@ -181,7 +184,7 @@ export async function createHttpHandler(context, runtime = {}) {
         if (byHost) {
             const refused = hostRefusal(request, hosts) ?? `${request.headers.get("host") ? "Invalid Host header" : "Missing Host header"}`;
             if (new URL(request.url).pathname !== ENDPOINT) {
-                return hostProblem(context.log, request, refused);
+                return hostProblem(context.log, request, refused, branding.docs);
             }
             context.log.refused({ ...hostRefusedLine(request, refused, { path: ENDPOINT }), origin: String(request.headers.get("origin") ?? "").slice(0, 100) });
             return rpcError(403, -32000, refused);
@@ -209,13 +212,17 @@ export async function createHttpHandler(context, runtime = {}) {
         if (url.pathname.startsWith("/.well-known/")) {
             return auth.metadata(request) ?? new Response("not found", { status: 404 });
         }
+        const branded = brandingAnswer(branding, request);
+        if (branded) {
+            return branded;
+        }
         if (url.pathname === "/" && request.method === "GET") {
             if (!page) {
                 return new Response("not found", { status: 404 });
             }
             const endpoint = publicUrl ? new URL(ENDPOINT, publicUrl).href : `${url.protocol}//${url.host}${ENDPOINT}`;
-            const html = quickStartPage({ endpoint, version: context.version, auth: auth.mode, issuer: auth.mode === "oauth" ? context.options.auth?.issuer : null, sources: page.sources ? context.registry.titles().filter((s) => !s.scopes.length) : null });
-            return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'", "cache-control": "no-store" } });
+            const html = quickStartPage({ endpoint, version: context.version, auth: auth.mode, issuer: auth.mode === "oauth" ? context.options.auth?.issuer : null, sources: page.sources ? context.registry.titles().filter((s) => !s.scopes.length) : null, branding });
+            return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": pageCsp(branding), "cache-control": "no-store" } });
         }
         if (url.pathname !== ENDPOINT) {
             // a path nobody serves: on the debug log only, so a scan does not fill the log
@@ -223,7 +230,7 @@ export async function createHttpHandler(context, runtime = {}) {
             return new Response("not found", { status: 404 });
         }
         if (isBrowser(request)) {
-            return new Response(null, { status: 302, headers: { location: "/" } });
+            return branding.pageUrl ? pageRedirect(branding) : new Response(null, { status: 302, headers: { location: "/" } });
         }
         const kept = takeSignIn(info);
         const authInfo = kept !== undefined ? kept.authInfo : await signIn(request, clientAddress(request, info.address ?? "", trustProxy));

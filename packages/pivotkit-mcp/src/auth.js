@@ -2,7 +2,8 @@
  * Authentication of the MCP endpoint: pivotkit-server's shared core (static tokens, the OAuth
  * issuer and its keys) answered the way MCP clients expect:
  *
- * - "token": 401 with `WWW-Authenticate: Bearer realm="pivotkit-mcp"` and an OAuth error body;
+ * - "token": 401 with `WWW-Authenticate: Bearer realm="pivotkit-mcp"` (the name's slug, branding.name,
+ *   before "-mcp") and an OAuth error body;
  * - "oauth": the endpoint is an OAuth 2.1 protected resource (MCP authorization, revision
  *   2026-07-28): Protected Resource Metadata (RFC 9728) with the issuer as authorization server, the
  *   SDK's requireBearerAuth for the 401 and 403 challenges (insufficient_scope for missing scopes),
@@ -15,7 +16,7 @@
 
 import { OAuthError, getOAuthProtectedResourceMetadataUrl, oauthMetadataResponse, requireBearerAuth } from "@modelcontextprotocol/server";
 import { groupRefusal, offeredScopes } from "pivotkit-server";
-import { AuthRefusal } from "pivotkit-server/internal";
+import { AuthRefusal, brandingOfContext, docsLink } from "pivotkit-server/internal";
 
 /** The client of each answer that refused a verified token for its person's groups, for the log line. */
 const refusedClients = new WeakMap();
@@ -39,6 +40,7 @@ const json = (status, body, headers = {}) => new Response(JSON.stringify(body), 
 export async function createAuth(context, runtime) {
     const options = context.options;
     const auth = options.auth ?? {};
+    const branding = brandingOfContext(context);
     const core = await context.auth(runtime);
     const mode = core.mode;
     if (mode === "none") {
@@ -46,7 +48,7 @@ export async function createAuth(context, runtime) {
     }
 
     if (mode === "token") {
-        const challenge = { "www-authenticate": 'Bearer realm="pivotkit-mcp"' };
+        const challenge = { "www-authenticate": `Bearer realm="${branding.slug}-mcp"` };
         return {
             mode,
             /** @param {Request} request */
@@ -117,8 +119,8 @@ export async function createAuth(context, runtime) {
             return oauthMetadataResponse(request, {
                 oauthMetadata: metadata,
                 resourceServerUrl: resource,
-                resourceName: "pivotkit",
-                serviceDocumentationUrl: new URL("https://pivotkit.eize.dev/reference/mcp/"),
+                resourceName: branding.name,
+                ...(branding.docs !== null ? { serviceDocumentationUrl: new URL(/** @type {string} */ (docsLink(branding.docs, "reference/mcp/"))) } : {}),
                 ...(offered ? { scopesSupported: offered } : {}),
                 ...(auth.allowInsecureIssuer ? { dangerouslyAllowInsecureIssuerUrl: true } : {})
             });
