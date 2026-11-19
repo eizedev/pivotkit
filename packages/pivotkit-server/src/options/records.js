@@ -28,7 +28,7 @@ export const KEYS = Object.freeze({
  * The route's bounds where the operator sets none. Each is a first guess until real row counts and
  * the measurement in the docs (docs/reference/rest.md, "Sizing") say more.
  */
-export const RECORDS_DEFAULTS = Object.freeze({ maxRows: 50_000, maxCells: 1_000_000, concurrency: 2, idleMs: 30_000 });
+export const RECORDS_DEFAULTS = Object.freeze({ maxRows: 50_000, maxCells: 1_000_000, concurrency: 1, idleMs: 30_000 });
 
 /** The largest value each bound takes: well above a source's rows (limits.rows) and an HTTP request's life. */
 export const RECORDS_MAX = Object.freeze({ maxRows: 10_000_000, maxCells: 100_000_000, concurrency: 64, idleMs: 600_000 });

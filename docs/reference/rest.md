@@ -592,7 +592,7 @@ limit wins.
 | `policy.profiles.<name>.records` | none | The source ids whose rows the profile may read |
 | `rest.records.maxRows` | 50000 | The most rows of one answer (1 to 10,000,000) |
 | `rest.records.maxCells` | 1000000 | The most values of one answer: rows times fields (1 to 100,000,000) |
-| `rest.records.concurrency` | 2 | Rows requests at once over all callers, one per person (1 to 64) |
+| `rest.records.concurrency` | 1 | Rows requests at once over all callers, one per person (1 to 64). Keep it below `compute.workers` (default 2) |
 | `rest.records.idleMs` | 30000 | A reader that reads nothing for this long loses its place (1000 to 600000) |
 | `sources.<id>.records.maxRows` | `rest.records.maxRows` | A lower row limit for one source. It cannot be higher than the server's |
 
@@ -661,14 +661,18 @@ const { columns, types, data } = await (await fetch("/my-app/report-rows")).json
 document.querySelector("pivot-report").data = { columns, types, data };
 ```
 
+- On an error, the problem's `code` says what to do: 503 `BUSY` means try again after
+  `Retry-After` seconds; `notShown` names the fields to leave out.
+- An answer that does not parse was cut off (an idle reader, `compute.timeMs`). Ask again.
+- A backend short of memory can pipe `answer.body` to its own answer instead of reading the text.
 - The answer is the person's rows. Keep `Cache-Control: no-store` on your own answer.
 - The page holds every row. The browser is not access control: send only what the person may see.
 - The rows' memory: [sizing](#records-sizing).
 
 ### What the log says { #records-log }
 
-Every answer that started ends with a `records` line: the source, the rows and columns, the profile
-and `client`. With `audit.subject` it names the person too. It never holds a value. An answer cut
+Every answer that started ends with a `records` line: the source, the rows and columns, the profile,
+`client` and `ms`, how long the answer took to read. With `audit.subject` it names the person too. It never holds a value. An answer cut
 off has `outcome: "error"` and `reason`: `idle`, `client` (the reader left), `timeout` or `error`.
 
 ### Sizing { #records-sizing }

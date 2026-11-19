@@ -140,6 +140,15 @@ test("a field at values, summary or hide never appears, also when fields or a vi
         assert.equal(viewHidden.status, 400, viewHidden.text);
         assert.match(viewHidden.data.detail, /the view has errors or names a field you may not read/);
         assert.doesNotMatch(viewHidden.text, /Customer|HIDDENMARK/i);
+        // a field below show that only a filter uses: refused by name as well
+        const filterBelow = await rows(server, token, { source: "sales", view: { rows: ["Region"], filters: [{ field: "Product", type: "in", items: ["NOSUCH"] }] } });
+        assert.equal(filterBelow.status, 403, filterBelow.text);
+        assert.deepEqual(filterBelow.data.notShown, ["Product"]);
+        // a filter without a type is an error of the view, which POST /views/validate names too
+        const loose = { source: "sales", view: { rows: ["Region"], filters: [{ field: "Product", values: ["NOSUCH"] }] } };
+        assert.equal((await rows(server, token, loose)).status, 400);
+        const validated = await call(`${server.api}/views/validate`, { token, body: loose });
+        assert.equal(validated.data.valid, false, JSON.stringify(validated.data));
         const viewBelow = await rows(server, token, { source: "sales", view: { rows: ["Region"], cols: ["Team"], values: [{ field: "Sales", agg: "sum" }] } });
         assert.equal(viewBelow.status, 403, viewBelow.text);
         assert.deepEqual(viewBelow.data.notShown, ["Team"]);
@@ -573,7 +582,7 @@ test("check-config lists per profile the sources it may read rows of and the fie
     const out = await checkConfig(options, { http: true, env: { OPS: TOKEN }, rest: true });
     const text = factsOf(out.text);
     const section = text.split("Rows (REST): POST /api/v1/sources/records")[1]?.split("\n\n")[0] ?? "";
-    assert.match(section, /at most 50,000 rows and 1,000,000 cells per answer, 2 at once, idle after 30 s/);
+    assert.match(section, /at most 50,000 rows and 1,000,000 cells per answer, 1 at once, idle after 30 s/);
     assert.match(section, /profile staff: sales\n\s+sales: Region, Sales, OrderDate leave; Product, Team stay/);
     assert.match(section, /profile narrow: sales\n\s+sales: Region leave; Product, Team, Sales, OrderDate stay/);
     assert.doesNotMatch(section, /plain|Customer/, "a profile without the right, and a hidden field, are not listed");

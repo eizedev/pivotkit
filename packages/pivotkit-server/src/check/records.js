@@ -4,7 +4,7 @@
  * that would leave (show) and those that stay (values, summary). A hidden field is not listed.
  *
  *   Rows (REST): POST /api/v1/sources/records
- *     at most 50,000 rows and 1,000,000 cells per answer, 2 at once, idle after 30 s
+ *     at most 50,000 rows and 1,000,000 cells per answer, 1 at once, idle after 30 s
  *     profile staff: sales, vms
  *       sales: Region, Sales leave; Customer stay
  *       vms: fields known only after a load; leave by rule: name, cpu; summary by default
@@ -45,7 +45,7 @@ export async function section(options, _registry, runtime) {
     const ids = Object.keys(options.sources ?? {});
     for (const [name, p] of profiles) {
         const own = /** @type {string[]} */ (/** @type {any} */ (p).records);
-        items.push(plain(`profile ${name}: ${own.join(", ")}`));
+        items.push(plain(`profile ${name}: ${own.map((id) => (ids.includes(id) ? id : `${String(id).slice(0, 80)} (no such source)`)).join(", ")}`));
         if (p.default === "show") {
             items.push(warning(`policy.profiles.${name}: the default is show and the profile reads rows, so a column a source gains later leaves too`));
         }
@@ -58,6 +58,10 @@ export async function section(options, _registry, runtime) {
             const source = /** @type {any} */ (options.sources?.[id]);
             const policy = resolvePolicy(options.policy, source.policy, p);
             const columns = runtime.columns.get(id);
+            const ownMax = source.records?.maxRows;
+            if (ownMax !== undefined) {
+                items.push(plain(`${id}: at most ${ownMax.toLocaleString("en-US")} rows (sources.${id}.records.maxRows)`, 2));
+            }
             if (columns) {
                 const levels = columns.names.map((n) => /** @type {const} */ ([n, levelOf(policy, n)]));
                 const leave = levels.filter(([, l]) => l === "show").map(([n]) => nameText(n));

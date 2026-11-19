@@ -14,7 +14,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   pivotkit-core's `encode` reads, written in pieces. A field below `show` answers 403
   `NOT_ALLOWED` with `notShown`; a hidden one answers as one that does not exist. A view's filters
   do not limit the rows ([rows route](https://pivotkit.eize.dev/reference/rest/#records), #615).
-- `rest.records.maxRows`, `.maxCells`, `.concurrency`, `.idleMs` and `sources.<id>.records.maxRows`
+- `rest.records.maxRows` (50,000), `.maxCells` (1,000,000), `.concurrency` (1), `.idleMs` (30 s) and `sources.<id>.records.maxRows`
   bound the route: 413 `LIMIT_EXCEEDED` before the first byte, 503 `BUSY` beyond the requests at
   once or for a second request of the same person, and a reader idle too long loses its place.
 - `GET /api/v1/sources` adds `"records": true` to each source the caller may read the rows of.
