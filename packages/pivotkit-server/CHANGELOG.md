@@ -109,6 +109,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `format`. A linked source with params but no list gets a hint (#642).
 - `check-config` no longer says that the audit names a person only with `auth.mode oauth` when an
   external issuer is set. It checks the audit key there too, as the start does (#639).
+- A stop no longer waits the whole `http.graceMs` after a request whose body was lost while its
+  sign-in was still checked: a chunked body the parser refused, or a client that left (#655).
+- An answer whose stream fails while the client's socket is full ends the connection at once. It
+  stayed open until the client read again or left (#637).
 - A streamed JSON answer of an HTTP source stops at the first row over `limits.rows`. The error
   says "more rows than the limit of 40 (limits.rows)" instead of counting the whole answer
   first (#648).
