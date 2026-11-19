@@ -95,8 +95,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 - A missing print template fails only html reports. Other formats, `describe_source` and
   `validate_view` over the source answer as usual (#614).
-- A stop no longer waits the whole `http.graceMs` after a request whose chunked body the parser
-  refused while its sign-in was still checked (#655).
+- A stop no longer waits the whole `http.graceMs` after a request whose body was lost while its
+  sign-in was still checked: a chunked body the parser refused, or a client that left (#655).
 - An answer whose stream fails while the client's socket is full ends the connection at once. It
   stayed open until the client read again or left (#637).
 

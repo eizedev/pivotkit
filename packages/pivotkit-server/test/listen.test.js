@@ -329,7 +329,7 @@ test("a body that fails while the socket is full ends the connection at once, al
                     new ReadableStream({
                         start(controller) {
                             // more than the socket takes: the write waits for a drain the client never gives
-                            controller.enqueue(new Uint8Array(8 * 1024 * 1024));
+                            controller.enqueue(new Uint8Array(32 * 1024 * 1024));
                             setTimeout(() => controller.error(new Error("the source failed")), 100);
                         }
                     }),
@@ -370,7 +370,7 @@ test("a broken chunked body after a slow precheck: the request ends, and a stop 
                 return new Response(null, { status });
             }
         },
-        { host: "127.0.0.1", port: 0, bodyBytes: 1024, graceMs: 20_000 }
+        { host: "127.0.0.1", port: 0, bodyBytes: 1024, graceMs: 8_000 }
     );
     await new Promise((resolve) => {
         const socket = connect(listening.port, "127.0.0.1", () => socket.write("POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\n"));
@@ -385,6 +385,32 @@ test("a broken chunked body after a slow precheck: the request ends, and a stop 
     const ms = performance.now() - started;
     assert.ok(ms < 5_000, `close took ${Math.round(ms)} ms`);
     assert.equal(problems, 1, "the unread body is answered as one the server cannot read, which frees what the precheck took");
+});
+
+// the same with a complete body: the client leaves while the precheck runs, before anyone read it
+test("a complete body whose client leaves during a slow precheck: the request ends, and a stop does not wait graceMs", async () => {
+    let problems = 0;
+    const listening = await serveFetch(
+        {
+            precheck: () => new Promise((resolve) => setTimeout(() => resolve(null), 300)),
+            fetch: async () => new Response("read"),
+            problem: (status) => {
+                problems++;
+                return new Response(null, { status });
+            }
+        },
+        { host: "127.0.0.1", port: 0, bodyBytes: 1024, graceMs: 8_000 }
+    );
+    const socket = connect(listening.port, "127.0.0.1", () => socket.write("POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\nhi"));
+    socket.on("error", () => undefined);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    socket.destroy();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const started = performance.now();
+    await listening.close();
+    const ms = performance.now() - started;
+    assert.ok(ms < 5_000, `close took ${Math.round(ms)} ms`);
+    assert.equal(problems, 1);
 });
 
 test("serveFetch: a client that leaves while the answer streams cancels it", async () => {

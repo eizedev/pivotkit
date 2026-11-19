@@ -230,12 +230,14 @@ function readBody(req, max) {
         // the client left. It may have happened already, while an async precheck ran: its events are
         // past then, and a read that waited for them would hold the request open until a stop's graceMs
         const cut = () => reject(Object.assign(new Error("the connection closed before the body ended"), { status: 400 }));
-        if (req.destroyed && !req.complete) {
+        // readableEnded, not complete: a body the parser finished but nobody read yet is lost too
+        // when the client leaves (the request is destroyed before its "end")
+        if (req.destroyed && !req.readableEnded) {
             cut();
             return;
         }
         req.on("close", () => {
-            if (!req.complete) {
+            if (!req.readableEnded) {
                 cut();
             }
         });
@@ -422,10 +424,11 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 } else {
                     abort.signal.addEventListener("abort", stop, { once: true });
                 }
-                // the body failing while the loop waits for a drain: rejects that wait (a clean end
-                // never settles it), so the connection ends then and not at the client's next read
-                const failed = reader.closed.then(() => new Promise(() => undefined));
-                failed.catch(() => undefined);
+                // the body failing while the loop waits for a drain rejects that wait, so the
+                // connection ends then and not at the client's next read. A clean end must not end
+                // the wait (the socket is still full), so it never settles this promise
+                const streamFailed = reader.closed.then(() => new Promise(() => undefined));
+                streamFailed.catch(() => undefined);
                 for (;;) {
                     // a body that fails rejects here: the catch below ends the connection, so a cut answer
                     // never looks complete; a cancel (the client left) ends the read with done
@@ -440,7 +443,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                                 res.once("drain", resolve);
                                 res.once("close", resolve);
                             }),
-                            failed
+                            streamFailed
                         ]);
                         if (res.destroyed) {
                             await stop();
