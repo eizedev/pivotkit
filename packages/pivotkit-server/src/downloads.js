@@ -35,6 +35,7 @@ import { newRequestId, requestId, requestScope, withRequestId } from "./request-
 import { createLimits } from "./limits.js";
 import { readSecret } from "./secrets.js";
 import { typeOf } from "./rest/problem.js";
+import { brandingOfContext } from "./branding.js";
 
 /** Where the route lives. */
 export const DOWNLOADS_PATH = "/downloads";
@@ -508,11 +509,14 @@ const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => `&#${c.char
 /**
  * A short page: a heading (also the title), its body as HTML (escaped by the caller) and, for a
  * one-time link, the button. A page of status 500 or more names the request's id, for the operator.
+ * The operator's name (branding.name) heads it: "<name> report".
+ * @param {{ name: string }} brand  branding.js's
  */
-function page(heading, body, { status = 200, form = false, headers = {} } = {}) {
+function pageOf(brand, heading, body, { status = 200, form = false, headers = {} } = {}) {
     // the request id where the operator has something to look up: a failure of the server's own
     const tail = form ? `<form method="post"><button type="submit">Download</button></form><p id="status" role="status"></p><script>${PAGE_SCRIPT}</script>` : status >= 500 ? `<p class="ref">Request id: ${escapeHtml(requestId() ?? newRequestId())}</p>` : "";
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(heading)} - pivotkit report</title><style>${PAGE_STYLE}</style></head><body><main><p class="brand">pivotkit report</p><h1>${escapeHtml(heading)}</h1>${body}${tail}</main></body></html>`;
+    const brandLine = `${escapeHtml(brand.name)} report`;
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(heading)} - ${brandLine}</title><style>${PAGE_STYLE}</style></head><body><main><p class="brand">${brandLine}</p><h1>${escapeHtml(heading)}</h1>${body}${tail}</main></body></html>`;
     return new Response(html, { status, headers: { ...BASE_HEADERS, "content-security-policy": PAGE_CSP, "content-type": "text/html; charset=utf-8", ...headers } });
 }
 
@@ -524,17 +528,18 @@ const wantsJson = (request) => {
 
 /**
  * The answer of a code: a page for a browser, a problem document for a program.
+ * @param {{ name: string, docs: string | null }} brand  branding.js's: the page's name, the problem's documentation base
  * @param {Request} request
  * @param {keyof typeof ANSWERS} code
  * @param {Record<string, string>} [headers]
  */
-function answer(request, code, headers = {}) {
+function answerOf(brand, request, code, headers = {}) {
     const { status, heading, text, code: shown = code } = /** @type {{ status: number, heading: string, text: string, code?: string }} */ (ANSWERS[code]);
     if (wantsJson(request)) {
-        const body = { type: typeOf(shown), title: shown.toLowerCase().replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()), status, code: shown, detail: text, requestId: requestId() ?? newRequestId() };
+        const body = { type: typeOf(shown, brand.docs), title: shown.toLowerCase().replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()), status, code: shown, detail: text, requestId: requestId() ?? newRequestId() };
         return new Response(JSON.stringify(body), { status, headers: { ...BASE_HEADERS, "content-type": "application/problem+json", ...headers } });
     }
-    return page(heading, `<p>${escapeHtml(text)}</p>`, { status, headers });
+    return pageOf(brand, heading, `<p>${escapeHtml(text)}</p>`, { status, headers });
 }
 
 /**
@@ -550,6 +555,12 @@ export function createDownloadHandler(context, runtime = {}) {
         return existing.handler;
     }
     const options = context.options;
+    // the pages and problems in the operator's name and documentation (branding.js)
+    const brand = brandingOfContext(context);
+    /** @type {(heading: string, body: string, how?: { status?: number, form?: boolean, headers?: Record<string, string> }) => Response} */
+    const page = (heading, body, how) => pageOf(brand, heading, body, how);
+    /** @type {(request: Request, code: keyof typeof ANSWERS, headers?: Record<string, string>) => Response} */
+    const answer = (request, code, headers) => answerOf(brand, request, code, headers);
     const settings = settingsOf(options);
     const env = runtime.env ?? process.env;
     const loopback = runtime.loopback ?? isLoopback(options.http?.host ?? "127.0.0.1");

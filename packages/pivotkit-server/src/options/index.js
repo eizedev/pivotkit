@@ -18,6 +18,7 @@ import * as log from "./log.js";
 import * as signed from "./signed.js";
 import * as external from "./external.js";
 import * as records from "./records.js";
+import * as branding from "./branding.js";
 
 /**
  * @typedef {object} Fragment
@@ -27,7 +28,7 @@ import * as records from "./records.js";
  */
 
 /** @type {ReadonlyArray<Fragment>} the fragments in the order their rules run */
-export const FRAGMENTS = Object.freeze([base, inline, downloads, http, code, operator, upload, issuer, log, signed, external, records].map((f) => Object.freeze({ name: f.NAME, KEYS: f.KEYS, validate: f.validate })));
+export const FRAGMENTS = Object.freeze([base, inline, downloads, http, code, operator, upload, issuer, log, signed, external, records, branding].map((f) => Object.freeze({ name: f.NAME, KEYS: f.KEYS, validate: f.validate })));
 
 /** A slot's key as a path in the options, for messages. */
 const pathOf = (slot, key) => (slot === "top" ? key : slot === "source" ? `sources.<id>.${key}` : `${slot}.${key}`);

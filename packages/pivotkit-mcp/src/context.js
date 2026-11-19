@@ -11,7 +11,7 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { McpServer, fromJsonSchema } from "@modelcontextprotocol/server";
-import { MCP_TOKEN_ENV, callerOf, createContext } from "pivotkit-server";
+import { MCP_TOKEN_ENV, brandingOfContext, callerOf, createContext } from "pivotkit-server";
 import { registerTools } from "./tools.js";
 
 export { callerOf };
@@ -62,6 +62,10 @@ export async function createMcpContext(options, runtime = {}) {
     } catch (e) {
         shared.log.warn(`the skill is not served: ${String(e?.message ?? e).slice(0, 200)}`);
     }
+    // what a client shows of the server: its title (branding.name) and icon (branding.icon); the
+    // name programs match on stays pivotkit-mcp
+    const branding = brandingOfContext(shared);
+    const serverInfo = { name: "pivotkit-mcp", title: branding.name, ...(branding.icon ? { icons: [{ src: branding.icon.src, mimeType: "image/png", sizes: [`${branding.icon.width}x${branding.icon.height}`] }] } : {}) };
     const context = Object.assign(shared, {
         version: VERSION,
 
@@ -70,7 +74,7 @@ export async function createMcpContext(options, runtime = {}) {
          * @param {{ authInfo?: import("@modelcontextprotocol/server").AuthInfo }} [requestContext]
          */
         server(requestContext = {}) {
-            const server = new McpServer({ name: "pivotkit-mcp", title: "pivotkit", version: VERSION }, { instructions: instructionsOf(context.offers?.mcp), maxToolInputElements: 10_000 });
+            const server = new McpServer({ ...serverInfo, version: VERSION }, { instructions: instructionsOf(context.offers?.mcp), maxToolInputElements: 10_000 });
             registerTools(server, context, callerOf(context.authMode, requestContext.authInfo, options.auth));
             server.registerPrompt(
                 "pivotkit_report",

@@ -8,6 +8,7 @@
  * a second declaration).
  */
 
+import { docsLink, docsOf } from "./branding.js";
 import { isLoopback } from "pivotkit-cli/rest";
 import { ConfigError, CREATABLE_SECRET_REF, SECRET_REF } from "./shared.js";
 
@@ -75,8 +76,8 @@ export function settingsOf(options) {
     };
 }
 
-/** Where a download sign-in with an issuer of its own is planned. */
-const ISSUER_OF_ITS_OWN = "https://github.com/eizedev/pivotkit/issues/441";
+/** The docs' entry on a download sign-in with an issuer of its own, under the documentation's base. */
+const ISSUER_OF_ITS_OWN = "reference/delivery/#sign-in-issuer";
 
 /**
  * Whether two issuer addresses name the same issuer once normalised: the scheme and host in lower
@@ -170,7 +171,7 @@ function validateKeys(options) {
             throw new ConfigError(
                 sameIssuer(d.signIn.issuer, options.auth?.issuer)
                     ? "output.downloads.signIn.issuer: must be auth.issuer exactly; it differs only in its spelling (a trailing slash, upper-case letters in the scheme or host, a default port), and tokens name the issuer as auth.issuer does: leave signIn.issuer out"
-                    : `output.downloads.signIn.issuer: must be auth.issuer (${JSON.stringify(String(options.auth?.issuer))}), not ${JSON.stringify(d.signIn.issuer.slice(0, 200))}: a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did; leave it out. A download sign-in with an issuer of its own (a provider with one issuer per application, such as Authentik) is ${ISSUER_OF_ITS_OWN}`
+                    : `output.downloads.signIn.issuer: must be auth.issuer (${JSON.stringify(String(options.auth?.issuer))}), not ${JSON.stringify(d.signIn.issuer.slice(0, 200))}: a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did; leave it out. A download sign-in with an issuer of its own (a provider with one issuer per application, such as Authentik) is not supported yet${docsOf(options) === null ? "" : ` (${docsLink(docsOf(options), ISSUER_OF_ITS_OWN)})`}`
             );
         }
         if (d.signIn.tokenUrl !== undefined && !httpsOrAllowed(d.signIn.tokenUrl, options.auth?.allowInsecureIssuer === true)) {

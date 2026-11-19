@@ -24,7 +24,8 @@
  * is built, so what comes out passes validateOptions once its TODO values are filled in.
  */
 
-import { open } from "node:fs/promises";
+import { open, readFile } from "node:fs/promises";
+import { DOCS_SITE, docsLink, docsOf, docsUrlProblems } from "./options/branding.js";
 import { SOURCE_ID } from "pivotkit-cli/rest";
 import { FIELD_DESCRIPTION_MAX, TODO_MARK, todoEntries, todoPaths } from "./options/base.js";
 import { SECRET_NAME } from "./options/http.js";
@@ -94,8 +95,16 @@ const UNFIT_HEADERS = /^(host|content-length|transfer-encoding|connection|te|tra
 export const CHECK_FIRST = "The API host and the token URL come from the document; check them before adding credentials.";
 export const CHECK_HOST = "The API host comes from the document; check it before adding credentials.";
 
-/** The documentation of the command. */
-const DOCS = "https://pivotkit.eize.dev/reference/sources/#openapi";
+/**
+ * A section of the sources page under the documentation's base (branding.docsUrl, read with
+ * --config), or null without documentation.
+ * @param {string | null} docs  branding.js docsOf's
+ * @param {string} anchor
+ */
+const sourcesDocs = (docs, anchor) => docsLink(docs, `reference/sources/#${anchor}`);
+
+/** A note's pointer to a section of the sources page: " (address)", or nothing without documentation. */
+const docsRef = (docs, anchor) => (docs === null ? "" : ` (${sourcesDocs(docs, anchor)})`);
 
 /** A document or an operation that gives no source; the command exits 2 with the message. */
 export class OpenApiError extends Error {
@@ -495,7 +504,7 @@ function accepted(name, declaration) {
  * The HTTP source block for one GET operation of a parsed OpenAPI document. Throws OpenApiError when
  * the operation cannot be a source.
  * @param {Record<string, any>} doc  readDocument's result
- * @param {{ operation: string, id?: string, backend?: string, documentUrl?: string }} how  operation: an operationId or "GET /path"; documentUrl: where the document was read from (a relative server address is resolved against it)
+ * @param {{ operation: string, id?: string, backend?: string, documentUrl?: string, docs?: string | null }} how  operation: an operationId or "GET /path"; documentUrl: where the document was read from (a relative server address is resolved against it); docs: the documentation's base for the notes (branding.js docsOf; pivotkit's site when left out)
  * @returns {Generated}
  */
 export function sourceFromOpenApi(doc, how) {
@@ -527,8 +536,9 @@ export function sourceFromOpenApi(doc, how) {
         throw new OpenApiError('--backend: a backend\'s name is letters, digits, "_", "-" and "." (at most 64), starting with a letter or digit');
     }
 
-    const security = securityOf(doc, operation, refs, note);
-    const { params, query, httpPath } = parametersOf(path, pathItem, operation, refs, note, security.queryNames);
+    const docs = how.docs === undefined ? DOCS_SITE : how.docs;
+    const security = securityOf(doc, operation, refs, note, docs);
+    const { params, query, httpPath } = parametersOf(path, pathItem, operation, refs, note, security.queryNames, docs);
     const answer = answerOf(operation, refs, note, id);
     const server = serverOf(doc, pathItem, operation, note, how.documentUrl);
     const kind = server.host ? hostKind(server.host) : null;
@@ -656,7 +666,7 @@ function findOperation(doc, wanted, refs) {
  * @param {(note: string) => void} note
  * @param {Set<string>} credentialNames  query names a security scheme sends a credential in (lower case)
  */
-function parametersOf(path, pathItem, operation, refs, note, credentialNames) {
+function parametersOf(path, pathItem, operation, refs, note, credentialNames, docs = DOCS_SITE) {
     /** @type {Map<string, Record<string, any>>} by "in:name"; the operation's win over the path item's */
     const byKey = new Map();
     for (const list of [own(pathItem, "parameters"), own(operation, "parameters")]) {
@@ -804,7 +814,7 @@ function parametersOf(path, pathItem, operation, refs, note, credentialNames) {
     }
     const queryish = kept.filter((p) => p.where === "query" && /^(page|page_?size|per_?page|offset|limit|cursor|skip|top|\$top|\$skip)$/i.test(p.original));
     if (queryish.length) {
-        note(`The query parameters ${queryish.map((p) => p.original).join(", ")} look like paging: if the API pages, remove them from params and http.query and set http.paging instead (${DOCS.replace("#openapi", "#http-paging")}).`);
+        note(`The query parameters ${queryish.map((p) => p.original).join(", ")} look like paging: if the API pages, remove them from params and http.query and set http.paging instead${docsRef(docs, "http-paging")}.`);
     }
     return { params, query, httpPath };
 }
@@ -1022,7 +1032,7 @@ function describedAddress(text) {
  * @param {(note: string) => void} note
  * @returns {{ auth: Record<string, any> | null, queryNames: Set<string> }}
  */
-function securityOf(doc, operation, refs, note) {
+function securityOf(doc, operation, refs, note, docs = DOCS_SITE) {
     const requirements = Object.hasOwn(operation, "security") ? operation.security : own(doc, "security");
     const schemes = ownObject(ownObject(doc, "components"), "securitySchemes") ?? {};
     /** @type {Set<string>} */
@@ -1062,7 +1072,7 @@ function securityOf(doc, operation, refs, note) {
             return { auth, queryNames };
         }
     }
-    note(`The document's sign-in is not one pivotkit writes for you (${unsupported.join("; ") || "a scheme it does not define"}): configure the backend's auth by hand (${DOCS.replace("#openapi", "#http-auth")}); for each person's own access, use tokenExchange.`);
+    note(`The document's sign-in is not one pivotkit writes for you (${unsupported.join("; ") || "a scheme it does not define"}): configure the backend's auth by hand${docsRef(docs, "http-auth")}; for each person's own access, use tokenExchange.`);
     return { auth: null, queryNames };
 }
 
@@ -1134,8 +1144,9 @@ function authOf(scheme, scopes, name, unsupported, note) {
  * What the command prints on stderr: the check first, then the TODO values, the notes and the texts
  * to review. Every text from the document in it is cleaned already.
  * @param {Generated} generated
+ * @param {string | null} [docs]  the documentation's base (branding.js docsOf)
  */
-export function operatorText(generated) {
+export function operatorText(generated, docs = DOCS_SITE) {
     const tokenUrl = Object.values(generated.config.httpSources.backends).some((b) => b.auth?.clientCredentials?.tokenUrl);
     const todos = todoEntries(generated.config);
     const lines = [tokenUrl ? CHECK_FIRST : CHECK_HOST, ""];
@@ -1147,7 +1158,7 @@ export function operatorText(generated) {
     if (generated.review.length) {
         lines.push("", "Review these as text the model will read:", ...generated.review.map((r) => `  ${r.path}: ${JSON.stringify(r.text)}`));
     }
-    lines.push("", `Add the block to your configuration, fill in every ${TODO_MARK}, then run pivotkit-server check-config and check-source ${generated.id}. Docs: ${DOCS}`, "");
+    lines.push("", `Add the block to your configuration, fill in every ${TODO_MARK}, then run pivotkit-server check-config and check-source ${generated.id}.${docs === null ? "" : ` Docs: ${sourcesDocs(docs, "openapi")}`}`, "");
     return lines.join("\n");
 }
 
@@ -1221,7 +1232,7 @@ export async function loadDocumentText(target, means = {}) {
 }
 
 /** The command's usage line. */
-export const USAGE = 'pivotkit-server source-from-openapi <file or https URL> --operation <operationId | "GET /path"> [--id <source id>] [--backend <name>]';
+export const USAGE = 'pivotkit-server source-from-openapi <file or https URL> --operation <operationId | "GET /path"> [--id <source id>] [--backend <name>] [--config <file>]';
 
 /** The command's help. */
 export const HELP = `Usage: ${USAGE}
@@ -1235,11 +1246,12 @@ Options:
   --operation <id>    the operation: its operationId, or its method and path ("GET /pets/{id}")
   --id <source id>    the source's id (default: the operationId, else the path)
   --backend <name>    the backend's name under httpSources.backends (default: from info.title, else api)
+  --config <file>     the server's configuration: the notes link its branding.docsUrl
   -h, --help          this help
 
 Exit: 0 when it wrote a block; 2 on a usage error, a document it does not read, or an operation
 that cannot be a source.
-Docs: ${DOCS}
+Docs: ${sourcesDocs(DOCS_SITE, "openapi")}
 `;
 
 /**
@@ -1256,7 +1268,7 @@ export async function sourceFromOpenApiCommand(argv, io, means = {}) {
     const rest = [];
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
-        const match = /^--(operation|id|backend)(?:=(.*))?$/s.exec(arg);
+        const match = /^--(operation|id|backend|config)(?:=(.*))?$/s.exec(arg);
         if (match) {
             const value = match[2] ?? argv[++i];
             if (value === undefined || value === "" || (match[2] === undefined && value.startsWith("--"))) {
@@ -1275,12 +1287,16 @@ export async function sourceFromOpenApiCommand(argv, io, means = {}) {
     if (rest.length !== 1 || !flags.operation) {
         return usage(io, rest.length !== 1 ? "name one OpenAPI document, a file or an https:// URL" : '--operation names the operation (its operationId, or "GET /path")');
     }
+    const docs = flags.config === undefined ? DOCS_SITE : await configDocs(flags.config);
+    if (typeof docs === "object" && docs !== null) {
+        return usage(io, docs.problem);
+    }
     try {
         const doc = readDocument(await loadDocumentText(rest[0], means));
         const documentUrl = /^https?:\/\//i.test(rest[0]) ? rest[0] : undefined;
-        const generated = sourceFromOpenApi(doc, { operation: flags.operation, id: flags.id, backend: flags.backend, documentUrl });
+        const generated = sourceFromOpenApi(doc, { operation: flags.operation, id: flags.id, backend: flags.backend, documentUrl, docs });
         io.stdout.write(`${JSON.stringify(generated.config, null, 2)}\n`);
-        io.stderr.write(operatorText(generated));
+        io.stderr.write(operatorText(generated, docs));
         return 0;
     } catch (e) {
         if (e instanceof OpenApiError) {
@@ -1291,6 +1307,25 @@ export async function sourceFromOpenApiCommand(argv, io, means = {}) {
         io.stderr.write(`pivotkit-server source-from-openapi: the document could not be read (${cleanText(String(/** @type {any} */ (e)?.name ?? "error"), 40)}); it may be too large or built to exhaust whoever reads it\n`);
         return 2;
     }
+}
+
+/**
+ * The documentation's base a configuration file names (branding.docsUrl), or what is wrong with the
+ * file. Only that key is read: the configuration may still hold the TODO values of an earlier block,
+ * which the server refuses.
+ * @param {string} file
+ * @returns {Promise<string | null | { problem: string }>}
+ */
+async function configDocs(file) {
+    let options;
+    try {
+        options = JSON.parse((await readFile(file, "utf8")).replace(/^\uFEFF/, ""));
+    } catch (e) {
+        return { problem: `--config: ${/** @type {any} */ (e)?.code === "ENOENT" ? "not found" : /** @type {any} */ (e)?.code ? "cannot be read" : "not valid JSON"}` };
+    }
+    const given = options?.branding?.docsUrl;
+    const problems = given === undefined ? [] : docsUrlProblems(given);
+    return problems.length ? { problem: `--config: branding.docsUrl: ${problems.join("; ")}` } : docsOf(options);
 }
 
 /** A usage error: the message and the usage line, exit 2. */

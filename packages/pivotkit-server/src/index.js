@@ -34,6 +34,7 @@ export { SourceError, SOURCE_ERROR_CODES } from "./sources/run.js";
 export { CODE_DEFAULTS } from "./options/code.js";
 export { optionsFrom, flagLines, httpFlags, startFormatOf, SERVER_FLAGS, SHARED_FLAGS } from "./flags.js";
 export { serve, createServerHandler, DEFAULT_PORT } from "./serve.js";
+export { brandingOf, brandingOfContext, brandingAnswer, pageRedirect, docsLink, docsOf, DEFAULT_NAME, DOCS_SITE, ICON_PATH, ICON_MAX_BYTES } from "./branding.js";
 
 /**
  * @typedef {import("./config.js").ServerOptions} ServerOptions
@@ -52,4 +53,5 @@ export { serve, createServerHandler, DEFAULT_PORT } from "./serve.js";
  * @typedef {import("./context.js").ServerContext} ServerContext
  * @typedef {import("./present.js").PresentOptions} PresentOptions
  * @typedef {import("./listen.js").FetchHandler} FetchHandler
+ * @typedef {import("./branding.js").Branding} Branding
  */

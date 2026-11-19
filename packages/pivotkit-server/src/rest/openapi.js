@@ -17,6 +17,7 @@ import { PROBLEM_CODES } from "./problem.js";
 import { multipartInputSchema } from "./multipart.js";
 import { REST_ROUTES } from "./routes.js";
 import { RECORDS_INPUT, RECORDS_OUTPUT } from "../records.js";
+import { DEFAULT_NAME, DOCS_SITE, docsLink, withDocs } from "../branding.js";
 
 const require = createRequire(import.meta.url);
 
@@ -38,8 +39,12 @@ const PROBLEMS = Object.freeze({
 /** "describe_source" as "DescribeSource". */
 const pascal = (name) => name.replace(/(^|_)([a-z])/g, (_m, _s, c) => c.toUpperCase());
 
-/** The view schema of pivotkit-core, as components: its $defs beside it, every $ref pointed there. */
-function viewComponents() {
+/**
+ * The view schema of pivotkit-core, as components: its $defs beside it, every $ref pointed there,
+ * its descriptions' links under the documentation's base (branding.js withDocs).
+ * @param {string | null} docs
+ */
+function viewComponents(docs) {
     const schema = structuredClone(require("pivotkit-core/schema/view-2.json"));
     const defs = schema.$defs ?? {};
     delete schema.$schema;
@@ -52,6 +57,8 @@ function viewComponents() {
             for (const [key, value] of Object.entries(node)) {
                 if (key === "$ref" && typeof value === "string" && value.startsWith("#/$defs/")) {
                     node.$ref = `#/components/schemas/View_${value.slice("#/$defs/".length)}`;
+                } else if (key === "description" && typeof value === "string") {
+                    node.description = withDocs(value, docs);
                 } else {
                     rewrite(value);
                 }
@@ -105,6 +112,7 @@ const multipartBody = (name, offers, fileRoute = false) => ({
  * @property {string} [resource]  OAuth: the REST resource
  * @property {string[]} [requiredScopes]  OAuth: the scopes every call needs
  * @property {import("../sources/input.js").SurfaceOffers} [offers]  the extra inputs the service offers (context.offers.rest; none by default)
+ * @property {{ name: string, docs: string | null }} [branding]  the name in the title and the documentation's base (branding.js; default pivotkit's)
  */
 
 /**
@@ -112,6 +120,8 @@ const multipartBody = (name, offers, fileRoute = false) => ({
  * @param {OpenApiOptions} [options]
  */
 export function openApiDocument(options = {}) {
+    const name = options.branding?.name ?? DEFAULT_NAME;
+    const docs = options.branding ? options.branding.docs : DOCS_SITE;
     const auth = options.auth ?? { mode: "token" };
     const mode = auth.mode ?? "none";
     const required = options.requiredScopes ?? auth.requiredScopes ?? [];
@@ -146,7 +156,7 @@ export function openApiDocument(options = {}) {
                 retryable: { type: "boolean", description: "For an error of a source (SOURCE_UNAVAILABLE; NOT_ALLOWED, INVALID_INPUT or DATA_NOT_AVAILABLE from a source), of an upload (UPLOAD_FAILED) and for BUSY (a large body, or a parameter's pattern not checked in time): whether the same request may work when tried again (Retry-After says when, where known)." }
             }
         },
-        ...viewComponents()
+        ...viewComponents(docs)
     };
     for (const name of Object.keys(OPERATIONS)) {
         schemas[`${pascal(name)}Input`] = inputSchema(name, options.offers);
@@ -221,10 +231,10 @@ export function openApiDocument(options = {}) {
     return {
         openapi: "3.1.0",
         info: {
-            title: "pivotkit REST",
+            title: `${name} REST`,
             version: VERSION,
             summary: "Describe data sources, validate and render pivot views, make links and draft schedules.",
-            description: "The operations of pivotkit's MCP server over HTTP for programs. Errors are RFC 9457 problem details. The routes are RPC-style (POST /views/validate); /api/v1 changes only with a breaking change. Docs: https://pivotkit.eize.dev/reference/rest/",
+            description: `The operations of ${name === DEFAULT_NAME ? "pivotkit's" : "the"} MCP server over HTTP for programs. Errors are RFC 9457 problem details. The routes are RPC-style (POST /views/validate); /api/v1 changes only with a breaking change.${docs === null ? "" : ` Docs: ${docsLink(docs, "reference/rest/")}`}`,
             license: { name: "MIT", identifier: "MIT" }
         },
         // the paths carry /api/v1: the server is the origin

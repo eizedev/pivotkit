@@ -31,7 +31,8 @@ import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData, r
 import { checkParamsOffered } from "../sources/input.js";
 import { readMultipart } from "./multipart.js";
 import { openApiDocument } from "./openapi.js";
-import { SAFE_HEADERS, hostProblem, json, problem, problemOf, withRequestIdMember } from "./problem.js";
+import { SAFE_HEADERS, json, problemsFor, withRequestIdMember } from "./problem.js";
+import { brandingOfContext, docsLink } from "../branding.js";
 import { callerFields, logUnanswered, refusalReason } from "../log.js";
 import { requestId, requestScopeFor, withRequestIdHeader, withRequestScope } from "../request-id.js";
 import { offeredScopes } from "../scopes.js";
@@ -135,6 +136,9 @@ async function readJson(request, max, detail) {
  */
 export async function createRestHandler(context, runtime = {}) {
     const options = context.options;
+    // the operator's name and documentation links (branding.js), on every answer of this handler
+    const branding = brandingOfContext(context);
+    const { problem, problemOf, hostProblem } = problemsFor(branding.docs);
     const rest = options.rest ?? {};
     /** The 404 of a route nobody serves: it names the service's and the document's full address. */
     const noRoute = noRouteDetail(options);
@@ -160,12 +164,12 @@ export async function createRestHandler(context, runtime = {}) {
     let warnedAddress = false;
     const trustProxy = options.http?.trustProxy ?? false;
     let document = null;
-    const openapi = () => (document ??= openApiDocument({ auth: authOptions, publicUrl: options.http?.publicUrl, issuer: core.metadata?.() ?? null, resource: resource.href, requiredScopes, offers: context.offers?.rest }));
+    const openapi = () => (document ??= openApiDocument({ branding, auth: authOptions, publicUrl: options.http?.publicUrl, issuer: core.metadata?.() ?? null, resource: resource.href, requiredScopes, offers: context.offers?.rest }));
 
     /** The WWW-Authenticate challenge of a refusal. */
     function challenge(error, description, scopes = requiredScopes) {
         if (mode !== "oauth") {
-            return 'Bearer realm="pivotkit"';
+            return `Bearer realm="${branding.slug}"`;
         }
         const parts = [`error="${error}"`, `error_description="${description.replace(/["\\]/g, "")}"`, ...(scopes.length ? [`scope="${scopes.join(" ")}"`] : []), `resource_metadata="${metadataUrl}"`];
         return `Bearer ${parts.join(", ")}`;
@@ -366,7 +370,7 @@ export async function createRestHandler(context, runtime = {}) {
             }
             const offered = offeredScopes(options, "rest");
             const signInClient = rest.signIn?.clientId;
-            return json({ resource: resource.href, authorization_servers: [metadata.issuer], ...(offered ? { scopes_supported: offered } : {}), resource_name: "pivotkit REST", resource_documentation: "https://pivotkit.eize.dev/reference/rest/", ...(signInClient ? { [SIGN_IN_CLIENT_FIELD]: signInClient } : {}) }, 200, { "cache-control": "max-age=300" });
+            return json({ resource: resource.href, authorization_servers: [metadata.issuer], ...(offered ? { scopes_supported: offered } : {}), resource_name: `${branding.name} REST`, ...(branding.docs !== null ? { resource_documentation: docsLink(branding.docs, "reference/rest/") } : {}), ...(signInClient ? { [SIGN_IN_CLIENT_FIELD]: signInClient } : {}) }, 200, { "cache-control": "max-age=300" });
         }
         if (path === OPENAPI_PATH) {
             if ((rest.openapi ?? "auth") === "off" || request.method !== "GET") {
