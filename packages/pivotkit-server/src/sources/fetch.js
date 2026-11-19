@@ -24,6 +24,9 @@
  *   (test/fetch.test.js).
  * - The body is counted while it streams, after decompression: over maxBytes the request is ended
  *   (TOO_LARGE); the whole request, body included, ends after timeMs (TIMEOUT).
+ * - With `consume`, the caller reads the body's pieces as they arrive instead of the whole body
+ *   (an HTTP source's JSON rows, sources/json-rows.js): the same count, time limit and cancelling;
+ *   an error the consumer throws ends the request and is what the request fails with.
  *
  * Built on node:http and node:https rather than the global fetch. Node documents `lookup` as an
  * option of http.request ("Custom lookup function. Default: dns.lookup()") and of net's
@@ -299,13 +302,17 @@ function decoderOf(encoding) {
  * @property {number} [timeMs]  the whole request's time (default 15 s)
  * @property {boolean} [allowPrivate]  loopback and private addresses may be reached (default true)
  * @property {boolean} [allowIpLiterals]  an IP address may be the URL's host (default false)
+ * @property {(status: number, headers: Record<string, string>) => ((piece: Uint8Array) => void) | null | undefined} [consume]
+ *   called once the answer's status and headers are in: a function it returns gets each piece of the
+ *   decoded body, which is then not kept (the answer's body is empty); null keeps the body
  */
 
 /**
  * @typedef {object} GuardedResponse
  * @property {number} status
  * @property {Record<string, string>} headers  lower-case names; repeated ones joined with ", "
- * @property {Uint8Array} body  decoded
+ * @property {Uint8Array} body  decoded (empty when a consumer read it)
+ * @property {number} size  the decoded body's bytes, also when a consumer read it
  */
 
 /**
@@ -389,7 +396,7 @@ export function createGuardedFetch(means = {}) {
             let req;
             /** @type {ReturnType<typeof setTimeout> | undefined} */
             let timer;
-            const fail = (/** @type {GuardedFetchError} */ error) => {
+            const fail = (/** @type {Error} */ error) => {
                 if (!settled) {
                     settled = true;
                     clearTimeout(timer);
@@ -430,18 +437,40 @@ export function createGuardedFetch(means = {}) {
                         fail(new GuardedFetchError("TOO_LARGE", `the answer is larger than ${maxBytes} bytes`));
                         return;
                     }
+                    const out = headersOf(res.headers);
+                    /** @type {((piece: Uint8Array) => void) | null | undefined} */
+                    let consumer;
+                    try {
+                        consumer = request.consume?.(status, out);
+                    } catch (e) {
+                        res.resume();
+                        fail(/** @type {Error} */ (e));
+                        return;
+                    }
                     const stream = decoder ? res.pipe(decoder) : res;
                     /** @type {Buffer[]} */
                     const chunks = [];
                     let size = 0;
                     stream.on("data", (/** @type {Buffer} */ chunk) => {
+                        if (settled) {
+                            return;
+                        }
                         size += chunk.length;
                         if (size > maxBytes) {
                             decoder?.destroy();
                             fail(new GuardedFetchError("TOO_LARGE", `the answer is larger than ${maxBytes} bytes`));
                             return;
                         }
-                        chunks.push(chunk);
+                        if (!consumer) {
+                            chunks.push(chunk);
+                            return;
+                        }
+                        try {
+                            consumer(chunk);
+                        } catch (e) {
+                            decoder?.destroy();
+                            fail(/** @type {Error} */ (e));
+                        }
                     });
                     stream.on("error", (/** @type {any} */ e) => fail(decoder && e?.code?.startsWith?.("Z_") ? new GuardedFetchError("BAD_ENCODING", "the answer's compressed body is broken") : networkError(e)));
                     res.on("aborted", () => fail(new GuardedFetchError("NETWORK", "the connection closed before the answer was complete", { transient: true })));
@@ -452,15 +481,8 @@ export function createGuardedFetch(means = {}) {
                         settled = true;
                         clearTimeout(timer);
                         request.signal?.removeEventListener("abort", onAbort);
-                        /** @type {Record<string, string>} */
-                        const out = {};
-                        for (const [name, value] of Object.entries(res.headers)) {
-                            if (value !== undefined && name !== "set-cookie") {
-                                out[name] = Array.isArray(value) ? value.join(", ") : String(value);
-                            }
-                        }
                         const all = Buffer.concat(chunks);
-                        resolve({ status, headers: out, body: new Uint8Array(all.buffer, all.byteOffset, all.byteLength) });
+                        resolve({ status, headers: out, body: new Uint8Array(all.buffer, all.byteOffset, all.byteLength), size });
                     });
                 });
             } catch (e) {
@@ -495,6 +517,22 @@ export function createGuardedFetch(means = {}) {
             }
         });
     };
+}
+
+/**
+ * An answer's headers: lower-case names, repeated ones joined with ", ", never set-cookie.
+ * @param {import("node:http").IncomingHttpHeaders} headers
+ * @returns {Record<string, string>}
+ */
+function headersOf(headers) {
+    /** @type {Record<string, string>} */
+    const out = {};
+    for (const [name, value] of Object.entries(headers)) {
+        if (value !== undefined && name !== "set-cookie") {
+            out[name] = Array.isArray(value) ? value.join(", ") : String(value);
+        }
+    }
+    return out;
 }
 
 /** Whether a body is a stream (an async iterable of bytes, such as a file's read stream). */
