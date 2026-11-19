@@ -118,6 +118,15 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   sign-in was still checked: a chunked body the parser refused, or a client that left (#655).
 - An answer whose stream fails while the client's socket is full ends the connection at once. It
   stayed open until the client read again or left (#637).
+- A named view that uses a column the file gives no header ("Column 2") is not listed, and its name
+  answers as one that does not exist. Such a column is hidden from every caller (#645).
+- A file in a source's `viewsDir` whose name is no view name, such as `My view (1).json`, is
+  skipped with a warning. It stopped the start (#646).
+- A view file whose name holds ":" is named whole in a problem (#646).
+- A view name that does not exist suggests the nearest view the caller may know of. A nearer view
+  that uses a hidden field took its place, so a missing hint told that such a view exists.
+- `list_sources` and `GET /sources` give at most 10,000 characters of view descriptions per source.
+  Later views keep their name and title (#646).
 - A streamed JSON answer of an HTTP source stops at the first row over `limits.rows`. The error
   says "more rows than the limit of 40 (limits.rows)" instead of counting the whole answer
   first (#648).

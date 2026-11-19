@@ -105,9 +105,9 @@ For sources with fields kept back, write CSV with quoted values, or use xlsx or 
     - Two rules for the same field keep the stricter level.
     - The reader renames a column whose header repeats a hidden one ("Email (2)"). That column is
       hidden too.
-    - Other columns the reader names itself ("Column 8" for cells without a header) take the default
-      level. For a source of personal data, start from `"default": "hide"` and list the fields to
-      show.
+    - A column the reader names itself ("Column 8" for cells without a header) is hidden, unless a
+      rule names it. For a source of personal data, start from `"default": "hide"` and list the
+      fields to show.
     - A JSON source's nested properties become fields with a dotted name
       ([column names](reference/import.md#column-names-and-values)). A rule for `meta` does not cover
       `meta.Secret`. Only a rule that names `meta.Secret` does. For JSON sources, start from
@@ -476,7 +476,7 @@ part.
 An MCP client sends what the model sees (descriptions, findings, inline results) to the model's
 provider. What the policy shows a model is what that provider receives. That includes the titles
 and descriptions of [named views](reference/sources.md#views). A view that uses a field hidden from
-the caller is not listed.
+the caller is not listed ([what a caller learns of a view](reference/sources.md#views)).
 [What reaches an AI model](model-data.md) shows it per level and per client. See also
 [Security: the MCP server](security.md#mcp).
 
