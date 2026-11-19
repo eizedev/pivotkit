@@ -172,6 +172,8 @@ Then restart Claude Code.
 | [One print template for the whole server](#output-template) | you want one design for every html report of a server | set `output.template` |
 | [Your own name and links](#branding) | you run the server under your own name, or in a network without access to pivotkit.eize.dev | nothing until you need it: the defaults are pivotkit's |
 | [Texts without the product name](#neutral-texts) | a program or a log rule matches the words of an error, or of pivotkit-react's messages about a loaded view | match the error's `code` instead, or update the words |
+| [A print template that cannot be read is the server's error](#template-unavailable) | a program reads the answer of an html render | expect 502 `SOURCE_UNAVAILABLE` instead of 404 `FILE_NOT_AVAILABLE` for it |
+| [503 `BUSY` logs at `warn`](#busy-warn) | a log rule counts `error` lines | count 503 `BUSY` among the warnings, or match its `code` |
 
 ### Rows of a source for a signed-in person { #records-route }
 
@@ -200,7 +202,8 @@ wrote `allow-import="false"` offered loading files. Now it does not. `share-link
 
 `create_link` (MCP and `POST /api/v1/views/link`) writes the values of the parameters in
 `sources.<id>.linkParams` into the page's query string
-([link parameters](../concepts/sharing.md#link-params)). Without the list, links stay as they are.
+([link parameters](../concepts/sharing.md#link-params)). Without the list, a link carries no
+parameters, and `create_link` given some warns with `paramsNotCarried`.
 
 - `create_link` with a list refuses any other parameter with `INVALID_INPUT`.
 - The server does not start with a list that names a parameter bound to a claim, an undeclared one,
@@ -258,6 +261,18 @@ clients see ([your own name and links](../reference/branding.md)):
 - `http.page.url`: `/` sends a browser to your own page, on a REST-only server too
 
 Without them, every answer stays as it was. `check-config` has a section `Branding` once you set one.
+
+### A print template that cannot be read is the server's error { #template-unavailable }
+
+An html render whose print template cannot be read answers 502 `SOURCE_UNAVAILABLE` with
+`retryable: false`. Its `detail` is a fixed text: "the server's print template is not available
+now; tell the operator and give the request id". The answer no longer names the template's file.
+Before, it was 404 `FILE_NOT_AVAILABLE`, which read like a missing source.
+
+### 503 `BUSY` logs at `warn` { #busy-warn }
+
+A 503 `BUSY` answer means the server is full, not broken, and the client may try again. Its log
+lines now have the level `warn`. Every other 5xx stays at `error`.
 
 ### Texts without the product name { #neutral-texts }
 
