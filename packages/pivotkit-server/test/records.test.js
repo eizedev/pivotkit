@@ -17,6 +17,7 @@ import { dataToJson } from "pivotkit-core/export";
 import { checkConfig, createContext, validateOptions } from "pivotkit-server";
 import { createRestHandler } from "pivotkit-server/rest";
 import { answeredType, columnPieces } from "../src/records-writer.js";
+import { recordsBoundsOf } from "../src/options/records.js";
 import { BIN, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
 
 /** Orders with one field per level: Region, Sales and OrderDate show, Product values, Team summary, Customer hide. */
@@ -343,6 +344,14 @@ test("LIMIT_EXCEEDED for a source's own row limit, with its message", async () =
     }
 });
 
+test("rest.records.writeMs: 1000 to 600000 and at most compute.timeMs; its default never above compute.timeMs", () => {
+    assert.throws(() => validateOptions({ rest: { records: { writeMs: 500 } } }), /rest\.records\.writeMs: from 1000 to 600000/);
+    assert.throws(() => validateOptions({ rest: { records: { writeMs: 40_000 } } }), /rest\.records\.writeMs: 40000 is above compute\.timeMs \(30000\)/);
+    validateOptions({ rest: { records: { writeMs: 40_000 } }, compute: { timeMs: 60_000 } });
+    assert.equal(recordsBoundsOf({}).writeMs, 10_000);
+    assert.equal(recordsBoundsOf({ compute: { timeMs: 4000 } }).writeMs, 4000);
+});
+
 test("a source's row limit cannot be higher than the server's", async () => {
     const options = { sources: { sales: { file: "sales.csv", records: { maxRows: 60_000 } } } };
     assert.throws(() => validateOptions(options), /sources\.sales\.records\.maxRows: 60000 is above the server's limit rest\.records\.maxRows \(50000\)/);
@@ -443,6 +452,81 @@ test("a stalled reader loses its slot after idleMs", async () => {
         assert.equal(next.status, 200);
         await next.body?.cancel();
         assert.ok(h.lines.some((l) => l.event === "records" && l.outcome === "error" && l.level === "warn" && l.reason === "idle"), JSON.stringify(h.lines.filter((l) => l.event === "records")));
+    } finally {
+        await h.close();
+    }
+});
+
+// a view by name (#644): the operator's named view says which fields leave. One that needs a field
+// below show is NOT_ALLOWED and names only the fields the caller may know of; one that needs a hidden
+// field answers as a view that does not exist
+test("a named view: its fields leave; one with a field at summary is NOT_ALLOWED naming it; one with a hidden field is no view", async () => {
+    const views = {
+        "by-region": { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] },
+        "by-team": { rows: ["Team", "Region"], values: [{ field: "Sales", agg: "sum" }] },
+        "by-customer": { rows: ["Customer"], values: [{ field: "Sales", agg: "sum" }] },
+        "by-product": { rows: ["Product"], values: [{ field: "Sales", agg: "sum" }] }
+    };
+    const { server, person } = await serverOf({ sources: { sales: { file: "data/sales.csv", policy: { fields: { Customer: "hide" } }, views } } });
+    try {
+        const token = await person({ sub: "ana" });
+        const ok = await rows(server, token, { source: "sales", view: "by-region" });
+        assert.equal(ok.status, 200, ok.text);
+        assert.deepEqual(ok.data.columns, ["Region", "Sales"]);
+        assert.doesNotMatch(ok.text, MARKS);
+        const team = await rows(server, token, { source: "sales", view: "by-team" });
+        assert.equal(team.status, 403, team.text);
+        assert.equal(team.data.code, "NOT_ALLOWED");
+        assert.deepEqual(team.data.notShown, ["Team"]);
+        assert.match(team.data.detail, /^the view by-team needs Team, which is not at show for you/);
+        assert.doesNotMatch(team.text, MARKS);
+        const product = await rows(server, token, { source: "sales", view: "by-product" });
+        assert.deepEqual([product.status, product.data.notShown], [403, ["Product"]], "a field at values does not leave either");
+        const unnamed = await rows(server, token, { source: "sales", view: "by region" });
+        assert.match(unnamed.data.detail, /^view is neither a view's JSON nor a view's name/);
+        const customer = await rows(server, token, { source: "sales", view: "by-customer" });
+        const unknown = await rows(server, token, { source: "sales", view: "no-such-view" });
+        assert.deepEqual([customer.status, customer.data.code], [400, "INVALID_INPUT"]);
+        assert.equal(customer.data.detail, unknown.data.detail.replace("no-such-view", "by-customer"), "a hidden field's view reads as one that is not there");
+        assert.doesNotMatch(customer.text, /Customer/);
+        // every refusal gave its place back
+        const again = await rows(server, token, { source: "sales", view: "by-region" });
+        assert.equal(again.status, 200);
+    } finally {
+        await server.close();
+    }
+});
+
+// a reader that takes a piece just inside idleMs each time held the place for up to compute.timeMs,
+// so at the default concurrency of 1 everyone else got 503 BUSY that long (#636)
+test("a slow reader loses its place after writeMs, also when it reads within idleMs", async () => {
+    const h = await handlerOf({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } }, rest: { records: { idleMs: 1000, writeMs: 1500, concurrency: 1 } } }, { "sales.csv": bigCsv(40_000) });
+    try {
+        const slow = await h.ask(await h.person({ sub: "ana" }), { source: "sales" });
+        assert.equal(slow.status, 200);
+        const reader = /** @type {ReadableStream} */ (slow.body).getReader();
+        const started = Date.now();
+        const cut = await (async () => {
+            for (;;) {
+                await new Promise((r) => setTimeout(r, 400));
+                const read = await reader.read().then(
+                    (r) => r,
+                    (e) => ({ error: e })
+                );
+                if ("error" in read) {
+                    return read.error;
+                }
+                if (read.done) {
+                    return null;
+                }
+            }
+        })();
+        assert.ok(cut, "the answer was cut, not read to its end");
+        assert.ok(Date.now() - started < 5_000, "cut near writeMs"); // wall time: a timer cuts the answer
+        const next = await h.ask(await h.person({ sub: "ben" }), { source: "sales" });
+        assert.equal(next.status, 200, "the place is free again");
+        await next.body?.cancel();
+        assert.ok(h.lines.some((l) => l.event === "records" && l.outcome === "error" && l.level === "warn" && l.reason === "slow"), JSON.stringify(h.lines.filter((l) => l.event === "records")));
     } finally {
         await h.close();
     }
@@ -642,7 +726,7 @@ test("check-config lists per profile the sources it may read rows of and the fie
     const out = await checkConfig(options, { http: true, env: { OPS: TOKEN }, rest: true });
     const text = factsOf(out.text);
     const section = text.split("Rows (REST): POST /api/v1/sources/records")[1]?.split("\n\n")[0] ?? "";
-    assert.match(section, /at most 50,000 rows and 1,000,000 cells per answer, 1 at once, idle after 30 s/);
+    assert.match(section, /at most 50,000 rows and 1,000,000 cells per answer, 1 at once, idle after 30 s, written within 10 s/);
     assert.match(section, /profile staff: sales\n\s+sales: Region, Sales, OrderDate leave; Product, Team stay/);
     assert.match(section, /profile narrow: sales\n\s+sales: Region leave; Product, Team, Sales, OrderDate stay/);
     assert.doesNotMatch(section, /plain|Customer/, "a profile without the right, and a hidden field, are not listed");

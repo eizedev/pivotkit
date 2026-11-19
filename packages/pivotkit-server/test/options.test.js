@@ -81,7 +81,7 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.files.object.policy.object = withRecords(expected.files.object.policy.object);
     expected.policy.object = withRecords(expected.policy.object);
     expected.policy.object.profiles.map.object = withRecords(expected.policy.object.profiles.map.object);
-    expected.rest.object.records = { object: { maxRows: "integer", maxCells: "integer", concurrency: "integer", idleMs: "integer" } };
+    expected.rest.object.records = { object: { maxRows: "integer", maxCells: "integer", concurrency: "integer", idleMs: "integer", writeMs: "integer" } };
     expected.sources.map.object.records = { object: { maxRows: "integer" } };
     // named views (options/views.js, after records): a source's views and viewsDir
     Object.assign(expected.sources.map.object, { views: { custom: "fn" }, viewsDir: "string" });
