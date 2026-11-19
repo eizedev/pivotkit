@@ -100,6 +100,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - A file in a source's `viewsDir` whose name is no view name, such as `My view (1).json`, is
   skipped with a warning. It stopped the start (#646).
 - A view file whose name holds ":" is named whole in a problem (#646).
+- A view name that does not exist suggests the nearest view the caller may know of. A nearer view
+  that uses a hidden field took its place, so a missing hint told that such a view exists.
 - `list_sources` and `GET /sources` give at most 10,000 characters of view descriptions per source.
   Later views keep their name and title (#646).
 

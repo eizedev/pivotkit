@@ -360,3 +360,19 @@ test("list_sources gives at most 10,000 characters of view descriptions per sour
         await context.close();
     }
 });
+
+// the hint of a name that does not exist: the nearest of the views the caller may know of. A nearer
+// view that uses a hidden field must not take its place, or a missing hint would tell it is there
+test("a name that does not exist suggests the nearest view the caller may know of, also past a nearer hidden one", async () => {
+    const dir = workspace();
+    const views = { "by-regiom": { rows: ["Customer"] }, "by-region": { rows: ["Region"] } };
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "hide" } }, views } }, output: { dir: "out" }, auth: { mode: "token", tokens: [{ name: "plain", env: "T1" }] }, baseDir: dir }, { env: { T1: TOKEN } });
+    try {
+        const typo = await call(`${server.api}/views/render`, { token: TOKEN, body: { source: "sales", view: "by-regixx", format: "csv" } });
+        assert.equal(typo.status, 400);
+        assert.match(typo.data.detail, /did you mean "by-region"\?/);
+        assert.doesNotMatch(typo.data.detail, /by-regiom/);
+    } finally {
+        await server.close();
+    }
+});

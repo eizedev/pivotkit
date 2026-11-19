@@ -68,7 +68,10 @@ Where views appear:
 ???+ note "What a caller learns of a view"
 
     - A view that uses a field hidden from the caller is not listed. Its name answers as a name that
-      does not exist.
+      does not exist, and an error never suggests it.
+    - The same holds for a view that uses a field named like a column without a header (`Column 3`,
+      `Column 3 (2)`) that has no rule of its own. Such a column is hidden, and the listing is decided
+      without the data. A column the file really calls `Column 3` needs a rule to list its views.
     - A link or a draft carries the view itself. A view that holds values of a field the caller sees
       at `summary` gets no link or draft (`NOT_ALLOWED`). A field at `show` or `values` is fine.
     - Values are a filter's items, a custom sort order, collapsed groups, and hidden series or series

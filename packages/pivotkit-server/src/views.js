@@ -179,7 +179,8 @@ export async function viewsOf(options, id, how = {}) {
             }
             if (named.length >= MAX_VIEWS) {
                 // left out, as a file that cannot be read: the start goes on, check-config says so
-                problems.push({ key: "viewsDir", name: null, text: `${files.length - i} more view files left out: at most ${MAX_VIEWS} views per source`, missing: true });
+                const more = files.slice(i).filter((f) => VIEW_NAME.test(/** @type {string} */ (nameOfFile(f)))).length;
+                problems.push({ key: "viewsDir", name: null, text: `${more} more view files left out: at most ${MAX_VIEWS} views per source`, missing: true });
                 break;
             }
             taken.add(name);
@@ -245,7 +246,8 @@ function warnOnce(context, id, problems) {
         const line = `sources.${id}.${p.key}: ${p.text}`;
         if (!seen.has(line) && seen.size < LOGGED_MAX) {
             seen.add(line);
-            context.log.warn(`${line}; ${p.name ? `the view ${p.name} is` : "its views are"} left out until it can be read (check-config says more)`, { source: id });
+            const what = p.skipped ? "the file is skipped" : `${p.name ? `the view ${p.name} is` : "its views are"} left out until it can be read (check-config says more)`;
+            context.log.warn(`${line}; ${what}`, { source: id });
         }
     }
 }
@@ -347,9 +349,10 @@ export async function findNamedView(context, id, name, policy, how = {}) {
         return found;
     }
     warnOnce(context, id, problems);
-    // the nearest name, read alone: suggested only when the caller may know of it
-    const nearest = closest(name, names.filter((n) => n !== name));
-    const near = nearest && (await viewsOf(context.options, id, { only: nearest })).views.some((v) => knownUnder(policy, v)) ? nearest : null;
+    // the nearest of the names the caller may know of: a nearer view the caller may not know of
+    // neither shows up nor takes the place of the hint (all views read, on this failure only)
+    const known = names.length > 1 ? (await viewsOf(context.options, id)).views.filter((v) => v.name !== name && knownUnder(policy, v)).map((v) => v.name) : [];
+    const near = closest(name, known);
     throw new OperationError("INVALID_INPUT", `no view "${name}" for the source ${id}; ${near ? `did you mean "${near}"? ` : ""}${how.surface === "rest" ? "GET /sources" : "list_sources"} lists the views`);
 }
 
