@@ -51,6 +51,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- An HTTP source reads a JSON answer while it arrives. Each row becomes a table row at once, so the
+  server never holds the whole body and its parsed objects together. The peak memory of a first
+  call fell from about 390 to 300 MB for a 20 MiB answer, and from about 910 to 590 MB for
+  500,000 rows, measured on one laptop. A body that repeats a key on the way to the rows after
+  them is refused (`SOURCE_UNAVAILABLE`). CSV answers are read as before
+  ([Memory while a source loads](https://pivotkit.eize.dev/reference/sources/#http-memory), #620).
 - Breaking: `pivotkit-server` exports only its public names. The names pivotkit-mcp shares with it
   move to `pivotkit-server/internal`, which is no public interface. `pivotkit-server/policy` exports
   the policy's public part. A host that imported a moved name reads the
