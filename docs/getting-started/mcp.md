@@ -255,7 +255,9 @@ Move-Item -Path 'D:\pivotkit\data\sales.tmp' -Destination 'D:\pivotkit\data\sale
 
 A source's `"link"` is the page of a PSU app that shows the report with pivotkit. `create_link` then
 makes links that open the view there. The page loads the data with the rights of the person who
-opens it.
+opens it. An [HTTP source](../reference/sources.md#http) with a `customer` parameter can list
+`"linkParams": ["customer"]`. A link then names the customer in the page's query string, where the
+app's backend reads it ([link parameters](../concepts/sharing.md#link-params)).
 
 ### A service account and its file rights { #psu-account }
 

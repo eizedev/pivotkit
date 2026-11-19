@@ -164,6 +164,7 @@ Then restart Claude Code.
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
+| [A link names a source's parameters in the page's query string](#link-params) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
 
 ### Rows of a source for a signed-in person { #records-route }
 
@@ -179,6 +180,20 @@ The server refuses `records` in the server's policy, a source's policy and `file
 refuses a source's `records.maxRows` above `rest.records.maxRows`. `GET /sources` adds
 `"records": true` to the sources a person may read the rows of. `check-config` has a section
 `Rows (REST)` once a profile has `records`.
+
+### A link names a source's parameters in the page's query string { #link-params }
+
+`create_link` (MCP and `POST /api/v1/views/link`) writes the values of the parameters in
+`sources.<id>.linkParams` into the page's query string
+([link parameters](../concepts/sharing.md#link-params)). Without the list, links stay as they are.
+
+- `create_link` with a list refuses any other parameter with `INVALID_INPUT`.
+- The server does not start with a list that names a parameter bound to a claim, an undeclared one,
+  or leaves out a required one.
+- `GET /sources` and `list_sources` add `linkParams` to such a source.
+- The tool's description changed. MCP clients reconnect to read it.
+- Query values land in access logs, history and the `Referer` header. The host page sends
+  `Referrer-Policy: same-origin` or `no-referrer` ([security](../security.md#link-params)).
 
 ## From 0.8.1 to 0.8.2 { #from-0-8-1 }
 
