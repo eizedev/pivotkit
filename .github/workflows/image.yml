@@ -98,7 +98,7 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "authorization: Bearer $token" -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d "$init" "$mcp")" = "200"
           docker logs pk 2>&1 | grep -q 'created the token \\"admin\\"'
           docker logs pk 2>&1 | grep -q 'read it with: docker exec'
-          if docker logs pk 2>&1 | grep -qF "$token"; then echo "the token is on the log"; exit 1; fi
+          if docker logs pk 2>&1 | grep -qF -- "$token"; then echo "the token is on the log"; exit 1; fi
           # the token's file: 0600, the image's user's
           docker run --rm -v pk-state:/state --entrypoint /nodejs/bin/node pivotkit:test -e "const fs=require('fs');const f=fs.statSync('/state/secrets/admin.token');const d=fs.statSync('/state/secrets');if((f.mode&0o777)!==0o600||f.uid!==10001||(d.mode&0o777)!==0o700)process.exit(1)"
           # a restart keeps it
@@ -115,8 +115,9 @@ jobs:
           wait_healthy r2
           raced="$(docker exec r1 pivotkit-server token show admin)"
           test "$(docker exec r2 pivotkit-server token show admin)" = "$raced"
+          # the token goes through the environment: as an argument, one that starts with "-" is a node option
           for n in r1 r2; do
-            docker exec "$n" /nodejs/bin/node -e "fetch('http://127.0.0.1:3333/api/v1/sources',{headers:{authorization:'Bearer '+process.argv.at(-1)}}).then(r=>process.exit(r.status===200?0:1),()=>process.exit(1))" "$raced"
+            docker exec -e PK_TOKEN="$raced" "$n" /nodejs/bin/node -e "fetch('http://127.0.0.1:3333/api/v1/sources',{headers:{authorization:'Bearer '+process.env.PK_TOKEN}}).then(r=>process.exit(r.status===200?0:1),()=>process.exit(1))"
           done
           docker rm -f r1 r2
       - name: What a start refuses
