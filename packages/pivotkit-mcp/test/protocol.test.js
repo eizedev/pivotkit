@@ -164,23 +164,57 @@ test("create_link: a link into the source's page; no link for a source without o
     }
 });
 
-test("create_link and draft_schedule given a layout: one short error that says to make the view first, not a schema dump", async () => {
+test("create_link and draft_schedule take a layout as render_view does: exactly one of view or layout, no property they refuse", async () => {
     const dir = workspace();
     const server = await httpServer({ sources: { sales: { file: "data/sales.csv", link: "https://reports.example.com/sales" } }, output: { dir: "out" }, baseDir: dir });
     try {
         const { client, close } = await httpClient(server.url);
-        const layout = { rows: ["Region"], values: [{ field: "Sales" }] };
-        const schedule = { name: "Weekly sales", formats: ["xlsx"], every: { unit: "week", weekday: "mon", at: "07:00" }, recipients: ["Sales team"] };
-        for (const [name, extra] of [["create_link", {}], ["draft_schedule", schedule]]) {
-            const r = await call(client, name, { source: "sales", layout, ...extra });
-            assert.equal(r.isError, true, name);
-            // every tool error ends with the call's id, for the person to give the operator
-            assert.match(r.text, new RegExp(`^INVALID_INPUT: ${name} takes a view, not a layout: give the layout to validate_view, which returns the view it makes, and pass that view here \\(request id [A-Za-z0-9_-]{11}\\)$`));
-            // a view still works, and without either it is refused
-            const neither = await call(client, name, { source: "sales", ...extra });
-            assert.match(neither.text, /^INVALID_INPUT: input needs view \(request id [A-Za-z0-9_-]{11}\)$/, name);
+        const { tools } = await client.listTools();
+        for (const name of ["create_link", "draft_schedule"]) {
+            const schema = /** @type {any} */ (tools.find((t) => t.name === name)?.inputSchema);
+            // the operations' layout, with its groups: not a placeholder that is always refused
+            assert.ok(schema?.properties?.layout?.properties?.groups, name);
+            assert.ok(!schema?.required?.includes("view"), name);
         }
-        assert.equal((await call(client, "create_link", { source: "sales", view: BY_REGION })).isError, false);
+        const layout = { rows: ["Region"], cols: ["OrderDate"], values: [{ field: "Sales" }], groups: [{ field: "OrderDate", by: "year" }] };
+        const schedule = { name: "Weekly sales", formats: ["xlsx"], every: { unit: "week", weekday: "mon", at: "07:00" }, recipients: ["Sales team"] };
+        const link = await call(client, "create_link", { source: "sales", layout });
+        assert.equal(link.isError, false, link.text);
+        assert.match(link.data.url, /^https:\/\/reports\.example\.com\/sales#/);
+        const draft = await call(client, "draft_schedule", { source: "sales", layout, ...schedule });
+        assert.equal(draft.isError, false, draft.text);
+        assert.deepEqual(draft.data.draft.view.view.rows, ["Region"]);
+        for (const [name, extra] of [["create_link", {}], ["draft_schedule", schedule]]) {
+            // every tool error ends with the call's id, for the person to give the operator
+            const neither = await call(client, name, { source: "sales", ...extra });
+            assert.match(neither.text, /^INVALID_INPUT: input needs a view or a layout \(request id [A-Za-z0-9_-]{11}\)$/, name);
+            const both = await call(client, name, { source: "sales", view: BY_REGION, layout, ...extra });
+            assert.match(both.text, /^INVALID_INPUT: input takes a view or a layout, not both \(request id [A-Za-z0-9_-]{11}\)$/, name);
+        }
+        await close();
+    } finally {
+        await server.close();
+    }
+});
+
+test("a view the operator published by name: list_sources and describe_source name it, render_view and create_link take its name", async () => {
+    const dir = workspace();
+    const server = await httpServer({ sources: { sales: { file: "data/sales.csv", link: "https://reports.example.com/sales", policy: { default: "show" }, views: { "by-region": { name: "Sales by region", view: BY_REGION } } } }, output: { dir: "out" }, baseDir: dir });
+    try {
+        const { client, close } = await httpClient(server.url);
+        const listed = await call(client, "list_sources");
+        assert.deepEqual(listed.data.sources[0].views, [{ name: "by-region", title: "Sales by region" }]);
+        const described = await call(client, "describe_source", { source: "sales" });
+        assert.deepEqual(described.data.views, listed.data.sources[0].views);
+        const { tools } = await client.listTools();
+        assert.match(/** @type {any} */ (tools.find((t) => t.name === "render_view")?.inputSchema)?.properties?.view?.description, /the name of a view the operator published/);
+        const rendered = await call(client, "render_view", { source: "sales", view: "by-region", format: "csv", save: false });
+        assert.equal(rendered.isError, false, rendered.text);
+        assert.match(rendered.data.inline.text, /North/);
+        const link = await call(client, "create_link", { source: "sales", view: "by-region" });
+        assert.equal(link.isError, false, link.text);
+        const unknown = await call(client, "render_view", { source: "sales", view: "by-regoin" });
+        assert.match(unknown.text, /^INVALID_INPUT: no view "by-regoin" for the source sales; did you mean "by-region"\? list_sources lists the views/);
         await close();
     } finally {
         await server.close();

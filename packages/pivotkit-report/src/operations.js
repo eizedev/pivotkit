@@ -850,26 +850,28 @@ export const OPERATIONS = Object.freeze({
     create_link: {
         name: "create_link",
         title: "Create a link to a view",
-        description: "Makes a link that opens the view in the source's report page, where the person sees the data with their own rights. Works only for sources whose list_sources entry says link: true. The view is checked first; a view with errors gets no link.",
+        description: "Makes a link that opens the view (or a layout: a view by field names) in the source's report page, where the person sees the data with their own rights. Works only for sources whose list_sources entry says link: true. The view is checked first; a view with errors gets no link.",
         cli: null,
         http: { method: "POST", path: "/views/link" },
         needs: ["data", "link"],
         annotations: { readOnly: true, idempotent: true, writesFile: false },
-        input: object({ source: SOURCE, view: VIEW, name: { type: "string", maxLength: 200, description: "The view's name, shown on the page." } }, ["source", "view"]),
+        input: object({ source: SOURCE, view: VIEW, layout: LAYOUT, name: { type: "string", maxLength: 200, description: "The view's name, shown on the page." } }, ["source"]),
         output: object({ ok: { type: "boolean" }, url: { type: "string" }, findings: FINDINGS, uses: USES }, ["ok", "findings"]),
         run: async (input, env) => {
+            checkViewOrLayout(input);
             const target = env.link ? await env.link(input.source) : null;
             if (!target) {
                 throw new OperationError("NO_LINK", "this source has no report page to link to: the operator sets one (link) for it; render the report to a file instead");
             }
-            const read = readView(input.view);
             const source = await sourceData(env, input.source);
+            const given = viewOrLayout(input, source, env);
+            const read = readView(given.view);
             if (read.failed) {
                 return { result: { ok: false, findings: [unreadable(read)], uses: [] } };
             }
             const { errors, warnings } = validate(read.view, source.data, { limits: viewLimits(env) });
-            const findings = [...errors.map(findingOf), ...warnings.map(findingOf), ...unknownItems(read.view, source.data, env)];
-            if (errors.length) {
+            const findings = [...given.notes, ...errors.map(findingOf), ...warnings.map(findingOf), ...unknownItems(read.view, source.data, env)];
+            if (errors.length || given.notes.some((f) => f.severity === "error")) {
                 return { result: { ok: false, findings, uses: usesOf(read.view, source.data, env) } };
             }
             let text;
@@ -885,7 +887,7 @@ export const OPERATIONS = Object.freeze({
     draft_schedule: {
         name: "draft_schedule",
         title: "Draft a schedule",
-        description: "Writes a draft for a report that runs on a schedule (when, which formats, to whom by name). It runs nothing and sends nothing: a person approves the draft in the host. Recipients are names the host knows, never addresses.",
+        description: "Writes a draft for a report that runs on a schedule (when, which formats, to whom by name) from a view or a layout. It runs nothing and sends nothing: a person approves the draft in the host. Recipients are names the host knows, never addresses.",
         cli: null,
         http: { method: "POST", path: "/schedules/draft" },
         needs: ["data", "sources"],
@@ -894,6 +896,7 @@ export const OPERATIONS = Object.freeze({
             {
                 source: SOURCE,
                 view: VIEW,
+                layout: LAYOUT,
                 name: { type: "string", minLength: 1, maxLength: 200 },
                 formats: { type: "array", minItems: 1, maxItems: FORMATS.length, uniqueItems: true, items: { enum: FORMATS } },
                 every: object(
@@ -909,15 +912,17 @@ export const OPERATIONS = Object.freeze({
                 recipients: { type: "array", minItems: 1, maxItems: 20, items: { type: "string", minLength: 1, maxLength: 100 }, description: "Names of people or groups the host knows; never addresses." },
                 note: { type: "string", maxLength: 1000 }
             },
-            ["source", "view", "name", "formats", "every", "recipients"]
+            ["source", "name", "formats", "every", "recipients"]
         ),
         output: object({ ok: { type: "boolean" }, findings: FINDINGS, uses: USES, draft: { type: ["object", "null"] } }, ["ok", "findings", "draft"]),
         run: async (input, env) => {
-            const read = readView(input.view);
+            checkViewOrLayout(input);
             const source = await sourceData(env, input.source);
             if (source.schedulable === false) {
                 throw new OperationError("NOT_SCHEDULABLE", "a schedule cannot run over a file handed in; ask the operator to add it as a source");
             }
+            const given = viewOrLayout(input, source, env);
+            const read = readView(given.view);
             if (read.failed) {
                 return { result: { ok: false, findings: [unreadable(read)], uses: [], draft: null } };
             }
@@ -936,8 +941,8 @@ export const OPERATIONS = Object.freeze({
                 throw new OperationError("INVALID_INPUT", "every: a week needs weekday, a month needs day, a day neither");
             }
             const { errors, warnings } = validate(read.view, source.data, { limits: viewLimits(env) });
-            const findings = [...errors.map(findingOf), ...warnings.map(findingOf), ...unknownItems(read.view, source.data, env)];
-            if (errors.length) {
+            const findings = [...given.notes, ...errors.map(findingOf), ...warnings.map(findingOf), ...unknownItems(read.view, source.data, env)];
+            if (errors.length || given.notes.some((f) => f.severity === "error")) {
                 return { result: { ok: false, findings, uses: usesOf(read.view, source.data, env), draft: null } };
             }
             const draft = {
