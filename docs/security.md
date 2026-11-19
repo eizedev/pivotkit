@@ -817,6 +817,12 @@ So:
 - A parameter bound to a sign-in claim never goes into a link. The server does not start with such a
   list, and `check-config` names it.
 
+`check-config` warns about a listed parameter:
+
+- whose name the configured page address already holds in its query. A link replaces that value.
+- of type `string` without `pattern`, `enum` or `format`. Any value of the server's safe characters
+  then goes into the address. Set a pattern that allows only what may show up there.
+
 ## Content-Security-Policy
 
 The web component was measured in the browser tests (`tests/browser/element.spec.js`) in Chromium,

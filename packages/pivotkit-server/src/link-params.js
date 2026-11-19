@@ -7,6 +7,7 @@
  *   checkLinkParams(source, given, id)     refuses a caller's name the list leaves out
  *   linkParamsOf(source)                   what list_sources names
  *   linkEntriesOf(source, given, values)   the names and values a link carries
+ *   notCarriedOf(source, given)            the names given that a link without a list does not carry
  *   withLinkQuery(url, entries)            the page's address with the values in its query
  *
  * A parameter bound to a sign-in claim never goes into a link: the list may not name one, and the
@@ -108,6 +109,21 @@ export function linkEntriesOf(source, given, values) {
     }
     const set = (name) => Object.hasOwn(given, name) && /** @type {any} */ (given)[name] !== undefined && /** @type {any} */ (given)[name] !== null;
     return list.filter((name) => set(name) && Object.hasOwn(values, name)).map((name) => [name, String(values[name])]);
+}
+
+/**
+ * The names of the params a caller gave that the link does not carry, because the source has no
+ * linkParams list: create_link reads the source with them, but the page opens without them. With a
+ * list, checkLinkParams refuses every other name, so nothing is left out silently.
+ * @param {Record<string, any>} source
+ * @param {unknown} given  the input's params
+ * @returns {string[]}
+ */
+export function notCarriedOf(source, given) {
+    if (!source.link || Array.isArray(source.linkParams) || given === null || typeof given !== "object" || Array.isArray(given)) {
+        return [];
+    }
+    return Object.keys(given).filter((name) => /** @type {any} */ (given)[name] !== undefined && /** @type {any} */ (given)[name] !== null);
 }
 
 /**

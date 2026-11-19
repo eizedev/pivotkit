@@ -161,6 +161,25 @@ test("without linkParams create_link works as before: the params are checked and
     }
 });
 
+// a link that does not carry the params it was asked with opens the page unfiltered: the answer says
+// so, as a warning, so a client does not tell the user the link is filtered (#641)
+test("without linkParams the answer warns that the link carries none of the params given; with a list, or without params, no warning", async () => {
+    const context = await contextOf({ sources: { tickets: { load, params: PARAMS, link: PAGE, policy: { default: "show" } }, listed: linked() } });
+    try {
+        const { text, result } = await present(context, "create_link", { source: "tickets", view: VIEW, params: { customer: "acme", region: "north" } }, PERSON);
+        assert.equal(result.ok, true);
+        const carried = result.findings.filter((f) => f.code === "paramsNotCarried");
+        assert.deepEqual(carried, [{ severity: "warning", code: "paramsNotCarried", path: "params", message: "the link does not carry customer, region: the page opens without them (the operator lists the params a link may carry in linkParams)" }]);
+        assert.match(text, /^Link ready: give the user the url\. The link does not carry customer, region: the page opens without them /);
+        const none = await present(context, "create_link", { source: "tickets", view: VIEW }, PERSON);
+        assert.deepEqual(none.result.findings.filter((f) => f.code === "paramsNotCarried"), []);
+        const listed = await present(context, "create_link", { source: "listed", view: VIEW, params: { customer: "acme" } }, PERSON);
+        assert.deepEqual(listed.result.findings.filter((f) => f.code === "paramsNotCarried"), []);
+    } finally {
+        await context.close();
+    }
+});
+
 test("linkParams in the configuration: only declared, unbound names of a source with a link; a required one listed", () => {
     validateOptions({ sources: { tickets: linked() }, auth: OAUTH });
     validateOptions({ sources: { tickets: linked({ linkParams: [] }) }, auth: OAUTH });
@@ -217,4 +236,26 @@ test("check-config names the list under the source's link, and refuses a claim-b
     assert.equal(facts[at + 1], "link params, in the page's query string: customer, size");
     await assert.rejects(checkConfig({ sources: { tickets: linked({ linkParams: ["tenant"] }) }, auth: OAUTH }), (e) => e instanceof ConfigError && /tenant is bound to the sign-in claim tid/.test(e.message));
     await assert.rejects(createContext({ log: "off", sources: { tickets: linked({ linkParams: ["tenant"] }) }, auth: OAUTH }), ConfigError);
+});
+
+// how values in a link are exposed (#642): a pointer to the security page, a warning for a listed name
+// the page address already holds (the link replaces it), one for a text parameter any value passes,
+// and a hint for a linked source with params but no list
+test("check-config: the security pointer, a name already in the page's query, a text without pattern or enum, a source without a list", async () => {
+    const params = { ...PARAMS, note: { type: "string", maxLength: 30 }, day: { type: "string", format: "date" } };
+    const sources = {
+        tickets: linked({ params, link: `${PAGE}?customer=all&tab=2`, linkParams: ["customer", "size", "region", "note", "day"] }),
+        open: { load, params: PARAMS, link: PAGE, policy: { default: "show" } }
+    };
+    const { text } = await checkConfig({ sources, auth: OAUTH });
+    const facts = factsOf(text);
+    assert.match(facts, /\n {4}link params, in the page's query string: customer, size, region, note, day\n {6}who can read them: https:\/\/pivotkit\.eize\.dev\/security\/#link-params\n/);
+    assert.match(facts, /WARNING \(Sources\): sources\.tickets\.linkParams: customer is in the query of sources\.tickets\.link too; a link replaces that value/);
+    assert.match(facts, /WARNING \(Sources\): sources\.tickets\.linkParams: note has no pattern or enum; any value of up to 30 letters, digits and \. _ ~ - goes into the page's address \(sources\.tickets\.params\.note\.pattern\)/);
+    // customer has a pattern, region an enum, size is a number, day a date: no such warning
+    assert.equal((facts.match(/has no pattern or enum/g) ?? []).length, 1, facts);
+    assert.match(facts, /\n {4}link params: none; create_link reads customer, size, region and the link carries none \(sources\.open\.linkParams\)\n/);
+    // without documentation links, no pointer
+    const quiet = factsOf((await checkConfig({ sources: { tickets: linked() }, auth: OAUTH, branding: { docsUrl: null } })).text);
+    assert.doesNotMatch(quiet, /who can read them/);
 });

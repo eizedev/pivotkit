@@ -177,6 +177,8 @@ fragment:
 
 - The operator lists the parameters a link may carry, per source: `sources.<id>.linkParams`
   ([options](../reference/mcp.md#configuration)). Without the list, a link carries none.
+  `create_link` then reads the source with the params given and warns with `paramsNotCarried`:
+  the page opens without them.
 - `create_link` refuses any other parameter with `INVALID_INPUT` and names the allowed ones.
 - A parameter bound to a sign-in claim never goes into a link. The server refuses such a list.
 - The server checks the values with the source's parameter rules before it makes the link.

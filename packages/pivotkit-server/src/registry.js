@@ -19,7 +19,7 @@ import { FILE_PREFIX, INLINE_ID, KINDS, kindOf } from "./sources/index.js";
 import { resolveFilePath } from "./sources/file.js";
 import { resolveInline } from "./sources/inline.js";
 import { normalizeParams, paramsList } from "./sources/params.js";
-import { checkLinkParams, linkEntriesOf, linkParamsOf, withLinkQuery } from "./link-params.js";
+import { checkLinkParams, linkEntriesOf, linkParamsOf, notCarriedOf, withLinkQuery } from "./link-params.js";
 import { readTemplateFile } from "./print-template.js";
 import { asOfMembers } from "./sources/as-of.js";
 
@@ -289,7 +289,7 @@ export async function createRegistry(options, { log = null } = {}) {
                 sourceKind: kind,
                 policy,
                 source: source.load || source.http ? source : null,
-                link: source.link ? { url: withLinkQuery(source.link, how.link ? linkEntriesOf(source, params, values) : []), key: source.linkKey ?? null } : null,
+                link: source.link ? { url: withLinkQuery(source.link, how.link ? linkEntriesOf(source, params, values) : []), key: source.linkKey ?? null, notCarried: how.link ? notCarriedOf(source, params) : [] } : null,
                 template,
                 params: values,
                 descriptions: descriptionsOf(source),

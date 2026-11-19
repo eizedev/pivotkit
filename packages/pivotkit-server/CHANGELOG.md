@@ -95,6 +95,14 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 - A missing print template fails only html reports. Other formats, `describe_source` and
   `validate_view` over the source answer as usual (#614).
+- `create_link` over a source with a link and params but no `linkParams` warns with
+  `paramsNotCarried`: the link carries none of the params given, so the page opens without them
+  (#641).
+- `check-config` points to the security notes under a source's link params. It warns about a listed
+  name the page address already holds, and about a text parameter without `pattern`, `enum` or
+  `format`. A linked source with params but no list gets a hint (#642).
+- `check-config` no longer says that the audit names a person only with `auth.mode oauth` when an
+  external issuer is set. It checks the audit key there too, as the start does (#639).
 
 ## [0.3.2] - 2026-11-19
 
