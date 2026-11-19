@@ -330,6 +330,19 @@ export async function findNamedView(context, id, name, policy, how = {}) {
 }
 
 /**
+ * A `view` that is no name, as it is; INVALID_INPUT for a text that is no JSON of a view either: it
+ * was meant as a name, so the error says what a name is.
+ * @param {unknown} view
+ * @param {{ surface?: "mcp" | "rest" }} [how]
+ */
+export function checkViewText(view, how = {}) {
+    if (typeof view === "string" && !/^\s*[{["]/.test(view)) {
+        throw new OperationError("INVALID_INPUT", `view is neither a view's JSON nor a view's name: a name has letters, digits, - and _, at most 80; ${how.surface === "rest" ? "GET /sources" : "list_sources"} lists the views`);
+    }
+    return view;
+}
+
+/**
  * An operation's input with a view's name replaced by the view, for the source the caller resolved,
  * and the view; the input as it is (and no view) when its `view` is no name.
  * @param {any} context  createContext's
@@ -341,9 +354,8 @@ export async function findNamedView(context, id, name, policy, how = {}) {
  */
 export async function withNamedView(context, op, input, resolved, how = {}) {
     if (!isViewName(input?.view)) {
-        // a text that is no JSON of a view was meant as a name: say what a name is
-        if (NAMED_VIEW_OPERATIONS.has(op) && typeof input?.view === "string" && !/^\s*[{["]/.test(input.view)) {
-            throw new OperationError("INVALID_INPUT", `view is neither a view's JSON nor a view's name: a name has letters, digits, - and _, at most 80; ${how.surface === "rest" ? "GET /sources" : "list_sources"} lists the views`);
+        if (NAMED_VIEW_OPERATIONS.has(op)) {
+            checkViewText(input?.view, how);
         }
         return { input, named: null };
     }

@@ -164,7 +164,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
   `runResolved` reads it for html renders only, so a missing file fails nothing else.
 - `src/views.js` owns named views (`sources.<id>.views`, `viewsDir`). Read a view file only through it.
 - `withNamedView` in `compute` (`present.js`) is where an operation's view name becomes the view.
-  The rows route uses `findNamedView` in `records.js` (`namedViewFor`).
+  The rows route's is `namedViewFor` in `records.js`, through `findNamedView` of `views.js`.
 - A view that uses a field hidden from the caller answers as a missing one.
 
 ## REST

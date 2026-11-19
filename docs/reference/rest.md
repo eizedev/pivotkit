@@ -647,7 +647,7 @@ The defaults are a first guess. Real row counts will set them better.
   `concurrency` loads hold data at once. Raise `concurrency` and `compute.workers` together for
   more people at once.
 - `writeMs` cuts an honest reader on a slow link too. The default answer of 50,000 rows is about
-  4 MiB ([sizing](#records-sizing)), which needs about 4 Mbit/s within 10 s.
+  4 MiB ([sizing](#records-sizing)), which needs about 3.5 Mbit/s within 10 s.
 - `auth.toolScopes` cannot name this route, since it is no operation. `rest.requiredScopes` and the
   source's `scopes` apply.
 - The places for [large bodies](#data) count per client, so they are not used here.
@@ -719,9 +719,9 @@ document.querySelector("pivot-report").data = { columns, types, data };
 ### What the log says { #records-log }
 
 Every answer that started ends with a `records` line: the source, the rows and columns, the profile,
-`client` and `ms`, how long the answer took to read. With `audit.subject` it names the person too. It never holds a value. An answer cut
-off has `outcome: "error"` and `reason`: `idle`, `slow` (not read within `writeMs`), `client` (the reader left), `timeout` or
-`error`.
+`client` and `ms`, how long the answer took to read. With `audit.subject` it names the person too.
+It never holds a value. An answer cut off has `outcome: "error"` and `reason`: `idle`, `slow` (not
+read within `writeMs`), `client` (the reader left), `timeout` or `error`.
 
 ### Sizing { #records-sizing }
 

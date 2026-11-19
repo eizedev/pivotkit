@@ -43,7 +43,7 @@ import { asOfMembers } from "./sources/as-of.js";
 import { isPerson } from "./sources/auth.js";
 import { runResolved } from "./sources/index.js";
 import { PARAMS_INPUT } from "./sources/input.js";
-import { findNamedView, isViewName } from "./views.js";
+import { checkViewText, findNamedView, isViewName } from "./views.js";
 
 /** The most fields a request may name. */
 export const RECORDS_FIELDS = 1000;
@@ -136,7 +136,7 @@ export function createRecords(context) {
         try {
             const resolved = await context.registry.resolve(input.source, caller, { files: false, surface: "rest" }, input.params);
             // a view by name: the operator's view, decided before the load (views.js)
-            const view = isViewName(input.view) ? await namedViewFor(context, input.source, input.view, resolved.policy, problemOf) : input.view;
+            const view = isViewName(input.view) ? await namedViewFor(context, input.source, input.view, resolved.policy, problemOf) : checkViewText(input.view, { surface: "rest" });
             if (view instanceof Response) {
                 release();
                 return view;

@@ -86,11 +86,14 @@ const NAMED_VIEW_INPUT = {
     anyOf: [...VIEW_INPUT.anyOf.slice(0, 2), { type: "string", description: "A view or a view file as JSON text, or a named view's name." }]
 };
 
-/** An input schema with the view referenced. */
+/** The rows route's name for withViewRef: it takes a view by name, as the operations in NAMED_VIEW_OPERATIONS do. */
+const RECORDS_ROUTE = "records";
+
+/** An input schema with the view referenced: by name too for the operations and the rows route that take one. */
 function withViewRef(schema, name) {
     const out = structuredClone(schema);
     if (out.properties?.view) {
-        out.properties.view = NAMED_VIEW_OPERATIONS.has(name) ? NAMED_VIEW_INPUT : VIEW_INPUT;
+        out.properties.view = NAMED_VIEW_OPERATIONS.has(name) || name === RECORDS_ROUTE ? NAMED_VIEW_INPUT : VIEW_INPUT;
     }
     return out;
 }
@@ -180,7 +183,7 @@ export function openApiDocument(options = {}) {
     }
 
     // the rows route (records.js): no operation of the table, its own input and output
-    schemas.ReadRecordsInput = withViewRef(RECORDS_INPUT);
+    schemas.ReadRecordsInput = withViewRef(RECORDS_INPUT, RECORDS_ROUTE);
     schemas.ReadRecordsOutput = structuredClone(RECORDS_OUTPUT);
     /** @type {Record<string, any>} */
     const paths = {};
