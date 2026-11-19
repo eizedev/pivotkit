@@ -20,7 +20,9 @@ const COMPARED_ENTRIES = 50;
 /** @type {import("./index.js").Section} */
 export async function section(options, _registry, runtime) {
     // how a person gets a profile is said under Auth: (check/access.js signInItems); here the audit
-    return options.audit ? auditItems(options, runtime, (options.auth?.mode ?? "none") === "oauth") : { items: [], upgrade: [] };
+    // a person is named by an OAuth token or by an external issuer's token, whatever auth.mode is
+    const namesPerson = (options.auth?.mode ?? "none") === "oauth" || Boolean(options.auth?.externalIssuers?.length);
+    return options.audit ? auditItems(options, runtime, namesPerson) : { items: [], upgrade: [] };
 }
 
 /**
@@ -142,7 +144,7 @@ function shows(options, wide, narrow) {
 }
 
 /** The audit section: how the log names a person, the key, and what keeps it from working. */
-async function auditItems(options, runtime, oauth) {
+async function auditItems(options, runtime, namesPerson) {
     const audit = options.audit ?? {};
     const subject = audit.subject ?? "off";
     const claim = options.auth?.subjectClaim ?? "sub";
@@ -153,17 +155,17 @@ async function auditItems(options, runtime, oauth) {
     if (subject !== "hash") {
         items.push(plain("this is personal data: say so where your log goes and how long it is kept"));
     }
-    if (!oauth) {
-        items.push(warning("audit names a person only with auth.mode oauth; a static token is logged by its name already"));
+    if (!namesPerson) {
+        items.push(warning("audit names a person only with auth.mode oauth or auth.externalIssuers; a static token is logged by its name already"));
     }
     if (subject === "hash") {
         if (!audit.key) {
             items.push(warning(`no audit.key: a random key per start, so the same person gets another hash after every restart; make one with: ${makeKey("audit")}`));
         } else {
             items.push(plain(`key from ${secretText(options, audit.key)}`));
-            // read at start with OAuth only, where a key that cannot be read stops the start; one
-            // made at start is said under Credentials
-            const unreadable = oauth && !(await madeAtStart(audit.key, options))
+            // read at start only where a person is named (OAuth, external issuers), where a key that
+            // cannot be read stops the start; one made at start is said under Credentials
+            const unreadable = namesPerson && !(await madeAtStart(audit.key, options))
                 ? await readSecret(audit.key, options, runtime.env).then(
                       (key) => (key.length < AUDIT_KEY_MIN ? `at least ${AUDIT_KEY_MIN} characters; make one with: ${makeKey("audit")}` : null),
                       (e) => String(e?.message ?? e)

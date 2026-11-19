@@ -399,6 +399,23 @@ function withEmptyFilter(findings, result, closed) {
 }
 
 /**
+ * The warning of a link that does not carry the params create_link was given (link-params.js
+ * notCarriedOf): the page opens without them, so a client must not call the link filtered. Null
+ * when it carries every one.
+ * @param {string[]} names
+ */
+function notCarriedFinding(names) {
+    if (!names.length) {
+        return null;
+    }
+    const list = names.map((n) => findingText(n.slice(0, 64))).join(", ");
+    return { severity: "warning", code: "paramsNotCarried", path: "params", message: `the link does not carry ${list}: the page opens without them (the operator lists the params a link may carry in linkParams)` };
+}
+
+/** A sentence's first letter in capitals. */
+const capitalized = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/**
  * Where the user finds a written file, in words, or null where the note says it (a report over a
  * closed source without a link). A link of the server's own is named by the file's name: its
  * address is output.url (and the MCP resource_link), not repeated in the words.
@@ -561,9 +578,11 @@ const STEPS = {
 
     async create_link(args, context, caller, how) {
         // link: the params the source's linkParams allow go into the page's query (link-params.js)
-        const { outcome, policy, ...read } = await runOver(context, "create_link", args, caller, { ...how, link: true });
-        const result = /** @type {Record<string, any>} */ ({ ...outcome.result, findings: exposeFindings(outcome.result.findings, policy, outcome.result.uses), ...asOfMembers(read) });
-        return { text: result.ok ? "Link ready: give the user the url." : findingsText(false, result.findings), result };
+        const resolved = await resolveFor(context, args, caller, { ...how, link: true });
+        const { outcome, policy, ...read } = await compute(context, "create_link", args, resolved, caller, { ...how, link: true });
+        const notCarried = notCarriedFinding(resolved.link?.notCarried ?? []);
+        const result = /** @type {Record<string, any>} */ ({ ...outcome.result, findings: [...exposeFindings(outcome.result.findings, policy, outcome.result.uses), ...(outcome.result.ok && notCarried ? [notCarried] : [])], ...asOfMembers(read) });
+        return { text: result.ok ? `Link ready: give the user the url.${notCarried ? ` ${capitalized(notCarried.message)}.` : ""}` : findingsText(false, result.findings), result };
     },
 
     async draft_schedule(args, context, caller, how) {

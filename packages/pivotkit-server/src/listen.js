@@ -226,6 +226,21 @@ export function untilSent(req, ms) {
  */
 function readBody(req, max) {
     return new Promise((resolve, reject) => {
+        // a connection that ends before the body did: the parser refused the body (a broken chunk) or
+        // the client left. It may have happened already, while an async precheck ran: its events are
+        // past then, and a read that waited for them would hold the request open until a stop's graceMs
+        const cut = () => reject(Object.assign(new Error("the connection closed before the body ended"), { status: 400 }));
+        // readableEnded, not complete: a body the parser finished but nobody read yet is lost too
+        // when the client leaves (the request is destroyed before its "end")
+        if (req.destroyed && !req.readableEnded) {
+            cut();
+            return;
+        }
+        req.on("close", () => {
+            if (!req.readableEnded) {
+                cut();
+            }
+        });
         const chunks = [];
         let size = 0;
         let over = false;
@@ -409,6 +424,11 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 } else {
                     abort.signal.addEventListener("abort", stop, { once: true });
                 }
+                // the body failing while the loop waits for a drain rejects that wait, so the
+                // connection ends then and not at the client's next read. A clean end must not end
+                // the wait (the socket is still full), so it never settles this promise
+                const streamFailed = reader.closed.then(() => new Promise(() => undefined));
+                streamFailed.catch(() => undefined);
                 for (;;) {
                     // a body that fails rejects here: the catch below ends the connection, so a cut answer
                     // never looks complete; a cancel (the client left) ends the read with done
@@ -418,10 +438,13 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                     }
                     if (!res.write(value)) {
                         // a client that leaves while the socket is full sends no drain: its close ends the wait
-                        await new Promise((resolve) => {
-                            res.once("drain", resolve);
-                            res.once("close", resolve);
-                        });
+                        await Promise.race([
+                            new Promise((resolve) => {
+                                res.once("drain", resolve);
+                                res.once("close", resolve);
+                            }),
+                            streamFailed
+                        ]);
                         if (res.destroyed) {
                             await stop();
                             break;

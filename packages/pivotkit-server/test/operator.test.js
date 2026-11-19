@@ -5,7 +5,7 @@
 // lines, and when the data is from in the html and xlsx files the REST service hands out.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { createHmac } from "node:crypto";
+import { createHmac, generateKeyPairSync } from "node:crypto";
 import { createServer } from "node:http";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -434,6 +434,22 @@ test("check-config: groups, the default profile, the scopes offered, unreachable
     const at = factsOf(plainToken.text).split("\n");
     assert.deepEqual(at.filter((l) => /no static token holds/.test(l)), ["WARNING (Auth): the source hr needs the scope pivotkit:hr, which no static token holds: no caller can use it"], plainToken.text);
     assert.ok(at.indexOf("WARNING (Auth): the source hr needs the scope pivotkit:hr, which no static token holds: no caller can use it") < at.indexOf("Auth: token"), plainToken.text);
+});
+
+// a token of an external issuer names a person by its subject, also with auth.mode token: the log names
+// them, so the audit section neither says it cannot nor skips the start's key check (#639)
+test("audit with an external issuer and auth.mode token: no 'only with oauth' warning, and an unreadable key stops the start", async () => {
+    const dir = workspace();
+    const { publicKey } = generateKeyPairSync("ed25519");
+    writeFileSync(join(dir, "psu.pub"), publicKey.export({ type: "spki", format: "pem" }).toString());
+    const auth = { mode: "token", tokens: [{ name: "bot", env: "BOT" }], externalIssuers: [{ issuer: "psu", typ: "psu+jwt", scopes: ["pivotkit:read"], profiles: ["staff"], profile: "staff", keys: [{ kid: "psu-1", publicKey: { file: "psu.pub" } }] }] };
+    const base = { sources: { sales: { file: "data/sales.csv" } }, policy: { profiles: { staff: { fields: { Region: "show" } } } }, auth, baseDir: dir };
+    const env = { BOT: TOKEN };
+    const plainAudit = await checkConfig({ ...base, audit: { subject: "plain" } }, { http: false, env, name: "pivotkit-server" });
+    assert.doesNotMatch(factsOf(plainAudit.text), /audit names a person only/, plainAudit.text);
+    const hashed = await checkConfig({ ...base, audit: { subject: "hash", key: { env: "NOT_SET" } } }, { http: false, env, name: "pivotkit-server" });
+    assert.match(factsOf(hashed.text), /PROBLEM: audit\.key: \$NOT_SET is not set -> the server does not start/, hashed.text);
+    await assert.rejects(restServer({ ...base, audit: { subject: "hash", key: { env: "NOT_SET" } } }, { env }), /audit\.key/);
 });
 
 test("dataAsOf in files: the html report prints it, the xlsx carries it as the document property DataAsOf", async () => {

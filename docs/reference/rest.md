@@ -132,6 +132,7 @@ A source with parameters takes their values as `params` with its id in a POST bo
 - `POST /views/link` takes only the parameters in `linkParams`, where the source has the list. It
   writes their values into the page's query string
   ([link parameters](../concepts/sharing.md#link-params)). Any other answers `INVALID_INPUT`.
+  Without the list, the link carries none, and the answer warns with `paramsNotCarried`.
 - The routes take `params` only when a configured source declares any
   ([parameters](mcp.md#configuration)). Otherwise a request with `params` answers `INVALID_INPUT`
   with the `detail` "this server has no source that takes params; leave params out (GET /sources
@@ -1297,8 +1298,8 @@ A `PROBLEM` ends with what it does:
 
 - `-> the server does not start`: what `serve` refuses. That is an output directory it cannot use, a
   static token that is missing or too easy to guess, an address off loopback without auth, an issuer that is
-  not https, an `audit.key` that cannot be read or has fewer than 16 characters (OAuth with
-  `audit.subject: hash`), or a print template the parser refuses.
+  not https, an `audit.key` that cannot be read or has fewer than 16 characters (OAuth or an
+  external issuer, with `audit.subject: hash`), or a print template the parser refuses.
 - What does not work while the server runs: a source file that is not there, a backend secret, the
   download key, an upload header's secret, the download links' client secret, an issuer or upload
   target on an address the server refuses, or an output directory the server cannot write.

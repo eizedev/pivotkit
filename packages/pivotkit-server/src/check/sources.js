@@ -32,6 +32,8 @@ import { quotedBreakOf } from "../data.js";
 import { allShown } from "../data.js";
 import { checkTemplates } from "../print-template.js";
 import { HTTP_HEADING } from "./http.js";
+import { docsLink, docsOf } from "../options/branding.js";
+import { PARAM_LIMITS } from "../sources/params.js";
 import { heading, plain, problem, warning } from "./format.js";
 
 /**
@@ -110,7 +112,7 @@ export async function section(options, registry, runtime) {
         }
         if (s.scopes.length) items.push(plain(`scopes: ${s.scopes.join(" ")}`, 2));
         if (s.link) items.push(plain(`link: ${s.link}`, 2));
-        if (s.link && written.linkParams?.length) items.push(plain(`link params, in the page's query string: ${written.linkParams.join(", ")}`, 2));
+        if (s.link) items.push(...linkParamsItems(s.id, written, docsOf(options)));
         // the print template, read and parsed as the start does: what the parser refuses stops the
         // start; a file that is not there is like a missing source file (its html reports fail)
         const template = templates.get(s.id);
@@ -237,4 +239,39 @@ async function columnsOf(path, sheet, options) {
     } catch (e) {
         return { names: null, unnamed: [], longRows: 0, quotedBreak: 0, stats: null, why: String(e?.message ?? e).slice(0, 200) };
     }
+}
+
+/**
+ * What a linked source's links carry in the page's query string (link-params.js, record 0016), and
+ * how that exposes values: the list with a pointer to the security page, a warning for a listed name
+ * the page address already holds (the link replaces it) and for a text parameter any value passes,
+ * and a hint for a source with params but no list (create_link reads them, the link carries none).
+ * @param {string} id
+ * @param {Record<string, any>} written  the source's configuration
+ * @param {string | null} docs  the documentation's base (branding.docsUrl)
+ */
+function linkParamsItems(id, written, docs) {
+    const declared = written.params ?? {};
+    const list = written.linkParams;
+    if (!Array.isArray(list)) {
+        const unbound = Object.keys(declared).filter((n) => declared[n]?.claim === undefined);
+        return unbound.length ? [plain(`link params: none; create_link reads ${unbound.join(", ")} and the link carries none (sources.${id}.linkParams)`, 2)] : [];
+    }
+    if (!list.length) {
+        return [];
+    }
+    const pointer = docsLink(docs, "security/#link-params");
+    const items = [plain(`link params, in the page's query string: ${list.join(", ")}`, 2), ...(pointer ? [plain(`who can read them: ${pointer}`, 3)] : [])];
+    const inQuery = URL.canParse(written.link) ? new URL(written.link).searchParams : new URLSearchParams();
+    for (const name of list) {
+        if (inQuery.has(name)) {
+            items.push(warning(`sources.${id}.linkParams: ${name} is in the query of sources.${id}.link too; a link replaces that value`));
+        }
+        const p = declared[name] ?? {};
+        // a text the operator did not narrow: the server's safe characters only (sources/params.js)
+        if (p.type === "string" && p.pattern === undefined && p.enum === undefined && p.format === undefined) {
+            items.push(warning(`sources.${id}.linkParams: ${name} has no pattern or enum; any value of up to ${p.maxLength ?? PARAM_LIMITS.defaultLength} letters, digits and . _ ~ - goes into the page's address (sources.${id}.params.${name}.pattern)`));
+        }
+    }
+    return items;
 }
