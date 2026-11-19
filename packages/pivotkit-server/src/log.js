@@ -128,8 +128,19 @@ export function logSettingsOf(log) {
  */
 export const formatOf = (format, stream) => (format === "auto" ? (stream?.isTTY ? "text" : "json") : format);
 
-/** A status's level: info below 400, warn for 4xx, error for 5xx. */
-export const levelOfStatus = (status) => (status >= 500 ? "error" : status >= 400 ? "warn" : "info");
+/**
+ * A line's level by its answer: info below 400, warn for 4xx, error for 5xx. A 503 BUSY is warn: the
+ * server is full, a client may try again, and nothing is broken.
+ * @param {number} status
+ * @param {{ code?: unknown, reason?: unknown }} [entry]  the line's fields: a refused line names BUSY by its reason
+ */
+export const levelOfStatus = (status, entry = {}) => (status >= 500 && !isBusy(entry) ? "error" : status >= 400 ? "warn" : "info");
+
+/**
+ * Whether a line is of a BUSY answer: by its code, or by a refused line's reason. A new refusal
+ * that answers BUSY logs its reason through REFUSAL_REASONS.BUSY, or it counts as a fault.
+ */
+const isBusy = (entry) => entry.code === "BUSY" || (entry.code === undefined && entry.reason === REFUSAL_REASONS.BUSY);
 
 /** The fields the text format leaves out: the same on every line of a process (started names them) or meant for a log shipper. */
 const TEXT_LEFT_OUT = new Set(["severity", "service", "traceId"]);
@@ -344,7 +355,7 @@ export function createLog(settings, stream, { service = "pivotkit-server", versi
         const ok = event !== "refused" && entry.ok !== false && !(status >= 400);
         noteAnswered(status);
         // debug: a refusal that is routine noise (a GET of a stateless MCP endpoint, a path nobody serves)
-        const lineLevel = how.level ?? (Number.isFinite(status) && status > 0 ? levelOfStatus(status) : ok ? "info" : "warn");
+        const lineLevel = how.level ?? (Number.isFinite(status) && status > 0 ? levelOfStatus(status, entry) : ok ? "info" : "warn");
         write(lineLevel, msgOf(entry, ok), { event, ...entry });
     };
 

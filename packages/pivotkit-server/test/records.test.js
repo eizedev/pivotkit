@@ -466,6 +466,23 @@ test("a reader that leaves mid-answer frees its place at once", async () => {
     }
 });
 
+// a full server is a capacity refusal a client causes, not a server fault: its lines are warnings (#638)
+test("503 BUSY logs its refused line and every other line of the request at warn, not error", async () => {
+    const h = await handlerOf({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } }, rest: { records: { concurrency: 1 } } }, { "sales.csv": bigCsv(40_000) });
+    try {
+        const first = await h.ask(await h.person({ sub: "ana" }), { source: "sales" });
+        const before = h.lines.length;
+        const busy = await h.ask(await h.person({ sub: "ben" }), { source: "sales" });
+        assert.equal(busy.status, 503);
+        await first.body?.cancel();
+        const lines = h.lines.slice(before).filter((l) => l.status === 503);
+        assert.ok(lines.some((l) => l.event === "refused" && l.reason === "busy"), JSON.stringify(lines));
+        assert.deepEqual(lines.map((l) => [l.event, l.level]).filter(([, level]) => level !== "warn"), []);
+    } finally {
+        await h.close();
+    }
+});
+
 test("a large answer goes out in pieces", async () => {
     const h = await handlerOf({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } } }, { "sales.csv": bigCsv(40_000) });
     try {

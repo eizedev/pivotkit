@@ -102,6 +102,17 @@ test("levels: severity by RFC 5424, call and request lines by status, warn drops
     assert.deepEqual(off.lines, []);
 });
 
+// BUSY is the server full: the client may try again, the server is not broken (#638)
+test("levels: a 503 BUSY is a warning on every kind of line; other 5xx stay errors", () => {
+    const { log, lines } = keptLog("debug");
+    log.refused({ status: 503, reason: "busy" });
+    log.request({ operation: "render_view", status: 503, code: "BUSY" });
+    log.call({ tool: "render_view", ok: false, status: 503, code: "BUSY" });
+    log.request({ operation: "describe_source", status: 502, code: "SOURCE_UNAVAILABLE" });
+    log.refused({ status: 500, reason: "internal" });
+    assert.deepEqual(lines.map((l) => JSON.parse(l).level), ["warn", "warn", "warn", "error", "error"]);
+});
+
 test("traceparent: version 00 exactly, lower-case hex, no all-zero ids; a later version by its first fields; anything else gets a new trace", () => {
     assert.equal(traceIdOf("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"), "4bf92f3577b34da6a3ce929d0e0e4736");
     assert.equal(traceIdOf("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-future"), "4bf92f3577b34da6a3ce929d0e0e4736");
