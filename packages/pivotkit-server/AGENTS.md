@@ -111,6 +111,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Levels are `show`, `values`, `summary` and `hide` (`POLICY_LEVELS`), in order of strictness.
 - `stats.js` counts per field. It never keeps a value.
 - A source the caller may not use gets the same answer as a missing one: not found.
+- `src/link-params.js` owns `sources.<id>.linkParams`: the values create_link writes into the page's query.
+- A link carries only values the caller gave. Never a claim's value or a default.
 - Below `show`, a text file with a quoted value over several lines is refused (`checkedRead`).
 - REST callers never get `file:` paths (`files: false` in the registry).
 - Delivery decides a report's link before the file is written (`linkFor` in `delivery.js`).

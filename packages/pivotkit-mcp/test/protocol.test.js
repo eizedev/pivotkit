@@ -164,6 +164,33 @@ test("create_link: a link into the source's page; no link for a source without o
     }
 });
 
+test("create_link with params (#619): list_sources names linkParams, an allowed value goes into the page's query, another is refused", async () => {
+    const tickets = {
+        load: async (params) => [{ Region: params.customer, Sales: 1 }],
+        params: { customer: { type: "string", example: "acme" }, region: { type: "string", enum: ["north", "south"] } },
+        link: "https://reports.example.com/tickets?app=pivot",
+        linkParams: ["customer"],
+        policy: { default: "show" }
+    };
+    const server = await httpServer({ sources: { tickets }, baseDir: workspace() });
+    try {
+        const { client, close } = await httpClient(server.url);
+        const tool = (await client.listTools()).tools.find((t) => t.name === "create_link");
+        assert.ok(tool.inputSchema.properties.params, "the params input is offered");
+        assert.match(tool.description, /linkParams/);
+        const listed = await call(client, "list_sources");
+        assert.deepEqual(listed.data.sources[0].linkParams, ["customer"]);
+        const link = await call(client, "create_link", { source: "tickets", view: BY_REGION, params: { customer: "acme" } });
+        assert.equal(link.isError, false, link.text);
+        assert.match(link.data.url, /^https:\/\/reports\.example\.com\/tickets\?app=pivot&customer=acme#pivot=1\./);
+        const refused = await call(client, "create_link", { source: "tickets", view: BY_REGION, params: { region: "north" } });
+        assert.match(refused.text, /^INVALID_INPUT: a link to tickets may carry customer only; leave out params\."region"/);
+        await close();
+    } finally {
+        await server.close();
+    }
+});
+
 test("create_link and draft_schedule given a layout: one short error that says to make the view first, not a schema dump", async () => {
     const dir = workspace();
     const server = await httpServer({ sources: { sales: { file: "data/sales.csv", link: "https://reports.example.com/sales" } }, output: { dir: "out" }, baseDir: dir });
