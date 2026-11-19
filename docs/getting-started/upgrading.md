@@ -182,7 +182,7 @@ Then restart Claude Code.
 these keys:
 
 - `policy.profiles.<name>.records`: the source ids the profile may read the rows of
-- `rest.records.maxRows`, `.maxCells`, `.concurrency` and `.idleMs`: the route's limits
+- `rest.records.maxRows`, `.maxCells`, `.concurrency`, `.idleMs` and `.writeMs`: the route's limits
 - `sources.<id>.records.maxRows`: a lower row limit for one source
 
 The server refuses `records` in the server's policy, a source's policy and `files.policy`. It also

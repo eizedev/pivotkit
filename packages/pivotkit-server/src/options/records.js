@@ -6,7 +6,7 @@
  *   The server's policy, a source's policy and files.policy do not take it: the right is a
  *   profile's, per source.
  * - `rest.records`: the server's bounds of the route: rows and cells per answer, rows requests at
- *   once and the idle time of a reader.
+ *   once, the idle time of a reader and the time to write an answer.
  * - `sources.<id>.records.maxRows`: a lower row limit for one source, never above the server's.
  *
  * A key is declared here once, never also in config.js or another fragment (options/index.js refuses a
@@ -14,13 +14,14 @@
  */
 
 import { ConfigError } from "./shared.js";
+import { COMPUTE_DEFAULTS } from "../config.js";
 
 export const NAME = "records";
 
 /** @type {Readonly<Partial<Record<import("./shared.js").Slot, Record<string, any>>>>} */
 export const KEYS = Object.freeze({
     policy: { records: "strings" },
-    rest: { records: { object: { maxRows: "integer", maxCells: "integer", concurrency: "integer", idleMs: "integer" } } },
+    rest: { records: { object: { maxRows: "integer", maxCells: "integer", concurrency: "integer", idleMs: "integer", writeMs: "integer" } } },
     source: { records: { object: { maxRows: "integer" } } }
 });
 
@@ -28,20 +29,27 @@ export const KEYS = Object.freeze({
  * The route's bounds where the operator sets none. Each is a first guess until real row counts and
  * the measurement in the docs (docs/reference/rest.md, "Sizing") say more.
  */
-export const RECORDS_DEFAULTS = Object.freeze({ maxRows: 50_000, maxCells: 1_000_000, concurrency: 1, idleMs: 30_000 });
+export const RECORDS_DEFAULTS = Object.freeze({ maxRows: 50_000, maxCells: 1_000_000, concurrency: 1, idleMs: 30_000, writeMs: 10_000 });
 
 /** The largest value each bound takes: well above a source's rows (limits.rows) and an HTTP request's life. */
-export const RECORDS_MAX = Object.freeze({ maxRows: 10_000_000, maxCells: 100_000_000, concurrency: 64, idleMs: 600_000 });
+export const RECORDS_MAX = Object.freeze({ maxRows: 10_000_000, maxCells: 100_000_000, concurrency: 64, idleMs: 600_000, writeMs: 600_000 });
 
 /** The least idle time: a reader that reads a piece within it keeps its slot. */
 export const RECORDS_IDLE_MIN = 1_000;
 
+/** The least time to write an answer. */
+export const RECORDS_WRITE_MIN = 1_000;
+
+/** The server's compute.timeMs: the whole rows job ends within it. */
+const computeTimeOf = (options) => options.compute?.timeMs ?? COMPUTE_DEFAULTS.timeMs;
+
 /**
- * The route's bounds for a server: the operator's over the defaults.
+ * The route's bounds for a server: the operator's over the defaults. writeMs by default is never
+ * above compute.timeMs, which ends the whole job anyway.
  * @param {import("../config.js").ServerOptions} options
- * @returns {{ maxRows: number, maxCells: number, concurrency: number, idleMs: number }}
+ * @returns {{ maxRows: number, maxCells: number, concurrency: number, idleMs: number, writeMs: number }}
  */
-export const recordsBoundsOf = (options) => ({ ...RECORDS_DEFAULTS, ...(options.rest?.records ?? {}) });
+export const recordsBoundsOf = (options) => ({ ...RECORDS_DEFAULTS, writeMs: Math.min(RECORDS_DEFAULTS.writeMs, computeTimeOf(options)), ...(options.rest?.records ?? {}) });
 
 /**
  * The row limit of one source: the server's, or the source's own where it is lower.
@@ -80,12 +88,15 @@ export function validate(options) {
         }
     }
     const bounds = options.rest?.records ?? {};
-    for (const key of /** @type {Array<keyof typeof RECORDS_MAX>} */ (["maxRows", "maxCells", "concurrency", "idleMs"])) {
+    for (const key of /** @type {Array<keyof typeof RECORDS_MAX>} */ (["maxRows", "maxCells", "concurrency", "idleMs", "writeMs"])) {
         const value = bounds[key];
-        const least = key === "idleMs" ? RECORDS_IDLE_MIN : 1;
+        const least = key === "idleMs" ? RECORDS_IDLE_MIN : key === "writeMs" ? RECORDS_WRITE_MIN : 1;
         if (value !== undefined && (value < least || value > RECORDS_MAX[key])) {
             throw new ConfigError(`rest.records.${key}: from ${least} to ${RECORDS_MAX[key]}`);
         }
+    }
+    if (bounds.writeMs !== undefined && bounds.writeMs > computeTimeOf(options)) {
+        throw new ConfigError(`rest.records.writeMs: ${bounds.writeMs} is above compute.timeMs (${computeTimeOf(options)}), which cuts the answer first`);
     }
     const server = recordsBoundsOf(options).maxRows;
     for (const [id, source] of Object.entries(options.sources ?? {})) {
