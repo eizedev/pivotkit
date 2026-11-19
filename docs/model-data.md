@@ -18,6 +18,7 @@ A client that can read files or open links can reach more than pivotkit hands it
 | An AI client on your machine, such as Claude Desktop, Claude Code or VS Code | starts `pivotkit-mcp` itself over stdio | `local`, no sign-in | the server's and the source's policy in the configuration that client starts |
 | An AI client over HTTP | `/mcp` with a static token or OAuth | the token's name, or the OAuth client and the person | the profile that its token, OAuth client, group or scope names. See [per client](#per-client). |
 | A program, such as a script, a scheduled job or PowerShell Universal | REST `/api/v1` with a token or OAuth | the same | the same profiles. Inline results are off, downloads need `results: true`. See [REST](#rest). |
+| A host application's backend for a signed-in person | REST `POST /api/v1/sources/records` with the person's token | the person | rows of the fields at `show`, only where the profile names the source in `records`. A model never gets rows. See [rows route](reference/rest.md#records). |
 | A person who opens a link | a browser | the person, where the link is bound to a sign-in | the link's binding. The report page of `create_link` loads data with the person's own rights. See [links](#links). |
 
 !!! note "In plain words"
@@ -409,6 +410,7 @@ How a profile combines with a source's policy:
   level. So a profile with a `default` replaces the source's levels for every field it does not
   name.
 - `items`, `rows`, `counts`, `inline`, `results` and `data` are the profile's where it sets them.
+  `records` is only a profile's ([rows route](reference/rest.md#records)).
 - A caller bound to a profile never gets the [automatic values rule](reference/mcp.md#auto-values).
 - A caller without a profile gets `auth.defaultProfile` where it is set. Otherwise it gets the
   server's and the source's policy.
@@ -517,6 +519,7 @@ message, which may quote a value or a request's body. A log line names the perso
 | `inline` | 500 cells, 32 KiB | The largest csv or json result that may come back inline; `false`: never |
 | `rest.inline` | `false` | Inline results on REST |
 | `results` | `false` | The REST file route may hand out the file |
+| a profile's `records` | none | The sources whose rows a signed-in person may read over REST ([rows route](reference/rest.md#records)); never a model |
 | `policy.data`, a profile's `data` | MCP on, REST off | The caller may send its own table (`inline:`) |
 | `mcp.data` | 500 rows, 5000 cells, 256 KiB | `false` switches data in the request off on MCP; an object lowers the cap |
 | `files.allowDirs` | none | Directories the model may name files in (`file:`) |

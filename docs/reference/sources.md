@@ -102,6 +102,10 @@ Where views appear:
         top-5 (in the configuration): needs Product, Sales
     ```
 
+A person may read the rows of any kind of source where a profile names it in `records`
+([rows route](rest.md#records)). `sources.<id>.records.maxRows` gives one source a lower row limit
+than `rest.records.maxRows`. It cannot be higher.
+
 ## HTTP sources { #http }
 
 An HTTP source asks an operator's backend for its rows. You write the address once in the

@@ -36,6 +36,6 @@ link each other. [0001](0001-record-decisions.md) has the rules.
 | [0012](0012-versioning-policy.md) | Versioning before and after 1.0.0 | accepted | 2026-11-16 |
 | [0013](0013-public-interface-additions.md) | What else counts as public interface | accepted | 2026-11-17 |
 | [0014](0014-external-token-issuers.md) | Tokens from an external issuer | accepted | 2026-11-17 |
-| [0015](0015-live-rows-for-a-host-page.md) | Rows of a source for a signed-in person, behind the records right | proposed | 2026-11-18 |
+| [0015](0015-live-rows-for-a-host-page.md) | Rows of a source for a signed-in person, behind the records right | accepted | 2026-11-19 |
 | [0016](0016-link-parameters-in-the-query-string.md) | Link parameters in the page's query string | proposed | 2026-11-18 |
 | [0017](0017-report-snapshots-carry-rows.md) | Report snapshots may carry rows | proposed | 2026-11-18 |

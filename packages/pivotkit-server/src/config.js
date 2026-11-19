@@ -32,6 +32,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {{ cells?: number, bytes?: number } | false} [inline]  results that may come back in the tool result (default 500 cells, 32 KiB)
  * @property {boolean} [results]  REST: the caller may download a rendered file (POST /api/v1/views/render/file; default false)
  * @property {boolean} [data]  server and profiles only: the caller may send its own data (source "inline:"); REST only with true, MCP unless false
+ * @property {string[]} [records]  profiles only: the source ids whose rows the profile's callers may read (POST /api/v1/sources/records; off by default)
  * @property {Record<string, PolicyOptions>} [profiles]  server level only: named policies bound to tokens, OAuth clients, groups or scopes (auth.tokens[].profile, auth.clientProfiles, auth.groupProfiles, auth.scopeProfiles, auth.defaultProfile)
  */
 
@@ -53,6 +54,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {import("./options/http.js").HttpSourceOptions} [http]  an HTTP source: the backend's address and how to read its answer (instead of file or load)
  * @property {number} [ttl]  code and HTTP sources: seconds a load is reused (code: default only while version() gives the same; HTTP: 60)
  * @property {number} [maxStale]  code and HTTP sources: seconds the last good data stands in after a transient failure (default 3600; 0: never)
+ * @property {{ maxRows?: number }} [records]  the rows route: a lower row limit for this source than rest.records.maxRows
  * @property {number} [timeMs]  code and HTTP sources: the longest load, in ms (code: default 30000, HTTP: 15000; the signal is aborted then)
  */
 
@@ -100,6 +102,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {{ perMinute?: number, burst?: number, failedAuthPerMinute?: number }} [rateLimit]  per caller, and per address for refused tokens
  * @property {number} [concurrency]  requests of one caller at once (default 4)
  * @property {{ maxBytes?: number }} [data]  the largest body of a caller that may send data (default 10 MiB, at most 64 MiB)
+ * @property {{ maxRows?: number, maxCells?: number, concurrency?: number, idleMs?: number }} [records]  the rows route's bounds (options/records.js RECORDS_DEFAULTS)
  */
 
 /**

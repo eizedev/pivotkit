@@ -13,7 +13,8 @@
  * 6. the body: JSON (or, for a caller that may send data, multipart/form-data with a file:
  *    rest/multipart.js), capped (2 MiB; rest.data.maxBytes for a caller that may send data,
  *    limits.js), checked against the operation's input schema;
- * 7. present() (policy, output, inline) or, for the file route, the file itself.
+ * 7. present() (policy, output, inline), for the file route the file itself, or for the rows route
+ *    the source's rows, written in pieces (records.js).
  */
 
 import { OperationError, checkInput } from "pivotkit-report/operations";
@@ -35,6 +36,7 @@ import { callerFields, logUnanswered, refusalReason } from "../log.js";
 import { requestId, requestScopeFor, withRequestIdHeader, withRequestScope } from "../request-id.js";
 import { offeredScopes } from "../scopes.js";
 import { REST_ROUTES } from "./routes.js";
+import { createRecords } from "../records.js";
 
 /** The most bytes of a request body (the server's, MCP's too); larger only for a caller that may send data (limits.js restBodyBytesFor). */
 export const REST_BODY_BYTES = BODY_BYTES;
@@ -153,6 +155,8 @@ export async function createRestHandler(context, runtime = {}) {
     const ceiling = restBodyCeilingOf(options);
     // the large bodies read at once, over all callers (limits.js)
     const largeBodies = createLargeBodies(LARGE_BODIES);
+    // the rows route's places (rest.records.concurrency, one per person)
+    const records = createRecords(context);
     let warnedAddress = false;
     const trustProxy = options.http?.trustProxy ?? false;
     let document = null;
@@ -293,6 +297,10 @@ export async function createRestHandler(context, runtime = {}) {
         // the log names a configured source or data sent in the request (how much, never a value);
         // anything else a caller typed (a name, a path) is not kept
         entry.source = context.registry.logName(input.source);
+        if (route.answer === "records") {
+            // no operation of the table: its own input, checks and streamed answer (records.js)
+            return records.answer(input, caller, { signal: request.signal, entry });
+        }
         // the file route takes no save (its input refuses it): its line never says saved
         Object.assign(entry, inlineLogFields(input, upload), route.answer === "file" ? {} : saveLogFields(route.operation, input));
         // before the schema's pattern says the same in fewer words

@@ -30,6 +30,106 @@
     }
   ],
   "paths": {
+    "/api/v1/sources/records": {
+      "post": {
+        "operationId": "readRecords",
+        "summary": "Read the rows of a source",
+        "description": "The rows of one source for a person who signed in (an OAuth token with a subject, or a host application's token for its person), where the caller's profile names the source in records. Only fields at show leave; a field at values or summary is NOT_ALLOWED with notShown, a hidden one answers as an unknown one. A view's filters are not applied. The answer is columnar ({ columns, types, data }) and comes in pieces. Off by default.",
+        "tags": [
+          "sources"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadRecordsInput"
+              },
+              "example": {
+                "source": "sales",
+                "fields": [
+                  "Region",
+                  "Sales"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The rows, columnar. The answer is written in pieces (no Content-Length).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadRecordsOutput"
+                },
+                "example": {
+                  "columns": [
+                    "Region",
+                    "Sales"
+                  ],
+                  "types": [
+                    "string",
+                    "number"
+                  ],
+                  "rowCount": 2,
+                  "dataAsOf": "2026-11-18T08:00:00Z",
+                  "withheld": [
+                    "Customer"
+                  ],
+                  "requestId": "Ab3_xY9-k2Q",
+                  "data": [
+                    [
+                      "North",
+                      "South"
+                    ],
+                    [
+                      10,
+                      20
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Problem415"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        }
+      }
+    },
     "/api/v1/sources": {
       "get": {
         "operationId": "listSources",
@@ -2471,6 +2571,10 @@
                       }
                     }
                   }
+                },
+                "records": {
+                  "type": "boolean",
+                  "description": "REST only: true where you may read the source's rows (POST /api/v1/sources/records). Absent: you may not."
                 }
               }
             }
@@ -4549,6 +4653,137 @@
           "source"
         ],
         "additionalProperties": false
+      },
+      "ReadRecordsInput": {
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^(?!file:)",
+            "description": "A source id from GET /sources whose records is true."
+          },
+          "params": {
+            "type": "object",
+            "maxProperties": 16,
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "maxLength": 256
+            },
+            "description": "Values for the source's parameters; list_sources names them. A source with required params needs them in every call."
+          },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            "description": "The fields to answer, in this order (names match case-insensitively). Each must be at show for you. Without fields or view: every field at show."
+          },
+          "view": {
+            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View"
+              },
+              {
+                "type": "object",
+                "description": "A view file (format pivotkit-view)."
+              },
+              {
+                "type": "string",
+                "description": "A view or a view file as JSON text."
+              }
+            ]
+          }
+        }
+      },
+      "ReadRecordsOutput": {
+        "type": "object",
+        "required": [
+          "columns",
+          "types",
+          "rowCount",
+          "withheld",
+          "data"
+        ],
+        "properties": {
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The fields, as the data spells them."
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "string",
+                "number",
+                "boolean",
+                "date",
+                null
+              ]
+            },
+            "description": "Each column's type; null for a column without any value."
+          },
+          "rowCount": {
+            "type": "integer",
+            "description": "The rows: every row of the source."
+          },
+          "dataAsOf": {
+            "type": "string",
+            "description": "When the data is from: ISO 8601 in UTC, to the second."
+          },
+          "stale": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "since"
+            ],
+            "description": "The source could not be refreshed: this is the last good data, kept since then."
+          },
+          "withheld": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The fields at values or summary for you: they are left out. A hidden field is never named."
+          },
+          "requestId": {
+            "type": "string",
+            "description": "This answer's request id: give it to the operator to find the answer in the log."
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "array"
+            },
+            "description": "One array per column, in the order of columns: texts, numbers, true/false, dates as ISO text without an offset, null for a blank."
+          }
+        },
+        "additionalProperties": true
       }
     },
     "responses": {
@@ -4573,7 +4808,7 @@
         }
       },
       "Problem403": {
-        "description": "Not allowed: a scope missing, files by path, a host or origin refused.",
+        "description": "Not allowed: a scope missing, files by path, a host or origin refused, or (rows) no person, no right or a field below show.",
         "content": {
           "application/problem+json": {
             "schema": {
@@ -4603,7 +4838,7 @@
         }
       },
       "Problem413": {
-        "description": "A limit: the body, the file, the data sent or the result is too large.",
+        "description": "A limit: the body, the file, the data sent, the result or (rows) the rows or cells are too large.",
         "content": {
           "application/problem+json": {
             "schema": {

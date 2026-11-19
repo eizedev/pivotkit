@@ -632,6 +632,20 @@ and the sign-in above hold for it too. What differs:
     that much of the server's time and memory. Give it to programs you run. Keep
     `rest.data.maxBytes` as small as they need, and keep the rate limits.
 
+- **Rows of a source** ([rows route](reference/rest.md#records)) are off until a profile names a
+  source in `records`.
+    - Only a person gets rows: an OAuth token with a subject, or an external issuer's token with a
+      subject. Static and signed tokens and a server without sign-in get 403.
+    - Only fields at `show` leave. A field below `show` is refused by name (`notShown`). A hidden
+      field answers as one that does not exist, and no answer names it.
+    - A view's filters are no permission: every row leaves. The policy decides in the main thread,
+      never in the worker that writes the rows.
+    - The rows land in the host application and in the page. From there, the browser is not access
+      control ([pivotkit is not access control](#pivotkit-is-not-access-control)).
+    - Each answer is bounded before its first byte: rows and cells, at most `rest.records.concurrency`
+      at once and one per person, `compute.timeMs` for the whole request. A reader that stalls for
+      `rest.records.idleMs` loses its place.
+    - Every answer carries `Cache-Control: no-store` ([headers](reference/rest.md#headers)).
 - **No files by path**: `file:` sources are refused, whatever the MCP server's `files.allowDirs` says.
   Inline results are off unless the operator turns them on, since a program can enumerate through
   them.
