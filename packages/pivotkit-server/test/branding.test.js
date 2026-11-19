@@ -192,12 +192,11 @@ async function everyAnswer(server) {
 
 /**
  * The server for the sweep: REST and MCP on one port, OAuth, an output directory with download links.
- * Its stop waits one second at most: after the broken chunked body the stop otherwise waits the
- * whole http.graceMs (a finding of its own, not of branding).
+ * Its stop keeps the default http.graceMs: after the broken chunked body it must not wait for it (#655).
  */
 async function sweepServer(branding, http = {}) {
     const dir = brandedWorkspace();
-    return restServer({ sources: SOURCES, output: { dir: "out" }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, http: { publicUrl: `${PUBLIC}/`, graceMs: 1000, ...http }, ...(branding ? { branding } : {}), baseDir: dir }, { enable: ["rest", "mcp"] });
+    return restServer({ sources: SOURCES, output: { dir: "out" }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, http: { publicUrl: `${PUBLIC}/`, ...http }, ...(branding ? { branding } : {}), baseDir: dir }, { enable: ["rest", "mcp"] });
 }
 
 test("docsUrl null: no body or header of any route names pivotkit's documentation site, errors included", async () => {
