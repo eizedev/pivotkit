@@ -132,6 +132,7 @@ A source with parameters takes their values as `params` with its id in a POST bo
 - `POST /views/link` takes only the parameters in `linkParams`, where the source has the list. It
   writes their values into the page's query string
   ([link parameters](../concepts/sharing.md#link-params)). Any other answers `INVALID_INPUT`.
+  Without the list, the link carries none, and the answer warns with `paramsNotCarried`.
 - The routes take `params` only when a configured source declares any
   ([parameters](mcp.md#configuration)). Otherwise a request with `params` answers `INVALID_INPUT`
   with the `detail` "this server has no source that takes params; leave params out (GET /sources
@@ -1178,8 +1179,8 @@ when, where it is known.
       and the like), the source's time limit, a backend's 429, 502, 503 or 504, a `SourceError`
       marked `transient`, or too many loads of the source running.
     - `false` for any other error: the backend refused this server's access or answered another status
-      such as 500, a source not set up correctly, or an error of a code source's `load` without a
-      network code.
+      such as 500, a source not set up correctly, an error of a code source's `load` without a
+      network code, or a [print template](print-template.md) the server cannot read.
 - `NOT_ALLOWED`, `INVALID_INPUT` and `DATA_NOT_AVAILABLE` from a source: `false`. These come from a
   code source's `SourceError`, or from an HTTP source's backend that answered 400 or 422, or 401,
   403 or 404 for a source with parameters.
@@ -1217,11 +1218,11 @@ Rows go by status, then by code. The answers of the download links come last.
 | 413 | <a id="error-body-too-large"></a>`BODY_TOO_LARGE`, <a id="error-limit-exceeded"></a>`LIMIT_EXCEEDED` | The body over 2 MiB (over `rest.data.maxBytes` for a caller that may send data); a file, the data sent, a view or the work over a limit; with `save: false`, a result over the `inline` limits; [rows](#records-limits) over `rest.records` |
 | 415 | <a id="error-unsupported-media-type"></a>`UNSUPPORTED_MEDIA_TYPE`, <a id="error-unsupported-format"></a>`UNSUPPORTED_FORMAT` | A POST whose `Content-Type` is not `application/json` (curl's `-d` alone sends a form) nor, where data may be sent, `multipart/form-data`; a file sent in no data format; a source file in no data format |
 | 422 | <a id="error-data-mismatch"></a>`DATA_MISMATCH` | [Data sent in the request](#data) whose `rowCount` differs from the rows sent, or a file whose SHA-256 differs from `sha256` |
-| 422 | <a id="error-invalid-file"></a>`INVALID_FILE`, <a id="error-not-regular-file"></a>`NOT_REGULAR_FILE`, <a id="error-hard-link"></a>`HARD_LINK`, <a id="error-invalid-template"></a>`INVALID_TEMPLATE` | The source's file or print template (`sources.<id>.template` or `output.template`, a [print template](print-template.md) whose `--pk-*` colours reach the chart, [options](mcp.md)) cannot be used |
+| 422 | <a id="error-invalid-file"></a>`INVALID_FILE`, <a id="error-not-regular-file"></a>`NOT_REGULAR_FILE`, <a id="error-hard-link"></a>`HARD_LINK`, <a id="error-invalid-template"></a>`INVALID_TEMPLATE` | The source's file cannot be used, or its print template (`sources.<id>.template` or `output.template`, a [print template](print-template.md) whose `--pk-*` colours reach the chart, [options](mcp.md)) holds what the parser refuses |
 | 422 | <a id="error-view-has-errors"></a>`VIEW_HAS_ERRORS` | The file route for a view with errors (with `findings`) |
 | 429 | <a id="error-rate-limited"></a>`RATE_LIMITED` | A [limit](#limits) |
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else. The details are only in the log, with `--log debug` |
-| 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running. `detail` is one of pivotkit's fixed texts: not available right now, the source's backend refused this server's access, or the source is not set up correctly. `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
+| 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running. An html render whose print template the server cannot read. `detail` is one of pivotkit's fixed texts: not available right now, the source's backend refused this server's access, the source is not set up correctly, or the server's print template is not available now. `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
 | 502 | <a id="error-upload-failed"></a>`UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload) (`retryable` says whether trying again may help); the report stays in the output directory |
 | 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, two [large bodies](#data) read already, a parameter's pattern not checked in time, or too many [rows requests](#records-limits); starting or stopping; the OAuth issuer not loaded yet |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
@@ -1307,8 +1308,8 @@ A `PROBLEM` ends with what it does:
 
 - `-> the server does not start`: what `serve` refuses. That is an output directory it cannot use, a
   static token that is missing or too easy to guess, an address off loopback without auth, an issuer that is
-  not https, an `audit.key` that cannot be read or has fewer than 16 characters (OAuth with
-  `audit.subject: hash`), or a print template the parser refuses.
+  not https, an `audit.key` that cannot be read or has fewer than 16 characters (OAuth or an
+  external issuer, with `audit.subject: hash`), or a print template the parser refuses.
 - What does not work while the server runs: a source file that is not there, a backend secret, the
   download key, an upload header's secret, the download links' client secret, an issuer or upload
   target on an address the server refuses, or an output directory the server cannot write.
@@ -1408,7 +1409,7 @@ example in Task Manager, ends it at once.
 | `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their MiB (1,048,576 bytes each) the directory may hold, at its top level: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`). A new report deletes the oldest reports until it fits, one write at a time. Drafts are counted but never deleted to make room. They may take at most half of `output.maxFiles` and half of `output.maxMb`, and a draft over that answers 409 `NO_OUTPUT`. Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories. A file named with the mark by hand counts as pivotkit's. Nothing is deleted where the output directory is the configuration file's directory or holds a source, print template or token file. There a full directory answers 409 `NO_OUTPUT`, and the start warns. With `output.maxAgeDays` written explicitly, the server does not start there |
 | `output.maxAgeDays` | 30 | `0`: no age limit. Otherwise the server deletes reports (the files marked `.pivotkit-out.`) and schedule drafts no longer waiting for approval (`.pivotkit-out.report.json` whose `status` is not `"draft"`) older than this many days from the top level of the output directory, at start and every hour. It also deletes the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour). Other files and subdirectories stay. Use a directory of its own. The server refuses to start with a limit you write when the output directory is the configuration file's directory or holds a source, print template or token file. There the default does not apply (no age limit) |
 | `output.draftMaxAgeDays` | 0 (never) | Delete schedule drafts that still wait for approval (`status` `"draft"`) when they are older than this many days, at start and every hour. It works with `output.maxAgeDays: 0` too. Like `output.maxAgeDays`, the server refuses to start with it where the output directory holds the operator's own files |
-| `output.template` | built-in | The [print template](print-template.md) of every html report whose source sets none, data sent in the request too. A source's `sources.<id>.template` wins. A missing file fails html reports only |
+| `output.template` | built-in | The [print template](print-template.md) of every html report whose source sets none, data sent in the request too. A source's `sources.<id>.template` wins. A missing file fails html reports only, with 502 `SOURCE_UNAVAILABLE` |
 | `output.downloads` | on (plain links for open sources) | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` |
 | `output.upload` | none | [Upload to your store](delivery.md#upload): `url` or `presign`, `headers`, `link`, `linkOrigins`, `method`, `timeMs`, `maxBytes`, `keepLocal`, `bind`, `intranet` |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json`, at the server's root |
@@ -1862,9 +1863,9 @@ to ship the log.
 | `warning` | A problem that does not stop the server |
 | `stopped` | Written after a stop |
 
-A request line is `info` when it worked, `warn` for 4xx and `error` for 5xx. `requestId` is random
-(11 characters). It is the same on every line of one request, in its answer's body (`requestId`)
-and in the `X-Request-Id` header of every answer.
+A request line is `info` when it worked, `warn` for 4xx and 503 `BUSY`, and `error` for other
+5xx. `requestId` is random (11 characters). It is the same on every line of one request, in its
+answer's body (`requestId`) and in the `X-Request-Id` header of every answer.
 
 The client is the static token's name or the OAuth client id. The person is on `request` and
 `download` lines only with `audit.subject` ([audit](mcp.md#logging)). Their groups and other claims

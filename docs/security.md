@@ -575,9 +575,9 @@ gets at each level, and how to set them per client.
     - A request's or a call's line never names a view, a value, a token or a file path. Lines at start
       can name the operator's own file paths.
     - It names a person's id only when the operator sets `audit.subject`. With `hash`, the id is an
-      HMAC-SHA256 with `audit.key`, which has at least 16 characters. With OAuth, the server reads
-      the key at start. With a static token it does not read it. A rotated key needs a restart and changes every value. With `plain`,
-      the id is the claim's text.
+      HMAC-SHA256 with `audit.key`, which has at least 16 characters. With OAuth or an external
+      issuer, the server reads the key at start. With static tokens only, it does not read it. A
+      rotated key needs a restart and changes every value. With `plain`, the id is the claim's text.
     - It never names a person's groups.
 - **Groups to profiles** (`auth.groupProfiles`):
     - A token whose group list is cut, missing or replaced by an overage marker never gets a group's
@@ -817,6 +817,12 @@ So:
   with the viewer's own rights, and pivotkit-server checks the values on every request.
 - A parameter bound to a sign-in claim never goes into a link. The server does not start with such a
   list, and `check-config` names it.
+
+`check-config` warns about a listed parameter:
+
+- whose name the configured page address already holds in its query. A link replaces that value.
+- of type `string` without `pattern`, `enum` or `format`. Any value of the server's safe characters
+  then goes into the address. Set a pattern that allows only what may show up there.
 
 ## Content-Security-Policy
 
