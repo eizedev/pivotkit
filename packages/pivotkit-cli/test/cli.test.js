@@ -407,3 +407,34 @@ test("render: a chart view as xlsx warns that the workbook holds the table; --st
     assert.equal(table.code, 0);
     assert.doesNotMatch(table.stderr, /chartNotInXlsx/);
 });
+
+test("render --numbers shown|full and --flat-header: csv and json as a server writes them (#553)", async () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, "t.csv"), "Region,Channel,Sales\nNorth,Web,0.1\nNorth,Web,0.2\nNorth,Shop,1.23456\nSouth,Web,2.5\n");
+    const layout = ["render", "t.csv", "--rows", "Region", "--cols", "Channel", "--values", "sum:Sales"];
+    // without the flags: full precision and a header row per column field, as before
+    const full = await run([...layout, "-f", "csv"], { cwd: dir });
+    assert.equal(full.code, 0, full.stderr);
+    const lines = (text) => text.replace(/\r\n/g, "\n");
+    assert.equal(lines(full.stdout), "Channel,Shop,Web,Grand Total\nRegion,Sum of Sales,,\nNorth,1.23456,0.3,1.53456\nSouth,,2.5,2.5\nGrand Total,1.23456,2.8,4.03456\n");
+    assert.equal((await run([...layout, "-f", "csv", "--numbers", "full"], { cwd: dir })).stdout, full.stdout);
+    // the decimals the view shows, and one header row
+    const shown = await run([...layout, "-f", "csv", "--numbers", "shown", "--flat-header"], { cwd: dir });
+    assert.equal(shown.code, 0, shown.stderr);
+    assert.equal(lines(shown.stdout), "Region,Shop,Web,Grand Total\nNorth,1.23,0.3,1.53\nSouth,,2.5,2.5\nGrand Total,1.23,2.8,4.03\n");
+    // json rounds too; it has one shape, so --flat-header does nothing there and says so
+    const json = await run([...layout, "-f", "json", "--numbers", "shown", "--flat-header"], { cwd: dir });
+    assert.equal(json.code, 0, json.stderr);
+    assert.deepEqual(JSON.parse(json.stdout).rows[0].values, [1.23, 0.3, 1.53]);
+    assert.match(json.stderr, /--flat-header does nothing in json \(only in csv\)/);
+    const html = await run([...layout, "-f", "html", "--numbers", "shown"], { cwd: dir });
+    assert.match(html.stderr, /--numbers does nothing in html \(only in csv, json\)/);
+    // a value that is none of the choices is a usage error
+    const bad = await run([...layout, "-f", "csv", "--numbers", "rounded"], { cwd: dir });
+    assert.equal(bad.code, 2);
+    assert.match(bad.stderr, /--numbers/);
+    // the help names both
+    const help = await run(["render", "--help"]);
+    assert.match(help.stdout, /--numbers <how>/);
+    assert.match(help.stdout, /--flat-header/);
+});

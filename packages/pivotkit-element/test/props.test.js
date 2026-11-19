@@ -163,3 +163,21 @@ test("allow-import is a boolean attribute; the plugins are a property", () => {
     assert.ok(OBJECT_PROPS.includes("importLimits"), "the limits of a loaded file are an object: a property only, as limits");
     assert.ok(OBJECT_PROPS.includes("limits"));
 });
+
+test('every boolean attribute reads "false" as off, in any case and with spaces (#548)', () => {
+    // a boolean attribute: present without a value is on. Found from the table: a new one fails the
+    // list below until it is added, and is then checked like the others
+    const booleans = ATTRIBUTES.filter((d) => d.kind !== "json" && fromAttribute(d, "") === true);
+    assert.deepEqual(booleans.map((d) => d.attr).sort(), ["allow-import", "can-publish", "drill-down", "drill-down-export", "export-data", "loading", "save-templates", "share-link"]);
+    for (const d of booleans) {
+        for (const off of ["false", "FALSE", " False ", "\tfalse\n"]) {
+            assert.ok(!fromAttribute(d, off), `${d.attr}=${JSON.stringify(off)} must be off`);
+        }
+        assert.equal(fromAttribute(d, "true"), true, `${d.attr}="true"`);
+        // any other value stays on, as HTML reads a boolean attribute (share-link takes it as a URL,
+        // export-data as JSON: their own tests above)
+        if (!["flag-or-url", "flag-or-json"].includes(d.kind)) assert.equal(fromAttribute(d, d.attr), true, `${d.attr}="${d.attr}"`);
+        // the property false removes the attribute, or writes "false" where on is the default
+        assert.equal(toAttribute(d, false), d.kind === "on-unless-false" ? "false" : null, d.attr);
+    }
+});

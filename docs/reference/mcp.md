@@ -34,7 +34,7 @@ service: sources, policy, workers, output, sign-in. pivotkit-server brings
 
 | Tool | What it does | Writes |
 | --- | --- | --- |
-| `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes and those a link may carry (`linkParams`), its [named views](sources.md#views) | - |
+| `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes and those a link may carry (`linkParams`), its [named views](sources.md#views), and where known its row count and data date ([REST](rest.md#source-list) has the rules) | - |
 | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views from its own fields, its named views | - |
 | `suggest_view` | A draft view from a source's fields (marked `Draft:`), with what each part took and could take instead (`picks`). A `layout` replaces parts of it | - |
 | `get_view_guide` | How to write a view: its keys, the vocabulary (aggregators, filter types, date groupings), five example views | - |
@@ -57,9 +57,9 @@ the `view` it made.
 [named view](sources.md#views) as `view`. A link and a draft carry the view itself, so a view that
 holds values of a field the caller sees at `summary` gets neither.
 
-Every result over a source's data has `dataAsOf`. That is every tool but `list_sources` and
-`get_view_guide`. `dataAsOf` says when the data is from, in UTC to the second
-(`"2026-11-15T08:00:00Z"`):
+Every result over a source's data has `dataAsOf`. `list_sources` gives it per source where it is
+known ([the rules](rest.md#source-list)). `get_view_guide` reads no data and has none. `dataAsOf`
+says when the data is from, in UTC to the second (`"2026-11-15T08:00:00Z"`):
 
 - a file's modification time
 - for a library host's code source, its own `asOf` (see below), else when `load()` gave the data.

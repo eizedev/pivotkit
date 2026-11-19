@@ -269,6 +269,38 @@ test.describe("two elements on one page", () => {
         await expect(panel.getByTestId("drill-export")).toHaveCount(0);
     });
 
+    test('every boolean attribute set to "false" is off, as a page writes it (#548)', async ({ page }) => {
+        await page.goto("pages/element-two.html");
+        const tickets = page.locator("#tickets");
+        await expect(tickets.locator(".pk-root")).toBeVisible();
+        await page.evaluate(() => {
+            const el = document.getElementById("tickets");
+            for (const attr of ["save-templates", "can-publish", "allow-import", "share-link", "loading", "export-data", "drill-down-export"]) el.setAttribute(attr, "False");
+        });
+        expect(await tickets.evaluate((el) => [el.saveTemplates, el.canPublish, el.allowImport, el.shareLink, el.loading, el.exportData, el.drillDownExport])).toEqual([false, false, false, undefined, false, false, false]);
+        // what the attributes would switch on is not offered: no save, no link, no Data menu
+        await tool(tickets, "views");
+        await expect(tickets.getByTestId("saved-view-name")).toHaveCount(0);
+        await expect(tickets.getByTestId("copy-link")).toHaveCount(0);
+        await page.keyboard.press("Escape");
+        await expect(tickets.getByTestId("data")).toHaveCount(0);
+        await tool(tickets, "more");
+        await expect(tickets.getByTestId("more-data")).toHaveCount(0);
+        await page.keyboard.press("Escape");
+        await expect(tickets.locator('[data-testid="pivot-table"]')).toBeVisible();
+        // present without a value, the same attributes are on
+        await page.evaluate(() => {
+            const el = document.getElementById("tickets");
+            for (const attr of ["share-link", "allow-import"]) el.setAttribute(attr, "");
+        });
+        expect(await tickets.evaluate((el) => [el.shareLink, el.allowImport])).toEqual([true, true]);
+        await tool(tickets, "views");
+        await expect(tickets.getByTestId("copy-link")).toBeVisible();
+        await page.keyboard.press("Escape");
+        await tool(tickets, "data");
+        await expect(tickets.getByTestId("data-menu")).toBeVisible();
+    });
+
     test("export: the page sees every file; preventDefault() keeps it from the download", async ({ page }) => {
         await page.goto("pages/element-two.html");
         const sales = page.locator("#sales");

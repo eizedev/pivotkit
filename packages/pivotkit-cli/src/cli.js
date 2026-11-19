@@ -244,7 +244,7 @@ export async function main(argv, io) {
         checkValues(values, fromEnv);
         const ctx = await context(values, io);
         const outcome = remote
-            ? await remoteCommand(/** @type {any} */ (command), positionals, values, ctx, { version: versions()["pivotkit-cli"], readView, withMap, renderFormat, checkNotInput, ignoredOptions, formatNames: FORMAT_NAMES })
+            ? await remoteCommand(/** @type {any} */ (command), positionals, values, ctx, { version: versions()["pivotkit-cli"], readView, withMap, renderFormat, checkNotInput, ignoredOptions, renderInputs, formatNames: FORMAT_NAMES })
             : command === "render" ? await renderCommand(positionals, values, ctx) : command === "validate" ? await validateCommand(positionals, values, ctx) : command === "example" ? await exampleCommand(positionals, values, ctx) : await describeCommand(positionals, values, ctx);
         findings = outcome.findings;
         const failing = findings.filter((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
@@ -810,6 +810,20 @@ function formatOf(output) {
     return EXTENSIONS[ext];
 }
 
+/**
+ * The render_view inputs of render's flags, the same locally and with a server: the title, the
+ * chart, how numbers are written and the flat header.
+ * @param {Record<string, any>} values
+ */
+function renderInputs(values) {
+    return {
+        ...(values.title !== undefined ? { title: values.title } : {}),
+        ...(values.chart ? { chart: values.chart } : {}),
+        ...(values.numbers ? { numbers: values.numbers } : {}),
+        ...(values["flat-header"] ? { flatHeader: true } : {})
+    };
+}
+
 /** Warnings for options given that do nothing in the format (their `formats` in the table). */
 function ignoredOptions(values, format) {
     return Object.entries(optionsOf("render"))
@@ -885,7 +899,7 @@ async function renderCommand(positionals, values, ctx) {
             ...(width || height ? { size: { ...(width ? { width } : {}), ...(height ? { height } : {}) } } : {})
         }
     };
-    const input = { source: data.name, view: view.view, format, ...(values.title !== undefined ? { title: values.title } : {}), ...(values.chart ? { chart: values.chart } : {}) };
+    const input = { source: data.name, view: view.view, format, ...renderInputs(values) };
     const { result, file: rendered } = await runOperation("render_view", input, env, values.template);
     // the view's findings (the data's notes are in already), explained against the data
     const viewFindings = result.findings.filter((f) => !data.notes.includes(f));
