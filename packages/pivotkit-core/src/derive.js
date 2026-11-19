@@ -49,8 +49,12 @@ export function isoWeek(ms) {
     return { year, week };
 }
 
+/**
+ * "Jan" for 1: the month number of the data, a Gregorian month, in the locale's language. A locale of
+ * another calendar ("en-US-u-ca-islamic-civil") would name the month its calendar has on that day.
+ */
 const monthName = (month, locale) =>
-    dateTimeFormat(locale, { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2000, month - 1, 1)));
+    dateTimeFormat(locale, { month: "short", calendar: "gregory", timeZone: "UTC" }).format(new Date(Date.UTC(2000, month - 1, 1)));
 
 /** "Jan 2025" in English, "Jan. 2025" in German, "Jan 2 BC": the month of a year, as the locale writes it. */
 const yearMonthName = (v, locale) => {
