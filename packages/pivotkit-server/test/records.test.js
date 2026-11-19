@@ -13,8 +13,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { encode } from "pivotkit-core";
+import { dataToJson } from "pivotkit-core/export";
 import { checkConfig, createContext, validateOptions } from "pivotkit-server";
 import { createRestHandler } from "pivotkit-server/rest";
+import { answeredType, columnPieces } from "../src/records-writer.js";
 import { BIN, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
 
 /** Orders with one field per level: Region, Sales and OrderDate show, Product values, Team summary, Customer hide. */
@@ -582,4 +584,34 @@ test("check-config reports a problem when a static or signed token's profile has
     const id = JSON.parse(issued.stdout).id;
     const signed = factsOf((await checkConfig({ ...options, auth: { ...options.auth, tokens: [] } }, { http: true, env: {}, rest: true })).text);
     assert.match(signed, new RegExp(`PROBLEM: auth\\.signedTokens: the token ${id} \\(laptop\\) has the profile narrow, which reads rows \\(records\\), but a signed token is no person -> the server starts; it gets NOT_ALLOWED from POST /api/v1/sources/records`));
+});
+
+// ---------------------------------------------------------------------------------------------
+// The writer (records-writer.js): the text encode() reads back to the same values
+
+test("the writer gives every value as pivotkit-core's data export does, dates as wall clock, in pieces never cut inside a value", () => {
+    const rows = [
+        { Day: "2026-03-29", At: "2026-03-29T02:30:00", Ms: "2026-01-01T00:00:00.250", Text: 'a "quote", a comma\nand a line', N: 1.5, B: true, Empty: null },
+        { Day: "1999-12-31", At: "2026-10-25T23:59:59", Ms: null, Text: "ü€😀", N: -0.000001, B: false, Empty: null },
+        { Day: null, At: null, Ms: "+10000-01-01T00:00:00.001", Text: "", N: 1e21, B: null, Empty: null }
+    ];
+    const data = encode(rows, { timeZone: "Europe/Berlin" });
+    const text = [...columnPieces(data, data.columns, 16)].join("");
+    const pieces = [...columnPieces(data, data.columns, 16)];
+    assert.ok(pieces.length > 3, "small pieces");
+    // a piece ends after a whole value: its last character closes a value, an array or a text
+    for (const piece of pieces.slice(0, -1)) {
+        assert.doesNotMatch(piece, /,$|\[$/, piece);
+    }
+    const columns = JSON.parse(`[${text}]`);
+    // the same values as the data export writes them, column by column
+    const exported = dataToJson(data).trim().split("\n").filter((l) => l.startsWith("{")).map((l) => JSON.parse(l.replace(/,$/, "")));
+    data.columns.forEach((column, c) => assert.deepEqual(columns[c], exported.map((row) => row[column.name] ?? null), column.name));
+    // and encode() reads them back to the same values in another time zone
+    const again = encode({ columns: data.columns.map((c) => c.name), types: data.columns.map(answeredType), data: columns }, { timeZone: "America/New_York" });
+    for (const column of data.columns) {
+        const back = again.column(column.name);
+        assert.equal(back?.type, column.type === "null" ? "null" : column.type, column.name);
+        assert.deepEqual(Array.from(back.codes, (k) => (k < 0 ? null : back.dict[k])), Array.from(column.codes, (k) => (k < 0 ? null : column.dict[k])), column.name);
+    }
 });

@@ -164,7 +164,7 @@ export function openApiDocument(options = {}) {
 
     // the rows route (records.js): no operation of the table, its own input and output
     schemas.ReadRecordsInput = withViewRef(RECORDS_INPUT);
-    schemas.ReadRecordsOutput = RECORDS_OUTPUT;
+    schemas.ReadRecordsOutput = structuredClone(RECORDS_OUTPUT);
     /** @type {Record<string, any>} */
     const paths = {};
     for (const route of REST_ROUTES.filter((r) => r.answer === "records")) {
