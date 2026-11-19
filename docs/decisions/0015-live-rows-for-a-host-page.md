@@ -1,8 +1,8 @@
 ---
 title: Rows of a source for a signed-in person, behind the records right
 description: The server hands a source's rows to a signed-in person only where a profile grants the records right for that source, and only fields at show. A host application's backend fetches them first; the browser path comes later.
-status: proposed
-date: 2026-11-18
+status: accepted
+date: 2026-11-19
 ---
 
 # 0015 Rows of a source for a signed-in person, behind the records right
@@ -40,9 +40,9 @@ path and the server's viewer page. 3 is snapshots of uploaded data
 - `POST /api/v1/sources/records` answers the rows of one source. It stores nothing. MCP gets no
   tool for it.
 - A profile grants the right with `records`, a list of source ids. It is off by default.
-- Only fields at `show` for the caller leave. A request that needs another field gets
-  `NOT_ALLOWED`, and the `detail` names the fields the caller may see by name. A hidden field is
-  never named.
+- Only fields at `show` for the caller leave. A request that needs a field at `values` or `summary`
+  gets `NOT_ALLOWED`, and the `detail` names those fields. A hidden field is never named: one asked
+  for answers as a field that does not exist.
 - The server does not apply a view's filters. Filters are no permission, so every `show` row of
   the source leaves.
 - Only a person gets rows: an OAuth token with a subject from the configured issuer, or a token from

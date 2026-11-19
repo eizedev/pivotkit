@@ -669,6 +669,14 @@ export function tableData(spec, table, key, asOf = null, notes = []) {
     }
 }
 
+/**
+ * A rows job (records.js): the worker reads the source's data, posts its head (the columns, their
+ * types and the row count, and for a view the fields it uses) and waits. The main thread decides what
+ * leaves and answers with the columns to write, or stops it; the worker then writes those columns
+ * piece by piece, one piece for each pull (records-writer.js).
+ */
+export const RECORDS_JOB = "pivotkit:records";
+
 /** A table job that only reads a CSV answer into a packed table (packedUpload), no operation's name. */
 export const READ_JOB = "pivotkit:read";
 

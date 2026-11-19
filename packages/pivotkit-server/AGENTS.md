@@ -165,6 +165,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Then run `node scripts/openapi.js`. `test/openapi.test.js` fails until you do.
 - Errors are RFC 9457 problems (`rest/problem.js`).
 - The REST contract shared with the CLI lives in `pivotkit-cli/rest`. Change it there.
+- The rows route (`src/records.js`) is REST only, no operation. The policy decides there, never in the worker.
+- Its worker job (`RECORDS_JOB`) posts a head, then one piece per pull (`records-writer.js`). Always write or stop it.
 
 ## Serving and releases
 

@@ -23,6 +23,10 @@ A configured source is one of these kinds:
 Every kind has the same exposure policy, scopes and field descriptions, and its results carry
 `dataAsOf` ([pivotkit-mcp](mcp.md), [REST](rest.md)).
 
+A person may read the rows of any kind of source where a profile names it in `records`
+([rows route](rest.md#records)). `sources.<id>.records.maxRows` gives one source a lower row limit
+than `rest.records.maxRows`. It cannot be higher.
+
 ## HTTP sources { #http }
 
 An HTTP source asks an operator's backend for its rows. You write the address once in the

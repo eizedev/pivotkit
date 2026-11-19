@@ -67,6 +67,7 @@ Each recipe names a task and the page with its worked example. The recipes cover
 | PowerShell Universal | [React](../getting-started/react.md#powershell-universal) |
 | A page without a bundler, with an import map | [bundlers and import maps](../getting-started/react.md#bundlers-and-import-maps) |
 | Some viewers may see only some rows | [pivotkit is not access control](../security.md#pivotkit-is-not-access-control) |
+| A live report over a source only pivotkit-server reaches | [a host backend fetches the rows](../reference/rest.md#records-host) |
 | A strict Content-Security-Policy | [security](../security.md#content-security-policy), [element](../reference/element.md#content-security-policy) |
 | Several reports on one page | [FAQ](../faq.md#several-reports-on-one-page) |
 | The report inside a dialog of your page | [Escape and the host page](../reference/react.md#escape-and-the-host-page) |
