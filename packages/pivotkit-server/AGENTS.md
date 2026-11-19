@@ -160,6 +160,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - The server never imports `openapi-source.js`. Only the runner's command does.
 - Its `TODO` values are refused at start (`todoPaths` in `options/base.js`).
 - Read a print template only through `readTemplateFile` in `print-template.js`.
+- `templateOf` in `registry.js` picks it: the source's, else `output.template`, else the built-in.
+  `runResolved` reads it for html renders only, so a missing file fails nothing else.
 - `src/views.js` owns named views (`sources.<id>.views`, `viewsDir`). Read a view file only through it.
 - `withNamedView` in `compute` (`present.js`) is the one place a view's name becomes the view.
 - A view that uses a field hidden from the caller answers as a missing one.

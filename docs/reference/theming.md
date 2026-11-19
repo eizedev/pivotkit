@@ -121,6 +121,7 @@ size through the element.
 | `--pk-duration`<br>`--pk-ease` | Animations; `0ms` with `prefers-reduced-motion: reduce` | `180ms`<br>`cubic-bezier(0.2, 0.8, 0.2, 1)` | as light |
 | `--pk-type-string`<br>`--pk-type-number`<br>`--pk-type-date`<br>`--pk-type-boolean` | Field type icons | `#6250d6`<br>`#1a7f5a`<br>`#b5560b`<br>`#a3367a` | `#a99dff`<br>`#5fd3a3`<br>`#f2a65a`<br>`#f08cc6` |
 | `--pk-chart-1` ... `--pk-chart-8` | Chart series colours, in this order; read by ECharts | `#2a78d6`<br>`#eb6834`<br>`#1baf7a`<br>`#eda100`<br>`#e87ba4`<br>`#008300`<br>`#6250d6`<br>`#e34948` | `#3987e5`<br>`#d95926`<br>`#199e70`<br>`#c98500`<br>`#d55181`<br>`#008300`<br>`#9085e9`<br>`#e66767` |
+| `--pk-chart-axis` | The chart's axis line, apart from the table's lines. Not set, it is `--pk-border` | not set | not set |
 | `--pk-chart-reference` | The chart's reference lines of no series: a target, the lines of a stack's total. A series' own lines take its colour | `var(--pk-muted)` | `var(--pk-muted)` |
 | `--pk-heat-low`<br>`--pk-heat-high` | Heatmap scale, and a colour scale in the table whose view names no colours (through `--pk-scale-low` and `--pk-scale-high`) | `#eaf1fb`<br>`#2a78d6` | `#1d2735`<br>`#3987e5` |
 | `--pk-layer-z` | The z-index of the layer of menus, sheets and popups, only in a browser without the Popover API ([below](#popovers-above-the-page)) | `50` | as light |
@@ -219,6 +220,8 @@ The chart reads these tokens in the current theme:
 | The corners of the tooltip | `--pk-radius-card` |
 | The tooltip's total line and the series under the pointer | `--pk-border`, `--pk-weight-strong` |
 | A target line and the lines of a stack's total ([reference lines](../use/charts.md#reference-lines)) | `--pk-chart-reference` |
+| The axis line | `--pk-chart-axis`, else `--pk-border` |
+| The grid | `--pk-grid`, else `--pk-border` |
 
 The heatmap's colours work in any form the browser reads, `oklch()` too. The chart mixes the colour
 of each cell from them. It takes them as plain sRGB colours: a colour's alpha is dropped, and a

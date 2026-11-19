@@ -404,7 +404,8 @@ what it was.
 map of tokens. It reads the chart's theme:
 
 - `colors` from `--pk-chart-1` to `--pk-chart-8`.
-- The text, axis and grid colours, the heatmap's ends and the font.
+- The text, axis and grid colours, the heatmap's ends and the font. The axis takes `--pk-chart-axis`,
+  else `--pk-border`. The grid takes `--pk-grid`, else `--pk-border`.
 - `strongWeight` from `--pk-weight-strong` when it is a number from 1 to 1000.
 - `titleSize` from `--pk-chart-title-size` and `textSize` from `--pk-chart-text-size` when they are
   in px.

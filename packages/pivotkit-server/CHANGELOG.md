@@ -52,6 +52,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   ([named views](https://pivotkit.eize.dev/reference/sources/#views), #616).
 - A caller never learns of a view that uses a field hidden from it. A view that holds values of a
   field the caller sees at `summary` gets no link and no draft.
+- `output.template` is the print template of every html report whose source sets none. Data sent in
+  the request (`inline:`) and, over MCP, `file:` paths take it too. The server reads it on every
+  html render and checks it at start and in `check-config`, as it does `sources.<id>.template`
+  ([print template](https://pivotkit.eize.dev/reference/print-template/), #614).
 - Branding for intranet deployments, all optional
   ([your own name and links](https://pivotkit.eize.dev/reference/branding/), #608, #612):
     - `branding.name` puts the operator's name on the download pages, the OpenAPI title and the
@@ -78,6 +82,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   csv, tsv, txt, json and xlsx files". The codes stay
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#neutral-texts)).
 - A download sign-in with another issuer than `auth.issuer` points to the docs instead of an issue.
+
+### Fixed
+
+- A missing print template fails only html reports. Other formats, `describe_source` and
+  `validate_view` over the source answer as usual (#614).
 
 ## [0.3.2] - 2026-11-19
 

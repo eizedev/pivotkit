@@ -74,7 +74,7 @@ export { ConfigError } from "./options/shared.js";
  * @typedef {object} ServerOptions
  * @property {Record<string, SourceOptions>} [sources]
  * @property {{ allowDirs?: string[], list?: boolean, hardLinks?: boolean, scopes?: string[], policy?: PolicyOptions }} [files]
- * @property {{ dir?: string, create?: boolean, baseUrl?: string, maxFiles?: number, maxMb?: number, maxAgeDays?: number, draftMaxAgeDays?: number, downloads?: import("./options/downloads.js").DownloadOptions, upload?: import("./options/upload.js").UploadOptions }} [output]  create: make a missing dir at start (default true); draftMaxAgeDays: delete schedule drafts that still wait for approval after that many days (0: never, the default); downloads: the server's own download links; upload: the operator's store
+ * @property {{ dir?: string, create?: boolean, baseUrl?: string, maxFiles?: number, maxMb?: number, maxAgeDays?: number, draftMaxAgeDays?: number, template?: string, downloads?: import("./options/downloads.js").DownloadOptions, upload?: import("./options/upload.js").UploadOptions }} [output]  create: make a missing dir at start (default true); draftMaxAgeDays: delete schedule drafts that still wait for approval after that many days (0: never, the default); template: the print template of every html report whose source has none (inline: and file: data too); downloads: the server's own download links; upload: the operator's store
  * @property {PolicyOptions} [policy]
  * @property {Partial<import("pivotkit-core").Limits>} [limits]
  * @property {string} [locale]
@@ -211,7 +211,7 @@ const BASE_SLOTS = {
     },
     mcp: { rateLimit: RATE_LIMIT, concurrency: "integer" },
     rest: { resource: "string", audience: "strings", requiredScopes: "strings", cors: { object: { origins: "strings", maxAge: "integer" } }, openapi: { enum: ["auth", "public", "off"] }, inline: "boolean", rateLimit: RATE_LIMIT, concurrency: "integer" },
-    output: { dir: "string", create: "boolean", baseUrl: "string", maxFiles: "integer", maxMb: "integer", maxAgeDays: "integer", draftMaxAgeDays: "integer" }
+    output: { dir: "string", create: "boolean", baseUrl: "string", maxFiles: "integer", maxMb: "integer", maxAgeDays: "integer", draftMaxAgeDays: "integer", template: "string" }
 };
 
 const SLOTS = composeSlots(/** @type {any} */ (BASE_SLOTS), FRAGMENTS);
