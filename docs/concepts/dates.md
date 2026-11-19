@@ -66,8 +66,14 @@ would read as the year 2. This holds for the labels of groupings and of dates:
 - a date: "Jan 11, 2 BC"
 
 Years from 1 AD have no era in the label. The key stays the astronomical year, so the periods sort in
-time: 0 is 1 BC, -1 is 2 BC. The year of a grouping is Gregorian even in a locale with another
-calendar, because its key is Gregorian.
+time: 0 is 1 BC, -1 is 2 BC.
+
+In a locale with another calendar, such as `en-US-u-ca-islamic-civil`, the keys stay Gregorian:
+
+- `year`, `yearQuarter` and `yearWeek` write the Gregorian year.
+- `month`, the month of the year, names the Gregorian month in the locale's language. Key 1 is "Jan".
+- `yearMonth` and a date are written in the locale's calendar. A `yearMonth` label names the month
+  and year of the group's first day: "Raj. 1447 AH" for January 2026.
 
 ## Grouping when a date is placed
 

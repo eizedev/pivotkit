@@ -154,10 +154,10 @@ test("single cyclic month shows observed non-Gregorian endpoints; the export kee
     await page.getByTestId("export").click();
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
     const text = await readFile(await download.path(), "utf8");
-    // the file holds pivotkit-core's item, as the command line and the server write it: the month
-    // name of the key's date in the year 2000 (derive.js), here in the Islamic calendar
+    // the file holds pivotkit-core's item, as the command line and the server write it: the key's
+    // Gregorian month in the locale's language (#596), not the Islamic month of a day in 2000
     expect(text).not.toContain(`${first} – ${last}`);
-    const jan = await page.evaluate((loc) => new Intl.DateTimeFormat(loc, {month: "short", timeZone: "UTC"}).format(Date.UTC(2000, 0, 1)), locale);
+    const jan = await page.evaluate((loc) => new Intl.DateTimeFormat(loc, {month: "short", calendar: "gregory", timeZone: "UTC"}).format(Date.UTC(2000, 0, 1)), locale);
     const lines = text.split(/\r?\n/).map((line) => line.replace(/^\uFEFF?"?/, ""));
     expect(lines.some((line) => line.startsWith(jan))).toBe(true);
 });
@@ -175,9 +175,9 @@ test("combined cyclic months display Gregorian grouping keys in other calendars;
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
     const text = await readFile(await download.path(), "utf8");
     // pivotkit-core's items and the field's plain name, as the command line and the server write them:
-    // the month names of the keys' dates in the year 2000 (derive.js), here in the Islamic calendar
+    // the keys' Gregorian months in the locale's language (#596)
     expect(text).not.toContain("combined");
-    const [jan, dec] = await page.evaluate((loc) => [0, 11].map((m) => new Intl.DateTimeFormat(loc, {month: "short", timeZone: "UTC"}).format(Date.UTC(2000, m, 1))), locale);
+    const [jan, dec] = await page.evaluate((loc) => [0, 11].map((m) => new Intl.DateTimeFormat(loc, {month: "short", calendar: "gregory", timeZone: "UTC"}).format(Date.UTC(2000, m, 1))), locale);
     expect(text).toContain(jan);
     expect(text).toContain(dec);
 });

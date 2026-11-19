@@ -362,3 +362,13 @@ test("what the review found: no file content in a --filter error, -o never over 
     const twice = await run(["render", "sales.csv", "--rows", "Region", "--map", "A=B", "--map", "a=C"], { cwd: dir });
     assert.equal(twice.code, 2);
 });
+
+test("render: month of year keeps the data's Gregorian month names in a locale of another calendar (#596)", async () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, "t.csv"), "Date,Units\n2026-01-05,3\n2026-09-01,4\n2026-10-01,2\n");
+    const r = await run(["render", "t.csv", "--rows", "Date", "--group", "Date:month", "--values", "sum:Units", "--locale", "en-US-u-ca-islamic-civil", "-f", "csv"], { cwd: dir });
+    assert.equal(r.code, 0, r.stderr);
+    const months = r.stdout.trim().split(/\r?\n/).map((line) => line.split(",")[0]);
+    for (const name of ["Jan", "Sep", "Oct"]) assert.ok(months.includes(name), r.stdout);
+    for (const name of ["Ram.", "Raj.", "Sha."]) assert.ok(!months.includes(name), r.stdout);
+});
