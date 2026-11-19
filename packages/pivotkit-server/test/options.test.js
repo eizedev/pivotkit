@@ -70,6 +70,8 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.auth.object.signedTokens = { object: { dir: "string", maxDays: "integer" } };
     // tokens other systems issue (options/external.js, after signed)
     expected.auth.object.externalIssuers = { list: { object: { issuer: "string", typ: "string", maxMinutes: "integer", scopes: "strings", profiles: "strings", profile: "string", keys: { list: { object: { kid: "string", publicKey: secretRef } } } } } };
+    // named views (options/views.js, the last fragment): a source's views and viewsDir
+    Object.assign(expected.sources.map.object, { views: { custom: "fn" }, viewsDir: "string" });
     // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
     assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
 });
@@ -106,7 +108,7 @@ test("options: every fragment has frozen keys in known slots and a validate; eac
     for (const f of FRAGMENTS.slice(1)) {
         assert.ok(names.includes(f.name), f.name);
     }
-    assert.deepEqual(names, ["sources", "http", "code", "inline", "output", "downloads", "upload", "access", "credentials", "signed", "external", "issuer", "operator", "profiles", "rest", "log"]);
+    assert.deepEqual(names, ["sources", "views", "http", "code", "inline", "output", "downloads", "upload", "access", "credentials", "signed", "external", "issuer", "operator", "profiles", "rest", "log"]);
 });
 
 test("options: an unknown key is still refused with the name meant, also for keys no fragment declares yet", () => {

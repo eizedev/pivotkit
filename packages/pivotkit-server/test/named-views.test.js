@@ -200,10 +200,10 @@ test("check-config lists each source's views and the fields each needs; a broken
     const dir = namedWorkspace();
     const ok = await checkConfig(namedServerOptions(dir), { http: false, env: { T1: TOKEN, T2: OTHER_TOKEN } });
     const text = factsOf(ok.text);
-    assert.match(text, /^ {4}views \(4\):$/m);
-    assert.match(text, /^ {6}top-customers \(in the configuration\): needs Customer, Sales$/m);
-    assert.match(text, /^ {6}by-product \(views-extra\/by-product\.json\): needs Product$/m);
-    assert.match(text, /^ {6}by-region \(data\/views\/by-region\.pivotkit\.json\): needs Region, Sales$/m);
+    assert.match(text, /^Named views \(4\):\n {2}sales:$/m);
+    assert.match(text, /^ {4}top-customers \(in the configuration\): needs Customer, Sales$/m);
+    assert.match(text, /^ {4}by-product \(views-extra\/by-product\.json\): needs Product$/m);
+    assert.match(text, /^ {4}by-region \(data\/views\/by-region\.pivotkit\.json\): needs Region, Sales$/m);
     assert.doesNotMatch(text, /PROBLEM: sources\.sales\.view/);
 
     // a file in the folder that is no view: the server does not start

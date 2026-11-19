@@ -419,7 +419,9 @@ export function findingsText(valid, findings) {
  * The sources of a listing, each configured one with the views the caller may know of (views.js).
  * @param {any} context
  * @param {import("./registry.js").Caller} caller
- * @param {Array<Record<string, any>>} sources
+ * @template {{ id: string, kind: string }} S
+ * @param {S[]} sources
+ * @returns {Promise<Array<S & { views?: Array<{ name: string, title: string, description?: string }> }>>}
  */
 const withViewLists = (context, caller, sources) =>
     Promise.all(

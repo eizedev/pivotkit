@@ -1,8 +1,8 @@
 /*
  * check-config's section for the configured sources: per source where its data comes from, its
  * policy, each column's level and why (file sources: their columns and statistics are read once, never
- * to show a value), its scopes, link, print template and named views (read and checked as the start
- * does, print-template.js and views.js); warnings for a policy rule that names no
+ * to show a value), its scopes, link and print template (read and parsed as the start does,
+ * print-template.js); warnings for a policy rule that names no
  * column. HTTP and code sources are described in their own sections; their fields are known only
  * after a load.
  *
@@ -31,7 +31,6 @@ import { sourceStats } from "../stats.js";
 import { quotedBreakOf } from "../data.js";
 import { allShown } from "../data.js";
 import { checkTemplates } from "../print-template.js";
-import { checkViews } from "../views.js";
 import { HTTP_HEADING } from "./http.js";
 import { heading, plain, problem, warning } from "./format.js";
 
@@ -51,7 +50,6 @@ export async function section(options, registry, runtime) {
     const items = [];
     const sources = await registry.check();
     const templates = new Map((await checkTemplates(options)).map((t) => [t.id, t]));
-    const views = new Map((await checkViews(options)).map((v) => [v.id, v]));
     // every column of every source by its policy key, in the data's spelling; null: not all known
     /** @type {Map<string, string> | null} */
     let everyColumn = registry.allow.length ? null : new Map();
@@ -109,18 +107,6 @@ export async function section(options, registry, runtime) {
                 items.push(problem(`sources.${s.id}.template: ${template.problem}`, { stops: true }));
             } else if (template.missing) {
                 items.push(problem(`sources.${s.id}.template: ${template.missing}`, { effect: `the server starts; html reports of ${s.id} fail until it can be read` }));
-            }
-        }
-        // the named views, read as the start reads them: what is no view stops the start; a file or
-        // folder that is not there leaves its views out
-        const named = views.get(s.id);
-        if (named) {
-            items.push(plain(`views (${named.views.length}):`, 2));
-            for (const v of named.views) {
-                items.push(plain(`${v.name} (${v.file ?? "in the configuration"}): needs ${v.needs.map(nameText).join(", ") || "no field"}`, 3));
-            }
-            for (const p of named.problems) {
-                items.push(problem(`sources.${s.id}.${p.key}: ${p.text}`, p.missing ? { effect: "the server starts; its views are left out until it can be read" } : { stops: true }));
             }
         }
         // rows longer than the header (data.js withoutLongRows): left out wherever a field is below show;
