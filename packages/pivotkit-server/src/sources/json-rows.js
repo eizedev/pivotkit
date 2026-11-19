@@ -12,8 +12,8 @@
  *   start of the body only.
  * - Nesting is counted over the whole body, strings left out, as jsonDepth counts it.
  * - The rows' list is the value at the pointer's own keys (a list's index written as JSON Pointer
- *   writes it). A body that has a list there twice (a name repeated on the way to it) is refused:
- *   JSON.parse would take the last one, which is only known after the first was read.
+ *   writes it). A body that repeats a name on the way to the rows after them is refused: JSON.parse
+ *   would take the later value, which is only known after the rows were read.
  *
  * The scan works on bytes: every byte JSON gives a meaning to is ASCII, and in UTF-8 no byte of a
  * longer character is, so a piece may end anywhere, also inside a character.
@@ -113,14 +113,22 @@ export function rowsReader(keys, how) {
         return { onPath: matches, atRows: matches && depth === keys.length };
     };
 
-    /** A value starts outside the rows: its level's state moves on. */
+    /**
+     * A value starts outside the rows: its level's state moves on. After the rows, a value on the
+     * pointer's path can only come from a repeated name, which would replace the rows in JSON.parse.
+     */
     const started = () => {
+        const at = valueAt();
+        if (rowsSeen && at.onPath) {
+            fail("the answer has its rows twice (a repeated name)");
+        }
         const top = levels.at(-1);
         if (top) {
             top.state = "after";
         } else {
             rootSeen = true;
         }
+        return at;
     };
 
     /** The row read so far, parsed and handed on. */
@@ -238,12 +246,8 @@ export function rowsReader(keys, how) {
                     started();
                 }
             } else if (b === OPEN_LIST || b === OPEN_OBJECT) {
-                const { onPath, atRows } = valueAt();
-                started();
+                const { onPath, atRows } = started();
                 if (atRows && b === OPEN_LIST) {
-                    if (rowsSeen) {
-                        fail("the answer has its rows twice (a repeated name)");
-                    }
                     rowsSeen = true;
                     depthCheck(levels.length + 1);
                     // the "[" stays outside; the rows do not

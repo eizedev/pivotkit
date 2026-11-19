@@ -156,7 +156,8 @@ who can read the configuration file reads that value too.
 - The server reads the body as JSON in its own thread, while it arrives. Each row becomes a row of
   the table at once. See [memory](#http-memory) for what the server holds meanwhile.
 - All pages together are at most `maxBytes`. A body nested deeper than 64 levels, or one that is no
-  JSON, answers `SOURCE_UNAVAILABLE`. So does a body that has its rows twice, through a name repeated on the way to them.
+  JSON, answers `SOURCE_UNAVAILABLE`. So does a body that repeats a key on the way to the rows
+  after them.
 - The rows' pointer reads the body's own keys only.
 - Rows are objects or lists. In objects, the keys are the fields, in the order first seen. In lists,
   the first list is the header.

@@ -211,26 +211,36 @@ worker that had computed a report over the file added about 470 MB.
 
 An HTTP source's first call loads the backend's answer and computes over it. This table shows how
 much the server process grew during that call. The main thread and the workers count together. It
-ran on one laptop with Node 26 on macOS, with seven columns, one of them hidden. Each value is the
-median of three runs and only a rough order. The 66 MB and 34 MB answers needed a larger
-`http.maxBytes` and `limits.fileBytes`.
+also shows the largest JavaScript heap of the main thread, without the answer's bytes. It ran on
+one laptop with Node 26 on macOS, with seven columns, one of them hidden. Each value is the median
+of three runs and only a rough order. The 66 MB and 34 MB answers needed a larger `http.maxBytes`
+and `limits.fileBytes`.
 
-| Answer | Rows | Size | Memory added |
-| --- | ---: | ---: | ---: |
-| JSON | 100,000 | 13 MB | about 250 MB |
-| JSON | 151,550 | 20 MB | about 300 MB |
-| JSON | 500,000 | 66 MB | about 590 MB |
-| CSV | 100,000 | 7 MB | about 240 MB |
-| CSV | 293,222 | 20 MB | about 440 MB |
-| CSV | 500,000 | 34 MB | about 640 MB |
+| Answer | Rows | Size | Memory added | Main thread heap |
+| --- | ---: | ---: | ---: | ---: |
+| JSON | 10,000 | 1 MB | about 70 MB | about 25 MB |
+| JSON | 100,000 | 13 MB | about 250 MB | about 65 MB |
+| JSON | 151,550 | 20 MB | about 300 MB | about 75 MB |
+| JSON | 500,000 | 66 MB | about 590 MB | about 160 MB |
+| CSV | 10,000 | 1 MB | about 70 MB | about 20 MB |
+| CSV | 100,000 | 7 MB | about 240 MB | about 20 MB |
+| CSV | 293,222 | 20 MB | about 440 MB | about 20 MB |
+| CSV | 500,000 | 34 MB | about 640 MB | about 20 MB |
+
+A worker reads a CSV answer, so its heap shows in the memory added, not in the main thread's.
 
 The server reads a JSON answer while it arrives, as [memory](../reference/sources.md#http-memory)
 explains. It holds a CSV answer whole until a worker has read it.
 
-To measure on your own machine, run this in a checkout of the repository. It needs `openssl`.
+The memory added is the process's highest resident memory during the call, minus what it used
+before. The benchmark reads the heap at each garbage collection, so its true peak may be a little
+higher.
+
+To measure on your own machine, run this in a checkout of the repository. It needs `openssl` and
+runs every size of the table.
 
 ```bash
-node bench/server/http-source.js --formats json,csv --sizes 100000,20MiB --runs 3
+node bench/server/http-source.js
 ```
 
 A report runs on one worker thread. Give the pod about one CPU per worker that should compute at the

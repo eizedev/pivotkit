@@ -96,8 +96,6 @@ const ANSWERS = [
     [`\xef\xbb\xbf\xef\xbb\xbf{"items":[1]}`, ["items"]],
     [`{"items":[\xef\xbb\xbf1]}`, ["items"]],
     [`[\xef\xbb\xbf[1]]`, []],
-    // the rows' list twice by a repeated name on the way to it
-    [`{"a":{"rows":[1]},"b":2}`, ["a", "rows"]],
     // an index that is no list index
     [`[{"a":1},{"a":2}]`, ["01"]],
     [`[{"items":[1]}]`, ["0", "items"]],
@@ -127,12 +125,19 @@ const ANSWERS = [
     [`{"items":[${"[".repeat(62)}${"]".repeat(62)}]}`, ["items"]]
 ];
 
-/** Reads `text` in pieces of every size and checks the result against the whole body's. */
-function agrees(text, keys, sizes = PIECES) {
+/**
+ * Reads `text` in pieces of every size and checks the result against the whole body's. With
+ * `twice`, a refusal of a repeated name on the rows' path counts as agreeing (a random change can
+ * make one).
+ */
+function agrees(text, keys, sizes = PIECES, twice = false) {
     const expected = reference(text);
     const bytes = Buffer.from(text, "latin1");
     for (const size of sizes) {
         const got = readInPieces(bytes, keys, size);
+        if (twice && got.error instanceof AnswerShapeError && /rows twice/.test(got.error.message)) {
+            continue;
+        }
         const label = `${JSON.stringify(text.slice(0, 80))} at /${keys.join("/")} in pieces of ${size || "all"}`;
         if (expected === "refused") {
             assert.ok(got.error instanceof AnswerShapeError, `${label}: refused (${got.error ?? "accepted"})`);
@@ -158,10 +163,13 @@ test("rowsReader gives what JSON.parse and the pointer give, in pieces of any si
 });
 
 test("rowsReader agrees with JSON.parse on answers changed at random: a byte replaced, removed or doubled (fixed seed)", () => {
-    let seed = 620;
+    // xorshift32: every bit of the state is used
+    let state = 620;
     const random = (n) => {
-        seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
-        return seed % n;
+        state ^= state << 13;
+        state ^= state >>> 17;
+        state ^= state << 5;
+        return (state >>> 0) % n;
     };
     const STRUCTURE = ['"', "\\", ",", ":", "[", "]", "{", "}", " ", "1", "\xef", "\xbb", "\xbf", "\xc3"];
     const valid = ANSWERS.filter(([text]) => reference(text) !== "refused");
@@ -170,16 +178,22 @@ test("rowsReader agrees with JSON.parse on answers changed at random: a byte rep
         const at = random(text.length + 1);
         const change = random(3);
         const changed = change === 0 ? text.slice(0, at) + STRUCTURE[random(STRUCTURE.length)] + text.slice(at + 1) : change === 1 ? text.slice(0, at) + text.slice(at + 1) : text.slice(0, at) + text.slice(at, at + 1) + text.slice(at);
-        agrees(changed, keys, [1, 0]);
+        agrees(changed, keys, [1, 2, 3, 0], true);
     }
 });
 
 test("rowsReader refuses a body that names its rows twice, and stops at the first byte that cannot be JSON", () => {
-    for (const body of [`{"items":[{"a":1}],"items":[{"a":2}]}`, `{"a":{"items":[1]},"a":{"items":[2]}}`]) {
-        const twice = readInPieces(Buffer.from(body), body.startsWith('{"a"') ? ["a", "items"] : ["items"], 0);
-        assert.ok(twice.error instanceof AnswerShapeError, body);
-        assert.match(twice.error.message, /rows twice/);
+    // JSON.parse would keep the later value: other rows, or none at all
+    for (const body of [`{"items":[{"a":1}],"items":[{"a":2}]}`, `{"items":[{"a":1}],"items":5}`, `{"items":[{"a":1}],"items":null}`]) {
+        const twice = readInPieces(Buffer.from(body), ["items"], 0);
+        assert.match(String(twice.error?.message), /rows twice/, body);
     }
+    for (const body of [`{"a":{"items":[1]},"a":{"items":[2]}}`, `{"a":{"items":[1,2]},"a":{"x":2}}`]) {
+        const twice = readInPieces(Buffer.from(body), ["a", "items"], 0);
+        assert.match(String(twice.error?.message), /rows twice/, body);
+    }
+    // the same names off the pointer's path are fine
+    assert.equal(readInPieces(Buffer.from(`{"items":[1],"b":{"items":2},"c":[{"a":1}]}`), ["items"], 0).error, undefined);
     // a broken separator in the rows is refused while it streams, before the rest arrives
     const reader = rowsReader(["items"], { maxDepth: MAX_DEPTH, onRow: () => {} });
     assert.throws(() => reader.push(Buffer.from(`{"items":[{"a":1},,`)), AnswerShapeError);

@@ -17,8 +17,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - An HTTP source reads a JSON answer while it arrives. Each row becomes a table row at once, so the
   server never holds the whole body and its parsed objects together. The peak memory of a first
   call fell from about 390 to 300 MB for a 20 MiB answer, and from about 910 to 590 MB for
-  500,000 rows, measured on one laptop. A body that has its rows twice, through a repeated name,
-  is refused (`SOURCE_UNAVAILABLE`). CSV answers are read as before
+  500,000 rows, measured on one laptop. A body that repeats a key on the way to the rows after
+  them is refused (`SOURCE_UNAVAILABLE`). CSV answers are read as before
   ([Memory while a source loads](https://pivotkit.eize.dev/reference/sources/#http-memory), #620).
 
 ## [0.3.1] - 2026-11-18
