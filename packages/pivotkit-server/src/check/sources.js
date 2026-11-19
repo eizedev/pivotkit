@@ -110,6 +110,7 @@ export async function section(options, registry, runtime) {
         }
         if (s.scopes.length) items.push(plain(`scopes: ${s.scopes.join(" ")}`, 2));
         if (s.link) items.push(plain(`link: ${s.link}`, 2));
+        if (s.link && written.linkParams?.length) items.push(plain(`link params, in the page's query string: ${written.linkParams.join(", ")}`, 2));
         // the print template, read and parsed as the start does: what the parser refuses stops the
         // start; a file that is not there is like a missing source file (its html reports fail)
         const template = templates.get(s.id);

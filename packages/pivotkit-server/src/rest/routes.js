@@ -20,7 +20,7 @@ const FINDING = { severity: "error", code: "unknownField", path: "rows[0]", mess
 const WORDS = {
     list_sources: {
         summary: "List the data sources",
-        description: "The data sources this caller may use: id, title, whether a link or a schedule works for them.",
+        description: "The data sources this caller may use: id, title, whether a link or a schedule works for them, and the params a link may carry (linkParams).",
         example: { input: {}, output: { sources: [{ id: "sales", title: "Sales", kind: "source", link: true, schedulable: true }] } }
     },
     describe_source: {
@@ -78,7 +78,7 @@ const WORDS = {
     },
     create_link: {
         summary: "Create a link to a view",
-        description: "A link that opens the view in the source's report page, where a person sees the data with their own rights. Only for sources with link: true; a view with errors gets no link.",
+        description: "A link that opens the view in the source's report page, where a person sees the data with their own rights. Only for sources with link: true; a view with errors gets no link. Where GET /sources names linkParams for the source, params takes only those names, and their values go into the page's query string.",
         example: { input: { source: "sales", view: VIEW, name: "Sales by region" }, output: { ok: true, url: "https://reports.example.com/sales#pk=...", findings: [], uses: ["Region", "Sales"] } }
     },
     draft_schedule: {

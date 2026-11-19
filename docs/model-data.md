@@ -182,7 +182,7 @@ counts.
 | `get_view_guide` | How to write a view: pivotkit's own text, nothing of yours. |
 | `validate_view`, `describe_view` | Findings with field names, the items the model wrote, and the data's spelling for `show` and `values` fields. Also the view in words, the fields it uses and `dataAsOf`. |
 | `render_view` | The file's name, over stdio its path. A link where the report gets one. Counts and an inline result only where every field of the view is `show`. |
-| `create_link` | A link to the source's report page with the view in it: field names and filter items. The page loads the data, not the link. |
+| `create_link` | A link to the source's report page with the view in it: field names and filter items. The values of the source's `linkParams` go into the page's address. The page loads the data, not the link. |
 | `draft_schedule` | The draft with the view, formats, when and recipients by name, and where it is saved. |
 
 ## What else the model reads { #other }
@@ -223,7 +223,8 @@ The model's own input goes to the server, and from there:
 
 - **Views and layouts** hold field names and, in filters, the items the model wrote. The server
   checks them and does not log them at the default level. A link from `create_link` carries the
-  view to whoever opens it. A schedule draft holds recipients by name.
+  view to whoever opens it, and the values of the parameters the operator lists in `linkParams`
+  ([link parameters](security.md#link-params)). A schedule draft holds recipients by name.
 - **Parameters** of an [HTTP source](reference/sources.md#http) go into the backend's address that
   the operator wrote, and so into the backend's access log. A code source's `load` receives them.
   pivotkit first checks each value against the parameter's type, pattern or list.

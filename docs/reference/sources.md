@@ -91,6 +91,9 @@ A value must have the parameter's type. pivotkit refuses a number for a `string`
 text with lone surrogates. The fields of a source with required parameters are known only after a
 load with values, so `describe_source` needs the values too.
 
+A link from `create_link` carries only the parameters in `sources.<id>.linkParams`. Their values go
+into the query string of the source's page ([link parameters](../concepts/sharing.md#link-params)).
+
 ### Options { #http-options }
 
 | Key | Default | Meaning |
@@ -113,6 +116,7 @@ load with values, so `describe_source` needs the values too.
 | `.http.maxPages` | 10 | 1 to 100; a source with more pages answers `LIMIT_EXCEEDED` |
 | `.http.maxBytes` | 20 MiB | All pages together, after decompression; over it `LIMIT_EXCEEDED`. A load reads at most `limits.fileBytes` (50 MiB unless set): a larger value is refused when `limits.fileBytes` is set, and a `check-config` warning otherwise |
 | `sources.<id>.params` | none | The values a caller passes: `type` (`string`, `integer`, `number`, `boolean`), `required`, `description`, `example`, `enum`, `pattern`, `minLength`, `maxLength` (strings: default 64, at most 256), `minimum`, `maximum`, `format: "date"`, `default`, `claim` (filled from the sign-in, [claims](#http-claims)) |
+| `sources.<id>.linkParams` | none | The parameters a link from `create_link` may carry, in the page's query string ([link parameters](../concepts/sharing.md#link-params)) |
 | `sources.<id>.timeMs` | 15000 ms | All pages of one load, at most 600000 |
 | `sources.<id>.ttl` | 60 s | Seconds a load is reused for the same caller and values; `0` only shares loads that run at the same time |
 | `sources.<id>.maxStale` | 3600 s | How old the last good data may be to stand in after a transient failure; `0` turns it off |
@@ -708,6 +712,7 @@ The example compiles with strict TypeScript. pivotkit-server's types give `load`
 | `sources.<id>.load` | - | `load(params, { caller, signal })`: the data (see below) |
 | `sources.<id>.version` | none | `version(params, { caller })`: a value (not a promise) that changes when the data changes; kept data is reused while it is the same. It is called at once on every call, never awaited, so keep it cheap |
 | `sources.<id>.params` | none | The values a caller passes with the source ([parameters](mcp.md#configuration)); a parameter with `claim` is filled from the signed-in person's token instead ([claims](#http-claims)) |
+| `sources.<id>.linkParams` | none | The parameters a link from `create_link` may carry, in the page's query string ([link parameters](../concepts/sharing.md#link-params)) |
 | `sources.<id>.timeMs` | 30000 ms | The longest `load` may take, at most 600000 (ten minutes); the signal is aborted then |
 | `sources.<id>.ttl` | none (only `version` decides) | Seconds a load is reused; `0` only shares loads that run at the same time |
 | `sources.<id>.maxStale` | 3600 s | How old the last good data may be to stand in after a transient failure; `0` turns it off |

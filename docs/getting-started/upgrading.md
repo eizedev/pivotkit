@@ -164,6 +164,7 @@ Then restart Claude Code.
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
+| [A link names a source's parameters in the page's query string](#link-params) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
 | [One print template for the whole server](#output-template) | you want one design for every html report of a server | set `output.template` |
 
 ### Rows of a source for a signed-in person { #records-route }
@@ -181,12 +182,26 @@ refuses a source's `records.maxRows` above `rest.records.maxRows`. `GET /sources
 `"records": true` to the sources a person may read the rows of. `check-config` has a section
 `Rows (REST)` once a profile has `records`.
 
+### A link names a source's parameters in the page's query string { #link-params }
+
+`create_link` (MCP and `POST /api/v1/views/link`) writes the values of the parameters in
+`sources.<id>.linkParams` into the page's query string
+([link parameters](../concepts/sharing.md#link-params)). Without the list, links stay as they are.
+
+- `create_link` with a list refuses any other parameter with `INVALID_INPUT`.
+- The server does not start with a list that names a parameter bound to a claim, an undeclared one,
+  or leaves out a required one.
+- `GET /sources` and `list_sources` add `linkParams` to such a source.
+- The tool's description changed. MCP clients reconnect to read it.
+- Query values land in access logs, history and the `Referer` header. The host page sends
+  `Referrer-Policy: same-origin` or `no-referrer` ([security](../security.md#link-params)).
+
 ### One print template for the whole server { #output-template }
 
 `output.template` sets the print template of every html report whose source sets none. Data sent in
-the request (`inline:`) and, over MCP, `file:` paths take it too, so one server has one design. A source's own
-`sources.<id>.template` still wins. The start and `check-config` check it as they check a source's
-template. Without the key, nothing changes.
+the request (`inline:`) and, over MCP, `file:` paths take it too, so one server has one design. A
+source's own `sources.<id>.template` still wins. The start and `check-config` check it as they check
+a source's template. Without the key, nothing changes.
 
 A template can set `--pk-chart-axis` to draw the chart's axis line apart from the table's lines.
 Without it, the axis keeps `--pk-border`.
