@@ -17,6 +17,7 @@ import { COMPUTE_HOOKS, createComputer } from "./compute.js";
 import { createLog } from "./log.js";
 import { createRegistry } from "./registry.js";
 import { checkTemplates } from "./print-template.js";
+import { checkViews } from "./views.js";
 import { callerOf, createAuthCore, identityKey } from "./auth.js";
 import { offersOf } from "./sources/input.js";
 import { httpSettingsOf } from "./options/http.js";
@@ -93,6 +94,16 @@ export async function createContext(options, runtime = {}) {
         }
         if (missing) {
             log.warn(`${key}: ${missing}; ${reports} fail until it can be read`);
+        }
+    }
+    // a source's named views that are no view: refused now, not first when a caller asks for one; a
+    // file or folder that is not there yet is a warning, as a missing template
+    for (const { id, problems } of await checkViews(options)) {
+        for (const { key, text, missing } of problems) {
+            if (!missing) {
+                throw new ConfigError(`sources.${id}.${key}: ${text}`);
+            }
+            log.warn(`sources.${id}.${key}: ${text}; those views are left out; check-config says more`);
         }
     }
     // a backend's sign-in whose secret cannot be read: said at start, not first to a caller
@@ -388,14 +399,16 @@ export const notWritableText = (code) => (code === "EROFS" ? "output.dir is on a
 export const SHARED_OUTPUT_TEXT = "output.dir is the configuration's directory or holds a source, template or token file: reports there are never deleted to make room, so a full directory refuses new ones; give the reports a directory of their own";
 
 /**
- * The real directories that hold the operator's own files: each source file, print template and
- * token file, and the base directory (a configuration file's directory, unless it sets baseDir).
+ * The real directories that hold the operator's own files: each source file, print template, view
+ * file and token file, each folder of views, and the base directory (a configuration file's directory, unless it sets baseDir).
  * @param {import("./config.js").ServerOptions} options
  * @returns {Promise<string[]>}
  */
 export async function ownFileDirs(options) {
-    const files = [...Object.values(options.sources ?? {}).flatMap((s) => [s.file, s.template]), options.output?.template, ...(options.auth?.tokens ?? []).map((t) => t.file)].filter((f) => typeof f === "string");
+    const files = [...Object.values(options.sources ?? {}).flatMap((s) => [s.file, s.template, ...Object.values(s.views ?? {})]), options.output?.template, ...(options.auth?.tokens ?? []).map((t) => t.file)].filter((f) => typeof f === "string");
     const dirs = await Promise.all(files.map((f) => realpath(pathOf(options, f)).then(dirname, () => null)));
+    // a folder of named views is the operator's itself
+    const viewDirs = await Promise.all(Object.values(options.sources ?? {}).map((s) => (typeof s.viewsDir === "string" ? realpath(pathOf(options, s.viewsDir)).catch(() => null) : null)));
     const base = options.baseDir ? await realpath(options.baseDir).catch(() => null) : null;
-    return [...dirs, base].filter((d) => d !== null);
+    return [...dirs, ...viewDirs, base].filter((d) => d !== null);
 }

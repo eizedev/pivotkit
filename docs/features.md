@@ -248,6 +248,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - data files
     - an operator's API as an HTTP source
     - a library host's code sources
+    - [named views](reference/sources.md#views) per source, from the configuration or a folder of
+      view files the browser saved
 - An HTTP source offers:
     - its address written once, with typed parameters a caller fills
     - paging, and data kept per caller
@@ -282,7 +284,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
 - `pivotkit-mcp` ([getting started](getting-started/mcp.md), [pivotkit-mcp](reference/mcp.md), [security](security.md#mcp)):
     - Tools to list and describe sources, and to suggest a draft view.
     - Tools to write views, or lay them out by field names, and to validate and describe them.
-    - Tools to render reports into files, make links and draft schedules.
+    - Tools to render reports into files, make links and draft schedules, from a view, a layout or a
+      view the operator published by name.
     - Through pivotkit, the model reads only what the policy shows. A client with file tools can
       [reach more](model-data.md#beyond-policy).
 - An exposure policy per field ([what reaches an AI model](model-data.md), [exposure policy](reference/mcp.md#policy)):

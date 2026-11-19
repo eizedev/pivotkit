@@ -8,10 +8,6 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Added
 
-- `output.template` is the print template of every html report whose source sets none. Data sent in
-  the request (`inline:`) and, over MCP, `file:` paths take it too. The server reads it on every
-  html render and checks it at start and in `check-config`, as it does `sources.<id>.template`
-  ([print template](https://pivotkit.eize.dev/reference/print-template/), #614).
 - `POST /api/v1/sources/records` answers the rows of one source to a person who signed in: an OAuth
   token with a subject, or an external issuer's token with a subject. A profile grants it per source
   with `records`. It is off by default. Only fields at `show` leave, in the columnar shape
@@ -44,6 +40,18 @@ All notable changes to `pivotkit-server` are documented in this file. The format
       the source's link.
     - The security page says where query values land and which `Referrer-Policy` the host page
       sends ([security](https://pivotkit.eize.dev/security/#link-params)).
+- Named views per source. `sources.<id>.views` maps a name to a view file or a view.
+  `sources.<id>.viewsDir` is a folder of view files, such as the ones the browser downloads.
+  `list_sources` and `describe_source` list them. `render_view`, `create_link` and
+  `draft_schedule` take a name as `view`. The files are read on every request. The start and
+  `check-config` check them, and `check-config` lists the fields each view needs
+  ([named views](https://pivotkit.eize.dev/reference/sources/#views), #616).
+- A caller never learns of a view that uses a field hidden from it. A view that holds values of a
+  field the caller sees at `summary` gets no link and no draft.
+- `output.template` is the print template of every html report whose source sets none. Data sent in
+  the request (`inline:`) and, over MCP, `file:` paths take it too. The server reads it on every
+  html render and checks it at start and in `check-config`, as it does `sources.<id>.template`
+  ([print template](https://pivotkit.eize.dev/reference/print-template/), #614).
 
 ### Fixed
 
