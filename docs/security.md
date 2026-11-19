@@ -790,6 +790,30 @@ operator's, never a caller's:
   shown without anyone deciding. Its data is kept per caller and values, never shared between
   callers.
 
+## Parameters in a link { #link-params }
+
+A link from `create_link` carries the values of the parameters in `sources.<id>.linkParams` in the
+page's query string ([link parameters](concepts/sharing.md#link-params)). The view stays in the
+fragment, which the browser keeps to itself. A query string travels:
+
+- into the access logs of the page's server and of every proxy on the way
+- into the browser's history
+- into the `Referer` header of requests the page makes, also to other sites
+
+So:
+
+- List only parameters whose values may show up there. A customer's short name may. A person's name
+  or an account number usually may not.
+- The host page sends `Referrer-Policy: same-origin` or `no-referrer`. Set it as a response header
+  of the page, or as `<meta name="referrer" content="same-origin">` in its `<head>`. pivotkit does
+  not serve that page, so the host sets it. Current browsers default to
+  `strict-origin-when-cross-origin`: other sites get the origin only. Same-origin requests still get
+  the full address, and a page or browser with a weaker policy sends it everywhere.
+- A value in a link proves nothing. Anyone can write the address by hand. The host loads the rows
+  with the viewer's own rights, and pivotkit-server checks the values on every request.
+- A parameter bound to a sign-in claim never goes into a link. The server does not start with such a
+  list, and `check-config` names it.
+
 ## Content-Security-Policy
 
 The web component was measured in the browser tests (`tests/browser/element.spec.js`) in Chromium,

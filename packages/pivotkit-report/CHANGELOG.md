@@ -6,6 +6,11 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `list_sources`' output schema has `linkParams` per source, and `create_link`'s description names it
+  ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), #619).
+
 ## [0.4.0] - 2026-11-18
 
 ### Added
