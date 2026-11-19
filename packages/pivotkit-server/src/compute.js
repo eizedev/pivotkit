@@ -14,8 +14,20 @@
 import { Worker } from "node:worker_threads";
 import { OperationError } from "pivotkit-report/operations";
 import { COMPUTE_DEFAULTS } from "./config.js";
-import { CACHE_ENTRIES, KEPT_JOB, READ_JOB, codeTable } from "./data.js";
+import { CACHE_ENTRIES, KEPT_JOB, READ_JOB, RECORDS_JOB, codeTable } from "./data.js";
 import { isOwnError, sourceFailure } from "./sources/run.js";
+
+/**
+ * The head of a rows job: the data's columns (their names and the types the answer gives them), its
+ * row count and, for a view, the fields it uses and how many errors it has.
+ * @typedef {{ columns: Array<{ name: string, type: "string" | "number" | "boolean" | "date" | null }>, rows: number, uses?: string[], viewErrors?: number }} RecordsHead
+ */
+
+/**
+ * What the main thread does with a rows job after its head: write these columns (indices into the
+ * head's) in pieces of about `pieceChars` characters, take the next piece (null at the end), or stop.
+ * @typedef {{ write(columns: number[], pieceChars: number): void, next(): Promise<Uint8Array | null>, stop(): Promise<void> }} RecordsWriter
+ */
 
 /** The key of createContext's runtime that turns on the tests' look into the workers (internal.hooks); not exported by the package. */
 export const COMPUTE_HOOKS = Symbol("pivotkit.computeHooks");
@@ -276,11 +288,177 @@ export function createComputer(options = {}, internal = {}) {
         // must, or a host's process can end while the worker starts or runs (Node 22 does)
         const { worker } = slot;
         worker.ref();
+        if (op === RECORDS_JOB) {
+            // ref'd until the rows job ends: streamIn unrefs it
+            return /** @type {any} */ (streamIn(slot, key, input, job));
+        }
         try {
             return await runIn(slot, key, op, input, job, signal);
         } finally {
             worker.unref();
         }
+    }
+
+    /**
+     * A rows job (data.js RECORDS_JOB) on the worker it took: resolves with the data's head and a
+     * writer once the worker has read the data. The worker stays taken until the job ends: the writer
+     * wrote every piece, or was stopped, or the job ran over compute.timeMs (the worker is then
+     * terminated and replaced). Pieces come one per `next()`, so this thread holds at most one.
+     * @returns {Promise<{ outcome: { head: RecordsHead }, hidden: number, stats: null, asOf: string | null, stale: null, writer: RecordsWriter }>}
+     */
+    async function streamIn(slot, key, input, job) {
+        await slot.ready;
+        const { worker } = slot;
+        if (slot.exited) {
+            slot.busy = false;
+            worker.unref();
+            replace(slot);
+            throw new OperationError("INTERNAL", "internal error");
+        }
+        const id = next++;
+        return new Promise((resolve, reject) => {
+            let headed = false;
+            let ended = false;
+            let resent = false;
+            /** @type {{ resolve: (piece: Uint8Array | null) => void, reject: (e: unknown) => void } | null} the next() waiting for a piece */
+            let waiter = null;
+            /** @type {unknown} why the job failed after its head, for the next next() */
+            let failed = null;
+            /** @type {Array<() => void>} who waits for the end (stop()) */
+            const onEnd = [];
+            const end = () => {
+                if (ended) {
+                    return;
+                }
+                ended = true;
+                clearTimeout(timer);
+                worker.off("message", onMessage);
+                worker.off("error", onError);
+                worker.off("exit", onExit);
+                worker.unref();
+                onEnd.splice(0).forEach((f) => f());
+            };
+            /** The job failed: before its head the promise rejects, after it the waiting or next next() does. */
+            const fail = (error) => {
+                if (!headed) {
+                    reject(error);
+                } else if (waiter) {
+                    waiter.reject(error);
+                    waiter = null;
+                } else {
+                    failed = error;
+                }
+            };
+            const word = (w) => {
+                if (!ended) {
+                    worker.postMessage({ id, word: w });
+                }
+            };
+            const post = (full) => {
+                const message = { id, op: RECORDS_JOB, input, ...job };
+                if (!full) {
+                    delete message.table;
+                    delete message.upload;
+                    message.cached = true;
+                }
+                worker.postMessage(message);
+                sent[full ? "tables" : "cached"] += key !== null ? 1 : 0;
+            };
+            /** @type {RecordsWriter} */
+            const writer = {
+                write(columns, pieceChars) {
+                    word({ write: { columns, pieceChars } });
+                },
+                next() {
+                    if (failed) {
+                        return Promise.reject(failed);
+                    }
+                    if (ended) {
+                        return Promise.resolve(null);
+                    }
+                    return new Promise((res, rej) => {
+                        waiter = { resolve: res, reject: rej };
+                        word({ pull: true });
+                    });
+                },
+                stop() {
+                    if (ended) {
+                        return Promise.resolve();
+                    }
+                    return new Promise((res) => {
+                        onEnd.push(res);
+                        word({ stop: true });
+                    });
+                }
+            };
+            const onMessage = (msg) => {
+                if (msg.id !== id) {
+                    return;
+                }
+                if (msg.need) {
+                    if (resent) {
+                        end();
+                        release(slot);
+                        fail(new OperationError("INTERNAL", "internal error"));
+                        return;
+                    }
+                    resent = true;
+                    post(true);
+                    return;
+                }
+                if (msg.head) {
+                    headed = true;
+                    if (key !== null) {
+                        note(slot, key, msg.kept === true);
+                    }
+                    resolve({ outcome: { head: msg.head }, hidden: msg.hidden ?? 0, stats: null, asOf: msg.asOf ?? null, stale: null, writer });
+                    return;
+                }
+                if (msg.piece) {
+                    const piece = msg.piece instanceof Uint8Array ? msg.piece : new Uint8Array(msg.piece);
+                    waiter?.resolve(piece);
+                    waiter = null;
+                    return;
+                }
+                // the job ended (written, stopped) or failed: the worker is free
+                end();
+                release(slot);
+                if (msg.error) {
+                    fail(new OperationError(msg.error.code, msg.error.message));
+                } else {
+                    waiter?.resolve(null);
+                    waiter = null;
+                }
+            };
+            const onError = (e) => {
+                end();
+                replace(slot);
+                const memory = /memory|heap/i.test(String(e?.message)) || e?.code === "ERR_WORKER_OUT_OF_MEMORY";
+                fail(new OperationError(memory ? "LIMIT_EXCEEDED" : "INTERNAL", memory ? `the rows need more than the ${memoryMb} MB of memory a run may use (compute.memoryMb)` : "internal error"));
+            };
+            const onExit = () => {
+                end();
+                replace(slot);
+                fail(new OperationError("INTERNAL", "internal error"));
+            };
+            // the whole job, its reading and writing, within compute.timeMs: a writer nobody drains ends too
+            const timer = setTimeout(() => {
+                end();
+                worker.terminate().catch(() => undefined);
+                replace(slot);
+                fail(new OperationError("TIMEOUT", `the rows took longer than ${timeMs / 1000} s (compute.timeMs) to read and send`));
+            }, timeMs);
+            worker.on("message", onMessage);
+            worker.once("error", onError);
+            worker.once("exit", onExit);
+            try {
+                post(key === null || !slot.keys.includes(key));
+            } catch {
+                end();
+                release(slot);
+                reject(new OperationError("INVALID_INPUT", "the input is nested too deeply"));
+            }
+        });
     }
 
     /** inWorker's run on the worker it took. */

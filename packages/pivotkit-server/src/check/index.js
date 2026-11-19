@@ -30,6 +30,7 @@ import * as external from "./external.js";
 import * as issuer from "./issuer.js";
 import * as operator from "./operator.js";
 import * as profiles from "./profiles.js";
+import * as records from "./records.js";
 import * as rest from "./rest.js";
 import * as log from "./log.js";
 
@@ -58,11 +59,11 @@ export const UPGRADING_URL = "https://pivotkit.eize.dev/getting-started/upgradin
 /**
  * In the order check-config prints them: the data (sources, HTTP and code sources, data in the
  * request), where reports go and who gets them (output, delivery, upload), who may call (address and
- * auth, the requests to the issuer, audit, profiles, REST).
+ * auth, the requests to the issuer, audit, profiles, the rows route, REST).
  * @type {ReadonlyArray<{ name: string, section: Section }>}
  */
 export const SECTIONS = Object.freeze(
-    Object.entries({ sources, http, code, inline, output, downloads, upload, access, credentials, signed, external, issuer, operator, profiles, rest, log }).map(([name, module]) => Object.freeze({ name, section: module.section }))
+    Object.entries({ sources, http, code, inline, output, downloads, upload, access, credentials, signed, external, issuer, operator, profiles, records, rest, log }).map(([name, module]) => Object.freeze({ name, section: module.section }))
 );
 
 /**
