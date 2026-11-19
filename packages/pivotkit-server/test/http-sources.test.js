@@ -395,7 +395,7 @@ test("paging: a next pointer, a Link header, page numbers and offsets; pages sta
 const READINGS = Object.freeze({ streamed: { asOf: "/at" }, whole: { asOf: "/items/0/at" } });
 
 /** The words of limits.rows for a reading: a streamed answer stops at the first row over it (#648). */
-const ROWS_OVER = Object.freeze({ streamed: "more than 40 rows, over the limit of 40 (limits.rows)", whole: "60 rows exceed the limit of 40 (limits.rows)" });
+const ROWS_OVER = Object.freeze({ streamed: "more rows than the limit of 40 (limits.rows)", whole: "60 rows exceed the limit of 40 (limits.rows)" });
 
 // the streamed reader counted every row to the end of the answer to name the total: an answer of
 // many rows cost main-thread time for nothing. It stops at the first row over limits.rows (#648):
@@ -410,7 +410,7 @@ test("limits.rows: a streamed answer is given up at the first row over the limit
     const context = await contextOf({ ...optionsOf(), limits: { rows: 40 }, sources: { endless: { http: { backend: "platform", path: "/endless", rows: "/items" }, timeMs: 20_000, policy: POLICY } } });
     try {
         const e = await failure(describe(context, undefined, LOCAL, "endless"));
-        assert.deepEqual([e.code, e.message], ["LIMIT_EXCEEDED", "more than 40 rows, over the limit of 40 (limits.rows)"]);
+        assert.deepEqual([e.code, e.message], ["LIMIT_EXCEEDED", "more rows than the limit of 40 (limits.rows)"]);
     } finally {
         open?.destroy();
         await context.close();
@@ -559,6 +559,33 @@ test("rows: with the caller's levels, hidden columns are left out of every row a
     const narrow = tableBuilder(/** @type {any} */ ({ ...limits, columns: 2 }), { id: "t", log, levels });
     narrow.add({ name: "a", email: "x", cpu: 1 });
     assert.throws(() => narrow.finish(), /limits\.columns/);
+});
+
+// the same through a load: the source's table builder gets the caller's levels, so what it has built
+// when the answer is in holds no hidden column (#649)
+test("a streamed load builds its table without the caller's hidden columns", async () => {
+    routes.set("/v1/customers/acme/vms", json({ items: VMS, generatedAt: "2026-02-03T04:05:06Z" }));
+    const built = [];
+    const original = httpMeans.tableBuilder;
+    httpMeans.tableBuilder = (limits, how) => {
+        const builder = original(limits, how);
+        return { ...builder, finish: () => {
+            const table = builder.finish();
+            built.push(table);
+            return table;
+        } };
+    };
+    const context = await contextOf(optionsOf());
+    try {
+        await describe(context, { customer: "acme" });
+        assert.equal(built.length, 1);
+        assert.deepEqual(built[0].columns, ["name", "cpu", "state"]);
+        assert.equal(built[0].dropped, 2);
+        assert.doesNotMatch(JSON.stringify(built[0]), /example\.com|prod|test/);
+    } finally {
+        httpMeans.tableBuilder = original;
+        await context.close();
+    }
 });
 
 test("rows: objects by their own keys or lists with a header row; names cleaned and made unique; a nested value as JSON text; nesting counted outside strings", () => {

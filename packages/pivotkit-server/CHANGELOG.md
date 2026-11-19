@@ -96,11 +96,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - A missing print template fails only html reports. Other formats, `describe_source` and
   `validate_view` over the source answer as usual (#614).
 - A streamed JSON answer of an HTTP source stops at the first row over `limits.rows`. The error
-  names the limit ("more than 40 rows, over the limit of 40") instead of counting the whole answer
+  says "more rows than the limit of 40 (limits.rows)" instead of counting the whole answer
   first (#648).
 - An HTTP source's JSON answer leaves out the columns the caller's policy hides while its rows
   arrive, not after the whole answer is in. With one of seven columns hidden, the main thread's peak
-  heap fell from about 76 MB to 69 MB for a 20 MB answer (#649).
+  heap fell by about 9 % for a 20 MB answer (`bench/server`, #649).
 
 ## [0.3.2] - 2026-11-19
 

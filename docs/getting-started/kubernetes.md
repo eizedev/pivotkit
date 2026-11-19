@@ -218,10 +218,10 @@ and `limits.fileBytes`.
 
 | Answer | Rows | Size | Memory added | Main thread heap |
 | --- | ---: | ---: | ---: | ---: |
-| JSON | 10,000 | 1 MB | about 70 MB | about 25 MB |
-| JSON | 100,000 | 13 MB | about 250 MB | about 65 MB |
+| JSON | 10,000 | 1 MB | about 70 MB | about 20 MB |
+| JSON | 100,000 | 13 MB | about 250 MB | about 60 MB |
 | JSON | 151,550 | 20 MB | about 290 MB | about 70 MB |
-| JSON | 500,000 | 66 MB | about 590 MB | about 160 MB |
+| JSON | 500,000 | 66 MB | about 570 MB | about 140 MB |
 | CSV | 10,000 | 1 MB | about 70 MB | about 20 MB |
 | CSV | 100,000 | 7 MB | about 240 MB | about 20 MB |
 | CSV | 293,222 | 20 MB | about 440 MB | about 20 MB |

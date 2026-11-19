@@ -65,9 +65,10 @@ export const BACKEND_TEXT = Object.freeze({
 
 /**
  * What a guardedFetch is: the server's, or a test's own (createGuardedFetch with a certificate and a
- * lookup of its own). Not part of the package's API; no option reaches it.
+ * lookup of its own); and the table builder a load uses, which a test may wrap to see what it keeps.
+ * Not part of the package's API; no option reaches it.
  */
-export const httpMeans = { fetch: guardedFetch };
+export const httpMeans = { fetch: guardedFetch, tableBuilder: (/** @type {Parameters<typeof tableBuilder>} */ ...args) => tableBuilder(...args) };
 
 /**
  * How deeply a JSON text is nested, counted until it passes `max` (strings skipped).
@@ -355,7 +356,12 @@ export function tableBuilder(limits, how) {
                         drop();
                         return;
                     }
-                    keptOfHeader = header.map((name, i) => [placeOf(name, i), i]).filter(([at]) => at >= 0).map(([, i]) => i);
+                    keptOfHeader = [];
+                    header.forEach((name, i) => {
+                        if (placeOf(name, i) >= 0) {
+                            keptOfHeader.push(i);
+                        }
+                    });
                     return;
                 }
             }
@@ -441,7 +447,7 @@ function shownOf(levels, table) {
 const morePages = (id, max) => ownError(new OperationError("LIMIT_EXCEEDED", `the source ${id} has more than ${max} pages (http.maxPages)`));
 
 /** A streamed answer past limits.rows, said at its first row over it: the total is not counted. */
-const moreRows = (max) => ownError(new OperationError("LIMIT_EXCEEDED", `more than ${max.toLocaleString("en-US")} rows, over the limit of ${max.toLocaleString("en-US")} (limits.rows)`));
+const moreRows = (max) => ownError(new OperationError("LIMIT_EXCEEDED", `more rows than the limit of ${max.toLocaleString("en-US")} (limits.rows)`));
 
 /**
  * Whether a JSON answer is read while it streams: not where the asOf or next pointer reaches into
@@ -494,7 +500,7 @@ export async function loadHttp(settings, values, how) {
     }
     let headers = { ...fixed, ...(await signIn(how.trace?.auth)) };
     let retried = false;
-    const table = tableBuilder(how.limits, { id, log: how.log, ...(how.levels ? { levels: how.levels } : {}) });
+    const table = httpMeans.tableBuilder(how.limits, { id, log: how.log, ...(how.levels ? { levels: how.levels } : {}) });
     const streams = streamsRows(settings);
     /** The rows of the pages read so far (a list's header counted). */
     let total = 0;
