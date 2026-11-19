@@ -319,6 +319,74 @@ test("a body that fails in the middle of an answer ends the connection, never a 
     }
 });
 
+// the write loop waits for drain while the socket is full: a body that fails during that wait must
+// end the connection then, not at the client's next read (#637)
+test("a body that fails while the socket is full ends the connection at once, also when the client never reads", async () => {
+    const listening = await serveFetch(
+        {
+            fetch: async () =>
+                new Response(
+                    new ReadableStream({
+                        start(controller) {
+                            // more than the socket takes: the write waits for a drain the client never gives
+                            controller.enqueue(new Uint8Array(8 * 1024 * 1024));
+                            setTimeout(() => controller.error(new Error("the source failed")), 100);
+                        }
+                    }),
+                    { headers: { "content-type": "application/octet-stream" } }
+                )
+        },
+        { host: "127.0.0.1", port: 0, bodyBytes: 1024, graceMs: 30_000 }
+    );
+    const socket = connect(listening.port, "127.0.0.1", () => socket.write("GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"));
+    socket.on("error", () => undefined);
+    // the client reads nothing
+    socket.pause();
+    try {
+        const open = () => new Promise((resolve) => listening.server.getConnections((_e, n) => resolve(n)));
+        let count = 1;
+        for (let i = 0; i < 100 && count > 0; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            count = /** @type {number} */ (await open());
+        }
+        assert.equal(count, 0, "the server closed the connection after the body failed");
+    } finally {
+        socket.destroy();
+        await listening.close();
+    }
+});
+
+// a body the parser refuses while a slow precheck still runs: the connection is gone before the body
+// is read, so the read must end too, or a stop waits the whole graceMs for it (#655)
+test("a broken chunked body after a slow precheck: the request ends, and a stop does not wait graceMs", async () => {
+    let problems = 0;
+    const listening = await serveFetch(
+        {
+            // as an OAuth check of the token: the body is read only after it
+            precheck: () => new Promise((resolve) => setTimeout(() => resolve(null), 200)),
+            fetch: async () => new Response("read"),
+            problem: (status) => {
+                problems++;
+                return new Response(null, { status });
+            }
+        },
+        { host: "127.0.0.1", port: 0, bodyBytes: 1024, graceMs: 20_000 }
+    );
+    await new Promise((resolve) => {
+        const socket = connect(listening.port, "127.0.0.1", () => socket.write("POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\n"));
+        socket.on("error", () => undefined);
+        socket.on("close", resolve);
+        socket.resume();
+    });
+    // the precheck is still running here; let it end
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const started = performance.now();
+    await listening.close();
+    const ms = performance.now() - started;
+    assert.ok(ms < 5_000, `close took ${Math.round(ms)} ms`);
+    assert.equal(problems, 1, "the unread body is answered as one the server cannot read, which frees what the precheck took");
+});
+
 test("serveFetch: a client that leaves while the answer streams cancels it", async () => {
     let cancelled = 0;
     const listening = await serveFetch(
