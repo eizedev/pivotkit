@@ -441,7 +441,7 @@ test("the Angular example installs from its own lock file, at the versions its p
     }
 });
 
-// The browser tests run as one job per engine (Firefox and WebKit in shards) and React version, each well inside
+// The browser tests run as one job per engine, shard and React version, each well inside
 // its timeout: the matrix covers every Playwright project on React 18 and 19, every shard of a project,
 // and each job runs its own project and shard only.
 test("the browser jobs cover every engine and every shard on React 18 and 19", () => {

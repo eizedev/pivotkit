@@ -149,8 +149,8 @@ jobs:
     # The playground (examples/playground), the host pages and the web component's pages
     # (tests/browser/pages) in Chromium, Firefox and WebKit, on React 18 (the workspace's, as
     # PowerShell Universal provides it) and on React 19 (tests/react19, its own lock file). One job per
-    # engine and React version, WebKit (the slowest) in two shards, so each has room within its timeout
-    # and a failure names its engine.
+    # engine, shard and React version, so a failure names its engine. Shards keep each job's tests near
+    # 8 minutes, half of its timeout: one Chromium or three WebKit shards ran up to 14.3 minutes (#627)
     # Playwright's own image carries the browsers and their system libraries, so nothing is installed
     # with apt. Its version must be the one of @playwright/test in package-lock.json; tests/ci.test.js
     # checks that and this matrix.
@@ -162,12 +162,14 @@ jobs:
       matrix:
         react: ["18", "19"]
         target:
-          - { browser: chromium, shard: 1, of: 1 }
+          - { browser: chromium, shard: 1, of: 2 }
+          - { browser: chromium, shard: 2, of: 2 }
           - { browser: firefox, shard: 1, of: 2 }
           - { browser: firefox, shard: 2, of: 2 }
-          - { browser: webkit, shard: 1, of: 3 }
-          - { browser: webkit, shard: 2, of: 3 }
-          - { browser: webkit, shard: 3, of: 3 }
+          - { browser: webkit, shard: 1, of: 4 }
+          - { browser: webkit, shard: 2, of: 4 }
+          - { browser: webkit, shard: 3, of: 4 }
+          - { browser: webkit, shard: 4, of: 4 }
     container:
       image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe
       options: --user 1001
