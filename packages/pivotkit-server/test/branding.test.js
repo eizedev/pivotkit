@@ -383,6 +383,10 @@ test("branding and http.page.url are checked: wrong values are refused with the 
         [{ branding: { colour: "red" } }, /branding/],
         [{ http: { page: { url: "javascript:alert(1)" } } }, /http\.page\.url/],
         [{ http: { page: { url: "/relative" } } }, /http\.page\.url/],
+        [{ http: { page: { url: "https://a.example/x\r\nSet-Cookie: a=b" } } }, /http\.page\.url/],
+        [{ http: { page: { url: "https://a.example/a\tb" } } }, /http\.page\.url/],
+        [{ branding: { docsUrl: 'https://x.example/"><b>' } }, /branding\.docsUrl/],
+        [{ branding: { docsUrl: "https://x.example/a b" } }, /branding\.docsUrl/],
         [{ http: { page: { url: "https://intranet.example/", sources: true } } }, /http\.page/]
     ];
     for (const [extra, message] of refused) {

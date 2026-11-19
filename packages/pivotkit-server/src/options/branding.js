@@ -51,7 +51,9 @@ function nameProblems(value) {
  */
 function addressProblems(value, { base = false } = {}) {
     const words = base ? "an http:// or https:// address without query or fragment, or null for no documentation links" : "an absolute http:// or https:// address";
-    if (typeof value !== "string") {
+    // spaces, quotes, angle brackets and control characters: never in an address the server writes
+    // into a header or a link as it is
+    if (typeof value !== "string" || /[\s"'<>\\\p{Cc}]/u.test(value)) {
         return [`must be ${words}`];
     }
     let url;
@@ -102,7 +104,12 @@ export function docsOf(options) {
     if (given === null) {
         return null;
     }
-    return typeof given === "string" && !addressProblems(given, { base: true }).length ? (given.endsWith("/") ? given : `${given}/`) : DOCS_SITE;
+    if (typeof given !== "string" || addressProblems(given, { base: true }).length) {
+        return DOCS_SITE;
+    }
+    // the parser's form: what a header or a link carries is the address as the URL standard writes it
+    const href = new URL(given).href;
+    return href.endsWith("/") ? href : `${href}/`;
 }
 
 /**

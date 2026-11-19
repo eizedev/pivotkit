@@ -126,7 +126,7 @@ export async function iconOf(options) {
 export async function brandingOf(options) {
     const name = options.branding?.name ?? DEFAULT_NAME;
     const page = options.http?.page;
-    return { name, slug: slugOf(name), docs: docsOf(options), icon: await iconOf(options), pageUrl: typeof page === "object" && page?.url ? page.url : null };
+    return { name, slug: slugOf(name), docs: docsOf(options), icon: await iconOf(options), pageUrl: typeof page === "object" && page?.url ? new URL(page.url).href : null };
 }
 
 /** The branding of a context, or the defaults for a context made without one (a host's own). */

@@ -234,7 +234,7 @@ export function openApiDocument(options = {}) {
             title: `${name} REST`,
             version: VERSION,
             summary: "Describe data sources, validate and render pivot views, make links and draft schedules.",
-            description: `The operations of ${name === DEFAULT_NAME ? "pivotkit's" : "the"} MCP server over HTTP for programs. Errors are RFC 9457 problem details. The routes are RPC-style (POST /views/validate); /api/v1 changes only with a breaking change.${docs === null ? "" : ` Docs: ${docsLink(docs, "reference/rest/")}`}`,
+            description: `The operations of ${name === DEFAULT_NAME ? "pivotkit's MCP server" : `${name}'s MCP tools`} over HTTP for programs. Errors are RFC 9457 problem details. The routes are RPC-style (POST /views/validate); /api/v1 changes only with a breaking change.${docs === null ? "" : ` Docs: ${docsLink(docs, "reference/rest/")}`}`,
             license: { name: "MIT", identifier: "MIT" }
         },
         // the paths carry /api/v1: the server is the origin

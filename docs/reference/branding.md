@@ -24,28 +24,32 @@ documentation, or no documentation at all. It can also send `/` to its own page.
 
 ```json
 {
-  "branding": { "name": "Team reports", "docsUrl": null, "icon": "team-icon.png" },
+  "branding": { "name": "Sales Team", "docsUrl": null, "icon": "team-icon.png" },
   "http": { "page": { "url": "https://intranet.example/reports-help" } }
 }
 ```
+
+These keys go next to the rest of your configuration, such as `sources` and `output`
+([a whole configuration](../getting-started/rest.md)).
 
 The server checks the values at start. A wrong value stops the start and names the key.
 `check-config` shows them in a section `Branding` ([check it](#check)).
 
 ## The name { #name }
 
-`branding.name` replaces pivotkit's name where people and clients show it:
+`branding.name` replaces pivotkit's name where people and clients show it. The server adds "report",
+"REST" or "MCP server" after it, so pick a name that reads well before those words:
 
-- the download pages: "Team reports report" in the title and over the heading, and the icon
+- the download pages: "Sales Team report" in the title and over the heading, and the icon
 - the MCP server's `serverInfo.title`, its page's title and heading
-- the OpenAPI document's title: "Team reports REST"
-- the OAuth metadata: `resource_name` "Team reports REST" for REST, "Team reports" for MCP
+- the OpenAPI document's title: "Sales Team REST"
+- the OAuth metadata: `resource_name` "Sales Team REST" for REST, "Sales Team" for MCP
 
 Two places need the name as a short identifier. The server makes one from it: lower-case letters,
-digits and dashes, such as `team-reports`. A name without any of these gives `pivotkit`.
+digits and dashes, such as `sales-team`. A name without any of these gives `pivotkit`.
 
-- the server's key in the client configurations on the MCP page, such as `"team-reports"`
-- the `realm` of the 401 answer with static tokens: `team-reports` for REST, `team-reports-mcp` for MCP
+- the server's key in the client configurations on the MCP page, such as `"sales-team"`
+- the `realm` of the 401 answer with static tokens: `sales-team` for REST, `sales-team-mcp` for MCP
 
 ## Documentation links { #docs }
 
@@ -112,6 +116,7 @@ setting changes them:
 - the HTML report's `<meta name="generator">`. Your [print template](print-template.md) replaces the
   whole page.
 - the MCP server's instructions and tool descriptions, which tell the model how pivotkit works
+- the view schema's description in the OpenAPI document ("A pivotkit view"), which names the format
 
 Exports carry no product name. An xlsx file names no author or company. CSV, JSON, SVG and PNG
 files carry no metadata.
@@ -122,7 +127,7 @@ files carry no metadata.
 
 ```text
 Branding:
-  name: Team reports
+  name: Sales Team
   documentation links: none (branding.docsUrl null)
   icon: /srv/pivotkit/team-icon.png, 64x64 PNG
   page: / goes to https://intranet.example/reports-help, and a browser that opens /mcp too
