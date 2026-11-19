@@ -11,7 +11,8 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { McpServer, fromJsonSchema } from "@modelcontextprotocol/server";
-import { MCP_TOKEN_ENV, callerOf, createContext } from "pivotkit-server";
+import { callerOf, createContext } from "pivotkit-server";
+import { MCP_TOKEN_ENV } from "pivotkit-server/internal";
 import { registerTools } from "./tools.js";
 
 export { callerOf };

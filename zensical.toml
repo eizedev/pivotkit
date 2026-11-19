@@ -69,6 +69,7 @@ nav = [
     { "Container image" = "reference/container.md" },
     { "Operations and logs" = "reference/operations.md" },
     { "Kubernetes" = "getting-started/kubernetes.md" },
+    { "JavaScript exports" = "reference/service-exports.md" },
   ] },
   { "Reference" = [
     { "pivotkit-core" = "reference/core.md" },

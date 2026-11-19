@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { resolvePolicy, levelOf } from "pivotkit-server/policy";
-import { profileOf } from "pivotkit-server";
+import { profileOf } from "pivotkit-server/internal";
 import { BY_REGION, OTHER_TOKEN, SALES_CSV, TOKEN, call, restServer, workspace } from "./helpers.js";
 
 const THIRD_TOKEN = "a-third-test-token-that-is-long-enough-42424242";

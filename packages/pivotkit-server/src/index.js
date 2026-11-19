@@ -10,29 +10,22 @@
  *   const { result } = await present(context, "describe_source", { source: "sales" }, callerOf("none"));
  */
 
-export { createContext, callerOf, VERSION, TOKEN_ENV, MCP_TOKEN_ENV } from "./context.js";
-export { present, presentedInput, presentedOutput, renderFile, findingsText, saveLogFields } from "./present.js";
-export { ConfigError, loadConfig, validateOptions, pathOf, restResourceOf, OPTION_KEYS, SERVER_LIMITS, COMPUTE_DEFAULTS, DEFAULT_ALGORITHMS, ENDPOINTS, REST_BASE, SOURCE_ID } from "./config.js";
+export { createContext, callerOf, VERSION } from "./context.js";
+export { present } from "./present.js";
+export { ConfigError, loadConfig, validateOptions, OPTION_KEYS, SERVER_LIMITS, COMPUTE_DEFAULTS, DEFAULT_ALGORITHMS } from "./config.js";
 export { POLICY_LEVELS, POLICY_DEFAULTS } from "./policy.js";
-export { createAuthCore, AuthRefusal, bearerOf, discover, scopesOf, profileOf, groupRefusal, groupsOf, GROUPS_REFUSED, NOT_IN_GROUP, resourceMetadataUrlOf, TOKEN_MIN } from "./auth.js";
-export { allowedHosts, hostRefusal, hostRefusedLine, HOST_HINT, clientAddress, LOCAL_HOSTS } from "./checks.js";
-export { createLimits, REQUEST_LIMITS, bodyBytesOf, limitKeyOf } from "./limits.js";
-export { serveFetch, isLoopback, connectionLimitsOf, refusedText, GRACE_MS, CONNECTION_LIMITS, BODY_BYTES, MAX_BODY_BYTES, SIGNED_IN, takeSignIn, peekSignIn, bodyCapOf } from "./listen.js";
-export { stopOnSignals } from "./stop.js";
-export { callerFields, CALLER_LOG_FIELDS, flushed, LOG_DEFAULTS, LOG_LEVELS, LOG_FORMATS, REFUSED_REASONS, SEVERITY, SOURCE_LOG_TEXT, logSettingsOf, logUnanswered, noteAnswered, noteProtocolRefusal, refusalReason, startErrorLine, startFields } from "./log.js";
-export { newRequestId, withRequestId, requestId, errorDetails, isRequestId, REQUEST_ID, requestScope, requestScopeFor, withRequestScope, withRequestIdHeader, traceIdOf, upstreamRequestIdOf } from "./request-id.js";
-export { hostProblem, serverTextOf } from "./rest/problem.js";
+export { groupRefusal } from "./auth.js";
+export { bodyBytesOf } from "./limits.js";
+export { serveFetch, BODY_BYTES, MAX_BODY_BYTES, peekSignIn, bodyCapOf } from "./listen.js";
+export { callerFields } from "./log.js";
+export { withRequestId, requestId, errorDetails, requestScopeFor } from "./request-id.js";
 export { offeredScopes } from "./scopes.js";
-export { INLINE_ID, MCP_DATA_CAP, REST_DATA_BYTES, inlineLogFields } from "./sources/inline.js";
-export { readSecret, secretFileWarning, SecretError } from "./secrets.js";
-export { SECRET_REF, CREATABLE_SECRET_REF } from "./options/shared.js";
-export { prepareHttpServe, logNotes, openAddressRefusal, planState, stateDirOf, configFrom, builtInConfig, tokenShowHint, IMAGE_PATHS, STATE_ENV, DEFAULT_TOKEN_NAME } from "./state.js";
+export { readSecret, SecretError } from "./secrets.js";
+export { SECRET_REF } from "./options/shared.js";
 export { checkConfig } from "./check.js";
-export { createDownloadHandler, linksOf, DOWNLOADS_PATH, CALLBACK_PATH, DOWNLOAD_BODY_BYTES } from "./downloads.js";
 export { OperationError } from "pivotkit-report/operations";
 export { SourceError, SOURCE_ERROR_CODES } from "./sources/run.js";
 export { CODE_DEFAULTS } from "./options/code.js";
-export { optionsFrom, flagLines, httpFlags, startFormatOf, SERVER_FLAGS, SHARED_FLAGS } from "./flags.js";
 export { serve, createServerHandler, DEFAULT_PORT } from "./serve.js";
 
 /**

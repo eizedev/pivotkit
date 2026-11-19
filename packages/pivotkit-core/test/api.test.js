@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as core from "pivotkit-core";
@@ -10,6 +10,7 @@ import * as templates from "pivotkit-core/templates";
 import * as importer from "pivotkit-core/import";
 import * as charts from "pivotkit-core/chart";
 import { AGGREGATOR_ALIASES, CATALOG, aggregatorsFor, encode, validate } from "pivotkit-core";
+import { undocumentedExports } from "../../../tests/documented-exports.js";
 
 const src = fileURLToPath(new URL("../src/", import.meta.url));
 
@@ -35,11 +36,8 @@ test("the package exports its documented entry points and nothing else", () => {
 });
 
 test("every export of every public entry point is named on a reference page of the docs", () => {
-    const reference = new URL("../../../docs/reference/", import.meta.url);
-    const text = readdirSync(reference).filter((f) => f.endsWith(".md")).map((f) => readFileSync(new URL(f, reference), "utf8")).join("\n");
     const entries = { "pivotkit-core": core, "pivotkit-core/export": exporters, "pivotkit-core/chart": charts, "pivotkit-core/import": importer, "pivotkit-core/link": links, "pivotkit-core/templates": templates };
-    const missing = Object.entries(entries).flatMap(([entry, mod]) => Object.keys(mod).filter((name) => !new RegExp(`\`${name}[\`(.,]`).test(text)).map((name) => `${entry}: ${name}`));
-    assert.deepEqual(missing, [], "name each export in code font on its reference page");
+    assert.deepEqual(undocumentedExports(entries), [], "name each export in code font on its reference page");
 });
 
 /** Every module the file imports, transitively, as paths relative to src/, and the bare imports. */

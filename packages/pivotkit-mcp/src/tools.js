@@ -8,7 +8,8 @@
 
 import { fromJsonSchema } from "@modelcontextprotocol/server";
 import { OPERATIONS, OPERATION_ERRORS, OperationError } from "pivotkit-report/operations";
-import { callerFields, inlineLogFields, isRequestId, newRequestId, present, presentedInput, presentedOutput, requestId, saveLogFields, serverTextOf, withRequestId } from "pivotkit-server";
+import { callerFields, present, requestId, withRequestId } from "pivotkit-server";
+import { inlineLogFields, isRequestId, newRequestId, presentedInput, presentedOutput, saveLogFields, serverTextOf } from "pivotkit-server/internal";
 
 /** The tool's description: the operation's, plus what the model must know about this server. */
 function descriptionOf(name) {

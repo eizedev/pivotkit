@@ -57,6 +57,12 @@ export async function loadMcp() {
         if (e instanceof SyntaxError && /requested module 'pivotkit-server(?:\/[^']*)?'/.test(String(e.message))) {
             throw await releaseMismatch(e);
         }
+        // an entry point a later pivotkit-mcp imports (pivotkit-server/internal) that this release lacks;
+        // named without the installed package's path
+        const entry = missingEntry(e);
+        if (entry) {
+            throw await releaseMismatch({ message: `this pivotkit-server has no entry point pivotkit-server/${entry}` });
+        }
         throw e;
     }
     const versions = installedVersions();
@@ -65,6 +71,16 @@ export async function loadMcp() {
         throw await releaseMismatch(null, { ...versions, server: { version: VERSION } });
     }
     return mcp;
+}
+
+/**
+ * The entry point of pivotkit-server that an import asked for and this package does not export, or
+ * null for any other error.
+ * @param {any} e
+ */
+function missingEntry(e) {
+    const m = e?.code === "ERR_PACKAGE_PATH_NOT_EXPORTED" && /^Package subpath '\.\/([^']+)' is not defined by "exports" in .*[\\/]pivotkit-server[\\/]package\.json/.exec(String(e.message));
+    return m ? m[1] : null;
 }
 
 /** The package.json nearest above a file, or null. */
@@ -102,7 +118,7 @@ function installedVersions() {
  * The error for a pivotkit-mcp that does not fit the pivotkit-server it finds: its version, that
  * pivotkit-server's version, the range pivotkit-mcp declares, and the update guide. A version it
  * cannot read is left out; an import's own message is kept.
- * @param {SyntaxError | null} e  the import's error; null when only the declared range does not fit
+ * @param {{ message: string } | null} e  the import's error; null when only the declared range does not fit
  * @param {{ mcp: any, server: any }} [versions]
  */
 async function releaseMismatch(e, { mcp, server } = installedVersions()) {

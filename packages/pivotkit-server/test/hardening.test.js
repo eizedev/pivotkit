@@ -2,7 +2,8 @@
 // review): each test fails on the code before its fix.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { REQUEST_LIMITS, callerOf, checkConfig, createLimits, limitKeyOf, validateOptions } from "pivotkit-server";
+import { callerOf, checkConfig, validateOptions } from "pivotkit-server";
+import { REQUEST_LIMITS, createLimits, limitKeyOf } from "pivotkit-server/internal";
 import { randomBytes } from "node:crypto";
 import { connect } from "node:net";
 import { existsSync, mkdirSync, readdirSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";

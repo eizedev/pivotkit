@@ -49,6 +49,17 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - A caller never learns of a view that uses a field hidden from it. A view that holds values of a
   field the caller sees at `summary` gets no link and no draft.
 
+### Changed
+
+- Breaking: `pivotkit-server` exports only its public names. The names pivotkit-mcp shares with it
+  move to `pivotkit-server/internal`, which is no public interface. `pivotkit-server/policy` exports
+  the policy's public part. A host that imported a moved name reads the
+  [upgrading page](https://pivotkit.eize.dev/getting-started/upgrading/#internal-exports) (#561).
+- A new page lists every export of the services
+  ([JavaScript exports](https://pivotkit.eize.dev/reference/service-exports/)).
+- A pivotkit-mcp that imports an entry point this pivotkit-server lacks is refused with both
+  versions, as one that imports a missing name is.
+
 ## [0.3.2] - 2026-11-19
 
 ### Changed

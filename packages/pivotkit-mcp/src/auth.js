@@ -14,7 +14,8 @@
  */
 
 import { OAuthError, getOAuthProtectedResourceMetadataUrl, oauthMetadataResponse, requireBearerAuth } from "@modelcontextprotocol/server";
-import { AuthRefusal, groupRefusal, offeredScopes } from "pivotkit-server";
+import { groupRefusal, offeredScopes } from "pivotkit-server";
+import { AuthRefusal } from "pivotkit-server/internal";
 
 /** The client of each answer that refused a verified token for its person's groups, for the log line. */
 const refusedClients = new WeakMap();

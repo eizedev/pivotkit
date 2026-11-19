@@ -17,7 +17,8 @@
  */
 
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
-import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, callerOf, hostProblem, hostRefusal, hostRefusedLine, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logNotes, logUnanswered, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, requestScopeFor, serveFetch, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server";
+import { BODY_BYTES, ConfigError, DEFAULT_PORT, callerOf, requestScopeFor, serveFetch } from "pivotkit-server";
+import { DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, hostProblem, hostRefusal, hostRefusedLine, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logNotes, logUnanswered, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server/internal";
 import { MCP_TOKEN_ENV, createMcpContext } from "./context.js";
 import { createAuth, refusedClientOf } from "./auth.js";
 import { quickStartPage } from "./page.js";

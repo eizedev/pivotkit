@@ -176,6 +176,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `serve` runs REST and, when pivotkit-mcp is installed, MCP on one port.
 - pivotkit-mcp is imported by name, not as a dependency.
 - A pivotkit-mcp that needs exports this version lacks is refused with both versions.
+- `src/index.js`, `src/rest/index.js` and `src/policy-entry.js` export the public names only. Each is on `docs/reference/service-exports.md`.
+- What pivotkit-mcp shares goes into `src/internal.js` (`pivotkit-server/internal`). `test/api.test.js` checks both.
 - So is one whose declared `pivotkit-server` range does not hold this version (`version-range.js`).
 - `stopOnSignals` in `src/stop.js` ends both runners on SIGINT and SIGTERM.
 - Release pivotkit-server before pivotkit-mcp, see [RELEASING.md](../../RELEASING.md).

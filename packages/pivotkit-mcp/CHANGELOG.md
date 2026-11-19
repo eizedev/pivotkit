@@ -19,6 +19,10 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 - `render_view`, `create_link` and `draft_schedule` take the name of a view the operator published
   ([named views](https://pivotkit.eize.dev/reference/sources/#views), #616). MCP clients reconnect
   to read the new schemas.
+- pivotkit-mcp imports what it shares with pivotkit-server from `pivotkit-server/internal`. Install
+  pivotkit-server and pivotkit-mcp of one release in one command, as always (#561).
+- `pivotkit-mcp/policy` exports the policy's public part, as `pivotkit-server/policy` does
+  ([JavaScript exports](https://pivotkit.eize.dev/reference/service-exports/)).
 
 ## [0.3.2] - 2026-11-19
 

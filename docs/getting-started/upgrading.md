@@ -164,6 +164,7 @@ Then restart Claude Code.
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
+| **Breaking:** [Fewer JavaScript exports of pivotkit-server](#internal-exports) | your code imports from `pivotkit-server` or `pivotkit-server/policy` a name that [JavaScript exports](../reference/service-exports.md) does not list | use a listed name, or tell us in an issue what you need |
 | [A link names a source's parameters in the page's query string](#link-params) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
 | [Named views, and a layout for links and drafts](#named-views) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients |
 
@@ -195,6 +196,18 @@ refuses a source's `records.maxRows` above `rest.records.maxRows`. `GET /sources
 - The tool's description changed. MCP clients reconnect to read it.
 - Query values land in access logs, history and the `Referer` header. The host page sends
   `Referrer-Policy: same-origin` or `no-referrer` ([security](../security.md#link-params)).
+
+### Fewer JavaScript exports of pivotkit-server { #internal-exports }
+
+`pivotkit-server` and `pivotkit-server/policy` export only the names that
+[JavaScript exports](../reference/service-exports.md) lists. pivotkit-mcp imports the rest from
+`pivotkit-server/internal`. That entry point is no public interface: any release can change it.
+
+- A host that builds its own server with the listed names changes nothing.
+- A host that imported another name, such as `planState` or `renderFile`, gets an error at start
+  that names it. Use a listed name, or open an issue that says what you need.
+- Install pivotkit-server and pivotkit-mcp of one release in one command. A pivotkit-mcp of this
+  release beside an older pivotkit-server stops at start with an error about `pivotkit-server/internal`.
 
 ### Named views, and a layout for links and drafts { #named-views }
 

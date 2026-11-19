@@ -7,7 +7,8 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { OPERATION_NAMES } from "pivotkit-report/operations";
-import { callerOf, createContext, present, presentedOutput } from "pivotkit-server";
+import { callerOf, createContext, present } from "pivotkit-server";
+import { presentedOutput } from "pivotkit-server/internal";
 import { call, restServer, workspace } from "./helpers.js";
 
 /** 64 amounts of 0.1 and 0.2: their sum is 9.599999999999994 in floating point, not 9.6. */
