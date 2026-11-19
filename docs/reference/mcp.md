@@ -594,8 +594,8 @@ request and trace ids and how to ship the log.
 | `warning` | A problem that does not stop the server |
 | `stopped` | Written after an HTTP server stops |
 
-A call line is `info` when it worked, `warn` for an error a REST caller would get as 4xx, and `error`
-for 5xx. `requestId` is random (11 characters). It is the same on every line of one call, in its
+A call line is `info` when it worked, `warn` for an error a REST caller would get as 4xx or as 503
+`BUSY`, and `error` for other 5xx. `requestId` is random (11 characters). It is the same on every line of one call, in its
 result's `requestId`, at the end of its error and, over HTTP, in the answer's `X-Request-Id` header.
 
 Over HTTP, a request's lines name the client's `address` unless `log.address` is `off`. With

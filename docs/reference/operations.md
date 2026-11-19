@@ -30,7 +30,7 @@ then the file, then the variable.
 
 - **`log.level`**: a line is written when its level reaches the setting.
     - `warn` keeps every failure and drops successful requests and calls.
-    - `error` keeps only server errors (5xx) and unexpected errors.
+    - `error` keeps only server errors (5xx other than 503 `BUSY`) and unexpected errors.
     - The `started` and `stopped` lines are written at every level but `off`.
     - `debug` is for setting a server up. Its lines hold more, an error's own message among them,
       which may quote a value or a request's body, so do not leave it on.
@@ -134,8 +134,9 @@ Lines of calls, requests, downloads and refusals add:
   these by its status.
 
 The level of a `call`, `request`, `download` or `refused` line follows its status: `info` below 400,
-`warn` for 4xx, `error` for 5xx. A refused request is `warn` or `error`, except the two routine ones
-above (`method_not_allowed`, `not_found`), which are `debug`.
+`warn` for 4xx, `error` for 5xx. A 503 `BUSY` is `warn`: the server is full, not broken, and the client
+may try again. A refused request is `warn` or `error`, except the two routine ones above
+(`method_not_allowed`, `not_found`), which are `debug`.
 
 Every error answer (4xx and 5xx) has one line under the `requestId` of its `X-Request-Id`: its own
 `call`, `request` or `download` line, or a `refused` line. A 404 or 405 has its line only at

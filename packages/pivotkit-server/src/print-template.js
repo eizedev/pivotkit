@@ -11,6 +11,13 @@ import { readSafe } from "pivotkit-cli/files";
 import { parseTemplate } from "pivotkit-report/template";
 import { pathOf } from "./config.js";
 
+/**
+ * What a caller is told when a render cannot read the print template: the operator's setup is at
+ * fault, so the answer is a 502 SOURCE_UNAVAILABLE with this fixed text (reason "template"). The
+ * caller never learns the file's name.
+ */
+export const TEMPLATE_UNAVAILABLE_TEXT = "the server's print template is not available now; tell the operator and give the request id";
+
 /** The largest template file read, in bytes (limits.template in messages). */
 export const TEMPLATE_BYTES = 1_048_576;
 
