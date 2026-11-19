@@ -19,6 +19,7 @@ import { FILE_PREFIX, INLINE_ID, KINDS, kindOf } from "./sources/index.js";
 import { resolveFilePath } from "./sources/file.js";
 import { resolveInline } from "./sources/inline.js";
 import { normalizeParams, paramsList } from "./sources/params.js";
+import { checkLinkParams, linkEntriesOf, linkParamsOf, withLinkQuery } from "./link-params.js";
 import { readTemplateFile } from "./print-template.js";
 import { asOfMembers } from "./sources/as-of.js";
 
@@ -248,7 +249,7 @@ export async function createRegistry(options, { log = null } = {}) {
          * What a worker needs to read a source, and the policy that applies to it.
          * @param {string} ref  a source id or "file:<path>"
          * @param {Caller} caller
-         * @param {{ files?: boolean, surface?: "mcp" | "rest", data?: unknown, upload?: any }} [how]  files: false refuses a file: source whatever files.allowDirs says (REST); surface: whose words a message uses (and, for "inline:", whose rules); data, upload: the table or file "inline:" stands for (sources/inline.js)
+         * @param {{ files?: boolean, surface?: "mcp" | "rest", data?: unknown, upload?: any, link?: boolean }} [how]  files: false refuses a file: source whatever files.allowDirs says (REST); surface: whose words a message uses (and, for "inline:", whose rules); data, upload: the table or file "inline:" stands for (sources/inline.js); link: for create_link, the params the source's linkParams allow go into the link's query and others are refused (link-params.js)
          * @param {unknown} [params]  the caller's values for the source's parameters
          */
         async resolve(ref, caller, how = {}, params = undefined) {
@@ -266,6 +267,10 @@ export async function createRegistry(options, { log = null } = {}) {
             }
             const source = sourceOf(ref, caller, how);
             const kind = kindOf(source);
+            // a link's params: after the access check, so a source the caller may not use is never named
+            if (how.link) {
+                checkLinkParams(source, params, ref);
+            }
             const values = normalizeParams(source.params, params, caller, ref);
             const policy = resolvePolicy(options.policy, source.policy, profileOf(caller));
             const template = source.template ? await readTemplate(pathOf(options, source.template)) : undefined;
@@ -273,7 +278,7 @@ export async function createRegistry(options, { log = null } = {}) {
                 sourceKind: kind,
                 policy,
                 source: source.load || source.http ? source : null,
-                link: source.link ? { url: source.link, key: source.linkKey ?? null } : null,
+                link: source.link ? { url: withLinkQuery(source.link, how.link ? linkEntriesOf(source, params, values) : []), key: source.linkKey ?? null } : null,
                 template,
                 params: values,
                 descriptions: descriptionsOf(source),
@@ -290,10 +295,10 @@ export async function createRegistry(options, { log = null } = {}) {
          */
         async list(caller, how = {}) {
             const profile = profileOf(caller);
-            /** @type {Array<{ id: string, title: string, description?: string, kind: "source" | "file", link: boolean, schedulable: boolean, params?: ReturnType<typeof paramsList>, rows?: number, dataAsOf?: string }>} */
+            /** @type {Array<{ id: string, title: string, description?: string, kind: "source" | "file", link: boolean, linkParams?: string[], schedulable: boolean, params?: ReturnType<typeof paramsList>, rows?: number, dataAsOf?: string }>} */
             const out = [...sources.entries()]
                 .filter(([id, s]) => usable(caller, id, s))
-                .map(([id, s]) => ({ id, title: s.title ?? id, ...(s.description ? { description: s.description } : {}), kind: /** @type {const} */ ("source"), link: Boolean(s.link), schedulable: !bound.has(id), ...(s.params && paramsList(s.params).length ? { params: paramsList(s.params) } : {}) }))
+                .map(([id, s]) => ({ id, title: s.title ?? id, ...(s.description ? { description: s.description } : {}), kind: /** @type {const} */ ("source"), link: Boolean(s.link), ...(linkParamsOf(s) ? { linkParams: linkParamsOf(s) } : {}), schedulable: !bound.has(id), ...(s.params && paramsList(s.params).length ? { params: paramsList(s.params) } : {}) }))
                 .map((entry) => ({ ...entry, ...lastReadFor(entry.id, sources.get(entry.id), profile) }));
             if (files.list && allow.length && holds(caller, files.scopes) && how.files !== false) {
                 for (const dir of allow) {
