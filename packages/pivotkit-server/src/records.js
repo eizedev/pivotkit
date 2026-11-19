@@ -135,6 +135,8 @@ export function createRecords(context) {
             writer = ran.writer;
             /** @type {import("./compute.js").RecordsHead} */
             const head = ran.outcome.head;
+            // the row count and dataAsOf list_sources gives (registry.js noteRead)
+            context.registry.noteRead(resolved.spec, { stats: { rows: head.rows }, asOf: ran.asOf });
             const chosen = choose(head, resolved.policy, input);
             if ("refused" in chosen) {
                 await writer.stop();

@@ -66,8 +66,8 @@ const INLINE_OUTPUT = {
 
 /** What list_sources says about a source's data where the server knows it from its last read. */
 const LAST_READ = {
-    rows: { type: "integer", description: "How many rows the source holds, as of its last read. Absent: not read yet, the rows depend on who asks or on params, or the policy keeps the count back." },
-    dataAsOf: { type: "string", description: "When the data of the source's last read is from, in UTC to the second. Absent where rows is absent for any reason but the policy." }
+    rows: { type: "integer", description: "How many rows the source held at its last read. Absent before a first read, for a source whose rows depend on who asks or on params, and where the policy keeps the count back." },
+    dataAsOf: { type: "string", description: "When the data of that read is from, in UTC to the second. Absent before a first read and for a source whose rows depend on who asks or on params." }
 };
 
 /** The operations whose results carry dataAsOf. */

@@ -419,7 +419,8 @@ One object on stdout, for scripts and for the PowerShell Universal module:
   default `limits`. Use it for a bug report or a CI log.
 - `sources`: `kind: "sources"` and `sources` (each `{ id, title, kind, link, schedulable }` and, for
   a source with parameters, `params`, as the server lists them). Where the server knows them, an
-  entry has `rows` and `dataAsOf` ([row count and data date](rest.md#source-list)).
+  entry has `rows` and `dataAsOf` ([row count and data date](rest.md#source-list)). The text
+  output does not show them.
 - `sources <id>`: `kind: "source"`, `source` and `description` (`rows`, `fields`, `text`,
   `hiddenFields`).
 - `render`: `summary` and `output` (`{ file, format, mediaType, bytes }`, or `null` when nothing was

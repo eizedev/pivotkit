@@ -110,3 +110,17 @@ test("GET /sources carries rows and dataAsOf as list_sources does", async () => 
         await server.close();
     }
 });
+
+test("reads that end out of order: an older data set never replaces a newer one in the list", async () => {
+    const context = await createContext({ log: "off", sources: { shared: { load: async () => ROWS, cacheShared: true } } });
+    try {
+        const spec = { id: "shared", kind: "source" };
+        context.registry.noteRead(spec, { stats: { rows: 3 }, asOf: "2026-11-02T00:00:00Z" });
+        context.registry.noteRead(spec, { stats: { rows: 9 }, asOf: "2026-11-01T00:00:00Z" });
+        assert.deepEqual([(await entryOf(context, "shared")).rows, (await entryOf(context, "shared")).dataAsOf], [3, "2026-11-02T00:00:00Z"]);
+        context.registry.noteRead(spec, { stats: { rows: 4 }, asOf: "2026-11-02T00:00:00Z" });
+        assert.equal((await entryOf(context, "shared")).rows, 4, "the same time: the later read wins");
+    } finally {
+        await context.close();
+    }
+});

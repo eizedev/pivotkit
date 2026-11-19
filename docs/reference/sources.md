@@ -711,7 +711,7 @@ The example compiles with strict TypeScript. pivotkit-server's types give `load`
 | `sources.<id>.timeMs` | 30000 ms | The longest `load` may take, at most 600000 (ten minutes); the signal is aborted then |
 | `sources.<id>.ttl` | none (only `version` decides) | Seconds a load is reused; `0` only shares loads that run at the same time |
 | `sources.<id>.maxStale` | 3600 s | How old the last good data may be to stand in after a transient failure; `0` turns it off |
-| `sources.<id>.cacheShared` | `false` | The data is the same for every caller: one copy for all, and `load` gets `caller: null` |
+| `sources.<id>.cacheShared` | `false` | The data is the same for every caller: one copy for all, and `load` gets `caller: null`. Without params, the source list gives its row count and data date ([source list](rest.md#source-list)) |
 | `sourceCache.maxMb` | 256 | Top level: the loaded data of code and HTTP sources the process keeps, in MiB (1 to 65536); see [bounds](#code-cache) |
 | `sources.<id>.perPerson` | `false` | The data differs per caller (each person sees their own): its reports count as closed for [download links](delivery.md), so only the person who asked can open them (a sign-in link) or no link is given. Not with `cacheShared` |
 

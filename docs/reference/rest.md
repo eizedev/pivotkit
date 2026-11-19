@@ -112,8 +112,8 @@ Over an open source (`"policy": { "default": "show" }`, title Sales), the same r
 Every answer that works carries `requestId`, the id of the request's [log lines](#logging) and its
 `X-Request-Id` header. Give it to the operator when an answer looks wrong.
 
-Every answer over a source's data carries `dataAsOf`. That is every route but `GET /sources` and
-`GET /views/guide`. `dataAsOf` says when the data is from, in UTC to the second. It is a file's
+Every answer over a source's data carries `dataAsOf`. `GET /sources` gives it per source where it is
+known ([below](#source-list)). `GET /views/guide` reads no data and has none. `dataAsOf` says when the data is from, in UTC to the second. It is a file's
 modification time, or a code source's own time or the time it gave the data. The server parses the
 time and writes it again in this one form.
 
@@ -235,16 +235,17 @@ can show the row count and the data date from the list alone. The list never rea
 ```
 
 - Both values come from the source's last read: any REST route or MCP tool over its data, by any
-  caller.
-- Before the first read, both are absent.
+  caller. The rows route counts too.
+- Before the first read, both are absent. They are kept in memory only, so a restart clears them.
+  To fill them after a start, read the source once, for example with `POST /sources/describe`.
 - After the data changes, the list keeps the last read's values until a route reads the data again.
   `dataAsOf` says which data the count is from.
 - Only a source whose rows are the same for every caller gets them: a `file` source, and a code
   source with `cacheShared` and without parameters.
 - A source with parameters, an HTTP source, a source bound to a person and a `perPerson` code source
   get neither: their rows depend on who asks or on the values.
-- `rows` follows the caller's policy. With `rows: false`, the caller gets `dataAsOf` without `rows`,
-  as `describe_source` keeps the count back.
+- `rows` follows the caller's policy. With [`rows: false`](mcp.md#policy), the caller gets
+  `dataAsOf` without `rows`, as `describe_source` keeps the count back.
 
 ## Exposure policy and profiles { #profiles }
 

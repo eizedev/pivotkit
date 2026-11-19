@@ -199,16 +199,24 @@ export async function createRegistry(options, { log = null } = {}) {
      * source shared by all callers (cacheShared) without params. Never a source bound to a person, a
      * perPerson code source or an HTTP source (its data is kept per caller).
      */
-    const sameForAll = (id, source) => !bound.has(id) && source.perPerson !== true && !Object.keys(source.params ?? {}).length && Boolean(source.file || (source.load && source.cacheShared === true));
+    const sameForAll = (id, source) => {
+        const perCaller = bound.has(id) || source.perPerson === true;
+        const perCall = Object.keys(source.params ?? {}).length > 0;
+        const shared = Boolean(source.file) || Boolean(source.load && source.cacheShared === true);
+        return shared && !perCaller && !perCall;
+    };
     /** @type {Map<string, { rows: number, dataAsOf: string }>} the last read of such a source: what list_sources says about its data */
     const lastRead = new Map();
-    /** A source's row count and dataAsOf from its last read, the count only where the caller's policy shows it. */
-    const lastReadFor = (id, source, caller) => {
+    /**
+     * A source's row count and dataAsOf from its last read, the count only where the caller's policy
+     * shows it (the caller's profile, profileOf).
+     */
+    const lastReadFor = (id, source, profile) => {
         const read = lastRead.get(id);
         if (!read) {
             return {};
         }
-        return { ...(resolvePolicy(options.policy, source.policy, profileOf(caller)).rows === false ? {} : { rows: read.rows }), dataAsOf: read.dataAsOf };
+        return { ...(resolvePolicy(options.policy, source.policy, profile).rows === false ? {} : { rows: read.rows }), dataAsOf: read.dataAsOf };
     };
 
     /** A source's field descriptions by field key, cleaned (no control or direction characters) and capped. */
@@ -281,11 +289,12 @@ export async function createRegistry(options, { log = null } = {}) {
          * @param {{ files?: boolean }} [how]  files: false lists no file: sources (REST)
          */
         async list(caller, how = {}) {
+            const profile = profileOf(caller);
             /** @type {Array<{ id: string, title: string, description?: string, kind: "source" | "file", link: boolean, schedulable: boolean, params?: ReturnType<typeof paramsList>, rows?: number, dataAsOf?: string }>} */
             const out = [...sources.entries()]
                 .filter(([id, s]) => usable(caller, id, s))
                 .map(([id, s]) => ({ id, title: s.title ?? id, ...(s.description ? { description: s.description } : {}), kind: /** @type {const} */ ("source"), link: Boolean(s.link), schedulable: !bound.has(id), ...(s.params && paramsList(s.params).length ? { params: paramsList(s.params) } : {}) }))
-                .map((entry) => ({ ...entry, ...lastReadFor(entry.id, sources.get(entry.id), caller) }));
+                .map((entry) => ({ ...entry, ...lastReadFor(entry.id, sources.get(entry.id), profile) }));
             if (files.list && allow.length && holds(caller, files.scopes) && how.files !== false) {
                 for (const dir of allow) {
                     const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
@@ -308,7 +317,9 @@ export async function createRegistry(options, { log = null } = {}) {
         noteRead(spec, read) {
             const source = spec.kind === "source" ? sources.get(spec.id) : undefined;
             const { dataAsOf } = asOfMembers(read);
-            if (source && sameForAll(spec.id, source) && Number.isSafeInteger(read.stats?.rows) && dataAsOf) {
+            // reads that end out of order: an older data set never replaces a newer one
+            const newer = dataAsOf && !(lastRead.get(spec.id)?.dataAsOf > dataAsOf);
+            if (source && sameForAll(spec.id, source) && Number.isSafeInteger(read.stats?.rows) && newer) {
                 lastRead.set(spec.id, { rows: /** @type {number} */ (read.stats?.rows), dataAsOf });
             }
         },

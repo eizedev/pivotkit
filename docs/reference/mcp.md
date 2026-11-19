@@ -49,9 +49,8 @@ structured content and as one text block: a short sentence with counts and ids (
 from the data), then the JSON. A view with errors is not a tool error: `ok` or `valid` is false, and
 `findings` say what to fix.
 
-Every result over a source's data has `dataAsOf`. That is every tool but `list_sources` and
-`get_view_guide`. `list_sources` gives `rows` and `dataAsOf` per source from the source's last read,
-where every caller reads the same rows ([the rules](rest.md#source-list)). `dataAsOf` says when the data is from, in UTC to the second
+Every result over a source's data has `dataAsOf`. `list_sources` gives it per source where it is
+known ([the rules](rest.md#source-list)). `get_view_guide` reads no data and has none. `dataAsOf` says when the data is from, in UTC to the second
 (`"2026-11-15T08:00:00Z"`):
 
 - a file's modification time
