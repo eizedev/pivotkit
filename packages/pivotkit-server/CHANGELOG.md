@@ -8,18 +8,23 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
-- A 404 and `check-config` name the full address of the REST service and of its OpenAPI document.
-  The document sits at the server's root, `/openapi.json`, not under `/api/v1`. With
-  `http.publicUrl` set they print the whole address, for example
-  `https://reports.example.com/openapi.json`. Without it they say that the document sits at the
-  root. A 404 no longer points to the document when `rest.openapi` is `"off"`
-  ([The OpenAPI document](https://pivotkit.eize.dev/reference/rest/#openapi), #609).
 - An HTTP source reads a JSON answer while it arrives. Each row becomes a table row at once, so the
   server never holds the whole body and its parsed objects together. The peak memory of a first
   call fell from about 390 to 300 MB for a 20 MiB answer, and from about 910 to 590 MB for
   500,000 rows, measured on one laptop. A body that repeats a key on the way to the rows after
   them is refused (`SOURCE_UNAVAILABLE`). CSV answers are read as before
   ([Memory while a source loads](https://pivotkit.eize.dev/reference/sources/#http-memory), #620).
+
+## [0.3.2] - 2026-11-19
+
+### Changed
+
+- A 404 and `check-config` name the full address of the REST service and of its OpenAPI document.
+  The document sits at the server's root, `/openapi.json`, not under `/api/v1`. With
+  `http.publicUrl` set they print the whole address, for example
+  `https://reports.example.com/openapi.json`. Without it they say that the document sits at the
+  root. A 404 no longer points to the document when `rest.openapi` is `"off"`
+  ([The OpenAPI document](https://pivotkit.eize.dev/reference/rest/#openapi), #609).
 
 ## [0.3.1] - 2026-11-18
 
@@ -872,7 +877,8 @@ First release.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.1...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.2...HEAD
+[0.3.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.1...pivotkit-server@0.3.2
 [0.3.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.0...pivotkit-server@0.3.1
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.2.0...pivotkit-server@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.1.1...pivotkit-server@0.2.0
