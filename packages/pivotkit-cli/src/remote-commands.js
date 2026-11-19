@@ -31,6 +31,7 @@ const PRIVATE_FILE = 0o600;
  * @property {(values: Record<string, any>, ctx: any) => string} renderFormat  render's checks of -o, -f and the terminal; the format
  * @property {(ctx: any, flag: string, output: string, inputs: Array<[string | undefined, string]>, written: string) => Promise<void>} checkNotInput
  * @property {(values: Record<string, any>, format: string) => any[]} ignoredOptions
+ * @property {(values: Record<string, any>) => Record<string, any>} renderInputs
  * @property {Record<string, string>} formatNames
  */
 
@@ -271,7 +272,7 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
     if (failing(findings, values) || (!what.view && !what.layout)) {
         return { findings, extra: { ...extra, output: null }, note: "nothing written: the view has errors.", noteIsError: true };
     }
-    const answer = await client.file({ ...sourceOf(values), ...what, format, ...(values.title !== undefined ? { title: values.title } : {}), ...(values.chart ? { chart: values.chart } : {}) });
+    const answer = await client.file({ ...sourceOf(values), ...what, format, ...helpers.renderInputs(values) });
     if ("viewErrors" in answer) {
         findings.push(...answer.viewErrors);
         return { findings, extra: { ...extra, output: null }, note: "nothing written: the view has errors.", noteIsError: true };
