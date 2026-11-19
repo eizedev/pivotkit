@@ -56,7 +56,7 @@ export const isViewName = (value) => typeof value === "string" && VIEW_NAME.test
  * @typedef {object} ViewProblem
  * @property {string} key  the option it is about: "views.<name>" or "viewsDir"
  * @property {string | null} name  the view's name, where the problem is one view's
- * @property {string} text  what is wrong, naming a file by its name only
+ * @property {string} text  what is wrong, naming a file or folder as the configuration or the folder's listing spells it
  * @property {boolean} missing  the file or folder is not there or cannot be read now: the server starts
  */
 
@@ -95,7 +95,8 @@ function namedOf(name, given, file) {
     if (read.failed || !read.view) {
         return { problem: `not a view (${read.issues.at(-1)?.message ?? read.failed})` };
     }
-    // what the view's own shape refuses, whatever the data: a list that is none, an unknown key or filter type
+    // what the view's own shape refuses without the data: a list that is none, an unknown key or
+    // aggregator; what depends on a field (its filter type) is checked against the data later
     const shape = shapeErrorOf(read.view);
     if (shape) {
         return { problem: `not a view (${shape})` };
@@ -135,7 +136,7 @@ async function readViewFile(path) {
  * @param {import("./config.js").ServerOptions} options
  * @param {string} id  a configured source's id
  * @param {{ only?: string }} [how]
- * @returns {Promise<{ views: NamedView[], problems: ViewProblem[] }>}
+ * @returns {Promise<{ views: NamedView[], problems: ViewProblem[], names: string[] }>}  names: every view's name, read or not
  */
 export async function viewsOf(options, id, how = {}) {
     const source = Object.hasOwn(options.sources ?? {}, id) ? /** @type {any} */ (options.sources)[id] : undefined;
@@ -194,7 +195,7 @@ export async function viewsOf(options, id, how = {}) {
             problems.push({ key, name, ...readProblem(e, /** @type {string} */ (shown)) });
         }
     }
-    return { views, problems };
+    return { views, problems, names: named.map((v) => v.name) };
 }
 
 /**
@@ -214,6 +215,9 @@ export async function checkViews(options) {
 /** The problems already logged, per context: a broken file is said once, not on every call. */
 const logged = new WeakMap();
 
+/** The most lines warnOnce keeps per context; beyond them a problem is not logged again. */
+const LOGGED_MAX = MAX_VIEWS * 10;
+
 /**
  * Logs each problem of a source's views once per context: a file dropped in while the server runs
  * that is no view is left out, and the log says why.
@@ -231,7 +235,7 @@ function warnOnce(context, id, problems) {
     const seen = logged.get(context);
     for (const p of problems) {
         const line = `sources.${id}.${p.key}: ${p.text}`;
-        if (!seen.has(line) && seen.size < MAX_VIEWS * 10) {
+        if (!seen.has(line) && seen.size < LOGGED_MAX) {
             seen.add(line);
             context.log.warn(`${line}; ${p.name ? `the view ${p.name} is` : "its views are"} left out until it can be read (check-config says more)`, { source: id });
         }
@@ -313,13 +317,15 @@ export async function viewListFor(context, id, policy) {
  * @returns {Promise<NamedView>}
  */
 export async function findNamedView(context, id, name, policy, how = {}) {
-    const { views, problems } = await viewsOf(context.options, id, { only: name });
+    const { views, problems, names } = await viewsOf(context.options, id, { only: name });
     const found = views.find((v) => v.name === name && knownUnder(policy, v));
     if (found) {
         return found;
     }
     warnOnce(context, id, problems);
-    const near = closest(name, (await viewListFor(context, id, policy)).map((v) => v.name));
+    // the nearest name, read alone: suggested only when the caller may know of it
+    const nearest = closest(name, names.filter((n) => n !== name));
+    const near = nearest && (await viewsOf(context.options, id, { only: nearest })).views.some((v) => knownUnder(policy, v)) ? nearest : null;
     throw new OperationError("INVALID_INPUT", `no view "${name}" for the source ${id}; ${near ? `did you mean "${near}"? ` : ""}${how.surface === "rest" ? "GET /sources" : "list_sources"} lists the views`);
 }
 

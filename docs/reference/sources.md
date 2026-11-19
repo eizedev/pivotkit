@@ -82,10 +82,10 @@ Where views appear:
     - A file is read the safe way: a regular file, at most 256 KiB. A symbolic link is followed, and a
       file swapped while it is read is refused.
     - A request for one view reads only that view's file.
-    - A source publishes at most 100 views. More files in the folder are left out, with a `PROBLEM`
-      the server starts with.
-    - The start and `check-config` read every view and check its shape, such as `rows` being a list.
-      They do not stop on field names, since the data may change.
+    - A source publishes at most 100 views: those in the configuration, then the folder's first files
+      by name. More files are left out, with a `PROBLEM` the server starts with.
+    - The start and `check-config` read every view and check what needs no data: `rows` being a
+      list, an unknown key or aggregator. They do not stop on field names, since the data may change.
     - These stop the start: a file that is no view, a name taken twice, a file whose name is no view
       name.
     - A file or folder that is not there is a `PROBLEM` the server starts with. Its views are left

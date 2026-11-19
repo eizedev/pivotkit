@@ -54,7 +54,8 @@ from the data), then the JSON. A view with errors is not a tool error: `ok` or `
 the `view` it made.
 
 `render_view`, `create_link` and `draft_schedule` also take the name of a
-[named view](sources.md#views) as `view`. A caller does not read a named view's content.
+[named view](sources.md#views) as `view`. A link and a draft carry the view itself, so a view that
+holds values of a field the caller sees at `summary` gets neither.
 
 Every result over a source's data has `dataAsOf`. That is every tool but `list_sources` and
 `get_view_guide`. `dataAsOf` says when the data is from, in UTC to the second
