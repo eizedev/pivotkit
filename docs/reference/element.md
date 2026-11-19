@@ -61,7 +61,7 @@ pivotkit-react's `build.js`). pivotkit does not support older browsers.
 | `label` | `label` | `string` | `labels.report` | The name of the report's region landmark. Give each report on a page its own (`label="Tickets"`). |
 | `drillDown` | `drill-down` | `boolean` | `true` | The panel with the rows behind a clicked value. `drill-down="false"` turns it off. |
 | `exportData` | `export-data` | `boolean \| { columns?: string[] }` | `false` | Export → Source data: every row and column of the data as a CSV or JSON file (`pivot-data.csv`), for the user's own analysis or the command line. It also gives the drill-down its copy and download. Set it as a boolean attribute (`<pivot-report export-data>`), or a JSON object for some columns only, which the drill-down's exports keep to as well (`export-data='{"columns":["Region","Revenue"]}'`, or the property). Text it cannot read is off and said once in the console. As the React prop [`exportData`](react.md#prop-exportdata). It holds columns no view places and rows the filters leave out: [Security](../security.md#source-data). |
-| `drillDownExport` | `drill-down-export` | `boolean` | `false` | The drill-down's copy and download while `export-data` is off, with every column (`<pivot-report drill-down-export>`). `drill-down-export="false"` is off. As the React prop [`drillDownExport`](react.md#prop-drilldownexport). |
+| `drillDownExport` | `drill-down-export` | `boolean` | `false` | The drill-down's copy and download while `export-data` is off, with every column (`<pivot-report drill-down-export>`). As the React prop [`drillDownExport`](react.md#prop-drilldownexport). |
 | `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`. The panel's exports hold these rows and say when there are more ("1,000 of 4,212 rows"). |
 | `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, and no switch in More, Help) or the tip ids allowed, comma-separated (`tips="top,cells"`). The ids are in the [React reference](react.md#tips). |
 | `storageKey` | `storage-key` | `string` |  | Remembers dismissed tips and the help switches in `localStorage` under `pivotkit:tips:<key>`. Give each element on a page its own. [More](#prop-storagekey) |
@@ -88,6 +88,11 @@ pivotkit-react's `build.js`). pivotkit does not support older browsers.
 
 Properties with an attribute reflect it, as native elements do. `report.theme = "dark"` sets
 `theme="dark"`, and `null` removes it.
+
+A boolean attribute is on when it is there, without a value or with any value but one. The value
+`"false"`, in any case, turns it off. So `<pivot-report allow-import="false">` offers no file loading, as a
+page that writes its settings as text expects. Setting the property to `false` removes the
+attribute. `drill-down` is on by default, so it gets `"false"` instead.
 
 The element parses `view` and `default-view` as JSON objects. It ignores a text that is not one and
 writes a console warning. Setting the property does not write the attribute.

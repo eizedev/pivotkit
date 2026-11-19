@@ -163,6 +163,7 @@ Then restart Claude Code.
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
+| [The element reads `"false"` as off](#element-false) | a page writes `save-templates`, `can-publish`, `allow-import` or `loading` with the value `"false"` | nothing, unless you meant it as on: then leave the value out |
 | [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
 | [A link names a source's parameters in the page's query string](#link-params) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
 | [Named views, and a layout for links and drafts](#named-views) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients |
@@ -181,6 +182,14 @@ The server refuses `records` in the server's policy, a source's policy and `file
 refuses a source's `records.maxRows` above `rest.records.maxRows`. `GET /sources` adds
 `"records": true` to the sources a person may read the rows of. `check-config` has a section
 `Rows (REST)` once a profile has `records`.
+
+### The element reads `"false"` as off { #element-false }
+
+Every boolean attribute of `<pivot-report>` reads `"false"`, in any case, as off. Before,
+`save-templates`, `can-publish`, `allow-import` and `loading` were on with any value. A page that
+wrote `allow-import="false"` offered loading files. Now it does not. `share-link`, `export-data`,
+`drill-down` and `drill-down-export` read it this way already
+([the attributes](../reference/element.md#properties-and-attributes)).
 
 ### A link names a source's parameters in the page's query string { #link-params }
 
