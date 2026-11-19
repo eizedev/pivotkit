@@ -114,6 +114,8 @@ read as JSON text, so give a file whose name starts with `{` as `./{name}.json`.
 | `--title <text>` | render | `html`, `xlsx`: the report's title (default the view file's name). |
 | `--chart auto\|on\|off` | render | `html`: the chart above the table (`auto`: when the view shows the chart). |
 | `--width`, `--height <px>` | render | `svg`, `html`: the chart's size (800 x 480). |
+| `--numbers full\|shown` | render | `csv`, `json`: how numbers are written. `full` (the default) keeps 15 significant digits. `shown` rounds each number to the decimals the view shows, as the [services](rest.md#routes) write an inline result. |
+| `--flat-header` | render | `csv`: one header row instead of one per column field. Each column says its labels joined with ` / `, as `flatHeader` of the services. |
 | `--bom auto\|on\|off` | render | `csv`: a byte order mark first, so Excel reads the file as UTF-8. `auto`: in a file of `-o`, not on stdout, where a program would read it as part of the first header. |
 | `--suggest` | render, describe | A draft view from the data's fields ([below](#a-view-from-the-datas-fields)). |
 | `--rows`, `--cols <field>` | render, describe `--suggest` | A field on the rows or the columns, outer first; repeat the flag for the next level. |

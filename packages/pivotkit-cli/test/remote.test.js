@@ -182,6 +182,11 @@ test("200: render checks the view, then writes the server's file with mode 0600,
         // without -o: stdout
         const out = await remote(server, ["render", "view.json", "--source", "sales", "-f", "csv", "--title", "Q4"]);
         assert.equal(out.stdout, CSV);
+        // --numbers and --flat-header go to the server as numbers and flatHeader (#553)
+        const shown = await remote(server, ["render", "view.json", "--source", "sales", "-f", "csv", "--title", "Q4", "--numbers", "shown", "--flat-header"]);
+        assert.equal(shown.code, 0, shown.stderr);
+        const bodies = server.requests.filter((r) => r.url.endsWith("/views/render/file")).map((r) => JSON.parse(r.body));
+        assert.deepEqual(bodies.map((b) => [b.numbers, b.flatHeader]), [[undefined, undefined], [undefined, undefined], ["shown", true]]);
     } finally {
         await server.close();
     }
