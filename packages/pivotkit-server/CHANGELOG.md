@@ -109,6 +109,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `format`. A linked source with params but no list gets a hint (#642).
 - `check-config` no longer says that the audit names a person only with `auth.mode oauth` when an
   external issuer is set. It checks the audit key there too, as the start does (#639).
+- A stop no longer waits the whole `http.graceMs` after a request whose body was lost while its
+  sign-in was still checked: a chunked body the parser refused, or a client that left (#655).
+- An answer whose stream fails while the client's socket is full ends the connection at once. It
+  stayed open until the client read again or left (#637).
 - A named view that uses a column the file gives no header ("Column 2") is not listed, and its name
   answers as one that does not exist. Such a column is hidden from every caller (#645).
 - A file in a source's `viewsDir` whose name is no view name, such as `My view (1).json`, is
