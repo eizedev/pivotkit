@@ -6,6 +6,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Changed
+
+- Every boolean attribute reads `"false"`, in any case and with spaces around it, as off.
+  `save-templates`, `can-publish`, `allow-import` and `loading` were on with any value, `"false"`
+  included ([#548](https://github.com/eizedev/pivotkit/issues/548)).
+
 ## [0.8.2] - 2026-11-19
 
 ### Fixed
