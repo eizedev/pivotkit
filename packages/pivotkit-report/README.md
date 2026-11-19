@@ -10,7 +10,7 @@ runs in Node and in the browser.
 npm install pivotkit-report echarts
 ```
 
-- ES modules for Node 22 or later and browsers from Chrome 111, Firefox 113 and Safari 16.4.
+- ES modules for Node 24 or later and browsers from Chrome 111, Firefox 113 and Safari 16.4.
 - It depends on pivotkit-core with a caret range on the minor version it shipped with. Its
   `package.json` names the range.
 - ECharts (`>=6.1.0 <7`) is an optional peer dependency. Only the SVG and the chart of an HTML report

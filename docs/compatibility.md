@@ -25,11 +25,11 @@ tests use a test issuer of their own, not a real identity provider.
 
 ## Node.js { #node }
 
-The engine, the reports, the CLI, the REST service and the MCP server run in **Node 22 or later**.
+The engine, the reports, the CLI, the REST service and the MCP server run in **Node 24 or later**.
 
 | Where | Status | What runs |
 | --- | --- | --- |
-| Linux, Node 22 and 24 | Tested in CI | Every unit test and the repository checks |
+| Linux, Node 24 and 26 | Tested in CI | Every unit test and the repository checks |
 | Windows and macOS, Node 24 | Tested in CI | The tests of pivotkit-cli and pivotkit-server |
 
 The lowest Node version is part of the [versioning promise](versioning.md#what-is-public-interface).

@@ -703,7 +703,7 @@ and the sign-in above hold for it too. What differs:
 
 ### The container image { #container }
 
-The [image](reference/container.md) runs as the user 10001 on a distroless Node 22 base, with no shell
+The [image](reference/container.md) runs as the user 10001 on a distroless Node 24 base, with no shell
 and no package manager. The base is pinned by digest. The packages come from the repository's lock
 file, installed without install scripts.
 

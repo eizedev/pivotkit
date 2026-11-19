@@ -65,7 +65,7 @@ ECharts on the first chart. pivotkit-element bundles the parts of ECharts it use
 
 ## Node
 
-pivotkit-core runs in **Node 22 or later**. CI tests Node 22 and 24. The engine's sources use only what
+pivotkit-core runs in **Node 24 or later**. CI tests Node 24 and 26. The engine's sources use only what
 browsers and Node share, without `process` or `Buffer`, so the same code runs in both. The browser
 tests run it in Chromium, Firefox and WebKit through pivotkit-react.
 

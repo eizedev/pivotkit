@@ -13,6 +13,13 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   local data and with a server. Without them, the output stays as it was: full precision and a
   header row per column field ([#553](https://github.com/eizedev/pivotkit/issues/553)).
 
+### Changed
+
+- **Breaking:** needs Node 24 or later. Node 22 is no longer supported, and CI tests Node 24 and 26
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
+- A network error with a proxy variable set names `NODE_USE_ENV_PROXY=1` and `--use-env-proxy` for
+  Node 24 only. The flag needs Node 24.5.0 or later.
+
 ## [0.4.0] - 2026-11-18
 
 ### Added

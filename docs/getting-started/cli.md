@@ -13,7 +13,7 @@ of these:
 - an Excel workbook
 - the chart as SVG
 
-It also checks views in a pipeline before they go live. It needs Node 22 or later. For local files it
+It also checks views in a pipeline before they go live. It needs Node 24 or later. For local files it
 needs no network. With `--url` it runs on a [pivotkit-server](#server)'s data instead.
 
 You get there in five steps:
@@ -205,7 +205,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - run: npm install --global pivotkit-cli
       - run: pivotkit validate reports/sales.pivotkit.json --data reports/sales.csv --strict
       - run: mkdir -p out && pivotkit render reports/sales.pivotkit.json --data reports/sales.csv -o out/sales.html --now 2026-11-13

@@ -623,7 +623,7 @@ test("another address uses the proxy only as Node does, and a network error says
         const ignored = await run(["sources", "--url", "https://pivotkit.invalid/api/v1", "--json"], { cwd, env: { HTTPS_PROXY: proxy.url, PIVOTKIT_TOKEN: TOKEN } });
         assert.equal(ignored.code, 2);
         assert.equal(proxy.hits.length, 1);
-        assert.match(jsonOf(ignored).error.message, /HTTPS_PROXY is set, but Node uses it only with NODE_USE_ENV_PROXY=1 \(Node 22\.21\.0 or later, 24\.0\.0 or later\) or --use-env-proxy \(Node 22\.21\.0 or later, 24\.5\.0 or later\)/);
+        assert.match(jsonOf(ignored).error.message, /HTTPS_PROXY is set, but Node uses it only with NODE_USE_ENV_PROXY=1 or --use-env-proxy \(Node 24\.5\.0 or later\)/);
     } finally {
         await proxy.close();
     }

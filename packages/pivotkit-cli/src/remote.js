@@ -13,7 +13,7 @@
  *   pivotkit server answer", with its status only.
  * - A loopback address goes through node:http with an agent of its own, never through a proxy. Other
  *   addresses go through Node's fetch, which uses HTTP_PROXY and HTTPS_PROXY only as Node does: with
- *   NODE_USE_ENV_PROXY=1 or --use-env-proxy (Node 22.21 or later, 24 or later). Node's fetch cannot
+ *   NODE_USE_ENV_PROXY=1 or --use-env-proxy (the flag from Node 24.5). Node's fetch cannot
  *   be told to leave out the proxy for one request (that needs undici's own dispatcher), hence the
  *   two ways.
  */
@@ -187,7 +187,7 @@ export function nodeUsesEnvProxy(env, version = process.versions.node) {
 }
 
 /** What the proxy note says about Node's versions (Node's documentation). */
-export const ENV_PROXY_VERSIONS = "NODE_USE_ENV_PROXY=1 (Node 22.21.0 or later, 24.0.0 or later) or --use-env-proxy (Node 22.21.0 or later, 24.5.0 or later)";
+export const ENV_PROXY_VERSIONS = "NODE_USE_ENV_PROXY=1 or --use-env-proxy (Node 24.5.0 or later)";
 
 /** What a network error says about the proxy variables (none of their values). */
 function proxyNote(server, env) {

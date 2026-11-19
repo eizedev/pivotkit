@@ -36,8 +36,8 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@types/react-dom"
         update-types: ["version-update:semver-major"]
-      # Node types match the lowest Node the packages support (engines ">=22"); newer types would
-      # allow APIs Node 22 lacks. Raised together with engines.
+      # Node types match the lowest Node the packages support (engines ">=24"); newer types would
+      # allow APIs Node 24 lacks. Raised together with engines.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
   - package-ecosystem: "npm"

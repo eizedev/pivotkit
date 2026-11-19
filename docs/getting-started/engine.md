@@ -7,7 +7,7 @@ description: Use pivotkit-core without UI - encode rows, compute a pivot table, 
 
 `pivotkit-core` is the pivot engine in plain JavaScript, without UI and without a framework. Use it
 to draw your own table, to build ECharts options, or to export a report on a server. It runs in
-browsers and in Node 22 or later. Its only dependency is [fflate](https://github.com/101arrowz/fflate)
+browsers and in Node 24 or later. Its only dependency is [fflate](https://github.com/101arrowz/fflate)
 (MIT) for the XLSX zip. Only the `pivotkit-core/export` entry loads it. The TypeScript declarations
 come from the JSDoc types.
 

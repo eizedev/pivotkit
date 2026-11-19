@@ -2,14 +2,14 @@
 #
 # The container image of pivotkit: the REST service, the MCP server and the command line from one
 # install (docs/reference/container.md). Built from this repository at a release tag, from the root
-# lock file (no install scripts), onto a distroless Node 22 image that runs as a fixed non-root user.
+# lock file (no install scripts), onto a distroless Node 24 image that runs as a fixed non-root user.
 #
 #   docker build -f docker/Dockerfile -t pivotkit .
 #
 # The base images are pinned by digest; .github/workflows/image.yml builds, tests and publishes it.
 
-ARG BUILD_IMAGE=node:22-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee
-ARG RUNTIME_IMAGE=gcr.io/distroless/nodejs22-debian12:nonroot@sha256:13593b7570658e8477de39e2f4a1dd25db2f836d68a0ba771251572d23bb4f8e
+ARG BUILD_IMAGE=node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
+ARG RUNTIME_IMAGE=gcr.io/distroless/nodejs24-debian12:nonroot@sha256:14d42e2511532589a7c7e01a753667a74fcc96266e137e8125006b87b0c32d0a
 
 FROM ${BUILD_IMAGE} AS build
 WORKDIR /src

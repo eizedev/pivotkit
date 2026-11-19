@@ -1,13 +1,13 @@
 ---
 title: Container image
-description: The pivotkit container image - the REST service, the MCP server and the command line in one distroless Node 22 image; the token it makes at its first start, running it read-only and non-root, configuration, managed secrets, volumes, health checks, OAuth, Kubernetes, and checking its signature, provenance and SBOM.
+description: The pivotkit container image - the REST service, the MCP server and the command line in one distroless Node 24 image; the token it makes at its first start, running it read-only and non-root, configuration, managed secrets, volumes, health checks, OAuth, Kubernetes, and checking its signature, provenance and SBOM.
 ---
 
 # Container image
 
 `ghcr.io/eizedev/pivotkit` runs the [REST service](rest.md), the [MCP server](mcp.md) and the
 [command line](cli.md) from one install. It holds pivotkit-server, pivotkit-mcp and pivotkit-cli at
-the versions of one release. The base is a distroless Node 22 image, with no shell and no package
+the versions of one release. The base is a distroless Node 24 image, with no shell and no package
 manager. The image runs as the user 10001.
 
 | Tag | What it is |
