@@ -176,7 +176,7 @@ counts.
 
 | Tool | What the model gets |
 | --- | --- |
-| `list_sources` | Each source it may use: id, title, description, whether a link or a schedule works, and its parameters with type, description, example, list of values and pattern. Its named views by name, title and description. Also how much data it may send. The list leaves out a source whose scopes the token lacks. |
+| `list_sources` | Each source it may use: id, title, description, whether a link or a schedule works, and its parameters with type, description, example, list of values and pattern. Its named views by name, title and description. Where known, the row count (`rows`) and `dataAsOf` of the source's last read ([the rules](reference/rest.md#source-list)). Also how much data it may send. The list leaves out a source whose scopes the token lacks. |
 | `describe_source` | The rows. Per field: its name, type, level, counts, what its level lists (see above), the operator's description, and the aggregators and filters it takes. Also `hiddenFields`, `withheld`, `hint`, example views, named views and `dataAsOf`. `notes` say how the data was read: renamed or dropped columns, a sheet's or JSON property's names, how many values did not convert. |
 | `suggest_view` | A draft view and `picks` from the fields' names and types: no value, no count. |
 | `get_view_guide` | How to write a view: pivotkit's own text, nothing of yours. |
@@ -204,7 +204,8 @@ Besides the fields, a model reads:
   allowed directories by name. The server refuses an `output.dir` inside `files.allowDirs`, so the
   model cannot read back a report as a source.
 - **Counts**: the source's row count and each listed field's distinct and blank counts.
-  `rows: false` keeps back the row count, `counts: false` the field counts. `suggest_view` and
+  `rows: false` keeps back the row count, `counts: false` the field counts. `list_sources` gives
+  the row count too, after a read, under the same rule. `suggest_view` and
   `layout` group a shown date by its span, by month for a span of up to two years. That
   grouping tells the span.
 - **Example views** of `describe_source` and the draft of `suggest_view`. pivotkit builds them from
