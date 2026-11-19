@@ -45,7 +45,7 @@ The routes are RPC-style (`POST /views/validate`), one per operation of the
 
 | Route | Operation | What it does |
 | --- | --- | --- |
-| `GET /sources` | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes, its [named views](sources.md#views) |
+| `GET /sources` | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes, its [named views](sources.md#views), and where known its row count and data date ([below](#source-list)) |
 | `GET /sources/{id}` | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views, its named views |
 | `POST /sources/describe` | `describe_source` | The same, with `{ "source": "<id>" }` |
 | `POST /views/suggest` | `suggest_view` | A draft view from the source's fields, with the fields it picked (`picks`). A `layout` replaces the parts it gives |
@@ -116,10 +116,10 @@ Over an open source (`"policy": { "default": "show" }`, title Sales), the same r
 Every answer that works carries `requestId`, the id of the request's [log lines](#logging) and its
 `X-Request-Id` header. Give it to the operator when an answer looks wrong.
 
-Every answer over a source's data carries `dataAsOf`. That is every route but `GET /sources` and
-`GET /views/guide`. `dataAsOf` says when the data is from, in UTC to the second. It is a file's
-modification time, or a code source's own time or the time it gave the data. The server parses the
-time and writes it again in this one form.
+Every answer over a source's data carries `dataAsOf`. `GET /sources` gives it per source where it is
+known ([below](#source-list)). `GET /views/guide` reads no data and has none. `dataAsOf` says when
+the data is from, in UTC to the second. It is a file's modification time, or a code source's own
+time or the time it gave the data. The server parses the time and writes it again in this one form.
 
 A source with parameters takes their values as `params` with its id in a POST body
 (`{ "source": "vms", "params": { "customer": "acme" } }`). Such a source is an
@@ -230,6 +230,31 @@ The server decides findings per field. A finding about a field's items carries t
 A filter on an item of a `summary` field that does not exist validates and renders an empty report.
 Nothing says why, since saying so would tell that the item does not exist. Only for a view of `show`
 fields does a render whose filters keep no rows have the warning `noRowsKept`.
+
+### Row count and data date in the list { #source-list }
+
+`GET /sources` gives a source's `rows` and `dataAsOf` once the server has read its data. A host page
+can show the row count and the data date from the list alone. The list never reads data itself.
+
+```json
+{ "id": "sales", "title": "Sales", "kind": "source", "link": false, "schedulable": true,
+  "rows": 2000, "dataAsOf": "2026-11-16T00:19:40Z" }
+```
+
+- Both values come from the source's last read: any REST route or MCP tool over its data, by any
+  caller. The rows route counts too.
+- Before the first read, both are absent. They are kept in memory only, so a restart clears them.
+  To fill them after a start, read the source once, for example with `POST /sources/describe`.
+- After the data changes, the list keeps the last read's values until a route reads the data again.
+  `dataAsOf` says which data the count is from.
+- A read whose data is older than the list's never replaces it. So after a file is restored with
+  an older modification time, the list shows the old values until a restart.
+- Only a source whose rows are the same for every caller gets them: a `file` source, and a code
+  source with `cacheShared` and without parameters.
+- A source with parameters, an HTTP source, a source bound to a person and a `perPerson` code source
+  get neither: their rows depend on who asks or on the values.
+- `rows` follows the caller's policy. With [`rows: false`](mcp.md#policy), the caller gets
+  `dataAsOf` without `rows`, as `describe_source` keeps the count back.
 
 ## Exposure policy and profiles { #profiles }
 

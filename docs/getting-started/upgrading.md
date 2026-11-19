@@ -166,6 +166,7 @@ Then restart Claude Code.
 | [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
 | [A link names a source's parameters in the page's query string](#link-params) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
 | [Named views, and a layout for links and drafts](#named-views) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients |
+| [Row count and data date in the source list](#source-list-rows) | you read `GET /sources` or `list_sources` | none. MCP clients see the new keys in the output schema after they reconnect |
 | [Your own name and links](#branding) | you run the server under your own name, or in a network without access to pivotkit.eize.dev | nothing until you need it: the defaults are pivotkit's |
 | [Texts without the product name](#neutral-texts) | a program or a log rule matches the words of an error, or of pivotkit-react's messages about a loaded view | match the error's `code` instead, or update the words |
 
@@ -206,6 +207,13 @@ refuses a source's `records.maxRows` above `rest.records.maxRows`. `GET /sources
 - `create_link` and `draft_schedule` take a `layout` instead of a `view`, as `render_view` does.
   Before, they refused it.
 - The tools' schemas and descriptions changed. MCP clients reconnect to read them.
+
+### Row count and data date in the source list { #source-list-rows }
+
+`GET /sources` and `list_sources` add `rows` and `dataAsOf` to a source once the server has read its
+data ([the rules](../reference/rest.md#source-list)). A source whose rows depend on the caller or on
+parameters gets neither. MCP clients see the two keys in the output schema after they reconnect.
+Sessions that stay connected keep working: the old schema allows more keys.
 
 ### Your own name and links { #branding }
 

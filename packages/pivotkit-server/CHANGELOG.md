@@ -18,6 +18,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   bound the route: 413 `LIMIT_EXCEEDED` before the first byte, 503 `BUSY` beyond the requests at
   once or for a second request of the same person, and a reader idle too long loses its place.
 - `GET /api/v1/sources` adds `"records": true` to each source the caller may read the rows of.
+- `GET /api/v1/sources` and MCP `list_sources` give a source's row count (`rows`) and `dataAsOf`
+  once the server has read its data. Only a file source and a shared code source without parameters
+  get them, and `rows` only where the caller's policy shows the row count
+  ([row count and data date](https://pivotkit.eize.dev/reference/rest/#source-list), #617).
 - `check-config` lists per profile the sources and the fields that would leave. It reports an
   unknown source id, a static or signed token whose profile reads rows, a source without a field at
   `show`, and a profile whose default is `show`.

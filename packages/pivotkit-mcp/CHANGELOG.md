@@ -11,6 +11,9 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 - `create_link` writes the values of a source's `linkParams` into the page's query string, and
   `list_sources` names `linkParams`. The tool's description says so: MCP clients reconnect to read it
   ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), #619).
+- `list_sources` gives a source's row count (`rows`) and `dataAsOf` where pivotkit-server knows them
+  from the last read. Clients see the two keys in the output schema after they reconnect
+  ([row count and data date](https://pivotkit.eize.dev/reference/rest/#source-list), #617).
 - Branding for intranet deployments
   ([your own name and links](https://pivotkit.eize.dev/reference/branding/), #608, #612):
     - `branding.name` is the `serverInfo.title`, the OAuth metadata's `resource_name` and the
