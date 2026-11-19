@@ -132,7 +132,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - `templates`, `onSaveTemplate`, `onDeleteTemplate`, `onPublishTemplate`,
       `templateStore="browser"`, and `x-pivotkit-views` in an OpenAPI document.
     - View files (`toViewFile`, `fromViewFile`) and links in the URL fragment (`shareLink`,
-      `readViewLink`).
+      `readViewLink`). The services' links name a source's parameters in the page's query string
+      ([link parameters](concepts/sharing.md#link-params)).
     - `source`, `sources`, `onSourceSwitch` and `persistView`.
 
 ## Explanations, tips and messages { #tips }

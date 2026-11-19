@@ -16,6 +16,7 @@ import { STATS_DISTINCT } from "./stats.js";
 import { expiryOf } from "./signed-tokens.js";
 import { FRAGMENTS, composeSlots } from "./options/index.js";
 import { CREATE_NEEDS_FILE, ConfigError } from "./options/shared.js";
+import { linkParamsProblem } from "./link-params.js";
 
 /** The error of a wrong option (options/shared.js, so a fragment can throw it without importing this module). */
 export { ConfigError } from "./options/shared.js";
@@ -44,6 +45,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {string} [sheet]  a workbook's sheet
  * @property {string} [link]  the address of the page that shows this source's reports (create_link)
  * @property {string} [linkKey]  the report's key on that page, when it has more than one
+ * @property {string[]} [linkParams]  the params a link from create_link may carry in the page's query string (link-params.js)
  * @property {string} [template]  an HTML print template file for render_view's html
  * @property {Record<string, string | Record<string, unknown>>} [views]  named views: a view file's path or a view, by name (options/views.js)
  * @property {string} [viewsDir]  a folder of view files, each a named view (options/views.js)
@@ -180,7 +182,7 @@ const RATE_LIMIT = { object: { perMinute: "integer", burst: "integer", failedAut
 /** config.js's own keys by slot; the order is the one "known: ..." lists print. */
 const BASE_SLOTS = {
     top: { sources: SLOT, files: SLOT, output: SLOT, policy: SLOT, limits: { map: "integer" }, locale: "string", timeZone: "string", compute: { object: { workers: "integer", timeMs: "integer", memoryMb: "integer", queueMs: "integer" } }, http: SLOT, auth: SLOT, mcp: SLOT, rest: SLOT, baseDir: "string" },
-    source: { file: "string", load: "function", version: "function", title: "string", description: "string", sheet: "string", link: "string", linkKey: "string", template: "string", scopes: "strings", policy: SLOT },
+    source: { file: "string", load: "function", version: "function", title: "string", description: "string", sheet: "string", link: "string", linkKey: "string", linkParams: "strings", template: "string", scopes: "strings", policy: SLOT },
     // a profile's and files.policy's keys; a source's and the server's add the "values" settings,
     // which belong to the data, not to a caller (a profile never gets the automatic rule) or a file: path
     policy: { default: { enum: POLICY_LEVELS }, fields: { map: { enum: POLICY_LEVELS } }, items: "integer", rows: "boolean", counts: "boolean", inline: { or: [{ const: false }, { object: { cells: "integer", bytes: "integer" } }] }, results: "boolean" },
@@ -317,6 +319,10 @@ export function validateOptions(options) {
         }
         if (source.link !== undefined) {
             urlOf(source.link, `sources.${id}.link`);
+        }
+        const linkProblem = linkParamsProblem(source, id);
+        if (linkProblem) {
+            throw new ConfigError(linkProblem);
         }
     }
     for (const key of Object.keys(options.limits ?? {})) {

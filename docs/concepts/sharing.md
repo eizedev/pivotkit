@@ -167,6 +167,76 @@ if (link.view && link.src) {
 }
 ```
 
+### Parameters in the page's address { #link-params }
+
+A link from the services' `create_link` can name a source's parameters, such as a customer. Their
+values go into the page's query string, so a host's backend can read them. The view stays in the
+fragment:
+
+`https://reports.example.com/tickets?customer=acme#pivot-tickets=1.…`
+
+- The operator lists the parameters a link may carry, per source: `sources.<id>.linkParams`
+  ([options](../reference/mcp.md#configuration)). Without the list, a link carries none.
+- `create_link` refuses any other parameter with `INVALID_INPUT` and names the allowed ones.
+- A parameter bound to a sign-in claim never goes into a link. The server refuses such a list.
+- The server checks the values with the source's parameter rules before it makes the link.
+- A query that the configured page address holds stays. A name the link sets replaces the same name
+  there.
+- The list names every required parameter. `create_link` needs it to read the source.
+- An empty list (`"linkParams": []`) refuses every parameter in `create_link`. It works only for a
+  source without required parameters. `list_sources` then shows no `linkParams`.
+
+Only HTTP sources and code sources take `params`. An [HTTP source](../reference/sources.md#http)
+whose link carries the customer:
+
+```json
+{
+  "sources": {
+    "tickets": {
+      "http": { "url": "https://support.example.com/api/customers/{customer}/tickets" },
+      "params": { "customer": { "type": "string", "required": true, "pattern": "^[a-z0-9-]{1,40}$" } },
+      "link": "https://reports.example.com/tickets",
+      "linkKey": "tickets",
+      "linkParams": ["customer"],
+      "policy": { "default": "hide", "fields": { "Status": "show", "Opened": "show" } }
+    }
+  }
+}
+```
+
+`create_link` with `"params": { "customer": "acme" }` then answers
+`https://reports.example.com/tickets?customer=acme#pivot-tickets=1.…`.
+
+Anyone can write such an address by hand. pivotkit's report does not read the query. The host page
+does, and passes on only the names `list_sources` or `GET /sources` gives as the source's
+`linkParams`. The backend that loads the rows checks the values again, with the viewer's rights.
+
+How the query relates to the fragment. The host page applies these rules, as the snippet below shows:
+
+- The fragment's `src.params`, read with `allowParams`, stay as they are. Copy link writes them, such
+  as a workbook's `sheet`.
+- Where the query and the fragment name the same parameter, the query wins.
+- Only `create_link` writes the query. Copy link drops the query, unless the host passes a
+  `shareLink` that keeps it ([links](#links-for-developers)).
+
+```js
+import { readViewLink } from "pivotkit-core/link";
+
+const linkParams = ["customer"];   // the source's linkParams from GET /sources
+const link = readViewLink(location.hash, "tickets", { allowParams: ["sheet"] });
+const query = new URLSearchParams(location.search);
+const params = { ...link.src?.params };
+for (const name of linkParams) {
+    if (query.has(name)) params[name] = query.get(name);   // the query wins
+}
+```
+
+The key of `readViewLink` is the source's `linkKey`, or `null` without one. Values from the query are
+texts, also for a number or a boolean. The backend that loads the rows reads and checks them again.
+
+Values in a query string land in access logs, in the browser's history and in the `Referer` header.
+[Security](../security.md#link-params) says what to list and which `Referrer-Policy` to send.
+
 ## Keeping the view per tab
 
 `persistView="session"` (attribute `persist-view="session"`) keeps the view in the tab's

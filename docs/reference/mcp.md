@@ -34,14 +34,14 @@ service: sources, policy, workers, output, sign-in. pivotkit-server brings
 
 | Tool | What it does | Writes |
 | --- | --- | --- |
-| `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes, its [named views](sources.md#views) | - |
+| `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes and those a link may carry (`linkParams`), its [named views](sources.md#views) | - |
 | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views from its own fields, its named views | - |
 | `suggest_view` | A draft view from a source's fields (marked `Draft:`), with what each part took and could take instead (`picks`). A `layout` replaces parts of it | - |
 | `get_view_guide` | How to write a view: its keys, the vocabulary (aggregators, filter types, date groupings), five example views | - |
 | `validate_view` | Errors and warnings of a view (or a `layout`: a view by field names) against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) | - |
 | `describe_view` | A view in plain parts (rows, columns, values, filters in words) with the same findings | - |
 | `render_view` | The report of a view, a named view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory. The workbook holds the table. For a view that shows the chart, the finding `chartNotInXlsx` says the chart is in `html` or `svg`. Inline where the policy allows. Over HTTP, a [download link](delivery.md) in the text and as a `resource_link` where the report gets one. With `save: false`, csv or json inline only ([below](#inline-only)) | a new file, none with `save: false` |
-| `create_link` | A link that opens the view, a named view or a `layout` in the source's report page (only for sources with `link`) | - |
+| `create_link` | A link that opens the view, a named view or a `layout` in the source's report page (only for sources with `link`). The values of the source's `linkParams` go into the page's query string ([link parameters](../concepts/sharing.md#link-params)) | - |
 | `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host. It takes a view, a named view or a `layout`. It runs and sends nothing | a new file |
 
 Every tool has an input and an output JSON Schema (draft 2020-12). It returns its result as
@@ -341,6 +341,7 @@ one probably meant.
 | `sources.<id>.sheet` | - | first visible | A workbook's sheet |
 | `sources.<id>.policy` | - | the server's | The source's exposure policy |
 | `sources.<id>.link`, `.linkKey` | - | none | The page that shows this source's reports, for create_link; the report's key there |
+| `sources.<id>.linkParams` | - | none | The parameters a link from create_link may carry in the page's query string, such as `["customer"]` ([link parameters](../concepts/sharing.md#link-params)). Declared `params` only, never one bound to a claim, and every required one. Without the list, create_link reads the params and the link carries none |
 | `sources.<id>.views`, `.viewsDir` | - | none | [Named views](sources.md#views): a name to a view file or a view, and a folder of view files. Read on every request, checked at start and by `check-config` |
 | `sources.<id>.template` | - | built-in | An HTML [print template](print-template.md) for render_view's html. Its path is relative to the configuration file, at most 1 MiB. Its `--pk-*` colours reach the chart ([details](print-template.md#template-design)). Read and checked at start and by `check-config`. A template with an unknown placeholder, over 1 MiB or not a regular file keeps the server from starting. A missing one starts the server with a warning (a `PROBLEM` the server starts with in `check-config`) and fails that source's html reports |
 | `sources.<id>.scopes` | - | none | OAuth or token scopes a caller needs to see and use it |

@@ -149,6 +149,7 @@ export function findingOf(issue) {
  * @property {string} [description]
  * @property {"source" | "file"} kind
  * @property {boolean} link  create_link works for it
+ * @property {string[]} [linkParams]  the params a link to it may carry, in the page's query string
  * @property {boolean} schedulable
  * @property {Array<{ name: string, type: string, required: boolean, description?: string, example?: string | number | boolean, enum?: Array<string | number>, pattern?: string, format?: string, minLength?: number, maxLength?: number, minimum?: number, maximum?: number }>} [params]  the values the source takes (params)
  */
@@ -594,6 +595,7 @@ export const OPERATIONS = Object.freeze({
                             description: { type: "string" },
                             kind: { enum: ["source", "file"] },
                             link: { type: "boolean" },
+                            linkParams: { type: "array", items: { type: "string" }, description: "The params a link (create_link) may carry, in the page's query string. create_link takes only these names for this source." },
                             schedulable: { type: "boolean" },
                             params: {
                                 type: "array",
@@ -850,7 +852,7 @@ export const OPERATIONS = Object.freeze({
     create_link: {
         name: "create_link",
         title: "Create a link to a view",
-        description: "Makes a link that opens the view (or a layout: a view by field names) in the source's report page, where the person sees the data with their own rights. Works only for sources whose list_sources entry says link: true. The view is checked first; a view with errors gets no link.",
+        description: "Makes a link that opens the view (or a layout: a view by field names) in the source's report page, where the person sees the data with their own rights. Works only for sources whose list_sources entry says link: true. The view is checked first; a view with errors gets no link. Where the entry names linkParams, the link carries those params (such as a customer) in the page's query string, and create_link takes no others.",
         cli: null,
         http: { method: "POST", path: "/views/link" },
         needs: ["data", "link"],

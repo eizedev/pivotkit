@@ -415,6 +415,7 @@ export function findingsText(valid, findings) {
  * @property {boolean} [inline]  csv and json may come back inline where the policy allows (default true)
  * @property {boolean} [files]  false: "file:" sources are refused and not listed (REST)
  * @property {{ bytes: Uint8Array, format: string, sheet?: string, name?: string, asOf?: string }} [upload]  a file sent in a multipart body: what source "inline:" stands for (REST)
+ * @property {boolean} [link]  create_link's own: the source's linkParams decide which params go into the link
  * @property {AbortSignal} [signal]  the request's: when it fires the call stops waiting for a source's load (a load shared with other callers runs on for them)
  */
 
@@ -550,7 +551,8 @@ const STEPS = {
     },
 
     async create_link(args, context, caller, how) {
-        const { outcome, policy, ...read } = await runOver(context, "create_link", args, caller, how);
+        // link: the params the source's linkParams allow go into the page's query (link-params.js)
+        const { outcome, policy, ...read } = await runOver(context, "create_link", args, caller, { ...how, link: true });
         const result = /** @type {Record<string, any>} */ ({ ...outcome.result, findings: exposeFindings(outcome.result.findings, policy, outcome.result.uses), ...asOfMembers(read) });
         return { text: result.ok ? "Link ready: give the user the url." : findingsText(false, result.findings), result };
     },

@@ -70,6 +70,9 @@ test("options: the composed table is today's, in today's order, plus the shared 
     expected.auth.object.signedTokens = { object: { dir: "string", maxDays: "integer" } };
     // tokens other systems issue (options/external.js, after signed)
     expected.auth.object.externalIssuers = { list: { object: { issuer: "string", typ: "string", maxMinutes: "integer", scopes: "strings", profiles: "strings", profile: "string", keys: { list: { object: { kid: "string", publicKey: secretRef } } } } } };
+    // the params a link may carry (config.js, #619): after linkKey
+    const source = expected.sources.map.object;
+    expected.sources.map.object = Object.fromEntries(Object.entries(source).flatMap(([k, v]) => (k === "linkKey" ? [[k, v], ["linkParams", "strings"]] : [[k, v]])));
     // the rows route (options/records.js, after external): a policy's records after data, rest.records, a source's records
     const withRecords = (policy) => Object.fromEntries(Object.entries(policy).flatMap(([k, v]) => (k === "data" ? [[k, v], ["records", "strings"]] : [[k, v]])));
     expected.sources.map.object.policy.object = withRecords(expected.sources.map.object.policy.object);
