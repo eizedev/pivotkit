@@ -15,7 +15,7 @@ Sources: [#619](https://github.com/eizedev/pivotkit/issues/619),
 
 A link names its data in the fragment: `src.id`, and `src.params` as far as the page lets them
 through with `allowParams` ([sharing](../concepts/sharing.md#opening-a-link-on-another-page)). The
-browser's Copy link writes them. `create_link` writes the source id only and takes no parameters.
+browser's Copy link writes them. `create_link` writes the source id only. It reads a source's parameters, but its link carries none.
 
 A host application that fetches rows on its server side ([0015](0015-live-rows-for-a-host-page.md))
 never sees the fragment. The first report takes a parameter, such as a customer. Where does a link

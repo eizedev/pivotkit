@@ -183,11 +183,13 @@ fragment:
 - A query that the configured page address holds stays. A name the link sets replaces the same name
   there.
 
-Anyone can write such an address by hand. So the page passes on only the names `list_sources` or
-`GET /sources` gives as the source's `linkParams`. The backend that loads the rows checks the values
-again, with the viewer's rights.
+- An empty list (`"linkParams": []`) refuses every parameter in `create_link`.
 
-How the query relates to the fragment:
+Anyone can write such an address by hand. pivotkit's report does not read the query. The host page
+does, and passes on only the names `list_sources` or `GET /sources` gives as the source's
+`linkParams`. The backend that loads the rows checks the values again, with the viewer's rights.
+
+How the query relates to the fragment. The host page applies these rules, as the snippet below shows:
 
 - The fragment's `src.params`, read with `allowParams`, stay as they are. Copy link writes them, such
   as a workbook's `sheet`.

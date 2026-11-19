@@ -6,6 +6,7 @@
  *   linkParamsProblem(source, id)          what is wrong with a source's list (the config check)
  *   checkLinkParams(source, given, id)     refuses a caller's name the list leaves out
  *   linkParamsOf(source)                   what list_sources names
+ *   linkEntriesOf(source, given, values)   the names and values a link carries
  *   withLinkQuery(url, entries)            the page's address with the values in its query
  *
  * A parameter bound to a sign-in claim never goes into a link: the list may not name one, and the
@@ -77,7 +78,7 @@ export function checkLinkParams(source, given, id) {
         const claimBound = Object.hasOwn(declared, name) && declared[name]?.claim !== undefined;
         if (!claimBound && !list.includes(name)) {
             const allowed = list.length ? `may carry ${list.join(", ")} only` : "carries no params";
-            throw new OperationError("INVALID_INPUT", `a link to ${id} ${allowed}; leave out params.${name.slice(0, 64)} (the operator lists them in linkParams)`);
+            throw new OperationError("INVALID_INPUT", `a link to ${id} ${allowed}; leave out params.${JSON.stringify(name.slice(0, 64))} (the operator lists them in linkParams)`);
         }
     }
 }

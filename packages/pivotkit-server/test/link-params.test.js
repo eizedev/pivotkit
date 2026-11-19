@@ -203,7 +203,7 @@ test("list_sources and GET /sources name the parameters a link may carry", async
         const refused = await call(`${server.api}/views/link`, { token: TOKEN, body: { source: "tickets", view: VIEW, params: { region: "north" } } });
         assert.equal(refused.status, 400);
         assert.equal(refused.data.code, "INVALID_INPUT");
-        assert.match(refused.data.detail, /may carry customer, size only/);
+        assert.match(refused.data.detail, /may carry customer, size only; leave out params\."region"/);
     } finally {
         await server.close();
     }

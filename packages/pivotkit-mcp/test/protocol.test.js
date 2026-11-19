@@ -184,7 +184,7 @@ test("create_link with params (#619): list_sources names linkParams, an allowed 
         assert.equal(link.isError, false, link.text);
         assert.match(link.data.url, /^https:\/\/reports\.example\.com\/tickets\?app=pivot&customer=acme#pivot=1\./);
         const refused = await call(client, "create_link", { source: "tickets", view: BY_REGION, params: { region: "north" } });
-        assert.match(refused.text, /^INVALID_INPUT: a link to tickets may carry customer only; leave out params\.region/);
+        assert.match(refused.text, /^INVALID_INPUT: a link to tickets may carry customer only; leave out params\."region"/);
         await close();
     } finally {
         await server.close();
