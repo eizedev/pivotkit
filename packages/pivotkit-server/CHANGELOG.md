@@ -63,6 +63,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- An HTTP source reads a JSON answer while it arrives. Each row becomes a table row at once, so the
+  server never holds the whole body and its parsed objects together. The peak memory of a first
+  call fell from about 390 to 300 MB for a 20 MiB answer, and from about 910 to 590 MB for
+  500,000 rows, measured on one laptop. A body that repeats a key on the way to the rows after
+  them is refused (`SOURCE_UNAVAILABLE`). CSV answers are read as before
+  ([Memory while a source loads](https://pivotkit.eize.dev/reference/sources/#http-memory), #620).
 - Two texts callers read name the server instead of pivotkit. `SOURCE_UNAVAILABLE` says "the
   source's backend refused this server's access", and `UNSUPPORTED_FORMAT` says "the server reads
   csv, tsv, txt, json and xlsx files". The codes stay

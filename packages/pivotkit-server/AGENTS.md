@@ -79,6 +79,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Private addresses need the operator's `intranet` setting.
 - A source's URL template keeps its origin and shape (`sources/template.js`).
 - HTTP sources page only on the same host and path. JSON nesting is capped at `MAX_DEPTH`.
+- A JSON answer is read while it streams: `consume` of `guardedFetch` feeds `rowsReader` (`sources/json-rows.js`).
+- `tableBuilder` in `sources/http.js` turns each row into a table row at once. `bench/server/` measures the memory.
 - Upload links are checked against the operator's `linkOrigins`.
 
 ## Sign-in and identity

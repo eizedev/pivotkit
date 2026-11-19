@@ -10,6 +10,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:https";
 import { join } from "node:path";
+import { gzipSync } from "node:zlib";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { callerOf, checkConfig, createContext, present, renderFile, serverTextOf, validateOptions } from "pivotkit-server";
 import { createGuardedFetch } from "../src/sources/fetch.js";
@@ -386,27 +387,130 @@ test("paging: a next pointer, a Link header, page numbers and offsets; pages sta
     }
 });
 
-test("limits: all pages' bytes (http.maxBytes), limits.rows while paging, deep nesting and a body that is no JSON", async () => {
-    const many = Array.from({ length: 60 }, (_, i) => ({ name: `vm-${i}`, cpu: i, state: "running" }));
-    routes.set("/v1/big", json({ items: many, padding: "x".repeat(4000) }));
-    routes.set("/v1/rows", (req, res, url) => json({ items: many.slice(0, 30), next: url.search ? null : "?p=2" })(req, res));
-    routes.set("/v1/deep", json(`{"items":[${"[".repeat(100)}${"]".repeat(100)}]}`));
-    routes.set("/v1/text", (_req, res) => {
-        res.writeHead(200, { "content-type": "text/html" });
-        res.end("<html>SECRET-BODY</html>");
-    });
-    const src = (path, more = {}) => ({ http: { backend: "platform", path, rows: "/items", ...more }, policy: POLICY });
-    const context = await contextOf({ ...optionsOf(), limits: { rows: 40 }, sources: { big: src("/big", { maxBytes: 2000 }), rows: src("/rows", { paging: { next: "/next" } }), deep: src("/deep"), text: src("/text") } });
-    try {
-        const big = await failure(describe(context, undefined, LOCAL, "big"));
-        assert.deepEqual([big.code, big.message], ["LIMIT_EXCEEDED", "the source big answered more than 2,000 bytes (http.maxBytes)"]);
-        const rows = await failure(describe(context, undefined, LOCAL, "rows"));
-        assert.deepEqual([rows.code, rows.message], ["LIMIT_EXCEEDED", "60 rows exceed the limit of 40 (limits.rows)"]);
-        for (const id of ["deep", "text"]) {
-            const e = await failure(describe(context, undefined, LOCAL, id));
-            assert.deepEqual([e.code, e.reason, e.details.retryable], ["SOURCE_UNAVAILABLE", "setup", false], id);
-            assert.doesNotMatch(e.message, /SECRET-BODY|html/);
+/**
+ * The two ways a JSON answer is read: while it streams (the default), and whole, which the server
+ * keeps for a source whose asOf or next pointer reaches into the rows. Tests of limits run in both.
+ */
+const READINGS = Object.freeze({ streamed: { asOf: "/at" }, whole: { asOf: "/items/0/at" } });
+
+for (const [reading, how] of Object.entries(READINGS)) {
+    test(`limits (${reading}): all pages' bytes (http.maxBytes), limits.rows while paging, deep nesting and a body that is no JSON`, async () => {
+        const many = Array.from({ length: 60 }, (_, i) => ({ name: `vm-${i}`, cpu: i, state: "running" }));
+        routes.set("/v1/big", json({ items: many, padding: "x".repeat(4000) }));
+        routes.set("/v1/rows", (req, res, url) => json({ items: many.slice(0, 30), next: url.search ? null : "?p=2" })(req, res));
+        routes.set("/v1/deep", json(`{"items":[${"[".repeat(100)}${"]".repeat(100)}]}`));
+        routes.set("/v1/text", (_req, res) => {
+            res.writeHead(200, { "content-type": "text/html" });
+            res.end("<html>SECRET-BODY</html>");
+        });
+        const src = (path, more = {}) => ({ http: { backend: "platform", path, rows: "/items", ...how, ...more }, policy: POLICY });
+        const context = await contextOf({ ...optionsOf(), limits: { rows: 40 }, sources: { big: src("/big", { maxBytes: 2000 }), rows: src("/rows", { paging: { next: "/next" } }), deep: src("/deep"), text: src("/text") } });
+        try {
+            const big = await failure(describe(context, undefined, LOCAL, "big"));
+            assert.deepEqual([big.code, big.message], ["LIMIT_EXCEEDED", "the source big answered more than 2,000 bytes (http.maxBytes)"]);
+            const rows = await failure(describe(context, undefined, LOCAL, "rows"));
+            assert.deepEqual([rows.code, rows.message], ["LIMIT_EXCEEDED", "60 rows exceed the limit of 40 (limits.rows)"]);
+            for (const id of ["deep", "text"]) {
+                const e = await failure(describe(context, undefined, LOCAL, id));
+                assert.deepEqual([e.code, e.reason, e.details.retryable], ["SOURCE_UNAVAILABLE", "setup", false], id);
+                assert.doesNotMatch(e.message, /SECRET-BODY|html/);
+            }
+        } finally {
+            await context.close();
         }
+    });
+
+    test(`limits (${reading}): maxBytes and timeMs count all pages together; limits.columns and limits.importCells; the rows and the time from the body`, async () => {
+        const page = (n) => Array.from({ length: 10 }, (_, i) => ({ name: `vm-${n}-${i}`, cpu: i }));
+        routes.set("/v1/pages", (req, res, url) => json({ items: page(url.search ? 2 : 1), at: "2026-02-03T04:05:06Z", next: url.search ? null : "?p=2" })(req, res));
+        routes.set("/v1/slow-pages", (req, res, url) => setTimeout(() => json({ items: page(1), next: url.search ? null : "?p=2" })(req, res), 400));
+        routes.set("/v1/wide", json({ items: [{ a: 1, b: 2 }, { c: 3, d: 4 }] }));
+        routes.set("/v1/cells", json({ items: Array.from({ length: 6 }, (_, i) => ({ name: `vm-${i}`, cpu: i })) }));
+        const src = (path, more = {}, source = {}) => ({ http: { backend: "platform", path, rows: "/items", ...how, ...more }, policy: { default: "hide", fields: { name: "show", cpu: "show" } }, ...source });
+        const one = Buffer.byteLength(JSON.stringify({ items: page(1), at: "2026-02-03T04:05:06Z", next: "?p=2" }));
+        const context = await contextOf({
+            ...optionsOf(),
+            limits: { columns: 3, importCells: 10 },
+            sources: {
+                pages: src("/pages", { paging: { next: "/next" } }),
+                bytes: src("/pages", { paging: { next: "/next" }, maxBytes: one + 100 }),
+                slow: src("/slow-pages", { paging: { next: "/next" } }, { timeMs: 600 }),
+                wide: src("/wide"),
+                cells: src("/cells")
+            }
+        });
+        try {
+            assert.equal((await failure(describe(context, undefined, LOCAL, "pages"))).message, "40 cells exceed the limit of 10 (limits.importCells)");
+            const bytes = await failure(describe(context, undefined, LOCAL, "bytes"));
+            assert.deepEqual([bytes.code, bytes.message], ["LIMIT_EXCEEDED", `the source bytes answered more than ${(one + 100).toLocaleString("en-US")} bytes (http.maxBytes)`]);
+            const slow = await failure(describe(context, undefined, LOCAL, "slow"));
+            assert.equal(slow.code, "SOURCE_UNAVAILABLE", "the second page arrives after timeMs");
+            assert.equal((await failure(describe(context, undefined, LOCAL, "wide"))).message, "4 columns exceed the limit of 3 (limits.columns)");
+            assert.equal((await failure(describe(context, undefined, LOCAL, "cells"))).message, "12 cells exceed the limit of 10 (limits.importCells)");
+        } finally {
+            await context.close();
+        }
+        const roomy = await contextOf({ ...optionsOf(), sources: { pages: src("/pages", { paging: { next: "/next" } }) } });
+        try {
+            const described = (await describe(roomy, undefined, LOCAL, "pages")).result;
+            assert.equal(described.rows, 20);
+            assert.deepEqual(described.fields.map((f) => f.name), ["name", "cpu"]);
+            if (reading === "streamed") {
+                assert.equal(described.dataAsOf, "2026-02-03T04:05:06Z", "the time from the body, after the rows");
+            }
+        } finally {
+            await roomy.close();
+        }
+    });
+}
+
+test("an answer that fails while it streams keeps nothing: past maxBytes, past timeMs, a closed connection, broken compression; the next call loads again", async () => {
+    const head = `{"items":[${Array.from({ length: 50 }, (_, i) => JSON.stringify({ name: `vm-${i}`, cpu: i, state: "running" })).join(",")}`;
+    let failing = "large";
+    routes.set("/v1/mid", (req, res) => {
+        if (!failing) {
+            json(`${head}]}`)(req, res);
+            return;
+        }
+        if (failing === "gzip") {
+            const zipped = gzipSync(`${head}]}`);
+            res.writeHead(200, { "content-type": "application/json", "content-encoding": "gzip" });
+            // a gzip body without its end
+            res.end(zipped.subarray(0, zipped.length - 12));
+            return;
+        }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.write(`${head},`);
+        if (failing === "large") {
+            res.end(`${JSON.stringify({ name: "x".repeat(20_000) })}]}`);
+        } else if (failing === "close") {
+            setTimeout(() => req.socket.destroy(), 30);
+        }
+        // "slow": the rest never comes
+    });
+    const context = await contextOf({ ...optionsOf(), sources: { mid: { http: { backend: "platform", path: "/mid", rows: "/items", maxBytes: 10_000 }, timeMs: 500, ttl: 300, policy: POLICY } } });
+    try {
+        for (const [kind, code] of [["large", "LIMIT_EXCEEDED"], ["slow", "SOURCE_UNAVAILABLE"], ["close", "SOURCE_UNAVAILABLE"], ["gzip", "SOURCE_UNAVAILABLE"]]) {
+            failing = kind;
+            asked = [];
+            assert.equal((await failure(describe(context, undefined, token("ann"), "mid"))).code, code, kind);
+            failing = null;
+            assert.equal((await describe(context, undefined, token(`ann-${kind}`), "mid")).result.rows, 50, `${kind}: the next call loads every row`);
+            assert.equal(asked.length, 2, `${kind}: nothing was kept of the failed load`);
+        }
+    } finally {
+        await context.close();
+        failing = null;
+    }
+});
+
+test("a JSON answer that names its rows twice is refused: the server cannot tell which rows the backend meant", async () => {
+    routes.set("/v1/twice", json('{"items":[{"name":"a","cpu":1,"state":"running"}],"items":[{"name":"b","cpu":2,"state":"stopped"}]}'));
+    const context = await contextOf({ ...optionsOf(), sources: { twice: { http: { backend: "platform", path: "/twice", rows: "/items" }, policy: POLICY } } });
+    try {
+        const e = await failure(describe(context, undefined, LOCAL, "twice"));
+        assert.deepEqual([e.code, e.reason], ["SOURCE_UNAVAILABLE", "setup"]);
+        assert.ok(context.lines.some((l) => /cannot be read \(bad_body\)/.test(l.message ?? "")), "the operator's warning says the body cannot be read");
     } finally {
         await context.close();
     }
