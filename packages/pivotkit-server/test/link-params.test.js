@@ -166,7 +166,7 @@ test("linkParams in the configuration: only declared, unbound names of a source 
     validateOptions({ sources: { tickets: linked({ linkParams: [] }) }, auth: OAUTH });
     const bad = [
         [{ linkParams: ["tenant"] }, /sources\.tickets\.linkParams: tenant is bound to the sign-in claim tid; a link never carries it/],
-        [{ linkParams: ["customer", "nothing"] }, /sources\.tickets\.linkParams: nothing is not one of the source's params \(customer, size, region\)/],
+        [{ linkParams: ["customer", "nothing"] }, /sources\.tickets\.linkParams: "nothing" is not one of the source's params \(customer, size, region\)/],
         [{ linkParams: ["customer", "customer"] }, /sources\.tickets\.linkParams: customer is listed twice/],
         [{ link: undefined }, /sources\.tickets\.linkParams: only a source with a link takes linkParams \(sources\.tickets\.link\)/],
         [{ params: undefined }, /sources\.tickets\.linkParams: the source declares no params/],

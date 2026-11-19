@@ -42,7 +42,7 @@ export function linkParamsProblem(source, id) {
         const p = Object.hasOwn(declared, name) ? declared[name] : undefined;
         if (!p) {
             const known = names.filter((n) => declared[n]?.claim === undefined);
-            return `${path}: ${name.slice(0, 64)} is not one of the source's params (${known.join(", ")})`;
+            return `${path}: ${JSON.stringify(name.slice(0, 64))} is not one of the source's params (${known.join(", ")})`;
         }
         if (p.claim !== undefined) {
             return `${path}: ${name} is bound to the sign-in claim ${p.claim}; a link never carries it`;

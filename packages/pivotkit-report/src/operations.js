@@ -852,7 +852,7 @@ export const OPERATIONS = Object.freeze({
     create_link: {
         name: "create_link",
         title: "Create a link to a view",
-        description: "Makes a link that opens the view in the source's report page, where the person sees the data with their own rights. Works only for sources whose list_sources entry says link: true. The view is checked first; a view with errors gets no link. Where the entry names linkParams, the link carries those params (such as a customer) in the page's address, and create_link takes no others.",
+        description: "Makes a link that opens the view in the source's report page, where the person sees the data with their own rights. Works only for sources whose list_sources entry says link: true. The view is checked first; a view with errors gets no link. Where the entry names linkParams, the link carries those params (such as a customer) in the page's query string, and create_link takes no others.",
         cli: null,
         http: { method: "POST", path: "/views/link" },
         needs: ["data", "link"],

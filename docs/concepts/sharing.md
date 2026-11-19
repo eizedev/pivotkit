@@ -182,12 +182,12 @@ fragment:
 - The server checks the values with the source's parameter rules before it makes the link.
 - A query that the configured page address holds stays. A name the link sets replaces the same name
   there.
+- The list names every required parameter. `create_link` needs it to read the source.
+- An empty list (`"linkParams": []`) refuses every parameter in `create_link`. It works only for a
+  source without required parameters. `list_sources` then shows no `linkParams`.
 
-- A required parameter is always in the list: `create_link` needs it to read the source.
-- An empty list (`"linkParams": []`) refuses every parameter in `create_link`.
-
-A source with a link that carries the customer. It is an [HTTP source](../reference/sources.md#http)
-or a code source, since only those take `params`:
+Only HTTP sources and code sources take `params`. An [HTTP source](../reference/sources.md#http)
+whose link carries the customer:
 
 ```json
 {
