@@ -75,7 +75,7 @@ and the MCP server fetch data from the sources you configure. pivotkit sends not
 
 The report runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4:
 [browser support](docs/browser-support.md). The engine, the reports, the CLI, the REST service and
-the MCP server run in Node 22 or later.
+the MCP server run in Node 24 or later.
 [What works with pivotkit](https://pivotkit.eize.dev/compatibility/) lists the sign-in providers, MCP
 clients, data sources and platforms, and how each one was tested.
 

@@ -12,7 +12,7 @@ npm install --global pivotkit-cli    # the command pivotkit
 To run it once without installing, use `npx pivotkit-cli <command>`. That does not put `pivotkit` on
 the `PATH`, so every line starts with `npx pivotkit-cli`.
 
-Node 22 or later. It brings pivotkit-core, pivotkit-report, pivotkit-xlsx and ECharts 6.1.0.
+Node 24 or later. It brings pivotkit-core, pivotkit-report, pivotkit-xlsx and ECharts 6.1.0.
 
 ## Example
 

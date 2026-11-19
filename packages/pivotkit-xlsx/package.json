@@ -44,7 +44,7 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "build": "node build.js",

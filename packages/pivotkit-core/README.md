@@ -19,7 +19,7 @@ npm install pivotkit-core
 ```
 
 - ES modules only, no `require`.
-- Node 22 or later. Browsers from Chrome 111, Firefox 113 and Safari 16.4.
+- Node 24 or later. Browsers from Chrome 111, Firefox 113 and Safari 16.4.
 - The only dependency is [fflate](https://github.com/101arrowz/fflate) (MIT). Only the
   `pivotkit-core/export` and `pivotkit-core/link` entries load it.
 - The package includes TypeScript declarations.

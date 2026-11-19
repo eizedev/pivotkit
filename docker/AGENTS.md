@@ -13,7 +13,7 @@ kubeconform -strict docker/kubernetes.example.yaml # after a change of the manif
 
 - The image is built from the repository root at a release tag.
 - It installs pivotkit-server, pivotkit-mcp and pivotkit-cli with `npm ci --omit=dev --ignore-scripts`.
-- The base is a distroless Node 22 image, pinned by digest. It runs as user 10001.
+- The base is a distroless Node 24 image, pinned by digest. It runs as user 10001.
 - A new base image: update both digests in `Dockerfile`.
 - The state directory is `/var/lib/pivotkit`, mode 0700. The image declares no `VOLUME`.
 - The launcher `docker/pivotkit-server` puts `pivotkit-server` on the PATH.

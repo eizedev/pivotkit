@@ -163,6 +163,7 @@ Then restart Claude Code.
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
+| **Breaking:** [Node 24 or later](#node-24) | you run pivotkit's packages on Node 22 | update Node to 24 or later. The container image brings its own Node 24 |
 | [The element reads `"false"` as off](#element-false) | a page writes `save-templates`, `can-publish`, `allow-import` or `loading` with the value `"false"` | nothing, unless you meant it as on: then leave the value out |
 | [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
 | [A link names a source's parameters in the page's query string](#link-params) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients. For links with parameters, list them in `sources.<id>.linkParams` and send a strict `Referrer-Policy` |
@@ -174,6 +175,19 @@ Then restart Claude Code.
 | [Texts without the product name](#neutral-texts) | a program or a log rule matches the words of an error, or of pivotkit-react's messages about a loaded view | match the error's `code` instead, or update the words |
 | [A print template that cannot be read is the server's error](#template-unavailable) | a program reads the answer of an html render | expect 502 `SOURCE_UNAVAILABLE` instead of 404 `FILE_NOT_AVAILABLE` for it |
 | [503 `BUSY` logs at `warn`](#busy-warn) | a log rule counts `error` lines | count 503 `BUSY` among the warnings, or match its `code` |
+
+### Node 24 or later { #node-24 }
+
+pivotkit-core, pivotkit-xlsx, pivotkit-report, pivotkit-cli, pivotkit-server and pivotkit-mcp need
+Node 24 or later. Node 22 is no longer supported.
+
+- Update Node before you update pivotkit. `node --version` must print `v24` or higher.
+- The [compatibility page](../compatibility.md#node) lists the Node versions CI tests.
+- On Node 22, npm installs the packages with an `EBADENGINE` warning. With `engine-strict=true`, it
+  refuses them.
+- Nothing is tested on Node 22 any more, and no fix is made for it.
+- The container image brings its own Node 24, on a distroless base. Pull the new image as usual. An
+  image built `FROM` it keeps Node 24.
 
 ### Rows of a source for a signed-in person { #records-route }
 

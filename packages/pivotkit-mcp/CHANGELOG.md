@@ -26,6 +26,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Changed
 
+- **Breaking:** needs Node 24 or later. Node 22 is no longer supported
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
 - `create_link` and `draft_schedule` take a `layout` instead of a `view`, as `render_view` does.
   The schema's placeholder `layout` that refused every layout is gone (#469).
 - `render_view`, `create_link` and `draft_schedule` take the name of a view the operator published

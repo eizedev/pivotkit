@@ -481,7 +481,7 @@ function valueOf(name, p, value, budget = { left: Infinity }) {
     } else {
         // a text as text: a number or a boolean is a caller's mistake about the type, not a value
         const text = typeof value === "string" ? value : fail("must be a text");
-        // String.prototype.isWellFormed (Node 20 and later; this package needs Node 22)
+        // String.prototype.isWellFormed (Node 20 and later; this package needs Node 24)
         if (!(/** @type {any} */ (text).isWellFormed())) {
             fail("must be a text without lone surrogates (not well-formed Unicode)");
         }

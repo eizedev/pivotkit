@@ -9,7 +9,7 @@ pivot report in the browser. It uploads nothing.
 npm install pivotkit-xlsx
 ```
 
-- ES modules for Node 22 or later and browsers from Chrome 111, Firefox 113 and Safari 16.4.
+- ES modules for Node 24 or later and browsers from Chrome 111, Firefox 113 and Safari 16.4.
 - It needs pivotkit-core with `pivotkit-core/import`, plugin API 1.
 - A page without a bundler serves the whole `dist/` directory. It holds the plugin and the reader
   chunk the plugin loads. The licenses are in `dist/THIRD_PARTY_LICENSES.txt`.

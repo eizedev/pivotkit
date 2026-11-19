@@ -11,7 +11,7 @@ into a file you open. Through pivotkit, the model sees the fields of your data a
 you set, their values. By default it sees names, types and counts, and no values. The
 [reference](../reference/mcp.md) has every tool and setting.
 
-You need Node 22 or later. A client either starts the server itself (stdio) or connects to a server
+You need Node 24 or later. A client either starts the server itself (stdio) or connects to a server
 that runs (HTTP). Without Node, use [Server in 5 minutes](server-in-5-minutes.md). It starts the
 container image with one command. That gives you the MCP endpoint and a token the server makes
 itself.

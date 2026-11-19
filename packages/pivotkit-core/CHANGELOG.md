@@ -12,6 +12,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   A print template or a host can draw the axis apart from the table's lines
   ([theming](https://pivotkit.eize.dev/reference/theming/), #614).
 
+### Changed
+
+- **Breaking:** needs Node 24 or later. Node 22 is no longer supported
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
+
 ### Fixed
 
 - A `month` grouping (month of the year) names the data's Gregorian month in a locale with another

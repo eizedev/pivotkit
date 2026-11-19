@@ -268,7 +268,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
   ([server in 5 minutes](getting-started/server-in-5-minutes.md),
   [made at the first start](reference/rest.md#first-start), [container image](reference/container.md),
   [Kubernetes](getting-started/kubernetes.md)):
-    - Distroless Node 22, non-root, read-only, with health checks.
+    - Distroless Node 24, non-root, read-only, with health checks.
     - Signed, with provenance and an SBOM.
     - One `docker run` serves example data. At its first start the server makes a token and the
       download links' key and keeps them in a volume. `token show` reads the token back.

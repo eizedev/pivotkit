@@ -27,7 +27,7 @@ Without installing, `npx pivotkit-cli <command>` runs it once (`npx pivotkit-cli
 not put `pivotkit` on the `PATH`. In a project, run `npm install --save-dev pivotkit-cli`, then
 `npx pivotkit <command>`. Step by step: [getting started with the command line](../getting-started/cli.md).
 
-It needs Node 22 or later. It brings [pivotkit-report](report.md), pivotkit-core, pivotkit-xlsx and
+It needs Node 24 or later. It brings [pivotkit-report](report.md), pivotkit-core, pivotkit-xlsx and
 ECharts 6.1.0.
 
 ## Try it { #try-it }
@@ -608,9 +608,8 @@ steps with curl or PowerShell.
   to an https server at all, with or without a token. There is no `--insecure`. For a certificate of
   your own CA, use `NODE_EXTRA_CA_CERTS`.
 - **A proxy**: the CLI uses `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` only as Node does, when Node's
-  proxy support is on: `NODE_USE_ENV_PROXY=1` (Node 22.21.0 or later, 24.0.0 or later) or
-  `node --use-env-proxy` (Node 22.21.0 or later, 24.5.0 or later). Node marks both "Active
-  development" ([Node's CLI documentation](https://nodejs.org/api/cli.html#node_use_env_proxy1),
+  proxy support is on: `NODE_USE_ENV_PROXY=1`, or `node --use-env-proxy` from Node 24.5.0. Node
+  marks both "Active development" ([Node's CLI documentation](https://nodejs.org/api/cli.html#node_use_env_proxy1),
   [built-in proxy support](https://nodejs.org/api/http.html#built-in-proxy-support)). When a proxy
   variable is set and Node does not use it, a network error says so. A loopback address never goes
   through a proxy.

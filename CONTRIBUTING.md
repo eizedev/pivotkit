@@ -16,7 +16,7 @@ Thanks for helping.
 
 ## Set up
 
-You need Node.js 22 or later.
+You need Node.js 24 or later.
 
 ```bash
 npm ci

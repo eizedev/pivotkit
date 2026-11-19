@@ -23,7 +23,7 @@ npx -y pivotkit-mcp --source sales=sales.csv --output reports     # stdio, for a
 npx -y pivotkit-mcp --config pivotkit-mcp.json --http             # Streamable HTTP on 127.0.0.1:3333
 ```
 
-It needs Node 22 or later. It brings the official MCP TypeScript SDK
+It needs Node 24 or later. It brings the official MCP TypeScript SDK
 (`@modelcontextprotocol/server`), which speaks the protocol revision 2026-07-28 and the 2025
 revisions. It also brings [pivotkit-server](rest.md), which holds what it shares with the REST
 service: sources, policy, workers, output, sign-in. pivotkit-server brings
