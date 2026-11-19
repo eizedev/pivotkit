@@ -424,7 +424,7 @@ export async function fileData(spec) {
     const label = spec.kind === "source" ? spec.name : basename(spec.path ?? "");
     const format = extname(spec.path ?? "").slice(1).toLowerCase();
     if (!FORMATS.has(format)) {
-        throw new OperationError("UNSUPPORTED_FORMAT", `${label}: pivotkit reads csv, tsv, txt, json and xlsx files`);
+        throw new OperationError("UNSUPPORTED_FORMAT", `${label}: the server reads csv, tsv, txt, json and xlsx files`);
     }
     try {
         const info = await stat(/** @type {string} */ (spec.path));
@@ -688,7 +688,7 @@ export const READ_JOB = "pivotkit:read";
 async function readUpload(spec, upload) {
     const format = String(upload.format ?? "").toLowerCase();
     if (!FORMATS.has(format)) {
-        throw new OperationError("UNSUPPORTED_FORMAT", `${spec.name}: pivotkit reads csv, tsv, txt, json and xlsx files`);
+        throw new OperationError("UNSUPPORTED_FORMAT", `${spec.name}: the server reads csv, tsv, txt, json and xlsx files`);
     }
     if (upload.bytes.length > (spec.limits.fileBytes ?? 52_428_800)) {
         throw new OperationError("LIMIT_EXCEEDED", `${spec.name}: the file is larger than the server reads (limits.fileBytes)`);

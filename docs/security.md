@@ -128,6 +128,10 @@ Some addresses only appear in output. pivotkit never requests them:
 - the `type` of a REST error, which names its entry in the [REST reference](reference/rest.md)
 - documentation links in messages, on the MCP server's start page and in its OAuth metadata
 
+The servers name pivotkit.eize.dev in the last two by default. `branding.docsUrl` names your own
+address instead, or with `null` no address at all
+([documentation links](reference/branding.md#docs)).
+
 The `User-Agent` header of each request:
 
 | Request | `User-Agent` |

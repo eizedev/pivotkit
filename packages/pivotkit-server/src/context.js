@@ -8,6 +8,7 @@
  *   const rest = await createRestHandler(context);   // pivotkit-server/rest
  */
 
+import { brandingOf } from "./branding.js";
 import { createRequire } from "node:module";
 import { access, constants, lstat, mkdir, realpath, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
@@ -65,6 +66,7 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  * @property {{ dir: string, baseUrl: string | null, maxFiles: number, maxMb: number, maxAgeDays: number, draftMaxAgeDays: number, cleanUp: boolean, showPath: boolean } | null} output  cleanUp: the oldest reports may be deleted to make room (not where the operator's own files lie)
  * @property {any} log  the log (log.js)
  * @property {import("./sources/input.js").Offers} offers  the extra inputs each surface offers (fixed at start)
+ * @property {import("./branding.js").Branding} branding  the operator's name, documentation links, icon and page (fixed at start)
  * @property {string} authMode
  * @property {string} version
  * @property {(how: { env?: Record<string, string | undefined>, loopback: boolean }) => Promise<any>} auth
@@ -83,6 +85,8 @@ export async function createContext(options, runtime = {}) {
     validateOptions(options);
     const service = runtime.service ?? { name: "pivotkit-server", version: VERSION };
     const log = createLog(options.log ?? "info", runtime.stderr ?? process.stderr, { service: service.name, version: service.version, env: runtime.env ?? process.env });
+    // the icon is read now: a file that is missing or no PNG stops the start, as check-config says
+    const branding = await brandingOf(options);
     const registry = await createRegistry(options, { log }).catch((e) => {
         throw e?.code === "ALLOW_DIR_NOT_FOUND" || e?.code === "ALLOW_DIR_NOT_DIRECTORY" ? new ConfigError(`files.allowDirs: ${e.message.replace(/^--allow-dir /, "")}`) : e;
     });
@@ -197,6 +201,7 @@ export async function createContext(options, runtime = {}) {
         output,
         log,
         offers: offersOf(options),
+        branding,
         authMode: options.auth?.mode ?? "none",
         version: VERSION,
 

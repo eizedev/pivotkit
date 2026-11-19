@@ -84,7 +84,7 @@ test("a loaded view is normalized against the data; a template file gives its vi
     assert.deepEqual(viewFromText("x".repeat(1_000_001), data).failed, "tooLarge");
 });
 
-test("a view file loads with its envelope; a newer format asks to update pivotkit", () => {
+test("a view file loads with its envelope; a newer format asks to update the application", () => {
     const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
     const text = viewFileText(toViewFile(view, { name: "Units", source: { id: "sales" }, data }));
     const loaded = viewFromText(text, data, { sourceId: "sales" });
@@ -94,8 +94,8 @@ test("a view file loads with its envelope; a newer format asks to update pivotki
     assert.equal(loaded.file?.compatible?.ok, true);
     const newer = viewFromText(JSON.stringify({ format: "pivotkit-view", formatVersion: 3, view }), data);
     assert.equal(newer.failed, "newer");
-    assert.match(LABELS.en.viewFailed.newer, /Update pivotkit/);
-    assert.match(LABELS.de.viewFailed.newer, /Zum Öffnen pivotkit aktualisieren/);
+    assert.match(LABELS.en.viewFailed.newer, /Update the application to open it/);
+    assert.match(LABELS.de.viewFailed.newer, /Zum Öffnen die Anwendung aktualisieren/);
 });
 
 test("a view for other data asks first: its source, the fields this data does not have, another type", () => {

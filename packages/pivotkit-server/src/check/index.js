@@ -34,6 +34,8 @@ import * as profiles from "./profiles.js";
 import * as records from "./records.js";
 import * as rest from "./rest.js";
 import * as log from "./log.js";
+import * as branding from "./branding.js";
+import { docsLink } from "../options/branding.js";
 
 /**
  * @typedef {object} SectionRuntime
@@ -54,17 +56,21 @@ import * as log from "./log.js";
  * @typedef {(options: import("../config.js").ServerOptions, registry: any, runtime: SectionRuntime) => Promise<{ items: import("./format.js").Item[], upgrade: import("./format.js").Upgrade[] }>} Section
  */
 
-/** The page that explains the changes of a version. */
-export const UPGRADING_URL = "https://pivotkit.eize.dev/getting-started/upgrading/";
+/**
+ * The page that explains the changes of a version under the documentation's base (branding.docsUrl), or null without documentation.
+ * @param {string | null} docs  branding.js docsOf's
+ */
+export const upgradingUrlOf = (docs) => docsLink(docs, "getting-started/upgrading/");
 
 /**
  * In the order check-config prints them: the data (sources, their named views, HTTP and code sources, data in the
  * request), where reports go and who gets them (output, delivery, upload), who may call (address and
- * auth, the requests to the issuer, audit, profiles, the rows route, REST).
+ * auth, the requests to the issuer, audit, profiles, the rows route, REST), the log, and the name and
+ * links the server shows (branding).
  * @type {ReadonlyArray<{ name: string, section: Section }>}
  */
 export const SECTIONS = Object.freeze(
-    Object.entries({ sources, views, http, code, inline, output, downloads, upload, access, credentials, signed, external, issuer, operator, profiles, records, rest, log }).map(([name, module]) => Object.freeze({ name, section: module.section }))
+    Object.entries({ sources, views, http, code, inline, output, downloads, upload, access, credentials, signed, external, issuer, operator, profiles, records, rest, log, branding }).map(([name, module]) => Object.freeze({ name, section: module.section }))
 );
 
 /**

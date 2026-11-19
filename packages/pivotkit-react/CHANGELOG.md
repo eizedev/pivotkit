@@ -6,6 +6,14 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- The messages about a loaded view no longer name pivotkit, in English and German: "This is not a
+  view.", "This is neither a view in JSON nor a link to a report.", "This link is damaged or not a
+  link to a report." and "This view comes from a newer version and cannot be read here. Update the
+  application to open it." The notes about unused parts of a view say the same
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#neutral-texts), #612).
+
 ## [0.8.2] - 2026-11-19
 
 ### Fixed

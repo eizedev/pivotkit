@@ -15,6 +15,7 @@ import { POLICY_LEVELS } from "./policy.js";
 import { STATS_DISTINCT } from "./stats.js";
 import { expiryOf } from "./signed-tokens.js";
 import { FRAGMENTS, composeSlots } from "./options/index.js";
+import { PAGE } from "./options/branding.js";
 import { CREATE_NEEDS_FILE, ConfigError } from "./options/shared.js";
 import { linkParamsProblem } from "./link-params.js";
 
@@ -79,7 +80,8 @@ export { ConfigError } from "./options/shared.js";
  * @property {string} [locale]
  * @property {string} [timeZone]
  * @property {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [compute]
- * @property {{ host?: string, port?: number, publicUrl?: string, allowHosts?: string[], allowOrigins?: string[], page?: boolean | { sources?: boolean }, enable?: Array<"mcp" | "rest">, trustProxy?: boolean, graceMs?: number, maxConnectionsPerAddress?: number }} [http]
+ * @property {{ host?: string, port?: number, publicUrl?: string, allowHosts?: string[], allowOrigins?: string[], page?: boolean | { sources?: boolean, url?: string }, enable?: Array<"mcp" | "rest">, trustProxy?: boolean, graceMs?: number, maxConnectionsPerAddress?: number }} [http]
+ * @property {{ name?: string, docsUrl?: string | null, icon?: string }} [branding]  the operator's name, documentation and icon (options/branding.js)
  * @property {AuthOptions} [auth]
  * @property {RestOptions} [rest]
  * @property {{ rateLimit?: { perMinute?: number, burst?: number, failedAuthPerMinute?: number }, concurrency?: number, data?: false | { rows?: number, cells?: number, bytes?: number } }} [mcp]  the MCP endpoint over HTTP: its limits per caller, and per address for refused tokens; data: inline data off, or a lower cap
@@ -186,7 +188,7 @@ const BASE_SLOTS = {
     // a profile's and files.policy's keys; a source's and the server's add the "values" settings,
     // which belong to the data, not to a caller (a profile never gets the automatic rule) or a file: path
     policy: { default: { enum: POLICY_LEVELS }, fields: { map: { enum: POLICY_LEVELS } }, items: "integer", rows: "boolean", counts: "boolean", inline: { or: [{ const: false }, { object: { cells: "integer", bytes: "integer" } }] }, results: "boolean" },
-    http: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: { or: [{ const: false }, { const: true }, { object: { sources: "boolean" } }] }, enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer", maxConnectionsPerAddress: "integer" },
+    http: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: PAGE, enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer", maxConnectionsPerAddress: "integer" },
     auth: {
         mode: { enum: ["none", "token", "oauth"] },
         allowUnauthenticated: "boolean",

@@ -198,9 +198,9 @@ Nothing changes until the view is loaded. The load is one step that Undo takes b
 
 - A text of more than 1,000,000 characters, or a file of more than 1,000,000 bytes, is refused before
   it is read: "This is too large for a view."
-- A text that is no view says why: "This is neither a view in JSON nor a pivotkit link."
-- A view from a newer version of pivotkit is refused: "This view comes from a newer version of
-  pivotkit and cannot be read here. Update pivotkit to open it."
+- A text that is no view says why: "This is neither a view in JSON nor a link to a report."
+- A view from a newer version of pivotkit is refused: "This view comes from a newer version and
+  cannot be read here. Update the application to open it."
 
 ### Before a view for other data is loaded
 

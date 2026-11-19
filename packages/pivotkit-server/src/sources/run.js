@@ -64,7 +64,7 @@ const DEFAULT_TEXT = Object.freeze({
  * SOURCE_UNAVAILABLE only: `transient: true` allows last good data, `status` (a backend's HTTP status,
  * also for the log) of 429, 502, 503 or 504 makes it transient when `transient` is not given,
  * `retryAfter` (seconds) is passed on as Retry-After, and `reason` picks which of pivotkit's fixed
- * texts the caller reads (SOURCE_REASONS: "refused", the backend refused pivotkit's access;
+ * texts the caller reads (SOURCE_REASONS: "refused", the backend refused this server's access;
  * "setup", the source is not set up correctly; none: not available right now). A refusal (the other
  * codes) is never transient.
  */

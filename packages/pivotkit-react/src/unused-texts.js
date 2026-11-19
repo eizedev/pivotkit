@@ -59,11 +59,11 @@ export const en = {
         other: "it is left out"
     },
     codes: {
-        notView: "this is not a pivotkit view - the report starts empty",
+        notView: "this is not a view - the report starts empty",
         notJson: "this is not valid JSON - the report starts empty",
         tooLarge: "the view is too large - the report starts empty",
         badVersion: "the view has an unknown version - the report starts empty",
-        newerVersion: "the view comes from a newer pivotkit - the report starts empty; update pivotkit to open it",
+        newerVersion: "the view comes from a newer version - the report starts empty; update the application to open it",
         noMigration: "the view cannot be brought to this version - the report starts empty",
         unknownKey: "this setting is unknown here - it is ignored",
         notList: "this is not a list - nothing of it is used",

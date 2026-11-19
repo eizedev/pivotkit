@@ -278,6 +278,10 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
       request's reason.
     - `X-Request-Id` on every answer.
     - Examples for Docker's `gelf` and `syslog` drivers.
+- Your own name and links for intranet deployments ([your own name and links](reference/branding.md)):
+    - The name people and clients see, and an icon.
+    - Your own documentation address, or no documentation links at all.
+    - `/` sends a browser to your own page.
 
 ## AI clients (MCP) { #mcp }
 

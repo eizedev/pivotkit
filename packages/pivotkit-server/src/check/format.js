@@ -147,7 +147,7 @@ const problemText = (item) => `PROBLEM: ${item.text} -> ${item.stops ? "the serv
  * @param {string} name  the program ("pivotkit-server", "pivotkit-mcp")
  * @param {Item[][]} sections  each section's items, in the order printed
  * @param {Upgrade[]} upgrade  this version's changes that apply, each with its upgrading section
- * @param {string} upgradingUrl
+ * @param {string | null} upgradingUrl  null: the operator set no documentation (branding.docsUrl null)
  * @returns {{ text: string, problems: number, warnings: number, stops: number }}
  */
 export function render(name, sections, upgrade, upgradingUrl) {
@@ -179,7 +179,7 @@ export function render(name, sections, upgrade, upgradingUrl) {
         }
     }
     if (upgrade.length) {
-        lines.push("", "New in this version:", ...upgrade.flatMap((u) => [...wrap(u.text, 2), `    -> ${upgradingUrl}#${u.anchor}`]));
+        lines.push("", "New in this version:", ...upgrade.flatMap((u) => [...wrap(u.text, 2), ...(upgradingUrl ? [`    -> ${upgradingUrl}#${u.anchor}`] : [])]));
     }
     return { text: `${lines.join("\n")}\n`, problems: problems.length, warnings, stops };
 }

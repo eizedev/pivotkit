@@ -169,6 +169,8 @@ Then restart Claude Code.
 | [Named views, and a layout for links and drafts](#named-views) | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients |
 | [Row count and data date in the source list](#source-list-rows) | you read `GET /sources` or `list_sources` | none. MCP clients see the new keys in the output schema after they reconnect |
 | [One print template for the whole server](#output-template) | you want one design for every html report of a server | set `output.template` |
+| [Your own name and links](#branding) | you run the server under your own name, or in a network without access to pivotkit.eize.dev | nothing until you need it: the defaults are pivotkit's |
+| [Texts without the product name](#neutral-texts) | a program or a log rule matches the words of an error, or of pivotkit-react's messages about a loaded view | match the error's `code` instead, or update the words |
 
 ### Rows of a source for a signed-in person { #records-route }
 
@@ -232,6 +234,28 @@ a source's template. Without the key, nothing changes.
 
 A template can set `--pk-chart-axis` to draw the chart's axis line apart from the table's lines.
 Without it, the axis keeps `--pk-border`.
+
+### Your own name and links { #branding }
+
+New optional settings put your name, your documentation address and your icon on what people and
+clients see ([your own name and links](../reference/branding.md)):
+
+- `branding.name`, `branding.docsUrl` (`null` for no documentation links) and `branding.icon`
+- `http.page.url`: `/` sends a browser to your own page, on a REST-only server too
+
+Without them, every answer stays as it was. `check-config` has a section `Branding` once you set one.
+
+### Texts without the product name { #neutral-texts }
+
+Some texts that people read no longer name pivotkit. Their codes stay the same.
+
+- `SOURCE_UNAVAILABLE`: "the source's backend refused this server's access; ..."
+- `UNSUPPORTED_FORMAT`: "<name>: the server reads csv, tsv, txt, json and xlsx files"
+- pivotkit-react's messages about a loaded view: "This is not a view.", "This is neither a view in
+  JSON nor a link to a report.", "This link is damaged or not a link to a report." and "This view
+  comes from a newer version and cannot be read here. Update the application to open it."
+
+A host that sets these texts through `labels` keeps its own.
 
 ## From 0.8.1 to 0.8.2 { #from-0-8-1 }
 

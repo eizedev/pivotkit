@@ -66,6 +66,7 @@ nav = [
     { "pivotkit-mcp" = "reference/mcp.md" },
     { "Data sources" = "reference/sources.md" },
     { "Download links" = "reference/delivery.md" },
+    { "Your own name and links" = "reference/branding.md" },
     { "Container image" = "reference/container.md" },
     { "Operations and logs" = "reference/operations.md" },
     { "Kubernetes" = "getting-started/kubernetes.md" },
