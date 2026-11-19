@@ -287,15 +287,18 @@ test("CI measures the web component's size on the Node major pivotkit-element's 
     assert.match(job, new RegExp(`node: \\[[^\\]]*"${SIZE_NODE}"`));
 });
 
-// node reads an argument after "node -e <script>" as its own option when it starts with "-": a token
-// such as "-WlNw..." ends the step with "bad option" (#660). A workflow hands values to an inline
-// script through the environment instead
-test("no workflow passes a value to an inline node script as an argument", () => {
+// a value that starts with "-" is read as an option: node -e ends the step with "bad option" (#660),
+// and grep takes it for flags, so a check that the token is not on the log never fails. A workflow
+// hands values to an inline node script through the environment and puts "--" or -e before a grep
+// pattern taken from a variable. These are line checks: a script over several lines is not covered
+test("no workflow passes a value that may start with \"-\" where a command reads options", () => {
     const dir = new URL(".github/workflows/", root);
-    for (const file of readdirSync(dir)) {
+    for (const file of readdirSync(dir).filter((name) => /\.ya?ml$/.test(name))) {
         const lines = readFileSync(new URL(file, dir), "utf8").split("\n");
         lines.forEach((line, i) => {
-            if (/\bnode -e\b/.test(line)) assert.doesNotMatch(line, /process\.argv/, `${file}:${i + 1} reads process.argv in node -e`);
+            if (/\bnode (-e|-p|--eval|--print)\b/.test(line)) assert.doesNotMatch(line, /process\.argv/, `${file}:${i + 1} reads process.argv in an inline node script`);
+            const grep = /\bgrep((?:\s+-[A-Za-z]+)*)\s+"\$/.exec(line);
+            if (grep) assert.match(grep[1], /-[A-Za-z]*e$/, `${file}:${i + 1} gives grep a pattern from a variable without -- or -e`);
         });
     }
 });
