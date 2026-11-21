@@ -68,7 +68,6 @@ for (const width of [1440, 390]) {
     });
 }
 
-
 test("with column subtotals, a column is named by its group, not by its subtotal's header", async ({ page }) => {
     const view = { rows: ["Region"], cols: ["Category", "Channel"], values: [{ field: "Revenue", agg: "sum" }, { field: "Units", agg: "sum" }], totals: { colSubtotals: true } };
     await page.goto(`?data=sales&lang=en&empty#pivot-playground=${encodeViewLink(view)}`);

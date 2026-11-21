@@ -212,7 +212,8 @@ Each field on rows or columns has its own sort:
   field, such as `["2025", "Jul"]`. The rows then follow that column's values, and a row without a
   value there comes last. Without `column` the whole row decides. On a column field, or with another
   `by`, `column` is left out with the warning `sortColumn`. A column a filter takes out leaves every
-  row without a value there: the rows go by their labels until the column is back.
+  row without a value there: the rows go by their labels, in the sort's direction, until the column
+  is back.
 - `by: "custom"` sorts in an order of your own, like Excel's custom lists. The `items` come first, in
   their order, named as filter items name them. The field's other items follow by label. `order:
   "desc"` reverses both. Blank sorts last unless it is listed (`null`).

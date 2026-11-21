@@ -57,4 +57,8 @@ test("normalize: a column path only for a row field sorted by a value; longer th
     const notList = issues({ field: "City", by: "value", value: temp, column: "Jul" });
     assert.equal(notList.view.sort[0].column, undefined);
     assert.equal(notList.issues[0].code, "sortColumn");
+    // no field on Columns: said as such, not as "one to 0 items"
+    const noCols = normalize({ ...base, cols: [], sort: [{ field: "City", by: "value", value: temp, column: ["Jul"] }] }, data);
+    assert.equal(noCols.view.sort[0].column, undefined);
+    assert.match(noCols.issues[0].message, /only with a field on Columns/);
 });
