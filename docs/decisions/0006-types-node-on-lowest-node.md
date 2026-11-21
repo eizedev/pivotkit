@@ -13,9 +13,8 @@ Sources: [#520](https://github.com/eizedev/pivotkit/pull/520),
 ## Context and Problem Statement
 
 pivotkit supports Node 24 and later (`engines: ">=24"`). It was Node 22 when this was decided.
-`@types/node` describes which Node APIs the
-code may use. Dependabot proposes each new major of `@types/node`. Which major should the
-repository use?
+`@types/node` describes which Node APIs the code may use. Dependabot proposes each new major of
+`@types/node`. Which major should the repository use?
 
 ## Considered Options
 

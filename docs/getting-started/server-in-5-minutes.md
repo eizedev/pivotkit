@@ -146,7 +146,7 @@ docker compose exec pivotkit pivotkit-server token show admin
 
 Make `data/` and `pivotkit.json` before the first `up`. Docker makes a missing mount source as an
 empty directory, owned by root. `pivotkit.json` would then be a directory, and the server does not
-start. The files are
+start. Step 3 then names your source and fields instead of `example` and `Revenue`. The files are
 [compose.example.yml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.4.0/docker/compose.example.yml)
 and [pivotkit.example.json](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.4.0/docker/pivotkit.example.json).
 

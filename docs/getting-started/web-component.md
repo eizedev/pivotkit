@@ -137,7 +137,7 @@ report.addEventListener("pivot-template-save", (e) => {
         fetch("/api/templates", { method: "POST", body: JSON.stringify({ name: e.detail.name, view: e.detail.view }) })
             .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.statusText))))
             // the server answers the user's whole list of views
-            .then((list) => (report.templates = list.map((t) => ({ ...t, scope: "user", deletable: true }))))
+            .then((list) => (report.templates = list.map((t) => ({ ...t, scope: "user" }))))
     );
 });
 ```
