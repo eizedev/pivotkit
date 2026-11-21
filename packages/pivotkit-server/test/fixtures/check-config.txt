@@ -96,11 +96,3 @@ REST: /api/v1
 Log:
   level info, format auto (text on a terminal, JSON otherwise)
   addresses on: the socket's peer
-
-New in this version:
-  schedule drafts take at most half of output.maxMb (output.draftMaxAgeDays
-      lets waiting drafts expire)
-    -> https://pivotkit.eize.dev/getting-started/upgrading/#draft-quota
-  inline csv and json results round numbers as the view shows them; report
-      files and drafts are named in lower case without spaces
-    -> https://pivotkit.eize.dev/getting-started/upgrading/#results-0-8

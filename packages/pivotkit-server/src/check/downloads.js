@@ -2,8 +2,7 @@
  * check-config's section for download links: whether the server gives its own links, where they
  * point, which sources' reports get which link (delivery.js linkFor), what to register at the
  * sign-in provider, and the warnings (a random key, one-time links, output.baseUrl with closed
- * sources, no public address off loopback); and how long reports stay on disk (retention). Its
- * "New in this version" note names the open sources hidden by default, which were closed before.
+ * sources, no public address off loopback); and how long reports stay on disk (retention).
  *
  * check/index.js says what a section returns. Over stdio (no --http) and without output.baseUrl it
  * says nothing about links (there are none); the retention warning holds there too.
@@ -17,7 +16,6 @@ import { isLoopback } from "../listen.js";
 import { madeAtStart, readSecret, secretFileWarning } from "../secrets.js";
 import { closedReason } from "../registry.js";
 import { bytesText } from "../text.js";
-import { resolvePolicy } from "../policy.js";
 import { realpath } from "node:fs/promises";
 import { OUTPUT_DEFAULTS, pathOf, publicOriginOf } from "../config.js";
 import { ownFileDirs } from "../context.js";
@@ -45,17 +43,6 @@ export function whyClosed(options, id) {
     const what = reason.auto ? "the automatic values rule" : name ? `${name} ${reason.level}` : `fields ${reason.level} by default`;
     const why = reason.others ? ", shown to other callers" : reason.denyList ? " under default show: a column the data gains later would be shown" : "";
     return `${reason.profile !== null ? `profile ${reason.profile.slice(0, 40)}: ` : ""}${what}${why}`;
-}
-
-/**
- * Whether a source's policy hides fields by default, for a caller without a profile or under any
- * profile: such an open source was closed in pivotkit-server 0.2.0 (#510).
- * @param {import("../config.js").ServerOptions} options
- * @param {string} id
- */
-function hiddenByDefault(options, id) {
-    const source = options.sources?.[id]?.policy;
-    return [undefined, ...Object.values(options.policy?.profiles ?? {})].some((profile) => resolvePolicy(options.policy, source, profile).default === "hide");
 }
 
 /** Whether callers may send data of their own (inline:), whose reports count as closed: over MCP unless off, over REST where a profile allows it. */
@@ -146,11 +133,6 @@ async function links(options, registry, runtime) {
     const open = sources.filter((s) => !s.closed).map((s) => s.id);
     const items = [];
     const upgrade = [];
-    // open sources hidden by default: closed before this version, where reports get links
-    const hiddenOpen = open.filter((id) => hiddenByDefault(options, id));
-    if (hiddenOpen.length && (options.output?.baseUrl || runtime.http || uploadSettingsOf(options))) {
-        upgrade.push({ text: `a source hidden by default whose listed fields are shown counts as open for links (${idsText(hiddenOpen)})`, anchor: "hidden-open" });
-    }
 
     if (options.output?.baseUrl) {
         if (closed.length) {
