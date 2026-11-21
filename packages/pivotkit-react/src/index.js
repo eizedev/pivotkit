@@ -15,7 +15,18 @@
  * A view of pivotkit-core: what the report shows, as JSON. Hosts store and pass it; a partial view is
  * filled with defaults, anything unknown is dropped (pivotkit-core's normalize()).
  * @typedef {import("pivotkit-core").View} View
- * @typedef {{ [K in keyof View]?: View[K] extends Array<infer T> ? Array<T extends object ? Partial<T> : T> : View[K] extends object ? Partial<View[K]> : View[K] }} ViewInput
+ * @typedef {{ [K in keyof View]?: View[K] extends Array<infer T> ? Array<T extends object ? Partial<T> : T> : View[K] extends object ? Partial<View[K]> : View[K] }} PivotView
+ *   a view as a host passes it: the name pivotkit-element uses too (#563)
+ */
+
+/**
+ * The old name of PivotView.
+ * @typedef {PivotView} ViewInput
+ * @deprecated PK-DEP-0001: use `PivotView`, the same type under the name both packages use.
+ *   `ViewInput` goes no earlier than 2.0.0.
+ */
+
+/**
  * @typedef {import("./labels.js").UiLabels} UiLabels
  * @typedef {import("./labels.js").PartialLabels} PartialLabels
  */
@@ -23,7 +34,7 @@
 /**
  * @typedef {object} Template  an entry of the Views menu: a view, or a view file
  * @property {string} [name]  shown in the menu; default the view file's name (an entry without a name is left out)
- * @property {ViewInput} [view]
+ * @property {PivotView} [view]
  * @property {Record<string, unknown> | string} [file]  a view file ("pivotkit-view", its object or text)
  *   instead of `view`, read by pivotkit-core's fromViewFile
  * @property {"shared" | "user"} [scope]  the group: "Shared views" (for everyone) or "My views" (the
@@ -102,8 +113,8 @@
  *   per array or object, or once per `dataKey`
  * @property {string | number} [dataKey]  identity of `data`: a new array with the same key is not encoded again
  * @property {import("pivotkit-core").Encoded} [encoded]  already encoded data, instead of `data`
- * @property {ViewInput} [view]  controlled: the view to show; pass back what onViewChange gives
- * @property {ViewInput} [defaultView]  uncontrolled: the start view; the report keeps the view itself
+ * @property {PivotView} [view]  controlled: the view to show; pass back what onViewChange gives
+ * @property {PivotView} [defaultView]  uncontrolled: the start view; the report keeps the view itself
  * @property {(view: View) => void} [onViewChange]  every change, normalized
  * @property {Template[]} [templates]  the entries of the Views menu, in two groups by `scope`
  * @property {(name: string, view: View, where: TemplateScope) => unknown} [onSaveTemplate]  shows
@@ -112,7 +123,7 @@
  *   rejects. It wins over `templateStore`
  * @property {(name: string, where: TemplateScope) => unknown} [onDeleteTemplate]  deletes a template
  *   marked `deletable` (`where.scope`: its group); the entry goes when it returns (or its promise resolves)
- * @property {(name: string, view: ViewInput, where: { source: TemplateSource | null }) => unknown} [onPublishTemplate]  with `canPublish`:
+ * @property {(name: string, view: PivotView, where: { source: TemplateSource | null }) => unknown} [onPublishTemplate]  with `canPublish`:
  *   "Publish as shared view" on each of the user's views; the host makes it a shared entry of
  *   `templates`; "published" is shown when it returns or its promise resolves; `where.source` the data the
  *   view was made for: the data shown (null without a source id), or the data a view file or a view of

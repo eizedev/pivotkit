@@ -171,7 +171,7 @@ from `onViewChange`. The undo history stays inside the report however often your
 
     ```tsx
     import { useState } from "react";
-    import { PivotReport, type ViewInput } from "pivotkit-react";
+    import { PivotReport, type PivotView } from "pivotkit-react";
     import "pivotkit-react/styles.css";
 
     const rows = [/* the rows of the app above */];
@@ -180,13 +180,13 @@ from `onViewChange`. The undo history stays inside the report however often your
     ];
 
     export function Report() {
-        const [view, setView] = useState<ViewInput>(presets[0].view);
+        const [view, setView] = useState<PivotView>(presets[0].view);
         return <PivotReport data={rows} view={view} onViewChange={setView} />;
     }
     ```
 
-In TypeScript, type the state as `ViewInput`. Without it, TypeScript infers the preset's own type,
-and `tsc` refuses `onViewChange={setView}`. The web component's type for the same is `PivotView`.
+In TypeScript, type the state as `PivotView`. Without it, TypeScript infers the preset's own type,
+and `tsc` refuses `onViewChange={setView}`. The web component's type has the same name.
 
 The steps below add props to this `<PivotReport>` inside `Report`.
 

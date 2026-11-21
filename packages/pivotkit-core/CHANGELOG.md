@@ -8,6 +8,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `computePivot`'s option `strict`: a view with an error issue throws `INVALID_VIEW`, with the issues
+  in `error.details.issues`, instead of giving numbers
+  ([check the issues](https://pivotkit.eize.dev/getting-started/engine/#check-issues), #563).
 - `stacksToPercent(chart)`: whether a view's chart is drawn stacked to 100 %, for pivotkit-react's
   tip on stacks of values that do not add up ([#536](https://github.com/eizedev/pivotkit/issues/536)).
 - `COLOR_SCALES`: the colour scales the value menu offers, blue to orange, blue to red and red to

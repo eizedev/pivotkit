@@ -15,7 +15,7 @@
 
 import { aggregatorOf } from "./aggregators.js";
 import { derivedColumn } from "./derive.js";
-import { checkLimit, expect } from "./errors.js";
+import { PivotkitError, checkLimit, expect } from "./errors.js";
 import { isEncoded } from "./encode.js";
 import { applyFilters, todayOf } from "./filters.js";
 import { DEFAULT_LABELS, labelOf, ranksOf } from "./labels.js";
@@ -245,18 +245,29 @@ function sortAxis(tree, fields, columns, sortOf, valueOfNode, ranks) {
     walk(tree.root);
 }
 
+/** `options.strict`: false when left out; anything but a boolean is a programmer error. */
+function strictOf(options) {
+    const strict = options.strict ?? false;
+    if (typeof strict !== "boolean") {
+        throw new PivotkitError("INVALID_OPTION", `computePivot: strict must be true or false, got ${JSON.stringify(strict)}`);
+    }
+    return strict;
+}
+
 /**
  * Pivots encoded data with a view.
  *
  * @param {import("./encode.js").Encoded} data  from encode()
  * @param {unknown} viewInput  a view; normalized here, so it may come straight from a user
- * @param {{ locale?: string, now?: Date | number | string, limits?: Partial<import("./limits.js").Limits> }} [options]  locale: used
+ * @param {{ locale?: string, now?: Date | number | string, limits?: Partial<import("./limits.js").Limits>, strict?: boolean }} [options]  locale: used
  *   when the view names none (natural sort, label filters, labels); default "en-US". now: today for
  *   relative date ranges ("the last 5 years"), a Date, epoch ms or an ISO string read in the data's
  *   time zone; default the current time (an invalid one throws INVALID_OPTION). limits: the view
  *   limits for normalize(), `work` for the cell updates (computed before the trees are built),
  *   `groups` for the nodes of both key trees and `pivotCells` for the cells (each counted while it
- *   grows); more throws a PivotkitError (LIMIT_EXCEEDED)
+ *   grows); more throws a PivotkitError (LIMIT_EXCEEDED). strict: a view with an error issue (a field
+ *   the data lacks, a time zone that is not the data's) throws INVALID_VIEW with the issues in
+ *   `details.issues`, instead of pivoting what is left of it (#563); default false
  * @returns {PivotResult}
  */
 export function computePivot(data, viewInput, options) {
@@ -271,6 +282,12 @@ export function computePivot(data, viewInput, options) {
     }
     if (view.formatting.timeZone && view.formatting.timeZone !== data.timeZone) {
         issues.push(issueOf("formatting.timeZone", `the view was made for ${view.formatting.timeZone}, the data is encoded in ${data.timeZone}; pass timeZone to encode()`, "timeZoneMismatch", { value: view.formatting.timeZone, zone: data.timeZone }));
+    }
+    if (strictOf(options)) {
+        const errors = issues.filter((i) => i.severity !== "warning");
+        if (errors.length) {
+            throw new PivotkitError("INVALID_VIEW", `computePivot: the view has ${errors.length === 1 ? "an error" : `${errors.length} errors`}: ${errors.slice(0, 3).map((i) => `${i.path || "view"}: ${i.message}`).join("; ")}`, { issues: errors });
+        }
     }
     const columnOf = columnResolver(data, view);
     const ranks = (column) => ranksOf(column, locale, data.cache);

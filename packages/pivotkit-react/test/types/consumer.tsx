@@ -1,19 +1,22 @@
 // Compiled by `npm run test:types` against the generated declarations, through the package's own
 // exports map: the published types must describe the component as a TypeScript user sees it.
 import React from "react";
-import { PivotReport, type CellClick, type DataLoad, type ExportFile, type FieldDefaults, type PartialLabels, type PivotReportProps, type Template, type ViewInput } from "pivotkit-react";
+import { PivotReport, type CellClick, type DataLoad, type ExportFile, type FieldDefaults, type PartialLabels, type PivotReportProps, type PivotView, type Template, type ViewInput } from "pivotkit-react";
 import { LABELS } from "pivotkit-react/labels";
 import "pivotkit-react/styles.css"; // the stylesheet as a strict project imports it, without a bundler's CSS types (TS2882 without its declaration)
 import type { View } from "pivotkit-core";
 
 const templates: Template[] = [{ name: "By region", view: { rows: ["Region"] } }, { file: '{"format":"pivotkit-view","formatVersion":1,"name":"From a file","view":{}}', scope: "shared" }, { name: "Mine", view: {}, scope: "user", deletable: true }];
-const publish = (name: string, view: ViewInput): Promise<string> => Promise.resolve(`${name}:${view.rows?.length ?? 0}`);
+const publish = (name: string, view: PivotView): Promise<string> => Promise.resolve(`${name}:${view.rows?.length ?? 0}`);
 const store: PivotReportProps = { templates, templateStore: "browser", storageKey: "sales", canPublish: true, onPublishTemplate: publish, onSaveTemplate: (name, view, where) => [name, view.rows, where.scope], onDeleteTemplate: (name, where) => where.scope === "shared" && name };
 const onCell = (c: CellClick): number => c.count + c.rows.length + c.row.length;
 const props: PivotReportProps = { data: [{ Region: "North", Units: 3 }], templates, theme: "dark", locale: "de-DE", height: 480, limits: { cells: 10_000 }, importLimits: { rows: 1_000 } };
 const de: string = LABELS.de.zones.rows;
 const menuText: string = LABELS.en.cancel;
-const start: ViewInput = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
+const start: PivotView = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
+// the old name (PK-DEP-0001) is the same type until 2.0.0
+const old: ViewInput = start;
+const back: PivotView = old;
 const defaults: Record<string, FieldDefaults> = { Units: { agg: "average", format: "number:1" } };
 const partial: PartialLabels = { zones: { rows: de }, undo: "Zurück" };
 // @ts-expect-error a label is text, not a number

@@ -94,7 +94,7 @@ says what a pull request that deprecates something delivers.
 
 ## Register { #register }
 
-There are no deprecations yet. A withdrawn deprecation stays listed with its id.
+A withdrawn deprecation stays listed with its id.
 
 <!-- An entry looks like this:
 | PK-DEP-0001 | the view key `oldKey` | `newKey` | 1.2.0 | 2.0.0 |
@@ -102,6 +102,7 @@ There are no deprecations yet. A withdrawn deprecation stays listed with its id.
 
 | Id | Deprecated | Replacement | Since | Earliest removal |
 | --- | --- | --- | --- | --- |
+| PK-DEP-0001 | pivotkit-react's type `ViewInput` | `PivotView`, the name pivotkit-element uses too | 0.9.0 | 2.0.0 |
 
 ## Where this comes from
 

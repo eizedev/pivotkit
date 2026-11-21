@@ -180,6 +180,8 @@ Then restart Claude Code.
 | [A pie without a legend groups its smallest slices](#other-slice) | your app shows a pie or donut with the legend off, or your tests or screenshots compare one | nothing; turn the legend on to draw every slice. Expect "Other (n)" in tests |
 | [Sort by one column](#sort-column) | you share views with pivotkit 0.8, or run pivotkit-server or pivotkit-mcp | nothing. pivotkit 0.8 sorts such a view by the whole row, with a warning. Reconnect MCP clients to see `column` in the view schema |
 | [High and low points in the chart](#chart-points) | you share views with pivotkit 0.8, or your tests compare a normalized view or the chart option as a whole | nothing. A normalized view has `extremes` in `chart.referenceLines` |
+| [A strict `computePivot`](#strict) | you want a bad view to throw instead of giving numbers | pass `strict: true` |
+| [`PivotView` in pivotkit-react](#pivot-view-type) | your TypeScript code imports `ViewInput` from pivotkit-react | import `PivotView` instead. `ViewInput` still works ([PK-DEP-0001](../versioning.md#register)) |
 
 ### Two chart types: bars and lines, and a treemap { #combo-treemap }
 
@@ -211,6 +213,22 @@ in `column`, its items from the outermost column field.
 
 - pivotkit 0.8 reads such a view with a warning and sorts by the whole row.
 - Saved again there, the view loses the column.
+
+### A strict `computePivot` { #strict }
+
+`computePivot(data, view, { strict: true })` throws a `PivotkitError` with the code `INVALID_VIEW`
+for a view with an error issue, such as a filter on a field the data lacks. `error.details.issues`
+lists them. Without `strict`, nothing changes: the result keeps every row the dropped part would
+have filtered, and `result.issues` says why ([check the issues](engine.md#check-issues)).
+
+### `PivotView` in pivotkit-react { #pivot-view-type }
+
+pivotkit-react calls its view type `PivotView`, the name pivotkit-element uses. `ViewInput` is the
+same type under its old name. It is deprecated as PK-DEP-0001 and goes no earlier than 2.0.0.
+
+- Replace `import { type ViewInput } from "pivotkit-react"` with `type PivotView`.
+- TypeScript shows no warning for the old name. The register on the
+  [versioning page](../versioning.md#register) lists it.
 
 ### High and low points in the chart { #chart-points }
 
