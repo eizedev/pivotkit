@@ -5,7 +5,7 @@
  */
 
 import { colorLookup } from "./chart-colors.js";
-import { referenceLines } from "./chart-lines.js";
+import { extremePoints, referenceLines } from "./chart-lines.js";
 import { lineLabelText } from "./chart-measure.js";
 import { autoChartType, toSeries } from "./chart-series.js";
 import { legendSelected, percentShares, stacksToPercent } from "./chart-stack.js";
@@ -301,6 +301,7 @@ export function toEChartsOption(result, options) {
     const position = type === "line" ? "top" : stacked ? "inside" : chart.horizontal ? "right" : "top";
     const valueLabel = showValues ? { label: { show: true, position, color: theme.textColor, formatter: (p) => (typeof p.value === "number" ? (percent ? shareFormatter(p.value) : fmt(p.value)) : "") } } : {};
     const marks = markLines(referenceLines(result, { chart, series: s, words: options.labels?.referenceLines, locale: options.locale }), s, { horizontal: Boolean(chart.horizontal), theme, short: (v) => compact(v), hidden: Array.isArray(chart.hidden) ? chart.hidden : [] });
+    const points = markPoints(extremePoints(result, { chart, series: s, locale: options.locale }), s, { type, horizontal: Boolean(chart.horizontal), theme, colorOf, raised: showValues && !stacked, hidden: Array.isArray(chart.hidden) ? chart.hidden : [] });
     // the value axis reaches every line: a target past the tallest bar is drawn, not cut off.
     // dataMin and dataMax are ECharts' own (ECharts 6, scaleRawExtentInfo: they widen the data's
     // extent before the nice ticks), little documented: tests/browser/chart-lines.spec.js checks that a
@@ -336,7 +337,8 @@ export function toEChartsOption(result, options) {
                 ...(chart.type === "area" ? { areaStyle: color ? { color } : {} } : {}),
                 ...(type === "line" ? { connectNulls: false, smooth: Boolean(chart.smooth) } : {}),
                 ...valueLabel,
-                ...(marks.bySeries[i] ? { markLine: { silent: true, symbol: ["none", "none"], data: marks.bySeries[i] } } : {})
+                ...(marks.bySeries[i] ? { markLine: { silent: true, symbol: ["none", "none"], data: marks.bySeries[i] } } : {}),
+                ...(points[i] ? { markPoint: { silent: true, symbol: "circle", symbolSize: POINT_SIZE, data: points[i] } } : {})
             };
         })
     };
@@ -415,4 +417,64 @@ function markLines(lines, s, { horizontal, theme, short, hidden }) {
         }
     }
     return { bySeries: bySeries.map((d) => (d.length ? d : null)), extent: values.length ? [Math.min(...values), Math.max(...values)] : null, room: horizontal && rows ? rows * (fontSize + LABEL_GAP) + LABEL_GAP : 0 };
+}
+
+/** The size (px) of a high or low point's dot: a little larger than a line's points (7 px). */
+const POINT_SIZE = 10;
+/** The glyphs of a high and a low point: they say which one it is without colour. */
+export const POINT_GLYPHS = Object.freeze({ max: "\u25B2", min: "\u25BC" });
+
+/**
+ * The high and low points as ECharts markPoint data, by the series that draws them: a series' own on
+ * it; a stack's total's on the last series shown, in the theme's reference colour. Each is a dot in its
+ * series' colour (chart.colors, colorMap, else the palette's) and a label: the glyph (▲, ▼) in that
+ * colour, the value in the text colour, which reads on every background (a palette colour such as
+ * yellow does not, as text). A line's highest label goes above its dot, its lowest below; a bar's past
+ * its end, where nothing else is drawn, above any value label there (`raised`). decorateOption keeps
+ * the labels inside the plot and apart.
+ * @param {import("./chart-lines.js").ExtremePoint[]} points
+ * @param {ReturnType<typeof toSeries>} s
+ * @param {{ type: string, horizontal: boolean, theme: ChartTheme, colorOf: (name: string, i: number) => string | undefined, raised: boolean, hidden: string[] }} how
+ *   hidden: the series the legend hides (chart.hidden): a stack's total sits on the top one shown
+ * @returns {(any[] | null)[]}
+ */
+function markPoints(points, s, { type, horizontal, theme, colorOf, raised, hidden }) {
+    /** @type {any[][]} */
+    const bySeries = s.series.map(() => []);
+    const fontSize = theme.textSize ?? DEFAULT_THEME.textSize;
+    const colors = theme.colors ?? [];
+    for (const p of points) {
+        const own = p.series !== null;
+        // a stack's total goes on its top part: the last series with a value there
+        const holder = own ? /** @type {number} */ (p.series) : lastWith(s, p.index, hidden);
+        if (holder < 0) continue;
+        const color = own ? (colorOf(s.series[holder].name, holder) ?? colors[holder % Math.max(1, colors.length)]) : (theme.referenceColor ?? theme.textColor);
+        const below = type === "line" && p.kind === "min";
+        const position = horizontal ? (p.value < 0 ? "left" : "right") : below || (type === "bar" && p.value < 0) ? "bottom" : "top";
+        const label = `${p.format(p.value)}`;
+        bySeries[holder].push({
+            name: p.kind,
+            coord: horizontal ? [p.value, p.index] : [p.index, p.value],
+            value: p.value,
+            ...(color ? { itemStyle: { color } } : {}),
+            label: {
+                show: true,
+                position,
+                distance: raised && !below ? fontSize + 10 : 6,
+                formatter: () => `{s|${POINT_GLYPHS[p.kind]}} ${label}`,
+                rich: { s: { ...(color ? { color } : {}), fontSize } },
+                color: theme.textColor,
+                fontSize
+            }
+        });
+    }
+    return bySeries.map((d) => (d.length ? d : null));
+}
+
+/** The last series shown with a value at category `i`, -1 for none: the top of a stack there. */
+function lastWith(s, i, hidden) {
+    for (let k = s.series.length - 1; k >= 0; k--) {
+        if (typeof s.series[k].data[i] === "number" && !hidden.includes(s.series[k].name)) return k;
+    }
+    return -1;
 }

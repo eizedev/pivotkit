@@ -197,3 +197,13 @@ test("the suggested file name is a slug with .pivotkit.json", () => {
     assert.equal(viewFileName(undefined), "view.pivotkit.json");
     assert.ok(viewFileName("x".repeat(500)).length <= 80 + ".pivotkit.json".length);
 });
+
+test("reference lines on: a file leaves out the high and low points while they are off, so a reader of 0.8 takes it without a warning", () => {
+    const lines = { ...view, chart: { ...view.chart, referenceLines: { average: true, trend: false, target: null, extremes: false } } };
+    assert.deepEqual(toViewFile(lines).view.chart.referenceLines, { average: true, trend: false, target: null });
+    assert.deepEqual(fromViewFile(toViewFile(lines)).view.chart.referenceLines, lines.chart.referenceLines);
+    // switched on, it is written
+    const on = { ...view, chart: { ...view.chart, referenceLines: { average: false, trend: false, target: null, extremes: true } } };
+    assert.equal(toViewFile(on).view.chart.referenceLines.extremes, true);
+    assert.deepEqual(fromViewFile(toViewFile(on)).view, on);
+});

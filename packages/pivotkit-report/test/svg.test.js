@@ -123,6 +123,23 @@ test("reference lines (#48): the SVG puts each label at its line, after a sample
     assert.match(r.text, /fill="#5a6270"[^>]*>——</);
 });
 
+test("high and low points (#574): the SVG and the HTML report draw a dot and a label at each, the glyph in the series' colour", async () => {
+    // North 10, South 12, West 4, (blank) 6 units: the highest at South, the lowest at West
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", referenceLines: { average: false, trend: false, target: null, extremes: true } } };
+    const r = await render(view, SALES, { format: "svg", echarts, ...FIXED });
+    const texts = svgTexts(r.text).map((t) => t.trim());
+    assert.ok(texts.includes("▲") && texts.includes("12"), texts.join(" | "));
+    assert.ok(texts.includes("▼") && texts.includes("4"), texts.join(" | "));
+    // the glyph in the first series' colour (light --pk-chart-1)
+    assert.match(r.text, /fill="#2a78d6"[^>]*>▲</);
+    // the label is placed after a second draw, as on the screen: it stays above the plot's top edge
+    const html = await render({ ...view, display: "chart" }, SALES, { format: "html", chart: true, chartEmbed: "inline", echarts, ...FIXED });
+    assert.ok(svgTexts(html.text).map((t) => t.trim()).includes("▲"));
+    // off: no glyph
+    const off = await render({ ...view, chart: { type: "bar" } }, SALES, { format: "svg", echarts, ...FIXED });
+    assert.ok(!svgTexts(off.text).some((t) => t.includes("▲")));
+});
+
 test("100 % stacked bars and hidden series reach the SVG (#36)", async () => {
     const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] };
     const stacked = await render({ ...view, chart: { type: "bar", stacked: true, stackPercent: true, zoom: "on" } }, SALES, { format: "svg", echarts, ...FIXED });

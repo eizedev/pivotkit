@@ -201,7 +201,7 @@ export function ChartSettingsPanel({ view, plan, encoded, lineChecks, labels, lo
     // which reference lines the chart can draw: the drawn chart's checks with its numbers, else the
     // view's rules (rows and columns swapped where the chart swaps them) and a note that the chart is not drawn yet
     const lines = view.chart.referenceLines;
-    const plain = plan?.chart && encoded ? referenceLineRules(plan.swap ? swapAxes(view) : view, { ...view.chart, ...plan.chart }, encoded) : { average: true, trend: true, target: true };
+    const plain = plan?.chart && encoded ? referenceLineRules(plan.swap ? swapAxes(view) : view, { ...view.chart, ...plan.chart }, encoded) : { average: true, trend: true, target: true, extremes: true };
     const rules = lineChecks ?? { ...plain, notes: ["table"] };
     // the colour each series or slice is drawn with, as #rrggbb, read again after each draw of the chart
     const [drawnColors, setDrawnColors] = useState(/** @type {Map<string, string>} */ (new Map()));

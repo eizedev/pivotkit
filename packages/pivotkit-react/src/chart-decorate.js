@@ -84,7 +84,7 @@ export function drawOption(instance, option, style, doc, extra, hostOptions) {
     const first = marked(undefined);
     instance.setOption(first, { notMerge: true });
     const lying = !Array.isArray(first.yAxis) && first.yAxis?.type === "value";
-    if (lying && (first.series ?? []).some((/** @type {any} */ s) => s.markLine)) {
+    if (lying && (first.series ?? []).some((/** @type {any} */ s) => s.markLine || s.markPoint)) {
         instance.setOption({ series: marked((value) => instance.convertToPixel({ yAxisIndex: 0 }, value)).series });
     }
     return own;

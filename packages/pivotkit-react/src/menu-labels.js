@@ -394,6 +394,8 @@ export const en = {
     targetNone: "No target",
     // the Reference lines row when none is on
     linesOff: "Off",
+    // the switch for a dot with ▲ or ▼ at each series' highest and lowest value
+    linesExtremes: "High and low points",
     targetPercent: "A percentage: type 25% or 0.25.",
     targetPercent100: "A percentage: type 25 or 25%.",
     // a bare number above 1 for a value shown as a share: {typed} as typed, {shown} what it means

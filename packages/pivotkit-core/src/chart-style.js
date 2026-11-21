@@ -9,13 +9,13 @@
 
 import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
-import { barExtent, pieLabelFit, pieLabelTexts, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
+import { barExtent, pieLabelFit, pieLabelTexts, pointLabels, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
 import { AXIS_LABEL_MARGIN, LINE_SAMPLES, groupLabelLine, groupLabelOffset, heatmapFrame, lineLabelText, textWidth } from "./chart-measure.js";
 import { ZOOM_SLIDER, longestNames, zoomRange, zoomSlider, zoomWindow } from "./chart-zoom.js";
 
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
-export { referenceLineChecks, referenceLines } from "./chart-lines.js";
+export { extremePoints, referenceLineChecks, referenceLines } from "./chart-lines.js";
 
 /** A copy of an object without the given keys. */
 const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));
@@ -232,6 +232,17 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         grid.right += lines.room;
         series = lines.series;
     }
+    // the labels of the high and low points: inside the plot (the value axis reaches past them) and apart
+    const horizontalBars = first(option.yAxis)?.type === "category";
+    const valueKey = horizontalBars ? "xAxis" : "yAxis";
+    const points = grid ? pointLabels(series, { width, height, grid, fontSize, horizontal: horizontalBars, axis: first(option[valueKey]), pixelOf }) : null;
+    /** @type {Record<string, any>} */
+    const reach = {};
+    if (points) {
+        series = points.series;
+        const own = first(option[valueKey]);
+        reach[valueKey] = { ...own, ...(points.dataMin !== undefined ? { dataMin: points.dataMin } : {}), ...(points.dataMax !== undefined ? { dataMax: points.dataMax } : {}) };
+    }
     // a heatmap names every column: slanted where they would overlap (columnLabelLayout)
     const heatmap = series.some((s) => s.type === "heatmap") && option.xAxis?.axisLabel;
     const xAxis = heatmap ? { ...option.xAxis, axisLabel: { ...option.xAxis.axisLabel, ...columnLabelLayout(option.xAxis.data ?? [], width, fontSize) } } : option.xAxis;
@@ -241,7 +252,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     const title = option.title ? { title: { ...option.title, textStyle: { ...option.title.textStyle, width: Math.max(40, width - 32), overflow: "truncate" } } } : {};
     // bars, lines and areas: the category axis writes every label that fits (categoryLabelLayout), the
     // group labels sit below (or left of) those labels
-    let axes = { xAxis, yAxis };
+    let axes = { xAxis: reach.xAxis ?? xAxis, yAxis: reach.yAxis ?? yAxis };
     let axisEvery = 1;
     /** @type {object | null} the zoom slider (chart-zoom.js) */
     let slider = null;
