@@ -11,6 +11,7 @@ export { AddMenu } from "./add-menu.jsx";
 export { ChartSettingsPanel, ExportPanel, LoadCheck, MorePanel, TableSettingsPanel, ViewsPanel } from "./toolbar-panels.jsx";
 export { FilterPopover } from "./filter.jsx";
 export { DrillPanel } from "./drill-panel.jsx";
+export { PointMenu } from "./point-menu.jsx";
 export { DataMenu } from "./data-menu.jsx";
 export { addMenuTexts, hasMenuTexts, menuLabels } from "./menu-labels.js";
 export { storedViews } from "./view-store.js";

@@ -430,9 +430,11 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * scales (English with the menus, German in the menus' texts) take the menus to 57.6 on CI's zlib
  * (57.0 before), over their budget of 57.5. With #690 and #691 merged, CI's zlib measures the menus
  * at 58.0: menus goes to 58.5, CI's measure plus about 0.5 KiB.
+ * The menu at a clicked point of the chart (#53) loads with the menus: about 0.6 KiB. With #695
+ * merged, CI's zlib measures the menus at 58.6: menus goes to 59.1, CI's measure plus about 0.5 KiB.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 181, chart: 259.5, export: 12.6, link: 7.5, menus: 58.5, texts: 8.5, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
+export const SIZE_BUDGET_KIB = { initial: 181, chart: 259.5, export: 12.6, link: 7.5, menus: 59.1, texts: 8.5, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
