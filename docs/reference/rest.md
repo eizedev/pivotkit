@@ -1249,8 +1249,7 @@ For an origin in `rest.cors.origins` every answer adds `Access-Control-Allow-Ori
 A running server serves its OpenAPI 3.1 document at the server's root, not under `/api/v1`. For a
 server at `https://reports.example.com` the address is `https://reports.example.com/openapi.json`.
 On your machine it is `http://127.0.0.1:3333/openapi.json`. A 404 and `check-config` name this full
-address when `http.publicUrl` is set. Without it, they say that the document sits at the root. A
-user name, password or query in `http.publicUrl` is never shown.
+address when `http.publicUrl` is set. Without it, they say that the document sits at the root.
 
 The document has the server's own address (`http.publicUrl`) and sign-in: bearer for tokens, the
 issuer's OAuth endpoints, and the scopes per operation as `x-pivotkit-scopes`.
@@ -1421,7 +1420,10 @@ Behind a reverse proxy:
   `/downloads/`. With MCP, also forward `/mcp`, `/.well-known/` and `/`.
 - With `branding.icon`, forward `/icon.png`. With `http.page.url`, forward `/`.
 - Keep the `Host` header, or add the proxy's name to `http.allowHosts`.
-- Set `http.publicUrl`.
+- Set `http.publicUrl` to the origin people open, such as `https://reports.example.com`. It takes
+  no path: the server serves at the root of its host. On a shared host, give pivotkit a host name of
+  its own, such as a subdomain, or route the paths above at the root. A user name, password, query
+  or fragment is refused too.
 - Set `http.trustProxy` when the proxy adds the client's address to `X-Forwarded-For`. Otherwise
   every client has the proxy's address and shares one count of refused tokens (the [limit](#limits)
   per address).

@@ -19,7 +19,7 @@
 
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
 import { BODY_BYTES, ConfigError, DEFAULT_PORT, callerOf, requestScopeFor, serveFetch } from "pivotkit-server";
-import { DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, brandingAnswer, brandingOfContext, pageRedirect, hostProblem, hostRefusal, hostRefusedLine, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logNotes, logUnanswered, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server/internal";
+import { DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, publicOriginOf, SIGNED_IN, allowedHosts, brandingAnswer, brandingOfContext, pageRedirect, hostProblem, hostRefusal, hostRefusedLine, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logNotes, logUnanswered, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server/internal";
 import { MCP_TOKEN_ENV, createMcpContext } from "./context.js";
 import { createAuth, refusedClientOf } from "./auth.js";
 import { pageCsp, quickStartPage } from "./page.js";
@@ -123,7 +123,7 @@ function protocolRefusal(log, error) {
  */
 export async function createHttpHandler(context, runtime = {}) {
     const http = context.options.http ?? {};
-    const publicUrl = http.publicUrl ? new URL(http.publicUrl) : null;
+    const publicOrigin = publicOriginOf(context.options);
     const hosts = allowedHosts(context.options);
     const origins = http.allowOrigins ?? [];
     const auth = await createAuth(context, { env: runtime.env ?? process.env, loopback: runtime.loopback ?? isLoopback(http.host ?? "127.0.0.1") });
@@ -220,7 +220,7 @@ export async function createHttpHandler(context, runtime = {}) {
             if (!page) {
                 return new Response("not found", { status: 404 });
             }
-            const endpoint = publicUrl ? new URL(ENDPOINT, publicUrl).href : `${url.protocol}//${url.host}${ENDPOINT}`;
+            const endpoint = publicOrigin ? `${publicOrigin}${ENDPOINT}` : `${url.protocol}//${url.host}${ENDPOINT}`;
             const html = quickStartPage({ endpoint, version: context.version, auth: auth.mode, issuer: auth.mode === "oauth" ? context.options.auth?.issuer : null, sources: page.sources ? context.registry.titles().filter((s) => !s.scopes.length) : null, branding });
             return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": pageCsp(branding), "cache-control": "no-store" } });
         }

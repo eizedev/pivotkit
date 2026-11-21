@@ -76,6 +76,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- **Breaking:** `http.publicUrl` and `--public-url` take an origin. A path, user name, password,
+  query or fragment stops the start with an error that names the remedy. Download links, the
+  OpenAPI document, the REST resource, the 404 text, `check-config` and the hints of `token new`
+  all use the origin, and none of them shows a user name or password
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#public-url-origin), #629).
 - **Breaking:** needs Node 24 or later. Node 22 is no longer supported
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
 - The container image runs on a distroless Node 24 base (#519).

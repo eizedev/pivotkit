@@ -20,7 +20,7 @@
 import { OperationError, checkInput } from "pivotkit-report/operations";
 import { RENDER_FORMATS } from "pivotkit-report";
 import { SIGN_IN_CLIENT_FIELD } from "pivotkit-cli/rest";
-import { OPENAPI_PATH, REST_BASE, noRouteDetail, restResourceOf } from "../config.js";
+import { OPENAPI_PATH, REST_BASE, noRouteDetail, publicOriginOf, restResourceOf } from "../config.js";
 import { AuthRefusal, bearerOf, groupRefusal, resourceMetadataUrlOf } from "../auth.js";
 import { allowedHosts, clientAddress, hostRefusal } from "../checks.js";
 import { callerOf } from "../context.js";
@@ -164,7 +164,7 @@ export async function createRestHandler(context, runtime = {}) {
     let warnedAddress = false;
     const trustProxy = options.http?.trustProxy ?? false;
     let document = null;
-    const openapi = () => (document ??= openApiDocument({ branding, auth: authOptions, publicUrl: options.http?.publicUrl, issuer: core.metadata?.() ?? null, resource: resource.href, requiredScopes, offers: context.offers?.rest }));
+    const openapi = () => (document ??= openApiDocument({ branding, auth: authOptions, publicUrl: publicOriginOf(options) ?? undefined, issuer: core.metadata?.() ?? null, resource: resource.href, requiredScopes, offers: context.offers?.rest }));
 
     /** The WWW-Authenticate challenge of a refusal. */
     function challenge(error, description, scopes = requiredScopes) {
