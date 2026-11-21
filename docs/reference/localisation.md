@@ -29,8 +29,8 @@ Two settings decide how a report reads:
 pivotkit-react exports `LABELS` from its subpath `pivotkit-react/labels`:
 `import { LABELS } from "pivotkit-react/labels"`. It is a subpath of its own, so the report's first
 load does not carry the menus' texts. Its keys are the reference for every text. In pivotkit-react's
-source, they live in `src/labels.js`, `src/menu-labels.js`, `src/menu-labels-de.js`,
-`src/unused-texts.js`, `src/unused-texts-de.js` and `src/import-labels.js`.
+source, they live in `src/labels.js`, `src/labels-de.js`, `src/menu-labels.js`,
+`src/menu-labels-de.js`, `src/unused-texts.js`, `src/unused-texts-de.js` and `src/import-labels.js`.
 
 The texts of the tabs and the zones' section are `table`, `chart`, `tableSettings`, `chartSettings`,
 `settingsShort` (the settings button on a phone), `zonesTitle`, `zonesHint` and `more`. "+ Add" in
@@ -44,6 +44,18 @@ The report ignores the keys `layout`, `showLayout`, `options` and `chartDisplay`
 console which key holds that text now ([upgrading](../getting-started/upgrading.md#view-tabs-0-8)).
 
 The report's `lang` attribute follows the labels, so screen readers use the right voice.
+
+The web component loads the German texts of the first render as a file of its own:
+
+- Only a German report loads it, before it renders. Until then the report shows its skeleton without
+  a word. It never shows English first.
+- A report that changes to German keeps its English texts until the German ones are there.
+- When the file cannot load, or does not arrive within 4 seconds, the report shows in English and
+  says so once in the console. German texts that arrive later still take their place.
+- A report that mounts after such a failure shows English at once and tries the file again. It
+  takes the German texts when they arrive.
+
+pivotkit-react has these texts at once.
 
 The texts that only the menus show load with the menus, right after the first render:
 

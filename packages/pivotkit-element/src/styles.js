@@ -3,19 +3,32 @@
  * element of the document (adoptedStyleSheets), or a <style> element where a browser has no
  * constructable stylesheets or refuses to adopt one (an element moved into another document).
  * Nothing is added to the page's own styles.
+ *
+ * The rules only the menus' panels match load with the menus (build.js, src/css-split.js):
+ * addMenuStyles() puts them back in their place, in the shared sheet and in every <style> element.
  */
 
-import css from "pivotkit-react/styles.css";
+import { first } from "pivotkit-react/styles.css";
+import { joinStyles } from "./css-split.js";
+
+/** The menus' runs of rules, once the menus are loaded. @type {readonly string[] | null} */
+let menuRuns = null;
 
 /** @type {CSSStyleSheet | null | undefined} undefined: not tried yet; null: not available */
 let shared;
+
+/** The <style> elements of the fallback, held weakly: an element that is gone is not kept. @type {Set<WeakRef<HTMLStyleElement>>} */
+const styleElements = new Set();
+
+/** The stylesheet as it is now: the first load's rules, with the menus' once they are here. */
+const cssNow = () => joinStyles(first, menuRuns);
 
 /** The shared sheet, built on first use. */
 function sheet() {
     if (shared === undefined) {
         try {
             shared = new CSSStyleSheet();
-            shared.replaceSync(css);
+            shared.replaceSync(cssNow());
         } catch {
             shared = null;
         }
@@ -39,7 +52,32 @@ export function adoptStyles(shadow) {
         }
     }
     const style = shadow.ownerDocument.createElement("style");
-    style.textContent = css;
+    style.textContent = cssNow();
+    if (!menuRuns) {
+        // the menus' rules are still to come: this element gets them then
+        styleElements.add(new WeakRef(style));
+    }
     shadow.prepend(style);
     return "style";
+}
+
+/**
+ * The menus' rules, in their place among the others: called once by the menus' module when it loads.
+ * @param {readonly string[]} runs
+ */
+export function addMenuStyles(runs) {
+    if (menuRuns) {
+        return;
+    }
+    menuRuns = runs;
+    const css = cssNow();
+    shared?.replaceSync(css);
+    for (const ref of styleElements) {
+        const style = ref.deref();
+        if (style) {
+            style.textContent = css;
+        }
+    }
+    // a <style> element made from now on has them from the start
+    styleElements.clear();
 }

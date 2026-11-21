@@ -7,6 +7,8 @@ import { encode, fieldLabel, normalize, VIEW_ISSUE_CODES } from "pivotkit-core";
 import { ISSUE_CASES, issuesOf } from "../../pivotkit-core/test/issue-cases.js";
 import { SALES } from "../../pivotkit-core/test/fixtures.js";
 import { fill, LABELS, resolveLabels } from "../src/labels.js";
+// the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
+import "../src/deferred.js";
 import { valueLabel } from "../src/names.js";
 import { de } from "../src/unused-texts-de.js";
 import { en, unusedItem, unusedItems } from "../src/unused-texts.js";

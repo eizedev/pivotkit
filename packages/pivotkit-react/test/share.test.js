@@ -6,6 +6,8 @@ import { encode, linkParam, toViewFile, viewFileText } from "pivotkit-core";
 import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
 import { CHART_OPTIONS_CAPS, cleanChartOptions, mergeChartOptions } from "../src/chart-options.js";
 import { LABELS } from "../src/labels.js";
+// the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
+import "../src/deferred.js";
 import { loadCheck, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, viewStorageName, withLinkParam, writeStoredView } from "../src/share.js";
 
 const data = encode([

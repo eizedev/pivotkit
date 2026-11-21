@@ -22,7 +22,8 @@ import { dateContext, dateRangeText, dateDisplayLocale } from "./date-context.js
 import { displayNames, fieldDefaultsFor, fieldInfoOf, typesOf } from "./field-info.js";
 import { FieldPanel } from "./fields.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
-import { errorText, fill, plural, removedLabels, resolveLabels, rowCount } from "./labels.js";
+import { errorText, fill, hasLabels, labelsHere, langOf, onLabels, plural, removedLabels, requestLabels, resolveLabels, rowCount } from "./labels.js";
+import { DEFERRED } from "./deferred.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { MenuPanel, loadMenus, menusNow, onMenuTexts } from "./lazy-menus.jsx";
 import { importNow, loadImport } from "./lazy-import.js";
@@ -35,7 +36,8 @@ import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
 import { localStore, readItem, subscribeItem, writeItem } from "./storage.js";
 import { templateEntries, viewsName } from "./templates.js";
-import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed } from "./tips.js";
+import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, subscribeStored, withoutFilters, writeDismissed } from "./tip-state.js";
+import { NOTICES, activeEntries, tipActionText, tipContext, tipText } from "./notices.js";
 import { Tips } from "./tip-list.jsx";
 import { Unused } from "./unused.jsx";
 import { FormNameContext, activeIn } from "./dom.js";
@@ -167,7 +169,9 @@ const unusedNotes = (issues, raw) => issues.filter((i) => (i.code ?? (i.message 
 /**
  * The pivot report builder. While the host's data loads (`loading`) or a large data set is encoded for
  * the first time, the report shows its skeleton; once shown, the report stays (its view and history
- * too) and a later `loading` covers its result only.
+ * too) and a later `loading` covers its result only. A language whose texts load on demand
+ * (pivotkit-element: deferred-late.js) is waited for: before it the skeleton shows without a word, and
+ * a report that changes its language keeps the last one's texts until the new ones are here.
  * @param {import("./index.js").PivotReportProps} props
  */
 export function PivotReport(props) {
@@ -188,28 +192,87 @@ export function PivotReport(props) {
             clearTimeout(timer);
         };
     }, [deferred]);
-    const waiting = Boolean(loading) || deferred;
+    const texts = useLabelsOf(props.locale);
+    const waiting = Boolean(loading) || deferred || !texts.shown;
     if (!waiting && !started) {
         setStarted(true);
     }
     if (waiting && !started) {
-        return <WaitingReport {...props} />;
+        return <WaitingReport {...props} locale={texts.locale} silent={!texts.shown} />;
     }
-    return <Report {...props} />;
+    return <Report {...props} locale={texts.locale} />;
 }
 
 /**
- * The report's frame with the skeleton in it, before the report has its data.
- * @param {import("./index.js").PivotReportProps} props
+ * The locale whose texts the report shows: `locale` once its language's first-load texts are here (or
+ * cannot come: no loader, or the load failed, then English), until then the last one that was shown.
+ * Starts the load during the render, as React.lazy does: the request leaves as early as it can, and a
+ * second report of the same language shares it (labels.js requestLabels).
+ * @param {string | undefined} locale
+ * @returns {{ shown: boolean, locale: string | undefined }}  shown: false until a locale's texts were here once
  */
-function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto", height = 640, className, label }) {
+function useLabelsOf(locale) {
+    const here = useSyncExternalStore(onLabels, () => labelsHere(locale, DEFERRED.loadLabels), () => labelsHere(locale, DEFERRED.loadLabels));
+    if (!here) {
+        requestLabels(locale, DEFERRED.loadLabels);
+    }
+    // a report that mounts, or changes its language, tries a language that failed before once more
+    const lang = langOf(locale);
+    useEffect(() => requestLabels(lang, DEFERRED.loadLabels, { again: true }), [lang]);
+    const [last, setLast] = useState(() => (here ? { locale } : null));
+    if (here && (!last || last.locale !== locale)) {
+        setLast({ locale });
+    }
+    return here ? { shown: true, locale } : { shown: last !== null, locale: last?.locale };
+}
+
+/** The tips' table once it loaded (pivotkit-element), shared by every report of the page. */
+let tipsLoaded = DEFERRED.tips;
+/** @type {Promise<NonNullable<typeof DEFERRED.tips>> | null} */
+let tipsPending = null;
+
+/**
+ * The tips' table with its conditions and texts (tips.js): here at once in pivotkit-react; in
+ * pivotkit-element loaded after the first render, null until then. A failed load shows no tip, says so
+ * once in the console and is tried again by the next report that mounts.
+ */
+function useTipsTable() {
+    const [mod, setMod] = useState(() => tipsLoaded);
+    useEffect(() => {
+        const load = DEFERRED.loadTips;
+        if (mod || !load) {
+            return undefined;
+        }
+        let live = true;
+        tipsPending ??= load().then((m) => (tipsLoaded = m), (error) => {
+            tipsPending = null;
+            warnOnce(`pivotkit: the tips did not load, the report shows none: ${error instanceof Error ? error.message : String(error)}`);
+            throw error;
+        });
+        tipsPending.then(
+            (m) => live && setMod(m),
+            () => {}
+        );
+        return () => {
+            live = false;
+        };
+    }, [mod]);
+    return mod;
+}
+
+/**
+ * The report's frame with the skeleton in it, before the report has its data; `silent` while its
+ * language's texts load: no word at all, so the report never says anything in English first.
+ * @param {import("./index.js").PivotReportProps & { silent?: boolean }} props
+ */
+function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto", height = 640, className, label, silent = false }) {
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
     const labelsKey = JSON.stringify(customLabels ?? null);
     const labels = useMemo(() => resolveLabels(locale, JSON.parse(labelsKey)), [locale, labelsKey]);
     const themeName = useResolvedTheme(theme, root);
     return (
-        <div ref={root} className={`pk-root${className ? ` ${className}` : ""}`} data-pk-theme={themeName} lang={labels.lang} role="region" aria-label={label || labels.report} style={{ height }}>
-            <Skeleton full text={labels.loadingReport} />
+        <div ref={root} className={`pk-root${className ? ` ${className}` : ""}`} data-pk-theme={themeName} lang={silent ? undefined : labels.lang} role="region" aria-label={label || (silent ? undefined : labels.report)} style={{ height }}>
+            <Skeleton full text={silent ? "" : labels.loadingReport} />
         </div>
     );
 }
@@ -361,7 +424,10 @@ function Report(props) {
     const defaultsKey = JSON.stringify(fieldDefaults ?? null);
     // what the host says about its fields: display names, descriptions, links; nothing changes without it
     const info = useMemo(() => fieldInfoOf(JSON.parse(defaultsKey)), [defaultsKey]);
-    const baseLabels = useMemo(() => resolveLabels(locale, JSON.parse(labelsKey)), [locale, labelsKey]);
+    // English while the language's texts are not here; texts that arrive after English stood in for
+    // them (deferred-late.js) take their place
+    const textsHere = useSyncExternalStore(onLabels, () => hasLabels(locale), () => hasLabels(locale));
+    const baseLabels = useMemo(() => resolveLabels(textsHere ? locale : "en", JSON.parse(labelsKey)), [textsHere, locale, labelsKey]);
     const typesKey = JSON.stringify(typesOf(fieldDefaults));
     const limitsKey = JSON.stringify(limitsProp ?? null);
     const hostLimits = useMemo(() => JSON.parse(limitsKey) ?? undefined, [limitsKey]);
@@ -1494,8 +1560,11 @@ function Report(props) {
         }
     };
     const toggle = (id, on) => changeDismissed(on ? dismissed.filter((d) => d !== id) : [...dismissed, id], on ? null : id);
+    // the tips' table: here at once, or loaded after the first render (pivotkit-element); the notices
+    // (the result is cut or empty) until then
+    const tipsMod = useTipsTable();
     const ctx = tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate) || viewStore, savedAt, chartPlan: plan });
-    const shownTips = activeTips(ctx, { allowed, dismissed }).map((t) => ({
+    const shownTips = activeEntries(tipsMod?.TIPS ?? NOTICES, ctx, { allowed, dismissed }).map((t) => ({
         id: t.id,
         params: t.params,
         icon: t.entry.icon ?? "info",

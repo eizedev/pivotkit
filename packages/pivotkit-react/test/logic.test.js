@@ -4,6 +4,8 @@ import { computePivot, encode, toGrid } from "pivotkit-core";
 import { decodeRow, drillRows } from "../src/drill.js";
 import { drillTable } from "../src/drill-table.js";
 import { LABELS, fill, hostFailure, resolveLabels } from "../src/labels.js";
+// the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
+import "../src/deferred.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { addMenuTexts, en as menuEn, menuLabels } from "../src/menu-labels.js";
 import { fromOrigin, keepPlace, onTheWay, placePopover, viewportOf } from "../src/place.js";
