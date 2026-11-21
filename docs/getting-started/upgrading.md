@@ -180,6 +180,7 @@ Then restart Claude Code.
 | [A pie without a legend groups its smallest slices](#other-slice) | your app shows a pie or donut with the legend off, or your tests or screenshots compare one | nothing; turn the legend on to draw every slice. Expect "Other (n)" in tests |
 | [Sort by one column](#sort-column) | you share views with pivotkit 0.8, or run pivotkit-server or pivotkit-mcp | nothing. pivotkit 0.8 sorts such a view by the whole row, with a warning. Reconnect MCP clients to see `column` in the view schema |
 | [A name of the report's own for a field](#field-labels) | you share views with pivotkit 0.8, or a program reads views | nothing. A view without such a name stays as it is |
+| [Table and chart side by side](#display-both) | you share views with pivotkit 0.8, or a program reads `display` | nothing. A view shown as both has `display: "both"` |
 | [High and low points in the chart](#chart-points) | you share views with pivotkit 0.8, or your tests compare a normalized view or the chart option as a whole | nothing. A normalized view has `extremes` in `chart.referenceLines` |
 | [A click in the chart opens a menu](#chart-click-menu) | your app uses `onCellClick` or `pivot-cell-click` for chart points, or your tests click a chart to open its rows | expect the call at **Show the rows** or a double click. In tests, click **Show the rows** or double-click |
 | [A strict `computePivot`](#strict) | you want a bad view to throw instead of giving numbers | pass `strict: true` |
@@ -229,6 +230,17 @@ A field in Rows, Columns or Filters can have a name of the report's own: **Name*
   names for code of your own.
 - The view's JSON Schema and the OpenAPI document list the key. MCP clients see it after they
   reconnect.
+
+### Table and chart side by side { #display-both }
+
+The tab **Both** shows the table and the chart side by side on a wide report
+([table and chart side by side](../use/charts.md#both)). The view keeps it as `display: "both"`.
+
+- pivotkit 0.8 reads such a view with an `unknownSetting` error and shows the table. Saved again
+  there, the view shows the table.
+- `CATALOG.displayModes`, the view's JSON Schema and the OpenAPI document list `"both"`. MCP
+  clients see it after they reconnect.
+- A narrower report shows the table of such a view.
 
 ### A strict `computePivot` { #strict }
 

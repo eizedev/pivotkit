@@ -332,7 +332,7 @@ export function Toolbar(props) {
             {end.slice(at)}
             {/* a dialog, not a menu: Tab reaches the "i" of each format; it loads with the menus */}
             <MenuButton label={labels.exportLabel} icon="download" text={labels.exportLabel} role="dialog" align="end" testId="export">
-                {(close) => <MenuPanel name="ExportPanel" loadingText={labels.loadingMenu} props={{ labels, onExport, chartReady, display: view.display, empty, dataExport: props.dataExport, prepare: props.prepareExport, close }} />}
+                {(close) => <MenuPanel name="ExportPanel" loadingText={labels.loadingMenu} props={{ labels, onExport, chartReady, display: props.display ?? view.display, empty, dataExport: props.dataExport, prepare: props.prepareExport, close }} />}
             </MenuButton>
             {/* always here: Help first (a level), then what moved; it loads with the menus */}
             <MenuButton label={labels.more} icon="more" text={labels.more} role="dialog" align="end" testId="more" buttonRef={more} arrowOpens mark={hidden.has("views") && loadedView?.changed ? changedMark("more-changed") : hidden.has("data") ? loadedMark("more-loaded") : null}>

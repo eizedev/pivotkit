@@ -718,11 +718,14 @@ export function setDisplay(view, display) {
     return next;
 }
 
-/** Switches to the chart with a picker entry's settings (chart-types.js); its display settings stay. */
+/**
+ * Switches to the chart with a picker entry's settings (chart-types.js); its display settings stay.
+ * The table and the chart side by side (#51) stay side by side.
+ */
 export function setChart(view, name) {
     const next = clone(view);
     next.chart = { ...next.chart, ...CHART_TYPES[name].chart };
-    next.display = "chart";
+    next.display = next.display === "both" ? "both" : "chart";
     return next;
 }
 

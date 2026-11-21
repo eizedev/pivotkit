@@ -13,6 +13,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   point comes at **Show the rows** or a double click.
 - A name of the report's own for a field. See pivotkit-react's changelog
   ([#158](https://github.com/eizedev/pivotkit/issues/158)).
+- The table and the chart side by side on a wide report. See pivotkit-react's changelog
+  ([#51](https://github.com/eizedev/pivotkit/issues/51)).
 - A date in Filters can be grouped from its chip's menu. See pivotkit-react's changelog
   ([#100](https://github.com/eizedev/pivotkit/issues/100)).
 - A tip on stacked bars of a value that does not add up. See pivotkit-react's changelog

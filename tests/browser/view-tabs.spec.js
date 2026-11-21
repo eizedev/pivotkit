@@ -12,7 +12,7 @@ const focused = (page) =>
         return deep(document)?.getAttribute("data-testid") ?? deep(document)?.tagName ?? null;
     });
 
-test("the tabs: a click shows the view, the settings button follows it; the arrow keys move the focus, Enter shows the tab", async ({ page, browserName }) => {
+test("the tabs: a click shows the view, the settings button follows it; the arrow keys move the focus over Table, Chart and Both, Enter shows the tab", async ({ page, browserName }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("?data=sales&lang=en");
     await page.locator('[data-testid="pivot-table"]').waitFor();
@@ -34,6 +34,9 @@ test("the tabs: a click shows the view, the settings button follows it; the arro
     await expect(chart).toHaveAttribute("tabindex", "0");
     await expect(table).toHaveAttribute("tabindex", "-1");
     await chart.focus();
+    // on a wide report the tabs are Table, Chart and Both (#51); the arrows wrap around
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByTestId("show-both")).toBeFocused();
     await page.keyboard.press("ArrowRight");
     await expect(table).toBeFocused();
     await expect(chart).toHaveAttribute("aria-selected", "true");
@@ -43,6 +46,8 @@ test("the tabs: a click shows the view, the settings button follows it; the arro
     await expect(table).toBeFocused();
     // End, then Space; Tab leaves the tabs for the settings button
     await page.keyboard.press("End");
+    await expect(page.getByTestId("show-both")).toBeFocused();
+    await page.keyboard.press("ArrowLeft");
     await expect(chart).toBeFocused();
     await page.keyboard.press(" ");
     await expect(chart).toHaveAttribute("aria-selected", "true");

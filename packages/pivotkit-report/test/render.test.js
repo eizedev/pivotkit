@@ -267,6 +267,10 @@ test("HTML with the chart: an image of the SVG when the view shows the chart, a 
     assert.ok(svgTexts(svg).includes("North"));
     const inline = await render(view, SALES, { format: "html", echarts, chartEmbed: "inline", ...FIXED });
     assert.match(inline.text, /<figure class="pk-report-chart"><svg /);
+    // the table and the chart side by side (#51): the report has both
+    const both = await render({ ...BY_REGION, display: "both" }, SALES, { format: "html", echarts, chartEmbed: "inline", ...FIXED });
+    assert.match(both.text, /<figure class="pk-report-chart"><svg /);
+    assert.ok(both.text.includes("<table"));
     const table = await render(BY_REGION, SALES, { format: "html", echarts, ...FIXED });
     assert.ok(!table.text.includes("pk-report-chart\""), "a table view has no chart unless asked");
     assert.ok((await render(BY_REGION, SALES, { format: "html", echarts, chart: true, ...FIXED })).text.includes('<figure class="pk-report-chart">'));

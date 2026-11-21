@@ -611,7 +611,8 @@
     "display": {
       "enum": [
         "table",
-        "chart"
+        "chart",
+        "both"
       ]
     },
     "chart": {
