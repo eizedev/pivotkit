@@ -203,7 +203,7 @@ has, or use a variable font.
 
 - Text is never smaller than 14 px, whatever the page's font size (`--pk-font-size`, `--pk-small`). This holds for the chart's text too (`--pk-chart-text-size`).
 - Every control is at least 24 x 24 px (`--pk-target`).
-- On a touch screen, buttons, tabs, chips, segments and search rows are at least 44 x 44 px (`--pk-target-touch`), the small controls too. A menu's rows and its Back row are at least that high, on every level. A row's fold arrow gets a hit area `--pk-target-touch` wide and as high as its row. In the field list, the grip, the "i" and the menu keep their size. Instead, each gets a hit area `--pk-target-touch` high: a layer over it, for the grip as wide as high. The gap between rows grows to hold it, so the rows stay compact.
+- On a touch screen, buttons, tabs, chips and the small text buttons are at least 44 x 44 px (`--pk-target-touch`), the small controls too. Every menu's rows, its Back row, search row and segments, a filter's values and the folds of its sections are at least that high. A row's fold arrow keeps its size: its hit area is `--pk-target-touch` wide and as high as its row. In the field list, the grip, the "i" and the menu keep their size. Instead, each gets a hit area `--pk-target-touch` high: a layer over it, for the grip as wide as high. The gap between rows grows to hold it, so the rows stay compact.
 - Animations run through `--pk-duration`, which is `0ms` when the system asks for reduced motion.
 
 ## Chart colours and sizes { #chart-colours }

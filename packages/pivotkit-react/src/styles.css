@@ -4034,13 +4034,14 @@
         min-height: var(--pk-target-touch);
     }
 
-    /* the buttons, the tabs, the zones' heading, a chip, a choice of segments and a search row: a
-       finger's size, whatever text they hold (#72) */
-    .pk-root :is(.pk-btn, .pk-icon-btn, .pk-tab, .pk-section-fold, .pk-chip-label, .pk-segmented > button, .pk-search) {
+    /* every button and row a finger taps: the buttons, the tabs, the zones' heading, a chip, a
+       choice of segments, a search row, a menu's rows (in levels or not), the quiet text buttons, a
+       section's fold and a value's row in a filter. A finger's size, whatever text they hold (#72) */
+    .pk-root :is(.pk-btn, .pk-icon-btn, .pk-tab, .pk-section-fold, .pk-chip-label, .pk-segmented > button, .pk-search, .pk-option, .pk-level-back, .pk-action, .pk-link, .pk-fsection-toggle, .pk-value > label) {
         min-height: var(--pk-target-touch);
     }
 
-    .pk-root :is(.pk-btn, .pk-icon-btn) {
+    .pk-root :is(.pk-btn, .pk-icon-btn, .pk-action, .pk-link) {
         min-width: var(--pk-target-touch);
     }
 
@@ -4063,11 +4064,6 @@
         bottom: calc((100% - var(--pk-row-h)) / 2);
         left: 0;
         width: var(--pk-target-touch);
-    }
-
-    /* a menu's rows and its Back row, on every level */
-    .pk-root :is(.pk-levels .pk-option, .pk-level-back) {
-        min-height: var(--pk-target-touch);
     }
 
     /* the field list keeps its desktop rows (one line for a name that fits): its grip, "i" and menu

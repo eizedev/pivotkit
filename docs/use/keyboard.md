@@ -73,8 +73,10 @@ and what changed. In the report itself, **More**, **Help**, **Keyboard shortcuts
 - Text is at least 14 px, and controls at least 24 x 24 px.
 - On a touch screen, every button takes a finger: at least 44 x 44 px. That holds for the toolbar,
   the tabs **Table** and **Chart**, **Settings**, **Enlarge** and **Full screen**, the zones'
-  heading, the chips, ×, **i**, **+ Add** and a tip's x.
-- A menu's rows, its Back row, its search row and its choices side by side are at least 44 px high.
+  heading, the chips, ×, **i**, **+ Add**, a tip's x and the small text buttons such as
+  **Select all** and **Reset filter**.
+- Every menu's rows are at least 44 px high: the levels, Export, Data and their Back row, search
+  row and choices side by side. So are a filter's values and the fold of Pick items and Rules.
 - A row's fold arrow keeps its size in the table. A finger finds it in an area 44 px wide and as high
   as its row.
 - In the field list, the buttons keep their desktop size. This keeps the rows as compact, and the
