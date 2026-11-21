@@ -529,7 +529,7 @@ function customItems(items, f, path, ctx) {
  * @returns {unknown[] | null}
  */
 function sortColumn(column, spec, f, view, path, ctx) {
-    const why = spec.by !== "value" ? "a column only for a sort by a value" : !view.rows.includes(f.name) ? "a column only for a field on Rows" : !Array.isArray(column) || column.length === 0 || column.length > view.cols.length ? `a list of one to ${view.cols.length} column items` : null;
+    const why = spec.by !== "value" ? "a column only for a sort by a value" : !view.rows.includes(f.name) ? "a column only for a field on Rows" : view.cols.length === 0 ? "a column only with a field on Columns" : !Array.isArray(column) || column.length === 0 || column.length > view.cols.length ? `a list of one to ${view.cols.length} column items` : null;
     if (why) {
         ctx.issue(path, `${why}; the sort goes by the whole row`, "sortColumn");
         return null;

@@ -34,7 +34,7 @@ test("a column's header sorts the rows by that column: largest first, smallest f
     expect(await rowNames(page)).toEqual(before);
 });
 
-test("the column field's name sorts the columns Z to A and back; resting arrows widen no header", async ({ page }) => {
+test("the column field's name sorts the columns Z to A and back; every sortable header shows a faint arrow", async ({ page }) => {
     await page.goto(`?data=sales&lang=en&empty#pivot-playground=${encodeViewLink(VIEW)}`);
     await expect(page.locator(".pk-table")).toBeVisible();
     const columns = () => page.locator(".pk-table thead tr").first().locator("th.pk-colHeader").allTextContents();
@@ -44,14 +44,38 @@ test("the column field's name sorts the columns Z to A and back; resting arrows 
     const arrows = await page.locator(".pk-table thead .pk-th-arrow").evaluateAll((els) => els.map((e) => Number(getComputedStyle(e).opacity)));
     expect(arrows.length).toBeGreaterThan(3);
     expect(arrows.every((o) => o > 0 && o < 1)).toBe(true);
-    // a column's arrow and the corner's take no room of their own: as wide as their text
-    const widths = await page.locator(".pk-table thead .pk-th-sort-aside").evaluateAll((els) => els.map((e) => [e.getBoundingClientRect().width, e.querySelector(".pk-th-text").getBoundingClientRect().width]));
-    expect(widths.every(([button, text]) => Math.abs(button - text) < 1)).toBe(true);
-    // the corner stays one line
-    const cornerHeight = await page.locator(".pk-table thead th.pk-corner", { hasText: "Channel" }).evaluate((th) => th.querySelector(".pk-th-text").getBoundingClientRect().height / parseFloat(getComputedStyle(th).lineHeight));
-    expect(cornerHeight).toBeLessThan(1.5);
     await corner.click();
     expect(await columns()).toEqual([...first].reverse().filter((c) => c !== "Grand Total").concat(first.includes("Grand Total") ? ["Grand Total"] : []));
     await corner.click();
     expect(await columns()).toEqual(first);
+});
+
+for (const width of [1440, 390]) {
+    test(`twelve months with resting arrows: no header wider, the corner no taller than without arrows (${width} px)`, async ({ page }) => {
+        // the weather report: cities in Rows, months in Columns, a long column field's name in the corner
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto("?data=weather&lang=en");
+        await expect(page.locator(".pk-table thead .pk-th-arrow").first()).toBeVisible();
+        const measure = () =>
+            page.locator(".pk-table thead").evaluate((head) => ({
+                widths: [...head.querySelectorAll("th")].map((th) => Math.round(th.getBoundingClientRect().width)),
+                corner: Math.round(head.querySelector("th.pk-corner").getBoundingClientRect().height)
+            }));
+        const shown = await measure();
+        expect(await page.locator(".pk-table thead .pk-th-arrow").count()).toBeGreaterThanOrEqual(12);
+        await page.addStyleTag({ content: ".pk-th-arrow { display: none !important; }" });
+        expect(await measure()).toEqual(shown);
+    });
+}
+
+
+test("with column subtotals, a column is named by its group, not by its subtotal's header", async ({ page }) => {
+    const view = { rows: ["Region"], cols: ["Category", "Channel"], values: [{ field: "Revenue", agg: "sum" }, { field: "Units", agg: "sum" }], totals: { colSubtotals: true } };
+    await page.goto(`?data=sales&lang=en&empty#pivot-playground=${encodeViewLink(view)}`);
+    await expect(page.locator(".pk-table")).toBeVisible();
+    const titles = await page.locator(".pk-table thead tr:last-child th.pk-colHeader .pk-th-sort").evaluateAll((els) => els.map((e) => e.title));
+    // a channel under a category: "Hardware › Online"; the category's subtotal: "Hardware"
+    expect(titles.some((t) => / in [^›:]+ › [^:]+: largest first$/.test(t))).toBe(true);
+    expect(titles.filter((t) => / in [^›:]+: largest first$/.test(t)).length).toBeGreaterThan(0);
+    expect(titles.some((t) => /Total/.test(t.replace(/^Sort by /, "")))).toBe(false);
 });

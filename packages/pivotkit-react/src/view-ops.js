@@ -500,8 +500,9 @@ export function sortEntry(spec, hostOrdered) {
  * What a click on a header of the table sorts: a field's name in the corner sorts that field by label
  * (a row field or a column field); a value's name sorts the innermost row field by that value, over
  * the whole row (an empty column path: the one value header over all columns, the values without
- * column fields, the grand total column) or in its column (#70: the column's path, a subtotal column's
- * too). With one value, the innermost column's own label stands for its column. Only a value that gives
+ * column fields, the grand total column) or in its column (#70: the column's path; with several values a
+ * subtotal column's too). With one value, the innermost column's own label stands for its column; a
+ * subtotal column's has no value name to click and does not sort. Only a value that gives
  * a number (numericResult). Null for every other header.
  * @param {any} view
  * @param {{ kind: string, field?: string, valueIndex?: number, colPath?: any[], total?: number }} cell  a header cell of the grid

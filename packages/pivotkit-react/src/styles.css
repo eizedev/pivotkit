@@ -2967,11 +2967,6 @@
     margin-right: 0.05em;
 }
 
-.pk-corner .pk-th-sort-aside .pk-th-arrow {
-    left: 100%;
-    margin-left: 0.05em;
-}
-
 .pk-th-sort.pk-sorted .pk-th-arrow {
     opacity: 1;
     color: var(--pk-accent);

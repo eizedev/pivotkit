@@ -463,9 +463,10 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         const column = target.column ? columnNames.get(JSON.stringify(target.column)) : undefined;
         // a sort in words; no entry is the field's default order
         const words = (s) => sortText(view, s ?? { by: hostOrdered(target.field) ? "custom" : "label", order: "asc" }, labels, s?.column ? columnNames.get(JSON.stringify(s.column)) : undefined);
-        // a column's label and a column field's name keep their width: their arrow sits in the cell's
-        // padding (styles.css .pk-th-sort-aside), so twelve months do not widen the table (#70)
-        const aside = Boolean(target.column) || view.cols.some((f) => f === target.field);
+        // a column's label keeps its width: its arrow sits in the cell's padding (styles.css
+        // .pk-th-sort-aside), so twelve months do not widen the table (#70). The corner is one cell:
+        // its arrow stays next to its text, also when the text wraps
+        const aside = Boolean(target.column);
         // the arrow of the order in use, else of the one a click gives (shown on hover and focus)
         const down = state.chosen ? state.order === "descending" : next?.order === "desc";
         const click = () => {
@@ -489,7 +490,8 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         const texts = new Map();
         for (const row of grid.rows.slice(0, grid.headerRows)) {
             for (const cell of row) {
-                if (cell?.kind === "colHeader" && cell.valueIndex === undefined && cell.colPath?.length) {
+                // a subtotal's header ("2024 Total") has its group's path: the group's own label names it
+                if (cell?.kind === "colHeader" && cell.valueIndex === undefined && !cell.total && cell.colPath?.length) {
                     texts.set(JSON.stringify(cell.colPath), cell.text);
                 }
             }
