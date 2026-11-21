@@ -13,11 +13,12 @@ import { Group, Option, Popover } from "./popover.jsx";
 
 /**
  * @param {{ target: { anchor: HTMLElement, home?: HTMLElement | null, point: any } | null, onClose: () => void, onRows: (point: any) => void, view: any,
- *   encoded: import("pivotkit-core").Encoded, locale: string, labels: any, commit: (view: any, note?: any) => void }} props
+ *   encoded: import("pivotkit-core").Encoded, locale: string, labels: any, commit: (view: any, note?: any) => void, showRows?: boolean }} props
+ *   `showRows`: whether "Show the rows" goes anywhere (the drill-down panel or the host's onCellClick)
  */
-export function PointMenu({ target, onClose, onRows, view, encoded, locale, labels, commit }) {
+export function PointMenu({ target, onClose, onRows, view, encoded, locale, labels, commit, showRows = true }) {
     const anchor = useMemo(() => ({ current: target ? target.anchor : null }), [target]);
-    const actions = target ? pointActions(view, target.point, encoded, labels, locale) : [];
+    const actions = target ? pointActions(view, target.point, encoded, labels, locale, { showRows }) : [];
     // closed: the focus goes to the chart (its anchor takes none), so the report's keys (Undo) work on
     const close = () => {
         target?.home?.focus({ preventScroll: true });

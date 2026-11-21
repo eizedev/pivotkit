@@ -1904,7 +1904,7 @@ function Report(props) {
                     </div>
                     {/* the filter and the drill-down load with the menus (lazy-menus.jsx) */}
                     {filterTarget ? <MenuPanel name="FilterPopover" props={{ target: filterTarget, onClose: closeFilter, view, encoded, locale, labels, commit }} /> : null}
-                    {pointTarget ? <MenuPanel name="PointMenu" props={{ target: pointTarget, onClose: () => setPointTarget(null), onRows: openPoint, view, encoded, locale, labels, commit }} /> : null}
+                    {pointTarget ? <MenuPanel name="PointMenu" props={{ target: pointTarget, onClose: () => setPointTarget(null), onRows: openPoint, view, encoded, locale, labels, commit, showRows: drillDown || Boolean(onCellClick) }} /> : null}
                 </PivotDnd>
                 {/* loading data: the file input, the drop overlay, the preview (import-host.jsx) */}
                 {allowImport && importMod ? <importMod.ImportLayer api={api} input={fileInput} /> : null}

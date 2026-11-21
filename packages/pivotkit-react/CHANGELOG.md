@@ -85,6 +85,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - PK-DEP-0001: the type `ViewInput`. Use `PivotView`, the same type. `ViewInput` goes no earlier than
   2.0.0 ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#pivot-view-type), #563).
 
+### Fixed
+
+- The menu at a chart point offers **Show the rows** only when the rows go somewhere: the drill-down
+  panel or `onCellClick`. With `drillDown={false}` and no `onCellClick`, the entry did nothing
+  ([#705](https://github.com/eizedev/pivotkit/issues/705)).
+
 ## [0.8.2] - 2026-11-19
 
 ### Fixed
