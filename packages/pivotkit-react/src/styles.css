@@ -1335,6 +1335,17 @@
     max-width: min(420px, calc(100vw - 16px));
 }
 
+/* a colour scale's colours as a strip after its name (Highlight › Colour scale › Colours) */
+.pk-scale-swatch {
+    flex: none;
+    width: 3.5em;
+    height: 0.9em;
+    margin-left: auto;
+    border: 1px solid var(--pk-border);
+    border-radius: var(--pk-radius-xs);
+    background: var(--pk-swatch);
+}
+
 /* a mark after an entry's text (the menu of "+ Add": the zones a field is in) */
 .pk-tag {
     display: inline-flex;

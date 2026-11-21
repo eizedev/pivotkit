@@ -8,6 +8,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- Highlight › Colour scale has a row **Colours**: the theme's light to dark blue, blue to orange,
+  blue to red and red to green, each with a strip of its colours. A choice writes the value's own
+  colours (`conditional.colors`), so older versions show them too
+  ([#95](https://github.com/eizedev/pivotkit/issues/95)).
 - Chart settings offers **Bars and lines** and **Treemap**. Bars and lines needs two fields in
   Values and says so. A treemap's labels take the token colour that reads on each tile
   ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).

@@ -31,7 +31,7 @@ topic and says what is set. A row opens its own level, titled with the value's n
 | **Summarize by** | A level with sum, count, average, minimum and maximum. Below them, **More statistics** holds median, distinct count, standard deviation, variance, first and last. See [below](#summarize-by). |
 | **Show as** | A level with the value itself, % of grand total, % of row total and % of column total. **More calculations** holds differences, running totals and ranks. **Along** sets the direction for those that walk along Rows or Columns. The **i** next to the level's title explains it. |
 | **Number format** | A level with Automatic, number (also with no or two decimals), currency and percent. **More formats** holds whole number, compact (1.2K), bytes and durations from hours or seconds. Each entry has an example on its right. A format the view brings that is not among them ("Number, 1 decimal") is the first entry, checked. |
-| **Highlight** | None, Colour scale and Data bars side by side on the first level. They use the theme's colours or the value's own. See [below](#highlight). |
+| **Highlight** | None, Colour scale and Data bars side by side on the first level. They use the theme's colours or the value's own. A colour scale's **Colours** offers other ones. See [below](#highlight). |
 | **Name** | A level with the name: it applies with Enter or when you leave the field. |
 | **Move to** | A level: another zone, left or right. |
 | **Remove field** | The menu's last entry. |
@@ -147,11 +147,23 @@ Such a value keeps Summarize by, Name and Move.
 - **Data bars**: draws a bar in each cell. Its length shows the cell's place between the smallest
   and the largest cell of that value.
 
+With a colour scale on, the row **Colours** below Highlight picks its colours. Each choice shows
+them as a strip:
+
+- **Light to dark blue**: the theme's colours, the default.
+- **Low blue, high orange**: two colours that people with red-green colour blindness tell apart.
+- **Low blue, high red**: cold to warm, such as temperatures.
+- **Low red, high green**: bad to good. Some people cannot tell red and green apart, and the menu
+  says so.
+
+A choice applies at once and stays with the view, also in a link or a saved view. Every choice
+keeps a cell's text readable, in the light and the dark theme.
+
 Totals get no highlight. The Excel export keeps both as Excel's own conditional formats, in the
 colours the report shows.
 
-A value can bring colours of its own, such as a saved view's colour scale from blue to red. The
-checked choice changes nothing. Switching to None or Data bars and back gives the value its own
+A value can bring colours of its own, such as a saved view's colour scale from blue to red.
+**Colours** then shows "The view's own colours". The checked choice changes nothing. Switching to None or Data bars and back gives the value its own
 colours again, as long as that earlier step is in the report's history (Undo). Otherwise the value
 takes the theme's colours.
 

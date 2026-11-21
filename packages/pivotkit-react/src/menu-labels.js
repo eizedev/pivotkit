@@ -282,6 +282,12 @@ export const en = {
     },
     conditional: "Highlight",
     conditionalNone: "None",
+    // Highlight › Colour scale: its colours, low to high
+    scaleColors: "Colours",
+    scaleKeywords: "colour color scale palette",
+    scaleNames: { theme: "Light to dark blue", blueOrange: "Low blue, high orange", blueRed: "Low blue, high red", redGreen: "Low red, high green" },
+    scaleRedGreenHint: "Some people cannot tell red and green apart.",
+    scaleOwn: "The view's own colours",
     colorScale: "Colour scale",
     dataBar: "Data bars",
     rename: "Name",

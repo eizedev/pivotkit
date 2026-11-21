@@ -445,6 +445,9 @@ has `kind` (`"max"` or `"min"`), `series` (`null` for a stack's total), `index` 
 average, no trend and no high and low points. A target over values in different units is off. `notes` says why, as codes: `"noTotal"`,
 `"percentStack"`, `"negative"`, `"noTime"`, `"byIndex"` and `"mixedUnits"`.
 
+`COLOR_SCALES` holds the colour scales pivotkit-react's value menu offers, low to high, as a view's
+`conditional.colors`: `blueOrange`, `blueRed` and `redGreen`. The theme's scale has none.
+
 `valueAddsUp(value)` says whether a view's value adds up across a category's series: an additive
 aggregator (`CATALOG.additiveAggregators`), shown as itself or as a type of
 `CATALOG.additiveShowAs`. One that walks an axis must walk the rows. The tooltip's total and a

@@ -8,6 +8,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `COLOR_SCALES`: the colour scales the value menu offers, blue to orange, blue to red and red to
+  green, as `conditional.colors` ([#95](https://github.com/eizedev/pivotkit/issues/95)).
 - Two chart types. `"combo"` draws the first value as bars on the left axis and every other value as a
   line on an axis of its own. `"treemap"` draws a tile per category. `labelColorOn` in
   `pivotkit-core/chart` picks a tile's label colour from the theme's tokens

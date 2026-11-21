@@ -226,6 +226,7 @@ function ChoiceItem({ choice: c, onPick, start }) {
                     {t.text}
                 </span>
             ))}
+            {c.scale ? <span className="pk-scale-swatch" aria-hidden="true" style={/** @type {any} */ ({ "--pk-swatch": `linear-gradient(to right, ${c.scale.join(", ")})` })} /> : null}
             {c.open ? <Icon name="chevronRight" size={16} className="pk-topic-chevron" /> : null}
         </MenuItem>
     );

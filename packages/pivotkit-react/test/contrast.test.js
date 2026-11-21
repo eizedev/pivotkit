@@ -70,3 +70,27 @@ for (const selector of [".pk-section:not(:first-child)"]) {
         }
     });
 }
+
+// the colour scales the Highlight menu offers (pivotkit-core's COLOR_SCALES): a cell's text reads on
+// every step of each, in both themes. A cell mixes its colour into the surface (styles.css .pk-scaled:
+// 48 % light, 30 % dark), every step between the scale's colours too.
+test("the colour scales of the Highlight menu keep a cell's text 4.5:1 on every step, light and dark", async () => {
+    const { COLOR_SCALES } = await import("pivotkit-core");
+    const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const hex = (c) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+    const mix = (a, b, t) => rgb(a).map((v, i) => v * t + rgb(b)[i] * (1 - t));
+    const keys = Object.keys(COLOR_SCALES);
+    assert.deepEqual(keys, ["blueOrange", "blueRed", "redGreen"]);
+    for (const key of keys) {
+        const colors = COLOR_SCALES[key];
+        for (const [theme, share] of [[light, 0.48], [dark, 0.3]]) {
+            for (let step = 0; step <= 20; step++) {
+                const t = (step / 20) * (colors.length - 1);
+                const i = Math.min(Math.floor(t), colors.length - 2);
+                const cell = hex(mix(hex(mix(colors[i + 1], colors[i], t - i)), theme["--pk-surface"], share));
+                const ratio = contrast(theme["--pk-text"], cell);
+                assert.ok(ratio >= 4.5, `${key} at ${step / 20} in ${theme === light ? "light" : "dark"}: ${ratio.toFixed(2)}`);
+            }
+        }
+    }
+});
