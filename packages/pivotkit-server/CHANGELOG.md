@@ -115,6 +115,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
+- `docker/pivotkit.example.json` sets `"policy": { "results": true }`. With Compose, step 3 of
+  "Server in 5 minutes" downloads the rendered file.
 - A missing print template fails only html reports. Other formats, `describe_source` and
   `validate_view` over the source answer as usual (#614).
 - An html render whose print template cannot be read answers 502 `SOURCE_UNAVAILABLE` with a fixed

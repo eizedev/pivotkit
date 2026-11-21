@@ -213,7 +213,7 @@ An HTTP source's first call loads the backend's answer and computes over it. Thi
 much the server process grew during that call. The main thread and the workers count together. It
 also shows the largest JavaScript heap of the main thread, without the answer's bytes. It ran on
 one laptop with Node 26 on macOS, with seven columns, one of them hidden. Each value is the median
-of three runs and only a rough order. The 66 MB and 34 MB answers needed a larger `http.maxBytes`
+of three runs and only a rough order. The 66 MB and 34 MB answers needed a larger `sources.<id>.http.maxBytes`
 and `limits.fileBytes`.
 
 | Answer | Rows | Size | Memory added | Main thread heap |
