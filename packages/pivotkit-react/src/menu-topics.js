@@ -233,8 +233,9 @@ export function filterTopic({ view, field, labels, locale, state, encoded }) {
         searchExtra: [
             { id: "open-filter-rules", text: labels.rulesTitle, focus: "conditions" },
             // the rule on the name by its operators too ("does not begin with")
-            { id: "open-filter-text", text: labels.addRuleName, focus: "conditions", keywords: Object.values(labels.labelOps).join(" ") },
-            { id: "open-filter-value", text: labels.addRuleTotal, focus: "conditions" }
+            // both add a rule: "rule" finds them under their "Filter by …" names
+            { id: "open-filter-text", text: labels.addRuleName, focus: "conditions", keywords: `${labels.rulesTitle} ${Object.values(labels.labelOps).join(" ")}` },
+            { id: "open-filter-value", text: labels.addRuleTotal, focus: "conditions", keywords: labels.rulesTitle }
         ],
         searchFor
     };

@@ -113,7 +113,9 @@ brings it back. A grouping that is in the report already stays where it is.
 ### Add a field to Filters from the field list
 
 **Add to Filters** in the menu of a field in the field list opens the field's filter at once. It
-shows the field's values and a condition on the names. What you set there is a draft:
+shows the field's values and **Only if the name…**, a condition on the names. While every value is
+ticked and no condition is set, the count says so: "All 14 selected · nothing filtered yet". What
+you set there is a draft:
 
 - **Apply** puts the field into Filters with what you chose.
 - **Cancel** changes nothing.
@@ -253,14 +255,14 @@ be true for an item to stay ("Keep the months for which all of these are true:")
 
 | Rule | Example | Offered for |
 | --- | --- | --- |
-| **Compare** the item itself | "Released by year is from 2022", "Price is between 10 and 20", "Released is in the last 3 months" | Numbers and dates, and their groupings |
-| **Compare its total** | "Count of Released is greater than 3" | Every field |
-| **Rule on the name** | "The name does not begin with Service" | Text and numbers (the number as the table writes it) |
+| **Filter by** and the field's name: the item itself | "Released by year is from 2022", "Price is between 10 and 20", "Released is in the last 3 months" | Numbers and dates, and their groupings |
+| **Filter by total** | "Count of Released is greater than 3" | Every field |
+| **Filter by name** | "The name does not begin with Service" | Text and numbers (the number as the table writes it) |
 
 ![The Filter level of Date by month of year with a rule on the total: Average of Mean °C is greater than 25, its explanation open, its line saying it keeps 0 of 12 months with the lowest and the highest total, and the red summary](../assets/screenshots/filter-rules-light.png#only-light)
 ![The Filter level of Date by month of year with a rule on the total: Average of Mean °C is greater than 25, its explanation open, its line saying it keeps 0 of 12 months with the lowest and the highest total, and the red summary](../assets/screenshots/filter-rules-dark.png#only-dark)
 
-### Compare the item itself
+### Filter by the item itself { #compare-the-item-itself }
 
 - You type a number and pick a date as a day. A grouping offers its items ("2022", "Mar 2025"):
     - A short list comes in a select.
@@ -288,7 +290,7 @@ be true for an item to stay ("Keep the months for which all of these are true:")
   rules. A comparison changed to **is between** keeps the rule as it was until the second value is
   there.
 
-### Rule on the name
+### Filter by name { #rule-on-the-name }
 
 "The name [does not begin with] [Service]". The comparisons are **is**, **is not**, **contains**,
 **does not contain**, **begins with**, **does not begin with**, **ends with** and **does not end
@@ -321,7 +323,7 @@ A rule on the total does not change: it compares the blank item's total like any
 To show only the items without a value, use the picks: **Select none** under Pick items, then tick
 "(blank)".
 
-### Compare its total
+### Filter by total { #compare-its-total }
 
 The rule keeps the items whose value meets it, as a sentence: "Region items whose Sum of Revenue is
 greater than 2,000,000".
@@ -378,8 +380,8 @@ greater than 2,000,000".
 - Pointing anywhere at a chip shows all of it as a tooltip: the field and everything set on it. The
   tooltip uses the words of the chip's name for screen readers ("Month, filtered 10 of 12, 2025").
 - The search of the menu finds:
-    - the rules: "rule", "compare its total", and the rule on the name by its words, such as
-      "does not begin with"
+    - the rules: "rule", "filter by total", "filter by name", and the rule on the name by its words,
+      such as "does not begin with"
     - the quick choices with the count you type ("last 3 years"), counted back as the field's range
       is
     - for a grouping by year, a year compared ("from 2022", "up to 2022", "before 2022",
