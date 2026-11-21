@@ -8,6 +8,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Added
 
+- An HTML report of a view with `display: "both"` has the chart above the table
+  ([#51](https://github.com/eizedev/pivotkit/issues/51)).
 - The chart as SVG and in the HTML report draws bars and lines, and a treemap
   ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).
 - The chart as SVG and in the HTML report merges a pie's smallest slices into "Other (n)" by the same

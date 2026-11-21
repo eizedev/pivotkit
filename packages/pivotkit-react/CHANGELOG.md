@@ -16,6 +16,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   The chip, the table, the chart and the exports show it. The field list shows the field's own name
   under it and finds the field by either. In English and German
   ([fields](https://pivotkit.eize.dev/use/fields/), #158).
+- The tab **Both** shows the table and the chart side by side on a wide report, with a divider to
+  drag or move with the arrow keys, and **Table settings** and **Chart settings** beside each other.
+  A narrower report shows the table. In English and German
+  ([table and chart side by side](https://pivotkit.eize.dev/use/charts/#both), #51).
 - A date in Filters has **Group** in its chip's menu, as on Rows and Columns. A unit such as Year
   puts the grouping in the date's place among the Filters, with every item kept
   ([#100](https://github.com/eizedev/pivotkit/issues/100)).

@@ -41,7 +41,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - Chips that show their filter, top N and sort.
     - Swap rows and columns.
     - The zones fold under their heading "Fields in the report" ([a low report](use/layout.md#a-low-report)).
-- Table and Chart as tabs on the result, each with its settings ([charts](use/charts.md)).
+- Table and Chart as tabs on the result, each with its settings, and both side by side on a wide report ([charts](use/charts.md#both)).
 - The table ([the table](use/fields.md#the-table)): subtotals and grand totals, expand and collapse,
   sticky headers, and long labels that wrap. It is fast from 300 rows on.
 - Developers: per field a label, a description, links, an aggregator, a format and an item order
@@ -103,7 +103,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
 
 ## Charts { #chart }
 
-- Table or chart with one switch ([charts](use/charts.md)):
+- Table or chart with one switch, or both side by side ([charts](use/charts.md)):
     - The type follows the data: lines over dates, else bars. That holds until people pick a type:
       bars, stacked or horizontal bars, lines, area, pie, donut, heatmap, bars and lines, or a treemap.
     - Value labels, legend, title, smooth lines, axis and group labels.

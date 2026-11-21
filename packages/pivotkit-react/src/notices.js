@@ -19,6 +19,7 @@ export const TIP_LIMIT = 1;
 /**
  * @typedef {object} TipContext  what the conditions read; built by tipContext()
  * @property {any} view  the normalized view
+ * @property {string} display  what the result shows: "table", "chart" or, on a wide report, "both" (#51)
  * @property {boolean} empty  nothing placed
  * @property {boolean} failed  the result cannot be shown (an error is shown instead)
  * @property {(field: string) => string} typeOf  the type of a field's source column
@@ -53,7 +54,7 @@ export const TIP_LIMIT = 1;
  */
 
 export const name = (ctx, field) => fieldLabel(field, { fields: ctx.fields });
-export const chart = (ctx) => !ctx.failed && ctx.view.display === "chart" && ctx.series !== null && ctx.view.values.length > 0;
+export const chart = (ctx) => !ctx.failed && ctx.display !== "table" && ctx.series !== null && ctx.view.values.length > 0;
 /** The chart's series where chart(ctx) holds. */
 export const seriesOf = (ctx) => /** @type {NonNullable<TipContext["series"]>} */ (ctx.series);
 
@@ -109,14 +110,16 @@ function expandedGroup(nodes, depth, collapsed) {
  * What the conditions read, from the report's state. Pure.
  * @param {{ view: any, result: import("pivotkit-core").PivotResult | null, encoded: import("pivotkit-core").Encoded,
  *   failed: boolean, empty: boolean, typeOf: (field: string) => string, fields?: Record<string, string>,
- *   series?: TipContext["series"], tableShown?: boolean, drilled?: boolean, changes?: number, dragAt?: number | null, canSave?: boolean,
+ *   display?: string, series?: TipContext["series"], tableShown?: boolean, drilled?: boolean, changes?: number, dragAt?: number | null, canSave?: boolean,
  *   savedAt?: number, chartPlan?: TipContext["chartPlan"] }} state
  * @returns {TipContext}
  */
-export function tipContext({ view, result, encoded, failed, empty, typeOf, fields, series = null, tableShown = false, drilled = false, changes = 0, dragAt = null, canSave = false, savedAt = 0, chartPlan = { name: "bar", auto: true, swap: false } }) {
+export function tipContext({ view, display = view.display, result, encoded, failed, empty, typeOf, fields, series = null, tableShown = false, drilled = false, changes = 0, dragAt = null, canSave = false, savedAt = 0, chartPlan = { name: "bar", auto: true, swap: false } }) {
     const leaves = (nodes, depth) => (result && depth > 0 ? nodes.reduce((n, node) => n + (node.depth === depth ? 1 : 0), 0) : 1);
     return {
         view,
+        // what the result shows: "both" on a wide report only (#51)
+        display,
         empty,
         failed: failed || !result,
         typeOf,

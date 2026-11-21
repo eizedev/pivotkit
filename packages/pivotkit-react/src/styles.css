@@ -3107,6 +3107,70 @@
 
 /* chart */
 
+/* the table and the chart side by side (#51): the table's share is --pk-split, the divider between */
+.pk-both {
+    display: grid;
+    grid-template-columns: minmax(0, var(--pk-split, 50%)) 9px minmax(0, 1fr);
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+.pk-both-part {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+}
+
+.pk-both-divider {
+    position: relative;
+    cursor: col-resize;
+    touch-action: none;
+}
+
+/* a line in the middle of the divider's 9 px; stronger while pointed at, dragged or focused */
+.pk-both-divider::before {
+    content: "";
+    position: absolute;
+    inset: 0 4px;
+    background: var(--pk-border);
+}
+
+.pk-both-divider:is(:hover, :focus-visible, :active)::before {
+    inset: 0 3px;
+    background: var(--pk-accent);
+}
+
+/* a grip in the middle says the line can be dragged */
+.pk-both-divider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 28px;
+    border-radius: var(--pk-radius-xs);
+    background: var(--pk-border-strong);
+    translate: -50% -50%;
+}
+
+.pk-both-divider:focus-visible {
+    outline: var(--pk-focus-width) solid var(--pk-focus);
+    outline-offset: calc(-1 * var(--pk-focus-width));
+    border-radius: var(--pk-radius-xs);
+}
+
+/* on a touch screen the line takes a finger's width */
+@media (pointer: coarse) {
+    .pk-both {
+        grid-template-columns: minmax(0, var(--pk-split, 50%)) 24px minmax(0, 1fr);
+    }
+
+    .pk-both-divider::before {
+        inset: 0 11px;
+    }
+}
+
 .pk-chart-wrap {
     display: flex;
     flex-direction: column;

@@ -38,7 +38,7 @@ const PERCENT_SHOW_AS = Object.freeze(["percentOfGrandTotal", "percentOfRowTotal
 /** The grouping unit of a derived field ("month", "weekday"), "" for a field of the data. */
 const derivedBy = (ctx, field) => ctx.view.derived.find((d) => d.name.toLowerCase() === String(field).toLowerCase())?.by ?? "";
 const isRawDate = (ctx, field) => ctx.typeOf(field) === "date" && sourceOf(ctx.view, field).toLowerCase() === String(field).toLowerCase();
-const table = (ctx) => !ctx.failed && !ctx.empty && ctx.view.display === "table";
+const table = (ctx) => !ctx.failed && !ctx.empty && ctx.display !== "chart";
 const axisChart = (ctx) => chart(ctx) && CHART_TYPES[ctx.chartPlan.name].axis;
 const lines = (ctx) => ["line", "area"].includes(ctx.chartPlan.name);
 const sliceChart = (ctx) => chart(ctx) && SLICE_TYPES.includes(ctx.chartPlan.name);
@@ -209,7 +209,7 @@ export const TIPS = Object.freeze([
         // the empty report: every field has a menu, and Undo is there
         id: "menus",
         icon: "sparkle",
-        when: (ctx) => (!ctx.failed && ctx.empty && ctx.view.display === "table" && ctx.dragAt === null ? {} : null)
+        when: (ctx) => (!ctx.failed && ctx.empty && ctx.display !== "chart" && ctx.dragAt === null ? {} : null)
     },
     {
         id: "cells",

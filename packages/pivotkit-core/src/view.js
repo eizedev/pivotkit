@@ -98,7 +98,8 @@ export function issueOf(path, message, code, params, severity = VIEW_ISSUES[code
 export const CHART_TYPES = Object.freeze(["auto", "bar", "line", "area", "pie", "donut", "heatmap", "combo", "treemap"]);
 /** The chart types drawn as slices of a circle: a pie, and a donut (a ring). */
 export const SLICE_CHART_TYPES = Object.freeze(["pie", "donut"]);
-export const DISPLAY_MODES = Object.freeze(["table", "chart"]);
+// "both": the table and the chart side by side (#51); a report too narrow for both shows the table
+export const DISPLAY_MODES = Object.freeze(["table", "chart", "both"]);
 export const CONDITIONAL_TYPES = Object.freeze(["colorScale", "dataBar"]);
 /**
  * What a chart writes next to its marks: "auto" as its type draws them (a pie its names, a heatmap
@@ -190,7 +191,7 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  *   by default except the column subtotals; without values toGrid() draws none (a total carries no
  *   number then), and a group with one child has no subtotal
  * @property {{ rows: any[][], cols: any[][] }} collapsed
- * @property {"table" | "chart"} display
+ * @property {"table" | "chart" | "both"} display  "both": the table and the chart side by side (a narrow report shows the table)
  * @property {ChartSpec} chart
  * @property {{ locale: string | null, timeZone: string | null, weekStart: number }} formatting  timeZone: the zone the
  *   report was made for; the host passes it to encode(), computePivot() reports a mismatch; weekStart:

@@ -63,6 +63,7 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {string} [dataAsOf]  when the data is from, ISO 8601 in UTC to the second ("2026-11-15T08:00:00Z"): html prints it in the details ("Data as of") and as {{dataAsOf}}, xlsx keeps it as the document property DataAsOf
  * @property {string} [template]  html: a print template (parseTemplate), default DEFAULT_TEMPLATE
  * @property {boolean | "auto"} [chart]  html: with the chart; "auto" (default) when the view shows the chart
+ *   (display "chart" or "both")
  * @property {"image" | "inline"} [chartEmbed]  html: the chart as a data: image (default) or as inline SVG
  * @property {{ init: Function }} [echarts]  the ECharts module (with its SVG renderer): svg, and html with a chart
  * @property {{ width?: number, height?: number }} [size]  of the chart in px, default 800 x 480
@@ -268,7 +269,7 @@ export async function render(view, data, options = {}) {
             issues.push(reportIssue("tableCut", fill(REPORT_TEXTS_EN.tableCut, { shown: table.cut.rows, count: table.cut.of }), { value: String(table.cut.rows), max: table.cut.of }));
             tableNote = `<p class="pk-report-note">${escapeHtml(fill(texts.tableCut, { shown: number.format(table.cut.rows), count: number.format(table.cut.of) }))}</p>`;
         }
-        const wantChart = options.chart === true || ((options.chart ?? "auto") === "auto" && normalized.view.display === "chart");
+        const wantChart = options.chart === true || ((options.chart ?? "auto") === "auto" && normalized.view.display !== "table");
         let chartHtml = "";
         if (wantChart && typeof options.echarts?.init !== "function") {
             issues.push(reportIssue("chartUnavailable", REPORT_TEXTS_EN.chartUnavailable));
