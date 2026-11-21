@@ -141,7 +141,7 @@ export const en = {
     quote: "“{text}”",
     filterTitle: "Filter {field}",
     // the condition on the labels of a field: text, or a number's label
-    condition: "Text condition",
+    condition: "Only names that…",
     // result
     emptyTitle: "Build your report in three steps",
     emptySteps: [

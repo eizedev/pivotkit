@@ -146,7 +146,9 @@ export function FilterBody({ view: current, base, field, encoded, locale, labels
         >
             <div className="pk-popover-head">
                 {titled ? <h3>{fill(labels.filterTitle, { field: name })}</h3> : null}
-                <span className="pk-muted">{fill(labels.selected, { count: selected.size.toLocaleString(locale) })}</span>
+                <span className="pk-muted" data-testid="filter-selected">
+                    {fill(selected.size === all.length && !op ? labels.selectedAll : labels.selected, { count: selected.size.toLocaleString(locale) })}
+                </span>
             </div>
             <ValueList items={info.items} selected={selected} onChange={setSelected} labels={labels} locale={locale} autoFocus>
             {kind ? (

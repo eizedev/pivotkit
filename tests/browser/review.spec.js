@@ -116,9 +116,9 @@ test.describe("phone", () => {
     });
 });
 
-test("the filter of a date has no text condition; text has one, a number one on its label", async ({ page }) => {
+test("the filter of a date has no condition on the names; text has one, a number one on its label", async ({ page }) => {
     await page.goto("?data=sales");
-    for (const [field, legend] of [["Month", null], ["Channel", "Text condition"], ["Units", "Condition on the label"]]) {
+    for (const [field, legend] of [["Month", null], ["Channel", "Only names that…"], ["Units", "Only names that…"]]) {
         await page.getByTestId(`field-menu-${field}`).click();
         await page.getByTestId(`field-filter-${field}`).click();
         await expect(page.getByTestId("filter-search")).toBeVisible();
