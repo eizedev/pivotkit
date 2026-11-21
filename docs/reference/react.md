@@ -759,6 +759,7 @@ The notes, in the order the report shows them, and when:
 | `colSubtotals` | tip | A table with column subtotals on, two or more fields in Columns, a value and an open column group of two or more items (only those get a Total column): a Total column adds up the group before it. The header of each subtotal column has the same text as its tooltip. | Hide column subtotals |
 | `chartOverTime` | tip | A chart type the user chose (not lines, areas or a heatmap) with a date or a grouping of one along the time line on Rows or Columns (where Automatic would draw lines). | Show as lines over time (the automatic type) |
 | `pieSlices` | tip | A pie or donut of more than 7 slices. | Switch to Bars |
+| `stackedTotal` | tip | Stacked bars with two or more series of a value whose parts do not add up: an average, a minimum, a maximum, a median, a count of distinct values, or a show-as that does not add up. | Switch to Bars |
 | `pieColumns` | tip | A pie or donut with a field on Columns: it draws one slice per row and adds up the columns. | Switch to Bars |
 | `chartDates` | tip | Lines or areas with the dates on Columns (and none on Rows). | Swap rows and columns |
 | `chartTrend` | tip | Lines or areas over categories without an order: the last field on Rows is text or yes/no without a custom order (not dates, numbers or number ranges), and the dates are not on Columns. | Switch to Bars |

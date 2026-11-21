@@ -50,7 +50,7 @@ const SALES = [
 test("tips: every entry has a text and, with an action, a button text, in English and German", () => {
     for (const labels of [LABELS.en, LABELS.de]) {
         for (const entry of TIPS) {
-            const params = entry.id === "showAs" ? { type: "percentOfRowTotal" } : entry.id === "dateUngrouped" ? { field: "Day", unit: "yearMonth" } : { field: "F", count: 3, shown: 1, total: 2 };
+            const params = entry.id === "showAs" ? { type: "percentOfRowTotal" } : entry.id === "dateUngrouped" ? { field: "Day", unit: "yearMonth" } : entry.id === "stackedTotal" ? { spec: { field: "F", agg: "average" } } : { field: "F", count: 3, shown: 1, total: 2 };
             assert.ok(tipText(entry.id, params, labels, "en-US").length > 10, `${labels.lang} ${entry.id}`);
             if (entry.action) {
                 assert.ok(tipActionText(entry, params, labels).length > 3, `${labels.lang} ${entry.id} action`);
@@ -420,3 +420,24 @@ test("identifier fields: a number field of whole numbers named ID, …Id, …_id
     assert.equal(fieldDefaultsFor(undefined, "Cost", col("Cost")), undefined);
     assert.deepEqual(fieldDefaultsFor({ cost: { agg: "average" } }, "Cost", col("Cost")), { agg: "average" });
 });
+
+test("tips: a stack of values that do not add up (averages) says so and offers bars; sums and counts stack without it", () => {
+    const rows = [];
+    for (const city of ["Berlin", "Cairo", "Oslo"]) for (const month of ["Jan", "Feb"]) rows.push({ City: city, Month: month, Mean: city.length + month.length });
+    const stacked = (agg, chart = { type: "bar", stacked: true }) => contextOf(rows, { rows: ["Month"], cols: ["City"], values: [{ field: "Mean", agg }], display: "chart", chart });
+    const average = stacked("average");
+    assert.deepEqual(holding(average), ["stackedTotal"]);
+    const tip = activeTips(average, { allowed: "on", dismissed: [] })[0];
+    assert.equal(tip.entry.action, "bars");
+    assert.equal(tipText(tip.id, tip.params, en, "en-US"), "A stack adds up its parts, and a sum of Average of Mean is no useful total. Bars show the parts side by side.");
+    assert.equal(tipText(tip.id, tip.params, LABELS.de, "de-DE"), "Ein Stapel addiert seine Teile, und eine Summe aus Durchschnitt von Mean ergibt keine sinnvolle Gesamtzahl. Balken zeigen die Teile nebeneinander.");
+    // horizontal stacked bars too; a minimum as well
+    assert.deepEqual(holding(stacked("min", { type: "bar", stacked: true, horizontal: true })), ["stackedTotal"]);
+    // sums and counts add up; bars side by side do not stack
+    assert.deepEqual(holding(stacked("sum")), []);
+    assert.deepEqual(holding(stacked("count")), []);
+    assert.deepEqual(holding(stacked("average", { type: "bar" })), []);
+    // one series is no stack
+    assert.deepEqual(holding(contextOf(rows, { rows: ["Month"], values: [{ field: "Mean", agg: "average" }], display: "chart", chart: { type: "bar", stacked: true } })), []);
+});
+

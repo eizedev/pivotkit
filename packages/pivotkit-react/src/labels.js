@@ -257,6 +257,7 @@ export const en = {
         colSubtotals: "A Total column adds up the columns of the group before it; it is not an item of its own.",
         chartOverTime: "{field} is a date: lines show how the values change over time.",
         pieSlices: "A pie works for up to about {max} parts; this one has {count}. Bars compare them more easily.",
+        stackedTotal: "A stack adds up its parts, and a sum of {value} is no useful total. Bars show the parts side by side.",
         pieColumns: "A pie draws one slice per row and adds up the columns ({fields}). Bars show the columns side by side.",
         chartDates: "The dates are on Columns, so each date is a line of its own. Swap rows and columns to draw the dates along the axis.",
         chartTrend: "Lines connect points into a trend. For categories such as countries, bars fit better.",

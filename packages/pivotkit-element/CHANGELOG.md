@@ -8,6 +8,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- A tip on stacked bars of a value that does not add up. See pivotkit-react's changelog
+  ([#536](https://github.com/eizedev/pivotkit/issues/536)).
 - Bars and lines, and a treemap, from pivotkit-react. ECharts' treemap loads with the chart: the
   chart group's budget goes to 259.5 KiB. The first load does not grow
   ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).

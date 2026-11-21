@@ -84,6 +84,7 @@ type you pick stays.
 | --- | --- |
 | The chart is over dates, and you picked a type that is not lines, such as bars or a pie | **Show as lines over time** goes back to Automatic. It is one step, and Undo takes it back. |
 | A pie or a donut has more than about 7 slices | **Switch to Bars**. |
+| Stacked bars of an average, a minimum, a maximum or a median | A stack adds up its parts, and that sum is no useful total. **Switch to Bars** shows the parts side by side. The tooltip leaves out the stack's total for such a value. |
 | A pie has a field on Columns | It adds the columns up into one slice per row. |
 | Lines or an area over categories without an order, such as countries or teams | "Lines connect points into a trend. For categories such as countries, bars fit better." with **Switch to Bars**. The tip does not show for dates, number ranges or a custom order such as the seasons. Nor does it show when the dates are on Columns: then the next tip offers to swap. |
 | More than 8 series, or lines with the dates on Columns | **Swap rows and columns**. It also sits in the heading row of the zones. |

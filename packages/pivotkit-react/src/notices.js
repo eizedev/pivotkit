@@ -9,6 +9,7 @@
 
 import { fieldLabel } from "pivotkit-core";
 import { fill } from "./labels.js";
+import { valueLabel } from "./names.js";
 import { ALL_TIPS } from "./tip-state.js";
 import { filtersOf, isFiltered } from "./view-ops.js";
 
@@ -182,6 +183,9 @@ export function tipText(id, params, labels, locale) {
     }
     if (id === "dateUngrouped") {
         return fill(texts.dateUngrouped, { ...values, unit: labels.units[params.unit] ?? params.unit });
+    }
+    if (id === "stackedTotal") {
+        return fill(texts.stackedTotal, { value: valueLabel(params.spec, labels) });
     }
     return Object.hasOwn(texts, id) && typeof texts[id] === "string" ? fill(texts[id], values) : "";
 }

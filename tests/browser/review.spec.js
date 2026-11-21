@@ -54,6 +54,19 @@ test("a pie of many slices suggests bars; a pie with columns says it adds them u
     await expect(page.getByTestId("tip-pieColumns")).toContainText("adds up the columns (Channel)");
 });
 
+test("stacked bars of an average say the stack is no total and switch to bars; sums stack without the tip", async ({ page }) => {
+    const view = (agg) => ({ rows: ["Region"], cols: ["Channel"], values: [{ field: "Revenue", agg }], display: "chart", chart: { type: "bar", stacked: true } });
+    await page.goto(withView("data=sales&import=off", view("average")));
+    const tip = page.getByTestId("tip-stackedTotal");
+    await expect(tip).toContainText("A stack adds up its parts, and a sum of Average of Revenue is no useful total.");
+    await tip.getByRole("button", { name: "Switch to Bars" }).click();
+    await expect(page.getByTestId("chart-summary")).toContainText(/^Bars: /);
+    await expect(page.getByTestId("tip-stackedTotal")).toHaveCount(0);
+    await page.goto(withView("data=sales&import=off", view("sum")));
+    await expect(page.getByTestId("chart-summary")).toContainText(/^Stacked bars: /);
+    await expect(page.getByTestId("tip-stackedTotal")).toHaveCount(0);
+});
+
 // which buttons each language shows at which width: toolbar-overflow.spec.js (issue #88: measured
 // with the texts shown, so a shorter language keeps more buttons)
 test("the toolbar keeps Undo next to Redo in English and German", async ({ page }) => {
