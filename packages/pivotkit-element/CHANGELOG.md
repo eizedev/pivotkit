@@ -17,6 +17,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   ([#536](https://github.com/eizedev/pivotkit/issues/536)).
 - Colour scales to pick in the value menu. See pivotkit-react's changelog
   ([#95](https://github.com/eizedev/pivotkit/issues/95)).
+- Sort by one column with a click on its name. See pivotkit-react's changelog
+  ([#70](https://github.com/eizedev/pivotkit/issues/70)).
 - Bars and lines, and a treemap, from pivotkit-react. ECharts' treemap loads with the chart: the
   chart group's budget goes to 259.5 KiB. The first load does not grow
   ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).

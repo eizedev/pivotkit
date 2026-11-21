@@ -88,6 +88,7 @@ export const de = {
     sortCustomDesc: "Eigene Reihenfolge, umgekehrt",
     sortValueDesc: "Größte {value} zuerst",
     sortValueAsc: "Kleinste {value} zuerst",
+    valueInColumn: "{value} in {column}",
     headerSort: "{field} sortieren: {order}",
     headerSortDesc: "Nach {value} sortieren: größte zuerst",
     headerSortAsc: "Nach {value} sortieren: kleinste zuerst",

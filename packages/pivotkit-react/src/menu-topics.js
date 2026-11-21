@@ -12,7 +12,7 @@ import { CATALOG, COLOR_SCALES, aggregatorsFor, fieldLabel, formatter, isFormat 
 import { fill, plural } from "./labels.js";
 import { dateRangeText, dateDisplayLocale } from "./date-context.js";
 import { calendarDays, groupHint, groupStats } from "./group-context.js";
-import { groupingName, refLabel, relativeText, sortText, valueLabels } from "./names.js";
+import { columnText, groupingName, refLabel, relativeText, sortText, valueLabels } from "./names.js";
 import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, hiddenAfter, isFiltered, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
 import { valueAddsUp } from "pivotkit-core";
 import { CHART_TYPES, SLICE_TYPES } from "./chart-types.js";
@@ -108,7 +108,8 @@ export function axisTopics({ view, zone, index, field, types, labels, locale, st
     const hostOrder = source === field ? defaultsOf?.(source)?.order : undefined;
     const hosted = Array.isArray(hostOrder) && hostOrder.length > 0;
     const customItems = sort?.by === "custom" ? sort.items : hosted ? hostOrder : null;
-    const isSort = (by, order, ref) => (sort ? sort.by === by && sort.order === order && (by !== "value" || sameRef(sort.value, ref)) : by === "label" && order === "asc");
+    // the menu's choices sort by the whole row: none is checked while one column decides (#70)
+    const isSort = (by, order, ref) => (sort ? sort.by === by && sort.order === order && (by !== "value" || (sameRef(sort.value, ref) && !sort.column)) : by === "label" && order === "asc");
     /** @returns {Choice} */
     const sortChoice = (id, text, by, order, ref, icon) => ({
         id: `sort-${id}`,
@@ -127,7 +128,7 @@ export function axisTopics({ view, zone, index, field, types, labels, locale, st
     if (customItems) {
         byValue.push(sortChoice("custom", labels.sortCustom, "custom", "asc", null, "sortAsc"), sortChoice("custom-desc", labels.sortCustomDesc, "custom", "desc", null, "sortDesc"));
     }
-    const otherSort = sort && sort.by !== "label" ? sortText(view, sort, labels) : null;
+    const otherSort = sort && sort.by !== "label" ? sortText(view, sort, labels, sort.column && encoded ? columnText(view, sort.column, encoded, labels, locale) : undefined) : null;
     /** @type {Topic[]} */
     const topics = [
         {

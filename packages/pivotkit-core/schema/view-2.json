@@ -1145,6 +1145,14 @@
         },
         "value": {
           "$ref": "#/$defs/valueRef"
+        },
+        "column": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/item"
+          },
+          "minItems": 1
         }
       },
       "if": {

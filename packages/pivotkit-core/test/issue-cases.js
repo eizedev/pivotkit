@@ -65,6 +65,7 @@ export const ISSUE_CASES = Object.freeze({
     filterRelativeAnchor: { filters: [{ field: "Date", type: "relative", unit: "year", count: 1, anchor: "yesterday" }] },
     sortNoItems: { sort: [{ field: "Region", by: "custom" }] },
     sortedTwice: { sort: [{ field: "Region" }, { field: "region", order: "desc" }] },
+    sortColumn: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], sort: [{ field: "Region", by: "label", column: ["x"] }] },
     badTotals: { totals: true },
     collapsedPath: { rows: ["Region"], collapsed: { rows: [["North"]] } },
     unknownSetting: { chart: { type: "radar" } },

@@ -178,6 +178,7 @@ Then restart Claude Code.
 | [503 `BUSY` logs at `warn`](#busy-warn) | a log rule counts `error` lines | count 503 `BUSY` among the warnings, or match its `code` |
 | [Two chart types: bars and lines, and a treemap](#combo-treemap) | you share views with pivotkit 0.8, or a host or a script lists the chart types | nothing. pivotkit 0.8 draws such a view with the automatic type |
 | [A pie without a legend groups its smallest slices](#other-slice) | your app shows a pie or donut with the legend off, or your tests or screenshots compare one | nothing; turn the legend on to draw every slice. Expect "Other (n)" in tests |
+| [Sort by one column](#sort-column) | you share views with pivotkit 0.8, or run pivotkit-server or pivotkit-mcp | nothing. pivotkit 0.8 sorts such a view by the whole row, with a warning. Reconnect MCP clients to see `column` in the view schema |
 | [High and low points in the chart](#chart-points) | you share views with pivotkit 0.8, or your tests compare a normalized view or the chart option as a whole | nothing. A normalized view has `extremes` in `chart.referenceLines` |
 | [A click in the chart opens a menu](#chart-click-menu) | your app uses `onCellClick` or `pivot-cell-click` for chart points, or your tests click a chart to open its rows | expect the call at **Show the rows** or a double click. In tests, click **Show the rows** or double-click |
 
@@ -202,6 +203,15 @@ their labels have no room ([many slices](../use/charts.md#many-slices)).
 - The chart of an HTML report or SVG takes the report's words. A German report writes "Andere (n)"
   and the German names of the reference lines.
 - The token `--pk-chart-other` colours the slice: `--pk-muted` in light, a mid grey in dark.
+
+### Sort by one column { #sort-column }
+
+A click on a column's name sorts the rows by that column
+([sorting](../use/filters.md#sort-with-a-click-on-a-header)). The view's sort entry names the column
+in `column`, its items from the outermost column field.
+
+- pivotkit 0.8 reads such a view with a warning and sorts by the whole row.
+- Saved again there, the view loses the column.
 
 ### High and low points in the chart { #chart-points }
 

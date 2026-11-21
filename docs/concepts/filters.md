@@ -208,6 +208,12 @@ Each field on rows or columns has its own sort:
   "Item 10"). Numbers and dates sort by value. This is the default. Blank sorts last.
 - `by: "value"` sorts by an aggregated value. `value` names which one. The default is the view's
   first. Items sort within their parent group.
+- A row field's `value` sort can name one column in `column`: its items, from the outermost column
+  field, such as `["2025", "Jul"]`. The rows then follow that column's values, and a row without a
+  value there comes last. Without `column` the whole row decides. On a column field, or with another
+  `by`, `column` is left out with the warning `sortColumn`. A column a filter takes out leaves every
+  row without a value there: the rows go by their labels, in the sort's direction, until the column
+  is back.
 - `by: "custom"` sorts in an order of your own, like Excel's custom lists. The `items` come first, in
   their order, named as filter items name them. The field's other items follow by label. `order:
   "desc"` reverses both. Blank sorts last unless it is listed (`null`).
@@ -225,7 +231,8 @@ A click on a header of the table writes the same entries
 ([sort with a click on a header](../use/filters.md#sort-with-a-click-on-a-header)):
 
 - A value's name writes a `value` sort of the innermost row field: `desc`, then `asc`, then no entry.
-- A row field's name writes a `label` sort.
+  Under a column, or a column's own name with one value, it names that `column`.
+- A row or column field's name writes a `label` sort.
 
 The menu offers "Custom order" when the view has a custom sort for the field, or when the host gives
 the field an order: `fieldDefaults: { Season: { order: ["Spring", "Summer", "Autumn", "Winter"]
