@@ -58,3 +58,11 @@ test("a slice of a pie, or a chart without columns: no series entries; the last 
     assert.deepEqual(pointActions(onlyEast, { rowPath: ["East"], colPath: [], valueIndex: 0, value: 8 }, data, en, "en-US").map((a) => a.id), ["rows"]);
     assert.equal(filtersOf(onlyEast, "Region", ["in"]).length, 1);
 });
+
+test("no rows to show (drillDown off, no onCellClick): no Show the rows, the filters stay (#705)", () => {
+    assert.deepEqual(pointActions(view, point, data, en, "en-US", { showRows: false }).map((a) => a.id), ["only-row", "without-row", "only-col", "without-col"]);
+    // on by default: a caller without the option keeps the entry
+    for (const options of [{ showRows: true }, undefined]) {
+        assert.equal(pointActions(view, point, data, en, "en-US", options)[0].id, "rows");
+    }
+});

@@ -86,6 +86,21 @@ test.describe("the menu at a clicked point of the chart", () => {
         await expect(menu(page)).toHaveCount(0);
     });
 
+    test("drillDown off: no Show the rows without onCellClick; with it, Show the rows is the host's call (#705)", async ({ page }) => {
+        let chartEl = await mount(page, { type: "bar" }, { drillDown: false });
+        let at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
+        await page.mouse.click(at.x, at.y);
+        await expect(menu(page).getByRole("menuitem")).toHaveText(["Only NorthRegion", "Without NorthRegion", "Only SoftwareCategory", "Without SoftwareCategory"]);
+        await page.keyboard.press("Escape");
+        // the host listens: the entry calls it, and no panel opens
+        chartEl = await mount(page, { type: "bar" }, { drillDown: false, cellClicks: true });
+        at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
+        await page.mouse.click(at.x, at.y);
+        await menu(page).getByRole("menuitem", { name: "Show the rows" }).click();
+        await expect.poll(() => page.evaluate(() => window.__cellClicks)).toEqual([{ row: ["North"], col: ["Software"], count: 1 }]);
+        await expect(page.getByTestId("drill-panel")).toHaveCount(0);
+    });
+
     test("a heatmap's cell: its row's and its column's items; Only keeps the column", async ({ page }) => {
         const chartEl = await mount(page, { type: "heatmap" });
         const at = await pointOf(chartEl, cellMiddle, { x: SOFTWARE, y: NORTH });
