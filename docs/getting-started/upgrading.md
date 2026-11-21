@@ -183,6 +183,8 @@ Then restart Claude Code.
 | [Table and chart side by side](#display-both) | you share views with pivotkit 0.8, or a program reads `display` | nothing. A view shown as both has `display: "both"` |
 | [High and low points in the chart](#chart-points) | you share views with pivotkit 0.8, or your tests compare a normalized view or the chart option as a whole | nothing. A normalized view has `extremes` in `chart.referenceLines` |
 | [A click in the chart opens a menu](#chart-click-menu) | your app uses `onCellClick` or `pivot-cell-click` for chart points, or your tests click a chart to open its rows | expect the call at **Show the rows** or a double click. In tests, click **Show the rows** or double-click |
+| [A strict `computePivot`](#strict) | you want a bad view to throw instead of giving numbers | pass `strict: true` |
+| [`PivotView` in pivotkit-react](#pivot-view-type) | your TypeScript code imports `ViewInput` from pivotkit-react | import `PivotView` instead. `ViewInput` still works ([PK-DEP-0001](../versioning.md#register)) |
 
 ### Two chart types: bars and lines, and a treemap { #combo-treemap }
 
@@ -239,6 +241,22 @@ The tab **Both** shows the table and the chart side by side on a wide report
 - `CATALOG.displayModes`, the view's JSON Schema and the OpenAPI document list `"both"`. MCP
   clients see it after they reconnect.
 - A narrower report shows the table of such a view.
+
+### A strict `computePivot` { #strict }
+
+`computePivot(data, view, { strict: true })` throws a `PivotkitError` with the code `INVALID_VIEW`
+for a view with an error issue, such as a filter on a field the data lacks. `error.details.issues`
+lists them. Without `strict`, nothing changes: the result keeps every row the dropped part would
+have filtered, and `result.issues` says why ([check the issues](engine.md#check-issues)).
+
+### `PivotView` in pivotkit-react { #pivot-view-type }
+
+pivotkit-react calls its view type `PivotView`, the name pivotkit-element uses. `ViewInput` is the
+same type under its old name. It is deprecated as PK-DEP-0001 and goes no earlier than 2.0.0.
+
+- Replace `import { type ViewInput } from "pivotkit-react"` with `type PivotView`.
+- TypeScript shows no warning for the old name. The register on the
+  [versioning page](../versioning.md#register) lists it.
 
 ### High and low points in the chart { #chart-points }
 

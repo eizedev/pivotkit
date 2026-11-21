@@ -20,6 +20,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   drag or move with the arrow keys, and **Table settings** and **Chart settings** beside each other.
   A narrower report shows the table. In English and German
   ([table and chart side by side](https://pivotkit.eize.dev/use/charts/#both), #51).
+- The view type is exported as `PivotView`, the name pivotkit-element uses too (#563).
 - A date in Filters has **Group** in its chip's menu, as on Rows and Columns. A unit such as Year
   puts the grouping in the date's place among the Filters, with every item kept
   ([#100](https://github.com/eizedev/pivotkit/issues/100)).
@@ -74,6 +75,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   link to a report." and "This view comes from a newer version and cannot be read here. Update the
   application to open it." The notes about unused parts of a view say the same
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#neutral-texts), #612).
+
+### Deprecated
+
+- PK-DEP-0001: the type `ViewInput`. Use `PivotView`, the same type. `ViewInput` goes no earlier than
+  2.0.0 ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#pivot-view-type), #563).
 
 ## [0.8.2] - 2026-11-19
 

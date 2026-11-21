@@ -239,10 +239,12 @@ uses. pivotkit-react shares it as JSON, as a file and, in its link profile, as a
 ### `computePivot(data, view, options?)`
 
 Builds the row and column key trees with subtotals and totals. It normalizes the view first, so raw
-user input is fine. It never throws for a bad view. It leaves out a filter it cannot use, and the
-result then keeps every row. Check `issues` for `severity: "error"` before you trust the numbers
-([engine](../getting-started/engine.md#check-issues)). Options:
+user input is fine. By default it never throws for a bad view. It leaves out a filter it cannot use,
+and the result then keeps every row. Check `issues` for `severity: "error"` before you trust the
+numbers ([engine](../getting-started/engine.md#check-issues)), or pass `strict: true`. Options:
 
+- `strict`: a view with an error issue throws `INVALID_VIEW` instead of giving numbers.
+  `error.details.issues` holds the error issues. Warnings do not throw. The default is `false`.
 - `locale`.
 - `limits`. It computes `work` before the aggregation starts. It counts `groups` and `pivotCells`
   while the key trees and the cells grow. Over one of them, it throws `LIMIT_EXCEEDED`.
@@ -639,7 +641,7 @@ files contain and where Excel's number formats cannot follow the grid.
 | `LIMITS` | The [limits](../concepts/limits.md#limits). |
 | `ISSUE_CAP` | `{ perCode: 100, total: 1000 }`: the most issues of one code, and in all, that `normalize` and `validate` list for one view. The warning `tooManyIssues` counts the rest ([Views from outside](../concepts/limits.md#views-from-outside)). |
 | `OUTSIDE_LIMITS`, `outsideLimits(limits)` | `OUTSIDE_LIMITS`: the tighter limits of a view from outside (a link, pasted JSON, an API, an LLM), `{ filters: 50, json: 1000000 }`. `outsideLimits(limits)`: the host's limits with each of these at most its preset value, to pass as `normalize`'s `limits` ([Views from outside](../concepts/limits.md#views-from-outside)). |
-| `PivotkitError` | The error class. `code` is `INVALID_ARGUMENT`, `INVALID_OPTION`, `LIMIT_EXCEEDED` or `INVALID_FILE`, a file that cannot be read ([Loading files](import.md#errors)). `details` holds `{ limit, value, max }` for a limit, plus `file` and `what` (what was counted) for a file's limit. It holds `{ reason, file }` for a file that cannot be read. |
+| `PivotkitError` | The error class. `code` is `INVALID_ARGUMENT`, `INVALID_OPTION`, `INVALID_VIEW` (`computePivot` with `strict`, `details.issues`), `LIMIT_EXCEEDED` or `INVALID_FILE`, a file that cannot be read ([Loading files](import.md#errors)). `details` holds `{ limit, value, max }` for a limit, plus `file` and `what` (what was counted) for a file's limit. It holds `{ reason, file }` for a file that cannot be read. |
 
 ## Types
 

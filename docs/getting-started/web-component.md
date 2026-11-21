@@ -216,8 +216,8 @@ export class TicketReportComponent {
 }
 ```
 
-`PivotView` is the element's type for a view as a host passes it. pivotkit-react's `ViewInput` has
-the same role ([types](../reference/element.md#types)).
+`PivotView` is the element's type for a view as a host passes it. pivotkit-react's type has the
+same name ([types](../reference/element.md#types)).
 
 The test checks four things:
 

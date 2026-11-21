@@ -2,7 +2,9 @@
  * The error model of pivotkit-core:
  *
  * - A bad view never throws. A view is user input; normalize() drops what it cannot use and reports
- *   it as an issue, and every function that takes a view normalizes it first.
+ *   it as an issue, and every function that takes a view normalizes it first. Only a host that asks
+ *   for it gets an error: computePivot's `strict` throws INVALID_VIEW, with the error issues in
+ *   `details.issues` (#563).
  * - A programmer error throws a PivotkitError: a wrong argument (computePivot(null), toGrid({})), an
  *   invalid option (an unknown locale or time zone in the options) or a resource limit (more cells
  *   than `limits.cells`, more rows than an XLSX sheet holds). `code` tells them apart.
@@ -13,7 +15,7 @@
  *   (pivotkit-report) throws INVALID_TEMPLATE, with `details.reason` and the placeholder.
  */
 
-/** @typedef {"INVALID_ARGUMENT" | "INVALID_OPTION" | "LIMIT_EXCEEDED" | "INVALID_FILE" | "INVALID_TEMPLATE"} PivotkitErrorCode */
+/** @typedef {"INVALID_ARGUMENT" | "INVALID_OPTION" | "INVALID_VIEW" | "LIMIT_EXCEEDED" | "INVALID_FILE" | "INVALID_TEMPLATE"} PivotkitErrorCode */
 
 export class PivotkitError extends Error {
     /**

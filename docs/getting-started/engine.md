@@ -65,7 +65,7 @@ The steps:
 
 ## Check the issues before you trust the numbers { #check-issues }
 
-`computePivot` never throws for a bad view. It leaves out what it cannot use and lists it in
+By default `computePivot` never throws for a bad view. It leaves out what it cannot use and lists it in
 `result.issues`. A filter it leaves out keeps every row, so the numbers then cover all the data.
 A filter on a misspelled field is enough for that.
 
@@ -79,8 +79,21 @@ if (errors.length > 0) {
 }
 ```
 
-pivotkit-core has no strict mode. To check a view before you compute, call `validate(view, data)`.
-It gives the same problems as `errors` and `warnings`.
+Or let `computePivot` refuse such a view. With `strict: true` it throws a `PivotkitError` with the
+code `INVALID_VIEW`, and `error.details.issues` lists the errors: a field the data lacks, a view made
+for another time zone than the data's, and the other error issues. Warnings do not throw:
+
+```js
+try {
+    const result = computePivot(data, input, { strict: true });
+} catch (error) {
+    if (error.code !== "INVALID_VIEW") throw error;
+    // error.details.issues: what is wrong with the view
+}
+```
+
+To check a view before you compute, call `validate(view, data)`. It gives the same problems as
+`errors` and `warnings`.
 
 ## Drawing the grid
 
