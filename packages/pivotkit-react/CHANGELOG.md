@@ -8,6 +8,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- A date in Filters has **Group** in its chip's menu, as on Rows and Columns. A unit such as Year
+  puts the grouping in the date's place among the Filters, with every item kept
+  ([#100](https://github.com/eizedev/pivotkit/issues/100)).
 - Highlight › Colour scale has a row **Colours**: the theme's light to dark blue, blue to orange,
   blue to red and red to green, each with a strip of its colours. A choice writes the value's own
   colours (`conditional.colors`), so older versions show them too

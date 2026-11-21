@@ -8,6 +8,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- A date in Filters can be grouped from its chip's menu. See pivotkit-react's changelog
+  ([#100](https://github.com/eizedev/pivotkit/issues/100)).
 - Colour scales to pick in the value menu. See pivotkit-react's changelog
   ([#95](https://github.com/eizedev/pivotkit/issues/95)).
 - Bars and lines, and a treemap, from pivotkit-react. ECharts' treemap loads with the chart: the
