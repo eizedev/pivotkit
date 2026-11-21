@@ -705,7 +705,8 @@ Behind a reverse proxy:
 - Keep the `Host` header, or add the proxy's name with `--allow-host`.
 - Set `--public-url` to the origin people open, such as `https://reports.example.com`. It takes no
   path: the server serves at the root of its host. On a shared host, give pivotkit a host name of
-  its own, such as a subdomain, or route the paths above at the root.
+  its own, such as a subdomain, or route the paths above at the root. A prefix such as `/reports`
+  in front of them does not work.
 - Turn response buffering off for `/mcp`.
 
 The server reads no `X-Forwarded-Proto` or `X-Forwarded-Host`: its own address is `--public-url`. It

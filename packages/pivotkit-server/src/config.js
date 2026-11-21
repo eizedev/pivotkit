@@ -357,7 +357,7 @@ export function validateOptions(options) {
             }
         }
         urlOf(options.auth.issuer, "auth.issuer");
-        urlOf(options.auth.resource, "auth.resource");
+        resourceUrlOf(options.auth.resource, "auth.resource");
         for (const alg of options.auth.algorithms ?? []) {
             if (/^(none|HS\d+)$/i.test(alg)) {
                 throw new ConfigError(`auth.algorithms: ${alg} is not accepted (no "none", no shared-secret HMAC)`);
@@ -393,7 +393,7 @@ export function validateOptions(options) {
         }
     }
     if (options.rest?.resource) {
-        urlOf(options.rest.resource, "rest.resource");
+        resourceUrlOf(options.rest.resource, "rest.resource");
     }
     for (const [i, origin] of (options.rest?.cors?.origins ?? []).entries()) {
         let url = null;
@@ -456,15 +456,27 @@ function urlOf(text, path) {
  * @param {string} text
  */
 function publicUrlOf(text) {
-    const url = urlOf(text, "http.publicUrl");
+    const url = resourceUrlOf(text, "http.publicUrl (or --public-url)");
+    if (url.pathname !== "/") {
+        throw new ConfigError("http.publicUrl (or --public-url): the address has a path, and pivotkit serves at the root of its host. Write the origin only, such as https://reports.example.com. On a shared host, give pivotkit a host name of its own, such as a subdomain, or route its paths at the root: /mcp, /.well-known/, /api/v1, /openapi.json, /downloads/ and /");
+    }
+    return url;
+}
+
+/**
+ * An http(s) address the server names to clients (http.publicUrl, an OAuth resource): no user name,
+ * password, query or fragment, which it would show in pages, messages and metadata. The message never
+ * repeats the value.
+ * @param {string} text
+ * @param {string} path
+ */
+function resourceUrlOf(text, path) {
+    const url = urlOf(text, path);
     if (url.username || url.password) {
-        throw new ConfigError("http.publicUrl: no user name or password in the address; write the origin people open, such as https://reports.example.com");
+        throw new ConfigError(`${path}: no user name or password in the address`);
     }
     if (url.search || url.hash || /[?#]/.test(text)) {
-        throw new ConfigError("http.publicUrl: no query or fragment (? or #) in the address; write the origin people open, such as https://reports.example.com");
-    }
-    if (url.pathname !== "/") {
-        throw new ConfigError("http.publicUrl: an address without a path, such as https://reports.example.com; pivotkit serves at the root of its host. Give it a host name of its own, such as a subdomain, or have the proxy route /mcp, /api/v1, /openapi.json and /downloads at the root of the shared host");
+        throw new ConfigError(`${path}: no query or fragment (? or #) in the address`);
     }
     return url;
 }
@@ -510,9 +522,9 @@ export const publicOriginOf = (options) => (options?.http?.publicUrl ? new URL(o
 
 /**
  * Where people find the REST service and its OpenAPI document, for messages: full addresses under
- * http.publicUrl's origin (publicOriginOf), else the paths. Readers took a bare "/openapi.json" next to "/api/v1" as relative to it, so
- * without a public URL the document's place is said in words. openapi is null where rest.openapi
- * "off" serves no document. (http.publicUrl is checked as an http(s) address at start.)
+ * http.publicUrl's origin (publicOriginOf), else the paths. Readers took a bare "/openapi.json"
+ * next to "/api/v1" as relative to it, so without a public URL the document's place is said in
+ * words. openapi is null where rest.openapi "off" serves no document.
  * @param {ServerOptions} options
  * @returns {{ rest: string, openapi: string | null }}
  */

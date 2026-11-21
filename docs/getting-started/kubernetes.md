@@ -83,7 +83,7 @@ The configuration is a ConfigMap mounted at `/config`, where the image reads
 --8<-- "kubernetes.example.yaml:config"
 ```
 
-- `http.publicUrl` is the address clients use. The server answers that host name, the localhost
+- `http.publicUrl` is the origin clients use, without a path. The server answers that host name, the localhost
   names and the names in `http.allowHosts`. Any other `Host`, such as the pod's IP address, gets
   403. Clients inside the cluster use the public address too, through the ingress controller. For
   the other way, see [clients inside the cluster](#in-cluster).

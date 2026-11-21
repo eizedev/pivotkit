@@ -15,10 +15,10 @@ test("http.publicUrl with a path is refused at start, and the message names the 
     for (const publicUrl of ["https://example.com/reports", "https://example.com/reports/", "https://example.com/a/b"]) {
         assert.throws(() => validateOptions({ http: { publicUrl } }), (e) => {
             assert.equal(e.name, "ConfigError");
-            assert.match(e.message, /^http\.publicUrl: /);
-            assert.match(e.message, /without a path/);
+            assert.match(e.message, /^http\.publicUrl \(or --public-url\): the address has a path/);
+            assert.match(e.message, /Write the origin only, such as https:\/\/reports\.example\.com/);
             assert.match(e.message, /a host name of its own/);
-            assert.match(e.message, /\/mcp, \/api\/v1, \/openapi\.json and \/downloads/);
+            assert.match(e.message, /\/mcp, \/\.well-known\/, \/api\/v1, \/openapi\.json, \/downloads\/ and \/$/);
             return true;
         }, publicUrl);
     }
@@ -28,7 +28,7 @@ test("http.publicUrl with a user name, a password, a query or a fragment is refu
     for (const publicUrl of [`https://user:${SECRET}@example.com/`, "https://user@example.com", `https://example.com/?key=${SECRET}`, `https://example.com#${SECRET}`, "https://example.com/?"]) {
         assert.throws(() => validateOptions({ http: { publicUrl } }), (e) => {
             assert.equal(e.name, "ConfigError");
-            assert.match(e.message, /^http\.publicUrl: /);
+            assert.match(e.message, /^http\.publicUrl \(or --public-url\): no /);
             assert.ok(!e.message.includes(SECRET) && !e.message.includes("user@") && !e.message.includes("user:"), e.message);
             return true;
         }, publicUrl);
@@ -53,6 +53,15 @@ test("every address the server names from http.publicUrl is its origin, also wit
     assert.deepEqual(openApiDocument({ publicUrl: UNCHECKED.http.publicUrl }).servers, [{ url: "https://pk.example.com" }]);
 });
 
+test("auth.resource and rest.resource with a user name, password, query or fragment are refused; a path is fine", () => {
+    const oauth = { mode: "oauth", issuer: "https://auth.example.com/" };
+    for (const resource of [`https://user:${SECRET}@pk.example.com/mcp`, `https://pk.example.com/mcp?k=${SECRET}`, `https://pk.example.com/mcp#${SECRET}`]) {
+        assert.throws(() => validateOptions({ auth: { ...oauth, resource } }), (e) => /^auth\.resource: no /.test(e.message) && !e.message.includes(SECRET), resource);
+        assert.throws(() => validateOptions({ auth: { ...oauth, resource: "https://pk.example.com/mcp" }, rest: { resource } }), (e) => /^rest\.resource: no /.test(e.message) && !e.message.includes(SECRET), resource);
+    }
+    assert.doesNotThrow(() => validateOptions({ auth: { ...oauth, resource: "https://pk.example.com/mcp" }, rest: { resource: "https://pk.example.com/api/v1" } }));
+});
+
 test("the REST resource from auth.resource carries no user name or password", () => {
     assert.equal(restResourceOf({ auth: { resource: `https://user:${SECRET}@pk.example.com/mcp` } }), "https://pk.example.com/api/v1");
     // rest.resource is the operator's own value, as written
@@ -69,4 +78,5 @@ test("token new refuses a configuration whose http.publicUrl has a password or a
     const code = await credentialsCommand("token", ["new", "--file", "reports.token", "--config", "pivotkit.json"], io).catch((e) => e);
     assert.ok(!`${out}${err}${code?.message ?? ""}`.includes(SECRET), `${out}${err}${code?.message ?? ""}`);
     assert.notEqual(code, 0);
+    assert.match(`${err}${code?.message ?? ""}`, /http\.publicUrl \(or --public-url\): no user name or password in the address/);
 });

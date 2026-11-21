@@ -164,7 +164,7 @@ test("a 404 names the OpenAPI document's full address: under http.publicUrl, els
     // a document that is not served is not named
     assert.equal(await detailOf({ rest: { openapi: "off" } }), "no such route; the REST service is at /api/v1");
     // a public URL with a path does not start (#629): the server serves at the root of its host
-    await assert.rejects(detailOf({ http: { publicUrl: "https://pk.example.com/reports/" } }), /http\.publicUrl: an address without a path/);
+    await assert.rejects(detailOf({ http: { publicUrl: "https://pk.example.com/reports/" } }), /http\.publicUrl \(or --public-url\): the address has a path/);
 });
 
 test("save is an input of POST /views/render, not of the file route", () => {

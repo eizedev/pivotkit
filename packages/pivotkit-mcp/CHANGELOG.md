@@ -30,6 +30,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   query or fragment stops the start with an error that names the remedy. The quick-start page names
   the endpoint under the origin, without a user name or password
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#public-url-origin), #629).
+- **Breaking:** `auth.resource` and `rest.resource` with a user name, password, query or fragment
+  stop the start. They appear in metadata and messages (#629).
 - **Breaking:** needs Node 24 or later. Node 22 is no longer supported
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
 - `create_link` and `draft_schedule` take a `layout` instead of a `view`, as `render_view` does.

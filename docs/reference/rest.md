@@ -1422,7 +1422,8 @@ Behind a reverse proxy:
 - Keep the `Host` header, or add the proxy's name to `http.allowHosts`.
 - Set `http.publicUrl` to the origin people open, such as `https://reports.example.com`. It takes
   no path: the server serves at the root of its host. On a shared host, give pivotkit a host name of
-  its own, such as a subdomain, or route the paths above at the root. A user name, password, query
+  its own, such as a subdomain, or route the paths above at the root. A prefix such as `/reports`
+  in front of them does not work. A user name, password, query
   or fragment is refused too.
 - Set `http.trustProxy` when the proxy adds the client's address to `X-Forwarded-For`. Otherwise
   every client has the proxy's address and shares one count of refused tokens (the [limit](#limits)
