@@ -9,7 +9,7 @@
 import React, { useMemo } from "react";
 import { fill } from "./labels.js";
 import { pointActions } from "./menu-ops.js";
-import { Option, Popover } from "./popover.jsx";
+import { Group, Option, Popover } from "./popover.jsx";
 
 /**
  * @param {{ target: { anchor: HTMLElement, home?: HTMLElement | null, point: any } | null, onClose: () => void, onRows: (point: any) => void, view: any,
@@ -35,11 +35,14 @@ export function PointMenu({ target, onClose, onRows, view, encoded, locale, labe
     const name = target ? [target.point.rowLabel, target.point.colLabel].filter(Boolean).join(", ") : "";
     return (
         <Popover open={Boolean(target) && actions.length > 0} anchor={anchor} onClose={close} label={fill(labels.pointMenu, { name })} role="menu" className="pk-point-menu">
-            {actions.map((a) => (
-                <Option key={a.id} inMenu icon={a.id === "rows" ? "table" : a.id.startsWith("only") ? "filter" : "x"} onSelect={() => pick(a)} testId={`point-${a.id}`}>
-                    {a.text}
-                </Option>
-            ))}
+            {/* the point's names on top: on a phone the sheet covers the bar */}
+            <Group title={name} menu>
+                {actions.map((a) => (
+                    <Option key={a.id} inMenu icon={a.id === "rows" ? "table" : a.id.startsWith("only") ? "filter" : "x"} hint={a.field} onSelect={() => pick(a)} testId={`point-${a.id}`}>
+                        {a.text}
+                    </Option>
+                ))}
+            </Group>
         </Popover>
     );
 }

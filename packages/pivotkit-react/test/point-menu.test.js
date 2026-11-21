@@ -31,6 +31,8 @@ test("a bar's menu: Show the rows, then Only and Without its category, then its 
         ["without-col", "Without Hardware"]
     ]);
     assert.deepEqual(pointActions(view, point, data, de, "de-DE").map((a) => a.text), ["Zeilen zeigen", "Nur East", "Ohne East", "Nur Hardware", "Ohne Hardware"]);
+    // each filter entry names its field: with two fields on an axis, the item is the inner field's
+    assert.deepEqual(actions.map((a) => a.field), [undefined, "Region", "Region", "Category", "Category"]);
 });
 
 test("Only keeps the one item, Without leaves it out of what is picked; each says what it did", () => {

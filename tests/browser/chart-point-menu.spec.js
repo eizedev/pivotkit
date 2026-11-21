@@ -2,7 +2,7 @@
 // then "Only …" and "Without …" for its category and its series. A filter is one step: the chip shows
 // it and Undo takes it back. A double click opens the rows at once. The keys work in the menu.
 import { test, expect } from "./fixtures.js";
-import { HARDWARE, NORTH, SOFTWARE, barMiddle, mount, pointOf, sliceMiddle } from "./chart-report.js";
+import { HARDWARE, NORTH, SOFTWARE, barMiddle, cellMiddle, mount, pointOf, sliceMiddle } from "./chart-report.js";
 
 const menu = (page) => page.getByRole("menu");
 const lastView = (page) => page.evaluate(() => window.__tooltipViews.at(-1));
@@ -25,7 +25,9 @@ test.describe("the menu at a clicked point of the chart", () => {
         await page.mouse.click(at.x, at.y);
         await expect(menu(page)).toBeVisible();
         await expect(menu(page)).toHaveAccessibleName("Filter or open North, Software");
-        await expect(menu(page).getByRole("menuitem")).toHaveText(["Show the rows", "Only North", "Without North", "Only Software", "Without Software"]);
+        // the point's names on top; each filter entry with its field's name under it
+        await expect(menu(page)).toContainText("North, Software");
+        await expect(menu(page).getByRole("menuitem")).toHaveText(["Show the rows", "Only NorthRegion", "Without NorthRegion", "Only SoftwareCategory", "Without SoftwareCategory"]);
         // at the bar: the menu's corner within a few pixels of the click
         const box = await menu(page).boundingBox();
         expect(Math.min(Math.abs(box.x - at.x), Math.abs(box.x + box.width - at.x))).toBeLessThan(40);
@@ -82,6 +84,15 @@ test.describe("the menu at a clicked point of the chart", () => {
         await page.mouse.dblclick(at.x, at.y);
         await expect(panel).toBeVisible();
         await expect(menu(page)).toHaveCount(0);
+    });
+
+    test("a heatmap's cell: its row's and its column's items; Only keeps the column", async ({ page }) => {
+        const chartEl = await mount(page, { type: "heatmap" });
+        const at = await pointOf(chartEl, cellMiddle, { x: SOFTWARE, y: NORTH });
+        await page.mouse.click(at.x, at.y);
+        await expect(menu(page)).toContainText("North, Software");
+        await menu(page).getByRole("menuitem", { name: /^Only Software/ }).click();
+        await expect.poll(async () => (await lastView(page)).filters.map((f) => [f.field, f.type])).toEqual([["Category", "in"]]);
     });
 
     test("a slice adds up every column: Only and Without, no rows of its own", async ({ page }) => {

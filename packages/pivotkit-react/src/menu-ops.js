@@ -700,10 +700,10 @@ export function parseTarget(text, locale, format) {
  * @param {any} view
  * @param {{ rowPath: any[], colPath: any[], valueIndex: number, value: unknown, slice?: boolean }} point
  * @param {import("pivotkit-core").Encoded} encoded
- * @returns {Array<{ id: string, text: string, change?: () => { view: any, note: any } }>}
+ * @returns {Array<{ id: string, text: string, field?: string, change?: () => { view: any, note: any } }>}
  */
 export function pointActions(view, point, encoded, labels, locale) {
-    /** @type {Array<{ id: string, text: string, change?: () => { view: any, note: any } }>} */
+    /** @type {Array<{ id: string, text: string, field?: string, change?: () => { view: any, note: any } }>} */
     const out = point.slice ? [] : [{ id: "rows", text: labels.pointRows }];
     const add = (axis, field, key) => {
         const info = fieldItems(encoded, field, { view, locale, labels: labels.core });
@@ -716,8 +716,10 @@ export function pointActions(view, point, encoded, labels, locale) {
         const name = fieldLabel(field, labels.core);
         const note = { step: "filter", field: name };
         if (shown.length > 1) {
-            out.push({ id: `only-${axis}`, text: fill(labels.pointOnly, { item }), change: () => ({ view: setItemFilter(view, field, [key], all), note }) });
-            out.push({ id: `without-${axis}`, text: fill(labels.pointWithout, { item }), change: () => ({ view: setItemFilter(view, field, shown.filter((v) => v !== key), all), note }) });
+            // the field's name goes with each entry: with two fields on an axis, "Only Software" is
+            // Software of Category in every region, not only in the bar's
+            out.push({ id: `only-${axis}`, text: fill(labels.pointOnly, { item }), field: name, change: () => ({ view: setItemFilter(view, field, [key], all), note }) });
+            out.push({ id: `without-${axis}`, text: fill(labels.pointWithout, { item }), field: name, change: () => ({ view: setItemFilter(view, field, shown.filter((v) => v !== key), all), note }) });
         }
     };
     if (point.rowPath.length && view.rows.length >= point.rowPath.length) {

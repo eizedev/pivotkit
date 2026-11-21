@@ -410,12 +410,17 @@ Click a bar, a point, a slice or a heatmap cell, and a small menu opens at it:
 | **Without North** | Leaves that item out of the report. |
 | **Only Software**, **Without Software** | The same for the series: the item of the field on Columns. |
 
+- Under each filter entry is the name of its field. With two fields on an axis, the entry filters the
+  inner field: **Only Software** keeps Software in every region.
 - A filter from the menu is the field's pick, as in its [filter](filters.md). The field's chip shows
-  it, and **Undo** takes it back.
+  it, and **Undo** takes it back. A text rule or a top N on the field stays as it is.
 - The menu offers no entry that would leave nothing to show.
-- A double click opens the rows at once.
+- A double click opens the rows at once. A slice has no rows of its own, so a double click on it does
+  nothing. A treemap's tile opens no menu.
 - The arrow keys move through the menu, Enter picks an entry, and Escape closes it.
 - On a phone, the first tap shows the tooltip and the second opens the menu at the bottom.
+- Without a mouse, use the table: Enter on a value opens its rows. A field's chip menu has its
+  filter.
 
 ??? info "The share in the tooltip"
     Display › Tooltip › Share in the tooltip adds each value's share after it, such as

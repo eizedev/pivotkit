@@ -84,7 +84,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const warned = useRef(/** @type {unknown} */ (undefined));
     // the bar, segment or line point under the pointer: the tooltip names it (chart-tooltip.js)
     const hover = useRef(/** @type {{ seriesIndex: number, dataIndex: number } | null} */ (null));
-    // the element a tap showed the tooltip of, and when: a second tap on it opens its rows
+    // the element a tap showed the tooltip of, and when: a second tap on it opens its menu
     const tapped = useRef(/** @type {{ element: string, at: number } | null} */ (null));
     // whether the last press on the chart was a finger's: iOS sends its click as a plain mouse event,
     // so the click itself does not say
