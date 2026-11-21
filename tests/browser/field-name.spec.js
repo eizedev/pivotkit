@@ -29,8 +29,10 @@ test("Name renames a field in Rows: chip, header, field list and link; × and Un
     await page.getByTestId("field-search").fill("");
     // the "+ Add" menus find it by its new name too
     await page.getByTestId("add-field-cols").click();
+    await expect(page.locator(".pk-add-menu").getByTestId("menu-search")).toBeFocused();
     await page.keyboard.type("sales ar");
-    await expect(page.locator(".pk-add-menu").getByTestId("add-pick-Region")).toBeVisible();
+    await expect(page.getByTestId("add-pick-Region")).toBeVisible();
+    await expect(page.getByTestId("add-pick-Region")).toContainText("Sales area");
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     // the link keeps it
