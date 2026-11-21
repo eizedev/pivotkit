@@ -78,7 +78,7 @@ test("the chart chunks hold the chart types pivotkit-react's echarts.js imports,
     // a chart type is in the bundle when its install.js is (echarts/core itself brings helpers of others)
     const drawn = new Set(inputsOf(groups.chart).flatMap((i) => /echarts[\\/]lib[\\/]chart[\\/](\w+)[\\/]install\.js$/.exec(i)?.[1] ?? []));
     assert.deepEqual([...drawn].sort(), [...new Set(imported)].sort());
-    assert.deepEqual([...drawn].sort(), ["bar", "heatmap", "line", "pie"]);
+    assert.deepEqual([...drawn].sort(), ["bar", "heatmap", "line", "pie", "treemap"]);
 });
 
 test("a page loads React, the report and the core first; ECharts, the export and the menus only on demand", () => {

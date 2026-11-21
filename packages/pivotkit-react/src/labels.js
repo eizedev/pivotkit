@@ -70,7 +70,7 @@ export const en = {
     view: "View",
     chartType: "Chart type",
     chartTypeIs: "Chart type: {type}",
-    chartTypes: { auto: "Automatic", bar: "Bars", stacked: "Stacked bars", horizontal: "Horizontal bars", line: "Lines", area: "Area", pie: "Pie", donut: "Donut", heatmap: "Heatmap" },
+    chartTypes: { auto: "Automatic", bar: "Bars", stacked: "Stacked bars", horizontal: "Horizontal bars", line: "Lines", area: "Area", pie: "Pie", donut: "Donut", heatmap: "Heatmap", combo: "Bars and lines", treemap: "Treemap" },
     undo: "Undo",
     redo: "Redo",
     // Start over: the toolbar's menu of Reset and New (or their entries in More), each with what it

@@ -156,6 +156,22 @@ test("a donut of many slices without a legend: the SVG and the HTML report merge
     assert.ok(!svgTexts(wide.text).some((t) => /^Other/.test(t.trim())));
 });
 
+test("a combo and a treemap reach the SVG (#518)", async () => {
+    // the combo: Units as bars, Price as a line on its own axis, each axis named after its value
+    const combo = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }, { field: "Price", agg: "average" }], chart: { type: "combo" } };
+    const c = await render(combo, SALES, { format: "svg", echarts, ...FIXED });
+    const texts = svgTexts(c.text).map((t) => t.trim());
+    assert.ok(texts.some((t) => t.includes("Sum of Units")) && texts.some((t) => t.includes("Average of Price")), texts.join(" | "));
+    assert.ok(/<path d="M[^"]*"[^>]*stroke-width="2"/.test(c.text), "the line");
+    // the treemap: a tile per region, named on it
+    const treemap = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "treemap" } };
+    const t = await render(treemap, SALES, { format: "svg", echarts, ...FIXED });
+    const tiles = svgTexts(t.text).map((x) => x.trim());
+    for (const region of ["North", "South", "West"]) {
+        assert.ok(tiles.includes(region), `${region}: ${tiles.join(" | ")}`);
+    }
+});
+
 test("100 % stacked bars and hidden series reach the SVG (#36)", async () => {
     const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] };
     const stacked = await render({ ...view, chart: { type: "bar", stacked: true, stackPercent: true, zoom: "on" } }, SALES, { format: "svg", echarts, ...FIXED });

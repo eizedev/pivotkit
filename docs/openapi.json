@@ -1916,7 +1916,9 @@
                   "area",
                   "pie",
                   "donut",
-                  "heatmap"
+                  "heatmap",
+                  "combo",
+                  "treemap"
                 ]
               },
               "stacked": {
@@ -2944,7 +2946,9 @@
                   "area",
                   "pie",
                   "donut",
-                  "heatmap"
+                  "heatmap",
+                  "combo",
+                  "treemap"
                 ],
                 "description": "Show the chart of this type."
               },
@@ -3247,7 +3251,9 @@
                   "area",
                   "pie",
                   "donut",
-                  "heatmap"
+                  "heatmap",
+                  "combo",
+                  "treemap"
                 ],
                 "description": "Show the chart of this type."
               },
@@ -3654,7 +3660,9 @@
                   "area",
                   "pie",
                   "donut",
-                  "heatmap"
+                  "heatmap",
+                  "combo",
+                  "treemap"
                 ],
                 "description": "Show the chart of this type."
               },
@@ -4026,7 +4034,9 @@
                   "area",
                   "pie",
                   "donut",
-                  "heatmap"
+                  "heatmap",
+                  "combo",
+                  "treemap"
                 ],
                 "description": "Show the chart of this type."
               },
@@ -4252,7 +4262,9 @@
                   "area",
                   "pie",
                   "donut",
-                  "heatmap"
+                  "heatmap",
+                  "combo",
+                  "treemap"
                 ],
                 "description": "Show the chart of this type."
               },
@@ -4604,7 +4616,9 @@
                   "area",
                   "pie",
                   "donut",
-                  "heatmap"
+                  "heatmap",
+                  "combo",
+                  "treemap"
                 ],
                 "description": "Show the chart of this type."
               },

@@ -326,7 +326,7 @@ test("help and completions name the layout flags", async () => {
     assert.match(describe.stdout, /--suggest/);
     assert.match(describe.stdout, /-o, --output/);
     const bash = await run(["completion", "bash"]);
-    assert.match(bash.stdout, /--chart-type\) COMPREPLY=\( \$\(compgen -W 'auto bar line area pie donut heatmap'/);
+    assert.match(bash.stdout, /--chart-type\) COMPREPLY=\( \$\(compgen -W 'auto bar line area pie donut heatmap combo treemap'/);
 });
 
 test("what the review found: no file content in a --filter error, -o never over the data, UTF-16 filter files, x:bin:month", async () => {

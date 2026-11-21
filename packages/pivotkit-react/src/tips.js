@@ -75,7 +75,8 @@ export const TIPS = Object.freeze([
         icon: "line",
         action: "auto",
         when: (ctx) => {
-            if (!chart(ctx) || ctx.chartPlan.auto || lines(ctx) || ctx.chartPlan.name === "heatmap") {
+            // bars and lines (combo) draw lines already; a heatmap has the dates in its grid
+            if (!chart(ctx) || ctx.chartPlan.auto || lines(ctx) || ["heatmap", "combo"].includes(ctx.chartPlan.name)) {
                 return null;
             }
             // only where Automatic would draw lines: a date along the time line, not a repeating one (weekday)

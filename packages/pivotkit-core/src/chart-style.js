@@ -16,6 +16,11 @@ import { ZOOM_SLIDER, longestNames, zoomRange, zoomSlider, zoomWindow } from "./
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
 export { extremePoints, referenceLineChecks, referenceLines } from "./chart-lines.js";
+export { labelColorOn } from "./chart-colors.js";
+import { contrastOf, labelColorOn } from "./chart-colors.js";
+
+/** The contrast text needs on its background (WCAG 2.2 AA, normal text). */
+const TEXT_CONTRAST = 4.5;
 
 /** A copy of an object without the given keys. */
 const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));
@@ -221,6 +226,25 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
             const fit = pieLabelFit({ ...s, label, labelLine: line }, box, { fontSize, legend: legendShown });
             label = fit.label ?? label;
             return { ...s, top, bottom, ...fit, labelLine: fit.labelLine ?? line, itemStyle: { ...s.itemStyle, borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
+        }
+        if (s.type === "treemap") {
+            // each tile's label in the token that reads best on it, --pk-text or --pk-surface (one is
+            // dark, one light in every theme); the tiles parted by the background's colour
+            const inks = [v("--pk-text"), surface].filter((c) => typeof c === "string" && c !== "");
+            const label = (/** @type {string | undefined} */ fill) => {
+                const read = fill && readColor ? (readColor(fill) ?? fill) : fill;
+                const color = read && inks.length ? labelColorOn(read, inks) : inks[0];
+                // a tile on which neither reaches the contrast text needs (a mid blue): the label gets an
+                // outline in the other token, so it reads against that
+                const ratio = read && color ? contrastOf(read, color) : null;
+                const other = inks.find((c) => c !== color);
+                return { color, ...(ratio !== null && ratio < TEXT_CONTRAST && other ? { textBorderColor: other, textBorderWidth: 2 } : {}) };
+            };
+            return {
+                ...s,
+                itemStyle: { ...s.itemStyle, borderColor: surface, borderRadius: cell },
+                data: (s.data ?? []).map((/** @type {any} */ d) => ({ ...d, label: { ...d.label, ...label(d.itemStyle?.color) } }))
+            };
         }
         if (s.type === "heatmap") {
             // numbers only in cells large enough for them (heatmapCellLabels); the tooltip has every one
