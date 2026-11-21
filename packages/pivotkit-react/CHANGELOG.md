@@ -14,6 +14,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- `dist/index.js` imports `dist/deferred.js`, a file of its own with the German texts of the first
+  render and the tips' table. The report works as before. pivotkit-element bundles another file in
+  its place to load them later. A host that copies files by hand deploys the whole `dist/` folder, as
+  before. `package.json` lists `dist/chunks/*.js` under `sideEffects`, so a bundler keeps the order
+  of the package's modules without a warning
+  ([#546](https://github.com/eizedev/pivotkit/issues/546)).
 - The messages about a loaded view no longer name pivotkit, in English and German: "This is not a
   view.", "This is neither a view in JSON nor a link to a report.", "This link is damaged or not a
   link to a report." and "This view comes from a newer version and cannot be read here. Update the

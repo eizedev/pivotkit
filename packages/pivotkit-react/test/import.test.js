@@ -13,6 +13,8 @@ import { backToOriginal, loadData, moveData, restoreData } from "../src/import-s
 import { KEPT_REPORTS, forgetData, hostIdentity, keepData, keptData } from "../src/data-keep.js";
 import { importLimitsOf } from "../src/import-limits.js";
 import { resolveLabels } from "../src/labels.js";
+// the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
+import "../src/deferred.js";
 import { createState } from "../src/view-history.js";
 
 const keys = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" && !Array.isArray(v) ? keys(v, `${p}${k}.`) : [`${p}${k}`])).sort();

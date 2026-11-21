@@ -26,7 +26,8 @@
   "type": "module",
   "sideEffects": [
     "*.css",
-    "./dist/echarts.js"
+    "./dist/echarts.js",
+    "./dist/chunks/*.js"
   ],
   "exports": {
     ".": {

@@ -10,6 +10,8 @@ import { BOTTOM_LEGEND_ROOM, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCell
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, errorText, fill, plural, resolveLabels, rowCount } from "../src/labels.js";
+// the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
+import "../src/deferred.js";
 import { ROW_COUNT_TEXTS } from "pivotkit-core";
 import { REPORT_TEXTS } from "pivotkit-report";
 import { fieldAction, layoutSummary, valueLabel } from "../src/names.js";

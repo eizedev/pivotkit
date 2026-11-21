@@ -5,6 +5,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { options } from "../build.js";
 import { LABELS, resolveLabels } from "../src/labels.js";
+// the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
+import "../src/deferred.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { addMenuTexts, en as menuEn, hasMenuTexts, menuLabels } from "../src/menu-labels.js";
 import { MENU_TEXTS_OF } from "../src/menu-texts.js";

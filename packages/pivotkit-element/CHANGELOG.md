@@ -14,6 +14,19 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- The first load is about 6 KiB smaller (gzip). Three parts load later
+  ([#546](https://github.com/eizedev/pivotkit/issues/546)):
+    - The German texts of the first render load before a German report renders. Until then the
+      report shows its skeleton without a word. It never shows English first. A report that changes
+      its language keeps its texts until the new ones are there. After 4 seconds without them, the
+      report shows in English.
+    - The tips' table loads right after the first render. A tip shows a moment later. The notices
+      that the result is cut or empty stay in the first load.
+    - The style rules only the menus use load with the menus.
+- A German report pays for this: its texts are one more request before the first render. Measured
+  in Chromium with 1.6 Mbit/s, 150 ms latency and the processor slowed down 4 times, median of 11
+  cold loads: a German report rendered about 0.18 s later, an English one about 0.03 s sooner.
+  Without throttling both stayed within a few milliseconds.
 - Every boolean attribute reads `"false"`, in any case and with spaces around it, as off.
   `save-templates`, `can-publish`, `allow-import` and `loading` were on with any value, `"false"`
   included ([#548](https://github.com/eizedev/pivotkit/issues/548)).

@@ -19,7 +19,7 @@ import { fill, hostFailure } from "./labels.js";
 import { Option } from "./popover.jsx";
 import { Section, SettingInfo } from "./section.jsx";
 import { shareActions } from "./share-actions.js";
-import { SHORTCUTS } from "./tips.js";
+import { SHORTCUTS } from "./tip-state.js";
 import { LevelMenu } from "./levels.jsx";
 import { afterDelete, chartTopics, entryIds, moreTopics, tableTopics } from "./menu-topics.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
