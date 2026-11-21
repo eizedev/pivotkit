@@ -54,7 +54,7 @@ export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
     filterNotNumber: "error", filterCount: "error schema", filterTies: "error schema", filterPrecision: "error", filterValue: "error schema", filterValue2: "error schema",
     filterCompareValue: "error",
     filterRelativeDirection: "error schema", filterRelativeUnit: "error schema", filterRelativeCount: "error schema", filterRelativeAnchor: "error schema",
-    sortNoItems: "error schema", sortedTwice: "error",
+    sortNoItems: "error schema", sortedTwice: "error", sortColumn: "warning",
     badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", badTitle: "error schema",
     unknownLocale: "error", unknownTimeZone: "error", timeZoneMismatch: "error", tooManyIssues: "warning"
 });
@@ -322,7 +322,7 @@ export const VIEW_KEYS = Object.freeze({
     color: Object.freeze(["name", "color"]),
     showAs: Object.freeze(["type", "axis"]),
     conditional: Object.freeze({ colorScale: Object.freeze(["type", "colors"]), dataBar: Object.freeze(["type", "color"]) }),
-    sort: Object.freeze(["field", "by", "order", "items", "value"]),
+    sort: Object.freeze(["field", "by", "order", "items", "value", "column"]),
     totals: Object.freeze(Object.keys(emptyView().totals)),
     collapsed: Object.freeze(["rows", "cols"]),
     chart: Object.freeze(Object.keys(emptyView().chart)),
@@ -520,6 +520,29 @@ function customItems(items, f, path, ctx) {
     return out;
 }
 
+/**
+ * The column a row field's sort by a value goes by (#70): its items, one per column field from the
+ * outermost, each read as that field's type. Only for a field on Rows sorted by a value; anything
+ * else is said and left out, and the sort goes by the whole row.
+ * @returns {unknown[] | null}
+ */
+function sortColumn(column, spec, f, view, path, ctx) {
+    const why = spec.by !== "value" ? "a column only for a sort by a value" : !view.rows.includes(f.name) ? "a column only for a field on Rows" : !Array.isArray(column) || column.length === 0 || column.length > view.cols.length ? `a list of one to ${view.cols.length} column items` : null;
+    if (why) {
+        ctx.issue(path, `${why}; the sort goes by the whole row`, "sortColumn");
+        return null;
+    }
+    const items = [];
+    for (let i = 0; i < column.length; i++) {
+        const item = readItem(/** @type {any} */ (ctx.resolve(view.cols[i])), column[i], `${path}[${i}]`, ctx);
+        if (item === undefined) {
+            return null;
+        }
+        items.push(item);
+    }
+    return items;
+}
+
 /** Sort, one entry per field. */
 function sortSection(raw, view, ctx) {
     const seen = new Set();
@@ -544,6 +567,13 @@ function sortSection(raw, view, ctx) {
                 return;
             }
             spec.value = ref;
+        }
+        const column = get(s, "column");
+        if (column !== undefined) {
+            const items = sortColumn(column, spec, f, view, `${path}.column`, ctx);
+            if (items) {
+                spec.column = items;
+            }
         }
         seen.add(f.name);
         view.sort.push(spec);
