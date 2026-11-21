@@ -10,7 +10,7 @@
 
 import { checkLimit, expect } from "./errors.js";
 import { formatterFor, parseFormat } from "./format.js";
-import { DEFAULT_LABELS, fieldLabel, fill } from "./labels.js";
+import { DEFAULT_LABELS, fieldLabel, fill, withFieldLabels } from "./labels.js";
 import { axisLines } from "./layout.js";
 import { resolveLimits } from "./limits.js";
 import { isPivotResult } from "./pivot.js";
@@ -435,7 +435,8 @@ export function toGrid(result, options) {
     const limits = resolveLimits(options);
     const view = result.view;
     const locale = resolveLocale(view.formatting.locale, options.locale ?? result.locale);
-    const labels = { ...DEFAULT_LABELS, ...(options.labels || {}) };
+    // the view's own names for fields (#158) over the host's
+    const labels = withFieldLabels({ ...DEFAULT_LABELS, ...(options.labels || {}) }, view.fieldLabels);
     // without values a total carries no number: no subtotal or grand total line on either axis
     const totals = view.values.length > 0 ? view.totals : { grandTotalRow: false, grandTotalColumn: false, rowSubtotals: false, colSubtotals: false };
     const rowLines = axisLines(result.rowRoot, view.rows.length, view.collapsed.rows, totals.rowSubtotals, totals.grandTotalRow);

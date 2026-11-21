@@ -8,6 +8,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `view.fieldLabels`: names of the report's own for fields, by the field's name. `normalize` checks
+  them, `toGrid()` and `toSeries()` show them, and `withFieldLabels(labels, fieldLabels)` puts them
+  over a host's display names. Only a view with a name has the key; pivotkit 0.8 reads such a view
+  with an `unknownKey` error ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#field-labels), #158).
 - `display: "both"`: the table and the chart side by side. `describeView` says "as a table and a
   chart". pivotkit 0.8 reads such a view with an `unknownSetting` error and shows the table
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#display-both), #51).

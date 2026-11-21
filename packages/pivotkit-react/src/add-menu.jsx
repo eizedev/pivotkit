@@ -110,7 +110,7 @@ export function AddMenu({ zone, view, fields, placed, nameOf, info, labels, clos
                 onPick={(choice) => choice.run?.()}
                 search
                 searchText={labels.searchFields}
-                filter={(query) => [topicOf(matchingFields(fields, query, info))]}
+                filter={(query) => [topicOf(matchingFields(fields, query, info, nameOf))]}
                 head={
                     <div className="pk-level-name">
                         <span className="pk-level-name-text" data-testid="menu-head">

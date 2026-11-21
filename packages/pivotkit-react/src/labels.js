@@ -230,6 +230,7 @@ export const en = {
         reordered: "order in {zone}",
         sort: "sort of {field}",
         group: "grouping of {field}",
+        rename: "name of {field}",
         filter: "filter on {field}",
         filtersRemoved: "filters removed",
         top: "top items of {field}",

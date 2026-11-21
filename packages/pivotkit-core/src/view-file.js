@@ -92,7 +92,7 @@ const own = (obj, key) => (isPlainObject(obj) && Object.hasOwn(obj, key) ? obj[k
 /**
  * Every place a view names a field, in the order a reader meets them: rows, columns, values, filters
  * (with the measure a top N or a value condition goes by), sort (with the measure it goes by), then
- * the groupings' source fields. `visit(name, kind, set)` gets each name: kind "field" for a name that
+ * the groupings' source fields, the keys of fieldLabels. `visit(name, kind, set)` gets each name: kind "field" for a name that
  * is no grouping's, "grouping" for a grouping's name, "source" for a grouping's source field; `set`
  * writes another name there (only in the copy `mapFieldRefs` returns). The one list of these places:
  * viewFileFields and renameFields both walk it.
@@ -139,6 +139,17 @@ function mapFieldRefs(view, visit, copy = false) {
         if (typeof name === "string" && name !== "") {
             visit(name, "source", (next) => {
                 d.field = next;
+            });
+        }
+    }
+    // the keys of the fields' own names (#158): a renamed field keeps its name
+    const names = own(out, "fieldLabels");
+    if (isPlainObject(names)) {
+        for (const key of Object.keys(names)) {
+            visit(key, kindOf(key), (next) => {
+                const text = names[key];
+                delete names[key];
+                Object.defineProperty(names, next, { value: text, enumerable: true, writable: true, configurable: true });
             });
         }
     }
