@@ -27,4 +27,11 @@ test("strict with only warnings, or a clean view, pivots as usual; strict must b
     const warned = computePivot(data, { rows: ["Region"], filters: [{ field: "Region", type: "in", items: ["east"] }] }, { strict: true });
     assert.ok(warned.issues.every((i) => i.severity === "warning"));
     assert.throws(() => computePivot(data, {}, { strict: "yes" }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION");
+    assert.throws(() => computePivot(data, {}, { strict: null }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION");
+    assert.equal(computePivot(data, { filters: [{ field: "Nope", type: "in", items: ["x"] }] }, { strict: false }).issues[0].code, "unknownField");
+});
+
+test("strict: a view made for another time zone than the data's throws too", () => {
+    const view = { rows: ["Region"], formatting: { timeZone: "Europe/Berlin" } };
+    assert.throws(() => computePivot(data, view, { strict: true }), (e) => e instanceof PivotkitError && e.code === "INVALID_VIEW" && e.details.issues[0].code === "timeZoneMismatch");
 });

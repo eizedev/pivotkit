@@ -80,7 +80,8 @@ if (errors.length > 0) {
 ```
 
 Or let `computePivot` refuse such a view. With `strict: true` it throws a `PivotkitError` with the
-code `INVALID_VIEW`, and `error.details.issues` lists the errors. Warnings do not throw:
+code `INVALID_VIEW`, and `error.details.issues` lists the errors: a field the data lacks, a view made
+for another time zone than the data's, and the other error issues. Warnings do not throw:
 
 ```js
 try {

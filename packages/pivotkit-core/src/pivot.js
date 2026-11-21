@@ -247,7 +247,7 @@ function sortAxis(tree, fields, columns, sortOf, valueOfNode, ranks) {
 
 /** `options.strict`: false when left out; anything but a boolean is a programmer error. */
 function strictOf(options) {
-    const strict = options.strict ?? false;
+    const strict = options.strict === undefined ? false : options.strict;
     if (typeof strict !== "boolean") {
         throw new PivotkitError("INVALID_OPTION", `computePivot: strict must be true or false, got ${JSON.stringify(strict)}`);
     }
@@ -272,6 +272,7 @@ function strictOf(options) {
  */
 export function computePivot(data, viewInput, options) {
     options = optionsOf(options, "computePivot");
+    const strict = strictOf(options);
     expect(isEncoded(data), "computePivot(data, view): data must come from encode()");
     const limits = resolveLimits(options);
     const { view, issues } = normalize(viewInput, data, options);
@@ -283,7 +284,7 @@ export function computePivot(data, viewInput, options) {
     if (view.formatting.timeZone && view.formatting.timeZone !== data.timeZone) {
         issues.push(issueOf("formatting.timeZone", `the view was made for ${view.formatting.timeZone}, the data is encoded in ${data.timeZone}; pass timeZone to encode()`, "timeZoneMismatch", { value: view.formatting.timeZone, zone: data.timeZone }));
     }
-    if (strictOf(options)) {
+    if (strict) {
         const errors = issues.filter((i) => i.severity !== "warning");
         if (errors.length) {
             throw new PivotkitError("INVALID_VIEW", `computePivot: the view has ${errors.length === 1 ? "an error" : `${errors.length} errors`}: ${errors.slice(0, 3).map((i) => `${i.path || "view"}: ${i.message}`).join("; ")}`, { issues: errors });
