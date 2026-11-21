@@ -43,7 +43,7 @@ import { Unused } from "./unused.jsx";
 import { FormNameContext, activeIn } from "./dom.js";
 import { stillApplies } from "./unused-keep.js";
 import { Toolbar } from "./toolbar.jsx";
-import { SideBySide } from "./side-by-side.jsx";
+import { SPLIT, SideBySide } from "./side-by-side.jsx";
 import { ViewTabs, tabId } from "./view-tabs.jsx";
 import { useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
@@ -576,6 +576,8 @@ function Report(props) {
     // report; a narrower one shows the table and offers the tabs Table and Chart
     const shown = view.display === "both" && size !== "wide" ? "table" : view.display;
     const tableShown = shown !== "chart";
+    // the table's share of Both, kept while the report is shown (side-by-side.jsx)
+    const [split, setSplit] = useState(/** @type {number} */ (SPLIT.start));
     const chartShown = shown !== "table";
     // the host's view (`view`, else the first `defaultView`) and what of it the data cannot use: shown
     // above the result like a loaded view's unused parts, once per distinct view (a host may render the
@@ -616,7 +618,7 @@ function Report(props) {
                 field: note.field ?? "",
                 name: note.name ?? "",
                 zone: labels.zones[note.zone] ?? note.zone ?? "",
-                display: note.display ? labels[note.display] : "",
+                display: note.display === "both" ? labels.bothShown : note.display ? labels[note.display] : "",
                 type: note.type ? labels.chartTypes[note.type] : ""
             });
         },
@@ -1848,7 +1850,7 @@ function Report(props) {
                                 ) : empty && tableShown ? (
                                     <EmptyState labels={labels} templates={entries} onTemplate={openTemplate} onLoad={allowImport ? () => requestImport().then((m) => m.pickFile(fileInput.current), () => announce(labels.menuFailed, { tone: "error" })) : undefined} noData={allowImport && fields.length === 0} />
                                 ) : shown === "both" ? (
-                                    <SideBySide labels={labels} table={gridState.grid ? tableEl : null} chart={chartResult ? chartEl : null} />
+                                    <SideBySide labels={labels} split={split} onSplit={setSplit} table={gridState.grid ? tableEl : null} chart={chartResult ? chartEl : null} />
                                 ) : shown === "chart" && chartResult ? (
                                     chartEl
                                 ) : gridState.grid ? (

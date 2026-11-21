@@ -594,3 +594,9 @@ test("the menus' operators and version 2's: a negation is the positive operator 
     assert.equal(isFiltered(norm({ filters: [emptyPick("Region")] }), "Region"), false);
     assert.equal(isFiltered(kept, "Region"), true);
 });
+
+test("a chart type picked while table and chart are side by side keeps both (#51)", async () => {
+    const { setChart } = await import("../src/view-ops.js");
+    assert.equal(setChart({ display: "both", chart: { type: "bar" } }, "line").display, "both");
+    assert.equal(setChart({ display: "table", chart: { type: "bar" } }, "line").display, "chart");
+});

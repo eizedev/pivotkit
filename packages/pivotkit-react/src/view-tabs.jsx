@@ -37,16 +37,18 @@ export function ViewTabs(props) {
     const tabs = TABS.filter((d) => d !== "both" || both);
     // the arrow keys move the focus between the tabs; showing one is the tab's own click
     const onKeyDown = (/** @type {React.KeyboardEvent} */ e) => {
-        const tabs = /** @type {HTMLElement[]} */ ([...(list.current?.querySelectorAll('[role="tab"]') ?? [])]);
-        const at = tabs.indexOf(/** @type {HTMLElement} */ (e.target));
-        const next = at < 0 ? null : tabStep(e.key, at, tabs.length);
+        const buttons = /** @type {HTMLElement[]} */ ([...(list.current?.querySelectorAll('[role="tab"]') ?? [])]);
+        const at = buttons.indexOf(/** @type {HTMLElement} */ (e.target));
+        const next = at < 0 ? null : tabStep(e.key, at, buttons.length);
         if (next !== null) {
             e.preventDefault();
-            tabs[next].focus();
+            buttons[next].focus();
         }
     };
     // a name as a tooltip and for a screen reader where only the icon shows
     const iconOnly = (/** @type {string} */ name) => (narrow ? { "aria-label": name, title: name } : {});
+    // with both shown, Enlarge says what it enlarges (#51)
+    const enlargeTitle = shown === "both" && !big.enlarged ? { title: labels.enlargeBoth } : {};
     return (
         <div className="pk-result-head" data-testid="view-tabs-row">
             <div ref={list} className="pk-tabs" role="tablist" aria-label={labels.view} onKeyDown={onKeyDown}>
@@ -72,7 +74,7 @@ export function ViewTabs(props) {
             <span className="pk-grow" />
             {shown !== "chart" ? <SettingsButton kind="table" {...props} /> : null}
             {shown !== "table" ? <SettingsButton kind="chart" {...props} /> : null}
-            <button type="button" className="pk-btn pk-pressable pk-small-btn" data-pk-on={big.enlarged ? "" : undefined} onClick={big.toggleEnlarged} data-testid="enlarge" {...iconOnly(big.enlarged ? labels.reduce : labels.enlarge)}>
+            <button type="button" className="pk-btn pk-pressable pk-small-btn" data-pk-on={big.enlarged ? "" : undefined} onClick={big.toggleEnlarged} data-testid="enlarge" {...enlargeTitle} {...iconOnly(big.enlarged ? labels.reduce : labels.enlarge)}>
                 <Icon name="enlarge" size={14} />
                 {/* says what a click does: Enlarge, or Reduce while enlarged; a changing name is no
                     toggle (no aria-pressed), the highlight shows the state (data-pk-on) */}

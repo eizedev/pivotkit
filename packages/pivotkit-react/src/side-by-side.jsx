@@ -2,20 +2,21 @@
  * The table and the chart side by side (#51, display "both", a wide report only): the table on the
  * left, the chart on the right, a divider between them. The divider is a separator (WAI-ARIA window
  * splitter): a drag moves it, and with the focus on it the arrow keys move it in steps, Home and End
- * to the narrowest and widest table. Where it stands is the person's, not the view's: it is kept while
- * the report is shown.
+ * to the narrowest and widest table. Where it stands is the person's, not the view's: the report keeps
+ * it while it is shown, also when the tab changes or the report gets narrower for a while.
  */
 
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
+import { fill } from "./labels.js";
 
 /** The table's share of the width, in percent: at the start, the least and the most, a key's step. */
-const SPLIT = Object.freeze({ start: 50, min: 25, max: 75, step: 5 });
+export const SPLIT = Object.freeze({ start: 50, min: 25, max: 75, step: 5 });
 
 /**
- * @param {{ labels: any, table: React.ReactNode, chart: React.ReactNode }} props
+ * @param {{ labels: any, split: number, onSplit: (split: number) => void, table: React.ReactNode, chart: React.ReactNode }} props
+ *   `split`: the table's share in percent
  */
-export function SideBySide({ labels, table, chart }) {
-    const [split, setSplit] = useState(/** @type {number} */ (SPLIT.start));
+export function SideBySide({ labels, split, onSplit: setSplit, table, chart }) {
     const box = useRef(/** @type {HTMLDivElement | null} */ (null));
     const clamp = (/** @type {number} */ n) => Math.round(Math.min(SPLIT.max, Math.max(SPLIT.min, n)));
     const onPointerDown = (/** @type {React.PointerEvent<HTMLDivElement>} */ e) => {
@@ -58,6 +59,7 @@ export function SideBySide({ labels, table, chart }) {
                 aria-valuemin={SPLIT.min}
                 aria-valuemax={SPLIT.max}
                 aria-valuenow={split}
+                aria-valuetext={fill(labels.splitValue, { table: split, chart: 100 - split })}
                 tabIndex={0}
                 onPointerDown={onPointerDown}
                 onKeyDown={onKeyDown}

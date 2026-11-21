@@ -103,7 +103,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
 
 ## Charts { #chart }
 
-- Table or chart with one switch ([charts](use/charts.md)):
+- Table or chart with one switch, or both side by side ([charts](use/charts.md)):
     - The type follows the data: lines over dates, else bars. That holds until people pick a type:
       bars, stacked or horizontal bars, lines, area, pie, donut, heatmap, bars and lines, or a treemap.
     - Value labels, legend, title, smooth lines, axis and group labels.

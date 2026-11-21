@@ -21,15 +21,17 @@ the table back.
 ## Table and chart side by side { #both }
 
 The tab **Both** shows the table on the left and the chart on the right. It is there on a wide
-report, about 1,024 pixels and more.
+report: the report itself, field list included, is at least 1,024 pixels wide.
 
 - Drag the line between them to give the table more or less room. With the focus on the line, the
-  left and right arrow keys move it, **Home** and **End** to the narrowest and widest table.
+  left and right arrow keys move it, **Home** and **End** to the narrowest and widest table. The line
+  stays where you put it while the report is open.
 - **Table settings** and **Chart settings** stand side by side, one for each part.
 - The chart follows what the table shows: its filters, its sort and its folded groups.
 - **Enlarge** and **Full screen** take both parts.
 - The export of a picture takes the chart.
 - A narrower report, such as a phone, shows the table. Its tabs are **Table** and **Chart**.
+- A static HTML report of such a view has the table and the chart.
 
 ## Chart types
 

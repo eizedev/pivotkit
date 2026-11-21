@@ -3131,8 +3131,34 @@
     background: var(--pk-accent);
 }
 
+/* a grip in the middle says the line can be dragged */
+.pk-both-divider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 28px;
+    border-radius: var(--pk-radius-xs);
+    background: var(--pk-border-strong);
+    translate: -50% -50%;
+}
+
 .pk-both-divider:focus-visible {
-    outline: none;
+    outline: var(--pk-focus-width) solid var(--pk-focus);
+    outline-offset: calc(-1 * var(--pk-focus-width));
+    border-radius: var(--pk-radius-xs);
+}
+
+/* on a touch screen the line takes a finger's width */
+@media (pointer: coarse) {
+    .pk-both {
+        grid-template-columns: minmax(0, var(--pk-split, 50%)) 24px minmax(0, 1fr);
+    }
+
+    .pk-both-divider::before {
+        inset: 0 11px;
+    }
 }
 
 .pk-chart-wrap {

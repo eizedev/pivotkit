@@ -69,6 +69,10 @@ export const en = {
     chart: "Chart",
     // the table and the chart side by side (#51): the tab, and the divider between them
     both: "Both",
+    // the Undo step of switching to both, and Enlarge and Full screen while both are shown
+    bothShown: "table and chart",
+    enlargeBoth: "Enlarge the table and the chart",
+    splitValue: "Table {table} %, chart {chart} %",
     splitDivider: "Width of the table and the chart",
     view: "View",
     chartType: "Chart type",

@@ -1,7 +1,7 @@
 // The table and the chart side by side (#51): the tab Both on a wide report, the divider that a drag
 // and the arrow keys move, a settings button per part; a narrower report shows the table and offers
 // the tabs Table and Chart only.
-import { encodeViewLink } from "pivotkit-core/link";
+import { encodeViewLink, readViewLink } from "pivotkit-core/link";
 import { expect, test } from "./fixtures.js";
 
 const VIEW = { rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }] };
@@ -38,9 +38,17 @@ test("Both shows the table and the chart side by side; the divider moves; each p
     // a chart type picked in the chart's settings keeps both
     await page.getByTestId("chart-settings").click();
     await page.getByTestId("chart-line").click();
-    await expect.poll(() => page.evaluate(() => location.hash)).toContain("pivot-playground");
+    // the link's view: lines, still both
+    const shownView = async () => readViewLink(await page.evaluate(() => location.hash), "playground").view;
+    await expect.poll(async () => [(await shownView()).chart.type, (await shownView()).display]).toEqual(["line", "both"]);
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("show-both")).toHaveAttribute("aria-selected", "true");
+    // the divider stays where it was after a look at the table alone
+    await page.getByTestId("show-table").click();
+    await page.getByTestId("show-both").click();
+    await expect(divider).toHaveAttribute("aria-valuenow", "40");
+    await expect(divider).toHaveAttribute("aria-valuetext", "Table 40 %, chart 60 %");
+    await expect(page.getByTestId("enlarge")).toHaveAttribute("title", "Enlarge the table and the chart");
     // the link keeps display both
     await page.reload();
     await expect(page.getByTestId("side-by-side")).toBeVisible();

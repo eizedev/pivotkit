@@ -482,7 +482,7 @@ export const VIEW_GUIDE = Object.freeze({
         'rows, cols: field names (outer first), e.g. ["Region"]. values: [{ "field": "Sales", "agg": "sum" }] (agg "count" needs no field).',
         'derived: groupings of a date or number field, each { "name": "Quarter", "field": "OrderDate", "by": "yearQuarter" }; use its name in rows or cols. Time-line units (one period of one year): year, yearQuarter, yearMonth, yearWeek, day; repeating units (every year together): quarter, month, week, weekday, hour; "bin" with "size" for numbers.',
         'filters: { "field", "type", ... }. in: "items": [...]; text: "op" (equals, contains, beginsWith, endsWith), "value"; compare: "op" (=, >, >=, <, <=, between), "value", "value2"; relative (dates): "direction" (last, next, this, before), "count", "unit" (hour, day, week, month, quarter, year), "anchor" (today, latest: the newest date in the data, first); top: "count", "by": { "field", "agg" }, "bottom": true for the lowest; value: "op", "value", "by". Every filter takes "not": true; "blanks": "include" | "exclude" | "only".',
-        'sort: [{ "field", "by": "label" | "value", "order": "asc" | "desc", "value": { "field", "agg" } }]. display: "table" or "chart"; chart: { "type": "auto" | "bar" | "line" | "area" | "pie" | "donut" | "heatmap" }.',
+        'sort: [{ "field", "by": "label" | "value", "order": "asc" | "desc", "value": { "field", "agg" } }]. display: "table", "chart" or "both" (side by side); chart: { "type": "auto" | "bar" | "line" | "area" | "pie" | "donut" | "heatmap" }.',
         "Write the view, call validate_view, fix what its findings name (a suggestion is the name meant), then render_view."
     ].join("\n"),
     catalog: Object.freeze({

@@ -10,7 +10,7 @@ A **view** is the whole report as a small JSON object. It holds:
 - which fields are on rows and columns
 - which values the report computes, and how
 - the filters, the sort and the totals
-- table or chart
+- table, chart or both
 
 The same object is:
 
