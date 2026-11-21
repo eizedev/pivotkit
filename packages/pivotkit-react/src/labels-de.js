@@ -109,7 +109,7 @@ export const de = {
     filterSummary: "{shown} von {total}",
     quote: "„{text}“",
     filterTitle: "{field} filtern",
-    condition: "Textbedingung",
+    condition: "Der Name …",
     emptyTitle: "Den Bericht in drei Schritten bauen",
     emptySteps: [
         "Neben Zeilen auf + Hinzufügen klicken oder ein Feld wie Team oder Region hineinziehen.",
