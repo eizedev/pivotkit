@@ -76,9 +76,11 @@ and what changed. In the report itself, **More**, **Help**, **Keyboard shortcuts
   heading, the chips, ×, **i**, **+ Add**, a tip's x and the small text buttons such as
   **Select all** and **Reset filter**.
 - Every menu's rows are at least 44 px high: the levels, Export, Data and their Back row, search
-  row and choices side by side. So are a filter's values and the fold of Pick items and Rules.
+  row and choices side by side. So are a filter's values, the fold of Pick items and Rules, and a
+  rule's fields.
 - A row's fold arrow keeps its size in the table. A finger finds it in an area 44 px wide and as high
   as its row.
+- A link inside a sentence, such as **Learn more**, keeps the size of its text.
 - In the field list, the buttons keep their desktop size. This keeps the rows as compact, and the
   names on one line where they fit. A finger still finds each button in an area 44 px high around
   it. The grip's area is also 44 px wide. The rows stand a little further apart, so that no area

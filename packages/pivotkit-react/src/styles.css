@@ -4045,6 +4045,17 @@
         min-width: var(--pk-target-touch);
     }
 
+    /* the fields of a form in a menu (a rule's comparison and value, a date, a count); a search
+       row's own field already sits in a frame of that height */
+    .pk-root :is(select, input:is([type="text"], [type="date"])):not(.pk-search input) {
+        min-height: var(--pk-target-touch);
+    }
+
+    /* WebKit keeps a native select at its own height unless it is given one */
+    .pk-root select {
+        height: var(--pk-target-touch);
+    }
+
     /* a chip holds its label and its x at a finger's size, inside its frame */
     .pk-root .pk-chip {
         height: calc(var(--pk-target-touch) + 2px);
@@ -4066,8 +4077,8 @@
         width: var(--pk-target-touch);
     }
 
-    /* the field list keeps its desktop rows (one line for a name that fits): its grip, "i" and menu
-       stay as large as there and get a hit area 44 px high from a layer over them, centred on the
+    /* the field list keeps its desktop rows (one line for a name that fits): its name, grip, "i" and
+       menu stay as large as there and get a hit area 44 px high from a layer over them, centred on the
        row; the gap between rows holds the part above and below it, half for each row, so no hit
        area reaches into another row. The grip's is 44 px wide (over the type's icon), the "i" and
        the menu share the room between the name and the row's end. */
@@ -4080,19 +4091,24 @@
         padding-top: 6px;
     }
 
-    .pk-root .pk-field :is(.pk-handle, .pk-info, .pk-field-menu) {
+    .pk-root .pk-field :is(.pk-handle, .pk-info, .pk-field-menu, .pk-field-name) {
         position: relative;
         min-width: 0;
         min-height: var(--pk-target);
     }
 
-    .pk-root .pk-field :is(.pk-handle, .pk-info, .pk-field-menu)::after {
+    .pk-root .pk-field :is(.pk-handle, .pk-info, .pk-field-menu, .pk-field-name)::after {
         content: "";
         position: absolute;
         top: calc(50% - var(--pk-target-touch) / 2);
         bottom: calc(50% - var(--pk-target-touch) / 2);
         left: -1px;
         right: -1px;
+    }
+
+    /* the name's title cuts itself with "…": the name lets its hit area out of its box */
+    .pk-root .pk-field .pk-field-name {
+        overflow: visible;
     }
 
     .pk-root .pk-field .pk-handle::after {

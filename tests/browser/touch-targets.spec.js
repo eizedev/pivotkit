@@ -6,6 +6,7 @@
 // panel covers is out of reach and not judged. A row's fold arrow takes
 // 44 px across and its row's height, so it never takes a tap meant for the next row. The field
 // list's rows have their own test (review.spec.js): they keep their desktop rows with hit areas.
+// A link inside a sentence ("Learn more") keeps the text's size, as WCAG 2.5.5 allows.
 import { expect, test } from "./fixtures.js";
 
 test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
@@ -76,6 +77,9 @@ test("every control of the report takes a 44 px tap on a phone", async ({ page, 
     await expect(page.locator(".pk-chip-menu").getByTestId("level-filter")).toBeVisible();
     const rules = page.locator(".pk-chip-menu").getByTestId("section-rules");
     if ((await rules.getAttribute("aria-expanded")) !== "true") await rules.click();
+    // a rule on the total, with its comparison and its number
+    await page.locator(".pk-chip-menu").getByTestId("rule-add-total").click();
+    await expect(page.locator(".pk-chip-menu").getByTestId("value-filter-op")).toBeVisible();
     expect(await missed(page), "the Filter level").toEqual([]);
     await closeAll(page);
     for (const menu of ["more", "export", "data"]) {
