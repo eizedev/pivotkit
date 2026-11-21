@@ -144,30 +144,7 @@ export function axisTopics({ view, zone, index, field, types, labels, locale, st
         filterTopic({ view, field, labels, locale, state, encoded })
     ];
     if (date) {
-        const stats = groupStats(encoded, source);
-        const span = stats?.span;
-        const dateLocale = dateDisplayLocale(view.formatting?.locale || locale);
-        const regroup = (unit) => () => {
-            const sourceName = fieldLabel(source, labels.core);
-            const grouped = unit ? groupingName(sourceName, unit, labels) : null;
-            return { view: groupField(view, field, unit, { name: grouped ?? undefined }).view, note: { step: "group", field: sourceName } };
-        };
-        // the field is replaced by its grouping (another chip): the menu closes
-        const unit = (u) => ({ id: `group-${u}`, text: labels.units[u] ?? u, hint: groupHint(encoded, source, u, dateLocale, labels, stats), checked: grouping?.by === u, closes: true, change: regroup(u) });
-        topics.push({
-            id: "group",
-            intro: span ? fill(plural(labels.groupDataRange, calendarDays(span), {lang: labels.lang, locale: dateLocale}), { range: dateRangeText(span, dateLocale) }) : undefined,
-            title: labels.groupTopic,
-            kind: "menu",
-            icon: "date",
-            state: grouping ? labels.units[grouping.by] ?? grouping.by : labels.groupNoneShort,
-            changed: Boolean(grouping),
-            groups: [
-                { title: labels.groupTimeline, choices: CATALOG.timelineUnits.map(unit) },
-                { title: labels.groupCyclic, choices: CATALOG.cyclicUnits.map(unit) },
-                { choices: [{ id: "group-none", text: labels.groupNone, checked: !grouping, closes: true, change: regroup(null) }] }
-            ]
-        });
+        topics.push(groupTopic({ view, field, source, labels, locale, encoded }));
     } else if (sourceType === "number") {
         const bins = grouping?.by === "bin" ? grouping : null;
         topics.push({ id: "bins", title: labels.bins, kind: "panel", icon: "number", state: bins ? fill(labels.binsState, { size: number(bins.size), start: number(bins.origin ?? 0) }) : labels.off, changed: Boolean(bins) });
@@ -264,13 +241,52 @@ export function filterTopic({ view, field, labels, locale, state, encoded }) {
 }
 
 /**
- * The topics of a field's menu in Filters (the whole report): Filter, Move to.
+ * The Group topic of a date: its units along the time line and over the years, each with what it
+ * makes of the data (groupHint), and None. A unit replaces the field with its grouping, in Rows,
+ * Columns or Filters, in the same place (another chip: the menu closes).
+ * @param {{ view: any, field: string, source: string, labels: any, locale: string, encoded?: any }} input
+ * @returns {Topic}
+ */
+function groupTopic({ view, field, source, labels, locale, encoded }) {
+    const grouping = groupingOf(view, field);
+    const stats = groupStats(encoded, source);
+    const span = stats?.span;
+    const dateLocale = dateDisplayLocale(view.formatting?.locale || locale);
+    const regroup = (unit) => () => {
+        const sourceName = fieldLabel(source, labels.core);
+        const grouped = unit ? groupingName(sourceName, unit, labels) : null;
+        return { view: groupField(view, field, unit, { name: grouped ?? undefined }).view, note: { step: "group", field: sourceName } };
+    };
+    const unit = (u) => ({ id: `group-${u}`, text: labels.units[u] ?? u, hint: groupHint(encoded, source, u, dateLocale, labels, stats), checked: grouping?.by === u, closes: true, change: regroup(u) });
+    return {
+        id: "group",
+        intro: span ? fill(plural(labels.groupDataRange, calendarDays(span), { lang: labels.lang, locale: dateLocale }), { range: dateRangeText(span, dateLocale) }) : undefined,
+        title: labels.groupTopic,
+        kind: "menu",
+        icon: "date",
+        state: grouping ? labels.units[grouping.by] ?? grouping.by : labels.groupNoneShort,
+        changed: Boolean(grouping),
+        groups: [
+            { title: labels.groupTimeline, choices: CATALOG.timelineUnits.map(unit) },
+            { title: labels.groupCyclic, choices: CATALOG.cyclicUnits.map(unit) },
+            { choices: [{ id: "group-none", text: labels.groupNone, checked: !grouping, closes: true, change: regroup(null) }] }
+        ]
+    };
+}
+
+/**
+ * The topics of a field's menu in Filters (the whole report): Filter, Group for a date, Move to.
  * @param {{ view: any, index: number, field: string, types: Map<string, string>, labels: any, locale: string, state?: any, encoded?: any }} input
  * @returns {Topic[]}
  */
 export function filterZoneTopics({ view, index, field, types, labels, locale, state, encoded }) {
-    const type = types.get(sourceOf(view, field).toLowerCase());
-    return [filterTopic({ view, field, labels, locale, state, encoded }), moveTopic(view, "filters", index, filterZoneFields(view).length, labels, fieldLabel(field, labels.core), type)];
+    const source = sourceOf(view, field);
+    const type = types.get(source.toLowerCase());
+    return [
+        filterTopic({ view, field, labels, locale, state, encoded }),
+        ...(type === "date" ? [groupTopic({ view, field, source, labels, locale, encoded })] : []),
+        moveTopic(view, "filters", index, filterZoneFields(view).length, labels, fieldLabel(field, labels.core), type)
+    ];
 }
 
 /**

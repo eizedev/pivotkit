@@ -361,7 +361,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
     );
 }
 
-/** The menu of a chip in Filters (the whole report): the same Filter level, Move to. */
+/** The menu of a chip in Filters (the whole report): the same Filter level, Group for a date, Move to. */
 export function FilterMenu({ view, index, field, types, labels, commit, close, onRemove, locale, info, state, encoded }) {
     const name = fieldLabel(field, labels.core);
     return (

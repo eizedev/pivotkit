@@ -11,7 +11,7 @@ import { de as menuDe } from "../src/menu-labels-de.js";
 import { QUICK_UNITS, RULES_MAX, RULE_TYPES, filterState, keepsBlanks, rowsInRange, setRuleBlanks, setTopFilter, setLabelFilter, textOn, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, yearRules } from "../src/menu-ops.js";
 import { axisTopics, filterZoneTopics, searchEntries, searchHits } from "../src/menu-topics.js";
 import { compareText, itemRuleText, namedUntil, rangeShare, rangeText, relativeText } from "../src/names.js";
-import { addField, dateSpan, filtersOf, groupField } from "../src/view-ops.js";
+import { addField, dateSpan, filterZoneFields, filtersOf, groupField } from "../src/view-ops.js";
 
 const data = encode([
     { Region: "North", Units: 3, Price: 10, Released: "2019-05-01" },
@@ -315,13 +315,35 @@ test("search: quick choices with the count typed, a year compared, and the rules
     assert.equal(searchEntries(topics).some((e) => e.id.startsWith("quick-")), false);
 });
 
-test("the Filters zone's menu: Filter with its state, then Move to (no sort, grouping or Top items)", () => {
+test("the Filters zone's menu: Filter with its state, Group for a date, then Move to (no sort or Top items)", () => {
     const v = setQuickRange(addField(norm({}), "Released", "filters"), "Released", { unit: "year", count: 2 });
     const topics = filterZoneTopics({ view: v, index: 0, field: "Released", types, labels: MENU.en, locale: "en-US", state: { summary: null, rules: ["last 2 years"] }, encoded: data });
-    assert.deepEqual(topics.map((t) => t.id), ["filter", "move"]);
+    assert.deepEqual(topics.map((t) => t.id), ["filter", "group", "move"]);
     assert.equal(topics[0].state, "last 2 years");
     assert.equal(topics[0].changed, true);
-    assert.deepEqual(topics[1].groups[0].choices.map((c) => c.id), ["move-cols", "move-rows", "move-values"]);
+    assert.deepEqual(topics[2].groups[0].choices.map((c) => c.id), ["move-cols", "move-rows", "move-values"]);
+    // a text field in Filters: no Group
+    const text = filterZoneTopics({ view: addField(norm({}), "Region", "filters"), index: 0, field: "Region", types, labels: MENU.en, locale: "en-US", encoded: data });
+    assert.deepEqual(text.map((t) => t.id), ["filter", "move"]);
+});
+
+test("a date in Filters is grouped from its menu: the grouping takes its place among the Filters, its filter starts empty", () => {
+    let v = addField(addField(addField(norm({ rows: ["Region"] }), "Product", "filters"), "Released", "filters"), "Region", "filters");
+    v = setQuickRange(v, "Released", { unit: "year", count: 2 });
+    const at = (view) => filterZoneFields(view);
+    assert.deepEqual(at(v), ["Product", "Released", "Region"]);
+    const group = filterZoneTopics({ view: v, index: 1, field: "Released", types, labels: MENU.en, locale: "en-US", encoded: data }).find((t) => t.id === "group");
+    assert.equal(group.title, MENU.en.groupTopic);
+    assert.equal(group.state, MENU.en.groupNoneShort);
+    const year = group.groups.flatMap((g) => g.choices).find((c) => c.id === "group-year");
+    const { view: next, note } = year.change();
+    assert.deepEqual(at(next), ["Product", "Released by year", "Region"]);
+    assert.deepEqual(filtersOf(next, "Released", RULE_TYPES), []);
+    assert.equal(note.step, "group");
+    // grouped, its state says the unit, and None takes it back to the date
+    const again = filterZoneTopics({ view: next, index: 1, field: "Released by year", types, labels: MENU.en, locale: "en-US", encoded: data }).find((t) => t.id === "group");
+    assert.equal(again.state, MENU.en.units.year);
+    assert.deepEqual(at(again.groups.flatMap((g) => g.choices).find((c) => c.id === "group-none").change().view), ["Product", "Released", "Region"]);
 });
 
 test("a rule on the names says its words as the others do; counts of one have their own words (en, de)", () => {

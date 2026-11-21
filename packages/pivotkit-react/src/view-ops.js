@@ -423,11 +423,13 @@ export function groupField(view, field, unit, options = {}) {
         }
     }
     if (!same(name, field)) {
-        // the old field's filters name values the new grouping does not have
+        // the old field's filters name values the new grouping does not have; in Filters the
+        // grouping takes the field's place, with an empty pick
         const inFilterZone = !axis && filterZoneFields(view).some((f) => same(f, field));
+        const place = next.filters.findIndex((f) => same(f.field, field));
         next.filters = next.filters.filter((f) => !same(f.field, field));
         if (inFilterZone) {
-            next.filters.push(emptyPick(name));
+            next.filters.splice(place, 0, emptyPick(name));
         }
     }
     next.sort = next.sort.map((s) => (same(s.field, field) ? { ...s, field: name } : s));
