@@ -257,7 +257,7 @@ to 25 seconds (`http.graceMs`). Give the container more time than that: `--stop-
 
 Behind a proxy:
 
-- Set `http.publicUrl` to the address clients use.
+- Set `http.publicUrl` to the origin clients use, without a path.
 - Keep the proxy's `Host` header, or add its name to `http.allowHosts`. The server answers no other
   host name.
 - With a proxy or a published port in front, every client comes from one address. Set

@@ -163,6 +163,7 @@ Then restart Claude Code.
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
+| **Breaking:** [`http.publicUrl` is an origin](#public-url-origin) | `http.publicUrl` or `--public-url` has a path, such as `https://example.com/reports`, or a user name, password, query or fragment | serve pivotkit on a host name of its own, or route its paths at the root of the shared host. Then set the origin |
 | **Breaking:** [Node 24 or later](#node-24) | you run pivotkit's packages on Node 22 | update Node to 24 or later. The container image brings its own Node 24 |
 | [The element reads `"false"` as off](#element-false) | a page writes `save-templates`, `can-publish`, `allow-import` or `loading` with the value `"false"` | nothing, unless you meant it as on: then leave the value out |
 | [Rows of a source for a signed-in person](#records-route) | you want a live report on a host application's page over a source only pivotkit-server reaches | nothing until you need it: it is off |
@@ -186,6 +187,30 @@ Then restart Claude Code.
 - A view file and a link leave it out while it is off. pivotkit 0.8 then reads them as before.
 - pivotkit 0.8 reads a view with it on with an `unknownKey` warning and draws no points.
   Saved again there, the view loses the setting.
+
+### `http.publicUrl` is an origin { #public-url-origin }
+
+The server serves at the root of its host. So `http.publicUrl` and `--public-url` take an origin,
+such as `https://reports.example.com`. A trailing `/` is fine.
+
+- The server no longer starts with a path in the address. The error names the remedy.
+- A proxy that strips a prefix such as `/reports` no longer works. Before, download links, the
+  sign-in callback and the 404 text kept the path. The OpenAPI document, the REST resource and the
+  MCP quick-start page used the origin. Those addresses now agree.
+- On a shared host, give pivotkit a host name of its own, such as a subdomain. Or route `/mcp`,
+  `/.well-known/`, `/api/v1`, `/openapi.json`, `/downloads/` and `/` at the root of that host.
+- A user name, password, query or fragment is refused too, in `http.publicUrl`, `auth.resource` and
+  `rest.resource`. No message repeats the value.
+- `check-config` shows the error before you restart.
+
+If your address had a path, change these with it:
+
+- With `output.downloads.signIn`, register the new callback at the identity provider.
+  `check-config` prints it.
+- Point MCP clients at the new address, and set `auth.resource` to it.
+- Register an OAuth resource without a query at the identity provider. pivotkit refuses a query in
+  `auth.resource` and `rest.resource`, as RFC 8707 advises.
+- Download links sent before the update stop working.
 
 ### Node 24 or later { #node-24 }
 

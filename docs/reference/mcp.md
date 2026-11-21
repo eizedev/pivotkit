@@ -377,7 +377,7 @@ one probably meant.
 | `compute.memoryMb` | - | 1024 | Memory of a worker (`LIMIT_EXCEEDED` beyond) |
 | `compute.queueMs` | - | 10000 | How long a call waits for a free worker before `BUSY` |
 | `http.host`, `http.port` | `--host`, `--port` | 127.0.0.1, 3333 | Where `--http` listens |
-| `http.publicUrl` | `--public-url url` | none | The server's address as clients reach it (behind a proxy) |
+| `http.publicUrl` | `--public-url url` | none | The server's origin as clients reach it (behind a proxy). No path, user name, password, query or fragment |
 | `http.allowHosts` | `--allow-host name` | localhost names | Host names the server answers to (DNS rebinding protection) |
 | `http.allowOrigins` | `--allow-origin name` | none | Browser origins (host names) allowed to call |
 | - | `--state-dir dir` | `$PIVOTKIT_STATE_DIR` | `--http`: where the server makes, at its first start, the token and keys it needs when none is given ([made at the first start](rest.md#first-start)). Nothing over stdio |
@@ -703,10 +703,13 @@ Behind a reverse proxy:
 - Forward `/mcp`, `/.well-known/`, `/downloads/` ([download links](delivery.md)) and `/`. With
   `branding.icon`, also `/icon.png`.
 - Keep the `Host` header, or add the proxy's name with `--allow-host`.
-- Set `--public-url`.
+- Set `--public-url` to the origin people open, such as `https://reports.example.com`. It takes no
+  path: the server serves at the root of its host. On a shared host, give pivotkit a host name of
+  its own, such as a subdomain, or route the paths above at the root. A prefix such as `/reports`
+  in front of them does not work.
 - Turn response buffering off for `/mcp`.
 
-The server reads no `X-Forwarded-Proto` or `X-Forwarded-Host`: its own address is `--public-url`. It
+The server reads no `X-Forwarded-Proto` or `X-Forwarded-Host`: its own origin is `--public-url`. It
 reads `X-Forwarded-For` only with `http.trustProxy`, for the client's address in its limits and the
 log ([REST service](rest.md#running)). Without it, client addresses are in the proxy's log. For IIS
 with ARR, see [PowerShell Universal](../getting-started/mcp.md#psu-iis). For nginx:
