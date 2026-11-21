@@ -8,7 +8,7 @@
  * with the menus (menus.js).
  */
 
-import { CATALOG, aggregatorsFor, fieldLabel, formatter, isFormat } from "pivotkit-core";
+import { CATALOG, COLOR_SCALES, aggregatorsFor, fieldLabel, formatter, isFormat } from "pivotkit-core";
 import { fill, plural } from "./labels.js";
 import { dateRangeText, dateDisplayLocale } from "./date-context.js";
 import { calendarDays, groupHint, groupStats } from "./group-context.js";
@@ -31,8 +31,9 @@ import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind
  *   hint?: string, icon?: string, closes?: boolean, checkbox?: boolean, disabled?: boolean, reason?: string, info?: string,
  *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string,
  *   color?: { id: string, value: string, label: string, pick: (color: string) => void },
- *   tags?: Array<{ icon: string, text: string }>, className?: string, note?: string }} Choice
+ *   tags?: Array<{ icon: string, text: string }>, className?: string, note?: string, scale?: string[] }} Choice
  * `tags`: small marks after the text (the zones a field is in), hidden from assistive technology;
+ * `scale`: the colours of a colour scale, low to high, drawn as a strip after the text;
  * `note`: a line under the text that says what choosing it does, read with it; `className`: the
  * item's own class (a field's type).
  */
@@ -319,6 +320,31 @@ export function formatLabel(format, labels, locale) {
     return Object.hasOwn(labels.formats, kind) ? labels.formats[kind] : format;
 }
 
+/** The theme's colour scale as a strip: its low, middle and high tokens (styles.css; table.jsx SCALE_MID). */
+const THEME_SCALE = Object.freeze(["var(--pk-scale-low)", "var(--pk-scale-mid, color-mix(in srgb, var(--pk-scale-low), var(--pk-scale-high)))", "var(--pk-scale-high)"]);
+
+/**
+ * The colours of a value's colour scale (Highlight › Colour scale on): the theme's, then pivotkit-core's
+ * COLOR_SCALES, each with its colours as a strip; a view's own colours (from a file or a link) stay
+ * a choice of their own while they are set. A choice writes `conditional.colors`; the theme's writes none.
+ * @param {string[]} colors  the value's own colours ([] for the theme's)
+ * @param {(colors: string[]) => () => { view: any, note: any }} write
+ * @returns {Topic}
+ */
+function scaleTopic(colors, write, labels) {
+    const same = (list) => list.length === colors.length && list.every((c, i) => c.toLowerCase() === colors[i].toLowerCase());
+    const presets = Object.entries(COLOR_SCALES).map(([key, list]) => ({ key, list: [...list] }));
+    const own = colors.length > 0 && !presets.some((p) => same(p.list));
+    /** @type {Choice[]} */
+    const choices = [
+        { id: "scale-theme", text: labels.scaleNames.theme, scale: [...THEME_SCALE], checked: colors.length === 0, change: colors.length === 0 ? () => null : write([]) },
+        ...presets.map(({ key, list }) => ({ id: `scale-${key}`, text: labels.scaleNames[key], note: key === "redGreen" ? labels.scaleRedGreenHint : undefined, scale: list, checked: same(list), change: same(list) ? () => null : write(list) })),
+        ...(own ? [{ id: "scale-own", text: labels.scaleOwn, scale: colors, checked: true, change: () => null }] : [])
+    ];
+    const current = choices.find((c) => c.checked);
+    return { id: "scaleColors", title: labels.scaleColors, kind: "menu", icon: "heatmap", state: current?.text, changed: colors.length > 0, keywords: labels.scaleKeywords, groups: [{ choices }] };
+}
+
 /**
  * The topics of a value's menu: Summarize by, Show as, Number format (each a level), Highlight (side
  * by side), Name, Move to. A value whose result is no number has no Show as, format or highlight.
@@ -428,6 +454,9 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf, ea
                 }
             ]
         });
+    }
+    if (spec.conditional?.type === "colorScale") {
+        topics.push(scaleTopic(spec.conditional.colors ?? [], (colors) => set({ conditional: { type: "colorScale", colors } }), labels));
     }
     topics.push({ id: "name", title: labels.rename, kind: "panel", icon: "text", state: name, changed: Boolean(spec.label), keywords: labels.nameKeywords });
     topics.push(moveTopic(view, "values", index, view.values.length, labels, name, type));

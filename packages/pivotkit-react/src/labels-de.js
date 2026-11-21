@@ -204,6 +204,7 @@ export const de = {
         },
         chartOverTime: "{field} ist ein Datum: Linien zeigen, wie sich die Werte über die Zeit ändern.",
         pieSlices: "Ein Kreis eignet sich für bis zu etwa {max} Teile; dieser hat {count}. Balken lassen sich leichter vergleichen.",
+        stackedTotal: "{value} lässt sich nicht addieren, die Höhe eines Stapels ist also keine Summe. Balken zeigen die Teile nebeneinander.",
         pieColumns: "Ein Kreis zeigt ein Stück je Zeile und addiert dafür die Spalten ({fields}). Balken zeigen die Spalten nebeneinander.",
         colSubtotals: "Eine Spalte „… gesamt“ addiert die Spalten der Gruppe davor; sie ist kein eigener Eintrag.",
         chartDates: "Die Daten liegen in Spalten, so wird jedes Datum eine eigene Linie. Zeilen und Spalten tauschen, um die Daten entlang der Achse zu zeichnen.",

@@ -7,7 +7,7 @@
  * tip-state.js, its text in every language and, for a button, its action in PivotReport.
  */
 
-import { CATALOG, suggestDateUnit } from "pivotkit-core";
+import { CATALOG, stacksToPercent, suggestDateUnit, valueAddsUp } from "pivotkit-core";
 import { CHART_TYPES, MANY_SERIES, SLICE_TYPES, chartPlan } from "./chart-types.js";
 import { NOTICES, activeEntries, chart, name, seriesOf } from "./notices.js";
 import { sourceOf } from "./view-ops.js";
@@ -93,6 +93,22 @@ export const TIPS = Object.freeze([
         icon: "chart",
         action: "bars",
         when: (ctx) => (sliceChart(ctx) && seriesOf(ctx).categories.length > TIP_THRESHOLDS.pieSlices ? { count: seriesOf(ctx).categories.length, max: TIP_THRESHOLDS.pieSlices } : null)
+    },
+    {
+        // a stack adds its parts (stacked bars or areas, also to 100 %): for an average, a minimum or
+        // a median the stack's height is no total (pivotkit-core's valueAddsUp, which the tooltip's
+        // Total line follows too)
+        id: "stackedTotal",
+        icon: "chart",
+        action: "bars",
+        when: (ctx) => {
+            const drawn = ctx.chartPlan.chart;
+            if (!axisChart(ctx) || !drawn || !(drawn.stacked || stacksToPercent({ ...drawn, stackPercent: ctx.view.chart?.stackPercent })) || seriesOf(ctx).series.length < 2) {
+                return null;
+            }
+            const spec = ctx.view.values.find((v) => !valueAddsUp(v));
+            return spec ? { spec } : null;
+        }
     },
     {
         // a pie draws one slice per row: the columns are added up

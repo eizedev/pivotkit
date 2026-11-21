@@ -35,6 +35,18 @@ export const DEFAULT_THEME = Object.freeze({
  * the label layout (chart-measure.js) share them. Plain numbers, so a bundler writes them in place and
  * a report's first load does not grow.
  */
+/**
+ * The colour scales a report builder picks in the value menu (Highlight › Colour scale), low to high,
+ * as a view's `conditional.colors`. The theme's own scale (light to dark in its accent) has no colours.
+ * Blue to orange first: the pair that people with red-green colour blindness tell apart. A cell mixes
+ * its colour into the surface, so the text keeps 4.5:1 on every step (pivotkit-react's contrast test).
+ */
+export const COLOR_SCALES = Object.freeze({
+    blueOrange: Object.freeze(["#2a78d6", "#f2f2f2", "#eb6834"]),
+    blueRed: Object.freeze(["#2a78d6", "#f2f2f2", "#e34948"]),
+    redGreen: Object.freeze(["#e34948", "#f2d16b", "#1baf7a"])
+});
+
 export const GRID_TOP = 16;
 export const HEATMAP_GRID_BOTTOM = 64;
 
