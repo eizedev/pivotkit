@@ -27,5 +27,10 @@ for (const [lang, t] of [
         // its Filter level lists the years
         await chipMenu(page, t.grouped, "filter");
         await expect(page.locator(".pk-chip-menu .pk-values")).toContainText("2025");
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Escape");
+        // Undo brings the date back, in its place
+        await page.getByTestId("undo").click();
+        expect(await filterChips(page)).toEqual(["Product", "Month"]);
     });
 }

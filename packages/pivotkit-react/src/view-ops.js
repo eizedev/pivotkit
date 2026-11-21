@@ -424,11 +424,13 @@ export function groupField(view, field, unit, options = {}) {
     }
     if (!same(name, field)) {
         // the old field's filters name values the new grouping does not have; in Filters the
-        // grouping takes the field's place, with an empty pick
+        // grouping takes the field's place, with an empty pick; a grouping that is in the report
+        // already (on Rows, Columns or in Filters) stays where it is, alone
         const inFilterZone = !axis && filterZoneFields(view).some((f) => same(f, field));
+        const placed = [...view.rows, ...view.cols, ...filterZoneFields(view)].some((f) => same(f, name));
         const place = next.filters.findIndex((f) => same(f.field, field));
         next.filters = next.filters.filter((f) => !same(f.field, field));
-        if (inFilterZone) {
+        if (inFilterZone && !placed) {
             next.filters.splice(place, 0, emptyPick(name));
         }
     }

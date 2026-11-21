@@ -87,7 +87,8 @@ Details:
 
 A chip in **Filters** opens the same Filter level from its menu, with **Move to** and **Remove field**.
 A date there also has **Group**: a unit such as **Year** puts the grouping in its place, with every
-item kept.
+item kept. The date's filter goes with it, and the Group level says so while there is one. Undo
+brings it back. A grouping that is in the report already stays where it is.
 
 ![The menu of Released in Filters: the Filter row says last 12 months with its months, then Group, Move to and Remove field](../assets/screenshots/filter-zone-light.png#only-light)
 ![The menu of Released in Filters: the Filter row says last 12 months with its months, then Group, Move to and Remove field](../assets/screenshots/filter-zone-dark.png#only-dark)

@@ -11,7 +11,7 @@ import { de as menuDe } from "../src/menu-labels-de.js";
 import { QUICK_UNITS, RULES_MAX, RULE_TYPES, filterState, keepsBlanks, rowsInRange, setRuleBlanks, setTopFilter, setLabelFilter, textOn, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, yearRules } from "../src/menu-ops.js";
 import { axisTopics, filterZoneTopics, searchEntries, searchHits } from "../src/menu-topics.js";
 import { compareText, itemRuleText, namedUntil, rangeShare, rangeText, relativeText } from "../src/names.js";
-import { addField, dateSpan, filterZoneFields, filtersOf, groupField } from "../src/view-ops.js";
+import { addField, dateSpan, filterZoneFields, filtersOf, groupField, selectedItems } from "../src/view-ops.js";
 
 const data = encode([
     { Region: "North", Units: 3, Price: 10, Released: "2019-05-01" },
@@ -344,6 +344,21 @@ test("a date in Filters is grouped from its menu: the grouping takes its place a
     const again = filterZoneTopics({ view: next, index: 1, field: "Released by year", types, labels: MENU.en, locale: "en-US", encoded: data }).find((t) => t.id === "group");
     assert.equal(again.state, MENU.en.units.year);
     assert.deepEqual(at(again.groups.flatMap((g) => g.choices).find((c) => c.id === "group-none").change().view), ["Product", "Released", "Region"]);
+    // the grouping starts with an empty pick; the filtered date's menu said that it clears the filter
+    assert.deepEqual(filtersOf(next, "Released by year").map((f) => [f.type, f.items, f.not]), [["in", [], true]]);
+    assert.equal(group.intro.endsWith(MENU.en.groupClearsFilter), true);
+});
+
+test("a date in Filters grouped to a grouping the report has already: it goes there, no second chip or pick", () => {
+    // Released by year on Rows, filtered to 2025; the raw date in Filters
+    let v = addField(norm({ derived: [{ name: "Released by year", field: "Released", by: "year" }], rows: ["Released by year"] }), "Released", "filters");
+    v = setItemFilter(v, "Released by year", [2025], [2019, 2022, 2025]);
+    const group = filterZoneTopics({ view: v, index: 0, field: "Released", types, labels: MENU.en, locale: "en-US", encoded: data }).find((t) => t.id === "group");
+    const { view: next } = group.groups.flatMap((g) => g.choices).find((c) => c.id === "group-year").change();
+    assert.deepEqual(filterZoneFields(next), []);
+    assert.deepEqual(next.rows, ["Released by year"]);
+    assert.deepEqual(next.filters.map((f) => [f.field, f.type]), [["Released by year", "in"]]);
+    assert.deepEqual(selectedItems(next, "Released by year", [2019, 2022, 2025]), [2025]);
 });
 
 test("a rule on the names says its words as the others do; counts of one have their own words (en, de)", () => {

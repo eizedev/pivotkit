@@ -13,7 +13,7 @@ import { fill, plural } from "./labels.js";
 import { dateRangeText, dateDisplayLocale } from "./date-context.js";
 import { calendarDays, groupHint, groupStats } from "./group-context.js";
 import { groupingName, refLabel, relativeText, sortText, valueLabels } from "./names.js";
-import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, hiddenAfter, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
+import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, hiddenAfter, isFiltered, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
 import { valueAddsUp } from "pivotkit-core";
 import { CHART_TYPES, SLICE_TYPES } from "./chart-types.js";
 import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind, setQuickRange, setRule, setTopFilter, totalNoEffect, updateValue, withMeasure } from "./menu-ops.js";
@@ -260,7 +260,8 @@ function groupTopic({ view, field, source, labels, locale, encoded }) {
     const unit = (u) => ({ id: `group-${u}`, text: labels.units[u] ?? u, hint: groupHint(encoded, source, u, dateLocale, labels, stats), checked: grouping?.by === u, closes: true, change: regroup(u) });
     return {
         id: "group",
-        intro: span ? fill(plural(labels.groupDataRange, calendarDays(span), { lang: labels.lang, locale: dateLocale }), { range: dateRangeText(span, dateLocale) }) : undefined,
+        // the data's range, and for a filtered field that another grouping clears the filter
+        intro: [span ? fill(plural(labels.groupDataRange, calendarDays(span), { lang: labels.lang, locale: dateLocale }), { range: dateRangeText(span, dateLocale) }) : "", isFiltered(view, field) ? labels.groupClearsFilter : ""].filter(Boolean).join(" ") || undefined,
         title: labels.groupTopic,
         kind: "menu",
         icon: "date",
