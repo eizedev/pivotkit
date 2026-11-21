@@ -62,6 +62,9 @@ The first load holds only what the first render needs. Everything else loads on 
 - A text the first render shows stays in `labels.js`. No report may show English first.
 - A menus module never imports `chart.jsx`. `export-run.js` gets `loadECharts` through its context.
 - `echarts.js` brings pivotkit-core's `toEChartsOption`, from `pivotkit-core/chart`. `chart.jsx` never imports it.
+- `PivotReport.jsx` imports `deferred.js` as a file of its own: German texts and the tips' table.
+- pivotkit-element bundles `deferred-late.js` in its place. It loads them later.
+- What the first render needs of the tips is in `tip-state.js`, not in `tips.js`.
 - The import UI loads on first use through `lazy-import.js`.
 - The HTML report, SVG and printing load on first use through `report-run.js`.
 - pivotkit-element's `test/build.test.js` checks the split.
@@ -134,7 +137,7 @@ Visual values come from `--pk-*` tokens. A host can then match its design withou
 
 ## Adding a language
 
-1. First-load texts in `labels.js`, added to `LABELS`.
+1. First-load texts in `src/labels-<lang>.js`, added in `deferred.js`, loaded in `deferred-late.js`.
 2. Menu texts in `src/menu-labels-<lang>.js`.
 3. Its loader in `MENU_TEXTS_OF` (`menu-texts.js`).
 4. The entry `"menu-texts-<lang>"` in `build.js`.
@@ -142,7 +145,7 @@ Visual values come from `--pk-*` tokens. A host can then match its design withou
 6. Import texts in `IMPORT_TEXTS` (`import-labels.js`).
 7. All of them in `all-labels.js`.
 8. A row in `docs/reference/localisation.md`.
-9. pivotkit-element's `texts` and `unused` budgets in its `build.js`.
+9. pivotkit-element's `texts`, `unused` and `lang` budgets in its `build.js`.
 
 `test/menu-texts.test.js` and `test/unused.test.js` check the loaders and keys.
 

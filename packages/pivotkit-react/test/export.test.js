@@ -8,6 +8,8 @@ import { dataExportOf, drillExportOn, pickColumns } from "../src/export-scope.js
 import { strFromU8, unzipSync } from "fflate";
 import { drillTable } from "../src/drill-table.js";
 import { LABELS } from "../src/labels.js";
+// the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
+import "../src/deferred.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { addMenuTexts, menuLabels } from "../src/menu-labels.js";
 import { hexColor, loadExporters, runExport, xlsxThemeOf } from "../src/export-run.js";

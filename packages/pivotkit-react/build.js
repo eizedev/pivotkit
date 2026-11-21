@@ -20,6 +20,19 @@ const echartsFile = {
     }
 };
 
+/**
+ * PivotReport.jsx's import of "./deferred.js" stays an import of dist/deferred.js, a file of its own,
+ * as echarts.js does: pivotkit-element's build bundles dist/deferred-late.js in its place, so German
+ * texts and the tips' table load later there (src/deferred.js says what they are). PivotReport.jsx is
+ * in dist/index.js, so the path is right from there.
+ */
+const deferredFile = {
+    name: "deferred-file",
+    setup(build) {
+        build.onResolve({ filter: /^\.\/deferred\.js$/ }, (args) => (args.kind === "import-statement" && /PivotReport\.jsx$/.test(args.importer) ? { path: "./deferred.js", external: true } : undefined));
+    }
+};
+
 /** @type {import("esbuild").BuildOptions} */
 export const options = {
     absWorkingDir: fileURLToPath(new URL(".", import.meta.url)),
@@ -29,7 +42,9 @@ export const options = {
     // menu-texts-de.js: the menus' German texts, loaded with the menus for a German report only
     // import-ui.js: loading data (allowImport), loaded on its first use (lazy-import.jsx)
     // import-worker.js: the module worker a host may start to read CSV and JSON off the page (importWorker)
-    entryPoints: { index: "src/index.js", echarts: "src/echarts.js", menus: "src/menus.js", "menu-texts-de": "src/menu-labels-de.js", labels: "src/all-labels.js", "import-ui": "src/import-module.js", "import-worker": "src/import-worker.js", styles: "src/styles.css" },
+    // deferred.js: German texts and the tips' table at once; deferred-late.js: the same loaded later,
+    // for pivotkit-element (deferredFile)
+    entryPoints: { index: "src/index.js", echarts: "src/echarts.js", menus: "src/menus.js", "menu-texts-de": "src/menu-labels-de.js", labels: "src/all-labels.js", "import-ui": "src/import-module.js", "import-worker": "src/import-worker.js", deferred: "src/deferred.js", "deferred-late": "src/deferred-late.js", styles: "src/styles.css" },
     outdir: "dist",
     splitting: true,
     chunkNames: "chunks/[name]-[hash]",
@@ -46,7 +61,7 @@ export const options = {
     legalComments: "none",
     // the version for the view files' `generator` (src/version.js), from package.json
     define: { __PIVOTKIT_REACT_VERSION__: JSON.stringify(pkg.version) },
-    plugins: [echartsFile],
+    plugins: [echartsFile, deferredFile],
     logLevel: "warning"
 };
 

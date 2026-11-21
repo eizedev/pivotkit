@@ -129,3 +129,38 @@ test("layout limit failures retain computed date field metadata", () => {
     assert.match(html, /role="alert"/);
     assert.match(html, /data-testid="field-info"/);
 });
+
+// A bundler (esbuild, Vite, webpack) drops an import of a file that package.json's "sideEffects"
+// leaves out, and esbuild warns. dist/ imports some chunks only to keep its modules' order
+// ("import './x.js'"): each of them must be listed.
+test("every file dist/ imports for its effects is listed in sideEffects", async () => {
+    const { readFile, readdir } = await import("node:fs/promises");
+    const dist = new URL("../dist/", import.meta.url);
+    const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+    const listed = pkg.sideEffects.map((pattern) => new RegExp(`^${pattern.replace(/[.]/g, "\\.").replace(/\*/g, "[^/]*")}$`));
+    const files = (await readdir(dist, { recursive: true })).filter((f) => f.endsWith(".js"));
+    const bare = [];
+    for (const file of files) {
+        const code = await readFile(new URL(file, dist), "utf8");
+        for (const m of code.matchAll(/^import\s*"(\.{1,2}\/[^"]+)"/gm)) {
+            bare.push(`./dist/${new URL(m[1], new URL(file, "file:///x/")).pathname.slice(3)}`);
+        }
+    }
+    assert.ok(bare.length > 0, "dist/ imports no file for its effects: the check would prove nothing");
+    for (const file of bare) {
+        assert.ok(listed.some((re) => re.test(file)), `${file} is imported for its effects but not listed in sideEffects`);
+    }
+});
+
+test("German texts and the tips' table are part of the package's first render: dist/index.js imports dist/deferred.js, which has them", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const index = await readFile(new URL("../dist/index.js", import.meta.url), "utf8");
+    // a file of its own next to index.js, so pivotkit-element can bundle deferred-late.js in its place
+    assert.match(index, /^import \{[^}]*\bDEFERRED\b[^}]*\} from "\.\/deferred\.js";/m);
+    const { DEFERRED } = await import("../dist/deferred.js");
+    assert.equal(DEFERRED.loadTips, null);
+    assert.deepEqual(Object.keys(DEFERRED.loadLabels), []);
+    const late = await import("../dist/deferred-late.js");
+    assert.equal(late.DEFERRED.tips, null);
+    assert.deepEqual(Object.keys(late.DEFERRED.loadLabels), ["de"]);
+});

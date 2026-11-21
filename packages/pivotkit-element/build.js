@@ -16,27 +16,84 @@
 //   node build.js --size   build, print the gzip size of what a page loads, fail above SIZE_BUDGET_KIB
 import * as esbuild from "esbuild";
 import { readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { options as reactOptions } from "../pivotkit-react/build.js";
 import { thirdPartyLicenses } from "../../scripts/third-party-licenses.js";
 export { bundledPackages } from "../../scripts/third-party-licenses.js";
 import { hostStyles } from "./src/host-css.js";
+import { splitStyles } from "./src/css-split.js";
 import { isMain } from "../../scripts/is-main.js";
 import { fileURLToPath } from "node:url";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(await readFile(join(here, "package.json"), "utf8"));
 
-/** pivotkit-react/styles.css as a JS string for the shadow root. */
+/**
+ * The code pivotkit-react's menus load and nothing else does, and the rest of its code, as texts: the
+ * classes each writes decide which rules load with the menus (src/css-split.js). From pivotkit-react's
+ * own build, the dist/ the element bundles; the rest includes every other group loaded on demand, so a
+ * rule that the import UI or the HTML report shares with the menus stays first.
+ * @returns {Promise<{ first: string, menus: string }>}
+ */
+async function reactCode() {
+    const react = await esbuild.build({ ...reactOptions, write: false, metafile: true, logLevel: "silent" });
+    const out = react.metafile.outputs;
+    const key = (name) => Object.keys(out).find((k) => k.endsWith(`dist/${name}`));
+    const closure = (start) => {
+        const seen = new Set();
+        const walk = (f) => {
+            if (f && !seen.has(f)) {
+                seen.add(f);
+                out[f].imports.filter((i) => i.kind === "import-statement" && out[i.path]).forEach((i) => walk(i.path));
+            }
+        };
+        start.forEach((name) => walk(key(name)));
+        return seen;
+    };
+    const before = closure(["index.js", "deferred-late.js"]);
+    const menus = new Set([...closure(["menus.js"])].filter((f) => !before.has(f)));
+    const text = (f) => react.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "";
+    const js = Object.keys(out).filter((f) => f.endsWith(".js"));
+    return { first: js.filter((f) => !menus.has(f)).map(text).join("\n"), menus: [...menus].map(text).join("\n") };
+}
+
+/** The virtual module of the menus' rules (menuStyles). */
+const MENU_STYLES = "pivotkit-element:menu-styles";
+
+/** @type {Promise<{ first: string[], menus: string[] }> | undefined} */
+let styleRuns;
+
+/**
+ * pivotkit-react/styles.css for the shadow root: its tokens moved to :host (src/host-css.js), minified,
+ * in the runs of the first load and of the menus (src/css-split.js). Read from pivotkit-react's dist/,
+ * once per process.
+ */
+export function shadowStyleRuns() {
+    return (styleRuns ??= (async () => {
+        const css = hostStyles(await readFile(join(here, "..", "pivotkit-react", "dist", "styles.css"), "utf8"));
+        const { code } = await esbuild.transform(css, { loader: "css", minify: true });
+        const { first, menus } = await reactCode();
+        return splitStyles(code, first, menus);
+    })());
+}
+
+/**
+ * The stylesheet's modules: the first load's runs are pivotkit-react/styles.css; the menus' runs are a
+ * module that pivotkit-react's dist/menus.js imports, so they arrive with the menus and never after them
+ * (src/styles.js puts them in their place).
+ */
 const shadowStyles = {
     name: "shadow-styles",
     setup(build) {
-        build.onLoad({ filter: /pivotkit-react[\\/]dist[\\/]styles\.css$/ }, async (args) => {
-            const css = hostStyles(await readFile(args.path, "utf8"));
-            const { code } = await esbuild.transform(css, { loader: "css", minify: true });
-            return { contents: `export default ${JSON.stringify(code)};`, loader: "js" };
-        });
+        build.onLoad({ filter: /pivotkit-react[\\/]dist[\\/]styles\.css$/ }, async () => ({ contents: `export const first = ${JSON.stringify((await shadowStyleRuns()).first)};`, loader: "js" }));
+        build.onResolve({ filter: new RegExp(`^${MENU_STYLES}$`) }, () => ({ path: MENU_STYLES, namespace: "menu-styles" }));
+        build.onLoad({ filter: /.*/, namespace: "menu-styles" }, async () => ({ contents: `export const menus = ${JSON.stringify((await shadowStyleRuns()).menus)};`, loader: "js" }));
+        build.onLoad({ filter: /pivotkit-react[\\/]dist[\\/]menus\.js$/ }, async (args) => ({
+            contents: `${await readFile(args.path, "utf8")}\nimport { addMenuStyles } from ${JSON.stringify(join(here, "src", "styles.js"))};\nimport { menus as menuRuns } from "${MENU_STYLES}";\naddMenuStyles(menuRuns);\n`,
+            loader: "js",
+            resolveDir: dirname(args.path)
+        }));
     }
 };
 
@@ -65,6 +122,19 @@ const chartOffBarrel = {
     }
 };
 
+/**
+ * pivotkit-react's dist/deferred-late.js in place of its dist/deferred.js (pivotkit-react's build.js
+ * keeps that one a file of its own for this): the German first-load texts load before the first render
+ * of a German report only, the tips' table after the first render. Both stay out of the first load.
+ */
+const DEFERRED_FILE = /pivotkit-react[\\/]dist[\\/]index\.js$/;
+const deferredLate = {
+    name: "deferred-late",
+    setup(build) {
+        build.onResolve({ filter: /^\.\/deferred\.js$/ }, (args) => (DEFERRED_FILE.test(args.importer) ? { path: join(dirname(args.importer), "deferred-late.js") } : undefined));
+    }
+};
+
 /** @type {import("esbuild").BuildOptions} */
 export const options = {
     absWorkingDir: here,
@@ -81,7 +151,7 @@ export const options = {
     // the license texts go into one file (licenses() below), not into comments of the bundle
     legalComments: "none",
     metafile: true,
-    plugins: [shadowStyles, chartOffBarrel],
+    plugins: [shadowStyles, chartOffBarrel, deferredLate],
     logLevel: "warning"
 };
 
@@ -335,9 +405,17 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * first line and its hints from the data. On top of #581, CI's zlib measures the first load at
  * 180.6 (178.3 before) and the menus at 53.6 (52.5 before): initial goes to 181 and menus to 54,
  * CI's measure plus about 0.5 KiB. The split of the first load is still #546 (0.9.0).
+ * The split of the first load (#546). The first load's budget is a hard line at 181 KiB: a feature
+ * that needs room there makes it by moving something out, not by raising the budget. Three parts left
+ * it (pivotkit-react's deferred-late.js, src/css-split.js): the German first-load texts (group
+ * "lang", 5.9 on CI's zlib, budget 6.2), loaded before a German report renders; the tips' table with
+ * its conditions (group "tips", 2.4, budget 2.8), loaded after the first render; and the style rules
+ * only the menus' code writes, which now load inside the menus' chunk. CI's zlib measures the first
+ * load at 173.2 (180.9 before) and the menus at 56.9 (53.6 before). The menus carry the rules they
+ * took over, so their budget goes to 57.5, CI's measure plus about 0.5 KiB.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 181, chart: 243.5, export: 12.6, link: 7.5, menus: 54, texts: 8, unused: 6, import: 22, report: 24, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 181, chart: 243.5, export: 12.6, link: 7.5, menus: 57.5, texts: 8, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 2.8 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
@@ -347,7 +425,9 @@ export const SIZE_BUDGET_KIB = { initial: 181, chart: 243.5, export: 12.6, link:
  * unused parts, English and every other language, "import": loading data with allow-import, the import
  * UI with its texts and pivotkit-core/import with its CSV and JSON readers, "report": the HTML report,
  * the chart as SVG and printing, pivotkit-report with ECharts' SVG renderer, beyond the chart group;
- * "template": pivotkit-report's reading of a print template's own CSS, which the element never loads).
+ * "template": pivotkit-report's reading of a print template's own CSS, which the element never loads;
+ * "lang": the first load's texts of a language besides English, before a report in it renders;
+ * "tips": the tips' table, right after the first render).
  * @param {import("esbuild").Metafile} metafile
  * @returns {{ group: string, files: string[] }[]}
  */
@@ -382,9 +462,9 @@ export function loadGroups(metafile) {
     };
     scan(initial);
     const groupOf = (file) =>
-        /[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]report-run-[^\\/]+$/.test(file) ? "report" : /[\\/]template-style-[^\\/]+$/.test(file) ? "template" : /[\\/]import-(?:ui|csv|json)-[^\\/]+$/.test(file) ? "import" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : /[\\/]menu-texts-[^\\/]+$/.test(file) ? "texts" : /[\\/]unused-texts-[^\\/]+$/.test(file) ? "unused" : "export";
+        /[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]report-run-[^\\/]+$/.test(file) ? "report" : /[\\/]template-style-[^\\/]+$/.test(file) ? "template" : /[\\/]import-(?:ui|csv|json)-[^\\/]+$/.test(file) ? "import" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : /[\\/]menu-texts-[^\\/]+$/.test(file) ? "texts" : /[\\/]unused-texts-[^\\/]+$/.test(file) ? "unused" : /[\\/]labels-[a-z]+-[^\\/]+$/.test(file) ? "lang" : /[\\/]tips-[^\\/]+$/.test(file) ? "tips" : "export";
     const groups = [{ group: "initial", files: [...initial] }];
-    for (const name of ["chart", "export", "link", "menus", "texts", "unused", "import", "report", "template"]) {
+    for (const name of ["chart", "export", "link", "menus", "texts", "unused", "import", "report", "template", "lang", "tips"]) {
         const files = [...closure(dynamic.filter((f) => groupOf(f) === name))].filter((f) => !initial.has(f));
         groups.push({ group: name, files });
     }

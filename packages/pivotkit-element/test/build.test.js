@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import * as esbuild from "esbuild";
-import { SIZE_NODE, bundledPackages, loadGroups, options, zlibNote } from "../build.js";
+import { SIZE_NODE, bundledPackages, loadGroups, options, shadowStyleRuns, zlibNote } from "../build.js";
 import { hostStyles } from "../src/host-css.js";
 import { options as reactOptions } from "../../pivotkit-react/build.js";
 
@@ -283,4 +283,40 @@ test("every file dist/index.js imports for its effects is listed in sideEffects"
     for (const file of bare) {
         assert.ok(listed.some((re) => re.test(file)), `${file} is imported by dist/index.js for its effects but not listed in sideEffects`);
     }
+});
+
+test("the German first-load texts and the tips' table are no part of the first load: each is a group of its own", () => {
+    const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
+    const text = (files) => files.map((f) => built.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "").join("");
+    // "Pivot-Bericht" is the report's name in German, "Pivot report" in English
+    assert.ok(text(groups.lang).includes("Pivot-Bericht"), "the German texts' chunk lacks them");
+    for (const other of ["initial", "menus", "texts", "tips"]) {
+        assert.ok(!text(groups[other]).includes("Pivot-Bericht"), `the German first-load texts are in ${other}`);
+    }
+    assert.ok(text(groups.initial).includes("Pivot report"), "the English first-load texts are not in the first load");
+    // the tips' table (src/tips.js: TIP_THRESHOLDS) loads after the first render; their state first
+    assert.ok(inputsOf(groups.tips).some((i) => /pivotkit-react[\\/]dist[\\/]chunks[\\/]tips-/.test(i)), "the tips' table is not a group of its own");
+    assert.ok(!text(groups.initial).includes("pieSlices: 7"), "the tips' table is in the first load");
+    assert.ok(text(groups.tips).includes("pieSlices: 7") || text(groups.tips).includes("pieSlices:7"), "the tips' group lacks the table");
+    // pivotkit-react's deferred.js (German at once) is not bundled, deferred-late.js is
+    assert.ok(inputsOf(groups.initial).some((i) => i.endsWith("pivotkit-react/dist/deferred-late.js")));
+    assert.ok(!Object.keys(built.metafile.inputs).some((i) => i.endsWith("pivotkit-react/dist/deferred.js")), "pivotkit-react's deferred.js is bundled");
+});
+
+test("the rules only the menus match load with the menus, in their place: first load and menus together are the whole stylesheet", async () => {
+    const { joinStyles } = await import("../src/css-split.js");
+    const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
+    const text = (files) => files.map((f) => built.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "").join("");
+    const runs = await shadowStyleRuns();
+    // a rule of the Filter level (.pk-summary-card) waits for the menus, the toolbar's buttons (.pk-btn) do not
+    const has = (css, cls) => new RegExp(`\\.${cls}[{,.:>\\[ ]`).test(css);
+    assert.ok(has(joinStyles(runs.first, null), "pk-btn"), "the buttons' rules are not in the first load's runs");
+    assert.ok(!has(joinStyles(runs.first, null), "pk-summary-card"), "the Filter level's rules are in the first load's runs");
+    assert.ok(has(text(groups.initial), "pk-btn"), "the buttons' rules are not in the first load");
+    assert.ok(!has(text(groups.initial), "pk-summary-card"), "the Filter level's rules are in the first load");
+    assert.ok(has(text(groups.menus), "pk-summary-card"), "the Filter level's rules are not in the menus");
+    // put together they are pivotkit-react's stylesheet as the shadow root had it in one piece
+    const { code } = await esbuild.transform(hostStyles(reactCss), { loader: "css", minify: true });
+    assert.equal(runs.menus.length, runs.first.length - 1);
+    assert.ok(joinStyles(runs.first, runs.menus) === code, "the runs put together are not the stylesheet");
 });

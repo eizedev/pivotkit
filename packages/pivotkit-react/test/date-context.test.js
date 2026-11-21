@@ -5,6 +5,8 @@ import { dateContext, dateRangeText, yearSetText, yearsOf } from "../src/date-co
 import { calendarDays, groupHint, groupStats } from "../src/group-context.js";
 import { yearText } from "../src/names.js";
 import { LABELS } from "../src/labels.js";
+// the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
+import "../src/deferred.js";
 import { en } from "../src/menu-labels.js";
 import { de } from "../src/menu-labels-de.js";
 

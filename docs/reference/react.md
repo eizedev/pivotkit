@@ -814,6 +814,9 @@ loaded view ([parts of a view that were not used](../use/behaviour.md#parts-of-a
   when the locale changes to German.
 - `dist/import-ui.js` with `allowImport`: loading data, on its first use, with `pivotkit-core/import`
 
+`dist/index.js` also imports `dist/deferred.js` at once: the German texts of the first render and the
+tips' table. It is a file of its own, so pivotkit-element can load these parts later.
+
 `dist/import-worker.js` is the worker of [`importWorker`](#prop-importworker). Only a host that
 starts it loads it.
 

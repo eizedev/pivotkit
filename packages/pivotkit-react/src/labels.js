@@ -1,6 +1,7 @@
 /*
- * The texts of the UI, in English and German. `labels.core` holds the texts pivotkit-core writes into
- * the table and the chart (totals, blank, value names); the rest belongs to the UI. A host passes a
+ * The texts of the UI in English, and the languages added to them (German: labels-de.js).
+ * `labels.core` holds the texts pivotkit-core writes into the table and the chart (totals, blank,
+ * value names); the rest belongs to the UI. A host passes a
  * partial object through the `labels` prop; it is merged over the language the locale picks (a whole
  * object for a language of its own, with its `lang`). Entries of the wrong type are ignored.
  * {name} placeholders are filled by fill(). The texts only the menus show are in menu-labels.js and
@@ -386,316 +387,79 @@ export const en = {
     fullScreen: "Full screen"
 };
 
-export const de = {
-    lang: "de",
-    dateYearsCombined: "{years} zusammengefasst",
-    dateYearOnly: "nur {years}",
-    dateRangeTitle: "{field}: erstes und letztes Datum der Daten, vor den Filtern",
-    dateRangeData: "Daten vor den Filtern: {range}",
-    dateRangeField: "{field} vor den Filtern: {range}",
-    report: "Pivot-Bericht",
-    core: /** @type {import("pivotkit-core").Labels} */ (REPORT_LABELS.de),
-    zones: { rows: "Zeilen", cols: "Spalten", values: "Werte", filters: "Filter" },
-    zoneHints: {
-        rows: "Ein Feld hinzufügen oder hierher ziehen, um Zeilen zu gruppieren",
-        cols: "Ein Feld hinzufügen oder hierher ziehen, um Spalten zu gruppieren",
-        values: "Eine Zahl hinzufügen oder hierher ziehen, um sie zu summieren oder zu zählen",
-        filters: "Ein Feld hinzufügen oder hierher ziehen, um zu filtern"
-    },
-    fields: "Felder",
-    fieldsHint: "Ein Feld in Zeilen, Spalten, Werte oder Filter ziehen oder sein Menü öffnen.",
-    searchFields: "Felder suchen",
-    fieldListKeys: "Pfeiltasten auf und ab wechseln zwischen den Feldern, links und rechts zum Griff eines Felds, seinem i und seinem Menü. Eingabe fügt das Feld hinzu, Umschalt+F10 öffnet sein Menü.",
-    noFieldMatch: "Kein Feld passt zu „{query}“.",
-    fieldMenu: "Optionen für {field}",
-    addTo: "Zu {zone} hinzufügen",
-    addAgain: "Noch einmal zu {zone} hinzufügen",
-    alreadyIn: "{field} ist bereits in {zone}",
-    addField: "Hinzufügen",
-    addFieldTo: "Ein Feld zu {zone} hinzufügen",
-    movedFrom: "{field} von {from} nach {zone} verschoben",
-    move: "Verschieben",
-    moveTo: "Nach {zone} verschieben",
-    dragHandle: "{field} ziehen",
-    dragIntoZone: "In einen Bereich ziehen",
-    removeField: "{field} entfernen",
-    types: { string: "Text", number: "Zahl", date: "Datum", boolean: "Ja/Nein", null: "Leer" },
-    inZone: "in {zone}",
-    stateFiltered: "gefiltert",
-    stateSorted: "sortiert {order}",
-    toolbar: "Werkzeugleiste des Berichts",
-    table: "Tabelle",
-    chart: "Diagramm",
-    view: "Ansicht",
-    chartType: "Diagrammtyp",
-    chartTypeIs: "Diagrammtyp: {type}",
-    chartTypes: { auto: "Automatisch", bar: "Balken", stacked: "Gestapelte Balken", horizontal: "Liegende Balken", line: "Linien", area: "Fläche", pie: "Kreis", donut: "Ring", heatmap: "Heatmap" },
-    undo: "Rückgängig",
-    redo: "Wiederholen",
-    startOver: "Neu beginnen",
-    reset: "Zurücksetzen",
-    resetHint: "Zurück zur Startansicht. Deine Daten bleiben.",
-    resetAlready: "Schon in der Startansicht.",
-    resetStartEmpty: "Die Startansicht ist leer: Nimm „Neuer, leerer Bericht“.",
-    newHint: "Keine Felder. Rückgängig bringt den Bericht zurück. Deine Daten bleiben.",
-    newAlready: "Der Bericht ist schon leer.",
-    unsavedChanges: "Nicht gespeicherte Änderungen",
-    swap: "Zeilen und Spalten tauschen",
-    zonesTitle: "Felder im Bericht",
-    zonesHint: "Felder in Filter, Spalten, Zeilen und Werte ziehen oder in jedem Bereich Hinzufügen nutzen.",
-    layoutEmpty: "Noch keine Felder angeordnet",
-    more: "Mehr",
-    views: "Ansichten",
-    data: "Daten",
-    dataLoaded: "Daten aus einer Datei",
-    loadData: "Daten laden…",
-    emptyLoad: "Oder eigene Daten laden: eine Datei auf den Bericht ziehen, oder",
-    emptyDrop: "Eine Datei auf den Bericht ziehen, oder",
-    emptyNoData: "Daten laden, um zu beginnen",
-    exportLabel: "Export",
-    tableSettings: "Tabelleneinstellungen",
-    chartSettings: "Diagrammeinstellungen",
-    settingsShort: "Einstellungen",
-    expand: "{label} aufklappen",
-    collapse: "{label} zuklappen",
-    showAs: "Anzeigen als",
-    sort: "Sortieren",
-    sortLabelAsc: "A bis Z",
-    sortLabelDesc: "Z bis A",
-    sortCustom: "Eigene Reihenfolge",
-    sortCustomDesc: "Eigene Reihenfolge, umgekehrt",
-    sortValueDesc: "Größte {value} zuerst",
-    sortValueAsc: "Kleinste {value} zuerst",
-    headerSort: "{field} sortieren: {order}",
-    headerSortDesc: "Nach {value} sortieren: größte zuerst",
-    headerSortAsc: "Nach {value} sortieren: kleinste zuerst",
-    headerSorted: "{field} sortiert: {order}",
-    units: {
-        year: "Jahr", yearQuarter: "Quartal", yearMonth: "Monat", yearWeek: "Woche", day: "Tag",
-        quarter: "Quartal im Jahr", month: "Monat im Jahr", week: "Woche im Jahr", weekday: "Wochentag", hour: "Stunde am Tag",
-        bin: "Bereiche"
-    },
-    derivedName: GROUPING_NAMES.de.name,
-    unitInName: GROUPING_NAMES.de.units,
-    binsName: GROUPING_NAMES.de.bins,
-    top: "Oberste",
-    topBadge: "Top {count}",
-    bottomBadge: "Letzte {count}",
-    by: "nach {value}",
-    filtered: "Gefiltert",
-    filterSummary: "{shown} von {total}",
-    quote: "„{text}“",
-    filterTitle: "{field} filtern",
-    condition: "Textbedingung",
-    emptyTitle: "Den Bericht in drei Schritten bauen",
-    emptySteps: [
-        "Neben Zeilen auf + Hinzufügen klicken oder ein Feld wie Team oder Region hineinziehen.",
-        "Eine Zahl genauso zu Werte hinzufügen: Sie wird summiert, Text wird gezählt.",
-        "Ein Feld in Spalten ziehen, zum Diagramm wechseln oder nach Excel exportieren."
-    ],
-    emptyFields: "Die Daten haben keine Spalten.",
-    tryView: "Mit „{name}“ beginnen",
-    error: "Der Bericht kann nicht angezeigt werden: {message}",
-    tooLarge: "Diese Anordnung ergibt {value} Zellen, mehr als die Grenze von {max}. Ein Feld mit vielen Werten nach Filter verschieben oder filtern.",
-    tooManyGroups: "Diese Anordnung ergibt mehr als {max} Gruppen in Zeilen und Spalten. Ein Feld mit vielen Werten aus Zeilen oder Spalten entfernen oder filtern.",
-    tooManyCells: "Diese Anordnung ergibt mit ihren Teilergebnissen mehr als {max} Zellen. Ein Feld aus Zeilen oder Spalten entfernen oder filtern.",
-    tooManyRows: "Die Daten haben {value} Zeilen, mehr als die Grenze von {max}.",
-    tooMuchWork: "Diese Anordnung braucht {value} Zellberechnungen, mehr als die Grenze von {max}. Ein Feld aus Zeilen oder Spalten entfernen oder einen Wert wie Median oder Anzahl eindeutiger Werte.",
-    zoneFull: "{zone} nimmt höchstens {max} Felder auf. Zuerst eines entfernen.",
-    viewTrimmed: "„{name}“ hat mehr als {max} Felder in {zone}; der Bericht zeigt die ersten {max}.",
-    unusedParts: { one: "{count} Teil dieser Ansicht konnte nicht verwendet werden", other: "{count} Teile dieser Ansicht konnten nicht verwendet werden" },
-    unusedPath: "Für Entwickler:",
-    unusedMore: { one: "{count} weiteren zeigen", other: "{count} weitere zeigen" },
-    unusedFewer: "Weniger zeigen",
-    dismissIssues: "Ausblenden",
-    loadingChart: "Diagramm wird geladen…",
-    noChartData: "Einen Wert hinzufügen, um ein Diagramm zu sehen.",
-    rowsCount: ROW_COUNT_TEXTS.de.rowsCount,
-    rowsFiltered: ROW_COUNT_TEXTS.de.rowsFiltered,
-    tableName: "Pivot-Tabelle",
-    emptyCell: "Keine Zeilen",
-    emptyValue: "Kein Wert",
-    rowLabel: "Zeile: {label}",
-    chartSummary: "{type}: {values} nach {categories}.",
-    chartCounts: "{categories}, {series}.",
-    chartCategories: { one: "{count} Kategorie", other: "{count} Kategorien" },
-    chartSeries: { one: "{count} Reihe", other: "{count} Reihen" },
-    chartExtremes: "Höchster Wert {max} bei {maxAt}; niedrigster {min} bei {minAt}.",
-    chartLines: "Bezugslinien: {lines}.",
-    chartTrendSpan: "von {from} bis {to}",
-    chartTableHint: "Zur Tabelle wechseln, um jeden Wert zu lesen.",
-    chartTotal: "Gesamt",
-    chartMore: "+{count} weitere",
-    chartMoreInTotal: "+{count} weitere (im Gesamtwert)",
-    chartShares: "Als Anteile je Stapel dargestellt.",
-    chartZoom: "Zoom-Fenster",
-    chartZoomWindow: "Kategorien {from} bis {to} von {count}",
-    chartHidden: "{name} ausgeblendet",
-    chartShown: "{name} eingeblendet",
-    categories: "Kategorien",
-    close: "Schließen",
-    toastRemoved: "{field} entfernt",
-    toastUndone: "Rückgängig: {step}",
-    toastRedone: "Wiederholt: {step}",
-    toastReset: "Zurück zur Startansicht",
-    newEmpty: "Neuer, leerer Bericht",
-    toastLoaded: "Ansicht „{name}“ geladen",
-    toastExportFailed: "Export fehlgeschlagen: {message}",
-    steps: {
-        added: "{field} zu {zone} hinzugefügt",
-        removed: "{field} entfernt",
-        moved: "{field} nach {zone} verschoben",
-        reordered: "Reihenfolge in {zone}",
-        sort: "Sortierung von {field}",
-        group: "Gruppierung von {field}",
-        filter: "Filter auf {field}",
-        filtersRemoved: "Filter entfernt",
-        top: "oberste Einträge von {field}",
-        value: "Einstellungen von {field}",
-        display: "Wechsel zu {display}",
-        chart: "Diagrammtyp {type}",
-        totals: "Summen",
-        collapse: "Auf- und Zuklappen",
-        swap: "Zeilen und Spalten getauscht",
-        template: "Ansicht „{name}“",
-        reset: "zurück zur Startansicht",
-        new: "neuer, leerer Bericht",
-        outside: "Änderung von außerhalb des Berichts",
-        viewLoaded: "Ansicht geladen",
-        chartDisplay: "Diagrammdarstellung",
-        change: "letzte Änderung"
-    },
-    tips: {
-        filterEmpty: "Nichts passt zum Filter. Den Filter entfernen oder andere Einträge wählen.",
-        top: "{field} zeigt nur die obersten {count}: Summen und Prozente beziehen sich auf diese Einträge, nicht auf alle.",
-        bottom: "{field} zeigt nur die untersten {count}: Summen und Prozente beziehen sich auf diese Einträge, nicht auf alle.",
-        chartCapped: "Die ersten {shown} von {total} Kategorien. Mit einem Filter oder „Nur die obersten Einträge“ auswählen.",
-        showAs: {
-            percentOfGrandTotal: "100 % ist das Gesamtergebnis: Jeder Wert ist sein Anteil am Ganzen.",
-            percentOfRowTotal: "100 % ist die Summe jeder Zeile: Die Werte einer Zeile ergeben zusammen 100 %.",
-            percentOfColumnTotal: "100 % ist die Summe jeder Spalte: Die Werte einer Spalte ergeben zusammen 100 %.",
-            percentOfParentRow: "100 % ist die Gruppe einer Zeile: Jede Zeile ist ihr Anteil an der Zeile darüber.",
-            percentOfParentColumn: "100 % ist die Gruppe einer Spalte: Jede Spalte ist ihr Anteil an der Spalte darüber.",
-            percentRunningTotal: "100 % ist die Summe entlang der Achse: Die laufende Summe endet bei 100 %.",
-            percentDifferenceFromPrevious: "Der vorherige Eintrag ist 100 %: Jeder Wert sagt, wie viel er gegenüber ihm gewachsen oder geschrumpft ist."
-        },
-        chartOverTime: "{field} ist ein Datum: Linien zeigen, wie sich die Werte über die Zeit ändern.",
-        pieSlices: "Ein Kreis eignet sich für bis zu etwa {max} Teile; dieser hat {count}. Balken lassen sich leichter vergleichen.",
-        pieColumns: "Ein Kreis zeigt ein Stück je Zeile und addiert dafür die Spalten ({fields}). Balken zeigen die Spalten nebeneinander.",
-        colSubtotals: "Eine Spalte „… gesamt“ addiert die Spalten der Gruppe davor; sie ist kein eigener Eintrag.",
-        chartDates: "Die Daten liegen in Spalten, so wird jedes Datum eine eigene Linie. Zeilen und Spalten tauschen, um die Daten entlang der Achse zu zeichnen.",
-        chartTrend: "Linien verbinden Punkte zu einem Verlauf. Für Kategorien wie Länder passen Balken besser.",
-        chartSeries: "{count} Reihen sind schwer zu unterscheiden. Zeilen und Spalten tauschen oder Spalten auf weniger Einträge filtern.",
-        textValue: "{field} ist Text, darum werden seine Einträge gezählt. Für Summen ein Zahlenfeld verwenden.",
-        dateUngrouped: "{field} macht für jedes Datum eine Zeile oder Spalte. Nach {unit} gruppiert ist es leichter zu lesen.",
-        manyColumns: "{count} Spalten nebeneinander sind schwer zu lesen. Zeilen und Spalten tauschen, um sie untereinander aufzulisten.",
-        values: "Eine Zahl in Werte ziehen, um neben den Beschriftungen Summen oder Anzahlen zu sehen.",
-        afterDrag: "Rückgängig nimmt den letzten Schritt zurück. Jedes Feld und jeder Chip hat auch ein Menü mit denselben Schritten.",
-        saveTemplate: "Diese Ansicht speichern, um sie später wieder zu öffnen?",
-        menus: "Jedes Feld hat auch ein Menü, und die Werkzeugleiste hat Rückgängig.",
-        cells: "Auf einen Wert klicken oder darauf Eingabe drücken, um die Zeilen dahinter zu sehen; auf eine Überschrift klicken, um zu sortieren. Die Pfeiltasten wechseln zwischen den Werten."
-    },
-    tipActions: {
-        removeFilters: "Filter entfernen",
-        swap: "Zeilen und Spalten tauschen",
-        groupDate: "Nach {unit} gruppieren",
-        saveTemplate: "Ansicht speichern",
-        bars: "Zu Balken wechseln",
-        auto: "Als Linien über die Zeit zeigen",
-        colSubtotalsOff: "Teilergebnisse der Spalten ausblenden"
-    },
-    dismissTip: "Tipp ausblenden",
-    tipsTitle: "Tipps",
-    skipToToolbar: "Zur Werkzeugleiste springen",
-    aboutField: "Über {field}",
-    learnMore: "Mehr erfahren",
-    dragInstructions: "Leertaste oder Eingabe hebt ein Feld auf. Die Pfeiltasten links und rechts bewegen es innerhalb eines Bereichs, hoch und runter in den Bereich darüber oder darunter. Mit Leertaste oder Eingabe ablegen, mit Escape abbrechen. Jedes Feld und jeder Chip hat auch ein Menü mit denselben Schritten.",
-    dragStart: "{field} aufgenommen.",
-    dragOverAt: "{field} ist über {zone}, Position {position} von {count}.",
-    dragOverEnd: "{field} ist über {zone}, am Ende.",
-    dragOverNone: "{field} ist über keinem Bereich.",
-    dragEndAt: "{field} in {zone} abgelegt, Position {position} von {count}.",
-    dragEndEnd: "{field} am Ende von {zone} abgelegt.",
-    dragRemove: "{field} ist über der Feldliste: Ablegen entfernt es.",
-    dragCancel: "Ziehen von {field} abgebrochen.",
-    panel: "Feldliste",
-    showFields: "Felder",
-    hideFields: "Feldliste schließen",
-    collapseFields: "Feldliste einklappen",
-    expandFields: "Feldliste anzeigen",
-    dropToRemove: "Zum Entfernen hier ablegen",
-    loadingReport: "Bericht wird geladen…",
-    loadingMenu: "Wird geladen…",
-    menuFailed: "Dieses Menü konnte nicht geladen werden.",
-    tryAgain: "Erneut versuchen",
-    axisEvery: "Jede {n}. Beschriftung wird gezeigt; auf einen Balken oder Punkt zeigen, um seinen Namen zu sehen.",
-    clearText: "Leeren",
-    toastViewLoaded: "Ansicht geladen",
-    toastViewLoadedPartly: "Ansicht geladen; einige Teile passen nicht zu diesen Daten",
-    toastLinkOpened: "Ansicht aus dem Link geöffnet",
-    toastLinkOpenedPartly: "Ansicht aus dem Link geöffnet; einige Teile passen nicht zu diesen Daten",
-    viewLeftOut: "Einige Teile passen nicht zu diesen Daten und wurden weggelassen: {parts}",
-    loadCheckSource: "Sie wurde für „{source}“ gemacht.",
-    loadCheckOtherSource: "Sie wurde für andere Daten gemacht.",
-    loadCheckMissing: "Felder, die diese Daten nicht haben: {fields}.",
-    loadCheckChanged: "Felder mit anderem Typ hier: {fields}.",
-    linkCheckTitle: "Die Ansicht des Links passt vielleicht nicht zu diesen Daten",
-    viewFailed: {
-        empty: "Zuerst eine Ansicht einfügen oder eine Datei wählen.",
-        tooLarge: "Das ist zu groß für eine Ansicht.",
-        notJson: "Das ist weder eine Ansicht als JSON noch ein Link zu einem Bericht.",
-        notView: "Das ist keine Ansicht.",
-        newer: "Diese Ansicht stammt aus einer neueren Version und kann hier nicht gelesen werden. Zum Öffnen die Anwendung aktualisieren.",
-        badLink: "Dieser Link ist beschädigt oder kein Link zu einem Bericht.",
-        file: "Die Datei konnte nicht gelesen werden."
-    },
-    valueConditions: { compare: "{value} {op} {number}", between: "{value} zwischen {from} und {to}", notBetween: "{value} nicht zwischen {from} und {to}" },
-    countOfRows: "Anzahl der Zeilen",
-    labelOps: { equals: "ist", notEquals: "ist nicht", contains: "enthält", notContains: "enthält nicht", beginsWith: "beginnt mit", notBeginsWith: "beginnt nicht mit", endsWith: "endet mit", notEndsWith: "endet nicht mit" },
-    notRule: "nicht ({rule})",
-    relative: { year: "dieses Jahr", years: "letzte {count} Jahre", month: "letzter {count} Monat", months: "letzte {count} Monate", day: "letzter {count} Tag", days: "letzte {count} Tage" },
-    withRange: "{text} ({range})",
-    relativeTo: "{text} bis {end}",
-    relativeMore: {
-        last: {
-            hour: { one: "letzte {count} Stunde", other: "letzte {count} Stunden" }, day: { one: "letzter {count} Tag", other: "letzte {count} Tage" },
-            week: { one: "letzte {count} Woche", other: "letzte {count} Wochen" }, month: { one: "letzter {count} Monat", other: "letzte {count} Monate" },
-            quarter: { one: "letztes {count} Quartal", other: "letzte {count} Quartale" }, year: { one: "letztes {count} Jahr", other: "letzte {count} Jahre" }
-        },
-        next: {
-            hour: { one: "nächste {count} Stunde", other: "nächste {count} Stunden" }, day: { one: "nächster {count} Tag", other: "nächste {count} Tage" },
-            week: { one: "nächste {count} Woche", other: "nächste {count} Wochen" }, month: { one: "nächster {count} Monat", other: "nächste {count} Monate" },
-            quarter: { one: "nächstes {count} Quartal", other: "nächste {count} Quartale" }, year: { one: "nächstes {count} Jahr", other: "nächste {count} Jahre" }
-        },
-        before: {
-            hour: { one: "vor der letzten {count} Stunde", other: "vor den letzten {count} Stunden" }, day: { one: "vor dem letzten {count} Tag", other: "vor den letzten {count} Tagen" },
-            week: { one: "vor der letzten {count} Woche", other: "vor den letzten {count} Wochen" }, month: { one: "vor dem letzten {count} Monat", other: "vor den letzten {count} Monaten" },
-            quarter: { one: "vor dem letzten {count} Quartal", other: "vor den letzten {count} Quartalen" }, year: { one: "vor dem letzten {count} Jahr", other: "vor den letzten {count} Jahren" }
-        },
-        this: { hour: "diese Stunde", day: "heute", week: "diese Woche", month: "dieser Monat", quarter: "dieses Quartal", year: "dieses Jahr" },
-        rolling: "{text}, gleitend",
-        withoutCurrent: "{text}, ohne den laufenden Zeitraum",
-        fromLatest: "{text}, gezählt ab dem letzten Datensatz",
-        fromFirst: "{text}, gezählt ab dem ersten Datensatz",
-        fromDate: "{text}, gezählt ab {date}",
-        until: "bis {to}"
-    },
-    withShare: "{text} ({range}; {missing})",
-    noData: { one: "{range} hat keine Daten", other: "{range} haben keine Daten" },
-    compareShort: { "=": "{value}", "!=": "nicht {value}", ">": "nach {value}", ">=": "ab {value}", "<": "vor {value}", "<=": "bis {value}", between: "{from} bis {to}", notBetween: "nicht {from} bis {to}" },
-    zoneInfo: {
-        rows: "Zeilen gruppieren den Bericht nach einem Feld: Jeder Eintrag bekommt eine Zeile. Beispiel: Region in Zeilen listet Nord, Süd und West untereinander.",
-        cols: "Spalten teilen jede Zeile nach einem Feld: Jeder Eintrag bekommt eine Spalte. Beispiel: Jahr in Spalten stellt 2024 und 2025 nebeneinander.",
-        values: "Werte sind die Zahlen in den Zellen, summiert, gezählt oder gemittelt für jede Zeile und Spalte. Beispiel: Umsatz in Werte zeigt den Umsatz jeder Region.",
-        filters: "Filter behalten nur einige Einträge eines Felds im ganzen Bericht, ohne Zeile oder Spalte dafür. Beispiel: Land in Filter mit nur Deutschland ausgewählt."
-    },
-    enlarge: "Vergrößern",
-    reduce: "Verkleinern",
-    fullScreen: "Vollbild"
-};
+/**
+ * The first load's texts of each language that is here, by language: English always; another one once
+ * addLabels() added it (deferred.js at once, deferred-late.js when a report asks for it). The menus'
+ * texts are in menu-labels.js (English) and menu-labels-<lang>.js (menu-texts.js).
+ * @type {Record<string, typeof en>}
+ */
+export const LABELS = { en };
 
-/** @type {Readonly<{ en: typeof en, de: typeof en }>} the texts of the first load; the menus' are in menu-labels.js (English) and menu-labels-<lang>.js (menu-texts.js) */
-export const LABELS = Object.freeze({ en, de });
+/** @type {Set<() => void>} */
+const labelListeners = new Set();
+
+/**
+ * Adds a language's first-load texts, and tells the reports waiting for them.
+ * @param {string} lang
+ * @param {typeof en} texts
+ */
+export function addLabels(lang, texts) {
+    if (LABELS[lang] !== texts) {
+        LABELS[lang] = Object.freeze(texts);
+        labelListeners.forEach((listener) => listener());
+    }
+}
+
+/** Calls `listener` whenever a language's texts are added or failed to load; returns the unsubscribe. @param {() => void} listener */
+export function onLabels(listener) {
+    labelListeners.add(listener);
+    return () => void labelListeners.delete(listener);
+}
+
+/** Languages whose texts are loading. @type {Set<string>} */
+const labelsPending = new Set();
+/** Languages whose texts did not load (a partial copy of dist/, offline): English stands in. */
+const labelsFailed = new Set();
+
+/**
+ * Whether a report in `locale` can show its texts: its language's are here, have no loader (English
+ * stands in, as for any language pivotkit has no texts for), or failed to load.
+ * @param {string | undefined} locale
+ * @param {Readonly<Record<string, () => Promise<void>>>} loaders  per language not here yet (deferred.js)
+ */
+export function labelsHere(locale, loaders) {
+    const lang = langOf(locale);
+    return Object.hasOwn(LABELS, lang) || !Object.hasOwn(loaders, lang) || labelsFailed.has(lang);
+}
+
+/**
+ * Loads the texts of `locale`'s language once (its loader adds them, addLabels); a failure is said
+ * once in the console, and English stands in.
+ * @param {string | undefined} locale
+ * @param {Readonly<Record<string, () => Promise<void>>>} loaders
+ */
+export function requestLabels(locale, loaders) {
+    const lang = langOf(locale);
+    if (labelsHere(locale, loaders) || labelsPending.has(lang)) {
+        return;
+    }
+    labelsPending.add(lang);
+    loaders[lang]().then(
+        () => labelsPending.delete(lang),
+        (error) => {
+            labelsPending.delete(lang);
+            labelsFailed.add(lang);
+            console.warn(`pivotkit: the ${lang} texts did not load, English stands in: ${messageOf(error)}`);
+            labelListeners.forEach((listener) => listener());
+        }
+    );
+}
+
+/**
+ * The language of a locale, as the labels name it: "de" for "de-DE", "en" without a locale.
+ * @param {unknown} locale
+ */
+export const langOf = (locale) => (typeof locale === "string" ? locale.toLowerCase().split(/[-_]/)[0] : "en");
 
 /**
  * Partial labels a host passes: any entry of UiLabels, nested objects partial too.
@@ -865,14 +629,14 @@ export function removedLabels(custom) {
 }
 
 /**
- * The labels for a locale: the language of the locale picks en or de (default en), the host's
- * partial labels are merged over them.
+ * The labels for a locale: the language of the locale picks one of LABELS (default en, also for a
+ * language not added yet), the host's partial labels are merged over them.
  * @param {string | undefined} locale
  * @param {PartialLabels | object} [custom]
  * @returns {UiLabels}
  */
 export function resolveLabels(locale, custom) {
-    const lang = typeof locale === "string" ? locale.toLowerCase().split(/[-_]/)[0] : "en";
+    const lang = langOf(locale);
     const base = Object.hasOwn(LABELS, lang) ? LABELS[lang] : en;
     const own = withLegacyTips(custom);
     // the host's entries this language has no text for here (the menus' texts): kept aside under

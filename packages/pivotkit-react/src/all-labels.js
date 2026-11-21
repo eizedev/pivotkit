@@ -6,7 +6,8 @@
  * data (`dataImport`, import-labels.js) with the import UI.
  */
 
-import { LABELS as FIRST_LOAD } from "./labels.js";
+import { en as firstEn } from "./labels.js";
+import { de as firstDe } from "./labels-de.js";
 import { de } from "./menu-labels-de.js";
 import { en } from "./menu-labels.js";
 import { de as unusedDe } from "./unused-texts-de.js";
@@ -14,4 +15,4 @@ import { en as unusedEn } from "./unused-texts.js";
 import { de as importDe, en as importEn } from "./import-labels.js";
 
 /** @type {Readonly<{ en: import("./labels.js").UiLabels, de: import("./labels.js").UiLabels }>} */
-export const LABELS = Object.freeze({ en: { ...FIRST_LOAD.en, ...en, unused: unusedEn, dataImport: importEn }, de: { ...FIRST_LOAD.de, ...de, unused: unusedDe, dataImport: importDe } });
+export const LABELS = Object.freeze({ en: { ...firstEn, ...en, unused: unusedEn, dataImport: importEn }, de: { ...firstDe, ...de, unused: unusedDe, dataImport: importDe } });

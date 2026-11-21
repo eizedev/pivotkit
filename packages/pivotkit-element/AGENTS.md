@@ -33,6 +33,15 @@ The first load holds only the first render and what a click outside a menu does 
 - Work after a click in a menu goes into pivotkit-react's `menus.js`.
 - What only a drawn chart needs goes into `echarts.js`.
 
+### Later than in pivotkit-react
+
+`build.js` bundles pivotkit-react's `dist/deferred-late.js` in place of its `dist/deferred.js`:
+
+- Group "lang": the German first-load texts. Loaded before the first render of a German report only.
+- Group "tips": the tips' table. Loaded right after the first render.
+- The style rules only the menus' code writes load inside the menus' chunk (`src/css-split.js`).
+- `src/styles.js` puts them back in their place, so the cascade is that of one stylesheet.
+
 ### Lazy groups
 
 - Group "unused": the texts of a view's unused parts. Loaded only when a view has some.
