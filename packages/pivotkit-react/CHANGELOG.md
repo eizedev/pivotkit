@@ -11,6 +11,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - A date in Filters has **Group** in its chip's menu, as on Rows and Columns. A unit such as Year
   puts the grouping in the date's place among the Filters, with every item kept
   ([#100](https://github.com/eizedev/pivotkit/issues/100)).
+- A tip on stacked bars or areas of an average, a minimum or another value that does not add up:
+  the top of the stack is no total. **Switch to Bars** shows the parts side by side, in English and German
+  ([#536](https://github.com/eizedev/pivotkit/issues/536)).
 - Chart settings offers **Bars and lines** and **Treemap**. Bars and lines needs two fields in
   Values and says so. A treemap's labels take the token colour that reads on each tile
   ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).

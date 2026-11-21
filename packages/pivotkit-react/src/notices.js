@@ -9,6 +9,7 @@
 
 import { fieldLabel } from "pivotkit-core";
 import { fill } from "./labels.js";
+import { valueLabel } from "./names.js";
 import { ALL_TIPS } from "./tip-state.js";
 import { filtersOf, isFiltered } from "./view-ops.js";
 
@@ -36,8 +37,9 @@ export const TIP_LIMIT = 1;
  * @property {number | null} dragAt  `changes` when the first drag ended, null before
  * @property {boolean} canSave  the host lets the user save templates
  * @property {number} savedAt  `changes` when the view was last saved (0: not saved in this session)
- * @property {{ name: string, auto: boolean, swap: boolean }} chartPlan  what the chart draws
- *   (chart-types.js chartPlan): the type, whether the data chose it, rows and columns swapped for it
+ * @property {{ name: string, auto: boolean, swap: boolean, chart?: { type: string, stacked: boolean, horizontal: boolean } }} chartPlan
+ *   what the chart draws (chart-types.js chartPlan): the type, whether the data chose it, rows and
+ *   columns swapped for it, the settings it draws with
  */
 
 /**
@@ -182,6 +184,9 @@ export function tipText(id, params, labels, locale) {
     }
     if (id === "dateUngrouped") {
         return fill(texts.dateUngrouped, { ...values, unit: labels.units[params.unit] ?? params.unit });
+    }
+    if (id === "stackedTotal") {
+        return fill(texts.stackedTotal, { value: valueLabel(params.spec, labels) });
     }
     return Object.hasOwn(texts, id) && typeof texts[id] === "string" ? fill(texts[id], values) : "";
 }

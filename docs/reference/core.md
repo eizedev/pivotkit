@@ -447,8 +447,11 @@ average, no trend and no high and low points. A target over values in different 
 
 `valueAddsUp(value)` says whether a view's value adds up across a category's series: an additive
 aggregator (`CATALOG.additiveAggregators`), shown as itself or as a type of
-`CATALOG.additiveShowAs`. One that walks an axis must walk the rows. The tooltip's total and a
-stack's reference lines use it.
+`CATALOG.additiveShowAs`. One that walks an axis must walk the rows. The tooltip's total, a
+stack's reference lines and pivotkit-react's tip on stacks use it.
+
+`stacksToPercent(chart)` says whether a view's `chart` is drawn stacked to 100 %: stacked bars or an
+area with `stackPercent`.
 
 `decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter, readColor })` puts
 a report's marks on `toEChartsOption`'s option:

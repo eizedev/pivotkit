@@ -13,7 +13,7 @@ import { emptyPick, filterZoneFields } from "./view-ops.js";
  * in its order (test/tips.test.js checks it). A list of its own, so the stored dismissals keep every id
  * while the table itself is still loading (pivotkit-element).
  */
-export const TIP_IDS = Object.freeze(["showAs", "colSubtotals", "chartOverTime", "pieSlices", "pieColumns", "chartDates", "chartTrend", "chartSeries", "textValue", "dateUngrouped", "manyColumns", "afterDrag", "values", "saveTemplate", "menus", "cells"]);
+export const TIP_IDS = Object.freeze(["showAs", "colSubtotals", "chartOverTime", "pieSlices", "stackedTotal", "pieColumns", "chartDates", "chartTrend", "chartSeries", "textValue", "dateUngrouped", "manyColumns", "afterDrag", "values", "saveTemplate", "menus", "cells"]);
 
 /** The notices of the table in tips.js: shown whenever they hold, whatever the tips settings are. */
 export const NOTICE_IDS = Object.freeze(["filterEmpty", "top", "chartCapped"]);

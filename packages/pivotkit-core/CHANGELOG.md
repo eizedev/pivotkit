@@ -8,6 +8,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `stacksToPercent(chart)`: whether a view's chart is drawn stacked to 100 %, for pivotkit-react's
+  tip on stacks of values that do not add up ([#536](https://github.com/eizedev/pivotkit/issues/536)).
 - Two chart types. `"combo"` draws the first value as bars on the left axis and every other value as a
   line on an axis of its own. `"treemap"` draws a tile per category. `labelColorOn` in
   `pivotkit-core/chart` picks a tile's label colour from the theme's tokens
