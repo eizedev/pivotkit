@@ -561,3 +561,10 @@ test("search: the rule on the name is found by its operators, \"does not begin w
         assert.deepEqual(searchHits(searchEntries(topics, q), q, locale).map((e) => e.id), ["open-filter-text"], q);
     }
 });
+
+test("a condition on the names of spaces only is none, as an empty one", () => {
+    const v = norm({ rows: ["Region"] });
+    assert.deepEqual(filtersOf(setLabelFilter(v, "Region", { op: "contains", value: "   " }), "Region", ["text"]), []);
+    assert.equal(filtersOf(setLabelFilter(v, "Region", { op: "contains", value: " a " }), "Region", ["text"]).length, 1);
+});
+

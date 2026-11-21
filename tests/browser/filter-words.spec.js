@@ -10,7 +10,7 @@ const byYear = { derived: [{ name: YEAR, field: "Released", by: "year" }], rows:
 
 for (const [lang, t] of [
     ["en", { legend: "Only if the name…", none: "(any name)", all: "All 3 selected · nothing filtered yet", some: "2 selected", total: "Filter by total", name: "Filter by name", item: `Filter by ${YEAR}` }],
-    ["de", { legend: "Nur wenn der Name …", none: "(jeder Name)", all: "Alle 3 ausgewählt · noch nichts gefiltert", some: "2 ausgewählt", total: "Nach Wert filtern", name: "Nach Name filtern", item: `Nach ${YEAR} filtern` }]
+    ["de", { legend: "Der Name …", none: "(jeder Name)", all: "Alle 3 ausgewählt · noch nichts gefiltert", some: "2 ausgewählt", total: "Nach Wert filtern", name: "Nach Name filtern", item: `Nach ${YEAR} filtern` }]
 ]) {
     test(`${lang}: a field's filter says when it keeps every value, and its condition on the names in plain words`, async ({ page }) => {
         await page.goto(`?data=sales&lang=${lang}`);
@@ -48,3 +48,17 @@ for (const [lang, t] of [
         await expect(menu.getByTestId("rule-add-total")).toHaveText(t.total);
     });
 }
+
+test("the count does not say nothing is filtered while another rule of the field's filters it", async ({ page }) => {
+    // Region in Rows with Top 2: every value ticked, but the top N still filters
+    const view = { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], filters: [{ field: "Region", type: "top", count: 2 }] };
+    await page.goto(`?data=sales&lang=en&empty#pivot-playground=${encodeViewLink(view)}`);
+    await page.getByTestId("field-menu-Region").click();
+    await page.getByTestId("field-filter-Region").click();
+    const form = page.locator(".pk-filter");
+    await expect(form.getByTestId("filter-selected")).toHaveText(/^\d+ selected$/);
+    // a condition of spaces only is no condition: it filters nothing
+    await form.locator(".pk-condition select").selectOption("contains");
+    await form.getByTestId("filter-condition-text").fill("   ");
+    await expect(form.getByTestId("filter-selected")).toHaveText(/^\d+ selected$/);
+});

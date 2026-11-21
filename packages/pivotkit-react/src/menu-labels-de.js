@@ -277,7 +277,7 @@ export const de = {
     selectNone: "Keine auswählen",
     onlyThis: "Nur",
     valuesShown: "{shown} von {total} Werten; suchen, um weitere zu finden",
-    conditionNumber: "Nur wenn der Name …",
+    conditionNumber: "Der Name …",
     conditionNone: "(jeder Name)",
     conditionValue: "Text",
     selected: "{count} ausgewählt",
