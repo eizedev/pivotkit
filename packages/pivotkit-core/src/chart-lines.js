@@ -136,7 +136,7 @@ function average(values) {
  * (the sum of its drawn parts at each category that has one); what the chart can draw
  * (referenceLineChecks); and each list's format (a stack's: the first part's), where a plain number's
  * own count of decimals ("number:0", "integer") gives way to "number": an average of whole numbers
- * keeps its decimals.
+ * keeps its decimals. `own`: the format as it is, for a value of the data (a high or low point).
  * @param {import("./pivot.js").PivotResult} result
  * @param {{ chart?: object, series?: any, locale?: string }} options  as referenceLines'
  */
@@ -165,9 +165,9 @@ function drawnSeries(result, { chart, series, locale }) {
     /** @type {{ series: number | null, data: (number | null)[] }[]} */
     const lists = drawn.stacked ? [{ series: null, data: total }] : parts.map((x) => ({ series: x.index, data: x.data }));
     const lang = resolveLocale(view.formatting.locale, locale ?? result.locale);
-    const formatOf = (/** @type {number | null} */ i) => {
+    const formatOf = (/** @type {number | null} */ i, own = false) => {
         const format = (i === null ? parts[0] : s.series[i])?.format ?? "number";
-        return formatterFor(/^(?:number|integer)(?::\d+)?$/.test(format) ? "number" : format, lang);
+        return formatterFor(!own && /^(?:number|integer)(?::\d+)?$/.test(format) ? "number" : format, lang);
     };
     return { view, s, rules, lists, formatOf };
 }
@@ -178,7 +178,7 @@ function drawnSeries(result, { chart, series, locale }) {
  * @property {number | null} series  the series' index in the chart data; null for a stack's total
  * @property {number} index  the category it is at: the first of equal ones
  * @property {number} value
- * @property {(value: number) => string} format  writes the value as its series does
+ * @property {(value: number) => string} format  writes the value as its series does, with its decimals
  */
 
 /**
@@ -212,7 +212,7 @@ export function extremePoints(result, { chart, series, locale } = {}) {
             if (min < 0 || v < /** @type {number} */ (l.data[min])) min = i;
         });
         if (max >= 0 && l.data[max] !== l.data[min]) {
-            const format = formatOf(l.series);
+            const format = formatOf(l.series, true);
             points.push({ kind: "max", series: l.series, index: max, value: /** @type {number} */ (l.data[max]), format });
             points.push({ kind: "min", series: l.series, index: min, value: /** @type {number} */ (l.data[min]), format });
         }

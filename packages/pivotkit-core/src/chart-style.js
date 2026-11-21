@@ -179,8 +179,12 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     };
     // the room of a heatmap that is not cells: its grid's margins and the column names as written
     const cellFrame = (option.series || []).some((s) => s.type === "heatmap") ? heatmapFrame({ top: option.grid?.top, bottom: option.grid?.bottom, names: option.xAxis?.data ?? [], width, fontSize }) : undefined;
+    // the labels of the high and low points read over a line they cross: an outline in the background's
+    // colour, the dot a ring of it
+    const halo = surface ? { textBorderColor: surface, textBorderWidth: 3 } : {};
+    const ringed = (/** @type {any} */ s) => (s.markPoint ? { ...s, markPoint: { ...s.markPoint, data: s.markPoint.data.map((/** @type {any} */ d) => ({ ...d, itemStyle: { ...d.itemStyle, ...(surface ? { borderColor: surface, borderWidth: 1.5 } : {}) }, label: { ...d.label, ...halo, rich: Object.fromEntries(Object.entries(d.label?.rich ?? {}).map(([k, r]) => [k, { ...r, ...halo }])) } })) } } : s);
     // a bar lights up alone, as the tooltip names it alone; a line lights up as a whole
-    let series = (option.series || []).map((s) => {
+    let series = (option.series || []).map(ringed).map((s) => {
         if (s.type === "bar") {
             const horizontal = first(option.yAxis)?.type === "category";
             const corners = horizontal ? [0, r, r, 0] : [r, r, 0, 0];

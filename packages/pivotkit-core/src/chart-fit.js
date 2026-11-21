@@ -280,7 +280,8 @@ const POINT_DOT = 5;
 /**
  * The labels of the high and low points (pivotkit-core's markPoint): kept inside the plot and apart.
  * - The value axis reaches past each label at the plot's ends: `dataMin` and `dataMax` in values, from
- *   a plot estimated a fifth smaller than the chart leaves, as ECharts' nice ticks may stretch it.
+ *   a plot estimated a fifth smaller than the chart leaves, as ECharts' nice ticks may stretch it. A
+ *   label that would take the axis across zero, past every value, goes beside its dot instead.
  * - Two labels that would cover each other, or another point's dot, move: the later one beside its dot
  *   (right, then left), else it is left out. The dot stays; the tooltip and the text alternative name
  *   the value. `pixelOf` gives each value's real height after a first draw; without it the heights
@@ -326,10 +327,23 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
     const unit = span / plot;
     let dataMax = typeof axis?.dataMax === "number" ? axis.dataMax : undefined;
     let dataMin = typeof axis?.dataMin === "number" ? axis.dataMin : undefined;
+    /** @type {Map<any, { position?: string, show?: boolean }>} */
+    const moves = new Map();
     for (const i of items) {
         const pos = i.d.label?.position;
-        if (pos === "top" || pos === "right") dataMax = Math.max(dataMax ?? -Infinity, i.value + room(i) * unit);
-        if (pos === "bottom" || pos === "left") dataMin = Math.min(dataMin ?? Infinity, i.value - room(i) * unit);
+        const reach = room(i) * unit;
+        // a label that would take the axis across zero, where no value is, goes beside its dot instead:
+        // the axis shows no range the data never reaches
+        if (!horizontal && pos === "bottom" && low >= 0 && i.value - reach < 0) {
+            moves.set(i.d, { position: "right" });
+            continue;
+        }
+        if (!horizontal && pos === "top" && high <= 0 && i.value + reach > 0) {
+            moves.set(i.d, { position: "right" });
+            continue;
+        }
+        if (pos === "top" || pos === "right") dataMax = Math.max(dataMax ?? -Infinity, i.value + reach);
+        if (pos === "bottom" || pos === "left") dataMin = Math.min(dataMin ?? Infinity, i.value - reach);
     }
     if (horizontal) {
         return { series, dataMin, dataMax };
@@ -356,17 +370,23 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
         const y0 = pos === "bottom" ? y + gap : y - gap - line;
         return { x0: x - w / 2, x1: x + w / 2, y0, y1: y0 + line };
     };
+    // the plot's edges along the value axis: it reaches at least the values, zero and the labels' reach
+    const plotTop = yOf(extent[1]);
+    const plotBottom = yOf(extent[0]);
     /** @type {Box[]} */
     const placed = [];
-    /** @type {Map<any, { position?: string, show?: boolean }>} */
-    const moves = new Map();
     items.forEach((i, k) => {
-        const own = i.d.label?.position ?? "top";
-        const free = (/** @type {Box} */ b) => !placed.some((p) => overlap(p, b)) && !dots.some((d, j) => j !== k && overlap(d, b));
-        const pos = [own, "right", "left"].find((p) => free(boxOf(i, p)));
+        const own = moves.get(i.d)?.position ?? i.d.label?.position ?? "top";
+        // over no other label and no other dot; beside its dot, within the plot's width (a label above
+        // or below a dot stays within its category's band, the plot's margin takes the rest)
+        const free = (/** @type {Box} */ b, /** @type {string} */ p) => (p === "top" || p === "bottom" || (b.x0 >= 0 && b.x1 <= band * categories)) && !placed.some((o) => overlap(o, b)) && !dots.some((d, j) => j !== k && overlap(d, b));
+        const pos = [...new Set([own, "right", "left"])].find((p) => free(boxOf(i, p), p));
         if (pos) {
-            placed.push(boxOf(i, pos));
-            if (pos !== own) moves.set(i.d, { position: pos });
+            const box = boxOf(i, pos);
+            // beside a dot near the plot's top or bottom edge: moved up or down into the plot
+            const dy = pos === "right" || pos === "left" ? Math.min(0, plotBottom - box.y1) || Math.max(0, plotTop - box.y0) : 0;
+            placed.push({ ...box, y0: box.y0 + dy, y1: box.y1 + dy });
+            if (pos !== (i.d.label?.position ?? "top") || dy) moves.set(i.d, { position: pos, ...(dy ? { offset: [0, dy] } : {}) });
         } else {
             moves.set(i.d, { show: false });
         }

@@ -1,6 +1,6 @@
 // A chart's reference lines (#48): an average and a trend per series, a target, drawn on bars, lines and
 // areas (ECharts' markLine), named in the tooltip and the text alternative, set in Display -> Reference
-// lines. Real pointer input; the positions come from the chart's own layout (convertToPixel).
+// lines. And the high and low points (#574, ECharts' markPoint), set in the same level. Real pointer input; the positions come from the chart's own layout (convertToPixel).
 import { test, expect } from "./fixtures.js";
 
 /**
@@ -292,7 +292,7 @@ test.describe("reference lines", () => {
         await report.getByTestId("topic-lines").click();
         await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Reference lines");
         await report.getByTestId("line-average").click();
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines)).toEqual({ average: true, trend: false, target: null });
+        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines)).toEqual({ average: true, trend: false, target: null, extremes: false });
         // a switch keeps its level open: the next one is there to click
         await expect(report.getByTestId("line-average")).toHaveAttribute("aria-checked", "true");
         await report.getByTestId("line-trend").click();
@@ -304,7 +304,7 @@ test.describe("reference lines", () => {
         await target.click();
         await page.keyboard.type("80");
         await page.keyboard.press("Enter");
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines)).toEqual({ average: true, trend: true, target: 80 });
+        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines)).toEqual({ average: true, trend: true, target: 80, extremes: false });
         await expect.poll(async () => (await drawnLines(chartEl)).map((l) => l.label).filter(Boolean).sort()).toEqual(["Average 25", "Average 5", "Target 80", "Trend", "Trend"]);
         // a text that is no number is not applied
         await target.fill("lots");
@@ -358,7 +358,9 @@ test.describe("reference lines", () => {
         await page.keyboard.press("Enter");
         await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.trend)).toBe(true);
         await expect(report.getByTestId("line-trend")).toBeFocused();
-        // the Target row opens its form, the field takes the focus
+        // past the high and low points' switch, the Target row opens its form, the field takes the focus
+        await page.keyboard.press("ArrowDown");
+        await expect(report.getByTestId("line-extremes")).toBeFocused();
         await page.keyboard.press("ArrowDown");
         await expect(report.getByTestId("line-target")).toBeFocused();
         await page.keyboard.press("Enter");
@@ -529,6 +531,117 @@ test.describe("reference lines", () => {
         await report.getByTestId("chart-target").click();
         await page.keyboard.type("25");
         await expect(report.getByTestId("target-warning")).toHaveCount(0);
+    });
+});
+
+/**
+ * The high and low points ECharts drew (markPoint): each label's words ("▲ 40"), its box and its dot's
+ * middle in the chart's pixels, the dot's fill and the glyph's colour; the plot's box with them.
+ */
+const drawnPoints = (chartEl) =>
+    chartEl.evaluate(async (el) => {
+        const { getInstanceByDom } = await import("echarts/core");
+        const chart = getInstanceByDom(el);
+        const grid = chart.getModel().getComponent("grid").coordinateSystem.getRect();
+        const points = [];
+        for (const e of chart.getZr().storage.getDisplayList(true)) {
+            const text = e.getTextContent?.();
+            const raw = text && !text.ignore && !text.invisible ? String(text.style.text ?? "") : "";
+            const glyph = /^\{s\|([▲▼])\} (.*)$/.exec(raw);
+            if (!glyph) continue;
+            text.updateTransform();
+            const r = text.getBoundingRect().clone();
+            if (text.transform) r.applyTransform(text.transform);
+            e.updateTransform();
+            const [x, y] = e.transform ? [e.transform[4], e.transform[5]] : [e.x, e.y];
+            points.push({ label: `${glyph[1]} ${glyph[2]}`, box: { x: r.x, y: r.y, width: r.width, height: r.height }, dot: { x, y }, fill: e.style.fill, glyph: text.style.rich?.s?.fill ?? null });
+        }
+        return { grid: { x: grid.x, y: grid.y, width: grid.width, height: grid.height }, points };
+    });
+
+/** Whether a box lies inside another (a pixel of slack). */
+const inside = (a, b) => a.x >= b.x - 1 && a.y >= b.y - 1 && a.x + a.width <= b.x + b.width + 1 && a.y + a.height <= b.y + b.height + 1;
+
+test.describe("high and low points (#574)", () => {
+    const ON = { average: false, trend: false, target: null, extremes: true };
+
+    for (const [width, theme] of [[1440, "light"], [1440, "dark"], [390, "light"], [390, "dark"]]) {
+        test(`lines at ${width} px, ${theme}: a dot in the series' colour at each highest and lowest value, the label inside the plot, none over another`, async ({ page }) => {
+            await page.setViewportSize({ width, height: 900 });
+            await page.goto("pages/host.html");
+            const chartEl = await mount(page, { type: "line", referenceLines: ON }, { theme });
+            const { grid, points } = await drawnPoints(chartEl);
+            expect(points.map((p) => p.label).sort()).toEqual(["▲ 40", "▲ 7", "▼ 10", "▼ 3"]);
+            // the dot and the glyph in A's and B's series tokens
+            const of = (label) => points.find((p) => p.label === label);
+            expect(await asRgb(page, of("▲ 40").fill)).toBe(await tokenColor(page, "--pk-chart-1"));
+            expect(await asRgb(page, of("▲ 40").glyph)).toBe(await tokenColor(page, "--pk-chart-1"));
+            expect(await asRgb(page, of("▼ 3").fill)).toBe(await tokenColor(page, "--pk-chart-2"));
+            // the highest above its dot, the lowest below it, each at its value
+            expect(of("▲ 40").box.y + of("▲ 40").box.height).toBeLessThanOrEqual(of("▲ 40").dot.y);
+            expect(of("▼ 10").box.y).toBeGreaterThanOrEqual(of("▼ 10").dot.y);
+            expect(Math.abs(of("▲ 40").dot.y - (await valueAt(chartEl, 40)))).toBeLessThan(1);
+            for (const p of points) {
+                expect(inside(p.box, grid), `${p.label} ${JSON.stringify(p.box)} in ${JSON.stringify(grid)}`).toBe(true);
+            }
+            for (const a of points) {
+                for (const b of points) {
+                    if (a !== b) expect(overlap(a.box, b.box), `${a.label} over ${b.label}`).toBe(false);
+                }
+            }
+            await expect(page.locator("#lines-report").getByTestId("chart-summary")).toContainText("Highest 40 at Apr 2026 / A; lowest 10 at Jan 2026 / A. Highest 7 at Mar 2026 / B; lowest 3 at Apr 2026 / B.");
+        });
+    }
+
+    test("two lows close together in one month on a phone: the labels move apart, none covers the other or a dot", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto("pages/host.html");
+        // February: 2024's low (2.8) just above 2025's (0.6), as in the weather of one city
+        const rows = [["2024", [4, 2.8, 9, 14, 19, 21]], ["2025", [3, 0.6, 6, 12, 20, 18]]].flatMap(([year, temps]) => temps.map((T, m) => ({ Date: `${year}-0${m + 1}-15`, T })));
+        const view = { derived: [{ name: "Month", field: "Date", by: "month" }, { name: "Year", field: "Date", by: "year" }], rows: ["Month"], cols: ["Year"], values: [{ field: "T", agg: "average", format: "number:1" }] };
+        const chartEl = await mount(page, { type: "line", referenceLines: ON }, { rows, view });
+        const { grid, points } = await drawnPoints(chartEl);
+        expect(points.map((p) => p.label).sort()).toEqual(["▲ 20.0", "▲ 21.0", "▼ 0.6", "▼ 2.8"]);
+        for (const a of points) {
+            expect(inside(a.box, grid), `${a.label} inside the plot`).toBe(true);
+            for (const b of points) {
+                if (a !== b) {
+                    expect(overlap(a.box, b.box), `${a.label} over ${b.label}`).toBe(false);
+                    const dot = { x: b.dot.x - 4, y: b.dot.y - 4, width: 8, height: 8 };
+                    expect(overlap(a.box, dot), `${a.label} over the dot of ${b.label}`).toBe(false);
+                }
+            }
+        }
+    });
+
+    test("bars and a stack: the labels past the bars' ends; a stack marks its total; Chart settings switches them by a click and says why a stack of averages has none", async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.goto("pages/host.html");
+        let chartEl = await mount(page, { type: "bar", stacked: true, referenceLines: ON });
+        let { points } = await drawnPoints(chartEl);
+        expect(points.map((p) => p.label)).toEqual(["▲ 43", "▼ 15"]);
+        expect(await asRgb(page, points[0].fill)).toBe(await tokenColor(page, "--pk-chart-reference"));
+        // a stack of averages has no total: no points, and the switch says why
+        chartEl = await mount(page, { type: "bar", stacked: true, referenceLines: ON }, { view: { values: [{ field: "Revenue", agg: "average" }] } });
+        expect((await drawnPoints(chartEl)).points).toEqual([]);
+        const report = page.locator("#lines-report");
+        await openLines(report);
+        await expect(report.getByTestId("line-extremes")).toHaveAttribute("aria-disabled", "true");
+        await expect(report.getByTestId("line-extremes-reason")).toHaveText("These lines need a total. Switch to Bars, not stacked, to draw them.");
+        await page.keyboard.press("Escape");
+        // bars side by side: off, then on by a click in the level, which stays open
+        chartEl = await mount(page, { type: "bar" });
+        expect((await drawnPoints(chartEl)).points).toEqual([]);
+        await openLines(report);
+        await report.getByTestId("line-extremes").click();
+        await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Reference lines");
+        await expect(report.getByTestId("line-extremes")).toHaveAttribute("aria-checked", "true");
+        await expect.poll(async () => (await drawnPoints(chartEl)).points.map((p) => p.label).sort()).toEqual(["▲ 40", "▲ 7", "▼ 10", "▼ 3"]);
+        ({ points } = await drawnPoints(chartEl));
+        // a bar's labels both above its end: the lowest bar's too
+        const low = points.find((p) => p.label === "▼ 10");
+        expect(low.box.y + low.box.height).toBeLessThanOrEqual(low.dot.y);
+        expect(await page.evaluate(() => window.__linesViews.at(-1).chart.referenceLines.extremes)).toBe(true);
     });
 });
 

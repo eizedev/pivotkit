@@ -63,8 +63,10 @@ test("the numbers: each series' highest and lowest value at its category", () =>
         ["max", 1, 2, 7],
         ["min", 1, 3, 3]
     ]);
-    // each point writes its value as its series does
-    assert.equal(extremePoints(r)[0].format(1234.5), "1,234.5");
+    // each point writes its value as its series does: a sum of whole numbers, a mean with one decimal
+    assert.equal(extremePoints(r)[0].format(1234.5), "1,235");
+    const mean = pivot({ values: [{ field: "Revenue", agg: "average", format: "number:1" }], chart: { type: "line", referenceLines: ON } });
+    assert.equal(extremePoints(mean)[0].format(40), "40.0");
     // switched off: nothing
     assert.deepEqual(extremePoints(pivot({ chart: { type: "line" } })), []);
     // on a chart that draws none: nothing
@@ -172,11 +174,19 @@ test("the ECharts option of a stack and of horizontal bars", () => {
 test("decorateOption: the value axis keeps room for the labels at the plot's ends", () => {
     const style = { getPropertyValue: () => "" };
     const on = decorateOption(toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } })), style, { width: 390, height: 300 });
-    // the highest label above 40 and the lowest below 3 stay inside the plot
+    // the highest label above 40 stays inside the plot
     assert.ok(on.yAxis.dataMax > 40, `dataMax ${on.yAxis.dataMax}`);
-    assert.ok(on.yAxis.dataMin < 3, `dataMin ${on.yAxis.dataMin}`);
+    // below zero, the lowest label below -10 too
+    const minus = encode([5, -10, 20].map((v, i) => ({ Month: `m${i}`, Revenue: v })));
+    const below = decorateOption(toEChartsOption(computePivot(minus, { rows: ["Month"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line", referenceLines: ON } })), style, { width: 390, height: 300 });
+    assert.ok(below.yAxis.dataMin < -10, `dataMin ${below.yAxis.dataMin}`);
     const off = decorateOption(toEChartsOption(pivot({ chart: { type: "line" } })), style, { width: 390, height: 300 });
     assert.equal(off.yAxis.dataMax, undefined);
+    // values near zero, all above it: the lowest label goes beside its dot, the axis stays at zero
+    const near = encode([1, 30, 12].map((v, i) => ({ Month: `m${i}`, Revenue: v })));
+    const nearOption = decorateOption(toEChartsOption(computePivot(near, { rows: ["Month"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line", referenceLines: ON } })), style, { width: 390, height: 300 });
+    assert.equal(nearOption.yAxis.dataMin, undefined);
+    assert.equal(nearOption.series[0].markPoint.data.find((d) => d.name === "min").label.position, "right");
     // bars start at zero: their labels all sit above, so the axis only reaches higher
     const bars = decorateOption(toEChartsOption(pivot({ chart: { type: "bar", referenceLines: ON } })), style, { width: 390, height: 300 });
     assert.ok(bars.yAxis.dataMax > 40);
@@ -185,14 +195,14 @@ test("decorateOption: the value axis keeps room for the labels at the plot's end
 
 test("decorateOption: two labels at one category that would cover each other move apart, sideways", () => {
     const style = { getPropertyValue: () => "" };
-    // February: B's low (2.8) just above A's low (0.6), as in the weather of one city
+    // February: 2024's low (22.8) just above 2025's (20.6)
     const rows = encode([
-        { Month: "m1", Year: "2024", T: 4 },
-        { Month: "m2", Year: "2024", T: 2.8 },
-        { Month: "m3", Year: "2024", T: 9 },
-        { Month: "m1", Year: "2025", T: 3 },
-        { Month: "m2", Year: "2025", T: 0.6 },
-        { Month: "m3", Year: "2025", T: 20 }
+        { Month: "m1", Year: "2024", T: 24 },
+        { Month: "m2", Year: "2024", T: 22.8 },
+        { Month: "m3", Year: "2024", T: 29 },
+        { Month: "m1", Year: "2025", T: 23 },
+        { Month: "m2", Year: "2025", T: 20.6 },
+        { Month: "m3", Year: "2025", T: 40 }
     ]);
     const r = computePivot(rows, { rows: ["Month"], cols: ["Year"], values: [{ field: "T", agg: "sum", format: "number:1" }], sort: [], chart: { type: "line", referenceLines: ON } });
     const lows = (option) => option.series.map((s) => s.markPoint.data.find((d) => text(d.label).startsWith("▼")));
@@ -205,4 +215,12 @@ test("decorateOption: two labels at one category that would cover each other mov
     // with the real heights (pixelOf) far apart, both stay below their dots
     const far = decorateOption(toEChartsOption(r), style, { width: 390, height: 260, pixelOf: (v) => 1000 - v * 100 });
     assert.deepEqual(lows(far).map((d) => d.label.position), ["bottom", "bottom"]);
+});
+
+test("decorateOption: a label reads over a line it crosses, outlined in the background's colour", () => {
+    const style = { getPropertyValue: (name) => (name === "--pk-surface" ? "#101418" : "") };
+    const out = decorateOption(toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } })), style, { width: 800, height: 480 });
+    const label = out.series[0].markPoint.data[0].label;
+    assert.deepEqual([label.textBorderColor, label.textBorderWidth, label.rich.s.textBorderColor], ["#101418", 3, "#101418"]);
+    assert.equal(out.series[0].markPoint.data[0].itemStyle.borderColor, "#101418");
 });

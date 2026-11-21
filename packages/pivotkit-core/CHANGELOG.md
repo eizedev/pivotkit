@@ -8,6 +8,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- High and low points on bars, lines and areas: `chart.referenceLines.extremes` marks each series'
+  highest and lowest value, or a stack's total's. `extremePoints` in `pivotkit-core/chart` gives
+  them, `toEChartsOption` draws them as a `markPoint`, and `decorateOption` keeps their labels
+  inside the plot and apart. A view file leaves the key out while it is off
+  ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), #574).
 - `chartThemeFrom` reads the axis line's colour from `--pk-chart-axis`, else `--pk-border` as before.
   A print template or a host can draw the axis apart from the table's lines
   ([theming](https://pivotkit.eize.dev/reference/theming/), #614).
