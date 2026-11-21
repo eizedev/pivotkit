@@ -619,6 +619,41 @@ const SHOTS = [
         }
     },
     {
+        // bars and lines: revenue per month as bars, units as a line on the right axis
+        name: "chart-combo",
+        query: "data=sales",
+        hash: encodeViewLink({
+            rows: ["Month (Year and month)"],
+            derived: [{ name: "Month (Year and month)", field: "Month", by: "yearMonth" }],
+            values: [{ field: "Revenue", agg: "sum", format: "compact" }, { field: "Units", agg: "sum" }],
+            display: "chart",
+            chart: { type: "combo" }
+        }),
+        size: WIDE,
+        chart: true,
+        open: async (page) => {
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+        }
+    },
+    {
+        // a treemap of the 20 largest countries: a tile each, named on it in the colour that reads there
+        name: "chart-treemap",
+        query: "data=countries",
+        hash: encodeViewLink({
+            rows: ["Country"],
+            values: [{ field: "Population", agg: "sum", format: "compact" }],
+            filters: [{ field: "Year", type: "in", items: [2024] }, { field: "Country", type: "top", count: 20, by: { field: "Population", agg: "sum" } }],
+            sort: [{ field: "Country", by: "value", order: "desc", value: { field: "Population", agg: "sum" } }],
+            display: "chart",
+            chart: { type: "treemap" }
+        }),
+        size: WIDE,
+        chart: true,
+        open: async (page) => {
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+        }
+    },
+    {
         // a donut of many countries on a phone without a legend: the smallest share one slice "Other (n)"
         name: "donut-other",
         query: "data=countries&height=760",

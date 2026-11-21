@@ -8,6 +8,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- Two chart types. `"combo"` draws the first value as bars on the left axis and every other value as a
+  line on an axis of its own. `"treemap"` draws a tile per category. `labelColorOn` in
+  `pivotkit-core/chart` picks a tile's label colour from the theme's tokens
+  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).
 - A pie or donut without a legend whose labels outside have no room puts its smallest slices into one
   slice "Other (n)" (`decorateOption`). Its data item lists them in `members`. The word is the new
   label `otherSlices`, "Other ({count})" and "Andere ({count})"
