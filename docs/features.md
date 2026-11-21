@@ -105,11 +105,12 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
 
 - Table or chart with one switch ([charts](use/charts.md)):
     - The type follows the data: lines over dates, else bars. That holds until people pick a type:
-      bars, stacked or horizontal bars, lines, area, pie, donut or heatmap.
+      bars, stacked or horizontal bars, lines, area, pie, donut, heatmap, bars and lines, or a treemap.
     - Value labels, legend, title, smooth lines, axis and group labels.
     - A zoom slider under a long axis, series shown or hidden from the legend, 100 % stacked bars
       and areas.
     - Reference lines: an average, a trend and a target ([reference lines](use/charts.md#reference-lines)).
+    - A pie or donut without a legend puts its smallest slices into one slice "Other" where their labels have no room ([many slices](use/charts.md#many-slices)).
     - High and low points: a dot at each series' highest and lowest value ([high and low points](use/charts.md#high-and-low-points)).
     - Fixed colours per series or slice, the share in the tooltip, and the chart as an image on the
       clipboard.

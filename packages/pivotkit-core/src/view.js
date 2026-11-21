@@ -92,9 +92,10 @@ export function issueOf(path, message, code, params, severity = VIEW_ISSUES[code
 /**
  * The chart types. "auto" (the default, also when a view has no `chart.type`) leaves the choice to
  * the data: lines when a date is on Rows, else bars (autoChartType in chart.js); any other type is
- * one the user chose.
+ * one the user chose. "combo" draws the first value as bars and every other value as a line on an
+ * axis of its own; "treemap" draws one tile per category, its area its total.
  */
-export const CHART_TYPES = Object.freeze(["auto", "bar", "line", "area", "pie", "donut", "heatmap"]);
+export const CHART_TYPES = Object.freeze(["auto", "bar", "line", "area", "pie", "donut", "heatmap", "combo", "treemap"]);
 /** The chart types drawn as slices of a circle: a pie, and a donut (a ring). */
 export const SLICE_CHART_TYPES = Object.freeze(["pie", "donut"]);
 export const DISPLAY_MODES = Object.freeze(["table", "chart"]);

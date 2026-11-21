@@ -8,7 +8,7 @@
 
 import React, { useEffect, useId, useRef, useState } from "react";
 import { VIEW_FILE_LIMITS, referenceLineRules, swapAxes } from "pivotkit-core";
-import { CHART_TYPES, CHART_TYPE_NAMES, SLICE_TYPES, chartTypeOf } from "./chart-types.js";
+import { CHART_TYPES, CHART_TYPE_NAMES, ITEM_TYPES, chartTypeOf } from "./chart-types.js";
 import { ClearInput } from "./clear-input.jsx";
 import { useFormName } from "./dom.js";
 import { parseTarget } from "./menu-ops.js";
@@ -28,11 +28,15 @@ import { storeViews } from "./view-store.js";
 
 function ChartTypeOptions({ view, plan, labels, onChart, close }) {
     const current = chartTypeOf(view.chart);
+    // a type that needs more values than the view has (bars and lines: two) is greyed out, with why
+    const short = (/** @type {string} */ p) => (CHART_TYPES[p].values ?? 0) > view.values.length && current !== p;
     return CHART_TYPE_NAMES.map((p) => (
         <Option
             key={p}
             icon={CHART_TYPES[p].icon}
             checked={view.display === "chart" && current === p}
+            disabled={short(p) || undefined}
+            reason={short(p) ? labels.chartNeedsValues : undefined}
             // what "Automatic" draws for this view now
             hint={p === "auto" && plan ? fill(labels.chartAutoNow, { type: labels.chartTypes[plan.name] }) : undefined}
             onSelect={() => {
@@ -56,7 +60,7 @@ function legendNames(drawn, series) {
     if (!series || drawn === "heatmap") {
         return [];
     }
-    return [...new Set(SLICE_TYPES.includes(drawn) ? series.categories : series.series.map((s) => s.name))];
+    return [...new Set(ITEM_TYPES.includes(drawn) ? series.categories : series.series.map((s) => s.name))];
 }
 
 /** The chart's title: applied with Enter or Apply; the × removes it at once. */

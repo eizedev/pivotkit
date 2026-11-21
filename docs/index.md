@@ -139,8 +139,8 @@ and platforms, and how each one was tested.
       server compute on your server. In the browser, pivotkit is measured up to 1,000,000 rows. At
       that size the first table takes 1 to 2.5 s, and the page waits meanwhile. For more rows,
       aggregate on the server first. See [limits](concepts/limits.md#measured-in-the-browser).
-    - It draws bars, lines, area, pie, donut and heatmap, not dozens of chart types. See
-      [charts](use/charts.md). It ships English and German, and you can replace every text. See
+    - It draws bars, lines, area, pie, donut, heatmap, bars and lines, and a treemap, not dozens
+      of chart types. See [charts](use/charts.md). It ships English and German, and you can replace every text. See
       [localisation](reference/localisation.md).
     - It is a pivot report, not a data grid, a dashboard tool or a BI server. See the
       [comparison](compare.md).

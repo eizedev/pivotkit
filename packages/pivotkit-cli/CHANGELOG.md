@@ -8,6 +8,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Added
 
+- `--chart-type` takes `combo` and `treemap`, and the completions list them
+  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).
 - `pivotkit render --numbers full|shown` and `--flat-header`: csv and json numbers rounded to the
   decimals the view shows, and a csv with one header row, as the services write them. They work on
   local data and with a server. Without them, the output stays as it was: full precision and a

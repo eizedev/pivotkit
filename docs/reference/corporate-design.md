@@ -76,6 +76,7 @@ Minimal follows the theme of the site you read this in. The chart keeps its ligh
     | `--pk-total`, `--pk-total-strong` | Subtotal and grand total rows |
     | `--pk-chart-1` ... `--pk-chart-8` | The chart's series, and data bars (`--pk-chart-1`) |
     | `--pk-chart-reference` (not set) | A target line and the lines of a stack's total; `--pk-muted` when not set |
+    | `--pk-chart-other` (not set) | A pie's slice "Other (n)"; `--pk-muted` when not set |
     | `--pk-heat-low`, `--pk-heat-high` | The heatmap |
     | `--pk-scale-low`, `--pk-scale-high` (and `--pk-scale-mid`, not set) | A colour scale in the table whose view names no colours; Corporate takes the heat colours for them |
 

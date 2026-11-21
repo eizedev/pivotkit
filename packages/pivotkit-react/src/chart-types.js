@@ -6,11 +6,12 @@
 
 import { chartPlan as corePlan } from "pivotkit-core";
 
-/** @typedef {{ chart: { type: string, stacked: boolean, horizontal: boolean }, icon: string, axis: boolean }} ChartTypeEntry */
+/** @typedef {{ chart: { type: string, stacked: boolean, horizontal: boolean }, icon: string, axis: boolean, lines?: boolean, values?: number }} ChartTypeEntry */
 
 /**
  * @type {Readonly<Record<string, ChartTypeEntry>>} axis: drawn along a category axis (series hints
- *   apply). "auto" is the view's default: the data decides (chartPlan), until the user picks a type.
+ *   apply); lines: false where it draws no reference lines (two value axes); values: the values it
+ *   needs at least. "auto" is the view's default: the data decides (chartPlan), until the user picks a type.
  */
 export const CHART_TYPES = Object.freeze({
     auto: { chart: { type: "auto", stacked: false, horizontal: false }, icon: "sparkle", axis: true },
@@ -21,11 +22,17 @@ export const CHART_TYPES = Object.freeze({
     area: { chart: { type: "area", stacked: false, horizontal: false }, icon: "area", axis: true },
     pie: { chart: { type: "pie", stacked: false, horizontal: false }, icon: "pie", axis: false },
     donut: { chart: { type: "donut", stacked: false, horizontal: false }, icon: "donut", axis: false },
-    heatmap: { chart: { type: "heatmap", stacked: false, horizontal: false }, icon: "heatmap", axis: false }
+    heatmap: { chart: { type: "heatmap", stacked: false, horizontal: false }, icon: "heatmap", axis: false },
+    // the first value as bars, every other value as a line on its own axis (#518)
+    combo: { chart: { type: "combo", stacked: false, horizontal: false }, icon: "combo", axis: true, lines: false, values: 2 },
+    // one tile per category, its area its total (#518)
+    treemap: { chart: { type: "treemap", stacked: false, horizontal: false }, icon: "treemap", axis: false }
 });
 
 /** The picker entries drawn as slices of a circle (pivotkit-core's SLICE_CHART_TYPES). */
 export const SLICE_TYPES = Object.freeze(["pie", "donut"]);
+/** The picker entries that draw one mark per category (a slice, a tile): their legend entries are the categories. */
+export const ITEM_TYPES = Object.freeze([...SLICE_TYPES, "treemap"]);
 
 /** The picker entries in their order. */
 export const CHART_TYPE_NAMES = Object.freeze(Object.keys(CHART_TYPES));

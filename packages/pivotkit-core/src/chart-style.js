@@ -9,13 +9,20 @@
 
 import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
-import { POINT_HALO, barExtent, pieLabelFit, pieLabelTexts, pointLabels, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
+import { POINT_HALO, barExtent, otherSlices, pieLabelFit, pieLabelTexts, pointLabels, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
 import { AXIS_LABEL_MARGIN, LINE_SAMPLES, groupLabelLine, groupLabelOffset, heatmapFrame, lineLabelText, textWidth } from "./chart-measure.js";
 import { ZOOM_SLIDER, longestNames, zoomRange, zoomSlider, zoomWindow } from "./chart-zoom.js";
 
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
 export { extremePoints, referenceLineChecks, referenceLines } from "./chart-lines.js";
+import { contrastOf, labelColorOn } from "./chart-colors.js";
+export { labelColorOn };
+
+/** Room (px) beside a combo's plot: the margins and the numbers of its two value axes, estimated. */
+const COMBO_AXES_ROOM = 136;
+/** The contrast text needs on its background (WCAG 2.2 AA, normal text). */
+const TEXT_CONTRAST = 4.5;
 
 /** A copy of an object without the given keys. */
 const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));
@@ -211,10 +218,35 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
                     line = { show: true };
                 }
             }
+            const legendShown = Boolean(option.legend) && option.legend.show !== false;
+            // no legend names the slices: where their labels outside have no room, the smallest go into
+            // one slice "Other (n)" (otherSlices), on the screen, in an SVG and in print alike
+            const outside = label?.show !== false && label?.position !== "inside";
+            const merged = !legendShown && outside ? otherSlices({ ...s, label, labelLine: line }, box, { fontSize, color: v("--pk-chart-other") || v("--pk-muted") || undefined, hidden: option.legend?.selected ?? {} }) : null;
+            if (merged) s = { ...s, data: merged };
             // labels outside: room beside the pie, on lines where they are long, left out where a side has no room (pieLabelFit)
-            const fit = pieLabelFit({ ...s, label, labelLine: line }, box, { fontSize, legend: Boolean(option.legend) && option.legend.show !== false });
+            const fit = pieLabelFit({ ...s, label, labelLine: line }, box, { fontSize, legend: legendShown });
             label = fit.label ?? label;
             return { ...s, top, bottom, ...fit, labelLine: fit.labelLine ?? line, itemStyle: { ...s.itemStyle, borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
+        }
+        if (s.type === "treemap") {
+            // each tile's label in the token that reads best on it, --pk-text or --pk-surface (one is
+            // dark, one light in every theme); the tiles parted by the background's colour
+            const inks = [v("--pk-text"), surface].filter((c) => typeof c === "string" && c !== "");
+            const label = (/** @type {string | undefined} */ fill) => {
+                const read = fill && readColor ? (readColor(fill) ?? fill) : fill;
+                const color = read && inks.length ? labelColorOn(read, inks) : inks[0];
+                // a tile on which neither reaches the contrast text needs (a mid blue): the label gets an
+                // outline in the other token, so it reads against that
+                const ratio = read && color ? contrastOf(read, color) : null;
+                const other = inks.find((c) => c !== color);
+                return { color, ...(ratio !== null && ratio < TEXT_CONTRAST && other ? { textBorderColor: other, textBorderWidth: 2 } : {}) };
+            };
+            return {
+                ...s,
+                itemStyle: { ...s.itemStyle, borderColor: surface, borderRadius: cell },
+                data: (s.data ?? []).map((/** @type {any} */ d) => ({ ...d, label: { ...d.label, ...label(d.itemStyle?.color) } }))
+            };
         }
         if (s.type === "heatmap") {
             // numbers only in cells large enough for them (heatmapCellLabels); the tooltip has every one
@@ -256,7 +288,14 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     const title = option.title ? { title: { ...option.title, textStyle: { ...option.title.textStyle, width: Math.max(40, width - 32), overflow: "truncate" } } } : {};
     // bars, lines and areas: the category axis writes every label that fits (categoryLabelLayout), the
     // group labels sit below (or left of) those labels
-    let axes = { xAxis: reach.xAxis ?? xAxis, yAxis: reach.yAxis ?? yAxis };
+    // two value axes (a combo) named above the plot: each name within half the chart, cut with "…";
+    // a narrow chart leaves the names out (the legend names the series in the same colours) and gives
+    // their line of room back to the plot
+    const named = Array.isArray(yAxis) && yAxis.length === 2 && yAxis.every((a) => a?.type === "value" && a.name);
+    const narrowCombo = named && width < LINE_VALUE_MIN_WIDTH;
+    if (narrowCombo && grid && typeof grid.top === "number") grid.top -= fontSize + 10;
+    const halves = named ? yAxis.map((/** @type {any} */ a) => (narrowCombo ? { ...a, name: "" } : { ...a, nameTruncate: { maxWidth: Math.max(40, Math.floor((width - COMBO_AXES_ROOM) / 2) - 8), ellipsis: "…" } })) : null;
+    let axes = { xAxis: reach.xAxis ?? xAxis, yAxis: halves ?? reach.yAxis ?? yAxis };
     let axisEvery = 1;
     /** @type {object | null} the zoom slider (chart-zoom.js) */
     let slider = null;

@@ -85,7 +85,7 @@ so when you report on them. A link or a schedule cannot be made over them.
 | "the best product" | filter `{ "field": "Product", "type": "top", "count": 1, "by": { "field": "Sales", "agg": "sum" } }` |
 | "only North and South" | filter `{ "field": "Region", "type": "in", "items": ["North", "South"] }` |
 | "how many orders" | `values: [{ "agg": "count" }]` |
-| "as a chart" | `"display": "chart"`, `"chart": { "type": "bar" }` (or line, area, pie, donut, heatmap) |
+| "as a chart" | `"display": "chart"`, `"chart": { "type": "bar" }` (or line, area, pie, donut, heatmap, combo, treemap) |
 | "share of the total" | a value with `"showAs": { "type": "percentOfGrandTotal" }` |
 
 If a source has more than one date field and the user does not say which, ask. A view needs only the
