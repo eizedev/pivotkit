@@ -71,8 +71,12 @@ and what changed. In the report itself, **More**, **Help**, **Keyboard shortcuts
 ## Touch and sizes
 
 - Text is at least 14 px, and controls at least 24 x 24 px.
-- On a touch screen, the small buttons are at least 44 px: ×, **i**, **+ Add**, a field's menu and
-  grip, a tip's x. A menu's rows and its Back row are at least 44 px high too.
+- On a touch screen, every button takes a finger: at least 44 x 44 px. That holds for the toolbar,
+  the tabs **Table** and **Chart**, **Settings**, **Enlarge** and **Full screen**, the zones'
+  heading, the chips, ×, **i**, **+ Add** and a tip's x.
+- A menu's rows, its Back row, its search row and its choices side by side are at least 44 px high.
+- A row's fold arrow keeps its size in the table. A finger finds it in an area 44 px wide and as high
+  as its row.
 - In the field list, the buttons keep their desktop size. This keeps the rows as compact, and the
   names on one line where they fit. A finger still finds each button in an area 44 px high around
   it. The grip's area is also 44 px wide. The rows stand a little further apart, so that no area

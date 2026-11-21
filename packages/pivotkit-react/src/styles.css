@@ -4034,6 +4034,37 @@
         min-height: var(--pk-target-touch);
     }
 
+    /* the buttons, the tabs, the zones' heading, a chip, a choice of segments and a search row: a
+       finger's size, whatever text they hold (#72) */
+    .pk-root :is(.pk-btn, .pk-icon-btn, .pk-tab, .pk-section-fold, .pk-chip-label, .pk-segmented > button, .pk-search) {
+        min-height: var(--pk-target-touch);
+    }
+
+    .pk-root :is(.pk-btn, .pk-icon-btn) {
+        min-width: var(--pk-target-touch);
+    }
+
+    /* a chip holds its label and its x at a finger's size, inside its frame */
+    .pk-root .pk-chip {
+        height: calc(var(--pk-target-touch) + 2px);
+    }
+
+    /* a row's fold chevron keeps its size in the table's row. A hit area lies over it: 44 px wide
+       towards its label (on its left is the table's edge), as high as its row, so it never reaches
+       into the next row's chevron */
+    .pk-root .pk-toggle {
+        position: relative;
+    }
+
+    .pk-root .pk-toggle::after {
+        content: "";
+        position: absolute;
+        top: calc((100% - var(--pk-row-h)) / 2);
+        bottom: calc((100% - var(--pk-row-h)) / 2);
+        left: 0;
+        width: var(--pk-target-touch);
+    }
+
     /* a menu's rows and its Back row, on every level */
     .pk-root :is(.pk-levels .pk-option, .pk-level-back) {
         min-height: var(--pk-target-touch);
