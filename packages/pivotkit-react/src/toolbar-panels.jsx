@@ -34,7 +34,7 @@ function ChartTypeOptions({ view, plan, labels, onChart, close }) {
         <Option
             key={p}
             icon={CHART_TYPES[p].icon}
-            checked={view.display === "chart" && current === p}
+            checked={view.display !== "table" && current === p}
             disabled={short(p) || undefined}
             reason={short(p) ? labels.chartNeedsValues : undefined}
             // what "Automatic" draws for this view now
@@ -842,8 +842,8 @@ export function ExportPanel({ labels, onExport, chartReady, display, empty = fal
                 <ExportOption icon="file" text={labels.exportXlsx} info="exportXlsx" onSelect={run("xlsx")} {...off} testId="export-xlsx" />
                 <ExportOption icon="file" text={labels.exportCsv} info="exportCsv" onSelect={run("csv")} {...off} testId="export-csv" />
                 <ExportOption icon="file" text={labels.exportHtml} info="exportHtml" onSelect={run("html")} {...off} testId="export-html" />
-                <ExportOption icon="image" text={labels.exportPng} disabled={empty || !chartReady} reason={empty ? off.reason : display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("png")} testId="export-png" />
-                <ExportOption icon="image" text={labels.exportSvg} disabled={empty || display !== "chart"} reason={empty ? off.reason : display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("svg")} testId="export-svg" />
+                <ExportOption icon="image" text={labels.exportPng} disabled={empty || !chartReady} reason={empty ? off.reason : display === "table" ? labels.exportPngNeedsChart : undefined} onSelect={run("png")} testId="export-png" />
+                <ExportOption icon="image" text={labels.exportSvg} disabled={empty || display === "table"} reason={empty ? off.reason : display === "table" ? labels.exportPngNeedsChart : undefined} onSelect={run("svg")} testId="export-svg" />
             </Section>
             <Section title={labels.exportPrintGroup}>
                 <ExportOption icon="print" text={labels.exportPrint} info="exportPrint" onSelect={run("print")} {...off} testId="export-print" onIntent={() => prepare("print")} />
@@ -851,7 +851,7 @@ export function ExportPanel({ labels, onExport, chartReady, display, empty = fal
             <Section title={labels.exportCopy}>
                 <ExportOption icon="copy" text={labels.copyTable} info="copyTable" onSelect={run("copy-table")} {...off} testId="export-copy-table" />
                 <ExportOption icon="copy" text={labels.copyDataJson} info="copyDataJson" onSelect={run("copy-json")} {...off} testId="export-copy-json" />
-                <ExportOption icon="image" text={labels.copyChart} disabled={empty || !chartReady} reason={empty ? off.reason : display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("copy-chart")} testId="export-copy-chart" />
+                <ExportOption icon="image" text={labels.copyChart} disabled={empty || !chartReady} reason={empty ? off.reason : display === "table" ? labels.exportPngNeedsChart : undefined} onSelect={run("copy-chart")} testId="export-copy-chart" />
             </Section>
             {source ? (
                 <Section title={labels.exportDataGroup}>

@@ -53,7 +53,7 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
    of a workbook. pivotkit reads German numbers and dates, title lines above the header and leading
    zeros ("01067") correctly. Undo brings the application's data back. Nothing is uploaded. See
    [load your own data](use/load-data.md).
-2. **Table and chart, each with its settings.** Table and Chart are tabs, each with its own settings. "+ Add" puts
+2. **Table and chart, each with its settings.** Table and Chart are tabs, each with its own settings. A wide report shows both side by side. "+ Add" puts
    a field into a zone without dragging. Charts zoom along a long axis, hide series from the legend,
    stack to 100 % and draw an average, a trend, a target or the high and low points. See [charts](use/charts.md).
 3. **Filters that say what they keep.** Pick items from a list that shows each item's row count.

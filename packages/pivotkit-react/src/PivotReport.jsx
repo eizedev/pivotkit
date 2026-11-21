@@ -43,6 +43,7 @@ import { Unused } from "./unused.jsx";
 import { FormNameContext, activeIn } from "./dom.js";
 import { stillApplies } from "./unused-keep.js";
 import { Toolbar } from "./toolbar.jsx";
+import { SideBySide } from "./side-by-side.jsx";
 import { ViewTabs, tabId } from "./view-tabs.jsx";
 import { useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
@@ -571,6 +572,11 @@ function Report(props) {
     }, [ordersKey]);
     const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside, orderOf, dataKey: imported ? imported.key : 0, initial: kept?.history });
     const view = history.view;
+    // what the result shows: the table, the chart, or both side by side (#51). Both need a wide
+    // report; a narrower one shows the table and offers the tabs Table and Chart
+    const shown = view.display === "both" && size !== "wide" ? "table" : view.display;
+    const tableShown = shown !== "chart";
+    const chartShown = shown !== "table";
     // the host's view (`view`, else the first `defaultView`) and what of it the data cannot use: shown
     // above the result like a loaded view's unused parts, once per distinct view (a host may render the
     // same view again and again), not while the data is still on its way
@@ -851,7 +857,7 @@ function Report(props) {
     // columns may be swapped for the chart alone (dates on Columns run along the axis)
     const plan = useMemo(() => chartPlan(view, encoded), [view, encoded]);
     const chartComputed = useMemo(() => {
-        if (!plan.swap || view.display !== "chart" || !result) {
+        if (!plan.swap || !chartShown || !result) {
             return computed;
         }
         try {
@@ -859,7 +865,7 @@ function Report(props) {
         } catch (error) {
             return { result: null, error };
         }
-    }, [plan.swap, view, encoded, locale, limits, computed, result]);
+    }, [plan.swap, chartShown, view, encoded, locale, limits, computed, result]);
     // a chip keeps the plain name; its tooltip names the years its date grouping combines
     const titleOf = useCallback((/** @type {string} */ field) => context.titles.get(field), [context]);
     const chartContext = useMemo(() => chartComputed.result === computed.result ? context : dateContext(chartComputed.result, labels), [chartComputed.result, computed.result, context, labels]);
@@ -872,7 +878,7 @@ function Report(props) {
         foldOpenWhileEmpty.current = empty && short && folded === null;
     });
     const gridState = useMemo(() => {
-        if (!result || view.display !== "table" || empty) {
+        if (!result || !tableShown || empty) {
             return { grid: null, error: null };
         }
         try {
@@ -880,8 +886,8 @@ function Report(props) {
         } catch (error) {
             return { grid: null, error };
         }
-    }, [result, view.display, empty, locale, context.labels, limits]);
-    const error = source.error ?? computed.error ?? gridState.error ?? (view.display === "chart" ? chartComputed.error : null);
+    }, [result, tableShown, empty, locale, context.labels, limits]);
+    const error = source.error ?? computed.error ?? gridState.error ?? (chartShown ? chartComputed.error : null);
 
     // fields: the data's columns for the list; the type of a chip is its source field's
     const dateLocale = useMemo(() => dateDisplayLocale(view.formatting?.locale || locale), [view.formatting?.locale, locale]);
@@ -1451,7 +1457,7 @@ function Report(props) {
         </div>
     );
 
-    const showTable = !error && !(empty && view.display === "table") && view.display !== "chart" && gridState.grid;
+    const showTable = !error && !(empty && tableShown) && tableShown && gridState.grid;
 
     // Expand all and Collapse all: offered when they change something, and they say what they did
     const outer = useMemo(() => (result ? outerPaths(result) : []), [result]);
@@ -1472,7 +1478,7 @@ function Report(props) {
 
     // the chart's series, once per result: drawn by the chart, read by its tips
     const series = useMemo(() => {
-        if (!chartResult || view.display !== "chart" || view.values.length === 0) {
+        if (!chartResult || !chartShown || view.values.length === 0) {
             return null;
         }
         try {
@@ -1480,7 +1486,7 @@ function Report(props) {
         } catch {
             return null;
         }
-    }, [chartResult, view.display, view.values.length, chartContext.labels]);
+    }, [chartResult, chartShown, view.values.length, chartContext.labels]);
 
     // tips: the host allows some or all, the user dismisses them (remembered per storageKey)
     const allowedKey = JSON.stringify(allowedTips(tipsProp));
@@ -1563,7 +1569,7 @@ function Report(props) {
     // the tips' table: here at once, or loaded after the first render (pivotkit-element); the notices
     // (the result is cut or empty) until then
     const tipsMod = useTipsTable();
-    const ctx = tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate) || viewStore, savedAt, chartPlan: plan });
+    const ctx = tipContext({ view, display: shown, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate) || viewStore, savedAt, chartPlan: plan });
     const shownTips = activeEntries(tipsMod?.TIPS ?? NOTICES, ctx, { allowed, dismissed }).map((t) => ({
         id: t.id,
         params: t.params,
@@ -1614,6 +1620,38 @@ function Report(props) {
     // while enlarged, the fields in one line: what the result shows, without the zones
     const summaryParts = big.enlarged ? layoutSummary(zoneEntries(view, types, context.labels), context.labels) : [];
     const summaryText = summaryParts.length ? summaryParts.map((p) => `${p.title}: ${p.fields}`).join(" · ") : labels.layoutEmpty;
+
+    // the chart and the table of the result: one of them, or both side by side (#51)
+    const chartEl = chartResult ? (
+        <PivotChart
+            result={chartResult}
+            plan={plan}
+            series={series}
+            labels={context.labels}
+            locale={locale}
+            themeName={themeName}
+            root={root}
+            valueNames={valueLabels(view.values, labels)}
+            chartOptions={stableChartOptions}
+            colorMap={stableColorMap}
+            // a legend entry hidden or shown: kept in the view, said to a screen reader
+            onLegend={({ name, shown }) => {
+                commit(setChartDisplay(view, { hidden: hiddenAfter(view.chart.hidden, name, shown) }), { step: "chartDisplay" });
+                announce(fill(shown ? labels.chartShown : labels.chartHidden, { name }));
+            }}
+            onInstance={(c) => {
+                chartRef.current = c;
+                setChartReady(Boolean(c));
+            }}
+            // the checks with the view they are of: the menu never shows another view's
+            onLines={(checks) => setLineChecks(checks && { checks, view })}
+            // a chart with rows and columns swapped names the view's paths the other way round
+            onPoint={(p) => openCell({ rowPath: plan.swap ? p.colPath : p.rowPath, colPath: plan.swap ? p.rowPath : p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
+        />
+    ) : null;
+    const tableEl = gridState.grid ? (
+        <PivotTable grid={gridState.grid} view={view} labels={context.labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} infoOf={infoOf} showInfo={fieldSwitch.on} typeOf={typeOf} hostOrdered={hostOrdered} onSort={sortFromHeader} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
+    ) : null;
 
     return (
         <div
@@ -1699,7 +1737,8 @@ function Report(props) {
                                 onExport={doExport}
                                 prepareExport={prepareExport}
                                 dataExport={{ exportData, encoded }}
-                                chartReady={view.display === "chart" && chartReady}
+                                chartReady={chartShown && chartReady}
+                                display={shown}
                                 empty={empty}
                                 onShowFields={() => setDrawer(true)}
                                 tipsControls={allowed !== "off"}
@@ -1780,6 +1819,9 @@ function Report(props) {
                                 labels={labels}
                                 panelId={resultId}
                                 narrow={size === "narrow"}
+                                shown={shown}
+                                // side by side needs a wide report (#51)
+                                both={size === "wide"}
                                 big={big}
                                 plan={plan}
                                 encoded={encoded}
@@ -1795,7 +1837,7 @@ function Report(props) {
                                 onCollapse={collapseAll}
                                 folding={folding}
                             />
-                            <section className="pk-result" id={resultId} role="tabpanel" aria-labelledby={tabId(resultId, view.display === "chart" ? "chart" : "table")}>
+                            <section className="pk-result" id={resultId} role="tabpanel" aria-labelledby={tabId(resultId, shown)}>
                                 {loading || opening ? (
                                     <Skeleton text={labels.loadingReport} />
                                 ) : error ? (
@@ -1803,36 +1845,14 @@ function Report(props) {
                                         <Icon name="info" />
                                         <p>{errorText(error, labels, locale)}</p>
                                     </div>
-                                ) : empty && view.display === "table" ? (
+                                ) : empty && tableShown ? (
                                     <EmptyState labels={labels} templates={entries} onTemplate={openTemplate} onLoad={allowImport ? () => requestImport().then((m) => m.pickFile(fileInput.current), () => announce(labels.menuFailed, { tone: "error" })) : undefined} noData={allowImport && fields.length === 0} />
-                                ) : view.display === "chart" && chartResult ? (
-                                    <PivotChart
-                                        result={chartResult}
-                                        plan={plan}
-                                        series={series}
-                                        labels={context.labels}
-                                        locale={locale}
-                                        themeName={themeName}
-                                        root={root}
-                                        valueNames={valueLabels(view.values, labels)}
-                                        chartOptions={stableChartOptions}
-                                        colorMap={stableColorMap}
-                                        // a legend entry hidden or shown: kept in the view, said to a screen reader
-                                        onLegend={({ name, shown }) => {
-                                            commit(setChartDisplay(view, { hidden: hiddenAfter(view.chart.hidden, name, shown) }), { step: "chartDisplay" });
-                                            announce(fill(shown ? labels.chartShown : labels.chartHidden, { name }));
-                                        }}
-                                        onInstance={(c) => {
-                                            chartRef.current = c;
-                                            setChartReady(Boolean(c));
-                                        }}
-                                        // the checks with the view they are of: the menu never shows another view's
-                                        onLines={(checks) => setLineChecks(checks && { checks, view })}
-                                        // a chart with rows and columns swapped names the view's paths the other way round
-                                        onPoint={(p) => openCell({ rowPath: plan.swap ? p.colPath : p.rowPath, colPath: plan.swap ? p.rowPath : p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
-                                    />
+                                ) : shown === "both" ? (
+                                    <SideBySide labels={labels} table={gridState.grid ? tableEl : null} chart={chartResult ? chartEl : null} />
+                                ) : shown === "chart" && chartResult ? (
+                                    chartEl
                                 ) : gridState.grid ? (
-                                    <PivotTable grid={gridState.grid} view={view} labels={context.labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} infoOf={infoOf} showInfo={fieldSwitch.on} typeOf={typeOf} hostOrdered={hostOrdered} onSort={sortFromHeader} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
+                                    tableEl
                                 ) : null}
                             </section>
                             <div className="pk-status">

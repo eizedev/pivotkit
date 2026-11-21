@@ -18,6 +18,19 @@ the table back.
 ![A line chart of monthly revenue per category](../assets/screenshots/chart-light.png#only-light)
 ![A line chart of monthly revenue per category](../assets/screenshots/chart-dark.png#only-dark)
 
+## Table and chart side by side { #both }
+
+The tab **Both** shows the table on the left and the chart on the right. It is there on a wide
+report, about 1,024 pixels and more.
+
+- Drag the line between them to give the table more or less room. With the focus on the line, the
+  left and right arrow keys move it, **Home** and **End** to the narrowest and widest table.
+- **Table settings** and **Chart settings** stand side by side, one for each part.
+- The chart follows what the table shows: its filters, its sort and its folded groups.
+- **Enlarge** and **Full screen** take both parts.
+- The export of a picture takes the chart.
+- A narrower report, such as a phone, shows the table. Its tabs are **Table** and **Chart**.
+
 ## Chart types
 
 | Type | Draws |

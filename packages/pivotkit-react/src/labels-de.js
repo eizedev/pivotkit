@@ -48,6 +48,8 @@ export const de = {
     toolbar: "Werkzeugleiste des Berichts",
     table: "Tabelle",
     chart: "Diagramm",
+    both: "Beides",
+    splitDivider: "Breite von Tabelle und Diagramm",
     view: "Ansicht",
     chartType: "Diagrammtyp",
     chartTypeIs: "Diagrammtyp: {type}",

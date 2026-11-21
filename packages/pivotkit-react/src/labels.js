@@ -67,6 +67,9 @@ export const en = {
     toolbar: "Report toolbar",
     table: "Table",
     chart: "Chart",
+    // the table and the chart side by side (#51): the tab, and the divider between them
+    both: "Both",
+    splitDivider: "Width of the table and the chart",
     view: "View",
     chartType: "Chart type",
     chartTypeIs: "Chart type: {type}",

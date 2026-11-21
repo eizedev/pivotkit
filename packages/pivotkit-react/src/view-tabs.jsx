@@ -1,6 +1,6 @@
 /*
- * The row on top of the result: the tabs Table and Chart, the settings of the view shown ("Table
- * settings" or "Chart settings"), Enlarge and Full screen. The tabs are ARIA tabs with manual
+ * The row on top of the result: the tabs Table, Chart and, on a wide report, Both (#51), the settings
+ * of what is shown ("Table settings", "Chart settings", both with Both), Enlarge and Full screen. The tabs are ARIA tabs with manual
  * activation (WAI-ARIA Authoring Practices, tabs pattern): one Tab stop, left and right (Home, End)
  * move the focus, Enter or Space shows the tab, since the chart loads on demand. The result below
  * is their tab panel. In the narrow layout the settings button says "Settings" only, Enlarge and
@@ -17,24 +17,24 @@ import { MenuButton } from "./popover.jsx";
 import { tabStep } from "./rove.js";
 
 /** The tabs, in order, by the view each shows; a tab's test id is `show-<view>`. */
-const TABS = Object.freeze(/** @type {const} */ (["table", "chart"]));
+const TABS = Object.freeze(/** @type {const} */ (["table", "chart", "both"]));
 
 /**
  * The id of a tab, from the id of the panel it controls.
  * @param {string} panelId
- * @param {"table" | "chart"} display
+ * @param {"table" | "chart" | "both"} display
  */
 export const tabId = (panelId, display) => `${panelId}-${display}`;
 
 /**
  * @param {any} props  see PivotReport for what each one does. `panelId`: the result's id (the tab
- *   panel); `narrow`: icons only; `big`: use-big-result.js's Enlarge and Full screen
+ *   panel); `narrow`: icons only; `shown`: what the result shows ("both" only on a wide report);
+ *   `both`: whether the tab Both is offered; `big`: use-big-result.js's Enlarge and Full screen
  */
 export function ViewTabs(props) {
-    const { view, labels, panelId, narrow, onDisplay, plan, big } = props;
+    const { view, labels, panelId, narrow, shown = view.display, both = false, onDisplay, plan, big } = props;
     const list = useRef(/** @type {HTMLDivElement | null} */ (null));
-    const chart = view.display === "chart";
-    const settings = chart ? labels.chartSettings : labels.tableSettings;
+    const tabs = TABS.filter((d) => d !== "both" || both);
     // the arrow keys move the focus between the tabs; showing one is the tab's own click
     const onKeyDown = (/** @type {React.KeyboardEvent} */ e) => {
         const tabs = /** @type {HTMLElement[]} */ ([...(list.current?.querySelectorAll('[role="tab"]') ?? [])]);
@@ -50,39 +50,28 @@ export function ViewTabs(props) {
     return (
         <div className="pk-result-head" data-testid="view-tabs-row">
             <div ref={list} className="pk-tabs" role="tablist" aria-label={labels.view} onKeyDown={onKeyDown}>
-                {TABS.map((d) => (
+                {tabs.map((d) => (
                     <button
                         key={d}
                         type="button"
                         role="tab"
                         id={tabId(panelId, d)}
-                        aria-selected={view.display === d}
+                        aria-selected={shown === d}
                         aria-controls={panelId}
-                        tabIndex={view.display === d ? 0 : -1}
+                        tabIndex={shown === d ? 0 : -1}
                         className="pk-tab"
-                        onClick={() => (view.display === d ? undefined : onDisplay(d))}
+                        onClick={() => (shown === d ? undefined : onDisplay(d))}
                         data-testid={`show-${d}`}
                     >
-                        {/* an automatic chart's icon is the type it draws */}
-                        <Icon name={/** @type {any} */ (d === "table" ? "table" : CHART_TYPES[plan.name].icon)} />
-                        <span>{d === "table" ? labels.table : labels.chart}</span>
+                        {/* an automatic chart's icon is the type it draws; Both its own */}
+                        <Icon name={/** @type {any} */ (d === "table" ? "table" : d === "both" ? "layout" : CHART_TYPES[plan.name].icon)} />
+                        <span>{d === "table" ? labels.table : d === "both" ? labels.both : labels.chart}</span>
                     </button>
                 ))}
             </div>
             <span className="pk-grow" />
-            <MenuButton label={settings} icon="sliders" text={narrow ? labels.settingsShort : settings} name={narrow ? settings : undefined} title={narrow ? settings : undefined} className="pk-btn pk-small-btn" role="dialog" align="end" testId="view-settings" popoverClass={chart ? "pk-chart-menu" : undefined}>
-                {(close) =>
-                    chart ? (
-                        <MenuPanel
-                            name="ChartSettingsPanel"
-                            loadingText={labels.loadingMenu}
-                            props={{ view, plan, encoded: props.encoded, lineChecks: props.lineChecks, labels, locale: props.locale, onChart: props.onChart, onDisplay: props.onChartDisplay, close, series: props.chartSeries, colors: props.chartColors, folding: props.folding, onExpand: props.onExpand, onCollapse: props.onCollapse }}
-                        />
-                    ) : (
-                        <MenuPanel name="TableSettingsPanel" loadingText={labels.loadingMenu} props={{ view, labels, onTotal: props.onTotal, onExpand: props.onExpand, onCollapse: props.onCollapse, close, folding: props.folding }} />
-                    )
-                }
-            </MenuButton>
+            {shown !== "chart" ? <SettingsButton kind="table" {...props} /> : null}
+            {shown !== "table" ? <SettingsButton kind="chart" {...props} /> : null}
             <button type="button" className="pk-btn pk-pressable pk-small-btn" data-pk-on={big.enlarged ? "" : undefined} onClick={big.toggleEnlarged} data-testid="enlarge" {...iconOnly(big.enlarged ? labels.reduce : labels.enlarge)}>
                 <Icon name="enlarge" size={14} />
                 {/* says what a click does: Enlarge, or Reduce while enlarged; a changing name is no
@@ -96,5 +85,32 @@ export function ViewTabs(props) {
                 </button>
             ) : null}
         </div>
+    );
+}
+
+/**
+ * The settings of the table or of the chart: a button with its panel. With both shown, each part has
+ * its own (#51), with the test id `table-settings` or `chart-settings`; else `view-settings`. In the
+ * narrow layout it says "Settings".
+ * @param {any} props  ViewTabs' props, and `kind`: "table" or "chart"
+ */
+function SettingsButton(props) {
+    const { kind, view, labels, narrow, plan } = props;
+    const chart = kind === "chart";
+    const settings = chart ? labels.chartSettings : labels.tableSettings;
+    return (
+        <MenuButton label={settings} icon="sliders" text={narrow ? labels.settingsShort : settings} name={narrow ? settings : undefined} title={narrow ? settings : undefined} className="pk-btn pk-small-btn" role="dialog" align="end" testId={props.shown === "both" ? `${kind}-settings` : "view-settings"} popoverClass={chart ? "pk-chart-menu" : undefined}>
+            {(close) =>
+                chart ? (
+                    <MenuPanel
+                        name="ChartSettingsPanel"
+                        loadingText={labels.loadingMenu}
+                        props={{ view, plan, encoded: props.encoded, lineChecks: props.lineChecks, labels, locale: props.locale, onChart: props.onChart, onDisplay: props.onChartDisplay, close, series: props.chartSeries, colors: props.chartColors, folding: props.folding, onExpand: props.onExpand, onCollapse: props.onCollapse }}
+                    />
+                ) : (
+                    <MenuPanel name="TableSettingsPanel" loadingText={labels.loadingMenu} props={{ view, labels, onTotal: props.onTotal, onExpand: props.onExpand, onCollapse: props.onCollapse, close, folding: props.folding }} />
+                )
+            }
+        </MenuButton>
     );
 }

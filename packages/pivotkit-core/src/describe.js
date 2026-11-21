@@ -170,7 +170,7 @@ export function describeView(input, schema, options) {
         view.rows.length ? `by ${view.rows.join(" > ")}` : null,
         view.cols.length ? `across ${view.cols.join(" > ")}` : null,
         filters.length ? `where ${filters.map((f) => f.text).join("; and ")}` : null,
-        view.display === "chart" ? `as a ${view.chart.type === "auto" ? "chart" : `${view.chart.type} chart`}` : null
+        view.display === "table" ? null : `as a ${view.display === "both" ? "table and a " : ""}${view.chart.type === "auto" ? "chart" : `${view.chart.type} chart`}`
     ];
     return {
         valid,
@@ -182,7 +182,7 @@ export function describeView(input, schema, options) {
         filters,
         derived,
         sort,
-        display: { mode: view.display, chart: view.display === "chart" ? view.chart.type : null },
+        display: { mode: view.display, chart: view.display === "table" ? null : view.chart.type },
         text: `${valid ? "" : `(invalid: ${errors.length} error${errors.length === 1 ? "" : "s"}, the parts they name are left out) `}${parts.filter(Boolean).join(" ")}`
     };
 }

@@ -179,6 +179,7 @@ Then restart Claude Code.
 | [Two chart types: bars and lines, and a treemap](#combo-treemap) | you share views with pivotkit 0.8, or a host or a script lists the chart types | nothing. pivotkit 0.8 draws such a view with the automatic type |
 | [A pie without a legend groups its smallest slices](#other-slice) | your app shows a pie or donut with the legend off, or your tests or screenshots compare one | nothing; turn the legend on to draw every slice. Expect "Other (n)" in tests |
 | [Sort by one column](#sort-column) | you share views with pivotkit 0.8, or run pivotkit-server or pivotkit-mcp | nothing. pivotkit 0.8 sorts such a view by the whole row, with a warning. Reconnect MCP clients to see `column` in the view schema |
+| [Table and chart side by side](#display-both) | you share views with pivotkit 0.8, or a program reads `display` | nothing. A view shown as both has `display: "both"` |
 | [High and low points in the chart](#chart-points) | you share views with pivotkit 0.8, or your tests compare a normalized view or the chart option as a whole | nothing. A normalized view has `extremes` in `chart.referenceLines` |
 
 ### Two chart types: bars and lines, and a treemap { #combo-treemap }
@@ -211,6 +212,17 @@ in `column`, its items from the outermost column field.
 
 - pivotkit 0.8 reads such a view with a warning and sorts by the whole row.
 - Saved again there, the view loses the column.
+
+### Table and chart side by side { #display-both }
+
+The tab **Both** shows the table and the chart side by side on a wide report
+([table and chart side by side](../use/charts.md#both)). The view keeps it as `display: "both"`.
+
+- pivotkit 0.8 reads such a view with an `unknownSetting` error and shows the table. Saved again
+  there, the view shows the table.
+- `CATALOG.displayModes`, the view's JSON Schema and the OpenAPI document list `"both"`. MCP
+  clients see it after they reconnect.
+- A narrower report shows the table of such a view.
 
 ### High and low points in the chart { #chart-points }
 
