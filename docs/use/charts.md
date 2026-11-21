@@ -421,7 +421,7 @@ Click a bar, a point, a slice or a heatmap cell, and a small menu opens at it:
 
 | Entry | What it does |
 | --- | --- |
-| **Show the rows** | Opens the rows behind the value, as clicking a value in the table does. A slice adds up every column, so it has no rows of its own. |
+| **Show the rows** | Opens the rows behind the value, as clicking a value in the table does. A slice adds up every column, so it has no rows of its own. With the drill-down turned off, the entry is there only when the page takes the rows itself. |
 | **Only North** | Keeps only that item of the field on the axis. |
 | **Without North** | Leaves that item out of the report. |
 | **Only Software**, **Without Software** | The same for the series: the item of the field on Columns. |

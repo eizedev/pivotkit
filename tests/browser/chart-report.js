@@ -30,10 +30,13 @@ export const VALUES = [
     [40, 30, 25]
 ];
 
-/** Mounts a report of ROWS at the top of the host page, with `chart` (and `view`) over VIEW's; mount again to change it. */
-export async function mount(page, chart, { theme = "light", view = {}, rows = ROWS, cellClicks = false } = {}) {
+/**
+ * Mounts a report of ROWS at the top of the host page, with `chart` (and `view`) over VIEW's; mount again to change it.
+ * `drillDown`: the prop, left out when undefined.
+ */
+export async function mount(page, chart, { theme = "light", view = {}, rows = ROWS, cellClicks = false, drillDown } = {}) {
     await page.evaluate(
-        async ({ rows, view, theme, cellClicks }) => {
+        async ({ rows, view, theme, cellClicks, drillDown }) => {
             const React = await import("react");
             const { createRoot } = await import("react-dom/client");
             const { PivotReport } = await import("pivotkit-react");
@@ -55,9 +58,9 @@ export async function mount(page, chart, { theme = "light", view = {}, rows = RO
             const height = window.innerWidth < 640 ? 572 : 573;
             // what a test needs to render the same report again in place
             Object.assign(window, { __tooltipChart: view.chart, __tooltipRows: rows, __tooltipHeight: height, __tooltipView: view });
-            window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height, defaultView: view, onCellClick, onViewChange: (v) => window.__tooltipViews.push(v) }));
+            window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height, defaultView: view, onCellClick, ...(drillDown === undefined ? {} : { drillDown }), onViewChange: (v) => window.__tooltipViews.push(v) }));
         },
-        { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks }
+        { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks, drillDown }
     );
     const chartEl = page.locator("#tooltip-report").getByTestId("pivot-chart");
     await expect(chartEl.locator("canvas").first()).toBeVisible();

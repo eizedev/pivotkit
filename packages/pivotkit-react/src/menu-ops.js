@@ -692,19 +692,24 @@ export function parseTarget(text, locale, format) {
 }
 
 /**
- * What the small menu at a clicked bar, point or slice offers (#53): "Show the rows" (the value's rows,
- * not for a slice, which adds up every column), then for the category's item and for the series' item
+ * What the small menu at a clicked bar, point or slice offers (#53): "Show the rows", then for the
+ * category's item and for the series' item
  * "Only …" and "Without …". Each is the field's pick (setItemFilter): Only keeps that item, Without
  * leaves it out of what is picked now. An entry that would change nothing, or leave nothing, is left
- * out.
+ * out. "Show the rows" is left out for a slice, which adds up every column, and when the rows go
+ * nowhere (`options.showRows`).
  * @param {any} view
  * @param {{ rowPath: any[], colPath: any[], valueIndex: number, value: unknown, slice?: boolean }} point
  * @param {import("pivotkit-core").Encoded} encoded
+ * @param {any} labels
+ * @param {string} locale
+ * @param {{ showRows?: boolean }} [options]  `showRows`: whether a value's rows go anywhere, the
+ *   drill-down panel or the host's onCellClick (default true)
  * @returns {Array<{ id: string, text: string, field?: string, change?: () => { view: any, note: any } }>}
  */
-export function pointActions(view, point, encoded, labels, locale) {
+export function pointActions(view, point, encoded, labels, locale, { showRows = true } = {}) {
     /** @type {Array<{ id: string, text: string, field?: string, change?: () => { view: any, note: any } }>} */
-    const out = point.slice ? [] : [{ id: "rows", text: labels.pointRows }];
+    const out = point.slice || !showRows ? [] : [{ id: "rows", text: labels.pointRows }];
     const add = (axis, field, key) => {
         const info = fieldItems(encoded, field, { view, locale, labels: labels.core });
         if (!info) {
