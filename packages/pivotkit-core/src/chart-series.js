@@ -8,7 +8,7 @@
 import { TIMELINE_UNITS } from "./derive.js";
 import { checkLimit, expect } from "./errors.js";
 import { defaultFormat, valueNames } from "./grid.js";
-import { DEFAULT_LABELS } from "./labels.js";
+import { DEFAULT_LABELS, withFieldLabels } from "./labels.js";
 import { axisLines } from "./layout.js";
 import { resolveLimits } from "./limits.js";
 import { isPivotResult } from "./pivot.js";
@@ -27,7 +27,8 @@ export function toSeries(result, options) {
     expect(isPivotResult(result), "toSeries(result): result must come from computePivot()");
     const limits = resolveLimits(options);
     const view = result.view;
-    const labels = { ...DEFAULT_LABELS, ...(options.labels || {}) };
+    // the view's own names for fields (#158) over the host's
+    const labels = withFieldLabels({ ...DEFAULT_LABELS, ...(options.labels || {}) }, view.fieldLabels);
     const separator = options.separator ?? " / ";
     const plotted = (root, depth, collapsed) => axisLines(root, depth, collapsed, false, false).filter((l) => l.kind !== "grand");
     let rowLines = plotted(result.rowRoot, view.rows.length, view.collapsed.rows);

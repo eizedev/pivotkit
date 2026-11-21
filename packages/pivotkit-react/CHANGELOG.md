@@ -12,6 +12,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   then **Only …** and **Without …** for its item and its series' item. A filter from it shows on the
   chip, and Undo takes it back. A double click opens the rows at once. In English and German
   ([filter from the chart](https://pivotkit.eize.dev/use/charts/#filter-from-the-chart), #53).
+- **Name** in the chip menu of a field in Rows, Columns or Filters: a name of the report's own for it.
+  The chip, the table, the chart and the exports show it. The field list shows the field's own name
+  under it and finds the field by either. In English and German
+  ([fields](https://pivotkit.eize.dev/use/fields/), #158).
 - The view type is exported as `PivotView`, the name pivotkit-element uses too (#563).
 - A date in Filters has **Group** in its chip's menu, as on Rows and Columns. A unit such as Year
   puts the grouping in the date's place among the Filters, with every item kept

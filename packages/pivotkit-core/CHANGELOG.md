@@ -8,6 +8,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `view.fieldLabels`: names of the report's own for fields, by the field's name. `normalize` checks
+  them, `toGrid()` and `toSeries()` show them, and `withFieldLabels(labels, fieldLabels)` puts them
+  over a host's display names. Only a view with a name has the key; pivotkit 0.8 reads such a view
+  with an `unknownKey` error ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#field-labels), #158).
 - `computePivot`'s option `strict`: a view with an error issue throws `INVALID_VIEW`, with the issues
   in `error.details.issues`, instead of giving numbers
   ([check the issues](https://pivotkit.eize.dev/getting-started/engine/#check-issues), #563).
