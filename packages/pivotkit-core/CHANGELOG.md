@@ -8,6 +8,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- A pie or donut without a legend whose labels outside have no room puts its smallest slices into one
+  slice "Other (n)" (`decorateOption`). Its data item lists them in `members`. The word is the new
+  label `otherSlices`, "Other ({count})" and "Andere ({count})"
+  ([many slices](https://pivotkit.eize.dev/use/charts/#many-slices), #544).
 - High and low points on bars, lines and areas: `chart.referenceLines.extremes` marks each series'
   highest and lowest value, or a stack's total's. `extremePoints` in `pivotkit-core/chart` gives
   them, `toEChartsOption` draws them as a `markPoint`, and `decorateOption` keeps their labels

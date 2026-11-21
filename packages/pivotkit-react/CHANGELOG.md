@@ -8,6 +8,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- A pie or donut without a legend keeps a whole label on each slice: where they have no room, the
+  smallest slices go into one grey slice "Other (n)". Its tooltip lists them. The token
+  `--pk-chart-other` colours it
+  ([many slices](https://pivotkit.eize.dev/use/charts/#many-slices), #544).
 - Chart settings › Reference lines › High and low points puts a dot with ▲ or ▼ and the value at
   each series' highest and lowest value. The text for screen readers names them
   ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), #574).

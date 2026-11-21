@@ -267,6 +267,10 @@ The report merges it like this:
 `{ legend: { show: false } }` hides the legend even when the user picked "Bottom". Keep
 `chartOptions` to what the user should not change.
 
+A pie without a legend merges its smallest slices into one slice "Other (n)" where their labels
+have no room ([many slices](../use/charts.md#many-slices)). `chartOptions` cannot reach the merged
+slices. Turn the legend on to draw every slice.
+
 A pie with a legend can leave out the labels of small slices that have no room. Such a slice's
 data item gets `label: { show: false }`. That item setting wins over a series `label` from
 `chartOptions`. To show the label anyway, set `label.show` on that data item in `chartOptions`.
