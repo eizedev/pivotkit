@@ -178,6 +178,7 @@ Then restart Claude Code.
 | [503 `BUSY` logs at `warn`](#busy-warn) | a log rule counts `error` lines | count 503 `BUSY` among the warnings, or match its `code` |
 | [Two chart types: bars and lines, and a treemap](#combo-treemap) | you share views with pivotkit 0.8, or a host or a script lists the chart types | nothing. pivotkit 0.8 draws such a view with the automatic type |
 | [A pie without a legend groups its smallest slices](#other-slice) | your app shows a pie or donut with the legend off, or your tests or screenshots compare one | nothing; turn the legend on to draw every slice. Expect "Other (n)" in tests |
+| [A name of the report's own for a field](#field-labels) | you share views with pivotkit 0.8, or a program reads views | nothing. A view without such a name stays as it is |
 | [High and low points in the chart](#chart-points) | you share views with pivotkit 0.8, or your tests compare a normalized view or the chart option as a whole | nothing. A normalized view has `extremes` in `chart.referenceLines` |
 
 ### Two chart types: bars and lines, and a treemap { #combo-treemap }
@@ -201,6 +202,20 @@ their labels have no room ([many slices](../use/charts.md#many-slices)).
 - The chart of an HTML report or SVG takes the report's words. A German report writes "Andere (n)"
   and the German names of the reference lines.
 - The token `--pk-chart-other` colours the slice: `--pk-muted` in light, a mid grey in dark.
+
+### A name of the report's own for a field { #field-labels }
+
+A field in Rows, Columns or Filters can have a name of the report's own: **Name** in its chip menu
+([fields](../use/fields.md)). The view keeps it in a new top-level key, `fieldLabels`, such as
+`{ "cn": "City" }`.
+
+- A view without such a name has no `fieldLabels`. pivotkit 0.8 reads it as before.
+- pivotkit 0.8 reads a view with `fieldLabels` with an `unknownKey` error and shows the fields'
+  own names. Saved again there, the view loses the names.
+- `toGrid()` and `toSeries()` use the names. `withFieldLabels()` puts them over a host's display
+  names for code of your own.
+- The view's JSON Schema and the OpenAPI document list the key. MCP clients see it after they
+  reconnect.
 
 ### High and low points in the chart { #chart-points }
 

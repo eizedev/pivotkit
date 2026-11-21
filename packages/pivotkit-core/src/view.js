@@ -193,6 +193,9 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @property {{ locale: string | null, timeZone: string | null, weekStart: number }} formatting  timeZone: the zone the
  *   report was made for; the host passes it to encode(), computePivot() reports a mismatch; weekStart:
  *   the first day of a week for relative ranges in weeks, 1 (Monday, the default) to 7 (Sunday)
+ * @property {Record<string, string>} [fieldLabels]  names of the report's own for fields, by the field's
+ *   name: shown instead of the field's name (or a host's display name) in the headers, the chart and
+ *   the exports. Only in a view that has one (pivotkit 0.8 does not know the key)
  */
 
 /**
@@ -314,8 +317,12 @@ function listOf(raw, key, max, ctx, each) {
  * The keys each part of a view knows; normalize() reports any other key inside a part as a warning
  * (`unknownKey`), the keys of a filter come from its type's entry in FILTERS.
  */
+/** Top-level keys a normalized view has only when they are set (fieldLabels, #158). */
+const OPTIONAL_KEYS = Object.freeze(["fieldLabels"]);
+
 export const VIEW_KEYS = Object.freeze({
-    view: Object.freeze(Object.keys(emptyView())),
+    // fieldLabels: optional, not in emptyView, so a view without names reads in pivotkit 0.8 as before
+    view: Object.freeze([...Object.keys(emptyView()), ...OPTIONAL_KEYS]),
     derived: Object.freeze(["name", "field", "by", "size", "origin"]),
     value: Object.freeze(["field", "agg", "format", "label", "showAs", "conditional"]),
     valueRef: Object.freeze(["field", "agg"]),
@@ -703,8 +710,45 @@ function formattingSection(raw, view, ctx) {
     }
 }
 
+/**
+ * Names of the report's own for fields (#158): each key a field of the data or a grouping, each name a
+ * text up to the name limit, trimmed. Kept under the field's own spelling; none set, no key.
+ */
+function fieldLabelsSection(raw, view, ctx) {
+    const map = get(raw, "fieldLabels");
+    if (map === undefined || map === null) {
+        return;
+    }
+    if (!isPlainObject(map)) {
+        return ctx.issue("fieldLabels", "not an object of field names and their names", "badLabel", { max: ctx.limits.name });
+    }
+    const keys = Object.keys(map);
+    if (keys.length > ctx.limits.columns) {
+        ctx.issue("fieldLabels", `more than ${ctx.limits.columns} names; the rest left out`, "tooMany", { max: ctx.limits.columns });
+    }
+    /** @type {Record<string, string>} */
+    const out = {};
+    for (const key of keys.slice(0, ctx.limits.columns)) {
+        const path = `fieldLabels.${key.slice(0, 100)}`;
+        const f = ctx.resolve(key);
+        if (!f) {
+            ctx.unknownField(path, key);
+            continue;
+        }
+        const text = ctx.text(map[key]);
+        if (text === null) {
+            ctx.issue(path, `not a text up to ${ctx.limits.name} characters`, "badLabel", { max: ctx.limits.name });
+            continue;
+        }
+        Object.defineProperty(out, f.name, { value: text, enumerable: true, writable: true, configurable: true });
+    }
+    if (Object.keys(out).length) {
+        view.fieldLabels = out;
+    }
+}
+
 /** In order: derived fields first, values before filters and sort (their default measure). */
-const SECTIONS = [derivedSection, axesSection, valuesSection, filtersSection, sortSection, totalsSection, collapsedSection, displaySection, formattingSection];
+const SECTIONS = [derivedSection, axesSection, valuesSection, filtersSection, sortSection, totalsSection, collapsedSection, displaySection, formattingSection, fieldLabelsSection];
 
 /**
  * Top-level keys other pivot tools use for a key of a view, too far from it in spelling for closest()
@@ -873,7 +917,7 @@ function check(input, schema, options, strict) {
     }
     const raw = migrated.view;
     for (const key of Object.keys(raw)) {
-        if (!Object.hasOwn(view, key)) {
+        if (!Object.hasOwn(view, key) && !OPTIONAL_KEYS.includes(key)) {
             issues.add(issueOf(key.slice(0, 100), "unknown key", "unknownKey", { value: shown(key), ...(Object.hasOwn(KEY_SYNONYMS, key.toLowerCase()) ? { suggestion: KEY_SYNONYMS[key.toLowerCase()] } : suggest(key, VIEW_KEYS.view)) }));
         }
     }

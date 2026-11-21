@@ -17,6 +17,16 @@ const withNot = (f, text, labels) => (hiddenNot(f) ? fill(labels.notRule, { rule
  */
 export const valueLabels = (values, labels) => numberRepeats(values.map((v) => valueLabel(v, labels)));
 
+/**
+ * The name a field has without the report's own (#158): the host's display name, else the field's.
+ * The placeholder of its Name level, and the field list's second line under a renamed field.
+ * @param {string} field
+ * @param {any} labels  the report's labels (PivotReport: hostNames when the view renames a field)
+ */
+export function sourceFieldName(field, labels) {
+    return fieldLabel(field, { fields: labels.hostNames !== undefined ? labels.hostNames : labels.core?.fields });
+}
+
 /** "Sum of Revenue", "% of grand total of Revenue", or the value's own name. */
 export function valueLabel(spec, labels) {
     if (spec.label) {

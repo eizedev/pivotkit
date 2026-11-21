@@ -128,6 +128,15 @@ function tidy(view) {
     const used = new Set([...view.rows, ...view.cols, ...view.values.map((v) => v.field), ...view.filters.map((f) => f.field)].filter(Boolean).map((n) => n.toLowerCase()));
     view.derived = view.derived.filter((d) => used.has(d.name.toLowerCase()));
     view.sort = view.sort.filter((s) => used.has(s.field.toLowerCase()));
+    // a field's own name goes with the field (#158): a field taken out, or regrouped under another name
+    if (view.fieldLabels) {
+        const kept = Object.entries(view.fieldLabels).filter(([field]) => used.has(field.toLowerCase()));
+        if (kept.length) {
+            view.fieldLabels = Object.fromEntries(kept);
+        } else {
+            delete view.fieldLabels;
+        }
+    }
     return view;
 }
 
@@ -448,6 +457,34 @@ export function groupingOf(view, field) {
 export function sourceOf(view, field) {
     const spec = groupingOf(view, field);
     return spec ? spec.field : field;
+}
+
+/**
+ * A field's own name in the report (#158): the table, the chart and the exports show it instead of the
+ * field's name. An empty name or null takes it away; none left, the view has no fieldLabels.
+ * @param {any} view
+ * @param {string} field
+ * @param {string | null} name
+ */
+export function setFieldLabel(view, field, name) {
+    const next = clone(view);
+    const labels = { ...next.fieldLabels };
+    for (const key of Object.keys(labels)) {
+        if (same(key, field)) {
+            delete labels[key];
+        }
+    }
+    const text = typeof name === "string" ? name.trim() : "";
+    if (text) {
+        // a data field may be called "__proto__": an own property, never the prototype
+        Object.defineProperty(labels, field, { value: text, enumerable: true, writable: true, configurable: true });
+    }
+    if (Object.keys(labels).length) {
+        next.fieldLabels = labels;
+    } else {
+        delete next.fieldLabels;
+    }
+    return next;
 }
 
 /**

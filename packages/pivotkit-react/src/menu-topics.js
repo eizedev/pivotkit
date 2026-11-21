@@ -165,8 +165,19 @@ export function axisTopics({ view, zone, index, field, types, labels, locale, st
             choice: { id: `top-${n}`, text: fill(labels.topBadge, { count: n.toLocaleString(locale) }), checked: Boolean(top && !top.bottom && top.count === n), change: () => ({ view: setTopFilter(view, field, { count: n, bottom: false, by: topBy }, top), note: { step: "top", field: name } }) }
         }))
     });
+    topics.push(nameTopic(view, field, labels));
     topics.push(moveTopic(view, zone, index, view[zone].length, labels, name, sourceType, defaultsOf?.(field)));
     return topics;
+}
+
+/**
+ * Name: the field's own name in the report (#158), a level with a text field (chip-menus.jsx
+ * FieldNameLevel). Its state is the name the report shows.
+ * @returns {Topic}
+ */
+function nameTopic(view, field, labels) {
+    const own = Object.entries(view.fieldLabels ?? {}).some(([key]) => key.toLowerCase() === field.toLowerCase());
+    return { id: "name", title: labels.rename, kind: "panel", icon: "text", state: fieldLabel(field, labels.core), changed: own, keywords: labels.nameKeywords };
 }
 
 /** The search's "a number" in what is typed: "last 3 years" 3, "from 2022" 2022. */
@@ -287,6 +298,7 @@ export function filterZoneTopics({ view, index, field, types, labels, locale, st
     return [
         filterTopic({ view, field, labels, locale, state, encoded }),
         ...(type === "date" ? [groupTopic({ view, field, source, labels, locale, encoded })] : []),
+        nameTopic(view, field, labels),
         moveTopic(view, "filters", index, filterZoneFields(view).length, labels, fieldLabel(field, labels.core), type)
     ];
 }

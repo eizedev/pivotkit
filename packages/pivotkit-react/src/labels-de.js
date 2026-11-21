@@ -170,6 +170,7 @@ export const de = {
         reordered: "Reihenfolge in {zone}",
         sort: "Sortierung von {field}",
         group: "Gruppierung von {field}",
+        rename: "Name von {field}",
         filter: "Filter auf {field}",
         filtersRemoved: "Filter entfernt",
         top: "oberste Einträge von {field}",

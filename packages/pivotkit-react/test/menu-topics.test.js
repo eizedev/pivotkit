@@ -25,10 +25,10 @@ const units = { field: "Units", agg: "sum" };
 
 const axis = (view, field = "Region", extra = {}) => axisTopics({ view, zone: "rows", index: view.rows.indexOf(field), field, types, labels: MENU.en, locale: "en-US", ...extra });
 
-test("a field's first level: sort side by side, by its one value inline, Filter, Top items, Move to; each says what is set", () => {
+test("a field's first level: sort side by side, by its one value inline, Filter, Top items, Name, Move to; each says what is set", () => {
     const view = norm({ rows: ["Region"], values: [units] });
     const topics = axis(view);
-    assert.deepEqual(topics.map((t) => [t.id, t.kind]), [["sort", "segmented"], ["sortValue", "inline"], ["filter", "panel"], ["top", "panel"], ["move", "menu"]]);
+    assert.deepEqual(topics.map((t) => [t.id, t.kind]), [["sort", "segmented"], ["sortValue", "inline"], ["filter", "panel"], ["top", "panel"], ["name", "panel"], ["move", "menu"]]);
     const sort = byId(topics, "sort");
     assert.deepEqual(sort.groups[0].choices.map((c) => [c.text, c.checked]), [["A to Z", true], ["Z to A", false]]);
     assert.deepEqual(byId(topics, "sortValue").groups[0].choices.map((c) => c.text), ["Largest Sum of Units first", "Smallest Sum of Units first"]);

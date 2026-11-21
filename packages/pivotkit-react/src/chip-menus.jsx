@@ -20,9 +20,9 @@ import { fill, plural } from "./labels.js";
 import { LevelMenu, MenuItem, useAppliedText, useLater } from "./levels.jsx";
 import { MeasurePick, NumberField, Radio, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
 import { numberText } from "./numbers.js";
-import { groupingName, valueLabel, valueLabels } from "./names.js";
+import { groupingName, sourceFieldName, valueLabel, valueLabels } from "./names.js";
 import { TOP_COUNTS, axisTopics, filterZoneTopics, valueTopics } from "./menu-topics.js";
-import { filtersOf, groupField, groupingOf, sourceOf } from "./view-ops.js";
+import { filtersOf, groupField, groupingOf, setFieldLabel, sourceOf } from "./view-ops.js";
 import { binProblem, setTopFilter, updateValue } from "./menu-ops.js";
 
 /**
@@ -263,6 +263,44 @@ function NameLevel({ view, index, labels, commit, back }) {
 }
 
 /**
+ * A field's own name in the report (#158): applies on Enter or when the field is left; the × gives the
+ * field its name back at once. The placeholder is the name it has without one.
+ */
+function FieldNameLevel({ view, field, labels, commit, back }) {
+    const own = Object.entries(view.fieldLabels ?? {}).find(([key]) => key.toLowerCase() === field.toLowerCase())?.[1] ?? "";
+    const original = sourceFieldName(field, labels);
+    const note = { step: "rename", field: original };
+    const text = useAppliedText(own, (t) => commit(setFieldLabel(view, field, t), note), 0);
+    return (
+        <div className="pk-inline-form pk-level-form">
+            <ClearInput
+                type="text"
+                value={text.text}
+                placeholder={original}
+                onChange={text.set}
+                onBlur={text.flush}
+                onKeyDown={fieldKeys({
+                    now: () => {
+                        text.flush();
+                        back();
+                    },
+                    restore: text.restore,
+                    back
+                })}
+                onClear={() => (own ? commit(setFieldLabel(view, field, null), note) : undefined)}
+                clearLabel={labels.fieldNameReset}
+                aria-label={labels.rename}
+                maxLength={200}
+                data-autofocus=""
+                data-testid="field-name"
+            />
+            <p className="pk-hint">{labels.fieldNameHint}</p>
+            <p className="pk-hint">{labels.nameHint}</p>
+        </div>
+    );
+}
+
+/**
  * The head of a chip menu: the field's name, with its "i" (the field's description and its "Learn
  * more", and `extra`, a paragraph of the report's own after it) when there is one.
  * @param {{ name: string, info?: { description: string, href?: string }, extra?: string | null, labels: any }} props
@@ -342,6 +380,8 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
             <TopLevel view={view} field={field} types={types} labels={labels} locale={locale} commit={commit} back={back} encoded={encoded} />
         ) : id === "bins" ? (
             <BinsLevel view={view} field={field} labels={labels} locale={locale} range={rangeOf?.(source) ?? null} regroup={regroup} back={back} />
+        ) : id === "name" ? (
+            <FieldNameLevel view={view} field={field} labels={labels} commit={commit} back={back} />
         ) : null;
     const name = fieldLabel(field, labels.core);
     return (
@@ -372,7 +412,13 @@ export function FilterMenu({ view, index, field, types, labels, commit, close, o
             topics={filterZoneTopics({ view, index, field, types, labels, locale, state, encoded })}
             close={close}
             onPick={picker(commit, close)}
-            panel={(id, back, hint) => (id === "filter" ? <FilterLevel view={view} field={field} encoded={encoded} types={types} labels={labels} locale={locale} commit={commit} back={back} hint={hint} /> : null)}
+            panel={(id, back, hint) =>
+                id === "filter" ? (
+                    <FilterLevel view={view} field={field} encoded={encoded} types={types} labels={labels} locale={locale} commit={commit} back={back} hint={hint} />
+                ) : id === "name" ? (
+                    <FieldNameLevel view={view} field={field} labels={labels} commit={commit} back={back} />
+                ) : null
+            }
             search
             head={<MenuHead name={name} info={info} labels={labels} />}
             foot={<RemoveItem labels={labels} onRemove={onRemove} close={close} />}
