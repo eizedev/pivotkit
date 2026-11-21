@@ -313,7 +313,7 @@ test.describe("what the usability review found", () => {
         await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
         await chipMenu(page, "Region");
-        await search.fill("compare its total");
+        await search.fill("filter by total");
         await search.press("ArrowDown");
         await page.keyboard.press("Enter");
         await expect(menu.getByTestId("level-title")).toHaveText("Region › Filter");

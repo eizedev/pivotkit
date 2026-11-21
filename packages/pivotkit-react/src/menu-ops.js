@@ -150,7 +150,8 @@ export function setItemFilter(view, field, selected, all) {
  * @param {{ op: string, value: string, on: "value" | "label" } | null} condition
  */
 export function setLabelFilter(view, field, condition) {
-    return replaceFilters(view, field, ["text"], condition && condition.value !== "" ? [textRule(field, condition)] : []);
+    // a text of spaces only matches as an empty one: no condition, as in the Filter level's rule
+    return replaceFilters(view, field, ["text"], condition && condition.value.trim() !== "" ? [textRule(field, condition)] : []);
 }
 
 /**

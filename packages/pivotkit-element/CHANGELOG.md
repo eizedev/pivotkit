@@ -19,6 +19,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- Plainer words in the filter and "Filter by …" on the buttons that add a rule. See
+  pivotkit-react's changelog ([#595](https://github.com/eizedev/pivotkit/issues/595),
+  [#177](https://github.com/eizedev/pivotkit/issues/177)).
 - On a touch screen every button takes a finger, at least 44 x 44 px. See pivotkit-react's
   changelog ([#72](https://github.com/eizedev/pivotkit/issues/72)).
 - The first load is about 6 KiB smaller (gzip). Three parts load later
