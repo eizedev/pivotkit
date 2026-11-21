@@ -8,6 +8,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- A date in Filters has **Group** in its chip's menu, as on Rows and Columns. A unit such as Year
+  puts the grouping in the date's place among the Filters, with every item kept
+  ([#100](https://github.com/eizedev/pivotkit/issues/100)).
 - A click on a column's name in the table sorts the rows by that column ("Largest Average of Mean °C
   in Jul first"); a column field's name sorts that field. Every name that sorts shows a faint arrow
   at rest, on a desktop too, and a column's arrow takes no room of its own
