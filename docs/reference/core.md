@@ -445,9 +445,6 @@ has `kind` (`"max"` or `"min"`), `series` (`null` for a stack's total), `index` 
 average, no trend and no high and low points. A target over values in different units is off. `notes` says why, as codes: `"noTotal"`,
 `"percentStack"`, `"negative"`, `"noTime"`, `"byIndex"` and `"mixedUnits"`.
 
-`COLOR_SCALES` holds the colour scales pivotkit-react's value menu offers, low to high, as a view's
-`conditional.colors`: `blueOrange`, `blueRed` and `redGreen`. The theme's scale has none.
-
 `valueAddsUp(value)` says whether a view's value adds up across a category's series: an additive
 aggregator (`CATALOG.additiveAggregators`), shown as itself or as a type of
 `CATALOG.additiveShowAs`. One that walks an axis must walk the rows. The tooltip's total and a
@@ -626,6 +623,7 @@ files contain and where Excel's number formats cannot follow the grid.
 | `AGGREGATOR_ALIASES` | Other tools' names of aggregators and the ones they mean: `avg` and `mean` are `average`, `cnt` is `count`, `total` is `sum`, `distinct` is `countUnique`, `stddev` is `stdev`. For "did you mean" only: a view never accepts them. |
 | `foldText(text, match?)` | A text folded as text filters compare it. `match` is `{ case: "insensitive" \| "sensitive", whitespace: "collapse" \| "exact" }`, default `MATCH_DEFAULTS`. `insensitive` lower-cases with `toLowerCase()`, which does not depend on the runtime's locale. `collapse` turns every run of whitespace, a no-break space (U+00A0) among them, into one space and trims the ends. A UI's search over a field's items folds with it, so a search and a text filter agree. |
 | `MATCH_DEFAULTS` | `{ case: "insensitive", whitespace: "collapse" }`. |
+| `COLOR_SCALES` | The colour scales pivotkit-react's value menu offers, low to high, as a view's `conditional.colors`: `blueOrange`, `blueRed` and `redGreen`, each three `#rrggbb` colours. The theme's scale has none. |
 | `closest(name, candidates)` | "Did you mean": the name of `candidates` closest to `name` as `foldText` folds both, else `null`. The edit distance is at most a third of the name's length, at least 1 and at most 3. A swap of two neighbours is one edit. `HINT_LIMITS` (`{ candidates: 1000, length: 64, distance: 3 }`) bounds it, so a hint costs a few thousand steps per name at most. The view's hints, pivotkit-report's template check and pivotkit-cli's options use it. |
 | `DEFAULT_LABELS` | The texts the engine writes (blank, totals, value names, aggregator names, "show as" names), to override per call with `labels`. |
 | `REPORT_LABELS`, `reportLabels(locale)` | The same texts as a report shows them, per language. `en` has yes/no as words and the aggregators' longer names ("Distinct count"). `de` has "Gesamtergebnis" and "Summe von Units". `reportLabels` gives a locale's texts: German for `"de-DE"`, English for any other. pivotkit-react's report and pivotkit-report use them. |

@@ -301,8 +301,8 @@ export function formatLabel(format, labels, locale) {
     return Object.hasOwn(labels.formats, kind) ? labels.formats[kind] : format;
 }
 
-/** The theme's colour scale as a strip: its low and high tokens (styles.css). */
-const THEME_SCALE = Object.freeze(["var(--pk-scale-low)", "var(--pk-scale-high)"]);
+/** The theme's colour scale as a strip: its low, middle and high tokens (styles.css; table.jsx SCALE_MID). */
+const THEME_SCALE = Object.freeze(["var(--pk-scale-low)", "var(--pk-scale-mid, color-mix(in srgb, var(--pk-scale-low), var(--pk-scale-high)))", "var(--pk-scale-high)"]);
 
 /**
  * The colours of a value's colour scale (Highlight › Colour scale on): the theme's, then pivotkit-core's
@@ -323,7 +323,7 @@ function scaleTopic(colors, write, labels) {
         ...(own ? [{ id: "scale-own", text: labels.scaleOwn, scale: colors, checked: true, change: () => null }] : [])
     ];
     const current = choices.find((c) => c.checked);
-    return { id: "scaleColors", title: labels.scaleColors, kind: "menu", icon: "sparkle", state: current?.text, changed: colors.length > 0, keywords: labels.scaleKeywords, groups: [{ choices }] };
+    return { id: "scaleColors", title: labels.scaleColors, kind: "menu", icon: "heatmap", state: current?.text, changed: colors.length > 0, keywords: labels.scaleKeywords, groups: [{ choices }] };
 }
 
 /**

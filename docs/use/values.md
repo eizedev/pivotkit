@@ -150,14 +150,16 @@ Such a value keeps Summarize by, Name and Move.
 With a colour scale on, the row **Colours** below Highlight picks its colours. Each choice shows
 them as a strip:
 
-- **Light to dark blue**: the theme's colours, the default.
+- **Theme colours, light to dark**: the default. In the standard theme they are light to dark blue.
 - **Low blue, high orange**: two colours that people with red-green colour blindness tell apart.
 - **Low blue, high red**: cold to warm, such as temperatures.
 - **Low red, high green**: bad to good. Some people cannot tell red and green apart, and the menu
   says so.
 
-A choice applies at once and stays with the view, also in a link or a saved view. Every choice
-keeps a cell's text readable, in the light and the dark theme.
+The strip shows the colours as the cells do: mixed into the report's background.
+
+A choice applies at once and stays with the view, also in a link or a saved view. In the standard
+light and dark themes, every choice keeps a cell's text readable.
 
 Totals get no highlight. The Excel export keeps both as Excel's own conditional formats, in the
 colours the report shows.

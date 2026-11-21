@@ -15,8 +15,8 @@ const ends = (page) =>
     });
 
 for (const [lang, t] of [
-    ["en", { colours: "Colours", theme: "Light to dark blue", orange: "Low blue, high orange", red: "Low red, high green" }],
-    ["de", { colours: "Farben", theme: "Hellblau bis Dunkelblau", orange: "Niedrig blau, hoch orange", red: "Niedrig rot, hoch grün" }]
+    ["en", { colours: "Colours", theme: "Theme colours, light to dark", orange: "Low blue, high orange", red: "Low red, high green" }],
+    ["de", { colours: "Farben", theme: "Farben des Designs, hell bis dunkel", orange: "Niedrig blau, hoch orange", red: "Niedrig rot, hoch grün" }]
 ]) {
     test(`${lang}: a value's colour scale takes other colours from the menu, and the theme's back`, async ({ page }) => {
         await page.goto(`?data=sales&lang=${lang}`);

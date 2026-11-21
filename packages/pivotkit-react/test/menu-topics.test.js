@@ -304,12 +304,12 @@ test("Highlight › Colour scale offers its colours in a level: the theme's firs
     const topic = byId(valueTopics({ view, index: 0, types, labels: MENU.en, locale: "en-US" }), "scaleColors");
     const choices = topic.groups.flatMap((g) => g.choices);
     assert.deepEqual(choices.map((c) => [c.id, c.text, c.checked]), [
-        ["scale-theme", "Light to dark blue", true],
+        ["scale-theme", "Theme colours, light to dark", true],
         ["scale-blueOrange", "Low blue, high orange", false],
         ["scale-blueRed", "Low blue, high red", false],
         ["scale-redGreen", "Low red, high green", false]
     ]);
-    assert.equal(topic.state, "Light to dark blue");
+    assert.equal(topic.state, "Theme colours, light to dark");
     assert.equal(topic.changed, false);
     // red and green: said that some people cannot tell them apart
     assert.ok(choices[3].note.length > 10);
@@ -327,5 +327,5 @@ test("Highlight › Colour scale offers its colours in a level: the theme's firs
     assert.equal(ownTopic.state, "The view's own colours");
     // German
     const de = byId(valueTopics({ view, index: 0, types, labels: MENU.de, locale: "de-DE" }), "scaleColors");
-    assert.deepEqual(de.groups.flatMap((g) => g.choices).map((c) => c.text), ["Hellblau bis Dunkelblau", "Niedrig blau, hoch orange", "Niedrig blau, hoch rot", "Niedrig rot, hoch grün"]);
+    assert.deepEqual(de.groups.flatMap((g) => g.choices).map((c) => c.text), ["Farben des Designs, hell bis dunkel", "Niedrig blau, hoch orange", "Niedrig blau, hoch rot", "Niedrig rot, hoch grün"]);
 });

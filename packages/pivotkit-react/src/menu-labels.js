@@ -285,8 +285,8 @@ export const en = {
     // Highlight › Colour scale: its colours, low to high
     scaleColors: "Colours",
     scaleKeywords: "colour color scale palette",
-    scaleNames: { theme: "Light to dark blue", blueOrange: "Low blue, high orange", blueRed: "Low blue, high red", redGreen: "Low red, high green" },
-    scaleRedGreenHint: "Some people cannot tell red and green apart.",
+    scaleNames: { theme: "Theme colours, light to dark", blueOrange: "Low blue, high orange", blueRed: "Low blue, high red", redGreen: "Low red, high green" },
+    scaleRedGreenHint: "Some people cannot tell red and green apart. Blue and orange are easier.",
     scaleOwn: "The view's own colours",
     colorScale: "Colour scale",
     dataBar: "Data bars",

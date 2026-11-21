@@ -1344,6 +1344,13 @@
     border: 1px solid var(--pk-border);
     border-radius: var(--pk-radius-xs);
     background: var(--pk-swatch);
+    /* the colours as a cell shows them: mixed into the surface (.pk-td.pk-has-scale), 52 % of it light */
+    box-shadow: inset 0 0 0 100vmax color-mix(in srgb, var(--pk-surface) 52%, transparent);
+}
+
+.pk-root[data-pk-theme="dark"] .pk-scale-swatch {
+    /* dark: 70 % of the surface over the colours, as the cells mix them */
+    box-shadow: inset 0 0 0 100vmax color-mix(in srgb, var(--pk-surface) 70%, transparent);
 }
 
 /* a mark after an entry's text (the menu of "+ Add": the zones a field is in) */
