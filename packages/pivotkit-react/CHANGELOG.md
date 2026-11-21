@@ -8,6 +8,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- A date in Filters has **Group** in its chip's menu, as on Rows and Columns. A unit such as Year
+  puts the grouping in the date's place among the Filters, with every item kept
+  ([#100](https://github.com/eizedev/pivotkit/issues/100)).
 - Chart settings offers **Bars and lines** and **Treemap**. Bars and lines needs two fields in
   Values and says so. A treemap's labels take the token colour that reads on each tile
   ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).

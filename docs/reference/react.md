@@ -1041,7 +1041,7 @@ applies.
 | Menu | First level | Levels |
 | --- | --- | --- |
 | A field on Rows or Columns | Sort (A to Z, Z to A side by side), sort by its one value, Filter, Top items, Move to, Remove field | Sort by value (two or more values, or a custom order), Filter, Group (dates), Number ranges (numbers), Top items, Move to |
-| A field in Filters | Filter, Move to, Remove field | Filter, Move to |
+| A field in Filters | Filter, Group (dates), Move to, Remove field | Filter, Group (dates), Move to |
 | A value | Summarize by, Show as, Number format, Highlight (side by side), Name, Move to, Remove field | Summarize by, Show as, Number format, Name, Move to |
 | Table settings | Totals, Rows (Expand all, Collapse all with what it keeps: "Show Region only") | |
 | Chart settings | the chart types, then Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series, Layout | each Display topic. Layout ends with "Show each Country" and "Show Region only" |

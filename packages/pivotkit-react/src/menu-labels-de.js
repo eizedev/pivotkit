@@ -252,6 +252,7 @@ export const de = {
     groupNone: "Keine Gruppierung (jedes Datum mit Uhrzeit)",
     groupTimeline: "Ein Eintrag pro Zeitraum",
     groupCyclic: "Gleicher Zeitraum, Jahre zusammengefasst",
+    groupClearsFilter: "Eine andere Gruppierung beginnt mit allen Einträgen; Rückgängig holt den Filter zurück.",
     groupDataRange: {one: "Daten vor den Filtern: {range} ({count} Tag)", other: "Daten vor den Filtern: {range} ({count} Tage)"},
     groupYearsTogether: {one: "{count} Jahr zusammen", other: "{count} Jahre zusammen"},
     unitHints: {

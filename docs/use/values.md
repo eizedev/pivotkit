@@ -265,15 +265,14 @@ With one item per period, the years 0–99 and dates before year 1 keep their ow
 
     **The same period of one year only** (Quarter of year on Columns, 2025 only).
 
-    1. Put the date on **Rows**, for example next to City, and group it by **Year**.
-    2. Open that chip's menu › **Move to** › **Move to Filters**. The chip moves to Filters as "Date
-       by year", with its years.
+    1. Add the date to **Filters**: **+ Add** next to Filters, or **Add to Filters** in the field's
+       menu in the field list.
+    2. Open its chip's menu › **Group** › **Year**. The chip becomes "Date by year", in the same
+       place.
     3. Open it › **Filter** and keep only 2025: **Only** next to 2025.
 
-    A chip in Filters has no Group level. A date you add to Filters straight from the field list is
-    grouped by the span of its dates, as on an axis. For three years that is by quarter, and you
-    could tick the four quarters of 2025 there. To filter by year, group the date on Rows or Columns
-    first and then move it.
+    A date you add to Filters is grouped by the span of its dates, as on an axis. For three years
+    that is by quarter. **Group** in its menu changes that, as on Rows and Columns.
 
     **Which years does the data cover?**
 
