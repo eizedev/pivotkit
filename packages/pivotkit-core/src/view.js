@@ -170,7 +170,8 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  *   row fields the first one's items as group labels under the axis (CHART_GROUP_LABELS), what the
  *   tooltip covers (CHART_TOOLTIPS), the zoom slider (CHART_ZOOMS), bars and areas stacked to 100 %
  *   (stackPercent), the legend entries hidden (series, or slices of a pie), by name, the reference
- *   lines and the high and low points (`extremes`) of bars, lines and areas (referenceLineRules), a fixed colour per series or slice by name
+ *   lines and the high and low points (`extremes`) of bars, lines and areas (referenceLineRules), a
+ *   fixed colour per series or slice by name
  *   (`colors`, #rgb or #rrggbb) and the share of the total in the tooltip (`tooltipShare`)
  *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
  *

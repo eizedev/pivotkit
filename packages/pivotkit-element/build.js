@@ -338,13 +338,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * High and low points on a chart (#574): ECharts' markPoint component draws the dots and their labels
  * (0.6 KiB of the chart group alone), with pivotkit-core's points (extremePoints), the layout that
  * keeps their labels inside the plot and apart (chart-fit.js pointLabels) and their sentence in the
- * text alternative (1.8 together). The chart group goes from 241.5 to 243.9 with Homebrew's zlib;
- * CI's zlib measures about 0.7 more: chart goes to 245.5.
+ * text alternative, the outline and the label budget for many series (2.3 together). The chart group
+ * goes from 241.5 to 244.4 with Homebrew's zlib; CI's zlib measures about 0.7 more: chart goes to 246.
  * The menus' German texts reach 8.0 with the switch's words (they were at the budget of 8): texts goes
  * to 8.5. The first load grows by the view key and the rule only, 180.2 to 180.3 on a Mac, within 181.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 181, chart: 245.5, export: 12.6, link: 7.5, menus: 54, texts: 8.5, unused: 6, import: 22, report: 24, template: 3 };
+export const SIZE_BUDGET_KIB = { initial: 181, chart: 246, export: 12.6, link: 7.5, menus: 54, texts: 8.5, unused: 6, import: 22, report: 24, template: 3 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

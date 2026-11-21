@@ -373,7 +373,7 @@ there swaps rows and columns for the chart. pivotkit-react and pivotkit-report d
 
 Which reference lines (`chart.referenceLines`) a chart can draw, by the view alone. `chart` is what
 is drawn, `chartPlan`'s `chart`, never `"auto"`. It gives `{ average, trend, target, extremes }`,
-each `true` or `false`. `extremes`, the high and low points, follows `average`:
+each `true` or `false`. High and low points (`extremes`) are drawn wherever an average is:
 
 - Pie, donut and heatmap: none.
 - Bars, lines and areas side by side: all three. A trend only along a time line: every field on
@@ -441,8 +441,8 @@ has `kind` (`"max"` or `"min"`), `series` (`null` for a stack's total), `index` 
 `value` and `format(value)`. A series whose values are all the same has none.
 
 `referenceLineChecks(result, { chart, series })` gives `{ average, trend, target, extremes, notes }`:
-`referenceLineRules` with what depends on the numbers. A stack with a part below zero has no average,
-trend or high and low points. A target over values in different units is off. `notes` says why, as codes: `"noTotal"`,
+`referenceLineRules` with what depends on the numbers. A stack with a part below zero has no
+average, no trend and no high and low points. A target over values in different units is off. `notes` says why, as codes: `"noTotal"`,
 `"percentStack"`, `"negative"`, `"noTime"`, `"byIndex"` and `"mixedUnits"`.
 
 `valueAddsUp(value)` says whether a view's value adds up across a category's series: an additive

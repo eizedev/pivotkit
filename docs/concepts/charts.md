@@ -208,10 +208,14 @@ A series' lines take its colour. The lines of no series, a target and a stack's 
 - The first of equal values gets the point. A series whose values are all the same gets none.
 - `toEChartsOption` draws them as a silent ECharts `markPoint` on the series: a dot in the series'
   colour (a stack's in `--pk-chart-reference`), a label with ▲ or ▼ in that colour and the value in
-  the text colour. A palette colour such as yellow does not reach the contrast text needs.
+  the text colour. A palette colour such as yellow is too light for text, so the value keeps the
+  text colour.
 - `decorateOption` keeps the labels inside the plot: the value axis reaches past them
-  (`dataMin`, `dataMax`). Labels that would cover each other move beside their dots, or are left
-  out. With `pixelOf` it uses the real heights after a first draw.
+  (`dataMin`, `dataMax`). A label that would take the axis across zero sits beside its dot.
+- Labels that would cover each other move beside their dots, or are left out. With `pixelOf` it
+  uses the real heights after a first draw.
+- With more than 8 series, only the chart's highest and lowest value keep a label. Every dot stays.
+- The labels and dots get an outline in `--pk-surface`, so they read over a line.
 
 The report's `--pk-*` tokens set these parts of the chart, so a corporate theme reaches the chart too
 ([Theming](../reference/theming.md#chart-colours)):

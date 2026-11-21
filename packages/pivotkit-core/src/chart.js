@@ -454,6 +454,8 @@ function markPoints(points, s, { type, horizontal, theme, colorOf, raised, hidde
         const label = `${p.format(p.value)}`;
         bySeries[holder].push({
             name: p.kind,
+            // the label's words without its markup: decorateOption measures them
+            text: `${POINT_GLYPHS[p.kind]} ${label}`,
             coord: horizontal ? [p.value, p.index] : [p.index, p.value],
             value: p.value,
             ...(color ? { itemStyle: { color } } : {}),

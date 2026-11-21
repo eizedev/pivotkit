@@ -224,3 +224,17 @@ test("decorateOption: a label reads over a line it crosses, outlined in the back
     assert.deepEqual([label.textBorderColor, label.textBorderWidth, label.rich.s.textBorderColor], ["#101418", 3, "#101418"]);
     assert.equal(out.series[0].markPoint.data[0].itemStyle.borderColor, "#101418");
 });
+
+test("decorateOption: more than eight series keep every dot, but only the chart's highest and lowest value keep a label", () => {
+    const style = { getPropertyValue: () => "" };
+    const rows = encode(Array.from({ length: 10 }, (_, k) => [1, 2, 3].map((m) => ({ Month: `m${m}`, City: `c${k}`, T: k * 3 + m }))).flat());
+    const r = computePivot(rows, { rows: ["Month"], cols: ["City"], values: [{ field: "T", agg: "sum" }], chart: { type: "line", referenceLines: ON } });
+    const out = decorateOption(toEChartsOption(r), style, { width: 1200, height: 480 });
+    const data = out.series.flatMap((s) => s.markPoint?.data ?? []);
+    assert.equal(data.length, 20, "a dot for each series' highest and lowest");
+    assert.deepEqual(data.filter((d) => d.label.show !== false).map((d) => d.text).sort(), ["▲ 30", "▼ 1"]);
+    // eight series: every label
+    const eight = computePivot(rows, { rows: ["Month"], cols: ["City"], values: [{ field: "T", agg: "sum" }], filters: [{ field: "City", type: "in", items: ["c0", "c1", "c2", "c3", "c4", "c5", "c6", "c7"] }], chart: { type: "line", referenceLines: ON } });
+    const all = decorateOption(toEChartsOption(eight), style, { width: 1200, height: 480 }).series.flatMap((s) => s.markPoint?.data ?? []);
+    assert.ok(all.filter((d) => d.label.show !== false).length > 2);
+});

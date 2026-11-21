@@ -1,9 +1,9 @@
 /*
  * A chart's reference lines (chart.referenceLines) as numbers: the average of each series, a linear
- * trend and a target, and the high and low points of each series (extremePoints), where chart-plan.js's referenceLineRules and the numbers allow them
- * (referenceLineChecks). The ECharts option
- * (chart.js), the UI's tooltip and text summary and the report's SVG read them from here. Only a drawn
- * chart needs it: the entry point "pivotkit-core/chart" exports it.
+ * trend and a target, and the high and low points of each series (extremePoints), where
+ * chart-plan.js's referenceLineRules and the numbers allow them (referenceLineChecks). The ECharts
+ * option (chart.js), the UI's tooltip and text summary and the report's SVG read them from here. Only
+ * a drawn chart needs it: the entry point "pivotkit-core/chart" exports it.
  */
 
 import { referenceLineRules, stacksToPercent } from "./chart-plan.js";
@@ -208,8 +208,12 @@ export function extremePoints(result, { chart, series, locale } = {}) {
             if (typeof v !== "number") {
                 return;
             }
-            if (max < 0 || v > /** @type {number} */ (l.data[max])) max = i;
-            if (min < 0 || v < /** @type {number} */ (l.data[min])) min = i;
+            if (max < 0 || v > /** @type {number} */ (l.data[max])) {
+                max = i;
+            }
+            if (min < 0 || v < /** @type {number} */ (l.data[min])) {
+                min = i;
+            }
         });
         if (max >= 0 && l.data[max] !== l.data[min]) {
             const format = formatOf(l.series, true);

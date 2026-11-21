@@ -9,7 +9,7 @@
 
 import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
-import { barExtent, pieLabelFit, pieLabelTexts, pointLabels, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
+import { POINT_HALO, barExtent, pieLabelFit, pieLabelTexts, pointLabels, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
 import { AXIS_LABEL_MARGIN, LINE_SAMPLES, groupLabelLine, groupLabelOffset, heatmapFrame, lineLabelText, textWidth } from "./chart-measure.js";
 import { ZOOM_SLIDER, longestNames, zoomRange, zoomSlider, zoomWindow } from "./chart-zoom.js";
 
@@ -181,7 +181,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     const cellFrame = (option.series || []).some((s) => s.type === "heatmap") ? heatmapFrame({ top: option.grid?.top, bottom: option.grid?.bottom, names: option.xAxis?.data ?? [], width, fontSize }) : undefined;
     // the labels of the high and low points read over a line they cross: an outline in the background's
     // colour, the dot a ring of it
-    const halo = surface ? { textBorderColor: surface, textBorderWidth: 3 } : {};
+    const halo = surface ? { textBorderColor: surface, textBorderWidth: POINT_HALO } : {};
     const ringed = (/** @type {any} */ s) => (s.markPoint ? { ...s, markPoint: { ...s.markPoint, data: s.markPoint.data.map((/** @type {any} */ d) => ({ ...d, itemStyle: { ...d.itemStyle, ...(surface ? { borderColor: surface, borderWidth: 1.5 } : {}) }, label: { ...d.label, ...halo, rich: Object.fromEntries(Object.entries(d.label?.rich ?? {}).map(([k, r]) => [k, { ...r, ...halo }])) } })) } } : s);
     // a bar lights up alone, as the tooltip names it alone; a line lights up as a whole
     let series = (option.series || []).map(ringed).map((s) => {

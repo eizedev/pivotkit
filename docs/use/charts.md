@@ -259,14 +259,19 @@ target you set. High and low points mark the highest and the lowest value of eac
 
 - The dot has the series' colour. Its label starts with ▲ for the highest value or ▼ for the
   lowest, in the same colour, then the value as the table writes it.
-- On a line, the highest label sits above its dot, the lowest below. On bars, both sit past the
-  bar's end.
+- On a line, the highest label sits above its dot and the lowest below it.
+- On bars and areas, both labels sit above the dot. On a bar, that is past the bar's end.
+- A label never stretches the axis across zero. Near zero, it sits beside its dot.
+- Labels have an outline in the background's colour, so they read over a line.
 - A stack marks the highest and lowest total, in the neutral colour of a target.
 - Two labels that would cover each other move beside their dots. A label that still has no room
-  is left out; its dot stays, and the tooltip names the value.
+  is left out. Its dot stays, and the tooltip names the value.
+- With more than 8 series, every dot stays, but only the chart's highest and lowest value keep a
+  label.
 - Where two categories share the highest value, the first one gets the dot. A series whose values
   are all the same gets none.
-- The text for screen readers names each series' highest and lowest value and where it is.
+- The text for screen readers names the highest and lowest value and where it is. With several
+  series, it names them for each series.
 - The chart image, the HTML report and the chart as SVG draw the points too.
 
 ??? info "Which charts draw which line"
