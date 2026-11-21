@@ -6,6 +6,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-21
+
 ### Added
 
 - An HTML report of a view with `display: "both"` has the chart above the table
@@ -24,6 +26,7 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.9.0` (was `^0.8.0`).
 - **Breaking:** needs Node 24 or later. Node 22 is no longer supported
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
 - `create_link` and `draft_schedule` take exactly one of `view` or `layout`, through the same
@@ -242,7 +245,8 @@ First release.
   (`chart`, `chartEmbed`, `bom`, `strict`, `trusted`) takes only those, and `chart: true` without
   `echarts` is an error. `bom: false` writes CSV without a byte order mark.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.4.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.5.0...HEAD
+[0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.4.0...pivotkit-report@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.3.0...pivotkit-report@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.2.1...pivotkit-report@0.3.0
 [0.2.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.2.0...pivotkit-report@0.2.1

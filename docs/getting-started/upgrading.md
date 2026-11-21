@@ -159,10 +159,13 @@ claude plugin update pivotkit-mcp@pivotkit
 
 Then restart Claude Code.
 
-## From 0.8.2 to the next release { #from-0-8-2 }
+## From 0.8.2 to 0.9.0 { #from-0-8-2 }
+
+This applies to pivotkit-server and pivotkit-mcp 0.3.2 too, which move to 0.4.0 with pivotkit 0.9.
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
+| [Versions move together](#versions-0-9) | you also install pivotkit-core, pivotkit-report or pivotkit-xlsx yourself, or pivotkit-server and pivotkit-mcp side by side | update them to the same release |
 | **Breaking:** [`http.publicUrl` is an origin](#public-url-origin) | `http.publicUrl` or `--public-url` has a path, such as `https://example.com/reports`, or a user name, password, query or fragment | serve pivotkit on a host name of its own, or route its paths at the root of the shared host. Then set the origin |
 | **Breaking:** [Node 24 or later](#node-24) | you run pivotkit's packages on Node 22 | update Node to 24 or later. The container image brings its own Node 24 |
 | [The element reads `"false"` as off](#element-false) | a page writes `save-templates`, `can-publish`, `allow-import` or `loading` with the value `"false"` | nothing, unless you meant it as on: then leave the value out |
@@ -183,8 +186,20 @@ Then restart Claude Code.
 | [Table and chart side by side](#display-both) | you share views with pivotkit 0.8, or a program reads `display` | nothing. A view shown as both has `display: "both"` |
 | [High and low points in the chart](#chart-points) | you share views with pivotkit 0.8, or your tests compare a normalized view or the chart option as a whole | nothing. A normalized view has `extremes` in `chart.referenceLines` |
 | [A click in the chart opens a menu](#chart-click-menu) | your app uses `onCellClick` or `pivot-cell-click` for chart points, or your tests click a chart to open its rows | expect the call at **Show the rows** or a double click. In tests, click **Show the rows** or double-click |
+| [Plainer filter words](../use/filters.md#rule-on-the-name) | your tests, screenshots or `labels` use the filter's texts, such as "Text condition" | expect "Only if the name…" and buttons such as "Filter by Region" and "Filter by total" |
+| [Touch targets of 44 x 44 px](../use/keyboard.md#touch-and-sizes) | your app runs on phones or tablets, or your screenshots show a touch layout | nothing; take touch screenshots again. The controls leave a little less room on a phone |
+| [German texts load before a German report renders](../reference/localisation.md#built-in-languages) | your page shows a German report, or your tests read its texts | nothing. Tests wait for a German text, not only for the first render |
+| [An HTTP source reads JSON while it arrives](../reference/sources.md#http-rows) | an HTTP source answers JSON whose body repeats a key on the way to its rows after them | fix the backend's answer: such a body is refused with `SOURCE_UNAVAILABLE` |
 | [A strict `computePivot`](#strict) | you want a bad view to throw instead of giving numbers | pass `strict: true` |
 | [`PivotView` in pivotkit-react](#pivot-view-type) | your TypeScript code imports `ViewInput` from pivotkit-react | import `PivotView` instead. `ViewInput` still works ([PK-DEP-0001](../versioning.md#register)) |
+
+### Versions move together { #versions-0-9 }
+
+Each package depends on the others of the same release, and in 0.x a caret range admits one minor
+only. A host may also list pivotkit-core, pivotkit-report or pivotkit-xlsx itself. It then updates
+them to the versions released with pivotkit-react 0.9: pivotkit-core 0.9.0, pivotkit-report 0.5.0
+and pivotkit-xlsx 0.6.0. Otherwise npm installs two copies. pivotkit-server 0.4.0 and pivotkit-mcp
+0.4.0 belong together the same way: [update them in one command](#update-global).
 
 ### Two chart types: bars and lines, and a treemap { #combo-treemap }
 
@@ -456,8 +471,8 @@ height (`--pk-shelf-pad-block`) ([theming](../reference/theming.md)).
 ## From 0.7 to 0.8 { #from-0-7 }
 
 This applies to pivotkit-server and pivotkit-mcp 0.2.0 too, which move to 0.3.0 with pivotkit 0.8.
-Run `check-config` of the new release before you start it. It says what applies to your
-configuration, under "New in this version", with a link to each section below.
+`check-config` of pivotkit-server 0.3 says what applies to your configuration, under "New in this
+version", with a link to each section below. Later releases no longer print these notes.
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |

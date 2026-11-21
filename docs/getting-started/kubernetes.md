@@ -8,7 +8,7 @@ description: Run pivotkit-server with the REST service and the MCP server on Kub
 This page runs the [container image](../reference/container.md) on Kubernetes. One Deployment
 serves the [REST service](../reference/rest.md) at `/api/v1` and the [MCP server](../reference/mcp.md)
 at `/mcp` on port 3333, from one configuration file. The example manifest
-[docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.3.2/docker/kubernetes.example.yaml)
+[docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.4.0/docker/kubernetes.example.yaml)
 holds every part shown below. The sections explain each one.
 
 ## Set it up { #setup }
@@ -16,7 +16,7 @@ holds every part shown below. The sections explain each one.
 1. Download the manifest:
 
     ```bash
-    curl -fsSLO https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.3.2/docker/kubernetes.example.yaml
+    curl -fsSLO https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.4.0/docker/kubernetes.example.yaml
     ```
 
 2. Edit your copy. Always set these:
@@ -213,7 +213,7 @@ An HTTP source's first call loads the backend's answer and computes over it. Thi
 much the server process grew during that call. The main thread and the workers count together. It
 also shows the largest JavaScript heap of the main thread, without the answer's bytes. It ran on
 one laptop with Node 26 on macOS, with seven columns, one of them hidden. Each value is the median
-of three runs and only a rough order. The 66 MB and 34 MB answers needed a larger `http.maxBytes`
+of three runs and only a rough order. The 66 MB and 34 MB answers needed a larger `sources.<id>.http.maxBytes`
 and `limits.fileBytes`.
 
 | Answer | Rows | Size | Memory added | Main thread heap |
@@ -611,7 +611,7 @@ pod stops before the new one starts.
 
 ## The whole manifest { #manifest }
 
-[docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.3.2/docker/kubernetes.example.yaml)
+[docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.4.0/docker/kubernetes.example.yaml)
 holds, in this order:
 
 - the Namespace

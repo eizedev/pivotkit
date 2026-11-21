@@ -6,6 +6,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-21
+
 ### Added
 
 - `POST /api/v1/sources/records` answers the rows of one source to a person who signed in: an OAuth
@@ -76,6 +78,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.9.0`, `pivotkit-report` `^0.5.0`, `pivotkit-cli` `^0.5.0` and
+  `pivotkit-xlsx` `^0.6.0`.
+- `check-config` no longer prints the notes of 0.3.0 under "New in this version": connections per
+  address, open sources hidden by default, the drafts' share of the output directory and the inline
+  csv and json results. This release has no note of its own there.
 - **Breaking:** `http.publicUrl` and `--public-url` take an origin. A path, user name, password,
   query or fragment stops the start with an error that names the remedy. Download links, the
   OpenAPI document, the REST resource, the 404 text, `check-config` and the hints of `token new`
@@ -97,7 +104,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   csv, tsv, txt, json and xlsx files". The codes stay
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#neutral-texts)).
 - A download sign-in with another issuer than `auth.issuer` points to the docs instead of an issue.
-- Breaking: `pivotkit-server` exports only its public names. The names pivotkit-mcp shares with it
+- **Breaking:** `pivotkit-server` exports only its public names. The names pivotkit-mcp shares with it
   move to `pivotkit-server/internal`, which is no public interface. `pivotkit-server/policy` exports
   the policy's public part. A host that imported a moved name reads the
   [upgrading page](https://pivotkit.eize.dev/getting-started/upgrading/#internal-exports) (#561).
@@ -108,6 +115,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
+- `docker/pivotkit.example.json` sets `"policy": { "results": true }`. With Compose, step 3 of
+  "Server in 5 minutes" downloads the rendered file.
 - A missing print template fails only html reports. Other formats, `describe_source` and
   `validate_view` over the source answer as usual (#614).
 - An html render whose print template cannot be read answers 502 `SOURCE_UNAVAILABLE` with a fixed
@@ -1006,7 +1015,8 @@ First release.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.2...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.4.0...HEAD
+[0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.2...pivotkit-server@0.4.0
 [0.3.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.1...pivotkit-server@0.3.2
 [0.3.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.0...pivotkit-server@0.3.1
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.2.0...pivotkit-server@0.3.0

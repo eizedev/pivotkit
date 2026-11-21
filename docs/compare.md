@@ -89,7 +89,7 @@ project's own docs name.
 
 | | Licence | Latest release | Where the pivot is computed | Rows its docs name | Frameworks | Excel (.xlsx) export |
 | --- | --- | --- | --- | --- | --- | --- |
-| **pivotkit** | MIT | 0.8.2 on 2026-11-19 | JavaScript on the page; the engine also in Node | [Measured up to 1,000,000](concepts/limits.md#measured-in-the-browser) (Apple M4, 16 GB) | React 18 and 19, web component, Node | [Native, of the pivoted view](use/export.md) |
+| **pivotkit** | MIT | 0.9.0 on 2026-11-21 | JavaScript on the page; the engine also in Node | [Measured up to 1,000,000](concepts/limits.md#measured-in-the-browser) (Apple M4, 16 GB) | React 18 and 19, web component, Node | [Native, of the pivoted view](use/export.md) |
 | [Perspective](https://perspective-dev.github.io/) | [Apache-2.0](https://github.com/perspective-dev/perspective/blob/master/LICENSE.md) | [5.9.1 on 2026-11-12](https://github.com/perspective-dev/perspective/releases/tag/v5.9.1) (`@perspective-dev/*`) | [WebAssembly in a Web Worker, or on a server; also SQL engines](https://perspective-dev.github.io/guide/use_cases/large_datasets.md) | ["Millions of rows is routine; tens of millions is practical for narrow numeric tables"](https://perspective-dev.github.io/guide/use_cases/large_datasets.md) | Web component, React, Python, Node, Rust | [None built in](https://perspective-dev.github.io/guide/FAQ.md); CSV, Arrow, HTML |
 | [Graphic Walker](https://docs.kanaries.net/graphic-walker) | [Apache-2.0](https://github.com/Kanaries/graphic-walker/blob/main/LICENSE) | [0.6.0 on 2026-11-12](https://github.com/Kanaries/graphic-walker/releases/tag/v0.6.0) | [Web workers; DuckDB WASM or your server optional](https://docs.kanaries.net/graphic-walker/guides/computation) | [100K-1M "Usable", above 1M on a server](https://docs.kanaries.net/graphic-walker/faq) | React 19, plain JS mount functions | Not found; [SVG, PNG](https://docs.kanaries.net/graphic-walker/guides/chart-export), CSV |
 | [PivotTable.js](https://pivottable.js.org/) / [react-pivottable](https://github.com/plotly/react-pivottable) | MIT | [2.23.0 on 2018-11-04](https://github.com/nicolaskruchten/pivottable/releases/tag/v2.23.0) / [0.11.1 on 2026-03-13](https://github.com/plotly/react-pivottable/releases/tag/v0.11.1) | JavaScript in the browser | ["up to around a hundred thousand records"](https://github.com/nicolaskruchten/pivottable#readme) | jQuery and jQuery UI / React | Not found; TSV renderer; [open request](https://github.com/plotly/react-pivottable/issues/168) |
@@ -124,8 +124,8 @@ project's own docs name.
   each column's role. Top N and an Excel export were not found in its docs.
 - **Size**: PivotTable.js's core is 6.3 KB gzip by its README, without charts. Graphic Walker's FAQ
   names about 1.5 MB minified, roughly 400 KB gzip, with Vega-Lite. pivotkit's web component loads:
-    - first: about 175 KiB gzip, with React inside
-    - on the first chart: the chart's code, about 242 KiB gzip, ECharts with it
+    - first: about 179 KiB gzip, with React inside
+    - on the first chart: the chart's code, about 259 KiB gzip, ECharts with it
 
     Measured with `npm run size -w pivotkit-element` on 2026-11-21. See
     [bundle size](reference/element.md#bundle-size).

@@ -133,8 +133,9 @@ claude mcp add pivotkit -- npx -y pivotkit-mcp --config /Users/you/reports/pivot
 ```
 
 To let the model open any data file in a folder by path ("file:q3.csv"), add
-`--allow-dir /Users/you/reports`. Add `--list-files` to have the files listed. Every file in that
-folder is then open to the model, so put only data there that the model may use.
+`--allow-dir /Users/you/reports/data`. Add `--list-files` to have the files listed. Every file in that
+folder is then open to the model, so put only data there that the model may use. The folder must not
+hold `output.dir`: the server refuses to start then.
 
 - [Exposure policy](../reference/mcp.md#policy) has the rules.
 - [What reaches the model](../model-data.md) shows the answers a model gets at each level. It also
