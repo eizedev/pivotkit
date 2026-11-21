@@ -18,6 +18,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - A tip on stacked bars or areas of an average, a minimum or another value that does not add up:
   the top of the stack is no total. **Switch to Bars** shows the parts side by side, in English and German
   ([#536](https://github.com/eizedev/pivotkit/issues/536)).
+- Highlight › Colour scale has a row **Colours**: the theme's light to dark blue, blue to orange,
+  blue to red and red to green, each with a strip of its colours. A choice writes the value's own
+  colours (`conditional.colors`), so older versions show them too
+  ([#95](https://github.com/eizedev/pivotkit/issues/95)).
 - Chart settings offers **Bars and lines** and **Treemap**. Bars and lines needs two fields in
   Values and says so. A treemap's labels take the token colour that reads on each tile
   ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).

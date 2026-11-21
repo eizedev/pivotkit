@@ -79,7 +79,7 @@ export { CATALOG } from "./catalog.js";
 export { describeSource, describeView, DESCRIBE_LIMITS } from "./describe.js";
 export { DEFAULT_LABELS, GROUPING_NAMES, PLURAL_CATEGORIES, REPORT_LABELS, ROW_COUNT_TEXTS, fieldLabel, groupingName, pluralForm, reportLabels, withFieldLabels } from "./labels.js";
 export { fieldDefaultsFromSchema } from "./schema.js";
-export { DEFAULT_THEME } from "./defaults.js";
+export { COLOR_SCALES, DEFAULT_THEME } from "./defaults.js";
 export { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, outsideLimits } from "./limits.js";
 export { PivotkitError } from "./errors.js";
 export { linkFragment, linkParam, withLinkFragment } from "./link-fragment.js";

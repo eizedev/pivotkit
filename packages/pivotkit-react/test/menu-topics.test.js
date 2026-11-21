@@ -298,3 +298,37 @@ test("Highlight: the checked choice changes nothing; None or Data bars and back 
     assert.deepEqual(choice(highlight(bars, () => [view]), "cond-colorScale").change().view.values[0].conditional, own);
     assert.deepEqual(choice(highlight(bars), "cond-colorScale").change().view.values[0].conditional, { type: "colorScale" });
 });
+
+test("Highlight › Colour scale offers its colours in a level: the theme's first, then blue to orange, blue to red, red to green", async () => {
+    const { COLOR_SCALES } = await import("pivotkit-core");
+    const off = valueTopics({ view: norm({ rows: ["Region"], values: [units] }), index: 0, types, labels: MENU.en, locale: "en-US" });
+    assert.equal(byId(off, "scaleColors"), undefined, "no colours to pick without a colour scale");
+    const view = norm({ rows: ["Region"], values: [{ ...units, conditional: { type: "colorScale" } }] });
+    const topic = byId(valueTopics({ view, index: 0, types, labels: MENU.en, locale: "en-US" }), "scaleColors");
+    const choices = topic.groups.flatMap((g) => g.choices);
+    assert.deepEqual(choices.map((c) => [c.id, c.text, c.checked]), [
+        ["scale-theme", "Theme colours, light to dark", true],
+        ["scale-blueOrange", "Low blue, high orange", false],
+        ["scale-blueRed", "Low blue, high red", false],
+        ["scale-redGreen", "Low red, high green", false]
+    ]);
+    assert.equal(topic.state, "Theme colours, light to dark");
+    assert.equal(topic.changed, false);
+    // red and green: said that some people cannot tell them apart
+    assert.ok(choices[3].note.length > 10);
+    // a choice writes the view's own colours (conditional.colors); the theme's writes none
+    const orange = choices[1].change().view;
+    assert.deepEqual(orange.values[0].conditional, { type: "colorScale", colors: [...COLOR_SCALES.blueOrange] });
+    const back = byId(valueTopics({ view: norm(orange), index: 0, types, labels: MENU.en, locale: "en-US" }), "scaleColors");
+    assert.equal(back.state, "Low blue, high orange");
+    assert.equal(back.changed, true);
+    assert.deepEqual(back.groups.flatMap((g) => g.choices).find((c) => c.id === "scale-theme").change().view.values[0].conditional, { type: "colorScale", colors: [] });
+    // colours of the view's own (from JSON) stay a choice of their own, checked
+    const own = norm({ rows: ["Region"], values: [{ ...units, conditional: { type: "colorScale", colors: ["#000000", "#ffffff"] } }] });
+    const ownTopic = byId(valueTopics({ view: own, index: 0, types, labels: MENU.en, locale: "en-US" }), "scaleColors");
+    assert.deepEqual(ownTopic.groups.flatMap((g) => g.choices).filter((c) => c.checked).map((c) => c.id), ["scale-own"]);
+    assert.equal(ownTopic.state, "The view's own colours");
+    // German
+    const de = byId(valueTopics({ view, index: 0, types, labels: MENU.de, locale: "de-DE" }), "scaleColors");
+    assert.deepEqual(de.groups.flatMap((g) => g.choices).map((c) => c.text), ["Farben des Designs, hell bis dunkel", "Niedrig blau, hoch orange", "Niedrig blau, hoch rot", "Niedrig rot, hoch grün"]);
+});
