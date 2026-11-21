@@ -22,7 +22,7 @@ and `chartOptions`.
 - `"auto"`, the default: the data decides. A view without a type also gets it.
 - `"bar"`, `"line"`, `"area"`, `"pie"`, `"donut"` or `"heatmap"`.
 - `"combo"`: the first value as bars on the left axis, every other value as a line on the right
-  axis. With one value it draws bars.
+  axis. With one value it draws bars. It ignores `stacked`, `stackPercent` and `horizontal`.
 - `"treemap"`: a tile per category, its area the category's total over every column, as a pie's
   slice. It has no legend. `chart.hidden` leaves tiles out.
 

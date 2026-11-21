@@ -52,9 +52,10 @@ the table back.
 
 - The first field in **Values** draws bars on the left axis.
 - Every other value draws a line on the right axis.
-- Each axis is named after its values, with a small square in its series' colour.
+- Each axis is named after its values, with a small square in its series' colour. On a phone the
+  legend names them.
 - To swap bars and line, move the other value to the first place in **Values**.
-- It needs two fields in **Values**. With one, the type is greyed out and says so.
+- It needs two fields in **Values**. With one, the type is greyed out and says "Needs two values."
 - The two axes have their own scales. Where the bars and the line meet means nothing.
 - It draws no reference lines.
 
@@ -65,7 +66,9 @@ the table back.
 ![A treemap of 20 countries by population, each tile named with its value](../assets/screenshots/chart-treemap-light.png#only-light)
 ![A treemap of 20 countries by population, each tile named with its value](../assets/screenshots/chart-treemap-dark.png#only-dark)
 
-- Each tile shows its name and value. A small tile cuts them with "…"; the tooltip has both.
+- Each tile shows its name and value. A small tile cuts the text with "…". The tooltip shows both.
+- A row with a total of 0 or less gets no tile.
+- The colours only tell the tiles apart. They do not stand for a value.
 - The text on a tile is light or dark, whichever reads better on its colour.
 - It has no legend. **Chart settings › Series** hides a tile or sets its colour.
 - With a field on Columns, a tile adds up every column, as a pie does.

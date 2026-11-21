@@ -16,8 +16,8 @@ import { ZOOM_SLIDER, longestNames, zoomRange, zoomSlider, zoomWindow } from "./
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
 export { extremePoints, referenceLineChecks, referenceLines } from "./chart-lines.js";
-export { labelColorOn } from "./chart-colors.js";
 import { contrastOf, labelColorOn } from "./chart-colors.js";
+export { labelColorOn };
 
 /** Room (px) beside a combo's plot: the margins and the numbers of its two value axes, estimated. */
 const COMBO_AXES_ROOM = 136;
@@ -288,9 +288,13 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     const title = option.title ? { title: { ...option.title, textStyle: { ...option.title.textStyle, width: Math.max(40, width - 32), overflow: "truncate" } } } : {};
     // bars, lines and areas: the category axis writes every label that fits (categoryLabelLayout), the
     // group labels sit below (or left of) those labels
-    // two value axes (a combo) named above the plot: each name within half the chart, cut with "…"
+    // two value axes (a combo) named above the plot: each name within half the chart, cut with "…";
+    // a narrow chart leaves the names out (the legend names the series in the same colours) and gives
+    // their line of room back to the plot
     const named = Array.isArray(yAxis) && yAxis.length === 2 && yAxis.every((a) => a?.type === "value" && a.name);
-    const halves = named ? yAxis.map((/** @type {any} */ a) => ({ ...a, nameTruncate: { maxWidth: Math.max(40, Math.floor((width - COMBO_AXES_ROOM) / 2) - 8), ellipsis: "…" } })) : null;
+    const narrowCombo = named && width < LINE_VALUE_MIN_WIDTH;
+    if (narrowCombo && grid && typeof grid.top === "number") grid.top -= fontSize + 10;
+    const halves = named ? yAxis.map((/** @type {any} */ a) => (narrowCombo ? { ...a, name: "" } : { ...a, nameTruncate: { maxWidth: Math.max(40, Math.floor((width - COMBO_AXES_ROOM) / 2) - 8), ellipsis: "…" } })) : null;
     let axes = { xAxis: reach.xAxis ?? xAxis, yAxis: halves ?? reach.yAxis ?? yAxis };
     let axisEvery = 1;
     /** @type {object | null} the zoom slider (chart-zoom.js) */

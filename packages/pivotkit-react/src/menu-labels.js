@@ -201,7 +201,7 @@ export const en = {
     // the hint of "Automatic" in the chart type menu: the type it draws for this view
     chartAutoNow: "Now: {type}",
     // a chart type that needs more values than the report has (bars and lines need two)
-    chartNeedsValues: "Needs two fields in Values.",
+    chartNeedsValues: "Needs two values.",
     // the Views menu: the host's shared views, the user's own ("My views") and the browser store
     sharedViews: "Shared views",
     myViews: "My views",

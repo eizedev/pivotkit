@@ -95,15 +95,9 @@ export function contrastOf(a, b) {
  * @param {string[]} candidates
  */
 export function labelColorOn(fill, candidates) {
-    const bg = rgbOf(fill);
-    const read = candidates.map((c) => ({ c, rgb: rgbOf(c) })).filter((x) => x.rgb);
-    if (!bg || !read.length) {
+    const read = candidates.map((c) => ({ c, ratio: contrastOf(fill, c) })).filter((x) => x.ratio !== null);
+    if (!read.length) {
         return candidates[0];
     }
-    const lb = luminance(bg);
-    const ratio = (/** @type {[number, number, number]} */ rgb) => {
-        const l = luminance(rgb);
-        return (Math.max(l, lb) + 0.05) / (Math.min(l, lb) + 0.05);
-    };
-    return read.reduce((best, x) => (ratio(/** @type {any} */ (x.rgb)) > ratio(/** @type {any} */ (best.rgb)) ? x : best)).c;
+    return read.reduce((best, x) => (/** @type {number} */ (x.ratio) > /** @type {number} */ (best.ratio) ? x : best)).c;
 }

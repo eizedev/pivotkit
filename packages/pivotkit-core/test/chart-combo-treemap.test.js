@@ -147,10 +147,13 @@ test("decorateOption: treemap labels take --pk-text or --pk-surface, whichever r
     assert.deepEqual([out.series[0].data[1].label.textBorderColor, out.series[0].data[1].label.textBorderWidth], ["#1a1d23", 2]);
 });
 
-test("decorateOption: a combo's axis names each fit in half the chart", () => {
-    const out = decorateOption(toEChartsOption(pivot({ type: "combo" }), { theme: THEME }), { getPropertyValue: () => "" }, { width: 358, height: 300 });
+test("decorateOption: a combo's axis names each fit in half the chart; a phone leaves them to the legend", () => {
+    const option = toEChartsOption(pivot({ type: "combo" }), { theme: THEME });
+    const phone = decorateOption(option, { getPropertyValue: () => "" }, { width: 358, height: 300 });
+    assert.deepEqual(phone.yAxis.map((a) => a.name), ["", ""]);
+    const out = decorateOption(option, { getPropertyValue: () => "" }, { width: 600, height: 300 });
     for (const axis of out.yAxis) {
-        assert.ok(axis.nameTruncate.maxWidth <= 105, String(axis.nameTruncate.maxWidth));
+        assert.ok(axis.nameTruncate.maxWidth <= 224, String(axis.nameTruncate.maxWidth));
         assert.equal(axis.nameTruncate.ellipsis, "…");
     }
 });

@@ -424,7 +424,7 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * Two chart types (#518): a combo of bars and lines and a treemap. ECharts' treemap is about 12 KiB of
  * the chart group (measured for the 0.9.0 concepts, 12.0); the combo needs no ECharts part of its own.
  * The maintainer took the treemap into 0.9.0 with that cost. It loads with the chart, never first: the
- * chart group goes from 244.9 to 257.7 with Homebrew's zlib; CI's zlib measures about 0.7 more: chart
+ * chart group goes from 244.9 to 258.0 with Homebrew's zlib; CI's zlib measures about 0.7 more: chart
  * goes to 259.5. The first load gets the two names of the picker only.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */

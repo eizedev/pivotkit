@@ -77,7 +77,7 @@ test("Chart settings offers bars and lines; with one value it is greyed out and 
     const combo = report.getByTestId("chart-combo");
     await expect(combo).toBeDisabled();
     await expect(combo).toContainText("Bars and lines");
-    await expect(combo).toContainText("Needs two fields in Values.");
+    await expect(combo).toContainText("Needs two values.");
     await expect(report.getByTestId("chart-treemap")).toBeEnabled();
     report = await mount(page, { values: TWO, chart: { type: "bar" } });
     await report.getByTestId("view-settings").click();
