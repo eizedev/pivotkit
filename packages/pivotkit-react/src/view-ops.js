@@ -497,40 +497,55 @@ export function sortEntry(spec, hostOrdered) {
 }
 
 /**
- * What a click on a header of the table sorts: a row field's name sorts that field by label; a value's
- * name sorts the innermost row field by that value. Only a value's header that stands for the whole
- * row does (its column path is empty: the one value header over all columns, the values without
- * column fields, the grand total column), and only a value that gives a number (numericResult). Null
- * for every other header.
+ * What a click on a header of the table sorts: a field's name in the corner sorts that field by label
+ * (a row field or a column field); a value's name sorts the innermost row field by that value, over
+ * the whole row (an empty column path: the one value header over all columns, the values without
+ * column fields, the grand total column) or in its column (#70: the column's path, a subtotal column's
+ * too). With one value, the innermost column's own label stands for its column. Only a value that gives
+ * a number (numericResult). Null for every other header.
  * @param {any} view
- * @param {{ kind: string, field?: string, valueIndex?: number, colPath?: any[] }} cell  a header cell of the grid
+ * @param {{ kind: string, field?: string, valueIndex?: number, colPath?: any[], total?: number }} cell  a header cell of the grid
  * @param {(field: string) => string | undefined} typeOf  the column type of a field
- * @returns {{ field: string, ref?: { field: string | null, agg: string } } | null}
+ * @returns {{ field: string, ref?: { field: string | null, agg: string }, column?: any[] } | null}
  */
 export function headerSortTarget(view, cell, typeOf) {
     if (cell.kind === "corner") {
-        return cell.field && view.rows.some((f) => same(f, cell.field)) ? { field: cell.field } : null;
+        return cell.field && [...view.rows, ...view.cols].some((f) => same(f, cell.field)) ? { field: cell.field } : null;
     }
-    const spec = cell.kind === "colHeader" && cell.valueIndex !== undefined && !cell.colPath?.length ? view.values[cell.valueIndex] : undefined;
+    if (cell.kind !== "colHeader") {
+        return null;
+    }
+    // a value's name: over all columns (no path), or in one column (#70); with one value, the
+    // innermost column's own label stands for its column
+    const single = view.values.length === 1;
+    const column = cell.valueIndex !== undefined ? cell.colPath ?? [] : single && cell.colPath?.length === view.cols.length ? cell.colPath : null;
+    if (!column) {
+        return null;
+    }
+    const spec = view.values[cell.valueIndex ?? 0];
     if (!spec || !view.rows.length || !numericResult(spec, spec.field ? typeOf(spec.field) ?? "string" : "number")) {
         return null;
     }
-    return { field: view.rows[view.rows.length - 1], ref: { field: spec.field ?? null, agg: spec.agg } };
+    const target = { field: view.rows[view.rows.length - 1], ref: { field: spec.field ?? null, agg: spec.agg } };
+    return column.length ? { ...target, column } : target;
 }
+
+/** Whether two column paths (a sort entry's `column`, none for the whole row) are the same. */
+const sameColumn = (a, b) => JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
 
 /**
  * The sort a header shows (aria-sort): "ascending", "descending", "other" (a custom order), or null
  * when the rows are not in its order; `chosen` when a sort entry of the view puts them in it (the
  * default A to Z of a field without an entry is not chosen).
  * @param {any} view
- * @param {{ field: string, ref?: { field: string | null, agg: string } }} target  headerSortTarget's
+ * @param {{ field: string, ref?: { field: string | null, agg: string }, column?: any[] }} target  headerSortTarget's
  * @returns {{ order: "ascending" | "descending" | "other" | null, chosen: boolean }}
  */
 export function headerSortState(view, target) {
     const s = sortOf(view, target.field);
     const word = (order) => (order === "desc" ? "descending" : "ascending");
     if (target.ref) {
-        return s?.by === "value" && sameRef(s.value, target.ref) ? { order: word(s.order), chosen: true } : { order: null, chosen: false };
+        return s?.by === "value" && sameRef(s.value, target.ref) && sameColumn(s.column, target.column) ? { order: word(s.order), chosen: true } : { order: null, chosen: false };
     }
     if (!s) {
         return { order: "ascending", chosen: false };
@@ -543,14 +558,15 @@ export function headerSortState(view, target) {
  * largest first to smallest first to no sort by it (the field's default order); a row field's name
  * from A to Z to Z to A and back, and to A to Z from a sort by a value or a custom order.
  * @param {any} view
- * @param {{ field: string, ref?: { field: string | null, agg: string } }} target  headerSortTarget's
+ * @param {{ field: string, ref?: { field: string | null, agg: string }, column?: any[] }} target  headerSortTarget's
  * @param {boolean} [hostOrdered]  the field has the host's order (fieldDefaults.order)
  */
 export function nextHeaderSort(view, target, hostOrdered) {
     const s = sortOf(view, target.field);
     if (target.ref) {
-        const mine = s?.by === "value" && sameRef(s.value, target.ref);
-        return mine && s.order === "asc" ? null : { by: "value", order: mine ? "asc" : "desc", value: mine ? s.value : target.ref };
+        const mine = s?.by === "value" && sameRef(s.value, target.ref) && sameColumn(s.column, target.column);
+        const next = { by: "value", order: mine ? "asc" : "desc", value: mine ? s.value : target.ref };
+        return mine && s.order === "asc" ? null : target.column ? { ...next, column: target.column } : next;
     }
     const desc = !s || (s.by === "label" && s.order === "asc");
     return sortEntry({ by: "label", order: desc ? "desc" : "asc" }, hostOrdered);

@@ -4,7 +4,7 @@
  * what a click on a field of the field list does, and the zones folded into one line, in words.
  */
 
-import { MAX_DATE_MS, fieldLabel, formatter, numberRepeats, relativeDateRange } from "pivotkit-core";
+import { MAX_DATE_MS, fieldItems, fieldLabel, formatter, numberRepeats, relativeDateRange } from "pivotkit-core";
 import { fill, plural } from "./labels.js";
 import { hiddenNot, ruleOp } from "./view-ops.js";
 
@@ -57,15 +57,35 @@ export function refLabel(view, ref, labels) {
 }
 
 /**
+ * The column a sort by one column goes by, as the table names its items ("2025 › Jul"): each item by
+ * pivotkit-core's fieldItems of its column field.
+ * @param {any} view
+ * @param {any[]} column
+ * @param {import("pivotkit-core").Encoded} encoded
+ */
+export function columnText(view, column, encoded, labels, locale) {
+    return column
+        .map((key, i) => {
+            const items = fieldItems(encoded, view.cols[i], { view, locale, labels: labels.core })?.items ?? [];
+            return items.find((item) => item.value === key)?.label ?? String(key);
+        })
+        .join(" › ");
+}
+
+/**
  * A sort in words: "Z to A", "Largest Sum of Revenue first", "Custom order".
  * @param {any} view
- * @param {{ by: string, order: string, value?: { field: string | null, agg: string } }} sort
+ * @param {{ by: string, order: string, value?: { field: string | null, agg: string }, column?: any[] }} sort
  * @param {import("./labels.js").UiLabels} labels
+ * @param {string} [columnText]  the column of a sort by one column, as the table names it ("Jul",
+ *   "2025 › Jul"); default its items as text
  */
-export function sortText(view, sort, labels) {
+export function sortText(view, sort, labels, columnText) {
     const desc = sort.order === "desc";
     if (sort.by === "value") {
-        return fill(desc ? labels.sortValueDesc : labels.sortValueAsc, { value: refLabel(view, sort.value, labels) });
+        const name = refLabel(view, sort.value, labels);
+        const value = sort.column ? fill(labels.valueInColumn, { value: name, column: columnText ?? sort.column.map(String).join(" › ") }) : name;
+        return fill(desc ? labels.sortValueDesc : labels.sortValueAsc, { value });
     }
     if (sort.by === "custom") {
         return desc ? labels.sortCustomDesc : labels.sortCustom;

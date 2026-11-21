@@ -159,7 +159,7 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  *   bottom; `value` by, op, value, value2. Item filters have `not` (inverts the items with a value)
  *   and `blanks` (what happens to the blank items), a value condition has `not`
  * @typedef {{ name: string, field: string, by: string, size?: number, origin?: number }} DerivedSpec
- * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
+ * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[], column?: any[] }} SortSpec
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
  *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string, tooltip: string,
  *   zoom: string, stackPercent: boolean, hidden: string[],
@@ -174,7 +174,9 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  *   lines and the high and low points (`extremes`) of bars, lines and areas (referenceLineRules), a
  *   fixed colour per series or slice by name
  *   (`colors`, #rgb or #rrggbb) and the share of the total in the tooltip (`tooltipShare`)
- *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
+ *   custom: `items` first in their order (reversed for "desc"), the rest after them by label;
+ *   value: a field on Rows by `value`, over the whole row, or with `column` (the column's items,
+ *   outermost first) by that column's values
  *
  * @typedef {object} View
  * @property {number} version

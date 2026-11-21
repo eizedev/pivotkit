@@ -8,6 +8,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- A click on a column's name in the table sorts the rows by that column ("Largest Average of Mean °C
+  in Jul first"); a column field's name sorts that field. Every name that sorts shows a faint arrow
+  at rest, on a desktop too, and a column's arrow takes no room of its own
+  ([#70](https://github.com/eizedev/pivotkit/issues/70)).
 - Chart settings offers **Bars and lines** and **Treemap**. Bars and lines needs two fields in
   Values and says so. A treemap's labels take the token colour that reads on each tile
   ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).
