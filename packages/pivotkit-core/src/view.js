@@ -54,7 +54,7 @@ export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
     filterNotNumber: "error", filterCount: "error schema", filterTies: "error schema", filterPrecision: "error", filterValue: "error schema", filterValue2: "error schema",
     filterCompareValue: "error",
     filterRelativeDirection: "error schema", filterRelativeUnit: "error schema", filterRelativeCount: "error schema", filterRelativeAnchor: "error schema",
-    sortNoItems: "error schema", sortedTwice: "error",
+    sortNoItems: "error schema", sortedTwice: "error", sortColumn: "warning",
     badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", badTitle: "error schema",
     unknownLocale: "error", unknownTimeZone: "error", timeZoneMismatch: "error", tooManyIssues: "warning"
 });
@@ -159,7 +159,7 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  *   bottom; `value` by, op, value, value2. Item filters have `not` (inverts the items with a value)
  *   and `blanks` (what happens to the blank items), a value condition has `not`
  * @typedef {{ name: string, field: string, by: string, size?: number, origin?: number }} DerivedSpec
- * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
+ * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[], column?: any[] }} SortSpec
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
  *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string, tooltip: string,
  *   zoom: string, stackPercent: boolean, hidden: string[],
@@ -174,7 +174,9 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  *   lines and the high and low points (`extremes`) of bars, lines and areas (referenceLineRules), a
  *   fixed colour per series or slice by name
  *   (`colors`, #rgb or #rrggbb) and the share of the total in the tooltip (`tooltipShare`)
- *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
+ *   custom: `items` first in their order (reversed for "desc"), the rest after them by label;
+ *   value: a field on Rows by `value`, over the whole row, or with `column` (the column's items,
+ *   outermost first) by that column's values
  *
  * @typedef {object} View
  * @property {number} version
@@ -329,7 +331,7 @@ export const VIEW_KEYS = Object.freeze({
     color: Object.freeze(["name", "color"]),
     showAs: Object.freeze(["type", "axis"]),
     conditional: Object.freeze({ colorScale: Object.freeze(["type", "colors"]), dataBar: Object.freeze(["type", "color"]) }),
-    sort: Object.freeze(["field", "by", "order", "items", "value"]),
+    sort: Object.freeze(["field", "by", "order", "items", "value", "column"]),
     totals: Object.freeze(Object.keys(emptyView().totals)),
     collapsed: Object.freeze(["rows", "cols"]),
     chart: Object.freeze(Object.keys(emptyView().chart)),
@@ -527,6 +529,29 @@ function customItems(items, f, path, ctx) {
     return out;
 }
 
+/**
+ * The column a row field's sort by a value goes by (#70): its items, one per column field from the
+ * outermost, each read as that field's type. Only for a field on Rows sorted by a value; anything
+ * else is said and left out, and the sort goes by the whole row.
+ * @returns {unknown[] | null}
+ */
+function sortColumn(column, spec, f, view, path, ctx) {
+    const why = spec.by !== "value" ? "a column only for a sort by a value" : !view.rows.includes(f.name) ? "a column only for a field on Rows" : view.cols.length === 0 ? "a column only with a field on Columns" : !Array.isArray(column) || column.length === 0 || column.length > view.cols.length ? `a list of one to ${view.cols.length} column items` : null;
+    if (why) {
+        ctx.issue(path, `${why}; the sort goes by the whole row`, "sortColumn");
+        return null;
+    }
+    const items = [];
+    for (let i = 0; i < column.length; i++) {
+        const item = readItem(/** @type {any} */ (ctx.resolve(view.cols[i])), column[i], `${path}[${i}]`, ctx);
+        if (item === undefined) {
+            return null;
+        }
+        items.push(item);
+    }
+    return items;
+}
+
 /** Sort, one entry per field. */
 function sortSection(raw, view, ctx) {
     const seen = new Set();
@@ -551,6 +576,13 @@ function sortSection(raw, view, ctx) {
                 return;
             }
             spec.value = ref;
+        }
+        const column = get(s, "column");
+        if (column !== undefined) {
+            const items = sortColumn(column, spec, f, view, `${path}.column`, ctx);
+            if (items) {
+                spec.column = items;
+            }
         }
         seen.add(f.name);
         view.sort.push(spec);

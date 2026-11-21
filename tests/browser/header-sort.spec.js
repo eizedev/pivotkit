@@ -135,16 +135,19 @@ test.describe("sorting by a click on a header", () => {
         await expect(header).toHaveAttribute("aria-sort", "descending");
     });
 
-    test("with a column field only the grand total's value names sort; the text is the target, not the cell", async ({ page }) => {
+    test("with a column field every value name sorts, in its column or the grand total's over the whole row; the text is the target, not the cell", async ({ page }) => {
         // the start view: Region and Country in Rows, Category in Columns; a second value
         await page.goto("?data=sales");
         await page.locator('.pk-field[data-field="Units"] .pk-field-name').click();
         await expect.poll(() => chips(page, "values")).toEqual(["Sum of Revenue", "Sum of Units"]);
         const table = page.getByTestId("pivot-table");
-        // the two row fields' names and the grand total's two value names, not each category's
-        await expect(table.locator("thead .pk-th-sort")).toHaveCount(4);
+        // the row fields' names, the column field's name, each category's two value names (#70) and the grand total's two
+        const categories = await table.locator("thead tr:first-child th.pk-colHeader:not(.pk-grand)").count();
+        await expect(table.locator("thead .pk-th-sort")).toHaveCount(2 + 1 + categories * 2 + 2);
         await expect(table.locator("thead tr:last-child th.pk-colHeader.pk-grand .pk-th-sort")).toHaveCount(2);
-        await expect(table.locator("thead tr:last-child th.pk-colHeader:not(.pk-grand) .pk-th-sort")).toHaveCount(0);
+        // a category's value name sorts by it in that category; the grand total's over the whole row
+        await expect(table.locator("thead tr:last-child th.pk-colHeader:not(.pk-grand) .pk-th-sort").first()).toHaveAttribute("title", /^Sort by Sum of Revenue in .+: largest first$/);
+        await expect(table.locator("thead tr:last-child th.pk-colHeader.pk-grand .pk-th-sort").first()).toHaveAttribute("title", "Sort by Sum of Revenue: largest first");
         // the button is no wider than its text and arrow: the cell's edges stay free (a future resize handle)
         const total = table.locator("thead tr:last-child th.pk-colHeader.pk-grand").first();
         const [cell, button] = await Promise.all([total.boundingBox(), total.locator(".pk-th-sort").boundingBox()]);

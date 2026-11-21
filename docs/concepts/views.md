@@ -139,6 +139,7 @@ An issue is `{ path, message, code, severity, params }`:
 | `notList`, `tooMany`, `tooManyItems`, `itemType`, `itemTooLong` | A list that is none, longer than the [limits](limits.md#limits), an item that does not fit the field's type, or a text item longer than 10,000 characters. |
 | `itemCase` | A warning: a text item of a filter is no item of the data, but an item of the data differs from it only in case or whitespace (`params.suggestion`). The filter keeps the item as written. Needs the encoded data. |
 | `unknownField`, `placedTwice`, `sortedTwice` | A field the data does not have, or a field twice on the axes or in the sort. |
+| `sortColumn` | A sort's `column` that does not fit: not a sort by a value, not a field on Rows, no field on Columns, or a list of the wrong length. The sort goes by the whole row. |
 | `groupingNoName`, `groupingNameTaken`, `groupingNoSource`, `groupingUnknown`, `binsNeedNumber`, `groupingNeedsDate`, `binSize` | A derived field (grouping) that cannot be made. |
 | `notValueRef`, `unknownAggregator`, `aggregatorNeedsField`, `aggregatorType` | A value or a value a filter or sort goes by. |
 | `unknownFormat`, `badLabel`, `unknownShowAs`, `showAsNotAdditive`, `showAsNotNumber`, `unknownConditional`, `conditionalNotNumber`, `colorScaleColors`, `dataBarColor` | A value's format, name, "show as" and colours. |

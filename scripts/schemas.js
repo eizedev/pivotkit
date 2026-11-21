@@ -178,7 +178,7 @@ function viewParts() {
                 if: { properties: { by: { const: "bin" } } },
                 then: { required: ["size"] }
             }),
-            sort: object({ field: ref("fieldName"), by: { enum: [...SORT_BY] }, order: { enum: ["asc", "desc"] }, items: list(ref("item"), LIMITS.items), value: ref("valueRef") }, ["field"], {
+            sort: object({ field: ref("fieldName"), by: { enum: [...SORT_BY] }, order: { enum: ["asc", "desc"] }, items: list(ref("item"), LIMITS.items), value: ref("valueRef"), column: list(ref("item"), LIMITS.axisFields, { minItems: 1 }) }, ["field"], {
                 if: { properties: { by: { const: "custom" } }, required: ["by"] },
                 then: { required: ["items"] }
             })

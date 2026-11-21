@@ -104,6 +104,7 @@ export const de = {
         filterRelativeAnchor: "der Zeitraum kann ab „today“ (heute), „latest“ (letzter Eintrag), „first“ (erster Eintrag) oder einem Datum zählen, nicht ab „{value}“ - dieser Filter wird weggelassen",
         sortNoItems: "die eigene Reihenfolge nennt keine Einträge - die übliche Reihenfolge gilt",
         sortedTwice: "das Feld wird zweimal sortiert - nur seine erste Sortierung gilt",
+        sortColumn: "die Spalte, nach der es sortiert, ist nicht nutzbar - die Zeilen werden nach der ganzen Zeile sortiert",
         badTotals: "die Summen lassen sich nicht lesen - die üblichen Summen werden gezeigt",
         collapsedPath: "eine zugeklappte Gruppe passt nicht zu den Feldern - sie wird aufgeklappt gezeigt",
         unknownSetting: "{setting} „{value}“ ist unbekannt - die Voreinstellung gilt",

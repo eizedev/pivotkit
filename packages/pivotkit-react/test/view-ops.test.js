@@ -499,15 +499,18 @@ test("a table header sorts: a value's header the innermost row field by it, a ro
     let v = norm({ rows: ["Region", "Product"], values: [{ field: "Units", agg: "sum" }] });
     const targets = headers(v).map((c) => headerSortTarget(v, c, typeOf));
     assert.deepEqual(targets, [{ field: "Region" }, { field: "Product" }, { field: "Product", ref: units }]);
-    // with a column field and two values: only the grand total column's value headers sort
+    // with a column field and two values: each value's header sorts by it in its column (#70), the
+    // grand total column's over the whole row
     v = norm({ rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }, { agg: "count" }] });
     const sortable = headers(v).map((c) => headerSortTarget(v, c, typeOf)).filter((t) => t?.ref);
-    assert.deepEqual(sortable, [{ field: "Region", ref: units }, { field: "Region", ref: { field: null, agg: "count" } }]);
-    // no row field, a value that gives no number, a column field's name: nothing to sort
+    assert.deepEqual(sortable.filter((t) => !t.column), [{ field: "Region", ref: units }, { field: "Region", ref: { field: null, agg: "count" } }]);
+    assert.ok(sortable.some((t) => t.column?.length === 1 && t.ref.agg === "count"));
+    // no row field, a value that gives no number: nothing to sort
     assert.equal(headerSortTarget(norm({ values: [{ field: "Units", agg: "sum" }] }), { kind: "colHeader", valueIndex: 0, colPath: [] }, typeOf), null);
     const listed = norm({ rows: ["Region"], values: [{ field: "Product", agg: "listUnique" }] });
     assert.equal(headerSortTarget(listed, { kind: "colHeader", valueIndex: 0, colPath: [] }, typeOf), null);
-    assert.equal(headerSortTarget(norm({ rows: ["Region"], cols: ["Product"] }), { kind: "corner", field: "Product" }, typeOf), null);
+    // a column field's name sorts that field (#70)
+    assert.deepEqual(headerSortTarget(norm({ rows: ["Region"], cols: ["Product"] }), { kind: "corner", field: "Product" }, typeOf), { field: "Product" });
 });
 
 test("a click on a value's header: largest first, smallest first, the default order; on a row field's name: A to Z and Z to A (#55)", () => {

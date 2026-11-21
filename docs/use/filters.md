@@ -450,16 +450,20 @@ Both write the same sort, and **Undo** takes it back.
 | Click on | First click | Next clicks |
 | --- | --- | --- |
 | A value's name ("Sum of Revenue") | Sorts the innermost field in Rows by it, largest first | Smallest first, then the field's own order again (A to Z, or its custom order) |
-| A field's name in Rows ("Region") | Z to A (A to Z is the default) | A to Z, Z to A, ... From a sort by a value or a custom order, the first click gives A to Z. |
+| A column's name ("Jul") with one value, or a value's name under a column | Sorts the innermost field in Rows by the value in that column, largest first | Smallest first, then the field's own order again |
+| A field's name in Rows or Columns ("Region") | Z to A (A to Z is the default) | A to Z, Z to A, ... From a sort by a value or a custom order, the first click gives A to Z. |
 
 - The third click on a value's name goes back to the field's own order: A to Z, or its custom
   order. A Z to A you chose before is not kept.
 - The arrow next to the name shows the sort you chose: down for largest first or Z to A, up for
   smallest first or A to Z. Pointing at the name, or the focus on it, shows the arrow of the next
   click. The tooltip says what the click does ("Sort by Sum of Revenue: largest first",
-  "Sort Region: Z to A"). On a touch screen a faint arrow marks every name that sorts.
-- With a field in Columns, only the value names of the **Grand Total** column sort. The sort goes by
-  the whole row, not by one column. Without the grand total column the value names do not sort.
+  "Sort Region: Z to A"). A faint arrow marks every name that sorts.
+- With a field in Columns, a column's name sorts the rows by that column: "Largest Average of Mean °C
+  in Jul first". A row without a value there comes last. The value's name over all columns, and the
+  **Grand Total** column's, sort by the whole row.
+- A column's arrow sits beside its name, in the cell's margin, so twelve months do not make the table
+  wider.
 - A value that gives no number to sort by (below) does not sort. Neither does a value's name while
   Rows is empty.
 - Only the name is the button, not the whole header cell. You can still drag a name into a zone.

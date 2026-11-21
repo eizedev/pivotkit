@@ -16,6 +16,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   tip on stacks of values that do not add up ([#536](https://github.com/eizedev/pivotkit/issues/536)).
 - `COLOR_SCALES`: the colour scales the value menu offers, blue to orange, blue to red and red to
   green, as `conditional.colors` ([#95](https://github.com/eizedev/pivotkit/issues/95)).
+- A row field's sort by a value can name one column (`column`, the column's items): the rows follow
+  that column's values. Anything else is the warning `sortColumn`, and the whole row decides
+  ([#70](https://github.com/eizedev/pivotkit/issues/70)).
 - Two chart types. `"combo"` draws the first value as bars on the left axis and every other value as a
   line on an axis of its own. `"treemap"` draws a tile per category. `labelColorOn` in
   `pivotkit-core/chart` picks a tile's label colour from the theme's tokens

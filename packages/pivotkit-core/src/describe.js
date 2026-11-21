@@ -164,7 +164,7 @@ export function describeView(input, schema, options) {
     const values = view.values.map((v) => ({ field: v.field, agg: v.agg, label: v.label, showAs: v.showAs?.type ?? null, text: v.label ?? refText(v) }));
     const filters = view.filters.map((f) => ({ ...f, text: filterText(f) }));
     const derived = view.derived.map((d) => ({ ...d, text: `${d.name}: ${d.field} by ${d.by}${d.by === "bin" ? ` of ${d.size}` : ""}` }));
-    const sort = view.sort.map((s) => ({ ...s, text: `${s.field} ${s.by === "value" ? `by ${refText(s.value)}` : s.by === "custom" ? "in a custom order" : "by label"}, ${s.order === "desc" ? "descending" : "ascending"}` }));
+    const sort = view.sort.map((s) => ({ ...s, text: `${s.field} ${s.by === "value" ? `by ${refText(s.value)}${s.column ? ` in the column ${s.column.map((k) => String(k)).join(" › ")}` : ""}` : s.by === "custom" ? "in a custom order" : "by label"}, ${s.order === "desc" ? "descending" : "ascending"}` }));
     const parts = [
         values.length ? values.map((v) => v.text).join(", ") : "count of rows",
         view.rows.length ? `by ${view.rows.join(" > ")}` : null,

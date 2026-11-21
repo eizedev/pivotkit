@@ -117,6 +117,8 @@ export const en = {
     sortCustomDesc: "Custom order, reversed",
     sortValueDesc: "Largest {value} first",
     sortValueAsc: "Smallest {value} first",
+    // a sort by a value in one column (#70): "Average of Temp in Jul"
+    valueInColumn: "{value} in {column}",
     // a click on a table header: its tooltip (what the next click does) and what a screen reader hears after it
     headerSort: "Sort {field}: {order}",
     headerSortDesc: "Sort by {value}: largest first",
