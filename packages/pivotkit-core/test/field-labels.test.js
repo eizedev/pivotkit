@@ -3,7 +3,7 @@
 // under it.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, normalize, toGrid, toSeries, withFieldLabels } from "pivotkit-core";
+import { computePivot, encode, normalize, renameFields, toGrid, toSeries, withFieldLabels } from "pivotkit-core";
 import { toCsv } from "pivotkit-core/export";
 
 const data = encode([
@@ -47,8 +47,9 @@ test("the grid's headers, the chart's names and the CSV use the view's names ove
     // a field without its own name keeps the host's
     assert.ok(texts.includes("Sum of Turnover"));
     assert.match(toCsv(grid), /City/);
-    const series = toSeries(computePivot(data, { ...view, cols: [] }), { labels: {} });
-    assert.ok(JSON.stringify(series).includes("Sum of Revenue"));
+    // a value of a renamed field is named by it: "Count of City"
+    const series = toSeries(computePivot(data, { rows: ["cat"], values: [{ field: "cn", agg: "count" }], fieldLabels: { cn: "City", cat: "Category" } }), { labels: {} });
+    assert.deepEqual(series.series.map((s) => s.name), ["Count of City"]);
 });
 
 test("withFieldLabels: the view's names win, whatever the case of the host's key", () => {
@@ -57,4 +58,10 @@ test("withFieldLabels: the view's names win, whatever the case of the host's key
     assert.equal(Object.hasOwn(labels.fields, "CN"), false);
     const same = { fields: { a: "b" } };
     assert.equal(withFieldLabels(same, undefined), same);
+});
+
+test("renameFields moves a field's own name along with the field", () => {
+    const { view } = renameFields({ rows: ["cn"], fieldLabels: { cn: "City" } }, { cn: "town" });
+    assert.deepEqual(view.rows, ["town"]);
+    assert.deepEqual(view.fieldLabels, { town: "City" });
 });
