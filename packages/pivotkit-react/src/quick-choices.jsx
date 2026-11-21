@@ -20,8 +20,9 @@ import { dateFromInput, dateInputValue, dayOnOrBefore, rowsInRange, setAnchor, s
 const capital = (text, locale) => text.charAt(0).toLocaleUpperCase(locale) + text.slice(1);
 
 /** The most periods a quick choice reaches back by itself to the data's latest record. */
-export const REACH = Object.freeze({ year: 10, quarter: 12, month: 24, week: 104, day: 90 });
+const REACH = Object.freeze({ year: 10, quarter: 12, month: 24, week: 104, day: 90 });
 
+/** The directions a quick choice counts N periods in; next and before are among More choices. */
 const COUNTED = Object.freeze(["last", "next", "before"]);
 const MORE = Object.freeze(["next", "before"]);
 
@@ -423,8 +424,3 @@ export function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column,
         </>
     );
 }
-
-/**
- * The years a cyclic grouping combines ("month of the year"): a toggle per year of the data with its
- * rows; the years ticked are written as whole-year comparisons (the last one cannot go).
- */

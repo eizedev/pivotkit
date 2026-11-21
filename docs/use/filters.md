@@ -110,7 +110,7 @@ A chip in **Filters** opens the same Filter level from its menu, with **Move to*
 ### Add a field to Filters from the field list
 
 **Add to Filters** in the menu of a field in the field list opens the field's filter at once. It
-shows the field's values and **Only names that…**, a condition on the names. While every value is
+shows the field's values and **Only if the name…**, a condition on the names. While every value is
 ticked and no condition is set, the count says so: "All 14 selected · nothing filtered yet". What
 you set there is a draft:
 
@@ -252,7 +252,7 @@ be true for an item to stay ("Keep the months for which all of these are true:")
 
 | Rule | Example | Offered for |
 | --- | --- | --- |
-| **Filter by** the field: the item itself | "Released by year is from 2022", "Price is between 10 and 20", "Released is in the last 3 months" | Numbers and dates, and their groupings |
+| **Filter by** and the field's name: the item itself | "Released by year is from 2022", "Price is between 10 and 20", "Released is in the last 3 months" | Numbers and dates, and their groupings |
 | **Filter by total** | "Count of Released is greater than 3" | Every field |
 | **Filter by name** | "The name does not begin with Service" | Text and numbers (the number as the table writes it) |
 
@@ -377,8 +377,8 @@ greater than 2,000,000".
 - Pointing anywhere at a chip shows all of it as a tooltip: the field and everything set on it. The
   tooltip uses the words of the chip's name for screen readers ("Month, filtered 10 of 12, 2025").
 - The search of the menu finds:
-    - the rules: "rule", "compare its total", and the rule on the name by its words, such as
-      "does not begin with"
+    - the rules: "rule", "filter by total", "filter by name", and the rule on the name by its words,
+      such as "does not begin with"
     - the quick choices with the count you type ("last 3 years"), counted back as the field's range
       is
     - for a grouping by year, a year compared ("from 2022", "up to 2022", "before 2022",

@@ -197,7 +197,8 @@ test.describe("a date's quick choices on dates past today (endoflife, EOL date b
     });
 
     test("scrolling inside the open menu does not move it: a click lands where it was aimed (#222)", async ({ page }) => {
-        // a window low enough that the level grows past the menu's room
+        // a window low enough that the level grows past the menu's room (the rule buttons fit one line,
+        // so the level needs a window lower than 900 px for that)
         await page.setViewportSize({ width: 1280, height: 820 });
         await openView(page, "endoflife", view());
         await chipMenu(page, EOL, "filter");

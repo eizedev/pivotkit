@@ -300,6 +300,7 @@ test("search: quick choices with the count typed, a year compared, and the rules
     // "rule" finds the rules first, and the buttons that add one under their "Filter by …" names
     assert.equal(hits("rule")[0].id, "open-filter-rules");
     assert.ok(hits("rule").some((e) => e.id === "open-filter-text"));
+    assert.ok(hits("rule").some((e) => e.id === "open-filter-value"));
     // a date field: months too, and a year as its first or last day
     const raw = axisTopics({ view: norm({ rows: ["Released"] }), zone: "rows", index: 0, field: "Released", types, labels: MENU.en, locale: "en-US", encoded: data });
     const rawHits = (q) => searchHits(searchEntries(raw, q), q, "en-US");

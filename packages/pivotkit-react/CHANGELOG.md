@@ -14,7 +14,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
-- A field's filter says "Only names that…" with "(any name)" instead of "Text condition". While
+- A field's filter says "Only if the name…" with "(any name)" instead of "Text condition". While
   every value is ticked and no condition is set, its count says "All 14 selected · nothing filtered
   yet" ([#595](https://github.com/eizedev/pivotkit/issues/595)).
 - The buttons that add a rule in the Filter level read "Filter by <field>", "Filter by total" and

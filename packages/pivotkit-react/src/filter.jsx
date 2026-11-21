@@ -134,6 +134,9 @@ export function FilterBody({ view: current, base, field, encoded, locale, labels
         close();
         commit(next, { step: "filter", field: name });
     };
+    // nothing filtered on Apply: every value ticked, no condition with a text (an empty one is dropped),
+    // and no other filter of the field's (a top N, a rule) in the view
+    const keepsAll = selected.size === all.length && !(op && text.trim()) && filtersOf(view, field).every((f) => f.type === "in" || f.type === "text");
     // a condition the type has none for (a loaded view's) still shows, so it can be taken off
     const kind = conditionKind(encoded, view, field) ?? (label ? "text" : null);
     return (
@@ -147,7 +150,7 @@ export function FilterBody({ view: current, base, field, encoded, locale, labels
             <div className="pk-popover-head">
                 {titled ? <h3>{fill(labels.filterTitle, { field: name })}</h3> : null}
                 <span className="pk-muted" data-testid="filter-selected">
-                    {fill(selected.size === all.length && !op ? labels.selectedAll : labels.selected, { count: selected.size.toLocaleString(locale) })}
+                    {fill(keepsAll ? labels.selectedAll : labels.selected, { count: selected.size.toLocaleString(locale) })}
                 </span>
             </div>
             <ValueList items={info.items} selected={selected} onChange={setSelected} labels={labels} locale={locale} autoFocus>

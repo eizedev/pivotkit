@@ -315,7 +315,7 @@ export const en = {
     selectNone: "Select none",
     onlyThis: "Only",
     valuesShown: "{shown} of {total} values; search to find more",
-    conditionNumber: "Only names that…",
+    conditionNumber: "Only if the name…",
     conditionNone: "(any name)",
     conditionValue: "Text",
     selected: "{count} selected",

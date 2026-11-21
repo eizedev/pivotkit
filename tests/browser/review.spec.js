@@ -118,7 +118,7 @@ test.describe("phone", () => {
 
 test("the filter of a date has no condition on the names; text has one, a number one on its label", async ({ page }) => {
     await page.goto("?data=sales");
-    for (const [field, legend] of [["Month", null], ["Channel", "Only names that…"], ["Units", "Only names that…"]]) {
+    for (const [field, legend] of [["Month", null], ["Channel", "Only if the name…"], ["Units", "Only if the name…"]]) {
         await page.getByTestId(`field-menu-${field}`).click();
         await page.getByTestId(`field-filter-${field}`).click();
         await expect(page.getByTestId("filter-search")).toBeVisible();

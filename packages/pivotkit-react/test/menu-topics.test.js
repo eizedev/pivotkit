@@ -265,6 +265,7 @@ test("search: the shares of Show as come first for percent and %; the conditions
     // "rule" finds the rules, and opens the level on them
     assert.equal(hits("rule")[0].id, "open-filter-rules");
     assert.ok(hits("rule").some((e) => e.id === "open-filter-text"));
+    assert.ok(hits("rule").some((e) => e.id === "open-filter-value"));
     const top5 = hits("top 5")[0];
     assert.equal(top5.text, "Top 5");
     assert.deepEqual(top5.choice.change().view.filters.map((f) => [f.type, f.count]), [["top", 5]]);

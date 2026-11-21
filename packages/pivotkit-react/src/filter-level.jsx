@@ -242,7 +242,10 @@ function Summary({ ctx, state }) {
     );
 }
 
-/** The directions a quick choice counts N periods in; next and before are among More choices. */
+/**
+ * The years a cyclic grouping combines ("month of the year"): a toggle per year of the data with its
+ * rows; the years ticked are written as whole-year comparisons (the last one cannot go).
+ */
 function YearsCombined({ ctx, years, on }) {
     const { view, field, labels, locale, commit, note, noun } = ctx;
     const all = years.map((y) => y.year);
