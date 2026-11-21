@@ -7,19 +7,19 @@
 
 import { de } from "./labels-de.js";
 import { addLabels } from "./labels.js";
-import { activeTips, tipActionText, tipContext, tipText } from "./tips.js";
+import { TIPS } from "./tips.js";
 
 addLabels("de", de);
 
 /**
  * @typedef {object} Deferred
- * @property {TipsTable | null} tips  the tips' table and conditions; null until loaded
+ * @property {TipsTable | null} tips  the tips' table; null until loaded (the notices are in notices.js)
  * @property {(() => Promise<TipsTable>) | null} loadTips  loads them; null when they are here
  * @property {Readonly<Record<string, () => Promise<void>>>} loadLabels  per language not here yet: adds
  *   its first-load texts (labels.js addLabels)
  */
 
-/** @typedef {Pick<typeof import("./tips.js"), "activeTips" | "tipActionText" | "tipContext" | "tipText">} TipsTable */
+/** @typedef {{ TIPS: readonly import("./notices.js").TipEntry[] }} TipsTable  the notices and the tips (tips.js) */
 
 /** @type {Deferred} */
-export const DEFERRED = { tips: { activeTips, tipActionText, tipContext, tipText }, loadTips: null, loadLabels: {} };
+export const DEFERRED = { tips: { TIPS }, loadTips: null, loadLabels: {} };

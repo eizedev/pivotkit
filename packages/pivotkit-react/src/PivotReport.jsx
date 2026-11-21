@@ -22,7 +22,7 @@ import { dateContext, dateRangeText, dateDisplayLocale } from "./date-context.js
 import { displayNames, fieldDefaultsFor, fieldInfoOf, typesOf } from "./field-info.js";
 import { FieldPanel } from "./fields.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
-import { errorText, fill, labelsHere, onLabels, plural, removedLabels, requestLabels, resolveLabels, rowCount } from "./labels.js";
+import { errorText, fill, hasLabels, labelsHere, langOf, onLabels, plural, removedLabels, requestLabels, resolveLabels, rowCount } from "./labels.js";
 import { DEFERRED } from "./deferred.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { MenuPanel, loadMenus, menusNow, onMenuTexts } from "./lazy-menus.jsx";
@@ -37,6 +37,7 @@ import { Toasts, useToasts } from "./toasts.jsx";
 import { localStore, readItem, subscribeItem, writeItem } from "./storage.js";
 import { templateEntries, viewsName } from "./templates.js";
 import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, subscribeStored, withoutFilters, writeDismissed } from "./tip-state.js";
+import { NOTICES, activeEntries, tipActionText, tipContext, tipText } from "./notices.js";
 import { Tips } from "./tip-list.jsx";
 import { Unused } from "./unused.jsx";
 import { FormNameContext, activeIn } from "./dom.js";
@@ -215,6 +216,9 @@ function useLabelsOf(locale) {
     if (!here) {
         requestLabels(locale, DEFERRED.loadLabels);
     }
+    // a report that mounts, or changes its language, tries a language that failed before once more
+    const lang = langOf(locale);
+    useEffect(() => requestLabels(lang, DEFERRED.loadLabels, { again: true }), [lang]);
     const [last, setLast] = useState(() => (here ? { locale } : null));
     if (here && (!last || last.locale !== locale)) {
         setLast({ locale });
@@ -419,7 +423,10 @@ function Report(props) {
     const defaultsKey = JSON.stringify(fieldDefaults ?? null);
     // what the host says about its fields: display names, descriptions, links; nothing changes without it
     const info = useMemo(() => fieldInfoOf(JSON.parse(defaultsKey)), [defaultsKey]);
-    const baseLabels = useMemo(() => resolveLabels(locale, JSON.parse(labelsKey)), [locale, labelsKey]);
+    // English while the language's texts are not here; texts that arrive after English stood in for
+    // them (deferred-late.js) take their place
+    const textsHere = useSyncExternalStore(onLabels, () => hasLabels(locale), () => hasLabels(locale));
+    const baseLabels = useMemo(() => resolveLabels(textsHere ? locale : "en", JSON.parse(labelsKey)), [textsHere, locale, labelsKey]);
     const typesKey = JSON.stringify(typesOf(fieldDefaults));
     const limitsKey = JSON.stringify(limitsProp ?? null);
     const hostLimits = useMemo(() => JSON.parse(limitsKey) ?? undefined, [limitsKey]);
@@ -1552,17 +1559,18 @@ function Report(props) {
         }
     };
     const toggle = (id, on) => changeDismissed(on ? dismissed.filter((d) => d !== id) : [...dismissed, id], on ? null : id);
-    // the tips' table: here at once, or loaded after the first render (pivotkit-element); none until then
+    // the tips' table: here at once, or loaded after the first render (pivotkit-element); the notices
+    // (the result is cut or empty) until then
     const tipsMod = useTipsTable();
-    const ctx = tipsMod?.tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate) || viewStore, savedAt, chartPlan: plan });
-    const shownTips = (tipsMod && ctx ? tipsMod.activeTips(ctx, { allowed, dismissed }) : []).map((t) => ({
+    const ctx = tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate) || viewStore, savedAt, chartPlan: plan });
+    const shownTips = activeEntries(tipsMod?.TIPS ?? NOTICES, ctx, { allowed, dismissed }).map((t) => ({
         id: t.id,
         params: t.params,
         icon: t.entry.icon ?? "info",
         notice: t.entry.kind === "notice",
         action: t.entry.action ?? "",
-        text: /** @type {NonNullable<typeof tipsMod>} */ (tipsMod).tipText(t.id, t.params, labels, locale),
-        actionText: /** @type {NonNullable<typeof tipsMod>} */ (tipsMod).tipActionText(t.entry, t.params, labels)
+        text: tipText(t.id, t.params, labels, locale),
+        actionText: tipActionText(t.entry, t.params, labels)
     }));
     const runTip = (id, action) => {
         const params = shownTips.find((t) => t.id === id)?.params ?? {};

@@ -408,14 +408,15 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * The split of the first load (#546). The first load's budget is a hard line at 181 KiB: a feature
  * that needs room there makes it by moving something out, not by raising the budget. Three parts left
  * it (pivotkit-react's deferred-late.js, src/css-split.js): the German first-load texts (group
- * "lang", 5.9 on CI's zlib, budget 6.2), loaded before a German report renders; the tips' table with
- * its conditions (group "tips", 2.4, budget 2.8), loaded after the first render; and the style rules
- * only the menus' code writes, which now load inside the menus' chunk. CI's zlib measures the first
- * load at 173.2 (180.9 before) and the menus at 56.9 (53.6 before). The menus carry the rules they
+ * "lang", 5.9 on CI's zlib, budget 6.2), loaded before a German report renders; the tips' rows
+ * (group "tips", 1.5, budget 1.8), loaded after the first render, while the notices that the result
+ * is cut or empty stay first (notices.js); and the style rules only the menus' code writes, which
+ * now load inside the menus' chunk. CI's zlib measures the first load at 174.6 (180.9 before) and
+ * the menus at 56.9 (53.6 before). The menus carry the rules they
  * took over, so their budget goes to 57.5, CI's measure plus about 0.5 KiB.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 181, chart: 243.5, export: 12.6, link: 7.5, menus: 57.5, texts: 8, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 2.8 };
+export const SIZE_BUDGET_KIB = { initial: 181, chart: 243.5, export: 12.6, link: 7.5, menus: 57.5, texts: 8, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

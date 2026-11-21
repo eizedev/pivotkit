@@ -416,10 +416,22 @@ export function onLabels(listener) {
     return () => void labelListeners.delete(listener);
 }
 
+/**
+ * The language of a locale, as the labels name it: "de" for "de-DE", "en" without a locale.
+ * @param {unknown} locale
+ */
+export const langOf = (locale) => (typeof locale === "string" ? locale.toLowerCase().split(/[-_]/)[0] : "en");
+
+/** Whether the first-load texts of `locale`'s language are here. @param {unknown} locale */
+export const hasLabels = (locale) => Object.hasOwn(LABELS, langOf(locale));
+
 /** Languages whose texts are loading. @type {Set<string>} */
 const labelsPending = new Set();
-/** Languages whose texts did not load (a partial copy of dist/, offline): English stands in. */
+/** Languages whose texts did not load, or not in time (a partial copy of dist/, offline): English stands in. */
 const labelsFailed = new Set();
+
+/** How long a report waits for its language's texts before it shows in English (ms). */
+export const LABELS_WAIT_MS = 4000;
 
 /**
  * Whether a report in `locale` can show its texts: its language's are here, have no loader (English
@@ -433,33 +445,39 @@ export function labelsHere(locale, loaders) {
 }
 
 /**
- * Loads the texts of `locale`'s language once (its loader adds them, addLabels); a failure is said
- * once in the console, and English stands in.
+ * Loads the texts of `locale`'s language once (its loader adds them, addLabels). A failure, or no
+ * answer within LABELS_WAIT_MS, lets English stand in and is said once in the console; texts that
+ * arrive later still take their place. `again` tries a language that failed once more (a report that
+ * mounts after a failure).
  * @param {string | undefined} locale
  * @param {Readonly<Record<string, () => Promise<void>>>} loaders
+ * @param {{ again?: boolean }} [options]
  */
-export function requestLabels(locale, loaders) {
+export function requestLabels(locale, loaders, { again = false } = {}) {
     const lang = langOf(locale);
+    if (again && labelsFailed.has(lang) && !labelsPending.has(lang)) {
+        labelsFailed.delete(lang);
+    }
     if (labelsHere(locale, loaders) || labelsPending.has(lang)) {
         return;
     }
     labelsPending.add(lang);
-    loaders[lang]().then(
-        () => labelsPending.delete(lang),
-        (error) => {
-            labelsPending.delete(lang);
+    const fail = (why) => {
+        if (!labelsFailed.has(lang) && !Object.hasOwn(LABELS, lang)) {
             labelsFailed.add(lang);
-            console.warn(`pivotkit: the ${lang} texts did not load, English stands in: ${messageOf(error)}`);
+            console.warn(`pivotkit: the ${lang} texts did not load, English stands in: ${why}`);
             labelListeners.forEach((listener) => listener());
         }
-    );
+    };
+    const timer = setTimeout(() => fail(`no answer within ${LABELS_WAIT_MS / 1000} s`), LABELS_WAIT_MS);
+    loaders[lang]().then(
+        () => labelsFailed.delete(lang),
+        (error) => fail(messageOf(error))
+    ).finally(() => {
+        clearTimeout(timer);
+        labelsPending.delete(lang);
+    });
 }
-
-/**
- * The language of a locale, as the labels name it: "de" for "de-DE", "en" without a locale.
- * @param {unknown} locale
- */
-export const langOf = (locale) => (typeof locale === "string" ? locale.toLowerCase().split(/[-_]/)[0] : "en");
 
 /**
  * Partial labels a host passes: any entry of UiLabels, nested objects partial too.

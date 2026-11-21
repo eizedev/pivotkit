@@ -553,29 +553,35 @@ much they check:
 
 ## Bundle size
 
-The table shows what a page loads. `npm run size -w pivotkit-element` measured it on 2026-11-18,
+The table shows what a page loads. `npm run size -w pivotkit-element` measured it on 2026-11-21,
 with an official Node 24 build, esbuild 0.28.2 and gzip level 9 per file. Sizes add up per group.
 They are approximate and change with every dependency update.
 
 CI runs the same command on Node 24 and measures the same numbers. It fails when a group is over
 `SIZE_BUDGET_KIB` in `build.js`:
 
-- The first load's budget is 181 KiB, about 0.5 KiB more than CI measures (180.6 KiB). A split of
-  the first load is planned ([#546](https://github.com/eizedev/pivotkit/issues/546)).
+- The first load's budget is 181 KiB. It is a hard line: a feature that needs room there makes it by
+  moving something out of the first load.
 - The budgets of the groups loaded later leave a little room above what CI measures.
 - A Node with the system's zlib, such as Homebrew's, measures other sizes. The command says so.
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 10 | 551 KiB | 180.6 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, the styles the first render uses) | 13 | 519 KiB | 174.6 KiB |
+| Before the first render of a German report only (the German texts of the first render) | 1 | 17 KiB | 5.9 KiB |
+| Right after the first render (the tips' table) | 1 | 4 KiB | 1.5 KiB |
 | On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title, the zoom slider and the reference lines' markLine among them, the canvas renderer, pivotkit-core's ECharts option and the layout of the chart's labels) | 2 | 702 KiB | 242 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 3 | 28 KiB | 12 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |
-| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 2 | 162 KiB | 53.6 KiB |
+| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, the English texts and the style rules only they use) | 2 | 177 KiB | 56.9 KiB |
 | With the menus, for a German report only (the menus' German texts) | 1 | 22 KiB | 8 KiB |
 | When a view has unused parts (their plain words: English, and German for a German report) | 2 | 16 KiB | 5 KiB |
 | With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 6 | 54 KiB | 22 KiB |
 | With `allow-import`, the worker of a CSV or JSON file (`dist/import-worker.js`, one file) | 1 | 27 KiB | 11 KiB |
+
+A page that copies `dist/` by hand deploys all of it. Without the German texts' file in
+`dist/chunks/`, a German report shows in English. Without the tips' file, the report shows no tips.
+The notices that the result is cut or empty are in the first load.
 
 The element bundles ECharts instead of leaving it to the page. A page without a bundler or an import
 map would have no way to provide it. Loading it on first use keeps it out of the first load.

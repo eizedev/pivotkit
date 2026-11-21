@@ -138,6 +138,10 @@ grey shapes where the toolbar, the zones and the table will be. A screen reader 
 report…" once. Reduced motion stops the shapes' shimmer. When the application loads new data later,
 the report covers the result until the new data is there.
 
+A German report on a page with the web component first loads its German texts. Until they arrive,
+the grey shapes show without a word, so nothing is said in English first. After a few seconds
+without them, the report shows in English.
+
 !!! note "For developers"
     `loading` shows the skeleton. A menu chunk that is not deployed (`dist/chunks/`) is one reason for
     Try again: see [files the package loads](../reference/react.md#files-the-package-loads). Errors

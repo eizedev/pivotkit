@@ -28,7 +28,7 @@ A new zlib in a Node 24 release can move the numbers too, by up to about 0.6 KiB
 
 The first load holds only the first render and what a click outside a menu does at once.
 
-- The first render: table, header sort, toolbar, zones, field list, tips, skeleton, drag and drop.
+- The first render: table, header sort, toolbar, zones, field list, notices, skeleton, drag and drop.
 - A click outside a menu: a commit with its status note, Undo, reading a link at start.
 - Work after a click in a menu goes into pivotkit-react's `menus.js`.
 - What only a drawn chart needs goes into `echarts.js`.

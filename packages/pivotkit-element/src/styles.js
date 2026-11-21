@@ -53,7 +53,10 @@ export function adoptStyles(shadow) {
     }
     const style = shadow.ownerDocument.createElement("style");
     style.textContent = cssNow();
-    styleElements.add(new WeakRef(style));
+    if (!menuRuns) {
+        // the menus' rules are still to come: this element gets them then
+        styleElements.add(new WeakRef(style));
+    }
     shadow.prepend(style);
     return "style";
 }
@@ -73,8 +76,8 @@ export function addMenuStyles(runs) {
         const style = ref.deref();
         if (style) {
             style.textContent = css;
-        } else {
-            styleElements.delete(ref);
         }
     }
+    // a <style> element made from now on has them from the start
+    styleElements.clear();
 }

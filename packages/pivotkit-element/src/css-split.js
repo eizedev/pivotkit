@@ -6,6 +6,12 @@
  * on an element or a token, a class the code builds from parts. So a rule the first render needs never
  * waits for the menus; one that could wait may stay first, which costs bytes, not looks.
  *
+ * What the scan of the code cannot see, and why it holds today: a class the code builds from "pk-" alone
+ * (the table's header cells, pk-corner and its kind) counts as no class; a class named only inside
+ * :not() counts like any other; the element's own code (src/) is not scanned. None of them names a
+ * class only the menus write. test/build.test.js and the browser spec element-first-load.spec.js check
+ * that the first render looks the same before and after the menus' rules arrive.
+ *
  * The parts keep their order: rule runs of the first load and of the menus alternate, and the menus'
  * runs go back between the first load's ones, so the cascade is the same as in one sheet.
  */

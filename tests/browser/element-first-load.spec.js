@@ -100,6 +100,18 @@ plain("when the German texts cannot load, the German report shows in English and
     expect(warnings.filter((w) => /the de texts did not load, English stands in/.test(w))).toHaveLength(1);
 });
 
+plain("German texts that do not arrive within 4 seconds: the report shows in English, then takes them when they come", async ({ page }) => {
+    const german = await holdBack(page, /\/chunks\/labels-de-[^/]+\.js$/);
+    await page.goto("pages/element-two.html");
+    const tickets = page.locator("#tickets");
+    await expect.poll(() => german.requests).toBe(1);
+    await expect(tickets.getByTestId("skeleton")).toHaveText("");
+    // wall time: the report's own time limit for the texts
+    await expect(tickets.getByRole("region", { name: "Pivot report" })).toBeVisible({ timeout: 8000 });
+    german.release();
+    await expect(tickets.getByRole("region", { name: "Pivot-Bericht" })).toBeVisible();
+});
+
 test("the tips show once their table is here; a choice the user makes before keeps the dismissed tips", async ({ page }) => {
     // tip "cells" was dismissed before
     await page.addInitScript(() => localStorage.setItem("pivotkit:tips:fields-a", '["cells"]'));

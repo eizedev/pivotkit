@@ -12,6 +12,7 @@ import "../src/deferred.js";
 import { LABELS as ALL_LABELS } from "../src/all-labels.js";
 import { valueLabel } from "../src/names.js";
 import { swapAxes } from "../src/view-ops.js";
+import { NOTICES, activeEntries } from "../src/notices.js";
 import { TIPS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, tipActionText, tipContext, tipText } from "../src/tips.js";
 import {
     ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, SWITCHES, helpSwitch, keptOnReset, NOTICE_IDS, parseStored, SHORTCUTS, TIP_IDS, allowedTips, cleanDismissed, readDismissed, storageName, subscribeStored, withoutFilters, writeDismissed
@@ -64,6 +65,8 @@ test("tips: every entry has a text and, with an action, a button text, in Englis
     // tip-state.js names the table's ids in its order, for the first load (the table may load later)
     assert.deepEqual(TIP_IDS, TIPS.filter((t) => t.kind !== "notice").map((t) => t.id));
     assert.deepEqual(NOTICE_IDS, TIPS.filter((t) => t.kind === "notice").map((t) => t.id));
+    // the notices are the first load's (notices.js): the table starts with them
+    assert.deepEqual(TIPS.slice(0, NOTICES.length), [...NOTICES]);
     assert.equal(tipText("top", { field: "Rep", count: 1200, bottom: false }, en, "en-US"), "Rep shows the top 1,200 only: totals and percentages cover these items, not all of them.");
     assert.equal(tipActionText(TIPS.find((t) => t.id === "dateUngrouped"), { unit: "yearMonth" }, en), "Group by Month");
 });
@@ -227,6 +230,8 @@ test("tips: at most TIP_LIMIT, the most important first; allowed, dismissed and 
     assert.equal(TIP_LIMIT, 1);
     // "top" is a notice: it counts against no limit
     assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: [] }).map((t) => t.id), ["top", "showAs"]);
+    // before the tips' table is here (pivotkit-element), the notices alone show the same notice
+    assert.deepEqual(activeEntries(NOTICES, ctx, { allowed: "on", dismissed: [] }).map((t) => t.id), ["top"]);
     assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: [], limit: 2 }).map((t) => t.id), ["top", "showAs", "textValue"]);
     assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: ["showAs"] }).map((t) => t.id), ["top", "textValue"]);
     assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: ["showAs", "textValue"] }).map((t) => t.id), ["top", "cells"]);
