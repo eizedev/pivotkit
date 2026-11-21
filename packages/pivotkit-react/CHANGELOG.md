@@ -21,6 +21,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- On a touch screen every button takes a finger, at least 44 x 44 px: the toolbar, the tabs,
+  Settings, Enlarge, Full screen, the zones' heading, the chips and the small text buttons. Every
+  menu's rows are at least 44 px high, Export and Data too, and so are a filter's values and a
+  rule's fields. A row's fold arrow and a field's name in the field list keep their size, with a
+  hit area 44 px across. The taller toolbar, tabs and chips leave the table about a seventh less
+  room on a phone ([#72](https://github.com/eizedev/pivotkit/issues/72)).
 - `dist/index.js` imports `dist/deferred.js`, a file of its own with the German texts of the first
   render and the tips' table. The report works as before. pivotkit-element bundles another file in
   its place to load them later. A host that copies files by hand deploys the whole `dist/` folder, as

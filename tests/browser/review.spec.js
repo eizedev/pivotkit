@@ -270,7 +270,7 @@ test.describe("touch", () => {
         }).toBe(true);
     });
 
-    test("the field list keeps its desktop rows; its grip, i and menu get a 44 px high hit area that stays in their row", async ({ page, browserName }) => {
+    test("the field list keeps its desktop rows; its name, grip, i and menu get a 44 px high hit area that stays in their row", async ({ page, browserName }) => {
         test.skip(browserName === "firefox", "Firefox has no mobile emulation");
         // an iPad in landscape, as PowerShell Universal shows it
         await page.setViewportSize({ width: 1180, height: 820 });
@@ -290,7 +290,7 @@ test.describe("touch", () => {
                 out.heights.push(Math.round(box.height));
                 const title = li.querySelector(".pk-field-title");
                 if (title.getBoundingClientRect().height > parseFloat(getComputedStyle(title).lineHeight) * 1.5) out.twoLines.push(li.dataset.field);
-                for (const control of li.querySelectorAll(":scope > :is(.pk-handle, .pk-info, .pk-field-menu)")) {
+                for (const control of li.querySelectorAll(":scope > :is(.pk-handle, .pk-info, .pk-field-menu, .pk-field-name)")) {
                     const c = control.getBoundingClientRect();
                     const x = c.x + c.width / 2;
                     const mid = c.y + c.height / 2;
