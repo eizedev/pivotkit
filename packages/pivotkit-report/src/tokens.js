@@ -60,7 +60,7 @@ export const DARK_TOKENS = Object.freeze({
     "--pk-chart-7": "#9085e9",
     "--pk-chart-8": "#e66767",
     "--pk-chart-reference": "var(--pk-muted)",
-    "--pk-chart-other": "var(--pk-muted)"
+    "--pk-chart-other": "#6b7280"
 });
 
 /** The font weights, the same in both themes: pivotkit-react's scale (test/tokens.test.js compares them). */

@@ -6,6 +6,7 @@
  */
 
 import { DEFAULT_THEME } from "./defaults.js";
+import { DEFAULT_LABELS } from "./labels.js";
 import { ringLabelsFit } from "./chart-layout.js";
 import { labelLine, longestWidth, radiusPx, textWidth } from "./chart-measure.js";
 
@@ -427,7 +428,7 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
 const CATEGORY_LABEL_ROOM = 120;
 
 /** The arc (in lines of text) a slice needs at the pie's edge to keep its label outside, without a legend. */
-const OTHER_ARC = 0.75;
+const OTHER_ARC = 0.5;
 
 /**
  * A pie's or donut's smallest slices as one slice "Other (n)", last, where its labels outside have no
@@ -464,7 +465,8 @@ export function otherSlices(series, box, { fontSize, color, hidden = {} }) {
     }
     // the slices that may go, the smallest first
     const order = data.map((d, i) => ({ d, i })).filter(({ d }) => shownOf(d) && typeof d.value === "number").sort((a, b) => a.d.value - b.d.value || b.i - a.i);
-    const name = typeof series.otherName === "string" ? series.otherName : "Other ({count})";
+    const name = typeof series.otherName === "string" ? series.otherName : DEFAULT_LABELS.otherSlices;
+    // one fit per try: a chart draws at most 50 slices (MAX_CATEGORIES of the UI, the report's cap)
     for (let n = 2; n < order.length; n++) {
         const gone = new Set(order.slice(0, n).map((x) => x.i));
         const members = data.filter((_, i) => gone.has(i)).map((d) => ({ name: d.name, value: d.value }));

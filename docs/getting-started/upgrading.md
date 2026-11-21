@@ -188,7 +188,7 @@ their labels have no room ([many slices](../use/charts.md#many-slices)).
 - The chart image, the HTML report, the SVG and printing follow the same rule at their size.
 - The chart of an HTML report or SVG takes the report's words. A German report writes "Andere (n)"
   and the German names of the reference lines.
-- The token `--pk-chart-other` colours the slice, `--pk-muted` by default.
+- The token `--pk-chart-other` colours the slice: `--pk-muted` in light, a mid grey in dark.
 
 ### High and low points in the chart { #chart-points }
 

@@ -215,7 +215,7 @@
     --pk-chart-8: #e66767;
     --pk-chart-reference: var(--pk-muted);
     /* the slice "Other (n)" that holds a pie's smallest slices when their labels have no room */
-    --pk-chart-other: var(--pk-muted);
+    --pk-chart-other: #6b7280;
 }
 
 @media (prefers-reduced-motion: reduce) {

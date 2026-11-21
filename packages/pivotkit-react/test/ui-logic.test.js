@@ -330,6 +330,8 @@ test("chart tooltips: a title and a line per series or slice, values in the core
             { color: null, name: "C", value: "1.0 u" }
         ]
     });
+    // with the share switched on, the slice's share as the other slices have it
+    assert.equal(tooltipContent({ ...other, percent: 30 }, { valueFormatter: fmt, share: true, shareFormatter: (p) => `${p}%`, series: [{ additive: true }] }).lines[0].share, "30%");
     assert.deepEqual(tooltipContent(other, { valueFormatter: fmt, maxLines: 3, moreLabel: "+{count} more" }), {
         title: "Population",
         lines: [

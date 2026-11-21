@@ -179,14 +179,15 @@ labels of a pie.
 ## Many slices without a legend { #many-slices }
 
 With the legend **Off**, the labels are the only names of the slices. When they have no room, the
-smallest slices go into one grey slice, such as "Other (13)".
+smallest slices go into one grey slice, such as "Other (14)".
 
 ![A donut of 20 countries on a phone: the six largest with their names, the rest as one grey slice "Other (14)"](../assets/screenshots/donut-other-light.png#only-light){ width="300" }
 ![A donut of 20 countries on a phone: the six largest with their names, the rest as one grey slice "Other (14)"](../assets/screenshots/donut-other-dark.png#only-dark){ width="300" }
 
 - The number says how many slices it holds. Its size is their sum.
-- Point at it to see each slice it holds with its value, the largest first.
+- Point at it, or tap it on a phone, to see each slice it holds with its value, the largest first.
 - Every other slice keeps its whole label.
+- When even two slices and the grey one have no room, the chart draws every slice with its label, even where two labels touch.
 - The rule follows the room. A phone shows fewer slices than a wide screen. The chart image, the
   HTML report and printing follow the same rule at their size.
 - The numbers stay the same: the table and the export list every slice.
