@@ -4,7 +4,11 @@
 import { test as plain } from "@playwright/test";
 import { expect, test } from "./fixtures.js";
 
-/** Holds back the requests whose path matches `pattern` until release() is called; `requests` counts them. */
+/**
+ * Holds back the requests whose path matches `pattern` until release() is called; `requests` counts
+ * them. Firefox counts a module the page imports while loading towards its load event, so the specs
+ * do not wait for it (waitUntil "domcontentloaded").
+ */
 async function holdBack(page, pattern) {
     let release;
     const released = new Promise((resolve) => {
@@ -44,7 +48,7 @@ const ENGLISH = /\b(Rows|Columns|Values|Pivot report|Fields|Loading)\b/;
 test("a German report waits for its texts: no English word before them, then German; an English one never loads them", async ({ page }) => {
     await page.addInitScript(recordWords);
     const german = await holdBack(page, /\/chunks\/labels-de-[^/]+\.js$/);
-    await page.goto("pages/element-two.html");
+    await page.goto("pages/element-two.html", { waitUntil: "domcontentloaded" });
     const sales = page.locator("#sales");
     const tickets = page.locator("#tickets");
     // the English report renders at once; the German one waits, with its skeleton and no word
@@ -66,7 +70,7 @@ test("a German report waits for its texts: no English word before them, then Ger
 test("a report that changes its language keeps the old texts until the new ones are here, never a mix", async ({ page }) => {
     await page.addInitScript(recordWords);
     const german = await holdBack(page, /\/chunks\/labels-de-[^/]+\.js$/);
-    await page.goto("pages/element-views.html");
+    await page.goto("pages/element-views.html", { waitUntil: "domcontentloaded" });
     const host = page.locator("#views");
     await expect(host.locator(".pk-root")).toHaveAttribute("lang", "en");
     expect(german.requests).toBe(0);
@@ -91,7 +95,7 @@ plain("when the German texts cannot load, the German report shows in English and
     const warnings = [];
     page.on("console", (m) => m.type() === "warning" && warnings.push(m.text()));
     await page.route(/\/chunks\/labels-de-[^/]+\.js$/, (route) => route.abort());
-    await page.goto("pages/element-two.html");
+    await page.goto("pages/element-two.html", { waitUntil: "domcontentloaded" });
     const tickets = page.locator("#tickets");
     await expect(tickets.getByRole("region", { name: "Pivot report" })).toBeVisible();
     await expect(tickets.locator('[aria-label="Rows"]')).toBeVisible();
@@ -102,7 +106,7 @@ plain("when the German texts cannot load, the German report shows in English and
 
 plain("German texts that do not arrive within 4 seconds: the report shows in English, then takes them when they come", async ({ page }) => {
     const german = await holdBack(page, /\/chunks\/labels-de-[^/]+\.js$/);
-    await page.goto("pages/element-two.html");
+    await page.goto("pages/element-two.html", { waitUntil: "domcontentloaded" });
     const tickets = page.locator("#tickets");
     await expect.poll(() => german.requests).toBe(1);
     await expect(tickets.getByTestId("skeleton")).toHaveText("");
@@ -116,7 +120,7 @@ test("the tips show once their table is here; a choice the user makes before kee
     // tip "cells" was dismissed before
     await page.addInitScript(() => localStorage.setItem("pivotkit:tips:fields-a", '["cells"]'));
     const tips = await holdBack(page, /\/chunks\/tips-[^/]+\.js$/);
-    await page.goto("pages/element-fields.html");
+    await page.goto("pages/element-fields.html", { waitUntil: "domcontentloaded" });
     const a = page.locator("#a");
     const b = page.locator("#b");
     await expect(a.locator(".pk-table")).toBeVisible();
@@ -134,7 +138,7 @@ test("the tips show once their table is here; a choice the user makes before kee
 
 test("a notice that the result is cut shows at once, before the tips' table is here", async ({ page }) => {
     const tips = await holdBack(page, /\/chunks\/tips-[^/]+\.js$/);
-    await page.goto("pages/element-fields.html");
+    await page.goto("pages/element-fields.html", { waitUntil: "domcontentloaded" });
     const a = page.locator("#a");
     await expect(a.locator(".pk-table")).toBeVisible();
     await page.evaluate(() => {
@@ -162,7 +166,7 @@ const keepStyles = (host, key) =>
 test("the menus' rules arrive with the menus and change nothing the first render drew; an open menu has them", async ({ page }) => {
     const menus = await holdBack(page, /\/chunks\/menus-[^/]+\.js$/);
     const tips = await holdBack(page, /\/chunks\/tips-[^/]+\.js$/);
-    await page.goto("pages/element-fields.html");
+    await page.goto("pages/element-fields.html", { waitUntil: "domcontentloaded" });
     const host = page.locator("#a");
     await expect(host.locator(".pk-table")).toBeVisible();
     await expect.poll(() => menus.requests).toBeGreaterThan(0);
@@ -189,7 +193,7 @@ test("the menus' rules arrive with the menus and change nothing the first render
 });
 
 test("the <style> fallback gets the menus' rules too", async ({ page }) => {
-    await page.goto("pages/element-fallback.html");
+    await page.goto("pages/element-fallback.html", { waitUntil: "domcontentloaded" });
     const el = page.locator("#plain");
     await expect(el.locator(".pk-root")).toBeVisible();
     // the menus load right after the first render; their rules join the one <style> element
