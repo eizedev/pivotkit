@@ -297,7 +297,10 @@ test("search: quick choices with the count typed, a year compared, and the rules
     const from = hits("from 2022")[0];
     assert.equal(from.text, "From 2022");
     assert.deepEqual(filtersOf(from.choice.change().view, YEAR, RULE_TYPES), [{ field: YEAR, type: "compare", op: ">=", value: 2022, not: false, blanks: "exclude" }]);
-    assert.deepEqual(hits("rule").map((e) => e.id).slice(0, 2), ["open-filter-rules", "open-filter-text"]);
+    // "rule" finds the rules first, and the buttons that add one under their "Filter by …" names
+    assert.equal(hits("rule")[0].id, "open-filter-rules");
+    assert.ok(hits("rule").some((e) => e.id === "open-filter-text"));
+    assert.ok(hits("rule").some((e) => e.id === "open-filter-value"));
     // a date field: months too, and a year as its first or last day
     const raw = axisTopics({ view: norm({ rows: ["Released"] }), zone: "rows", index: 0, field: "Released", types, labels: MENU.en, locale: "en-US", encoded: data });
     const rawHits = (q) => searchHits(searchEntries(raw, q), q, "en-US");
@@ -558,3 +561,10 @@ test("search: the rule on the name is found by its operators, \"does not begin w
         assert.deepEqual(searchHits(searchEntries(topics, q), q, locale).map((e) => e.id), ["open-filter-text"], q);
     }
 });
+
+test("a condition on the names of spaces only is none, as an empty one", () => {
+    const v = norm({ rows: ["Region"] });
+    assert.deepEqual(filtersOf(setLabelFilter(v, "Region", { op: "contains", value: "   " }), "Region", ["text"]), []);
+    assert.equal(filtersOf(setLabelFilter(v, "Region", { op: "contains", value: " a " }), "Region", ["text"]).length, 1);
+});
+

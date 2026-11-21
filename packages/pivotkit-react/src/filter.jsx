@@ -14,7 +14,7 @@ import { useFormName } from "./dom.js";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { Popover } from "./popover.jsx";
-import { RULE_OPS, filtersOf, ruleOp, searchItems, selectedItems } from "./view-ops.js";
+import { RULE_OPS, filtersOf, isFiltered, ruleOp, searchItems, selectedItems } from "./view-ops.js";
 import { conditionKind, setItemFilter, setLabelFilter, textOn } from "./menu-ops.js";
 
 /** Values listed at once; the search finds the others. */
@@ -128,12 +128,15 @@ export function FilterBody({ view: current, base, field, encoded, locale, labels
         return null;
     }
     const name = fieldLabel(field, labels.core);
+    // the view Apply makes: the values ticked and the condition
+    const applied = () => setLabelFilter(setItemFilter(view, field, all.filter((v) => selected.has(keyOf(v))), all), field, op ? { op, value: text, on: textOn(encoded, field) } : null);
     const apply = () => {
-        let next = setItemFilter(view, field, all.filter((v) => selected.has(keyOf(v))), all);
-        next = setLabelFilter(next, field, op ? { op, value: text, on: textOn(encoded, field) } : null);
+        const next = applied();
         close();
         commit(next, { step: "filter", field: name });
     };
+    // the count says when Apply keeps every value of the field (no pick, no condition, no other rule)
+    const keepsAll = !isFiltered(applied(), field);
     // a condition the type has none for (a loaded view's) still shows, so it can be taken off
     const kind = conditionKind(encoded, view, field) ?? (label ? "text" : null);
     return (
@@ -146,7 +149,9 @@ export function FilterBody({ view: current, base, field, encoded, locale, labels
         >
             <div className="pk-popover-head">
                 {titled ? <h3>{fill(labels.filterTitle, { field: name })}</h3> : null}
-                <span className="pk-muted">{fill(labels.selected, { count: selected.size.toLocaleString(locale) })}</span>
+                <span className="pk-muted" data-testid="filter-selected">
+                    {fill(keepsAll ? labels.selectedAll : labels.selected, { count: selected.size.toLocaleString(locale) })}
+                </span>
             </div>
             <ValueList items={info.items} selected={selected} onChange={setSelected} labels={labels} locale={locale} autoFocus>
             {kind ? (
