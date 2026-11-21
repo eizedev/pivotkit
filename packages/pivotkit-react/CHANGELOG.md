@@ -8,8 +8,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
-- A tip on stacked bars of an average, a minimum or another value that does not add up: the stack's
-  height is no total. **Switch to Bars** shows the parts side by side, in English and German
+- A tip on stacked bars or areas of an average, a minimum or another value that does not add up:
+  the top of the stack is no total. **Switch to Bars** shows the parts side by side, in English and German
   ([#536](https://github.com/eizedev/pivotkit/issues/536)).
 - Chart settings offers **Bars and lines** and **Treemap**. Bars and lines needs two fields in
   Values and says so. A treemap's labels take the token colour that reads on each tile

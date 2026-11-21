@@ -37,8 +37,9 @@ export const TIP_LIMIT = 1;
  * @property {number | null} dragAt  `changes` when the first drag ended, null before
  * @property {boolean} canSave  the host lets the user save templates
  * @property {number} savedAt  `changes` when the view was last saved (0: not saved in this session)
- * @property {{ name: string, auto: boolean, swap: boolean }} chartPlan  what the chart draws
- *   (chart-types.js chartPlan): the type, whether the data chose it, rows and columns swapped for it
+ * @property {{ name: string, auto: boolean, swap: boolean, chart?: { type: string, stacked: boolean, horizontal: boolean } }} chartPlan
+ *   what the chart draws (chart-types.js chartPlan): the type, whether the data chose it, rows and
+ *   columns swapped for it, the settings it draws with
  */
 
 /**

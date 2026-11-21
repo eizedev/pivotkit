@@ -429,15 +429,19 @@ test("tips: a stack of values that do not add up (averages) says so and offers b
     assert.deepEqual(holding(average), ["stackedTotal"]);
     const tip = activeTips(average, { allowed: "on", dismissed: [] })[0];
     assert.equal(tip.entry.action, "bars");
-    assert.equal(tipText(tip.id, tip.params, en, "en-US"), "A stack adds up its parts, and a sum of Average of Mean is no useful total. Bars show the parts side by side.");
-    assert.equal(tipText(tip.id, tip.params, LABELS.de, "de-DE"), "Ein Stapel addiert seine Teile, und eine Summe aus Durchschnitt von Mean ergibt keine sinnvolle Gesamtzahl. Balken zeigen die Teile nebeneinander.");
+    assert.equal(tipText(tip.id, tip.params, en, "en-US"), "Average of Mean does not add up, so the top of a stack is no total. Bars show the parts side by side.");
+    assert.equal(tipText(tip.id, tip.params, LABELS.de, "de-DE"), "Durchschnitt von Mean lässt sich nicht addieren, die Höhe eines Stapels ist also keine Summe. Balken zeigen die Teile nebeneinander.");
     // horizontal stacked bars too; a minimum as well
     assert.deepEqual(holding(stacked("min", { type: "bar", stacked: true, horizontal: true })), ["stackedTotal"]);
     // sums and counts add up; bars side by side do not stack
     assert.deepEqual(holding(stacked("sum")), []);
     assert.deepEqual(holding(stacked("count")), []);
     assert.deepEqual(holding(stacked("average", { type: "bar" })), []);
+    // an area stacked to 100 % adds its parts too; of two values, the one that does not add up is named
+    assert.ok(holding(stacked("average", { type: "area", stackPercent: true })).includes("stackedTotal"));
+    const mixed = contextOf(rows, { rows: ["Month"], cols: ["City"], values: [{ field: "Mean", agg: "sum" }, { field: "Mean", agg: "max" }], display: "chart", chart: { type: "bar", stacked: true } });
+    const named = activeTips(mixed, { allowed: "on", dismissed: [] }).find((x) => x.id === "stackedTotal");
+    assert.equal(tipText(named.id, named.params, en, "en-US"), "Maximum of Mean does not add up, so the top of a stack is no total. Bars show the parts side by side.");
     // one series is no stack
     assert.deepEqual(holding(contextOf(rows, { rows: ["Month"], values: [{ field: "Mean", agg: "average" }], display: "chart", chart: { type: "bar", stacked: true } })), []);
 });
-

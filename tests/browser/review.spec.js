@@ -58,7 +58,7 @@ test("stacked bars of an average say the stack is no total and switch to bars; s
     const view = (agg) => ({ rows: ["Region"], cols: ["Channel"], values: [{ field: "Revenue", agg }], display: "chart", chart: { type: "bar", stacked: true } });
     await page.goto(withView("data=sales&import=off", view("average")));
     const tip = page.getByTestId("tip-stackedTotal");
-    await expect(tip).toContainText("A stack adds up its parts, and a sum of Average of Revenue is no useful total.");
+    await expect(tip).toContainText("Average of Revenue does not add up, so the top of a stack is no total.");
     await tip.getByRole("button", { name: "Switch to Bars" }).click();
     await expect(page.getByTestId("chart-summary")).toContainText(/^Bars: /);
     await expect(page.getByTestId("tip-stackedTotal")).toHaveCount(0);
