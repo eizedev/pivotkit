@@ -8,6 +8,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `view.fieldLabels`: names of the report's own for fields, by the field's name. `normalize` checks
+  them, `toGrid()` and `toSeries()` show them, and `withFieldLabels(labels, fieldLabels)` puts them
+  over a host's display names. Only a view with a name has the key; pivotkit 0.8 reads such a view
+  with an `unknownKey` error ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#field-labels), #158).
 - `stacksToPercent(chart)`: whether a view's chart is drawn stacked to 100 %, for pivotkit-react's
   tip on stacks of values that do not add up ([#536](https://github.com/eizedev/pivotkit/issues/536)).
 - `COLOR_SCALES`: the colour scales the value menu offers, blue to orange, blue to red and red to

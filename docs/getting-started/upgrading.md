@@ -179,6 +179,7 @@ Then restart Claude Code.
 | [Two chart types: bars and lines, and a treemap](#combo-treemap) | you share views with pivotkit 0.8, or a host or a script lists the chart types | nothing. pivotkit 0.8 draws such a view with the automatic type |
 | [A pie without a legend groups its smallest slices](#other-slice) | your app shows a pie or donut with the legend off, or your tests or screenshots compare one | nothing; turn the legend on to draw every slice. Expect "Other (n)" in tests |
 | [Sort by one column](#sort-column) | you share views with pivotkit 0.8, or run pivotkit-server or pivotkit-mcp | nothing. pivotkit 0.8 sorts such a view by the whole row, with a warning. Reconnect MCP clients to see `column` in the view schema |
+| [A name of the report's own for a field](#field-labels) | you share views with pivotkit 0.8, or a program reads views | nothing. A view without such a name stays as it is |
 | [High and low points in the chart](#chart-points) | you share views with pivotkit 0.8, or your tests compare a normalized view or the chart option as a whole | nothing. A normalized view has `extremes` in `chart.referenceLines` |
 | [A click in the chart opens a menu](#chart-click-menu) | your app uses `onCellClick` or `pivot-cell-click` for chart points, or your tests click a chart to open its rows | expect the call at **Show the rows** or a double click. In tests, click **Show the rows** or double-click |
 
@@ -212,6 +213,20 @@ in `column`, its items from the outermost column field.
 
 - pivotkit 0.8 reads such a view with a warning and sorts by the whole row.
 - Saved again there, the view loses the column.
+
+### A name of the report's own for a field { #field-labels }
+
+A field in Rows, Columns or Filters can have a name of the report's own: **Name** in its chip menu
+([fields](../use/fields.md)). The view keeps it in a new top-level key, `fieldLabels`, such as
+`{ "cn": "City" }`.
+
+- A view without such a name has no `fieldLabels`. pivotkit 0.8 reads it as before.
+- pivotkit 0.8 reads a view with `fieldLabels` with an `unknownKey` error and shows the fields'
+  own names. Saved again there, the view loses the names.
+- `toGrid()` and `toSeries()` use the names. `withFieldLabels()` puts them over a host's display
+  names for code of your own.
+- The view's JSON Schema and the OpenAPI document list the key. MCP clients see it after they
+  reconnect.
 
 ### High and low points in the chart { #chart-points }
 

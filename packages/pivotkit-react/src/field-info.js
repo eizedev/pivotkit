@@ -114,16 +114,18 @@ export function typesOf(fieldDefaults) {
 }
 
 /**
- * Whether a field matches the search of the field list: its name, its display name or its description.
+ * Whether a field matches the search of the field list: its name, its display name, the name the
+ * report gives it (#158) or its description.
  * @param {string} field
  * @param {string} query  lower case, trimmed
  * @param {FieldInfo | undefined} info
+ * @param {string} [shown]  the name the report shows for it
  */
-export function fieldMatches(field, query, info) {
+export function fieldMatches(field, query, info, shown) {
     if (!query) {
         return true;
     }
-    return [field, info?.label, info?.description].some((t) => typeof t === "string" && t.toLowerCase().includes(query));
+    return [field, info?.label, shown, info?.description].some((t) => typeof t === "string" && t.toLowerCase().includes(query));
 }
 
 /**
@@ -133,11 +135,12 @@ export function fieldMatches(field, query, info) {
  * @param {F[]} fields
  * @param {string} query  as typed
  * @param {Map<string, FieldInfo>} info  the host's descriptions by lower-case field name
+ * @param {(field: string) => string} [nameOf]  the name the report shows for a field
  * @returns {F[]}
  */
-export function matchingFields(fields, query, info) {
+export function matchingFields(fields, query, info, nameOf) {
     const q = query.trim().toLowerCase();
-    return q ? fields.filter((f) => fieldMatches(f.name, q, info.get(f.name.toLowerCase()))) : fields;
+    return q ? fields.filter((f) => fieldMatches(f.name, q, info.get(f.name.toLowerCase()), nameOf?.(f.name))) : fields;
 }
 
 /** Whether a field's name says it is an identifier: pivotkit-core's rule, which its suggestions share. */

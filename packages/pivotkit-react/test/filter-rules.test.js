@@ -318,16 +318,16 @@ test("search: quick choices with the count typed, a year compared, and the rules
     assert.equal(searchEntries(topics).some((e) => e.id.startsWith("quick-")), false);
 });
 
-test("the Filters zone's menu: Filter with its state, Group for a date, then Move to (no sort or Top items)", () => {
+test("the Filters zone's menu: Filter with its state, Group for a date, Name, then Move to (no sort or Top items)", () => {
     const v = setQuickRange(addField(norm({}), "Released", "filters"), "Released", { unit: "year", count: 2 });
     const topics = filterZoneTopics({ view: v, index: 0, field: "Released", types, labels: MENU.en, locale: "en-US", state: { summary: null, rules: ["last 2 years"] }, encoded: data });
-    assert.deepEqual(topics.map((t) => t.id), ["filter", "group", "move"]);
+    assert.deepEqual(topics.map((t) => t.id), ["filter", "group", "name", "move"]);
     assert.equal(topics[0].state, "last 2 years");
     assert.equal(topics[0].changed, true);
-    assert.deepEqual(topics[2].groups[0].choices.map((c) => c.id), ["move-cols", "move-rows", "move-values"]);
+    assert.deepEqual(topics[3].groups[0].choices.map((c) => c.id), ["move-cols", "move-rows", "move-values"]);
     // a text field in Filters: no Group
     const text = filterZoneTopics({ view: addField(norm({}), "Region", "filters"), index: 0, field: "Region", types, labels: MENU.en, locale: "en-US", encoded: data });
-    assert.deepEqual(text.map((t) => t.id), ["filter", "move"]);
+    assert.deepEqual(text.map((t) => t.id), ["filter", "name", "move"]);
 });
 
 test("a date in Filters is grouped from its menu: the grouping takes its place among the Filters, its filter starts empty", () => {

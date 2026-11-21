@@ -29,7 +29,7 @@ import { MenuButton, Option } from "./popover.jsx";
 import { ZONES } from "./view-ops.js";
 
 
-function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, showInfo, stop }) {
+function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, source, info, showInfo, stop }) {
     const { setNodeRef, isDragging, itemProps, handleProps } = useDragSource(`field:${field.name}`, { kind: "field", field: field.name, type: field.type, label: name });
     const item = useRef(/** @type {HTMLLIElement | null} */ (null));
     const menu = useRef(/** @type {HTMLButtonElement | null} */ (null));
@@ -75,9 +75,14 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, 
                 aria-describedby={info ? describedBy : undefined}
             >
                 {/* two lines at most, broken between words only; the whole name on hover */}
-                <span className="pk-field-title" title={name}>
+                <span className="pk-field-title" title={source ? `${name} (${source})` : name}>
                     {wordsOf(name)}
                 </span>
+                {source ? (
+                    <span className="pk-field-source" title={source}>
+                        {source}
+                    </span>
+                ) : null}
             </button>
             {info ? (
                 <span id={describedBy} className="pk-sr">
@@ -138,18 +143,18 @@ function wordsOf(name) {
  * @param {{ fields: Array<{ name: string, type: string }>, placed: Map<string, string[]>, labels: import("./labels.js").UiLabels,
  *   onAdd: (field: string, zone: string) => void, onNote: (text: string) => void, drawer: boolean, open: boolean, onClose: () => void,
  *   onFilter?: (field: string, anchor: HTMLElement | null) => void, showInfo?: boolean,
- *   nameOf: (field: string) => string, info: Map<string, import("./field-info.js").FieldInfo>, onSkip?: () => void,
+ *   nameOf: (field: string) => string, sourceNameOf?: (field: string) => string, info: Map<string, import("./field-info.js").FieldInfo>, onSkip?: () => void,
  *   collapsed?: boolean, onCollapse?: (collapsed: boolean) => void }} props
  *   `nameOf`: a field's display name; `info`: the host's descriptions by lower-case field name;
  *   `onSkip`: the link past the list to the toolbar (not in the drawer, which the toolbar opens);
  *   `collapsed`, `onCollapse`: the list folded to a rail ("Fields" and a search button) beside the
  *   report, and the change of it (not in the drawer)
  */
-export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, drawer, open, onClose, nameOf, info, showInfo = true, onSkip, collapsed = false, onCollapse }) {
+export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, drawer, open, onClose, nameOf, sourceNameOf, info, showInfo = true, onSkip, collapsed = false, onCollapse }) {
     const [query, setQuery] = useState("");
     const active = useActiveDrag();
     const { setNodeRef, isOver } = useDropTarget("panel", { kind: "panel" });
-    const shown = useMemo(() => matchingFields(fields, query, info), [fields, query, info]);
+    const shown = useMemo(() => matchingFields(fields, query, info, nameOf), [fields, query, info, nameOf]);
     const removing = active && active.kind !== "field";
     const modal = drawer && open;
     const el = useRef(/** @type {HTMLElement | null} */ (null));
@@ -275,6 +280,8 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
                         showInfo={showInfo}
                         stop={current && current.field === f.name ? current.slot : null}
                         name={nameOf(f.name)}
+                        // a field the report gives a name of its own (#158): the name it has without it, under it
+                        source={sourceNameOf && sourceNameOf(f.name) !== nameOf(f.name) ? sourceNameOf(f.name) : undefined}
                         // only a description makes the "i": a label alone needs no button
                         info={info.get(f.name.toLowerCase())?.description ? info.get(f.name.toLowerCase()) : undefined}
                     />

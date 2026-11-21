@@ -68,6 +68,9 @@ export const en = {
     // more words the search of a menu finds an entry by
     showAsKeywords: "percent % share",
     nameKeywords: "rename label title",
+    // a field's own name in the report (#158)
+    fieldNameHint: "The table, the chart and the exports show this name.",
+    fieldNameReset: "Use the field's name",
     filterKeywords: "values pick choose rule rules condition range dates",
     formatDecimals: { one: "Number, {count} decimal", other: "Number, {count} decimals" },
     // the Filter level: what it keeps in words, what its buttons take away, its folded part

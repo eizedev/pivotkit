@@ -58,6 +58,8 @@ export const de = {
     nameHint: "Gilt mit Enter oder beim Verlassen des Felds; Escape gibt den Namen zurück.",
     showAsKeywords: "prozent % anteil",
     nameKeywords: "umbenennen bezeichnung titel",
+    fieldNameHint: "Tabelle, Diagramm und Exporte zeigen diesen Namen.",
+    fieldNameReset: "Namen des Felds verwenden",
     filterKeywords: "werte auswählen regel regeln bedingung zeitraum datum",
     formatDecimals: { one: "Zahl, {count} Dezimalstelle", other: "Zahl, {count} Dezimalstellen" },
     listAnd: " und ",

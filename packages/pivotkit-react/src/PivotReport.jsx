@@ -12,10 +12,10 @@
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
-import { computePivot, emptyView, encode, fieldLabel, normalize, suggestDateUnit, toGrid, toSeries, viewFields } from "pivotkit-core";
+import { computePivot, emptyView, encode, fieldLabel, normalize, suggestDateUnit, toGrid, toSeries, viewFields, withFieldLabels } from "pivotkit-core";
 import { PivotChart, loadECharts } from "./chart.jsx";
 import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
-import { groupingName, layoutSummary, valueLabels } from "./names.js";
+import { groupingName, layoutSummary, sourceFieldName, valueLabels } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
 import { DRILL_LIMIT, drillRows } from "./drill.js";
 import { dateContext, dateRangeText, dateDisplayLocale } from "./date-context.js";
@@ -551,7 +551,7 @@ function Report(props) {
     const limits = imported ? fileLimits : hostLimits;
     // the display names (labels.fields), told apart where two fields would look the same
     const fieldNamesKey = encoded.schema.fields.map((f) => f.name).join("\u0000");
-    const labels = useMemo(() => {
+    const hostLabels = useMemo(() => {
         const fields = displayNames(info, fieldNamesKey ? fieldNamesKey.split("\u0000") : []);
         return fields ? { ...baseLabels, core: { ...baseLabels.core, fields } } : baseLabels;
     }, [baseLabels, info, fieldNamesKey]);
@@ -569,8 +569,17 @@ function Report(props) {
         }
         return (/** @type {string} */ field) => orders.find(([name]) => name.toLowerCase() === field.toLowerCase())?.[1];
     }, [ordersKey]);
-    const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside, orderOf, dataKey: imported ? imported.key : 0, initial: kept?.history });
+    const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: hostLabels.steps.outside, orderOf, dataKey: imported ? imported.key : 0, initial: kept?.history });
     const view = history.view;
+    // the view's own names for fields (#158) over the host's display names; `hostNames` keeps the
+    // host's, for the name a field has without the report's (a rename's placeholder, the field list)
+    const fieldLabelsKey = view.fieldLabels ? JSON.stringify(view.fieldLabels) : "";
+    const labels = useMemo(() => {
+        if (!fieldLabelsKey) {
+            return hostLabels;
+        }
+        return { ...hostLabels, hostNames: hostLabels.core.fields ?? null, core: withFieldLabels(hostLabels.core, JSON.parse(fieldLabelsKey)) };
+    }, [hostLabels, fieldLabelsKey]);
     // the host's view (`view`, else the first `defaultView`) and what of it the data cannot use: shown
     // above the result like a loaded view's unused parts, once per distinct view (a host may render the
     // same view again and again), not while the data is still on its way
@@ -890,6 +899,8 @@ function Report(props) {
     const typeOf = useCallback((field) => types.get(sourceOf(view, field ?? "").toLowerCase()) ?? "string", [types, view]);
     /** A field's display name (fieldDefaults label), else its name. */
     const nameOf = useCallback((field) => fieldLabel(field, labels.core), [labels]);
+    // the name a field has without the report's own (#158), for the field list
+    const sourceNameOf = useCallback((field) => sourceFieldName(field, labels), [labels]);
     /** True when the host gives a field on an axis an order (fieldDefaults.order); a grouping has items of its own. */
     const hostOrdered = useCallback((field) => sourceOf(view, field) === field && (orderOf?.(field)?.length ?? 0) > 0, [view, orderOf]);
     /** A click on a table header: the field's new sort, a step Undo takes back as the chip menu's. */
@@ -1670,6 +1681,7 @@ function Report(props) {
                                 onNote={(text) => announce(text)}
                                 onFilter={filterField}
                                 nameOf={nameOf}
+                                sourceNameOf={sourceNameOf}
                                 info={fieldInfo}
                                 showInfo={fieldSwitch.on}
                                 drawer={size === "narrow"}

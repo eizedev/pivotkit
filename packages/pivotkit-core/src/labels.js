@@ -3,6 +3,7 @@
  */
 
 import { collator, dateFormatter } from "./intl.js";
+import { isPlainObject } from "./util.js";
 
 /** @type {Intl.DateTimeFormatOptions} */
 const DATE = { dateStyle: "medium", timeZone: "UTC" };
@@ -252,6 +253,35 @@ export const ROW_COUNT_TEXTS = Object.freeze({
 export function reportLabels(locale) {
     const lang = String(locale ?? "").split("-")[0].toLowerCase();
     return lang === "de" ? REPORT_LABELS.de : REPORT_LABELS.en;
+}
+
+/**
+ * Labels with a view's names of its own for fields (view.fieldLabels, #158) over `labels.fields` (a
+ * host's display names): a host's entry for the same field, in any case, gives way. Without names,
+ * `labels` as it is.
+ * @template {{ fields?: Record<string, string> }} L
+ * @param {L} labels
+ * @param {Record<string, string> | undefined} fieldLabels
+ * @returns {L}
+ */
+export function withFieldLabels(labels, fieldLabels) {
+    if (!isPlainObject(fieldLabels) || Object.keys(fieldLabels).length === 0) {
+        return labels;
+    }
+    const own = new Set(Object.keys(fieldLabels).map((k) => k.toLowerCase()));
+    /** @type {Record<string, string>} */
+    const fields = {};
+    const add = (k, v) => Object.defineProperty(fields, k, { value: v, enumerable: true, writable: true, configurable: true });
+    const host = labels && isPlainObject(labels.fields) ? labels.fields : {};
+    for (const k of Object.keys(host)) {
+        if (!own.has(k.toLowerCase())) {
+            add(k, host[k]);
+        }
+    }
+    for (const k of Object.keys(fieldLabels)) {
+        add(k, fieldLabels[k]);
+    }
+    return { ...labels, fields };
 }
 
 /**

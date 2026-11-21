@@ -717,6 +717,16 @@
     line-height: 1.3;
 }
 
+/* the name a renamed field has in the data (#158): one muted line under the report's name */
+.pk-field-source {
+    display: block;
+    overflow: hidden;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .pk-field-title .pk-word {
     display: inline-block;
     max-width: 100%;
