@@ -460,8 +460,13 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         const state = headerSortState(view, target);
         const next = nextHeaderSort(view, target, hostOrdered(target.field));
         const field = fieldLabel(target.field, labels.core);
+        const column = target.column ? columnNames.get(JSON.stringify(target.column)) : undefined;
         // a sort in words; no entry is the field's default order
-        const words = (s) => sortText(view, s ?? { by: hostOrdered(target.field) ? "custom" : "label", order: "asc" }, labels);
+        const words = (s) => sortText(view, s ?? { by: hostOrdered(target.field) ? "custom" : "label", order: "asc" }, labels, s?.column ? columnNames.get(JSON.stringify(s.column)) : undefined);
+        // a column's label keeps its width: its arrow sits in the cell's padding (styles.css
+        // .pk-th-sort-aside), so twelve months do not widen the table (#70). The corner is one cell:
+        // its arrow stays next to its text, also when the text wraps
+        const aside = Boolean(target.column);
         // the arrow of the order in use, else of the one a click gives (shown on hover and focus)
         const down = state.chosen ? state.order === "descending" : next?.order === "desc";
         const click = () => {
@@ -472,13 +477,32 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
             // aria-sort only on the header whose sort was chosen (a custom order too): one at a time (WAI-ARIA APG)
             sort: state.chosen || state.order === "other" ? state.order : null,
             content: (
-                <button type="button" className={`pk-th-sort${state.chosen ? " pk-sorted" : ""}`} title={target.ref && next ? fill(next.order === "desc" ? labels.headerSortDesc : labels.headerSortAsc, { value: refLabel(view, target.ref, labels) }) : fill(labels.headerSort, { field, order: words(next) })} onClick={click}>
+                <button type="button" className={`pk-th-sort${state.chosen ? " pk-sorted" : ""}${aside ? " pk-th-sort-aside" : ""}`} title={target.ref && next ? fill(next.order === "desc" ? labels.headerSortDesc : labels.headerSortAsc, { value: column ? fill(labels.valueInColumn, { value: refLabel(view, target.ref, labels), column }) : refLabel(view, target.ref, labels) }) : fill(labels.headerSort, { field, order: words(next) })} onClick={click}>
                     <span className="pk-th-text">{cell.text}</span>
                     <Icon name={down ? "arrowDown" : "arrowUp"} size={14} className="pk-th-arrow" />
                 </button>
             )
         };
     };
+
+    // the columns' names as the header writes them, by path: "2025 › Jul" for a sort by one column
+    const columnNames = (() => {
+        const texts = new Map();
+        for (const row of grid.rows.slice(0, grid.headerRows)) {
+            for (const cell of row) {
+                // a subtotal's header ("2024 Total") has its group's path: the group's own label names it
+                if (cell?.kind === "colHeader" && cell.valueIndex === undefined && !cell.total && cell.colPath?.length) {
+                    texts.set(JSON.stringify(cell.colPath), cell.text);
+                }
+            }
+        }
+        const names = new Map();
+        for (const key of texts.keys()) {
+            const path = JSON.parse(key);
+            names.set(key, path.map((_, i) => texts.get(JSON.stringify(path.slice(0, i + 1))) ?? String(path[i])).join(" › "));
+        }
+        return names;
+    })();
 
     // the first column of a subtotal column's values: an edge before it sets it apart from its group
     const subStart = (col) => {
@@ -490,7 +514,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         const top = { top: tops[r] ?? r * rowHeight };
         const sticky = c < grid.rowHeaderColumns;
         const className = `pk-th pk-${cell.kind}${totalClass(cell.total)}${subStart(c)}${sticky ? " pk-sticky" : ""}`;
-        const target = onSort && r === grid.headerRows - 1 ? headerSortTarget(view, cell, typeOf) : null;
+        const target = onSort ? headerSortTarget(view, cell, typeOf) : null;
         const sorting = target ? sortButton(cell, target) : null;
         const content = (
             <span className="pk-th-content">
@@ -522,7 +546,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         // a subtotal column's label says what it adds up (the same text as the tip)
         const title = cell.kind === "colHeader" && cell.total === 1 && r < grid.headerRows - 1 ? labels.tips.colSubtotals : undefined;
         return (
-            <th key={c} {...props} title={title}>
+            <th key={c} {...props} title={title} aria-sort={sorting?.sort ?? undefined}>
                 {content}
             </th>
         );

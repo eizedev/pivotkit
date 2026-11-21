@@ -225,7 +225,7 @@ function sortAxis(tree, fields, columns, sortOf, valueOfNode, ranks) {
                 return pa === pb ? 0 : pa === Infinity ? 1 : pb === Infinity ? -1 : (pa - pb) * dir;
             });
         } else if (spec.by === "value") {
-            const vals = new Map(node.children.map((c) => [c, valueOfNode(c, spec.value)]));
+            const vals = new Map(node.children.map((c) => [c, valueOfNode(c, spec.value, spec.column)]));
             node.children.sort((a, b) => {
                 const va = vals.get(a);
                 const vb = vals.get(b);
@@ -332,7 +332,19 @@ export function computePivot(data, viewInput, options) {
     const num = (v) => (typeof v === "number" ? v : null);
 
     const sortOf = new Map(view.sort.map((s) => [s.field, s]));
-    sortAxis(rowTree, view.rows, rowColumns, sortOf, (n, ref) => num(measureValue(n, colTree.root, measureIndex.get(refKey(ref)))), ranks);
+    // a row field sorted by a value in one column (its items, outermost first): that column's node,
+    // null when the data has no such column (every row then sorts last, by label)
+    const columnNode = (path) => {
+        let node = colTree.root;
+        for (const key of path) {
+            node = node?.children.find((c) => c.key === key);
+        }
+        return node ?? null;
+    };
+    sortAxis(rowTree, view.rows, rowColumns, sortOf, (n, ref, column) => {
+        const col = column ? columnNode(column) : colTree.root;
+        return col ? num(measureValue(n, col, measureIndex.get(refKey(ref)))) : null;
+    }, ranks);
     sortAxis(colTree, view.cols, colColumns, sortOf, (n, ref) => num(measureValue(rowTree.root, n, measureIndex.get(refKey(ref)))), ranks);
 
     const valueTypes = view.values.map((v) => {

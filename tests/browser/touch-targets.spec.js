@@ -25,6 +25,16 @@ const missed = (page) =>
                 continue;
             }
             el.scrollIntoView({ block: "center", inline: "nearest" });
+            // a header the table's sticky first column covers (the row headers stay while the table
+            // scrolls) comes out beside it, as a person scrolls it there
+            const sticky = el.closest("table")?.querySelector("thead th.pk-sticky");
+            if (sticky && !el.closest(".pk-sticky")) {
+                const edge = sticky.getBoundingClientRect().right;
+                const left = el.getBoundingClientRect().left;
+                if (left < edge + 22) {
+                    el.closest(".pk-table-wrap")?.scrollBy({ left: left - edge - 22 });
+                }
+            }
             const box = el.getBoundingClientRect();
             const x = box.left + box.width / 2;
             const y = box.top + box.height / 2;

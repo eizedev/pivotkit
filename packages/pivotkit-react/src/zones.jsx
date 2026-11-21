@@ -15,7 +15,7 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { fieldItems, fieldLabel } from "pivotkit-core";
 import { MenuPanel } from "./lazy-menus.jsx";
-import { itemRuleText, layoutSummary, sortText, valueConditionText, valueLabels } from "./names.js";
+import { columnText, itemRuleText, layoutSummary, sortText, valueConditionText, valueLabels } from "./names.js";
 import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
@@ -52,7 +52,10 @@ function fieldState(view, field, encoded, locale, labels, sourceType) {
     const rules = filtersOf(view, field, ["relative", "compare", "text"]).map((f) => itemRuleText(f, labels, locale, { timeZone: encoded.timeZone, date, labelOf, span, weekStart: view.formatting?.weekStart }));
     const top = filtersOf(view, field, ["top"])[0] ?? null;
     const condition = filtersOf(view, field, ["value"])[0] ?? null;
-    return { summary, rules, top, condition, sort: sortOf(view, field) };
+    const sort = sortOf(view, field);
+    // a sort by one column says which, as the table names it (#70)
+    const sortColumn = sort?.column ? columnText(view, sort.column, encoded, labels, locale) : undefined;
+    return { summary, rules, top, condition, sort, sortColumn };
 }
 
 /**
@@ -75,7 +78,7 @@ function stateWords(state, view, labels, locale) {
         words.push(valueConditionText(view, state.condition, labels, locale));
     }
     if (state.sort) {
-        words.push(fill(labels.stateSorted, { order: sortText(view, state.sort, labels) }));
+        words.push(fill(labels.stateSorted, { order: sortText(view, state.sort, labels, state.sortColumn) }));
     }
     return words.join(", ");
 }

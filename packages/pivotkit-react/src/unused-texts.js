@@ -119,6 +119,7 @@ export const en = {
         filterRelativeAnchor: "the range can count from “today”, “latest” (the latest record), “first” (the first record) or a date, not from “{value}” - this filter is left out",
         sortNoItems: "the custom order lists no items - the usual order is used",
         sortedTwice: "the field is sorted twice - only its first sort is used",
+        sortColumn: "the column it sorts by cannot be used - the rows are sorted by the whole row",
         badTotals: "the totals cannot be read - the usual totals are shown",
         collapsedPath: "a collapsed group does not fit the fields - it is shown expanded",
         unknownSetting: "the {setting} “{value}” is unknown - the default is used",
