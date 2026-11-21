@@ -296,7 +296,7 @@ All props are listed in the [pivotkit-react reference](../reference/react.md).
 On the first chart it loads `./echarts.js` next to it. That file imports two things:
 
 - `echarts/core`, `echarts/charts`, `echarts/components` and `echarts/renderers` by name, so a
-  bundler keeps only the four chart types the report draws
+  bundler keeps only the five chart types the report draws
 - `pivotkit-core/chart`: the ECharts option, the chart's marks and label layout
 
 Any bundler that understands ES modules resolves these imports. A page without a bundler maps each

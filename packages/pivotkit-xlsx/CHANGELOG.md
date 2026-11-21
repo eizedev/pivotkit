@@ -14,6 +14,7 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
   two copies of pivotkit-core.
 - **Breaking:** needs Node 24 or later. Node 22 is no longer supported
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
+- Depends on read-excel-file 9.3.17 (was 9.3.14). The reader loads 32.5 KiB gzip (was 31.4).
 
 ## [0.5.0] - 2026-11-18
 

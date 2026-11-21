@@ -124,8 +124,8 @@ project's own docs name.
   each column's role. Top N and an Excel export were not found in its docs.
 - **Size**: PivotTable.js's core is 6.3 KB gzip by its README, without charts. Graphic Walker's FAQ
   names about 1.5 MB minified, roughly 400 KB gzip, with Vega-Lite. pivotkit's web component loads:
-    - first: about 175 KiB gzip, with React inside
-    - on the first chart: the chart's code, about 242 KiB gzip, ECharts with it
+    - first: about 179 KiB gzip, with React inside
+    - on the first chart: the chart's code, about 259 KiB gzip, ECharts with it
 
     Measured with `npm run size -w pivotkit-element` on 2026-11-21. See
     [bundle size](reference/element.md#bundle-size).

@@ -5,7 +5,7 @@ description: Click a value of a pivotkit report to see the source rows behind it
 
 # The rows behind a number
 
-Click a value in the table or a mark in the chart. A panel shows the rows of the data behind it:
+Click a value in the table. In the chart, click a mark and pick **Show the rows**. A panel shows the rows of the data behind it:
 which tickets make up "648", or which sales add up to a region's revenue. Where the application
 allows it, you can copy the rows or download them from there.
 

@@ -186,6 +186,10 @@ This applies to pivotkit-server and pivotkit-mcp 0.3.2 too, which move to 0.4.0 
 | [Table and chart side by side](#display-both) | you share views with pivotkit 0.8, or a program reads `display` | nothing. A view shown as both has `display: "both"` |
 | [High and low points in the chart](#chart-points) | you share views with pivotkit 0.8, or your tests compare a normalized view or the chart option as a whole | nothing. A normalized view has `extremes` in `chart.referenceLines` |
 | [A click in the chart opens a menu](#chart-click-menu) | your app uses `onCellClick` or `pivot-cell-click` for chart points, or your tests click a chart to open its rows | expect the call at **Show the rows** or a double click. In tests, click **Show the rows** or double-click |
+| [Plainer filter words](../use/filters.md#rule-on-the-name) | your tests, screenshots or `labels` use the filter's texts, such as "Text condition" | expect "Only if the name…" and buttons named "Filter by <field>" and "Filter by total" |
+| Touch targets of 44 x 44 px | your app runs on phones or tablets, or your screenshots show a touch layout | nothing; take touch screenshots again. The controls leave a little less room on a phone |
+| [German texts load before a German report renders](../reference/localisation.md#built-in-languages) | your page shows a German report, or your tests read its texts | nothing. Tests wait for a German text, not only for the first render |
+| [An HTTP source reads JSON while it arrives](../reference/sources.md#http-memory) | an HTTP source answers JSON whose body repeats a key on the way to its rows | fix the backend's answer: such a body is refused with `SOURCE_UNAVAILABLE` |
 | [A strict `computePivot`](#strict) | you want a bad view to throw instead of giving numbers | pass `strict: true` |
 | [`PivotView` in pivotkit-react](#pivot-view-type) | your TypeScript code imports `ViewInput` from pivotkit-react | import `PivotView` instead. `ViewInput` still works ([PK-DEP-0001](../versioning.md#register)) |
 
