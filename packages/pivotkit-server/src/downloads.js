@@ -24,7 +24,7 @@ import { constants } from "node:fs";
 import { access, link as hardLink, mkdir, open, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ConfigError } from "./options/shared.js";
-import { DEFAULT_ALGORITHMS } from "./config.js";
+import { DEFAULT_ALGORITHMS, publicOriginOf } from "./config.js";
 import { insecurePublicHost, insecureUrlText, settingsOf } from "./options/downloads.js";
 import { makeKey, subjectOf } from "./auth.js";
 import { discover, ISSUER_LIMITS, issuerFetch, issuerHint, issuerRulesOf, jwksUriOf, remoteKeySet } from "./issuer.js";
@@ -566,7 +566,7 @@ export function createDownloadHandler(context, runtime = {}) {
     const settings = settingsOf(options);
     const env = runtime.env ?? process.env;
     const loopback = runtime.loopback ?? isLoopback(options.http?.host ?? "127.0.0.1");
-    const publicUrl = options.http?.publicUrl ? new URL(options.http.publicUrl) : null;
+    const publicOrigin = publicOriginOf(options);
     const hosts = allowedHosts(options);
     const keys = keySource(settings, options, env);
     const active = settings.enabled;
@@ -576,7 +576,7 @@ export function createDownloadHandler(context, runtime = {}) {
     const issuer = active && settings.bind === "signIn" && settings.signIn ? signInIssuer(settings.signIn, issuerRules, options.auth?.jwksUri, context.log) : null;
     const subjectClaim = options.auth?.subjectClaim ?? "sub";
     /** @type {any} */
-    const state = { settings, keys, base: publicUrl ? publicUrl.origin + publicUrl.pathname.replace(/\/$/, "") : null, handler: null };
+    const state = { settings, keys, base: publicOrigin, handler: null };
     const secure = () => (state.base ?? "").startsWith("https:");
     const jar = cookieJar(keys, secure());
     /** When the markers of used one-time links were last swept. */
@@ -601,7 +601,7 @@ export function createDownloadHandler(context, runtime = {}) {
         if (insecure) {
             context.log.warn(insecureUrlText(insecure));
         }
-        if (!publicUrl && !loopback) {
+        if (!publicOrigin && !loopback) {
             context.log.warn("download links: http.publicUrl is not set and the server listens on an address other than loopback, so reports get no links (they would show an internal address); set http.publicUrl");
         }
     }
@@ -1070,7 +1070,7 @@ export function createDownloadHandler(context, runtime = {}) {
          * @param {string} url
          */
         listening(url) {
-            if (!publicUrl && loopback) {
+            if (!publicOrigin && loopback) {
                 state.base = new URL(url).origin;
             }
         },

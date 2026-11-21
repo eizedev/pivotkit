@@ -357,7 +357,7 @@ export function validateOptions(options) {
             }
         }
         urlOf(options.auth.issuer, "auth.issuer");
-        urlOf(options.auth.resource, "auth.resource");
+        resourceUrlOf(options.auth.resource, "auth.resource");
         for (const alg of options.auth.algorithms ?? []) {
             if (/^(none|HS\d+)$/i.test(alg)) {
                 throw new ConfigError(`auth.algorithms: ${alg} is not accepted (no "none", no shared-secret HMAC)`);
@@ -393,7 +393,7 @@ export function validateOptions(options) {
         }
     }
     if (options.rest?.resource) {
-        urlOf(options.rest.resource, "rest.resource");
+        resourceUrlOf(options.rest.resource, "rest.resource");
     }
     for (const [i, origin] of (options.rest?.cors?.origins ?? []).entries()) {
         let url = null;
@@ -407,7 +407,7 @@ export function validateOptions(options) {
         }
     }
     if (options.http?.publicUrl) {
-        urlOf(options.http.publicUrl, "http.publicUrl");
+        publicUrlOf(options.http.publicUrl);
     }
     if (options.output?.baseUrl) {
         urlOf(options.output.baseUrl, "output.baseUrl");
@@ -449,6 +449,39 @@ function urlOf(text, path) {
 }
 
 /**
+ * http.publicUrl, checked: an http(s) origin, with a trailing "/" at most. The server serves at the
+ * root of its host, and every address it names (REST, OpenAPI, download links, the MCP page, OAuth
+ * resources) is built from the origin. A path, a user name, a password, a query or a fragment is a
+ * ConfigError that never repeats the value (#629).
+ * @param {string} text
+ */
+function publicUrlOf(text) {
+    const url = resourceUrlOf(text, "http.publicUrl (or --public-url)");
+    if (url.pathname !== "/") {
+        throw new ConfigError("http.publicUrl (or --public-url): the address has a path, and pivotkit serves at the root of its host. Write the origin only, such as https://reports.example.com. On a shared host, give pivotkit a host name of its own, such as a subdomain, or route its paths at the root: /mcp, /.well-known/, /api/v1, /openapi.json, /downloads/ and /, and /icon.png with branding.icon");
+    }
+    return url;
+}
+
+/**
+ * An http(s) address the server names to clients (http.publicUrl, an OAuth resource): no user name,
+ * password, query or fragment, which it would show in pages, messages and metadata. The message never
+ * repeats the value.
+ * @param {string} text
+ * @param {string} path
+ */
+function resourceUrlOf(text, path) {
+    const url = urlOf(text, path);
+    if (url.username || url.password) {
+        throw new ConfigError(`${path}: no user name or password in the address`);
+    }
+    if (url.search || url.hash || /[?#]/.test(text)) {
+        throw new ConfigError(`${path}: no query or fragment (? or #) in the address`);
+    }
+    return url;
+}
+
+/**
  * Reads a configuration file (JSON) into options: checked, `baseDir` set to the file's directory so
  * relative paths start there.
  * @param {string} file
@@ -478,17 +511,25 @@ export { REST_BASE } from "pivotkit-cli/rest";
 export const OPENAPI_PATH = "/openapi.json";
 
 /**
+ * The origin clients reach the server at, from http.publicUrl (https://reports.example.com, no
+ * trailing "/"), else null. Every address the server names under http.publicUrl starts with it. It
+ * holds no path, user name, password, query or fragment, also for options that skipped
+ * validateOptions.
+ * @param {ServerOptions} options
+ * @returns {string | null}
+ */
+export const publicOriginOf = (options) => (options?.http?.publicUrl ? new URL(options.http.publicUrl).origin : null);
+
+/**
  * Where people find the REST service and its OpenAPI document, for messages: full addresses under
- * http.publicUrl (its origin and path; a user name, password, query or fragment is never shown),
- * else the paths. Readers took a bare "/openapi.json" next to "/api/v1" as relative to it, so
- * without a public URL the document's place is said in words. openapi is null where rest.openapi
- * "off" serves no document. (http.publicUrl is checked as an http(s) address at start.)
+ * http.publicUrl's origin (publicOriginOf), else the paths. Readers took a bare "/openapi.json"
+ * next to "/api/v1" as relative to it, so without a public URL the document's place is said in
+ * words. openapi is null where rest.openapi "off" serves no document.
  * @param {ServerOptions} options
  * @returns {{ rest: string, openapi: string | null }}
  */
 export function restAddressesOf(options) {
-    const url = options.http?.publicUrl ? new URL(options.http.publicUrl) : null;
-    const base = url ? `${url.origin}${url.pathname.replace(/\/+$/, "")}` : null;
+    const base = publicOriginOf(options);
     if ((options.rest?.openapi ?? "auth") === "off") {
         return { rest: `${base ?? ""}${REST_BASE}`, openapi: null };
     }
@@ -508,10 +549,11 @@ export function noRouteDetail(options) {
 
 /**
  * The REST service's OAuth resource: rest.resource, else the origin of auth.resource with /api/v1
- * (an audience of its own, so a token for the MCP endpoint does not reach REST).
+ * (an audience of its own, so a token for the MCP endpoint does not reach REST), else
+ * http.publicUrl's origin with /api/v1. A user name or password of those addresses is left out.
  * @param {ServerOptions} options
  */
-export const restResourceOf = (options) => options.rest?.resource ?? new URL(REST_BASE, options.auth?.resource ?? options.http?.publicUrl ?? "http://localhost").href;
+export const restResourceOf = (options) => options.rest?.resource ?? `${(options.auth?.resource ? new URL(options.auth.resource).origin : null) ?? publicOriginOf(options) ?? "http://localhost"}${REST_BASE}`;
 
 /** A path of the options, relative to `baseDir` (or the working directory). */
 export const pathOf = (options, path) => (isAbsolute(path) ? path : resolve(options.baseDir ?? process.cwd(), path));

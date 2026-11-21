@@ -117,7 +117,7 @@ const multipartBody = (name, offers, fileRoute = false) => ({
 /**
  * @typedef {object} OpenApiOptions
  * @property {import("../config.js").AuthOptions} [auth]  the sign-in the document describes (default: static tokens)
- * @property {string} [publicUrl]  the server's address as clients reach it
+ * @property {string} [publicUrl]  the server's origin as clients reach it (only its origin is used)
  * @property {any} [issuer]  OAuth: the issuer's metadata (its endpoints)
  * @property {string} [resource]  OAuth: the REST resource
  * @property {string[]} [requiredScopes]  OAuth: the scopes every call needs

@@ -438,7 +438,7 @@ Behind a proxy:
 
 - Route `/downloads/` to the service besides `/mcp` and `/api/v1/`.
 - Keep the `Host` header, or add the proxy's name to `http.allowHosts`.
-- Set `http.publicUrl` to the address people open.
+- Set `http.publicUrl` to the origin people open, without a path.
 
 The token is in the link's path, and proxies and browsers keep paths in their logs and history. That
 is why plain links go only to reports over open sources. Keep proxy logs of `/downloads/` short, or
