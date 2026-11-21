@@ -397,8 +397,8 @@ Rewrite and Application Request Routing (ARR), as in Microsoft's
    </configuration>
    ```
 
-3. Set `http.publicUrl` in `pivotkit.json` to the origin IIS serves, without a path. The server answers to its own
-   loopback names and the host of `http.publicUrl`. So it takes the request whether or not ARR keeps
+3. Set `http.publicUrl` in `pivotkit.json` to the origin IIS serves, without a path. The server
+   answers to its own loopback names and the host of `http.publicUrl`. So it takes the request whether or not ARR keeps
    the client's `Host` header.
 
 The server listens on 127.0.0.1, so only IIS reaches it.

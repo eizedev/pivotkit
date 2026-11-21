@@ -197,6 +197,8 @@ If your address had a path, change these with it:
 - With `output.downloads.signIn`, register the new callback at the identity provider.
   `check-config` prints it.
 - Point MCP clients at the new address, and set `auth.resource` to it.
+- Register an OAuth resource without a query at the identity provider. pivotkit refuses a query in
+  `auth.resource` and `rest.resource`, as RFC 8707 advises.
 - Download links sent before the update stop working.
 
 ### Node 24 or later { #node-24 }

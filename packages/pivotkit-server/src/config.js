@@ -458,7 +458,7 @@ function urlOf(text, path) {
 function publicUrlOf(text) {
     const url = resourceUrlOf(text, "http.publicUrl (or --public-url)");
     if (url.pathname !== "/") {
-        throw new ConfigError("http.publicUrl (or --public-url): the address has a path, and pivotkit serves at the root of its host. Write the origin only, such as https://reports.example.com. On a shared host, give pivotkit a host name of its own, such as a subdomain, or route its paths at the root: /mcp, /.well-known/, /api/v1, /openapi.json, /downloads/ and /");
+        throw new ConfigError("http.publicUrl (or --public-url): the address has a path, and pivotkit serves at the root of its host. Write the origin only, such as https://reports.example.com. On a shared host, give pivotkit a host name of its own, such as a subdomain, or route its paths at the root: /mcp, /.well-known/, /api/v1, /openapi.json, /downloads/ and /, and /icon.png with branding.icon");
     }
     return url;
 }
