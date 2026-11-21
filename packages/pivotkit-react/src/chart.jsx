@@ -17,8 +17,14 @@ import { chartThemeFrom } from "./theme.js";
 /** @type {Promise<any> | null} */
 let loading = null;
 
-/** How long a tap's tooltip waits for the second tap that opens its rows, in ms. */
+/** How long a tap's tooltip waits for the second tap that opens its menu, in ms. */
 const TAP_WAIT = 10_000;
+/**
+ * How long a click waits for a second one before its menu opens, in ms (#53): a double click opens the
+ * rows at once, and its second click has to reach the chart, not the menu over it. A tap opens the
+ * menu at once (touch has its own first tap: the tooltip).
+ */
+const DOUBLE_WAIT = 300;
 
 /** ECharts with the parts the chart draws with (echarts.js), loaded once on the first chart. */
 export function loadECharts() {
@@ -32,7 +38,8 @@ export function loadECharts() {
  * @param {{ result: import("pivotkit-core").PivotResult, series: ReturnType<typeof import("pivotkit-core").toSeries> | null,
  *   labels: import("./labels.js").UiLabels, locale: string,
  *   themeName: string, root: React.RefObject<HTMLElement>, onInstance: (chart: any) => void,
- *   onPoint: (point: { rowPath: any[], colPath: any[], valueIndex: number, value: unknown }) => void,
+ *   onPoint: (point: { rowPath: any[], colPath: any[], valueIndex: number, value: unknown, slice?: boolean, direct?: boolean, anchor?: HTMLElement | null,
+ *     home?: HTMLElement | null, rowLabel?: string, colLabel?: string }) => void,
  *   onLines?: (checks: { average: boolean, trend: boolean, target: boolean, extremes: boolean, notes: string[], format?: string } | null) => void,
  *   onLegend?: (change: { name: string, shown: boolean }) => void,
  *   valueNames: string[], chartOptions?: Record<string, unknown> | null, colorMap?: unknown,
@@ -60,6 +67,9 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const summaryId = useId();
     const type = plan ? plan.name : chartTypeOf(result.view.chart);
     const drawAs = plan ? plan.chart : null;
+    // a click's menu, waiting for a second click (DOUBLE_WAIT)
+    const waiting = useRef(/** @type {ReturnType<typeof setTimeout> | undefined} */ (undefined));
+    const anchor = useRef(/** @type {HTMLSpanElement | null} */ (null));
     const latest = useRef({ series, onPoint, onInstance, onLines, onLegend, type });
     // the legend and the zoom slider between draws (chart-legend.js); a new window size draws again
     const keeper = useRef(/** @type {any} */ (null));
@@ -74,7 +84,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const warned = useRef(/** @type {unknown} */ (undefined));
     // the bar, segment or line point under the pointer: the tooltip names it (chart-tooltip.js)
     const hover = useRef(/** @type {{ seriesIndex: number, dataIndex: number } | null} */ (null));
-    // the element a tap showed the tooltip of, and when: a second tap on it opens its rows
+    // the element a tap showed the tooltip of, and when: a second tap on it opens its menu
     const tapped = useRef(/** @type {{ element: string, at: number } | null} */ (null));
     // whether the last press on the chart was a finger's: iOS sends its click as a plain mouse event,
     // so the click itself does not say
@@ -100,20 +110,54 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                 const instance = echarts.init(el.current, null, { renderer: "canvas" });
                 chart.current = instance;
                 latest.current.onInstance(instance);
-                instance.on("click", (p) => {
-                    const { series: s, onPoint: cb } = latest.current;
+                /**
+                 * The point an event of ECharts hit: its category and series as the view's paths, its
+                 * value, its names; a slice (a pie's) adds up every column, a tile (a treemap's) is none.
+                 */
+                const pointOf = (/** @type {any} */ p) => {
+                    const s = latest.current.series;
                     const kind = p.seriesType;
-                    // a slice or a tile adds up every column: no one cell's rows to open
-                    if (!s || kind === "pie" || kind === "treemap") {
-                        return;
+                    if (!s || kind === "treemap") {
+                        return null;
+                    }
+                    if (kind === "pie") {
+                        const path = s.categoryPaths[p.dataIndex];
+                        return path ? { rowPath: path, colPath: [], valueIndex: s.series[0]?.valueIndex ?? 0, value: p.value, slice: true, rowLabel: s.categories[p.dataIndex] } : null;
                     }
                     const seriesEntry = kind === "heatmap" ? s.series.filter((x) => x.valueIndex === s.series[0]?.valueIndex)[p.value?.[0]] : s.series[p.seriesIndex];
                     const row = kind === "heatmap" ? p.value?.[1] : p.dataIndex;
                     if (!seriesEntry || !s.categoryPaths[row]) {
+                        return null;
+                    }
+                    // a 100 % stack's part draws its share: the rows go with its value
+                    const value = kind === "heatmap" ? p.value[2] : typeof p.data?.raw === "number" ? p.data.raw : p.value;
+                    return { rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value, rowLabel: s.categories[row], colLabel: seriesEntry.colPath.length ? seriesEntry.name : undefined };
+                };
+                /** The anchor of the point's menu, moved to where the event hit (#53). */
+                const placeAnchor = (/** @type {any} */ p) => {
+                    const at = anchor.current;
+                    if (at && typeof p.event?.offsetX === "number") {
+                        at.style.left = `${p.event.offsetX}px`;
+                        at.style.top = `${p.event.offsetY}px`;
+                    }
+                    return at;
+                };
+                // a double click goes straight to the rows; a slice has none of its own
+                instance.on("dblclick", (p) => {
+                    clearTimeout(waiting.current);
+                    const point = pointOf(p);
+                    if (point && !point.slice) {
+                        instance.dispatchAction({ type: "hideTip" });
+                        latest.current.onPoint({ ...point, direct: true, anchor: placeAnchor(p) });
+                    }
+                });
+                instance.on("click", (p) => {
+                    const point = pointOf(p);
+                    if (!point) {
                         return;
                     }
                     // a touch has no pointer that rests on an element: the first tap on an element shows
-                    // its tooltip, a second tap on it opens its rows
+                    // its tooltip, a second tap on it opens its menu
                     const element = `${p.seriesIndex}:${p.dataIndex}`;
                     const last = tapped.current;
                     if (touched.current && (last?.element !== element || Date.now() - last.at > TAP_WAIT)) {
@@ -121,11 +165,17 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                         return;
                     }
                     tapped.current = null;
-                    // the panel covers the chart: the tooltip would stay over it
-                    instance.dispatchAction({ type: "hideTip" });
-                    // a 100 % stack's part draws its share: the rows go with its value
-                    const value = kind === "heatmap" ? p.value[2] : typeof p.data?.raw === "number" ? p.data.raw : p.value;
-                    cb({ rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value });
+                    // the menu opens at the point: the tooltip would stay over it
+                    const open = () => {
+                        instance.dispatchAction({ type: "hideTip" });
+                        latest.current.onPoint({ ...point, anchor: placeAnchor(p), home: el.current });
+                    };
+                    clearTimeout(waiting.current);
+                    if (touched.current) {
+                        open();
+                    } else {
+                        waiting.current = setTimeout(open, DOUBLE_WAIT);
+                    }
                 });
                 keeper.current = echarts.chartKeeper(instance, { categories: () => latest.current.series?.categories, onLegend: (/** @type {any} */ change) => latest.current.onLegend?.(change), redraw: () => setZoomed((n) => n + 1), onWindow: (/** @type {any} */ control) => setZoomKeys(control ? { ...control, props: echarts.zoomKeyProps } : null) });
                 // ECharts draws the tooltip before it reports the element under the pointer: the
@@ -193,6 +243,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         );
         return () => {
             disposed = true;
+            clearTimeout(waiting.current);
             keeper.current?.dispose();
             ro?.disconnect();
             if (onPress) {
@@ -249,7 +300,9 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     return (
         <div className="pk-chart-wrap">
             <div className="pk-chart-box">
-                <div ref={el} className="pk-chart" data-testid="pivot-chart" role="img" aria-label={result.view.chart.title ? `${labels.chart}: ${result.view.chart.title}` : labels.chart} aria-describedby={summaryId} />
+                <div ref={el} className="pk-chart" data-testid="pivot-chart" role="img" tabIndex={-1} aria-label={result.view.chart.title ? `${labels.chart}: ${result.view.chart.title}` : labels.chart} aria-describedby={summaryId} />
+                {/* where a clicked point's menu opens (#53): moved to the point by the click */}
+                <span ref={anchor} className="pk-point-anchor" aria-hidden="true" />
                 <p id={summaryId} className="pk-sr" data-testid="chart-summary">
                     {summary}
                 </p>

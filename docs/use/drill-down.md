@@ -16,7 +16,7 @@ allows it, you can copy the rows or download them from there.
 
 | To | Do |
 | --- | --- |
-| Open it | Click a value, or move to it with the arrow keys and press Enter or Space. In the chart, click a bar, a point or a heatmap cell. On a phone, tap it twice: the first tap shows its tooltip. |
+| Open it | Click a value, or move to it with the arrow keys and press Enter or Space. In the chart, click a bar, a point or a heatmap cell and pick **Show the rows**, or double-click it. On a phone, tap it twice, then pick **Show the rows**: the first tap shows its tooltip. |
 | Give it the whole report | **Enlarge**. **Reduce** or Escape brings it back to its size. The focus stays on the button. |
 | Close it | Press Escape, use its close button, or click beside it. When the panel is enlarged, press Escape twice. The focus returns to the value. |
 

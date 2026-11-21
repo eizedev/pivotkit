@@ -247,9 +247,10 @@ test.describe("reference lines", () => {
         await page.waitForTimeout(300);
         expect(await page.evaluate(() => window.__cellClicks)).toEqual([]);
         await expect(page.getByTestId("drill-panel")).toHaveCount(0);
-        // a bar still opens its rows
+        await expect(page.getByTestId("point-rows")).toHaveCount(0);
+        // a bar still opens its rows (a double click: at once, without its menu)
         const bar = await pointOf(chartEl, barMiddle, { series: A, index: MARCH });
-        await page.mouse.click(bar.x, bar.y);
+        await page.mouse.dblclick(bar.x, bar.y);
         await expect.poll(() => page.evaluate(() => window.__cellClicks.length)).toBe(1);
     });
 

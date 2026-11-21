@@ -30,7 +30,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `canPublish` | `boolean` | `false` | The user may publish views for everyone (an admin, as the host decides). [More](#prop-canpublish) |
 | `templateStore` | `"browser"` | off | `"browser"`: the report keeps the user's own views (My views) in `localStorage` under `pivotkit:views:<storageKey>` (`pivotkit:views` without one), as view files that name their data (`source`). [More](#prop-templatestore) |
 | `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` |  | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). [More](#prop-fielddefaults) |
-| `onCellClick` | `({ row, col, value, valueIndex, text, count, rows }) => void` |  | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. [More](#prop-oncellclick) |
+| `onCellClick` | `({ row, col, value, valueIndex, text, count, rows }) => void` |  | A click (or Enter) on a value, or **Show the rows** or a double click on a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. [More](#prop-oncellclick) |
 | `drillDown` | `boolean` | `true` | The panel with the rows behind a clicked value. |
 | `exportData` | `boolean \| { columns?: string[] }` | `false` | Export → Source data: every row of the data as a CSV or JSON file, for the user's own analysis or the command line. It also gives the drill-down its copy and download. `{ columns }` keeps both to some columns. [More](#prop-exportdata) |
 | `drillDownExport` | `boolean` | `false` | The drill-down's copy and download while `exportData` is off, with every column. [More](#prop-drilldownexport) |
@@ -253,14 +253,15 @@ drill-down. Any of the three entries overrides this: `{ ID: { agg: "sum" } }`,
 
 Type: `({ row, col, value, valueIndex, text, count, rows }) => void`.
 
-The report calls it on a click (or Enter) on a value or a chart point. It gets:
+The report calls it on a click (or Enter) on a value. For a chart point, it calls it at **Show the
+rows** in the point's menu, or on a double click. It gets:
 
 - the key paths of the value's row and column
 - the value
 - the number of source rows, and the first `drillDownLimit` of them
 
 A blank cell with no rows behind it is not clickable and does not call it. On a touch screen, the
-first tap on a chart point shows its tooltip. The second tap on it calls `onCellClick`.
+first tap on a chart point shows its tooltip. The second tap opens its menu.
 
 ### `height` { #prop-height }
 
