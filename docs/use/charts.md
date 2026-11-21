@@ -39,8 +39,8 @@ the table back.
   quarter or week of year.
 - When the dates are on Columns only, the chart draws **lines** too. For the chart alone, pivotkit
   swaps rows and columns, so the dates run along the axis and each item of Rows is a line. The
-  table keeps its layout, and the view does not change. A click on a point opens its rows as in the
-  table.
+  table keeps its layout, and the view does not change. Clicking a point opens
+  [its menu](#filter-from-the-chart), with its rows as in the table.
 - Anything else draws **bars**.
 
 ### Bars and lines { #bars-and-lines }
@@ -383,20 +383,39 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 - A series without a value at the category is left out.
 - A long series name ends in "…". When more series are there than fit, the last line says how many
   more there are, and whether the total includes them.
-- On a phone, tap a bar, a point or a heatmap cell to see its tooltip. Tap it again to open the rows
-  behind it.
+- On a phone, tap a bar, a point or a heatmap cell to see its tooltip. Tap it again to open
+  [its menu](#filter-from-the-chart).
 - A pie's tooltip shows the value's name, the slice and its value. With a field on Columns, a slice
   adds up every column.
 - A heatmap's tooltip shows the value's name, the cell's row and column and its value.
 - The tooltip is plain text: nothing from the data is read as markup.
 - A heatmap's colour scale writes its ends in the value's number format.
-- Click a bar, a point or a heatmap cell to open the rows behind it, as in the table. See
+- Click a bar, a point, a slice or a heatmap cell to open [its menu](#filter-from-the-chart).
+  Double-click it to open the rows behind it at once, as in the table. See
   [the rows behind a number](drill-down.md).
 - The chart has a text alternative for screen readers: type, values, counts, highest and lowest
   value, the reference lines with their values, and each series' high and low points.
 
 ![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-light.png#only-light)
 ![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-dark.png#only-dark)
+
+### Filter from the chart { #filter-from-the-chart }
+
+Click a bar, a point, a slice or a heatmap cell, and a small menu opens at it:
+
+| Entry | What it does |
+| --- | --- |
+| **Show the rows** | Opens the rows behind the value, as clicking a value in the table does. A slice adds up every column, so it has no rows of its own. |
+| **Only North** | Keeps only that item of the field on the axis. |
+| **Without North** | Leaves that item out of the report. |
+| **Only Software**, **Without Software** | The same for the series: the item of the field on Columns. |
+
+- A filter from the menu is the field's pick, as in its [filter](filters.md). The field's chip shows
+  it, and **Undo** takes it back.
+- The menu offers no entry that would leave nothing to show.
+- A double click opens the rows at once.
+- The arrow keys move through the menu, Enter picks an entry, and Escape closes it.
+- On a phone, the first tap shows the tooltip and the second opens the menu at the bottom.
 
 ??? info "The share in the tooltip"
     Display › Tooltip › Share in the tooltip adds each value's share after it, such as

@@ -426,9 +426,11 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * The maintainer took the treemap into 0.9.0 with that cost. It loads with the chart, never first: the
  * chart group goes from 244.9 to 258.0 with Homebrew's zlib; CI's zlib measures about 0.7 more: chart
  * goes to 259.5. The first load gets the two names of the picker only.
+ * The menu at a clicked point of the chart (#53) loads with the menus: about 0.6 KiB (57.3 to 57.9
+ * with CI's zlib). The menus go to 58.2.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 181, chart: 259.5, export: 12.6, link: 7.5, menus: 57.5, texts: 8.5, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
+export const SIZE_BUDGET_KIB = { initial: 181, chart: 259.5, export: 12.6, link: 7.5, menus: 58.2, texts: 8.5, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
