@@ -59,7 +59,7 @@
   "dependencies": {
     "fflate": "0.8.3",
     "pivotkit-core": "^0.8.0",
-    "read-excel-file": "9.3.14"
+    "read-excel-file": "9.3.17"
   },
   "types": "./types/index.d.ts",
   "publishConfig": {
