@@ -5,11 +5,11 @@
  * what the first render and its clicks need (placing, moving, sorting by a header, the tips' actions).
  */
 
-import { CATALOG, MATCH_DEFAULTS, MAX_DATE_MS, computePivot, isFormat } from "pivotkit-core";
+import { CATALOG, MATCH_DEFAULTS, MAX_DATE_MS, computePivot, fieldItems, fieldLabel, isFormat } from "pivotkit-core";
 import { fill } from "./labels.js";
 import { parseNumber } from "./numbers.js";
 import { dayMs, isoDay, isoYear, itemRuleText, valueConditionText, wholeYears, yearOf, yearText } from "./names.js";
-import { axisOf, clone, emptyPick, filterZoneFields, filtersOf, groupingOf, numericResult, opOf, pickFilter, same, sameRef, sourceOf } from "./view-ops.js";
+import { axisOf, clone, emptyPick, filterZoneFields, filtersOf, groupingOf, numericResult, opOf, pickFilter, same, sameRef, selectedItems, sourceOf } from "./view-ops.js";
 
 /** Aggregators whose result counts rows or items instead of being a value of the field (its unit). */
 const COUNTING = new Set(["count", "countUnique", "listUnique"]);
@@ -690,3 +690,42 @@ export function parseTarget(text, locale, format) {
     const n = /^percent/.test(format ?? "") ? parseNumber(percent[1], locale) : null;
     return n === null ? null : /^percent100/.test(format ?? "") ? n : n / 100;
 }
+
+/**
+ * What the small menu at a clicked bar, point or slice offers (#53): "Show the rows" (the value's rows,
+ * not for a slice, which adds up every column), then for the category's item and for the series' item
+ * "Only …" and "Without …". Each is the field's pick (setItemFilter): Only keeps that item, Without
+ * leaves it out of what is picked now. An entry that would change nothing, or leave nothing, is left
+ * out.
+ * @param {any} view
+ * @param {{ rowPath: any[], colPath: any[], valueIndex: number, value: unknown, slice?: boolean }} point
+ * @param {import("pivotkit-core").Encoded} encoded
+ * @returns {Array<{ id: string, text: string, change?: () => { view: any, note: any } }>}
+ */
+export function pointActions(view, point, encoded, labels, locale) {
+    /** @type {Array<{ id: string, text: string, change?: () => { view: any, note: any } }>} */
+    const out = point.slice ? [] : [{ id: "rows", text: labels.pointRows }];
+    const add = (axis, field, key) => {
+        const info = fieldItems(encoded, field, { view, locale, labels: labels.core });
+        if (!info) {
+            return;
+        }
+        const all = info.items.map((i) => i.value);
+        const item = info.items.find((i) => i.value === key)?.label ?? String(key);
+        const shown = selectedItems(view, field, all);
+        const name = fieldLabel(field, labels.core);
+        const note = { step: "filter", field: name };
+        if (shown.length > 1) {
+            out.push({ id: `only-${axis}`, text: fill(labels.pointOnly, { item }), change: () => ({ view: setItemFilter(view, field, [key], all), note }) });
+            out.push({ id: `without-${axis}`, text: fill(labels.pointWithout, { item }), change: () => ({ view: setItemFilter(view, field, shown.filter((v) => v !== key), all), note }) });
+        }
+    };
+    if (point.rowPath.length && view.rows.length >= point.rowPath.length) {
+        add("row", view.rows[point.rowPath.length - 1], point.rowPath[point.rowPath.length - 1]);
+    }
+    if (point.colPath.length && view.cols.length >= point.colPath.length) {
+        add("col", view.cols[point.colPath.length - 1], point.colPath[point.colPath.length - 1]);
+    }
+    return out;
+}
+

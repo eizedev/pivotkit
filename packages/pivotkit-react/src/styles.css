@@ -3094,11 +3094,25 @@
 }
 
 /* exactly the box: a canvas taller than its box is cut at the bottom (axes, a pie's lower half) */
+/* where a clicked point's menu opens (chart.jsx: moved to the point): no size, nothing to see */
+.pk-point-anchor {
+    position: absolute;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
 .pk-chart {
     width: 100%;
     height: 100%;
     min-height: 0;
     animation: pk-fade-in calc(var(--pk-duration) * 1.4) ease-out;
+}
+
+/* the chart takes the focus back from a point's menu (#53), so the report's keys work on; it is no tab
+   stop and nothing to operate: no ring */
+.pk-chart:focus {
+    outline: none;
 }
 
 .pk-chart-note {

@@ -123,6 +123,7 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
     const [pos, setPos] = useState(/** @type {null | { top: number, left: number, maxHeight: number, side: string }} */ (null));
     const sheet = size === "narrow" && !passive;
     const scrim = useRef(/** @type {HTMLDivElement | null} */ (null));
+    const scrimPressed = useRef(false);
     // whether this popover goes into the top layer: read when it mounts, the same in every render of
     // it. A description shown on hover (passive) stays in the report's layer: in CI's WebKit (Linux)
     // the pointer moving from its "i" onto it in the top layer closed it, so its link could not be
@@ -343,7 +344,9 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
     const style = sheet ? undefined : pos ? { top: pos.top, left: pos.left, maxHeight: pos.maxHeight } : { top: 0, left: 0, visibility: /** @type {const} */ ("hidden") };
     return createPortal(
         <>
-            {sheet ? <div ref={scrim} className="pk-scrim" {...inTopLayer} onClick={onClose} aria-hidden="true" /> : null}
+            {/* a click on the scrim closes the sheet only when its press started there: the click a phone
+                sends after the tap that opened the sheet (a chart's point, #53) lands on it too */}
+            {sheet ? <div ref={scrim} className="pk-scrim" {...inTopLayer} onPointerDown={(e) => (scrimPressed.current = e.target === e.currentTarget)} onClick={() => scrimPressed.current && onClose()} aria-hidden="true" /> : null}
             <div
                 ref={ref}
                 {...inTopLayer}

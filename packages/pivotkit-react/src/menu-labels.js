@@ -282,6 +282,11 @@ export const en = {
     },
     conditional: "Highlight",
     conditionalNone: "None",
+    // the small menu at a clicked bar, point or slice of the chart (#53)
+    pointMenu: "Filter or open {name}",
+    pointRows: "Show the rows",
+    pointOnly: "Only {item}",
+    pointWithout: "Without {item}",
     colorScale: "Colour scale",
     dataBar: "Data bars",
     rename: "Name",
