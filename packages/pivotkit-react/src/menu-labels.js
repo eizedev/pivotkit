@@ -290,6 +290,8 @@ export const en = {
     groupNone: "No grouping (every date and time)",
     groupTimeline: "One item per period",
     groupCyclic: "Same period, years combined",
+    // under the range when the field is filtered: what a new grouping does to the filter
+    groupClearsFilter: "Another grouping starts with every item; Undo brings the filter back.",
     groupDataRange: {one: "Data before filters: {range} ({count} day)", other: "Data before filters: {range} ({count} days)"},
     groupYearsTogether: {one: "{count} year together", other: "{count} years together"},
     unitHints: {
