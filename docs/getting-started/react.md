@@ -156,7 +156,10 @@ from `onViewChange`. The undo history stays inside the report however often your
     import { PivotReport } from "pivotkit-react";
     import "pivotkit-react/styles.css";
 
-    const rows = [/* the rows of the app above */];
+    const rows = [
+        { Region: "North", Product: "A", Sales: 120, Date: "2026-01-05" },
+        { Region: "South", Product: "B", Sales: 340, Date: "2026-02-14" }
+    ];
     const presets = [
         { name: "Sales per region", view: { rows: ["Region"], cols: ["Product"], values: [{ field: "Sales", agg: "sum" }] } }
     ];
@@ -174,7 +177,10 @@ from `onViewChange`. The undo history stays inside the report however often your
     import { PivotReport, type PivotView } from "pivotkit-react";
     import "pivotkit-react/styles.css";
 
-    const rows = [/* the rows of the app above */];
+    const rows = [
+        { Region: "North", Product: "A", Sales: 120, Date: "2026-01-05" },
+        { Region: "South", Product: "B", Sales: 340, Date: "2026-02-14" }
+    ];
     const presets = [
         { name: "Sales per region", view: { rows: ["Region"], cols: ["Product"], values: [{ field: "Sales", agg: "sum" }] } }
     ];

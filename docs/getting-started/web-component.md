@@ -41,6 +41,7 @@ A few commands and one file, no build step:
 
 ```bash
 mkdir pivot-page && cd pivot-page
+npm init -y
 npm install pivotkit-element
 mkdir -p assets/pivotkit-element && cp -R node_modules/pivotkit-element/dist assets/pivotkit-element/
 # put index.html (below) into pivot-page/, then serve the folder:
@@ -93,6 +94,10 @@ The same in parts, as a page with its own script file. `rows` is your data, an a
 
 ```js
 // report.js
+const rows = [
+    { Region: "North", Product: "A", Sales: 120 },
+    { Region: "South", Product: "B", Sales: 340 }
+];
 const report = document.querySelector("pivot-report");
 report.data = rows;                        // an array of objects; a property, never an attribute
 report.templates = [{ name: "By region", view: { rows: ["Region"] } }];
@@ -131,7 +136,8 @@ report.addEventListener("pivot-template-save", (e) => {
     e.detail.respondWith(
         fetch("/api/templates", { method: "POST", body: JSON.stringify({ name: e.detail.name, view: e.detail.view }) })
             .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.statusText))))
-            .then((list) => (report.templates = list))
+            // the server answers the user's whole list of views
+            .then((list) => (report.templates = list.map((t) => ({ ...t, scope: "user", deletable: true }))))
     );
 });
 ```
