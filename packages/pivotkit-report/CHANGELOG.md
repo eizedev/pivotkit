@@ -8,6 +8,9 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Added
 
+- The chart as SVG and in the HTML report draws the high and low points. Their labels are placed
+  after a second draw, as on the screen
+  ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), #574).
 - `list_sources`' output schema has `linkParams` per source, and `create_link`'s description names it
   ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), #619).
 

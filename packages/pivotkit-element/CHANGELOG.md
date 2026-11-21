@@ -6,6 +6,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Added
+
+- High and low points on a chart, from pivotkit-react. ECharts' markPoint loads with the chart.
+  The chart group's budget goes to 246 KiB, the German menu texts' to 8.5 KiB
+  ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), #574).
+
 ### Changed
 
 - Every boolean attribute reads `"false"`, in any case and with spaces around it, as off.

@@ -7,7 +7,7 @@
  * tooltipFormatter() builds the nodes in the chart's document.
  */
 
-import { referenceLineChecks, referenceLines } from "pivotkit-core/chart";
+import { extremePoints, referenceLineChecks, referenceLines } from "pivotkit-core/chart";
 import { valueAddsUp } from "pivotkit-core";
 
 // whether a value adds up, so a stack of it has a total: the rule of the stack's reference lines too
@@ -74,8 +74,31 @@ export function linesSummary(lines, seriesNames, labels) {
 }
 
 /**
+ * The high and low points in the chart's text alternative, with the words of its highest and lowest
+ * value (labels.chartExtremes): one sentence per series, or of a stack's total. Empty without points,
+ * and for one series alone, whose highest and lowest the text alternative names already.
+ * @param {ReturnType<typeof import("pivotkit-core/chart").extremePoints>} points  pivotkit-core's extremePoints
+ * @param {{ categories: string[], series: { name: string }[] }} s  the chart's series (toSeries)
+ * @param {{ chartExtremes: string, chartTotal: string }} labels
+ */
+export function pointsSummary(points, s, labels) {
+    if (!points.length || (s.series.length < 2 && points[0].series !== null)) {
+        return "";
+    }
+    const where = (/** @type {(typeof points)[number]} */ p) => `${s.categories[p.index]} / ${p.series === null ? labels.chartTotal : s.series[p.series].name}`;
+    const sentences = [];
+    for (let i = 0; i + 1 < points.length; i += 2) {
+        const [max, min] = [points[i], points[i + 1]];
+        // the placeholders filled as linesSummary's: a "$" in a currency is no pattern
+        const fills = { max: max.format(max.value), maxAt: where(max), min: min.format(min.value), minAt: where(min) };
+        sentences.push(labels.chartExtremes.replace(/\{(max|maxAt|min|minAt)\}/g, (_, key) => fills[/** @type {keyof typeof fills} */ (key)]));
+    }
+    return sentences.join(" ");
+}
+
+/**
  * A drawn chart's reference lines (chart.jsx): the lines as numbers for the tooltip, their sentence
- * for the text alternative (linesSummary) and which ones the chart can draw, with the first series'
+ * and the high and low points' for the text alternative (linesSummary, pointsSummary) and which ones the chart can draw, with the first series'
  * format (pivotkit-core's referenceLineChecks), for the Display menu.
  * @param {import("pivotkit-core").PivotResult} result
  * @param {{ series: ReturnType<typeof import("pivotkit-core").toSeries>, chart?: { type: string, stacked: boolean, horizontal: boolean } | null, labels: any, locale: string }} options
@@ -84,9 +107,10 @@ export function linesSummary(lines, seriesNames, labels) {
 export function chartLines(result, { series, chart, labels, locale }) {
     const drawn = chart ? { chart } : {};
     const lines = referenceLines(result, { series, words: labels.core.referenceLines, locale, ...drawn });
+    const points = extremePoints(result, { series, locale, ...drawn });
     return {
         lines,
-        text: linesSummary(lines, series.series.map((x) => x.name), labels),
+        text: [linesSummary(lines, series.series.map((x) => x.name), labels), pointsSummary(points, series, labels)].filter(Boolean).join(" "),
         // the format of the first series the legend shows
         checks: { ...referenceLineChecks(result, { series, ...drawn }), format: series.series.find((x) => !(/** @type {any} */ (result.view.chart).hidden ?? []).includes(x.name))?.format }
     };

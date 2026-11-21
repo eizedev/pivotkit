@@ -170,8 +170,9 @@ export function chartSvg(result, { echarts, style, width, height, locale, labels
     try {
         const first = marked(undefined);
         chart.setOption({ ...first, backgroundColor: surface, animation: false });
-        // the labels of lying reference lines at their lines' real heights, as on the screen
-        if (!Array.isArray(first.yAxis) && first.yAxis?.type === "value" && (first.series ?? []).some((/** @type {any} */ s) => s.markLine)) {
+        // the labels of lying reference lines at their lines' real heights, and the high and low
+        // points' labels apart at theirs, as on the screen
+        if (!Array.isArray(first.yAxis) && first.yAxis?.type === "value" && (first.series ?? []).some((/** @type {any} */ s) => s.markLine || s.markPoint)) {
             chart.setOption({ series: marked((v) => chart.convertToPixel({ yAxisIndex: 0 }, v)).series });
         }
         svg = chart.renderToSVGString();

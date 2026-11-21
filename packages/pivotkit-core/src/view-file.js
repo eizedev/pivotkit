@@ -250,6 +250,8 @@ function fieldsOf(data) {
  * one; reading a file puts them back. The keys 0.7 knows are written as they are.
  */
 export const NEWER_CHART_KEYS = Object.freeze(["tooltip", "zoom", "stackPercent", "hidden", "referenceLines", "colors", "tooltipShare"]);
+/** The keys of chart.referenceLines newer than pivotkit 0.8, left out and put back the same way. */
+const NEWER_LINE_KEYS = Object.freeze(["extremes"]);
 
 /**
  * A view with the newer chart keys at their defaults left out (`back` false), or put back where a file
@@ -263,7 +265,16 @@ function newerChartKeys(view, back) {
     const defaults = /** @type {Record<string, unknown>} */ (emptyView().chart);
     const kept = Object.entries(chart).filter(([key, value]) => back || !NEWER_CHART_KEYS.includes(key) || JSON.stringify(value) !== JSON.stringify(defaults[key]));
     const added = back ? NEWER_CHART_KEYS.filter((key) => !Object.hasOwn(chart, key)).map((key) => [key, defaults[key]]) : [];
-    return { ...view, chart: Object.fromEntries([...kept, ...added]) };
+    const next = Object.fromEntries([...kept, ...added]);
+    // within the reference lines too: a reader of 0.8 knows average, trend and target
+    const lines = next.referenceLines;
+    if (isPlainObject(lines)) {
+        const own = /** @type {Record<string, unknown>} */ (defaults.referenceLines);
+        const keep = Object.entries(lines).filter(([key, value]) => back || !NEWER_LINE_KEYS.includes(key) || JSON.stringify(value) !== JSON.stringify(own[key]));
+        const put = back ? NEWER_LINE_KEYS.filter((key) => !Object.hasOwn(lines, key)).map((key) => [key, own[key]]) : [];
+        next.referenceLines = Object.fromEntries([...keep, ...put]);
+    }
+    return { ...view, chart: next };
 }
 
 /**

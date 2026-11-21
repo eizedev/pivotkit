@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip, the zoom slider, 100 % stacks, hidden series, reference lines, the tooltip's share and fixed colours per name in the view, the PNG export, and chartOptions for developers with its precedence.
+description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip, the zoom slider, 100 % stacks, hidden series, reference lines and high and low points, the tooltip's share and fixed colours per name in the view, the PNG export, and chartOptions for developers with its precedence.
 ---
 
 # Charts
@@ -56,7 +56,7 @@ them, and they stay when the chart type changes:
 | `chart.zoom` | `"auto"`, `"on"`, `"off"` |
 | `chart.stackPercent` | `true`, `false` |
 | `chart.hidden` | a list of legend entries by name, at most `limits.items` |
-| `chart.referenceLines` | `{ average: boolean, trend: boolean, target: number \| null }` |
+| `chart.referenceLines` | `{ average: boolean, trend: boolean, target: number \| null, extremes: boolean }` |
 | `chart.tooltipShare` | `true`, `false` |
 | `chart.colors` | a list of `{ name, color }`, the colour `#rgb` or `#rrggbb`, at most `limits.items` |
 
@@ -149,7 +149,7 @@ document.querySelector("pivot-report").colorMap = { Failed: "#e3000f", Success: 
 { "chart": { "type": "line", "referenceLines": { "average": true, "trend": true, "target": 500000 } } }
 ```
 
-- A view without the key draws no lines: `{ average: false, trend: false, target: null }`.
+- A view without the key draws no lines: `{ average: false, trend: false, target: null, extremes: false }`.
 - A target that is no finite number becomes `null`, and `normalize()` reports it (`unknownSetting`).
 - pivotkit-core computes the numbers from the plotted categories (`referenceLines` in
   `pivotkit-core/chart`) and draws them as ECharts `markLine`s on the series.
@@ -192,6 +192,30 @@ leaves a gap out. An average is the unweighted mean of the plotted points, also 
 
 A series' lines take its colour. The lines of no series, a target and a stack's total, take
 `--pk-chart-reference`.
+
+#### High and low points
+
+`extremes: true` in `chart.referenceLines` marks each series' highest and lowest value:
+
+```json
+{ "chart": { "type": "line", "referenceLines": { "extremes": true } } }
+```
+
+- `extremePoints(result, { chart, series, locale })` in `pivotkit-core/chart` gives the points:
+  `{ kind: "max" | "min", series, index, value, format }`. `series` is `null` for a stack's total.
+- A chart draws them where it draws an average, by the same rules (`referenceLineRules`,
+  `referenceLineChecks`): per series, or of a stack's total.
+- The first of equal values gets the point. A series whose values are all the same gets none.
+- `toEChartsOption` draws them as a silent ECharts `markPoint` on the series: a dot in the series'
+  colour (a stack's in `--pk-chart-reference`), a label with ▲ or ▼ in that colour and the value in
+  the text colour. A palette colour such as yellow is too light for text, so the value keeps the
+  text colour.
+- `decorateOption` keeps the labels inside the plot: the value axis reaches past them
+  (`dataMin`, `dataMax`). A label that would take the axis across zero sits beside its dot.
+- Labels that would cover each other move beside their dots, or are left out. With `pixelOf` it
+  uses the real heights after a first draw.
+- With more than 8 series, only the chart's highest and lowest value keep a label. Every dot stays.
+- The labels and dots get an outline in `--pk-surface`, so they read over a line.
 
 The report's `--pk-*` tokens set these parts of the chart, so a corporate theme reaches the chart too
 ([Theming](../reference/theming.md#chart-colours)):

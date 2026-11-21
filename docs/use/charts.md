@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the zoom slider, series shown or hidden, 100 % stacks, reference lines for an average, a trend and a target, the tooltip of the element under the pointer, fixed colours, the share in the tooltip and the chart image.
+description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the zoom slider, series shown or hidden, 100 % stacks, reference lines for an average, a trend and a target, high and low points, the tooltip of the element under the pointer, fixed colours, the share in the tooltip and the chart image.
 ---
 
 # Charts
@@ -83,7 +83,7 @@ labels of a pie.
 | Share in the tooltip | Display › Tooltip | on, off. Not for a heatmap. | off |
 | Series | Display › Series | A switch per series, or per slice of a pie or a donut, with its colour beside it. One series is listed for its colour. | all shown, in the palette or the colours your app sets |
 | Stacked to 100 % | Display › Layout | on, off. Stacked bars and areas of sums and counts. | off |
-| Reference lines | Display › Reference lines | Average, Trend, Target. Bars, lines and areas. See [below](#reference-lines). | none |
+| Reference lines | Display › Reference lines | Average, Trend, High and low points, Target. Bars, lines and areas. See [below](#reference-lines). | none |
 | Smooth lines | Display › Layout | on, off. Lines and areas. | off |
 | Labels of a pie | Display › Layout | Outside, Inside. Not while value labels are Off. | Outside |
 | Groups of Rows | Display › Layout | **Show each Country**, **Show Region only**, named by the fields. See below. | each item shown |
@@ -218,11 +218,12 @@ bars and areas of sums and counts, the values that add up. An area is stacked by
 ## Reference lines
 
 A reference line compares the values with their average, with their trend over time, or with a
-target you set.
+target you set. High and low points mark the highest and the lowest value of each series.
 
 1. Open **Chart settings** next to the tabs **Table** and **Chart**.
 2. Open **Reference lines**. Its row says which lines are on, such as "Average, Target".
-3. Switch on **Average** or **Trend**. The level stays open, so you can switch both.
+3. Switch on **Average**, **Trend** or **High and low points**. The level stays open, so you can
+   switch more than one.
 4. Open **Target**. Its row shows the target, or "No target". Type a number and press Enter, or
    click **Apply**. **Remove the target** or the **×** removes it.
 5. **Back** or Escape returns one level.
@@ -249,17 +250,42 @@ target you set.
 - The chart image, the HTML report and the chart as SVG draw the lines too.
 - The lines stay with the report: in saved views, links and the chart image.
 
+### High and low points
+
+**High and low points** puts a dot on the highest and the lowest value of each series.
+
+![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and its value](../assets/screenshots/chart-points-light.png#only-light)
+![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and its value](../assets/screenshots/chart-points-dark.png#only-dark)
+
+- The dot has the series' colour. Its label starts with ▲ for the highest value or ▼ for the
+  lowest, in the same colour, then the value as the table writes it.
+- On a line, the highest label sits above its dot and the lowest below it.
+- On bars and areas, both labels sit above the dot. On a bar, that is past the bar's end.
+- A label never stretches the axis across zero. Near zero, it sits beside its dot.
+- Labels have an outline in the background's colour, so they read over a line.
+- A stack marks the highest and lowest total, in the neutral colour of a target.
+- Two labels that would cover each other move beside their dots. A label that still has no room
+  is left out. Its dot stays, and the tooltip names the value.
+- With more than 8 series, every dot stays, but only the chart's highest and lowest value keep a
+  label.
+- Where two categories share the highest value, the first one gets the dot. A series whose values
+  are all the same gets none.
+- The text for screen readers names the highest and lowest value and where it is. With several
+  series, it names them for each series.
+- The chart image, the HTML report and the chart as SVG draw the points too.
+
 ??? info "Which charts draw which line"
     The chart draws a line only where it means something. A line the chart cannot draw is greyed out
     in the menu, with the reason under it.
 
     - **Pie, donut and heatmap** have no value axis. They draw no lines.
-    - **Bars, lines and areas side by side** draw an average and a trend for each series.
+    - **Bars, lines and areas side by side** draw an average, a trend and the high and low points
+      for each series.
     - **Stacked bars and areas** draw the lines of the stack's total, the sum of its parts. Only sums
       and counts add up. A stack of averages, medians or maximums gets no lines at all, not even a
-      target: the height of such a stack is no total.
-    - **A stack with a part below zero** has no single total. It gets no average and no trend. The
-      target stays.
+      target: the height of such a stack is no total. High and low points follow the same rule.
+    - **A stack with a part below zero** has no single total. It gets no average, no trend and no
+      high and low points. The target stays.
     - **A trend** needs dates on Rows, such as "Created by month", in date order. Categories such
       as countries have no order of their own, so a line through them would be made up. A sort by
       value takes the date order away too.
@@ -315,7 +341,7 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 - Click a bar, a point or a heatmap cell to open the rows behind it, as in the table. See
   [the rows behind a number](drill-down.md).
 - The chart has a text alternative for screen readers: type, values, counts, highest and lowest
-  value, and the reference lines with their values.
+  value, the reference lines with their values, and each series' high and low points.
 
 ![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-light.png#only-light)
 ![Stacked bars with the tooltip of one segment: its series, its value and the stack's total](../assets/screenshots/chart-tooltip-dark.png#only-dark)

@@ -62,7 +62,7 @@ later.
         tooltip: "auto",                                       // or "axis": every series at the category
         zoom: "auto", stackPercent: false,                     // the zoom slider, stacks to 100 %
         hidden: [],                                            // legend entries hidden, by name
-        referenceLines: { average: false, trend: false, target: null },  // lines on bars, lines and areas
+        referenceLines: { average: false, trend: false, target: null, extremes: false },  // lines and high and low points
         tooltipShare: false,                                   // the share of the total in the tooltip
         colors: [{ name: "North", color: "#2a78d6" }]          // a fixed colour per series or slice
     },
@@ -185,6 +185,8 @@ A view file and a link leave out the chart settings newer than pivotkit 0.7 (`to
 `stackPercent`, `hidden`, `referenceLines`, `colors`, `tooltipShare`) while they hold their
 default. A 0.7 reader then takes the view as it is. A view that sets one, such as a hidden series,
 gets an `unknownKey` warning from a 0.7 reader, which ignores that setting.
+In the same way, `referenceLines` leaves out `extremes`, which is newer than 0.8, while it is
+`false`.
 
 From version 1 to 2, only the filters change ([Filters](filters.md)). Every version-1 view keeps what it
 kept, apart from the exception below.

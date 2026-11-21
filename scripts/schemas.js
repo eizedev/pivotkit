@@ -136,7 +136,7 @@ function viewParts() {
                 zoom: { enum: [...CHART_ZOOMS] },
                 stackPercent: { type: "boolean" },
                 hidden: { type: "array", maxItems: LIMITS.items, items: { type: "string", maxLength: ITEM_LENGTH } },
-                referenceLines: object({ average: { type: "boolean" }, trend: { type: "boolean" }, target: nullable({ type: "number" }) }),
+                referenceLines: object({ average: { type: "boolean" }, trend: { type: "boolean" }, target: nullable({ type: "number" }), extremes: { type: "boolean" } }),
                 colors: list(object({ name: { type: "string", maxLength: ITEM_LENGTH }, color: { type: "string", pattern: COLOR.source } }, ["name", "color"]), LIMITS.items),
                 tooltipShare: { type: "boolean" }
             }),

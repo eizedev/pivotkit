@@ -372,8 +372,8 @@ there swaps rows and columns for the chart. pivotkit-react and pivotkit-report d
 ### `referenceLineRules(view, chart, data)`
 
 Which reference lines (`chart.referenceLines`) a chart can draw, by the view alone. `chart` is what
-is drawn, `chartPlan`'s `chart`, never `"auto"`. It gives `{ average, trend, target }`, each `true`
-or `false`:
+is drawn, `chartPlan`'s `chart`, never `"auto"`. It gives `{ average, trend, target, extremes }`,
+each `true` or `false`. High and low points (`extremes`) are drawn wherever an average is:
 
 - Pie, donut and heatmap: none.
 - Bars, lines and areas side by side: all three. A trend only along a time line: every field on
@@ -435,9 +435,14 @@ the order a chart draws them: the averages, the trends, the target. Each line ha
 `chart` is what is drawn (`chartPlan`'s), `series` the `toSeries` result when the caller has it.
 `toEChartsOption` draws them as `markLine`s. A trend's `at(index)` follows the categories' real time.
 
-`referenceLineChecks(result, { chart, series })` gives `{ average, trend, target, notes }`:
-`referenceLineRules` with what depends on the numbers. A stack with a part below zero has no average
-or trend. A target over values in different units is off. `notes` says why, as codes: `"noTotal"`,
+`extremePoints(result, { chart, series, locale })` gives the high and low points
+(`chart.referenceLines.extremes`): per series, or of a stack's total, the highest first. Each point
+has `kind` (`"max"` or `"min"`), `series` (`null` for a stack's total), `index` (its category),
+`value` and `format(value)`. A series whose values are all the same has none.
+
+`referenceLineChecks(result, { chart, series })` gives `{ average, trend, target, extremes, notes }`:
+`referenceLineRules` with what depends on the numbers. A stack with a part below zero has no
+average, no trend and no high and low points. A target over values in different units is off. `notes` says why, as codes: `"noTotal"`,
 `"percentStack"`, `"negative"`, `"noTime"`, `"byIndex"` and `"mixedUnits"`.
 
 `valueAddsUp(value)` says whether a view's value adds up across a category's series: an additive
@@ -518,7 +523,8 @@ The view's display settings are part of the option:
 - The hidden legend entries of `chart.hidden` as `legend.selected`. Without a legend, the option has
   one that is not shown.
 - The reference lines (`chart.referenceLines`) as silent `markLine`s, with the value axis's
-  `dataMin` and `dataMax` reaching them.
+  `dataMin` and `dataMax` reaching them. The high and low points as silent `markPoint`s, their
+  labels kept inside the plot and apart by `decorateOption`.
 - Fixed colours (`chart.colors`, `colorMap`) as `itemStyle.color` of a series or a slice, and the
   line's and the fill's colour of a line or an area. `tooltip.shareFormatter` writes a share in the
   locale's way.

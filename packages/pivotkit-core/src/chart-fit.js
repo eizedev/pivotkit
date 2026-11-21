@@ -1,6 +1,7 @@
 /*
  * The room decorateOption (chart-style.js) makes for labels next to the marks: a pie's labels outside
- * it, the values at the end of horizontal bars, and the ticks of a narrow value axis. Internal:
+ * it, the values at the end of horizontal bars, the ticks of a narrow value axis and the labels of
+ * the high and low points (pointLabels). Internal:
  * "pivotkit-core/chart" does not export this module. Widths are estimated (chart-measure.js).
  */
 
@@ -272,3 +273,155 @@ export function barExtent(series) {
     }
     return [min, max];
 }
+
+/** Room (px) between a high or low point's dot (half its size) and its label, as ECharts keeps it. */
+const POINT_DOT = 5;
+/** The outline (px) decorateOption draws around a label in the background's colour. */
+export const POINT_HALO = 3;
+/** A label's distance from its dot (px) when the label names none, as ECharts keeps it. */
+const POINT_LABEL_DISTANCE = 5;
+/** The share of the plot the labels' room is measured on: ECharts' nice ticks may stretch the values. */
+const PLOT_SHARE = 0.8;
+/** Room (px) below the plot for the category labels' margin, beside a line of their text. */
+const AXIS_LABEL_ROOM = 8;
+/** Room (px) the value axis's labels take beside the plot, estimated, when the categories are spread. */
+const VALUE_LABEL_ROOM = 48;
+/** More series than this: each dot stays, but only the chart's highest and lowest value keep a label. */
+export const POINT_LABEL_SERIES = 8;
+
+/**
+ * The labels of the high and low points (pivotkit-core's markPoint): kept inside the plot and apart.
+ * - The value axis reaches past each label at the plot's ends: `dataMin` and `dataMax` in values, from
+ *   a plot estimated a fifth smaller than the chart leaves, as ECharts' nice ticks may stretch it. A
+ *   label that would take the axis across zero, past every value, goes beside its dot instead.
+ * - With more than POINT_LABEL_SERIES series, only the chart's highest and lowest value keep a label;
+ *   every dot stays.
+ * - Two labels that would cover each other, or another point's dot, move: the later one beside its dot
+ *   (right, then left), else it is left out. The dot stays; the tooltip and the text alternative name
+ *   the value. `pixelOf` gives each value's real height after a first draw; without it the heights
+ *   are estimated on the same plot.
+ * Horizontal bars: each bar has a band of its own, so only the axis's reach is set.
+ * @param {any[]} series  the decorated series
+ * @param {{ width: number, height: number, grid: any, fontSize: number, horizontal: boolean, axis: any, pixelOf?: (value: number) => number }} chart
+ *   axis: the value axis, with the reach the reference lines gave it
+ * @returns {{ series: any[], dataMin?: number, dataMax?: number } | null}  null without points
+ */
+export function pointLabels(series, { width, height, grid, fontSize, horizontal, axis, pixelOf }) {
+    /** @type {{ si: number, di: number, d: any, value: number, index: number, text: string }[]} */
+    const items = [];
+    series.forEach((s, si) =>
+        (s.markPoint?.data ?? []).forEach((/** @type {any} */ d, /** @type {number} */ di) => {
+            const at = Array.isArray(d.coord) ? d.coord : [];
+            const value = horizontal ? at[0] : at[1];
+            const index = horizontal ? at[1] : at[0];
+            const text = typeof d.text === "string" ? d.text : "";
+            if (typeof value === "number" && typeof index === "number") items.push({ si, di, d, value, index, text });
+        })
+    );
+    if (!items.length) {
+        return null;
+    }
+    const top = typeof grid?.top === "number" ? grid.top : 0;
+    const bottom = typeof grid?.bottom === "number" ? grid.bottom : 0;
+    const left = typeof grid?.left === "number" ? grid.left : 0;
+    const right = typeof grid?.right === "number" ? grid.right : 0;
+    const line = Math.ceil(fontSize * 1.3);
+    // the values the axis spans: 0 (ECharts' value axis keeps it), the data, a stack's tops, the lines' reach
+    const numbers = series.flatMap((s) => (s.data ?? []).map((/** @type {any} */ v) => (typeof v === "number" ? v : typeof v?.value === "number" ? v.value : null)).filter((/** @type {unknown} */ v) => typeof v === "number"));
+    const tops = items.map((i) => i.value);
+    const reach = [axis?.dataMin, axis?.dataMax].filter((v) => typeof v === "number");
+    const all = [0, ...numbers, ...tops, ...reach];
+    const low = Math.min(...all);
+    const high = Math.max(...all);
+    const span = high - low || 1;
+    // the plot along the value axis, less the category labels' line, a fifth smaller for the nice ticks
+    const plot = Math.max(40, (horizontal ? width - left - right - CATEGORY_LABEL_ROOM : height - top - bottom - line - AXIS_LABEL_ROOM) * PLOT_SHARE);
+    // a label's room along the value axis: its distance, half the dot and its height (or width)
+    const room = (/** @type {typeof items[number]} */ i) => (typeof i.d.label?.distance === "number" ? i.d.label.distance : POINT_LABEL_DISTANCE) + POINT_DOT + (horizontal ? textWidth(i.text, fontSize) : line);
+    const unit = span / plot;
+    let dataMax = typeof axis?.dataMax === "number" ? axis.dataMax : undefined;
+    let dataMin = typeof axis?.dataMin === "number" ? axis.dataMin : undefined;
+    /** @type {Map<any, { position?: string, show?: boolean, offset?: number[] }>} */
+    const moves = new Map();
+    // many series: the labels would cover the lines; only the chart's highest and lowest keep theirs
+    if (series.filter((s) => s.type === "line" || s.type === "bar").length > POINT_LABEL_SERIES) {
+        const top = items.reduce((a, b) => (b.d.name === "max" && (!a || b.value > a.value) ? b : a), /** @type {typeof items[number] | null} */ (null));
+        const bottom = items.reduce((a, b) => (b.d.name === "min" && (!a || b.value < a.value) ? b : a), /** @type {typeof items[number] | null} */ (null));
+        for (const i of items) {
+            if (i !== top && i !== bottom) moves.set(i.d, { show: false });
+        }
+    }
+    for (const i of items) {
+        if (moves.get(i.d)?.show === false) continue;
+        const pos = i.d.label?.position;
+        const reach = room(i) * unit;
+        // a label that would take the axis across zero, where no value is, goes beside its dot instead:
+        // the axis shows no range the data never reaches
+        if (!horizontal && pos === "bottom" && low >= 0 && i.value - reach < 0) {
+            moves.set(i.d, { position: "right" });
+            continue;
+        }
+        if (!horizontal && pos === "top" && high <= 0 && i.value + reach > 0) {
+            moves.set(i.d, { position: "right" });
+            continue;
+        }
+        if (pos === "top" || pos === "right") dataMax = Math.max(dataMax ?? -Infinity, i.value + reach);
+        if (pos === "bottom" || pos === "left") dataMin = Math.min(dataMin ?? Infinity, i.value - reach);
+    }
+    if (horizontal) {
+        return { series, dataMin, dataMax };
+    }
+    // the boxes of the labels: x by category (the plot's width over the categories), y by value
+    const categories = Math.max(1, ...series.map((s) => (Array.isArray(s.data) ? s.data.length : 0)));
+    const band = Math.max(1, width - left - right - VALUE_LABEL_ROOM) / categories;
+    const extent = [Math.min(low, dataMin ?? low), Math.max(high, dataMax ?? high)];
+    const yOf = (/** @type {number} */ v) => (pixelOf ? pixelOf(v) : ((extent[1] - v) / (extent[1] - extent[0] || 1)) * plot);
+    /** @typedef {{ x0: number, x1: number, y0: number, y1: number }} Box */
+    const overlap = (/** @type {Box} */ a, /** @type {Box} */ b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+    const dots = items.map((i) => {
+        const x = (i.index + 0.5) * band;
+        const y = yOf(i.value);
+        return { x0: x - POINT_DOT, x1: x + POINT_DOT, y0: y - POINT_DOT, y1: y + POINT_DOT };
+    });
+    const boxOf = (/** @type {typeof items[number]} */ i, /** @type {string} */ pos) => {
+        const x = (i.index + 0.5) * band;
+        const y = yOf(i.value);
+        // the outline adds to the text's box on every side
+        const tall = line + 2 * POINT_HALO;
+        const w = textWidth(i.text, fontSize) + 2 * POINT_HALO;
+        const gap = (typeof i.d.label?.distance === "number" ? i.d.label.distance : POINT_LABEL_DISTANCE) + POINT_DOT;
+        if (pos === "right") return { x0: x + gap, x1: x + gap + w, y0: y - tall / 2, y1: y + tall / 2 };
+        if (pos === "left") return { x0: x - gap - w, x1: x - gap, y0: y - tall / 2, y1: y + tall / 2 };
+        const y0 = pos === "bottom" ? y + gap : y - gap - tall;
+        return { x0: x - w / 2, x1: x + w / 2, y0, y1: y0 + tall };
+    };
+    // the plot's edges along the value axis: it reaches at least the values, zero and the labels' reach
+    const plotTop = yOf(extent[1]);
+    const plotBottom = yOf(extent[0]);
+    /** @type {Box[]} */
+    const placed = [];
+    items.forEach((i, k) => {
+        if (moves.get(i.d)?.show === false) return;
+        const own = moves.get(i.d)?.position ?? i.d.label?.position ?? "top";
+        // over no other label and no other dot; beside its dot, within the plot's width (a label above
+        // or below a dot stays within its category's band, the plot's margin takes the rest)
+        const free = (/** @type {Box} */ b, /** @type {string} */ p) => (p === "top" || p === "bottom" || (b.x0 >= 0 && b.x1 <= band * categories)) && !placed.some((o) => overlap(o, b)) && !dots.some((d, j) => j !== k && overlap(d, b));
+        const pos = [...new Set([own, "right", "left"])].find((p) => free(boxOf(i, p), p));
+        if (pos) {
+            const box = boxOf(i, pos);
+            // beside a dot near the plot's top or bottom edge: moved up or down into the plot
+            const dy = pos === "right" || pos === "left" ? Math.min(0, plotBottom - box.y1) || Math.max(0, plotTop - box.y0) : 0;
+            // above or below a dot at the plot's first or last category: moved sideways into the plot
+            const dx = pos === "top" || pos === "bottom" ? Math.max(0, -box.x0) || Math.min(0, band * categories - box.x1) : 0;
+            placed.push({ x0: box.x0 + dx, x1: box.x1 + dx, y0: box.y0 + dy, y1: box.y1 + dy });
+            if (pos !== (i.d.label?.position ?? "top") || dy || dx) moves.set(i.d, { position: pos, ...(dy || dx ? { offset: [dx, dy] } : {}) });
+        } else {
+            moves.set(i.d, { show: false });
+        }
+    });
+    const out = series.map((s) => (s.markPoint ? { ...s, markPoint: { ...s.markPoint, data: s.markPoint.data.map((/** @type {any} */ d) => (moves.has(d) ? { ...d, label: { ...d.label, ...moves.get(d) } } : d)) } } : s));
+    return { series: out, dataMin, dataMax };
+}
+
+/** Room (px) the category labels take beside horizontal bars, at most (chart-layout's CATEGORY_LABEL_WIDTH). */
+const CATEGORY_LABEL_ROOM = 120;

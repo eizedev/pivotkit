@@ -346,6 +346,7 @@ export const de = {
     referenceLines: "Bezugslinien",
     targetNone: "Kein Ziel",
     linesOff: "Aus",
+    linesExtremes: "Hoch- und Tiefpunkte",
     targetPercent: "Ein Prozentwert: 25 % oder 0,25 eingeben.",
     targetPercent100: "Ein Prozentwert: 25 oder 25 % eingeben.",
     targetPercentHigh: "{typed} sind {shown}. Für {share} {typed} % eingeben.",
