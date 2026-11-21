@@ -233,8 +233,8 @@ let tipsPending = null;
 
 /**
  * The tips' table with its conditions and texts (tips.js): here at once in pivotkit-react; in
- * pivotkit-element loaded after the first render, null until then. A failed load shows no tip and is
- * tried again by the next report that mounts.
+ * pivotkit-element loaded after the first render, null until then. A failed load shows no tip, says so
+ * once in the console and is tried again by the next report that mounts.
  */
 function useTipsTable() {
     const [mod, setMod] = useState(() => tipsLoaded);
@@ -246,6 +246,7 @@ function useTipsTable() {
         let live = true;
         tipsPending ??= load().then((m) => (tipsLoaded = m), (error) => {
             tipsPending = null;
+            warnOnce(`pivotkit: the tips did not load, the report shows none: ${error instanceof Error ? error.message : String(error)}`);
             throw error;
         });
         tipsPending.then(

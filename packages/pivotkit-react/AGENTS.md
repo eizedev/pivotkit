@@ -65,6 +65,8 @@ The first load holds only what the first render needs. Everything else loads on 
 - `PivotReport.jsx` imports `deferred.js` as a file of its own: German texts and the tips' table.
 - pivotkit-element bundles `deferred-late.js` in its place. It loads them later.
 - What the first render needs of the tips is in `tip-state.js`, not in `tips.js`.
+- The notices (the result is cut or empty) are rows of `notices.js`, in the first load. A new one
+  needs its id in `NOTICE_IDS` too.
 - The import UI loads on first use through `lazy-import.js`.
 - The HTML report, SVG and printing load on first use through `report-run.js`.
 - pivotkit-element's `test/build.test.js` checks the split.

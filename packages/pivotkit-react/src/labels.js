@@ -429,6 +429,8 @@ export const hasLabels = (locale) => Object.hasOwn(LABELS, langOf(locale));
 const labelsPending = new Set();
 /** Languages whose texts did not load, or not in time (a partial copy of dist/, offline): English stands in. */
 const labelsFailed = new Set();
+/** Languages whose failure the console was told about: once per page. */
+const labelsWarned = new Set();
 
 /** How long a report waits for its language's texts before it shows in English (ms). */
 export const LABELS_WAIT_MS = 4000;
@@ -465,7 +467,10 @@ export function requestLabels(locale, loaders, { again = false } = {}) {
     const fail = (why) => {
         if (!labelsFailed.has(lang) && !Object.hasOwn(LABELS, lang)) {
             labelsFailed.add(lang);
-            console.warn(`pivotkit: the ${lang} texts did not load, English stands in: ${why}`);
+            if (!labelsWarned.has(lang)) {
+                labelsWarned.add(lang);
+                console.warn(`pivotkit: the ${lang} texts did not load, English stands in: ${why}`);
+            }
             labelListeners.forEach((listener) => listener());
         }
     };

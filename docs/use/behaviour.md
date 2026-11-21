@@ -139,8 +139,8 @@ report…" once. Reduced motion stops the shapes' shimmer. When the application 
 the report covers the result until the new data is there.
 
 A German report on a page with the web component first loads its German texts. Until they arrive,
-the grey shapes show without a word, so nothing is said in English first. After a few seconds
-without them, the report shows in English.
+the grey shapes show without a word, and a screen reader hears nothing, so nothing is said in
+English first. After 4 seconds without them, the report shows in English.
 
 !!! note "For developers"
     `loading` shows the skeleton. A menu chunk that is not deployed (`dist/chunks/`) is one reason for

@@ -132,6 +132,20 @@ test("the tips show once their table is here; a choice the user makes before kee
     expect(tips.requests).toBe(1);
 });
 
+test("a notice that the result is cut shows at once, before the tips' table is here", async ({ page }) => {
+    const tips = await holdBack(page, /\/chunks\/tips-[^/]+\.js$/);
+    await page.goto("pages/element-fields.html");
+    const a = page.locator("#a");
+    await expect(a.locator(".pk-table")).toBeVisible();
+    await page.evaluate(() => {
+        document.getElementById("a").defaultView = { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], filters: [{ field: "Region", type: "top", count: 2 }] };
+    });
+    await expect(a.getByTestId("tip-top")).toBeVisible();
+    expect(tips.requests).toBe(1);
+    tips.release();
+    await expect(a.getByTestId("tip-top")).toBeVisible();
+});
+
 /** The computed styles of every element in a shadow root, by element: kept on the page as window.__styles[key]. */
 const keepStyles = (host, key) =>
     host.evaluate(async (el, k) => {

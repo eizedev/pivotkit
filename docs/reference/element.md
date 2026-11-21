@@ -579,9 +579,12 @@ CI runs the same command on Node 24 and measures the same numbers. It fails when
 | With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 6 | 54 KiB | 22 KiB |
 | With `allow-import`, the worker of a CSV or JSON file (`dist/import-worker.js`, one file) | 1 | 27 KiB | 11 KiB |
 
-A page that copies `dist/` by hand deploys all of it. Without the German texts' file in
-`dist/chunks/`, a German report shows in English. Without the tips' file, the report shows no tips.
-The notices that the result is cut or empty are in the first load.
+A page that copies `dist/` by hand deploys all of it, `dist/chunks/` included:
+
+- Without `dist/chunks/labels-de-*.js`, a German report waits 4 seconds, then shows in English.
+- Without `dist/chunks/tips-*.js`, the report shows no tips. The notices that the result is cut or
+  empty are in the first load and still show.
+- Both say so in the console.
 
 The element bundles ECharts instead of leaving it to the page. A page without a bundler or an import
 map would have no way to provide it. Loading it on first use keeps it out of the first load.

@@ -3,7 +3,8 @@
  * cut or empty: top N, the chart's category cap, a filter that leaves nothing), the state the
  * conditions read (tipContext), the choice of what shows (activeEntries) and the texts. A notice always
  * shows, cannot be dismissed and counts against no limit, so it is in the first load. The tips
- * themselves are rows of tips.js, which pivotkit-element loads after the first render.
+ * themselves are rows of tips.js, which pivotkit-element loads after the first render. A new notice
+ * is a row here with its id in NOTICE_IDS (tip-state.js); test/tips.test.js checks both.
  */
 
 import { fieldLabel } from "pivotkit-core";

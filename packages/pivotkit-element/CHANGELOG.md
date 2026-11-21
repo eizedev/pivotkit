@@ -17,9 +17,10 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
     - The tips' table loads right after the first render. A tip shows a moment later. The notices
       that the result is cut or empty stay in the first load.
     - The style rules only the menus use load with the menus.
-- A German report pays for this: its texts are one more request before the first render. On a
-  slow connection (1.6 Mbit/s, 150 ms) with a slow processor, the first render came about 0.2 s
-  later in Chromium. An English report rendered about 0.03 s sooner.
+- A German report pays for this: its texts are one more request before the first render. Measured
+  in Chromium with 1.6 Mbit/s, 150 ms latency and the processor slowed down 4 times, median of 11
+  cold loads: a German report rendered about 0.18 s later, an English one about 0.03 s sooner.
+  Without throttling both stayed within a few milliseconds.
 - Every boolean attribute reads `"false"`, in any case and with spaces around it, as off.
   `save-templates`, `can-publish`, `allow-import` and `loading` were on with any value, `"false"`
   included ([#548](https://github.com/eizedev/pivotkit/issues/548)).

@@ -51,8 +51,9 @@ The web component loads the German texts of the first render as a file of its ow
   a word. It never shows English first.
 - A report that changes to German keeps its English texts until the German ones are there.
 - When the file cannot load, or does not arrive within 4 seconds, the report shows in English and
-  says so once in the console. German texts that arrive later still take their place. The next
-  report that mounts tries the file again.
+  says so once in the console. German texts that arrive later still take their place.
+- A report that mounts after such a failure shows English at once and tries the file again. It
+  takes the German texts when they arrive.
 
 pivotkit-react has these texts at once.
 
