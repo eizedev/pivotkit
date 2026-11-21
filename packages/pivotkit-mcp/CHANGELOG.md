@@ -6,6 +6,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-21
+
 ### Added
 
 - The skill names the chart types `combo` and `treemap`
@@ -28,6 +30,9 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Changed
 
+- Depends on `pivotkit-report` `^0.5.0` and `pivotkit-server` `^0.4.0`. Install pivotkit-server and
+  pivotkit-mcp 0.4.0 in one command
+  ([update](https://pivotkit.eize.dev/getting-started/upgrading/#update-global)).
 - **Breaking:** `http.publicUrl` and `--public-url` take an origin. A path, user name, password,
   query or fragment stops the start with an error that names the remedy. The quick-start page names
   the endpoint under the origin, without a user name or password
@@ -323,7 +328,8 @@ First release.
   two `Authorization` headers are refused, also when node:http would keep only the first; an input
   nested deeper than 64 levels is `INVALID_INPUT` before it reaches a worker.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.3.2...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.4.0...HEAD
+[0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.3.2...pivotkit-mcp@0.4.0
 [0.3.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.3.1...pivotkit-mcp@0.3.2
 [0.3.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.3.0...pivotkit-mcp@0.3.1
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.2.0...pivotkit-mcp@0.3.0

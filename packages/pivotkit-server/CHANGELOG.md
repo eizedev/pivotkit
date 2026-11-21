@@ -6,6 +6,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-21
+
 ### Added
 
 - `POST /api/v1/sources/records` answers the rows of one source to a person who signed in: an OAuth
@@ -76,6 +78,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.9.0`, `pivotkit-report` `^0.5.0`, `pivotkit-cli` `^0.5.0` and
+  `pivotkit-xlsx` `^0.6.0`.
+- `check-config` no longer prints the notes of 0.3.0 under "New in this version": connections per
+  address, open sources hidden by default, the drafts' share of the output directory and the inline
+  csv and json results. This release has no note of its own there.
 - **Breaking:** `http.publicUrl` and `--public-url` take an origin. A path, user name, password,
   query or fragment stops the start with an error that names the remedy. Download links, the
   OpenAPI document, the REST resource, the 404 text, `check-config` and the hints of `token new`
@@ -1006,7 +1013,8 @@ First release.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.2...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.4.0...HEAD
+[0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.2...pivotkit-server@0.4.0
 [0.3.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.1...pivotkit-server@0.3.2
 [0.3.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.0...pivotkit-server@0.3.1
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.2.0...pivotkit-server@0.3.0

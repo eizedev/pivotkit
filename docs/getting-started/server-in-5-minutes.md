@@ -16,7 +16,7 @@ You need only two things:
 ## 1. Start it { #start }
 
 ```bash
-docker run -d --name pivotkit -p 127.0.0.1:3333:3333 -v pivotkit:/var/lib/pivotkit ghcr.io/eizedev/pivotkit:0.3.2
+docker run -d --name pivotkit -p 127.0.0.1:3333:3333 -v pivotkit:/var/lib/pivotkit ghcr.io/eizedev/pivotkit:0.4.0
 ```
 
 The volume `pivotkit` keeps what the server makes: the token `admin`, the key of the download links
@@ -104,7 +104,7 @@ Start the container again with both mounted. The same volume keeps the token:
 ```bash
 docker rm -f pivotkit
 docker run -d --name pivotkit -p 127.0.0.1:3333:3333 -v pivotkit:/var/lib/pivotkit \
-  -v "$PWD/data:/data:ro" -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" ghcr.io/eizedev/pivotkit:0.3.2
+  -v "$PWD/data:/data:ro" -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" ghcr.io/eizedev/pivotkit:0.4.0
 ```
 
 - The user 10001 runs the server. It must be able to read the files. `chmod 0644` gives it that.
@@ -123,18 +123,18 @@ The same setup as a Compose project. Download the two example files of this rele
 
     ```bash
     mkdir pivotkit && cd pivotkit && mkdir data
-    curl -fsSL -o compose.yml https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.3.2/docker/compose.example.yml
-    curl -fsSL -o pivotkit.json https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.3.2/docker/pivotkit.example.json
-    export PIVOTKIT_VERSION=0.3.2
+    curl -fsSL -o compose.yml https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.4.0/docker/compose.example.yml
+    curl -fsSL -o pivotkit.json https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.4.0/docker/pivotkit.example.json
+    export PIVOTKIT_VERSION=0.4.0
     ```
 
 === "PowerShell"
 
     ```powershell
     mkdir pivotkit; cd pivotkit; mkdir data
-    Invoke-WebRequest -OutFile compose.yml https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.3.2/docker/compose.example.yml
-    Invoke-WebRequest -OutFile pivotkit.json https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.3.2/docker/pivotkit.example.json
-    $env:PIVOTKIT_VERSION = "0.3.2"
+    Invoke-WebRequest -OutFile compose.yml https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.4.0/docker/compose.example.yml
+    Invoke-WebRequest -OutFile pivotkit.json https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.4.0/docker/pivotkit.example.json
+    $env:PIVOTKIT_VERSION = "0.4.0"
     ```
 
 Put your files into `data/`. Name them in `pivotkit.json`. Then start it and read the token:
@@ -147,8 +147,8 @@ docker compose exec pivotkit pivotkit-server token show admin
 Make `data/` and `pivotkit.json` before the first `up`. Docker makes a missing mount source as an
 empty directory, owned by root. `pivotkit.json` would then be a directory, and the server does not
 start. The files are
-[compose.example.yml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.3.2/docker/compose.example.yml)
-and [pivotkit.example.json](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.3.2/docker/pivotkit.example.json).
+[compose.example.yml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.4.0/docker/compose.example.yml)
+and [pivotkit.example.json](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.4.0/docker/pivotkit.example.json).
 
 ## What to know { #know }
 

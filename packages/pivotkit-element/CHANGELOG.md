@@ -6,6 +6,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-21
+
 ### Added
 
 - A menu at a clicked point of the chart, to show its rows or filter by it. See pivotkit-react's
@@ -32,6 +34,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- Bundles pivotkit-core 0.9.0, pivotkit-react 0.9.0 and pivotkit-report 0.5.0.
 - Plainer words in the filter and "Filter by …" on the buttons that add a rule. See
   pivotkit-react's changelog ([#595](https://github.com/eizedev/pivotkit/issues/595),
   [#177](https://github.com/eizedev/pivotkit/issues/177)).
@@ -580,7 +583,8 @@ First release.
   thousands separators, CSV percentages and calculations as the table shows them, heatmaps without
   grey empty cells.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.2...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.9.0...HEAD
+[0.9.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.2...pivotkit-element@0.9.0
 [0.8.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.1...pivotkit-element@0.8.2
 [0.8.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.0...pivotkit-element@0.8.1
 [0.8.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.7.0...pivotkit-element@0.8.0

@@ -6,6 +6,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-21
+
 ### Added
 
 - A click on a bar, a point, a slice or a heatmap cell opens a small menu at it: **Show the rows**,
@@ -48,6 +50,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.9.0` (was `^0.8.0`) and `pivotkit-report` `^0.5.0` (was `^0.4.0`): a host
+  that also lists pivotkit-core updates both together, or it gets two copies.
 - `onCellClick` for a chart point comes at **Show the rows** or a double click, no longer at the
   click that opens the point's menu
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#chart-click-menu), #53).
@@ -1364,7 +1368,8 @@ First release.
   weather (Open-Meteo), countries (World Bank), earthquakes (USGS), Nobel laureates and the release
   cycles of software products (endoflife.date).
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.2...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.9.0...HEAD
+[0.9.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.2...pivotkit-react@0.9.0
 [0.8.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.1...pivotkit-react@0.8.2
 [0.8.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.0...pivotkit-react@0.8.1
 [0.8.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.7.0...pivotkit-react@0.8.0

@@ -6,6 +6,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-21
+
 ### Added
 
 - `--chart-type` takes `combo` and `treemap`, and the completions list them
@@ -17,6 +19,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.9.0`, `pivotkit-report` `^0.5.0` and `pivotkit-xlsx` `^0.6.0`.
 - **Breaking:** needs Node 24 or later. Node 22 is no longer supported
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
 - A network error with a proxy variable set names `NODE_USE_ENV_PROXY=1`, or `--use-env-proxy` from
@@ -282,7 +285,8 @@ First release.
   usage error instead of HTML in a `.pdf`.
 - An option that does nothing in the chosen format (`--width` with `csv`) is a warning `ignoredOption`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.4.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.5.0...HEAD
+[0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.4.0...pivotkit-cli@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.3.0...pivotkit-cli@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.1...pivotkit-cli@0.3.0
 [0.2.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.0...pivotkit-cli@0.2.1
