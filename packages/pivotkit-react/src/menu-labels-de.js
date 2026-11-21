@@ -280,7 +280,7 @@ export const de = {
     conditionNone: "(jeder Name)",
     conditionValue: "Text",
     selected: "{count} ausgewählt",
-    selectedAll: "Alle {count} ausgewählt – noch ist nichts gefiltert",
+    selectedAll: "Alle {count} ausgewählt · noch nichts gefiltert",
     exportDownload: "Herunterladen",
     exportCopy: "Kopieren",
     exportXlsx: "Excel-Arbeitsmappe (.xlsx)",

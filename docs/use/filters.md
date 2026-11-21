@@ -111,7 +111,7 @@ A chip in **Filters** opens the same Filter level from its menu, with **Move to*
 
 **Add to Filters** in the menu of a field in the field list opens the field's filter at once. It
 shows the field's values and **Only names that…**, a condition on the names. While every value is
-ticked and no condition is set, the count says so: "All 14 selected – nothing is filtered yet". What
+ticked and no condition is set, the count says so: "All 14 selected · nothing filtered yet". What
 you set there is a draft:
 
 - **Apply** puts the field into Filters with what you chose.

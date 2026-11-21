@@ -14,6 +14,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- A field's filter says "Only names that…" with "(any name)" instead of "Text condition". While
+  every value is ticked and no condition is set, its count says "All 14 selected · nothing filtered
+  yet" ([#595](https://github.com/eizedev/pivotkit/issues/595)).
+- The buttons that add a rule in the Filter level read "Filter by <field>", "Filter by total" and
+  "Filter by name" (German "Nach <Feld> filtern", "Nach Wert filtern", "Nach Name filtern"). The
+  menu's search finds them by "rule" too ([#177](https://github.com/eizedev/pivotkit/issues/177)).
 - `dist/index.js` imports `dist/deferred.js`, a file of its own with the German texts of the first
   render and the tips' table. The report works as before. pivotkit-element bundles another file in
   its place to load them later. A host that copies files by hand deploys the whole `dist/` folder, as

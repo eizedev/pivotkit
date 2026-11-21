@@ -11,8 +11,8 @@
  * "i" that explains it with an example and a line with what it keeps; the quick choice stands among
  * them as a line to read, not a rule. The first rule folds Pick items and opens Rules, the last one
  * going does the reverse, a fold by hand wins afterwards. Every change applies at once (one undo step
- * each); a number a moment after the typing stops, Escape in a field gives back what applies. Loaded
- * with the menus (menus.js).
+ * each); a number a moment after the typing stops, Escape in a field gives back what applies. The
+ * quick choices are in quick-choices.jsx. Loaded with the menus (menus.js).
  */
 
 import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";

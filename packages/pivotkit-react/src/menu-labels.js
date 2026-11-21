@@ -320,7 +320,7 @@ export const en = {
     conditionValue: "Text",
     selected: "{count} selected",
     // every value ticked and no condition: the filter keeps everything
-    selectedAll: "All {count} selected – nothing is filtered yet",
+    selectedAll: "All {count} selected · nothing filtered yet",
     // the Export menu
     exportDownload: "Download",
     exportCopy: "Copy",

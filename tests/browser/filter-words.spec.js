@@ -9,8 +9,8 @@ const YEAR = "Released by year";
 const byYear = { derived: [{ name: YEAR, field: "Released", by: "year" }], rows: [YEAR], values: [{ agg: "count" }] };
 
 for (const [lang, t] of [
-    ["en", { legend: "Only names that…", none: "(any name)", all: "All 3 selected – nothing is filtered yet", some: "2 selected", total: "Filter by total", name: "Filter by name", item: `Filter by ${YEAR}` }],
-    ["de", { legend: "Nur Namen, die …", none: "(jeder Name)", all: "Alle 3 ausgewählt – noch ist nichts gefiltert", some: "2 ausgewählt", total: "Nach Wert filtern", name: "Nach Name filtern", item: `Nach ${YEAR} filtern` }]
+    ["en", { legend: "Only names that…", none: "(any name)", all: "All 3 selected · nothing filtered yet", some: "2 selected", total: "Filter by total", name: "Filter by name", item: `Filter by ${YEAR}` }],
+    ["de", { legend: "Nur Namen, die …", none: "(jeder Name)", all: "Alle 3 ausgewählt · noch nichts gefiltert", some: "2 ausgewählt", total: "Nach Wert filtern", name: "Nach Name filtern", item: `Nach ${YEAR} filtern` }]
 ]) {
     test(`${lang}: a field's filter says when it keeps every value, and its condition on the names in plain words`, async ({ page }) => {
         await page.goto(`?data=sales&lang=${lang}`);
