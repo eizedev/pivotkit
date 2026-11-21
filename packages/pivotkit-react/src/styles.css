@@ -2425,11 +2425,13 @@
     min-height: 4.5em;
 }
 
+/* the title and the count side by side; a long count goes under the title, the title stays whole */
 .pk-popover-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     justify-content: space-between;
-    gap: 1em;
+    gap: 0 1em;
 }
 
 .pk-popover-head h3 {
