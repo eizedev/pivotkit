@@ -19,6 +19,8 @@ export { extremePoints, referenceLineChecks, referenceLines } from "./chart-line
 export { labelColorOn } from "./chart-colors.js";
 import { contrastOf, labelColorOn } from "./chart-colors.js";
 
+/** Room (px) beside a combo's plot: the margins and the numbers of its two value axes, estimated. */
+const COMBO_AXES_ROOM = 136;
 /** The contrast text needs on its background (WCAG 2.2 AA, normal text). */
 const TEXT_CONTRAST = 4.5;
 
@@ -288,7 +290,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     // group labels sit below (or left of) those labels
     // two value axes (a combo) named above the plot: each name within half the chart, cut with "…"
     const named = Array.isArray(yAxis) && yAxis.length === 2 && yAxis.every((a) => a?.type === "value" && a.name);
-    const halves = named ? yAxis.map((/** @type {any} */ a) => ({ ...a, nameTextStyle: { ...a.nameTextStyle, width: Math.max(40, Math.floor((width - 48) / 2) - 8), overflow: "truncate" } })) : null;
+    const halves = named ? yAxis.map((/** @type {any} */ a) => ({ ...a, nameTruncate: { maxWidth: Math.max(40, Math.floor((width - COMBO_AXES_ROOM) / 2) - 8), ellipsis: "…" } })) : null;
     let axes = { xAxis: reach.xAxis ?? xAxis, yAxis: halves ?? reach.yAxis ?? yAxis };
     let axisEvery = 1;
     /** @type {object | null} the zoom slider (chart-zoom.js) */

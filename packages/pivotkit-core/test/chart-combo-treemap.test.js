@@ -150,7 +150,7 @@ test("decorateOption: treemap labels take --pk-text or --pk-surface, whichever r
 test("decorateOption: a combo's axis names each fit in half the chart", () => {
     const out = decorateOption(toEChartsOption(pivot({ type: "combo" }), { theme: THEME }), { getPropertyValue: () => "" }, { width: 358, height: 300 });
     for (const axis of out.yAxis) {
-        assert.ok(axis.nameTextStyle.width <= 155, String(axis.nameTextStyle.width));
-        assert.equal(axis.nameTextStyle.overflow, "truncate");
+        assert.ok(axis.nameTruncate.maxWidth <= 105, String(axis.nameTruncate.maxWidth));
+        assert.equal(axis.nameTruncate.ellipsis, "…");
     }
 });
