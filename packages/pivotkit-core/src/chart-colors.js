@@ -47,3 +47,57 @@ export function colorLookup(viewColors, hostMap, palette) {
     const fallback = (/** @type {number} */ place) => (palette?.length ? palette[place % palette.length] : null);
     return (name, place) => (colors.size ? (colors.get(String(name).toLowerCase()) ?? fallback(place)) : null);
 }
+
+/**
+ * A colour's red, green and blue (0 to 255) from #rgb, #rrggbb or rgb()/rgba(); null for any other form.
+ * @param {string} color
+ * @returns {[number, number, number] | null}
+ */
+function rgbOf(color) {
+    const c = String(color).trim();
+    const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c);
+    if (hex) {
+        const h = hex[1].length === 3 ? [...hex[1]].map((d) => d + d).join("") : hex[1];
+        return /** @type {[number, number, number]} */ ([0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)));
+    }
+    const rgb = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)/i.exec(c);
+    return rgb ? [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])] : null;
+}
+
+/** WCAG 2's relative luminance of a colour's red, green and blue. */
+function luminance(/** @type {[number, number, number]} */ rgb) {
+    const [r, g, b] = rgb.map((v) => {
+        const s = v / 255;
+        return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * WCAG 2's contrast of two colours (1 to 21); null when one is no hex or rgb() colour.
+ * @param {string} a
+ * @param {string} b
+ */
+export function contrastOf(a, b) {
+    const x = rgbOf(a);
+    const y = rgbOf(b);
+    if (!x || !y) {
+        return null;
+    }
+    const [l1, l2] = [luminance(x), luminance(y)];
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
+/**
+ * The text colour of `candidates` (the theme's tokens) with the highest WCAG contrast on `fill`: the
+ * label on a treemap's tile. A colour it cannot read (not hex or rgb()) gives the first candidate.
+ * @param {string} fill
+ * @param {string[]} candidates
+ */
+export function labelColorOn(fill, candidates) {
+    const read = candidates.map((c) => ({ c, ratio: contrastOf(fill, c) })).filter((x) => x.ratio !== null);
+    if (!read.length) {
+        return candidates[0];
+    }
+    return read.reduce((best, x) => (/** @type {number} */ (x.ratio) > /** @type {number} */ (best.ratio) ? x : best)).c;
+}

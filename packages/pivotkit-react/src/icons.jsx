@@ -29,6 +29,8 @@ const PATHS = {
     pie: "M12 3a9 9 0 1 0 9 9h-9Z M15 3.5A9 9 0 0 1 20.5 9H15Z",
     donut: "M12 3a9 9 0 1 0 9 9h-4a5 5 0 1 1-5-5Z M14.5 3.4A9 9 0 0 1 20.6 9.5h-4.1a5 5 0 0 0-2-2Z",
     heatmap: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+    combo: "M4 20h16M7 17v-5M12 17v-8M17 17v-6M4 9l5-3 5 2 6-4",
+    treemap: "M4 4h9v10H4zM15 4h5v6h-5zM15 12h5v8h-5zM4 16h9v4H4z",
     download: "M12 4v11M7 10l5 5 5-5M5 20h14",
     bookmark: "M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1Z",
     sliders: "M4 7h10M18 7h2M4 17h4M12 17h8M16 5v4M10 15v4",

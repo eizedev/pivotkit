@@ -239,6 +239,45 @@ export function toEChartsOption(result, options) {
         };
     }
 
+    if (chart.type === "treemap") {
+        // one tile per category, its area its total (as a pie's slice), in its colour; no legend: each
+        // tile is named on it. A tile hidden in Chart settings › Series is left out
+        const hidden = Array.isArray(chart.hidden) ? chart.hidden : [];
+        const palette = theme.colors ?? [];
+        const data = s.categories
+            .map((name, i) => ({ name, value: s.totals[vi] ? s.totals[vi][i] : null }))
+            .filter((d) => typeof d.value === "number" && d.value > 0)
+            .map((d, i) => {
+                const color = colorOf(d.name, i) ?? (palette.length ? palette[i % palette.length] : null);
+                return color ? { ...d, itemStyle: { color } } : d;
+            })
+            .filter((d) => !hidden.includes(d.name));
+        return {
+            ...base,
+            ...title,
+            tooltip: { trigger: "item", valueFormatter, shareFormatter },
+            series: [
+                {
+                    type: "treemap",
+                    name: valueTitle,
+                    data,
+                    // a flat map: no zoom into a tile, no path above it, a click opens nothing in ECharts
+                    roam: false,
+                    nodeClick: false,
+                    breadcrumb: { show: false },
+                    top: titleRoom + 8,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    // the name and the value on the tile; decorateOption gives each label the colour that reads on it
+                    label: { show: labels !== "off", formatter: (p) => `${p.name}\n${fmt(p.value)}`, overflow: "truncate", fontSize: textStyle.fontSize },
+                    upperLabel: { show: false },
+                    itemStyle: { gapWidth: 2 }
+                }
+            ]
+        };
+    }
+
     if (chart.type === "heatmap") {
         const columns = s.series.filter((x) => x.valueIndex === vi);
         const data = [];
@@ -282,6 +321,11 @@ export function toEChartsOption(result, options) {
 
     // bar, line and area share the category axis
     const type = chart.type === "line" || chart.type === "area" ? "line" : "bar";
+    // a combo: the first value's series as bars on the left axis, every other value's as lines on the
+    // right one; with one value there is nothing for a line, and it draws bars
+    const firstValue = first ? first.valueIndex : 0;
+    const combo = chart.type === "combo" && s.series.some((x) => x.valueIndex !== firstValue);
+    const typeOf = (/** @type {{ valueIndex: number }} */ x) => (combo ? (x.valueIndex === firstValue ? "bar" : "line") : type);
     const groups = groupAxisOf(s, result.view.rows.length, chart, { separator: options.separator ?? " / ", axisLine, theme });
     // with group labels the axis names each category by its inner levels, the group axis the outer one
     const categoryAxis = { type: "category", data: groups ? groups.leaves : s.categories, axisLine, axisLabel: { ...axisText } };
@@ -298,10 +342,10 @@ export function toEChartsOption(result, options) {
         const whole = formatterFor("percent100:0", locale);
         Object.assign(valueAxis, { max: 100, min: shares.negative ? -100 : 0, axisLabel: { ...valueAxis.axisLabel, formatter: (v) => whole(v) } });
     }
-    const stacked = chart.stacked || percent;
+    const stacked = !combo && (chart.stacked || percent);
     // value labels: at the end of a bar, inside a stacked one, above a point of a line
     const showValues = labels !== "auto" && labels !== "off";
-    const position = type === "line" ? "top" : stacked ? "inside" : chart.horizontal ? "right" : "top";
+    const position = type === "line" ? "top" : stacked ? "inside" : chart.horizontal && !combo ? "right" : "top";
     const valueLabel = showValues ? { label: { show: true, position, color: theme.textColor, formatter: (p) => (typeof p.value === "number" ? (percent ? shareFormatter(p.value) : fmt(p.value)) : "") } } : {};
     const marks = markLines(referenceLines(result, { chart, series: s, words: options.labels?.referenceLines, locale: options.locale }), s, { horizontal: Boolean(chart.horizontal), theme, short: (v) => compact(v), hidden: Array.isArray(chart.hidden) ? chart.hidden : [] });
     const points = markPoints(extremePoints(result, { chart, series: s, locale: options.locale }), s, { type, horizontal: Boolean(chart.horizontal), theme, colorOf, raised: showValues && !stacked, hidden: Array.isArray(chart.hidden) ? chart.hidden : [] });
@@ -324,14 +368,17 @@ export function toEChartsOption(result, options) {
         tooltip: { trigger: "axis", valueFormatter, shareFormatter },
         ...(type === "bar" ? { axisPointer: { triggerEmphasis: false } } : {}),
         // room for the title and the legend; ECharts keeps its own defaults for the label margins
-        grid: { top: GRID_TOP + titleRoom + room.top + marks.room, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
-        xAxis: chart.horizontal ? valueAxis : groups ? [categoryAxis, groups.axis] : categoryAxis,
-        yAxis: chart.horizontal ? (groups ? [{ ...categoryAxis, inverse: true }, { ...groups.axis, inverse: true }] : { ...categoryAxis, inverse: true }) : valueAxis,
+        // a combo's axes are named above the plot: a line of room for their names below the legend
+        grid: { top: GRID_TOP + titleRoom + room.top + marks.room + (combo ? (theme.textSize ?? DEFAULT_THEME.textSize) + 10 : 0), ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
+        xAxis: chart.horizontal && !combo ? valueAxis : groups ? [categoryAxis, groups.axis] : categoryAxis,
+        yAxis: combo ? comboAxes(s, valueAxis, { theme, locale, colorOf, names: valueNames(result.view.values, { ...DEFAULT_LABELS, ...(options.labels || {}) }), firstValue }) : chart.horizontal ? (groups ? [{ ...categoryAxis, inverse: true }, { ...groups.axis, inverse: true }] : { ...categoryAxis, inverse: true }) : valueAxis,
         series: s.series.map((x, i) => {
             // a fixed colour (chart.colors, colorMap) for the bars, or the line and its fill
             const color = colorOf(x.name, i);
+            const type = typeOf(x);
             return {
                 type,
+                ...(combo && type === "line" ? { yAxisIndex: 1 } : {}),
                 name: x.name,
                 // a 100 % stack's parts are { value: share, raw: value }
                 data: shares ? shares.data[i] : x.data,
@@ -482,4 +529,31 @@ function lastWith(s, i, hidden) {
         if (typeof s.series[k].data[i] === "number" && !hidden.includes(s.series[k].name)) return k;
     }
     return -1;
+}
+
+/**
+ * A combo chart's two value axes: the bars' on the left, the lines' on the right, each named after its
+ * values with a sample (■) in the colour of its first series, so an axis and its marks belong together.
+ * The right axis writes its numbers in the lines' format and draws no grid lines of its own.
+ * @param {ReturnType<typeof toSeries>} s
+ * @param {any} left  the value axis as the other types draw it
+ * @param {{ theme: ChartTheme, locale: string, colorOf: (name: string, i: number) => string | null, names: string[], firstValue: number }} how
+ */
+function comboAxes(s, left, { theme, locale, colorOf, names, firstValue }) {
+    const colors = theme.colors ?? [];
+    const colorAt = (/** @type {number} */ i) => (i < 0 ? undefined : (colorOf(s.series[i].name, i) ?? colors[i % Math.max(1, colors.length)]));
+    const lineAt = s.series.findIndex((x) => x.valueIndex !== firstValue);
+    const lineValues = [...new Set(s.series.filter((x) => x.valueIndex !== firstValue).map((x) => x.valueIndex))];
+    const fontSize = theme.textSize ?? DEFAULT_THEME.textSize;
+    const named = (/** @type {string} */ text, /** @type {string | undefined} */ color, /** @type {"left" | "right"} */ align) => ({
+        name: `{s|\u25A0} ${text}`,
+        nameLocation: "end",
+        nameTextStyle: { color: theme.textColor, fontSize, align, rich: { s: { ...(color ? { color } : {}), fontSize } } }
+    });
+    const format = s.series[lineAt]?.format ?? "number";
+    const short = formatterFor(/^percent/.test(format) ? format : "compact", locale);
+    return [
+        { ...left, position: "left", ...named(names[firstValue] ?? "", colorAt(0), "left") },
+        { ...left, position: "right", axisLabel: { ...left.axisLabel, formatter: (/** @type {number} */ v) => short(v) }, splitLine: { show: false }, ...named(lineValues.map((v) => names[v]).join(", "), colorAt(lineAt), "right") }
+    ];
 }

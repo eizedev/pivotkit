@@ -122,7 +122,7 @@ read as JSON text, so give a file whose name starts with `{` as `./{name}.json`.
 | `--values <agg:field>` | | `sum:Revenue`, `"average:Mean °C"`, `count` (the rows), or a field alone (a number summed, an identifier or another type counted). Repeatable. |
 | `--group <field:unit>` | | Group a field where it is placed: `Date:yearMonth`, `Date:month` (Jan to Dec of every year), `Revenue:bin:500`. Repeatable. |
 | `--filter <field=item\|json>` | | Keep the rows of one item, as in `Country=Germany`, or any filter as a view writes it, as JSON text or `@file.json`. Repeatable. |
-| `--chart-type <type>` | | Show the chart: `auto`, `bar`, `line`, `area`, `pie`, `donut`, `heatmap`. |
+| `--chart-type <type>` | | Show the chart: `auto`, `bar`, `line`, `area`, `pie`, `donut`, `heatmap`, `combo`, `treemap`. |
 | `--map <old=new>` | render, describe `--suggest` | The view's field `old` is the data's `new`, for a column renamed since the view was made. Works with a view file too. |
 | `--save-view <file>` | render | Also write the view used as a view file (after `--map`; the view the layout flags or `--suggest` made). The data file is a usage error. |
 | `-o, --output <file>` | describe `--suggest` | The draft view file; without it the view file goes to stdout. The data file and `-` are a usage error. |

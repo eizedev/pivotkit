@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip, the zoom slider, 100 % stacks, hidden series, reference lines and high and low points, the tooltip's share and fixed colours per name in the view, the PNG export, and chartOptions for developers with its precedence.
+description: The chart of a pivotkit report - chart types with bars and lines and a treemap, value labels and where a pie writes them, legend, title, smooth lines, axis labels, group labels, the tooltip, the zoom slider, 100 % stacks, hidden series, reference lines and high and low points, the tooltip's share and fixed colours per name in the view, the PNG export, and chartOptions for developers with its precedence.
 ---
 
 # Charts
@@ -21,6 +21,12 @@ and `chartOptions`.
 
 - `"auto"`, the default: the data decides. A view without a type also gets it.
 - `"bar"`, `"line"`, `"area"`, `"pie"`, `"donut"` or `"heatmap"`.
+- `"combo"`: the first value as bars on the left axis, every other value as a line on the right
+  axis. With one value it draws bars. It ignores `stacked`, `stackPercent` and `horizontal`.
+- `"treemap"`: a tile per category, its area the category's total over every column, as a pie's
+  slice. It has no legend. `chart.hidden` leaves tiles out.
+
+A pivotkit before these two types reads a view with one as `"auto"`, with an `unknownSetting` issue.
 
 [Chart types](../use/charts.md#chart-types) describes what Automatic draws and the tips that suggest
 another type.
@@ -170,7 +176,7 @@ them:
 
 | Chart | Average | Trend | Target |
 | --- | --- | --- | --- |
-| Pie, donut, heatmap | no | no | no |
+| Pie, donut, heatmap, bars and lines, treemap | no | no | no |
 | Bars, lines, areas side by side | per series | per series, along a time line | yes, in one unit |
 | Stacked, every value adds up | of the stack's total | of the stack's total, along a time line | yes, in one unit |
 | Stacked, a part below zero | no | no | yes, in one unit |

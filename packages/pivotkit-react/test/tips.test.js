@@ -197,6 +197,15 @@ test("tips: an automatic chart draws lines over dates (swapped for the chart alo
     // lines chosen, or a heatmap (dates in its grid): no suggestion
     assert.ok(!holding(view({ type: "line" }, { rows: ["D by month"], cols: ["R"] })).includes("chartOverTime"));
     assert.ok(!holding(view({ type: "heatmap" }, { rows: ["R"], cols: ["D by month"] })).includes("chartOverTime"));
+    // bars and lines draw lines already: no suggestion (#518)
+    assert.ok(!holding(contextOf(rows, { rows: ["D by month"], derived: month, values: [{ field: "V", agg: "sum" }, { field: "V", agg: "count" }], display: "chart", chart: { type: "combo" } })).includes("chartOverTime"));
+});
+
+test("tips: a treemap gets no pie tip; it holds many parts well (#518)", () => {
+    const many = contextOf(Array.from({ length: 20 }, (_, i) => ({ K: `k${i}`, V: i + 1 })), { rows: ["K"], values: [{ field: "V", agg: "sum" }], display: "chart", chart: { type: "treemap" } });
+    assert.equal(many.chartPlan.name, "treemap");
+    assert.ok(!holding(many).includes("pieSlices"));
+    assert.ok(!holding(many).includes("chartSeries"));
 });
 
 test("tips: a pie of more than about 7 slices suggests bars", () => {

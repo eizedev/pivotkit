@@ -341,7 +341,7 @@ The view's `totals` decide the total rows and columns, with two rules of their o
 ### `toSeries(result, options?)` and `toEChartsOption(result, options?)`
 
 `toSeries` gives chart data. `toEChartsOption` gives a plain [Apache ECharts](https://echarts.apache.org/)
-option for bar, stacked bar, line, area, pie, donut and heatmap. Neither imports ECharts itself.
+option for bar, stacked bar, line, area, pie, donut, heatmap, combo and treemap. Neither imports ECharts itself.
 `toEChartsOption` is also exported from [`pivotkit-core/chart`](#chart-marks). Import it from there to
 load it with the chart, not with the first load.
 
@@ -469,6 +469,8 @@ a report's marks on `toEChartsOption`'s option:
 - Room on the right for the values at the end of horizontal bars, and fewer value ticks where a
   narrow axis needs them.
 - A heatmap's row names and cell numbers where its cells have room.
+- A treemap's labels in `--pk-text` or `--pk-surface`, whichever has the higher contrast on the tile
+  (`labelColorOn(fill, candidates)`). Below 4.5:1, the label gets an outline in the other one.
 - With `readColor`, a heatmap's colours as ECharts can mix them. ECharts' own parser reads hex,
   `rgb()`, `hsl()` and some names only. Another form, such as `oklch()`, turns the cells black.
   `readColor(color)` returns a colour ECharts reads, or `null`. An end with `null` takes

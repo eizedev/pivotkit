@@ -176,8 +176,20 @@ Then restart Claude Code.
 | [Texts without the product name](#neutral-texts) | a program or a log rule matches the words of an error, or of pivotkit-react's messages about a loaded view | match the error's `code` instead, or update the words |
 | [A print template that cannot be read is the server's error](#template-unavailable) | a program reads the answer of an html render | expect 502 `SOURCE_UNAVAILABLE` instead of 404 `FILE_NOT_AVAILABLE` for it |
 | [503 `BUSY` logs at `warn`](#busy-warn) | a log rule counts `error` lines | count 503 `BUSY` among the warnings, or match its `code` |
+| [Two chart types: bars and lines, and a treemap](#combo-treemap) | you share views with pivotkit 0.8, or a host or a script lists the chart types | nothing. pivotkit 0.8 draws such a view with the automatic type |
 | [A pie without a legend groups its smallest slices](#other-slice) | your app shows a pie or donut with the legend off, or your tests or screenshots compare one | nothing; turn the legend on to draw every slice. Expect "Other (n)" in tests |
 | [High and low points in the chart](#chart-points) | you share views with pivotkit 0.8, or your tests compare a normalized view or the chart option as a whole | nothing. A normalized view has `extremes` in `chart.referenceLines` |
+
+### Two chart types: bars and lines, and a treemap { #combo-treemap }
+
+`chart.type` takes `"combo"` and `"treemap"` ([chart types](../use/charts.md#chart-types)).
+
+- pivotkit 0.8 reads a view with one of them as `"auto"`, with an `unknownSetting` issue. Saved
+  again there, the view loses the type.
+- `CATALOG.chartTypes`, the view's JSON Schema, the OpenAPI document and the command line's
+  `--chart-type` list both.
+- The element's chart chunk grows by about 13 KiB gzip, ECharts' treemap. It loads with the first
+  chart, never first.
 
 ### A pie without a legend groups its smallest slices { #other-slice }
 

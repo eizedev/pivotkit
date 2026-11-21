@@ -10,7 +10,7 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { fieldLabel } from "pivotkit-core";
 import { chartSummary } from "./chart-summary.js";
-import { MAX_CATEGORIES, SLICE_TYPES, chartTypeOf } from "./chart-types.js";
+import { ITEM_TYPES, MAX_CATEGORIES, chartTypeOf } from "./chart-types.js";
 import { fill } from "./labels.js";
 import { chartThemeFrom } from "./theme.js";
 
@@ -103,7 +103,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                 instance.on("click", (p) => {
                     const { series: s, onPoint: cb } = latest.current;
                     const kind = p.seriesType;
-                    if (!s || kind === "pie") {
+                    // a slice or a tile adds up every column: no one cell's rows to open
+                    if (!s || kind === "pie" || kind === "treemap") {
                         return;
                     }
                     const seriesEntry = kind === "heatmap" ? s.series.filter((x) => x.valueIndex === s.series[0]?.valueIndex)[p.value?.[0]] : s.series[p.seriesIndex];
@@ -228,7 +229,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         latest.current.onLines?.(lines?.checks ?? null);
         const tooltip = { mode: result.view.chart.tooltip, share: result.view.chart.tooltipShare, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values, lines: lines?.lines ?? [] };
         const doc = root.current.ownerDocument;
-        setShown(series ? lib.current.shownOf(series, option, result.view.chart.hidden, SLICE_TYPES.includes(type)) : null);
+        setShown(series ? lib.current.shownOf(series, option, result.view.chart.hidden, ITEM_TYPES.includes(type)) : null);
         // the host's chartOptions win over the view's display settings and the report's own styles:
         // plain JSON only; what is dropped is a developer's mistake, said in the console
         const clean = chartOptions ? lib.current.cleanChartOptions(chartOptions) : null;

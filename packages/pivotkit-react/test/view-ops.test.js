@@ -212,6 +212,10 @@ test("the chart type table: every entry round-trips and is a chart type of the c
     assert.equal(chartTypeOf({ type: "area", stacked: true }), "area");
     assert.equal(chartTypeOf({ type: "line", stacked: true }), "line");
     assert.equal(chartTypeOf({ type: "pie", horizontal: true }), "pie");
+    // the picker offers bars and lines and the treemap (#518), after the types before them
+    assert.deepEqual(CHART_TYPE_NAMES.slice(-2), ["combo", "treemap"]);
+    assert.equal(CHART_TYPES.combo.icon, "combo");
+    assert.equal(CHART_TYPES.treemap.icon, "treemap");
 });
 
 test("a date placed on an axis or in Filters comes grouped; a value gets the host's defaults", () => {
