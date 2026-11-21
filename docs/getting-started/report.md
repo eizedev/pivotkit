@@ -66,7 +66,7 @@ text formats, `text` holds the same file as text.
 ## 3. Render a data file and a view file { #files }
 
 ```bash
-npx pivotkit-cli example      # sales.csv and two views in this directory, to try it with
+npx -y pivotkit-cli example   # sales.csv and two views in this directory, to try it with
 ```
 
 These files work as they are:
@@ -92,8 +92,9 @@ if (!result.ok) throw new Error(result.issues.map((i) => i.message).join("; "));
 await writeFile("sales.xlsx", result.body);
 ```
 
-To read Excel workbooks, use the plugin [pivotkit-xlsx](../reference/plugins.md):
-`readFile(file, { plugins: [xlsxReader] })` with `import xlsxReader from "pivotkit-xlsx"`.
+To read Excel workbooks, install the plugin [pivotkit-xlsx](../reference/plugins.md) with
+`npm install pivotkit-xlsx`. Then call `readFile(file, { plugins: [xlsxReader] })` with
+`import xlsxReader from "pivotkit-xlsx"`.
 
 ## Next
 

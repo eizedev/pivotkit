@@ -246,8 +246,8 @@ service again:
     npx -y pivotkit-server token issue --config pivotkit.json --expires 8h --name laptop
     ```
 
-    The token works at once, on REST and MCP. `token list` shows it, and `token revoke laptop` ends
-    it early ([signed tokens](../reference/rest.md#signed-tokens)).
+    The token works at once, on REST and MCP. `token list --config pivotkit.json` shows it, and
+    `token revoke laptop --config pivotkit.json` ends it early ([signed tokens](../reference/rest.md#signed-tokens)).
 
 ??? note "A server with a sign-in provider"
 
@@ -306,7 +306,8 @@ token may download the file:
     The command line runs on the server's source instead of a file. See [With a server](../reference/cli.md#with-a-server).
 
 A program that has the data itself can send it with the request, as JSON or a file. Its profile
-needs `data: true`. See [Data in the request](../reference/rest.md#data).
+needs `data: true`, which none of the profiles above has. `$ETL_TOKEN` stands for a token with such a
+profile. See [Data in the request](../reference/rest.md#data).
 
 ```bash
 curl -s -o revenue.xlsx -H "Authorization: Bearer $ETL_TOKEN" -F data=@sales.csv \
