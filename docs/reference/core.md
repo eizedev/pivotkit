@@ -351,7 +351,7 @@ load it with the chart, not with the first load.
 | `colorMap` | `toEChartsOption` | `{ [name]: colour }`: a fixed colour per series or slice name, without regard to case. Hex, `rgb()`, `hsl()` or a CSS name. The view's `chart.colors` win ([fixed colours](../concepts/charts.md#fixed-colours)). |
 | `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `strongWeight` (the font weight of the title and the group labels, default 600), `titleSize` (the title's font size in px, default 16), `textSize` (the font size of every other text, the axes, the legend and the labels, in px, default 14), `heatmapColors` (low, high), `pieRadius` (inner and outer radius of a pie, default a whole circle, `0%`, `70%`), `donutRadius` (of a donut, default a ring, `42%`, `70%`), `referenceColor` (the reference lines of no series, default `textColor`). |
 | `locale` | `toEChartsOption` | Used when the view names none. Default: the pivot's locale. |
-| `labels`, `limits` | both | `labels`: texts, with the reference lines' names in `referenceLines`. `limits`: `cells` caps the data points. |
+| `labels`, `limits` | both | `labels`: texts, with the reference lines' names in `referenceLines` and a pie's "Other ({count})" in `otherSlices`. `limits`: `cells` caps the data points. |
 | `separator` | both | Between the parts of a multi-level label, default `" / "`. |
 | `maxCategories` | both | Plots the first categories in the view's order. `toSeries` reports `categoryCount`, the number before the cut. |
 | `series` | `toEChartsOption` | The `toSeries` result of the same result and options, when the caller has it already. |
@@ -460,6 +460,9 @@ a report's marks on `toEChartsOption`'s option:
 - A bar that lights up alone under the pointer. A line lights up as a whole.
 - 2 px lines.
 - The room around a pie, and room beside it for the labels outside.
+- A pie without a legend whose labels outside have no room: its smallest slices as one slice
+  "Other (n)", last, in `--pk-chart-other`. Its data item lists them in `members`
+  (`{ name, value }`). Every other slice keeps its label.
 - A legend moved below a narrow chart.
 - The category axis laid out for the chart's size (`categoryLabelLayout`: straight, slanted or every
   n-th, `chart.axisLabels`). The option's `axisEvery` says when every n-th label is written.

@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the zoom slider, series shown or hidden, 100 % stacks, reference lines for an average, a trend and a target, high and low points, the tooltip of the element under the pointer, fixed colours, the share in the tooltip and the chart image.
+description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the zoom slider, series shown or hidden, 100 % stacks, reference lines for an average, a trend and a target, high and low points, many slices in one slice "Other", the tooltip of the element under the pointer, fixed colours, the share in the tooltip and the chart image.
 ---
 
 # Charts
@@ -116,7 +116,8 @@ labels of a pie.
     With a legend, each side of the pie writes as many labels as its height holds, those of the
     larger slices first. A smaller slice can then lose its label on the chart, in the chart image
     and in the HTML report. The legend still names it, and on screen the tooltip does too. With
-    the legend **Off**, every slice keeps its label, even where two labels touch.
+    the legend **Off**, the smallest slices share one slice instead. See
+    [many slices](#many-slices).
 
     ![A donut on a phone: a smaller ring, each region's name and revenue on two lines beside it](../assets/screenshots/donut-phone-light.png#only-light){ width="300" }
     ![A donut on a phone: a smaller ring, each region's name and revenue on two lines beside it](../assets/screenshots/donut-phone-dark.png#only-dark){ width="300" }
@@ -174,6 +175,23 @@ labels of a pie.
 
     ![Bars of the three largest countries per region, the regions as group labels under the country names](../assets/screenshots/chart-groups-light.png#only-light)
     ![Bars of the three largest countries per region, the regions as group labels under the country names](../assets/screenshots/chart-groups-dark.png#only-dark)
+
+## Many slices without a legend { #many-slices }
+
+With the legend **Off**, the labels are the only names of the slices. When they have no room, the
+smallest slices go into one grey slice, such as "Other (13)".
+
+![A donut of 20 countries on a phone: the six largest with their names, the rest as one grey slice "Other (14)"](../assets/screenshots/donut-other-light.png#only-light){ width="300" }
+![A donut of 20 countries on a phone: the six largest with their names, the rest as one grey slice "Other (14)"](../assets/screenshots/donut-other-dark.png#only-dark){ width="300" }
+
+- The number says how many slices it holds. Its size is their sum.
+- Point at it to see each slice it holds with its value, the largest first.
+- Every other slice keeps its whole label.
+- The rule follows the room. A phone shows fewer slices than a wide screen. The chart image, the
+  HTML report and printing follow the same rule at their size.
+- The numbers stay the same: the table and the export list every slice.
+- To see every slice on the chart, set **Legend** to **Bottom** or **Right**, or show the table.
+- A slice you hid in the legend stays hidden. It is not part of the grey slice.
 
 ## Zoom and series { #zoom-and-series }
 

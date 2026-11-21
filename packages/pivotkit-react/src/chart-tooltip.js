@@ -261,6 +261,14 @@ export function tooltipContent(params, { valueFormatter = (v) => String(v ?? "")
             lines: [{ color: color(params), name: [yNames[y], xNames[x]].filter((n) => n !== undefined).map(text).join(", "), value: valueFormatter(v) }]
         };
     }
+    // the slice "Other (n)" of a pie without a legend (pivotkit-core's otherSlices): its sum, then each
+    // slice it holds, the largest first, cut to maxLines as the series lines are
+    const members = Array.isArray(params?.data?.members) ? [...params.data.members].sort((a, b) => b.value - a.value) : null;
+    if (members) {
+        const all = [{ color: color(params), name: text(params.name), value: valueFormatter(params.value) }, ...members.map((m) => ({ color: null, name: text(m.name), value: valueFormatter(m.value) }))];
+        const cut = all.length > maxLines ? all.length - Math.max(1, maxLines - 1) : 0;
+        return { title: text(params.seriesName), lines: cut ? all.slice(0, all.length - cut) : all, ...(cut ? { more: moreLabel.replace("{count}", String(cut)) } : {}) };
+    }
     return {
         title: text(params?.seriesName),
         // a slice's share: ECharts' percent of the slices shown

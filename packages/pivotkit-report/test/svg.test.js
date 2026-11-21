@@ -140,6 +140,22 @@ test("high and low points (#574): the SVG and the HTML report draw a dot and a l
     assert.ok(!svgTexts(off.text).some((t) => t.includes("▲")));
 });
 
+test("a donut of many slices without a legend: the SVG and the HTML report merge the smallest into 'Other (n)' as the screen does (#544)", async () => {
+    const rows = Array.from({ length: 20 }, (_, i) => ({ Country: `Country ${String.fromCharCode(65 + i)}`, Population: (20 - i) * 100 }));
+    const view = { rows: ["Country"], values: [{ field: "Population", agg: "sum" }], chart: { type: "donut", legend: "off" } };
+    const narrow = await render(view, rows, { format: "svg", echarts, size: { width: 358, height: 319 }, ...FIXED });
+    const texts = svgTexts(narrow.text).map((t) => t.trim());
+    assert.ok(texts.some((t) => /^Other \(\d+\)$/.test(t)), texts.join(" | "));
+    // the slice in --pk-chart-other (the light --pk-muted)
+    assert.ok(narrow.text.includes('fill="#5a6270"'), "the other slice's colour");
+    // German words in a German report
+    const de = await render({ ...view, formatting: { locale: "de-DE" } }, rows, { format: "svg", echarts, size: { width: 358, height: 319 }, ...FIXED });
+    assert.ok(svgTexts(de.text).some((t) => /^Andere \(\d+\)$/.test(t.trim())), svgTexts(de.text).join(" | "));
+    // wide: every slice has room for its label, nothing merged
+    const wide = await render(view, rows.slice(0, 6), { format: "svg", echarts, ...FIXED });
+    assert.ok(!svgTexts(wide.text).some((t) => /^Other/.test(t.trim())));
+});
+
 test("100 % stacked bars and hidden series reach the SVG (#36)", async () => {
     const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] };
     const stacked = await render({ ...view, chart: { type: "bar", stacked: true, stackPercent: true, zoom: "on" } }, SALES, { format: "svg", echarts, ...FIXED });

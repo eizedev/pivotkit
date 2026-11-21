@@ -9,7 +9,7 @@
 
 import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
-import { POINT_HALO, barExtent, pieLabelFit, pieLabelTexts, pointLabels, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
+import { POINT_HALO, barExtent, otherSlices, pieLabelFit, pieLabelTexts, pointLabels, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
 import { AXIS_LABEL_MARGIN, LINE_SAMPLES, groupLabelLine, groupLabelOffset, heatmapFrame, lineLabelText, textWidth } from "./chart-measure.js";
 import { ZOOM_SLIDER, longestNames, zoomRange, zoomSlider, zoomWindow } from "./chart-zoom.js";
 
@@ -211,8 +211,14 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
                     line = { show: true };
                 }
             }
+            const legendShown = Boolean(option.legend) && option.legend.show !== false;
+            // no legend names the slices: where their labels outside have no room, the smallest go into
+            // one slice "Other (n)" (otherSlices), on the screen, in an SVG and in print alike
+            const outside = label?.show !== false && label?.position !== "inside";
+            const merged = !legendShown && outside ? otherSlices({ ...s, label, labelLine: line }, box, { fontSize, color: v("--pk-chart-other") || v("--pk-muted") || undefined, hidden: option.legend?.selected ?? {} }) : null;
+            if (merged) s = { ...s, data: merged };
             // labels outside: room beside the pie, on lines where they are long, left out where a side has no room (pieLabelFit)
-            const fit = pieLabelFit({ ...s, label, labelLine: line }, box, { fontSize, legend: Boolean(option.legend) && option.legend.show !== false });
+            const fit = pieLabelFit({ ...s, label, labelLine: line }, box, { fontSize, legend: legendShown });
             label = fit.label ?? label;
             return { ...s, top, bottom, ...fit, labelLine: fit.labelLine ?? line, itemStyle: { ...s.itemStyle, borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
         }

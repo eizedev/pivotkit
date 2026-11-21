@@ -425,3 +425,59 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
 
 /** Room (px) the category labels take beside horizontal bars, at most (chart-layout's CATEGORY_LABEL_WIDTH). */
 const CATEGORY_LABEL_ROOM = 120;
+
+/** The arc (in lines of text) a slice needs at the pie's edge to keep its label outside, without a legend. */
+const OTHER_ARC = 0.75;
+
+/**
+ * A pie's or donut's smallest slices as one slice "Other (n)", last, where its labels outside have no
+ * room and no legend names the slices (#544): the fewest of the smallest slices (at least two) after
+ * which every label has room (pieLabelFit, as a pie with a legend would leave labels out). The slice
+ * holds their sum and lists them (`members`, for the tooltip), in `color`. The kept slices keep their
+ * order and colour. A slice hidden in the legend is no part of it. null when every label has room, or
+ * when no merge gives them room.
+ * @param {any} series  the pie's series, with its labels outside
+ * @param {{ width: number, height: number }} box  as pieLabelFit's
+ * @param {{ fontSize: number, color?: string, hidden?: Record<string, boolean> }} options
+ *   hidden: the legend's `selected` (false: hidden)
+ * @returns {any[] | null}  the slices
+ */
+export function otherSlices(series, box, { fontSize, color, hidden = {} }) {
+    const data = Array.isArray(series.data) ? series.data : [];
+    const shownOf = (/** @type {any} */ d) => hidden[d.name] !== false;
+    // a label needs room on its side of the pie (pieLabelFit, as with a legend), and its slice needs
+    // an arc of OTHER_ARC lines at the pie's edge: ECharts lays the labels of a run of thin slices
+    // over each other
+    const fits = (/** @type {any[]} */ slices) => {
+        const shown = slices.filter(shownOf);
+        const fit = /** @type {any} */ (pieLabelFit({ ...series, data: shown }, box, { fontSize, legend: true }));
+        if (fit.label?.position === "inside" || (fit.data ?? []).some((/** @type {any} */ d) => d.label?.show === false)) {
+            return false;
+        }
+        const radius = /** @type {any[]} */ (fit.radius ?? series.radius ?? [0, "70%"]);
+        const edge = radiusPx(radius[1], Math.max(0, Math.min(box.width, box.height)) / 2);
+        const total = shown.reduce((sum, d) => sum + (typeof d.value === "number" && d.value > 0 ? d.value : 0), 0) || 1;
+        return shown.every((d) => ((typeof d.value === "number" ? d.value : 0) / total) * 2 * Math.PI * edge >= OTHER_ARC * labelLine(fontSize));
+    };
+    if (fits(data)) {
+        return null;
+    }
+    // the slices that may go, the smallest first
+    const order = data.map((d, i) => ({ d, i })).filter(({ d }) => shownOf(d) && typeof d.value === "number").sort((a, b) => a.d.value - b.d.value || b.i - a.i);
+    const name = typeof series.otherName === "string" ? series.otherName : "Other ({count})";
+    for (let n = 2; n < order.length; n++) {
+        const gone = new Set(order.slice(0, n).map((x) => x.i));
+        const members = data.filter((_, i) => gone.has(i)).map((d) => ({ name: d.name, value: d.value }));
+        const other = {
+            name: name.replace("{count}", () => String(n)),
+            value: members.reduce((sum, m) => sum + m.value, 0),
+            members,
+            ...(color ? { itemStyle: { color } } : {})
+        };
+        const slices = [...data.filter((_, i) => !gone.has(i)), other];
+        if (fits(slices)) {
+            return slices;
+        }
+    }
+    return null;
+}

@@ -318,6 +318,26 @@ test("chart tooltips: a title and a line per series or slice, values in the core
         title: "Sum of Units",
         lines: [{ color: "#abc", name: "<b>x</b>", value: "2.0 u" }]
     });
+    // the slice "Other (n)" of a pie without a legend (#544): its sum, then each slice it holds, the
+    // largest first, cut as the series lines are
+    const other = { seriesType: "pie", seriesName: "Population", name: "Other (3)", value: 6, color: "#888", data: { members: [{ name: "C", value: 1 }, { name: "A", value: 3 }, { name: "B", value: 2 }] } };
+    assert.deepEqual(tooltipContent(other, { valueFormatter: fmt }), {
+        title: "Population",
+        lines: [
+            { color: "#888", name: "Other (3)", value: "6.0 u" },
+            { color: null, name: "A", value: "3.0 u" },
+            { color: null, name: "B", value: "2.0 u" },
+            { color: null, name: "C", value: "1.0 u" }
+        ]
+    });
+    assert.deepEqual(tooltipContent(other, { valueFormatter: fmt, maxLines: 3, moreLabel: "+{count} more" }), {
+        title: "Population",
+        lines: [
+            { color: "#888", name: "Other (3)", value: "6.0 u" },
+            { color: null, name: "A", value: "3.0 u" }
+        ],
+        more: "+2 more"
+    });
     // heatmap: the row and the column of the cell
     assert.deepEqual(tooltipContent({ seriesType: "heatmap", seriesName: "Count", value: [1, 0, 5], color: "#000" }, { valueFormatter: fmt, xNames: ["2025", "2026"], yNames: ["North"] }), {
         title: "Count",

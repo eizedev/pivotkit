@@ -222,6 +222,9 @@ export function toEChartsOption(result, options) {
                 {
                     type: "pie",
                     name: valueTitle,
+                    // the name of the slice that holds the smallest ones where their labels have no
+                    // room (decorateOption); not ECharts' own key
+                    otherName: options.labels?.otherSlices ?? DEFAULT_LABELS.otherSlices,
                     radius: [...radius],
                     top: titleRoom + room.top,
                     ...(room.bottom ? { bottom: room.bottom } : {}),

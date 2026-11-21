@@ -619,6 +619,28 @@ const SHOTS = [
         }
     },
     {
+        // a donut of many countries on a phone without a legend: the smallest share one slice "Other (n)"
+        name: "donut-other",
+        query: "data=countries&height=760",
+        hash: encodeViewLink({
+            rows: ["Country"],
+            values: [{ field: "Population", agg: "sum", format: "compact" }],
+            filters: [{ field: "Year", type: "in", items: [2024] }, { field: "Country", type: "top", count: 20, by: { field: "Population", agg: "sum" } }],
+            sort: [{ field: "Country", by: "value", order: "desc", value: { field: "Population", agg: "sum" } }],
+            display: "chart",
+            chart: { type: "donut", legend: "off" }
+        }),
+        size: PHONE,
+        chart: true,
+        open: async (page) => {
+            await page.addStyleTag({ content: ".pk-toast-dock { visibility: hidden; }" });
+            await page.getByTestId("pivot-chart").evaluate((el) => {
+                el.style.scrollMarginTop = "12px";
+                el.scrollIntoView({ block: "start" });
+            });
+        }
+    },
+    {
         // Table settings: totals that change nothing say why, an "i" explains each, then Expand all and Collapse all
         name: "explanations",
         query: "data=tickets",

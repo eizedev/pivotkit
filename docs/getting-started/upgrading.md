@@ -176,7 +176,19 @@ Then restart Claude Code.
 | [Texts without the product name](#neutral-texts) | a program or a log rule matches the words of an error, or of pivotkit-react's messages about a loaded view | match the error's `code` instead, or update the words |
 | [A print template that cannot be read is the server's error](#template-unavailable) | a program reads the answer of an html render | expect 502 `SOURCE_UNAVAILABLE` instead of 404 `FILE_NOT_AVAILABLE` for it |
 | [503 `BUSY` logs at `warn`](#busy-warn) | a log rule counts `error` lines | count 503 `BUSY` among the warnings, or match its `code` |
+| [A pie without a legend groups its smallest slices](#other-slice) | your app shows a pie or donut with the legend off, or your tests or screenshots compare one | nothing; turn the legend on to draw every slice. Expect "Other (n)" in tests |
 | [High and low points in the chart](#chart-points) | you share views with pivotkit 0.8, or your tests compare a normalized view or the chart option as a whole | nothing. A normalized view has `extremes` in `chart.referenceLines` |
+
+### A pie without a legend groups its smallest slices { #other-slice }
+
+A pie or donut with the legend **Off** puts its smallest slices into one slice "Other (n)" where
+their labels have no room ([many slices](../use/charts.md#many-slices)).
+
+- The rule follows the chart's size: a phone groups more slices than a wide screen.
+- The chart image, the HTML report, the SVG and printing follow the same rule at their size.
+- The chart of an HTML report or SVG takes the report's words. A German report writes "Andere (n)"
+  and the German names of the reference lines.
+- The token `--pk-chart-other` colours the slice, `--pk-muted` by default.
 
 ### High and low points in the chart { #chart-points }
 
