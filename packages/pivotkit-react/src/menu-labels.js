@@ -291,6 +291,11 @@ export const en = {
     scaleNames: { theme: "Theme colours, light to dark", blueOrange: "Low blue, high orange", blueRed: "Low blue, high red", redGreen: "Low red, high green" },
     scaleRedGreenHint: "Some people cannot tell red and green apart. Blue and orange are easier.",
     scaleOwn: "The view's own colours",
+    // the small menu at a clicked bar, point or slice of the chart (#53)
+    pointMenu: "Filter or open {name}",
+    pointRows: "Show the rows",
+    pointOnly: "Only {item}",
+    pointWithout: "Without {item}",
     colorScale: "Colour scale",
     dataBar: "Data bars",
     rename: "Name",

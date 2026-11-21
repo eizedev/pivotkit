@@ -8,6 +8,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- A menu at a clicked point of the chart, to show its rows or filter by it. See pivotkit-react's
+  changelog ([#53](https://github.com/eizedev/pivotkit/issues/53)). `pivot-cell-click` for a chart
+  point comes at **Show the rows** or a double click.
 - A name of the report's own for a field. See pivotkit-react's changelog
   ([#158](https://github.com/eizedev/pivotkit/issues/158)).
 - A date in Filters can be grouped from its chip's menu. See pivotkit-react's changelog

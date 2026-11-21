@@ -8,6 +8,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- A click on a bar, a point, a slice or a heatmap cell opens a small menu at it: **Show the rows**,
+  then **Only …** and **Without …** for its item and its series' item. A filter from it shows on the
+  chip, and Undo takes it back. A double click opens the rows at once. In English and German
+  ([filter from the chart](https://pivotkit.eize.dev/use/charts/#filter-from-the-chart), #53).
 - **Name** in the chip menu of a field in Rows, Columns or Filters: a name of the report's own for it.
   The chip, the table, the chart and the exports show it. The field list shows the field's own name
   under it and finds the field by either. In English and German
@@ -39,6 +43,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- `onCellClick` for a chart point comes at **Show the rows** or a double click, no longer at the
+  click that opens the point's menu
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#chart-click-menu), #53).
+- A sheet on a phone closes at a click on its scrim only when the press started there.
 - A field's filter says "Only if the name…" with "(any name)" instead of "Text condition". While
   every value is ticked and no condition is set, its count says "All 14 selected · nothing filtered
   yet" ([#595](https://github.com/eizedev/pivotkit/issues/595)).
