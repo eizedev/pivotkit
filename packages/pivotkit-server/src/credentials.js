@@ -26,7 +26,7 @@ import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from "
 import { parseArgs } from "node:util";
 import { closest } from "pivotkit-core";
 import { isInside } from "pivotkit-cli/files";
-import { ConfigError, REST_BASE, loadConfig, pathOf, validateOptions } from "./config.js";
+import { ConfigError, REST_BASE, loadConfig, pathOf, publicOriginOf, validateOptions } from "./config.js";
 import { STATE_ENV, configFrom, planState, psQuoted, shellQuoted, stateDirOf } from "./state.js";
 import { KEY_USES, keyProblem, tokenProblem } from "./secret-rules.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, secretValue, unreadable } from "./secrets.js";
@@ -215,8 +215,8 @@ function configPath(file, baseDir) {
 /** An object as the docs write a snippet: `{ "name": "reports", "file": "secrets/reports.token" }`. */
 const snippetOf = (value) => (value && typeof value === "object" && !Array.isArray(value) ? `{ ${Object.entries(value).map(([k, v]) => `${JSON.stringify(k)}: ${snippetOf(v)}`).join(", ")} }` : JSON.stringify(value));
 
-/** Where clients reach the server: http.publicUrl, else loopback on its port. */
-const baseUrlOf = (options) => (options?.http?.publicUrl ? options.http.publicUrl.replace(/\/+$/, "") : `http://127.0.0.1:${options?.http?.port || DEFAULT_PORT}`);
+/** Where clients reach the server: http.publicUrl's origin, else loopback on its port. */
+const baseUrlOf = (options) => publicOriginOf(options) ?? `http://127.0.0.1:${options?.http?.port || DEFAULT_PORT}`;
 
 /**
  * The --config of `token new` or `key new`, read and checked; a file inside output.dir refused

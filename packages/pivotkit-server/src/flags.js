@@ -27,7 +27,7 @@ export const SHARED_FLAGS = Object.freeze({
     http: /** @type {FlagTable} */ (Object.freeze({
         host: { type: "string", value: "address", text: "The address to listen on (default 127.0.0.1)." },
         port: { type: "string", value: "n", text: "The port (default 3333)." },
-        "public-url": { type: "string", value: "url", text: "The server's address as clients reach it (behind a proxy)." },
+        "public-url": { type: "string", value: "url", text: "The server's origin as clients reach it (behind a proxy), without a path." },
         auth: { type: "string", value: "mode", text: "none, token or oauth (oauth settings are in the configuration file)." },
         "allow-unauthenticated": { type: "boolean", text: "Allow auth none on an address other than loopback." },
         "allow-host": { type: "string", multiple: true, value: "name", text: "A host name clients use (besides localhost and the public URL's)." },

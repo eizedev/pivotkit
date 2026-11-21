@@ -7,7 +7,7 @@
 
 export { TOKEN_ENV, MCP_TOKEN_ENV } from "./context.js";
 export { presentedInput, presentedOutput, renderFile, findingsText, saveLogFields } from "./present.js";
-export { pathOf, restResourceOf, ENDPOINTS, SOURCE_ID } from "./config.js";
+export { pathOf, publicOriginOf, restResourceOf, ENDPOINTS, SOURCE_ID } from "./config.js";
 export { createAuthCore, AuthRefusal, bearerOf, discover, scopesOf, profileOf, groupsOf, GROUPS_REFUSED, NOT_IN_GROUP, resourceMetadataUrlOf, TOKEN_MIN } from "./auth.js";
 export { allowedHosts, hostRefusal, hostRefusedLine, HOST_HINT, clientAddress, LOCAL_HOSTS } from "./checks.js";
 export { createLimits, REQUEST_LIMITS, limitKeyOf } from "./limits.js";

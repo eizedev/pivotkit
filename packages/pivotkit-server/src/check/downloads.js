@@ -19,7 +19,7 @@ import { closedReason } from "../registry.js";
 import { bytesText } from "../text.js";
 import { resolvePolicy } from "../policy.js";
 import { realpath } from "node:fs/promises";
-import { OUTPUT_DEFAULTS, pathOf } from "../config.js";
+import { OUTPUT_DEFAULTS, pathOf, publicOriginOf } from "../config.js";
 import { ownFileDirs } from "../context.js";
 import { personBound } from "../sources/auth.js";
 import { mcpCapOf, restDataOffered } from "../sources/inline.js";
@@ -167,7 +167,7 @@ async function links(options, registry, runtime) {
         return { items, upgrade };
     }
     const host = options.http?.host ?? "127.0.0.1";
-    const publicUrl = options.http?.publicUrl ? options.http.publicUrl.replace(/\/$/, "") : null;
+    const publicUrl = publicOriginOf(options);
     if (!publicUrl && !isLoopback(host)) {
         items.push(plain(`download links: none, the server listens on ${host} and http.publicUrl is not set (links would show an internal address)`), warning("set http.publicUrl to the address people open, and route /downloads to this service"));
         return { items, upgrade };
