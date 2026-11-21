@@ -162,7 +162,7 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
  *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string, tooltip: string,
  *   zoom: string, stackPercent: boolean, hidden: string[],
- *   referenceLines: { average: boolean, trend: boolean, target: number | null },
+ *   referenceLines: { average: boolean, trend: boolean, target: number | null, extremes: boolean },
  *   colors: Array<{ name: string, color: string }>, tooltipShare: boolean }} ChartSpec  the chart
  *   type and how it is drawn: value labels (CHART_VALUE_LABELS) and, on a pie or donut, where they go
  *   (CHART_LABEL_POSITIONS), legend (CHART_LEGENDS), a title over the
@@ -170,7 +170,8 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  *   row fields the first one's items as group labels under the axis (CHART_GROUP_LABELS), what the
  *   tooltip covers (CHART_TOOLTIPS), the zoom slider (CHART_ZOOMS), bars and areas stacked to 100 %
  *   (stackPercent), the legend entries hidden (series, or slices of a pie), by name, the reference
- *   lines of bars, lines and areas (referenceLineRules), a fixed colour per series or slice by name
+ *   lines and the high and low points (`extremes`) of bars, lines and areas (referenceLineRules), a
+ *   fixed colour per series or slice by name
  *   (`colors`, #rgb or #rrggbb) and the share of the total in the tooltip (`tooltipShare`)
  *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
  *
@@ -209,7 +210,7 @@ export function emptyView() {
         totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: false },
         collapsed: { rows: [], cols: [] },
         display: "table",
-        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null }, colors: [], tooltipShare: false },
+        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null, extremes: false }, colors: [], tooltipShare: false },
         formatting: { locale: null, timeZone: null, weekStart: WEEK_START }
     };
 }
@@ -660,11 +661,14 @@ function displaySection(raw, view, ctx) {
     }
 }
 
-/** chart.referenceLines: an average and a trend switched on or off, a target as a finite number or null. */
+/**
+ * chart.referenceLines: an average, a trend and the high and low points (extremes) switched on or off,
+ * a target as a finite number or null.
+ */
 function referenceLinesOf(lines, ctx) {
     ctx.keys(lines, VIEW_KEYS.referenceLines, "chart.referenceLines");
     const target = get(lines, "target");
-    const out = { average: bool(get(lines, "average"), false), trend: bool(get(lines, "trend"), false), target: finite(target) };
+    const out = { average: bool(get(lines, "average"), false), trend: bool(get(lines, "trend"), false), target: finite(target), extremes: bool(get(lines, "extremes"), false) };
     if (target !== undefined && target !== null && out.target === null) {
         ctx.issue("chart.referenceLines.target", `not a number ${JSON.stringify(shown(target))}`, "unknownSetting", { value: shown(target) });
     }

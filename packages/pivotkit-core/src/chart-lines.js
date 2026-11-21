@@ -1,9 +1,9 @@
 /*
  * A chart's reference lines (chart.referenceLines) as numbers: the average of each series, a linear
- * trend and a target, where chart-plan.js's referenceLineRules and the numbers allow them
- * (referenceLineChecks). The ECharts option
- * (chart.js), the UI's tooltip and text summary and the report's SVG read them from here. Only a drawn
- * chart needs it: the entry point "pivotkit-core/chart" exports it.
+ * trend and a target, and the high and low points of each series (extremePoints), where
+ * chart-plan.js's referenceLineRules and the numbers allow them (referenceLineChecks). The ECharts
+ * option (chart.js), the UI's tooltip and text summary and the report's SVG read them from here. Only
+ * a drawn chart needs it: the entry point "pivotkit-core/chart" exports it.
  */
 
 import { referenceLineRules, stacksToPercent } from "./chart-plan.js";
@@ -95,10 +95,11 @@ function fit(values, times) {
  * - "mixedUnits": a target over values in different units (counts beside a field's values, or
  *   another format) fits none of them.
  * Series hidden in the legend (chart.hidden) do not count. Pie, donut and heatmap: no lines, no notes.
+ * The high and low points (extremes) follow the average: a stack below zero has no total to mark.
  * @param {import("./pivot.js").PivotResult} result
  * @param {{ chart?: { type: string, stacked?: boolean, stackPercent?: boolean, hidden?: string[] }, series?: { series: { name: string, data: (number | null)[], format: string }[], categoryPaths?: any[][] } }} [options]
  *   chart: what is drawn (chartPlan's), over the view's; series: toSeries of the same result
- * @returns {{ average: boolean, trend: boolean, target: boolean, notes: string[] }}
+ * @returns {{ average: boolean, trend: boolean, target: boolean, extremes: boolean, notes: string[] }}
  */
 export function referenceLineChecks(result, { chart, series } = {}) {
     const view = result.view;
@@ -120,13 +121,107 @@ export function referenceLineChecks(result, { chart, series } = {}) {
     const counts = new Set(view.values.map((v) => v.agg === "count" || v.agg === "countUnique"));
     const target = rules.target && counts.size < 2 && new Set(shown.map((x) => x.format)).size < 2;
     const notes = [negative ? "negative" : !rules.trend ? "noTime" : byIndex ? "byIndex" : "", target ? "" : "mixedUnits"].filter(Boolean);
-    return { average: !negative, trend: rules.trend && !negative, target, notes };
+    return { average: !negative, trend: rules.trend && !negative, target, extremes: !negative, notes };
 }
 
 /** The mean of the plotted values, null without one. */
 function average(values) {
     const plotted = values.filter((v) => typeof v === "number");
     return plotted.length ? plotted.reduce((a, b) => a + b, 0) / plotted.length : null;
+}
+
+/**
+ * What the lines and points of a chart are measured on: the series drawn (one hidden in the legend,
+ * chart.hidden, has none and is no part of a stack), each as its own list, or a stack's total as one
+ * (the sum of its drawn parts at each category that has one); what the chart can draw
+ * (referenceLineChecks); and each list's format (a stack's: the first part's), where a plain number's
+ * own count of decimals ("number:0", "integer") gives way to "number": an average of whole numbers
+ * keeps its decimals. `own`: the format as it is, for a value of the data (a high or low point).
+ * @param {import("./pivot.js").PivotResult} result
+ * @param {{ chart?: object, series?: any, locale?: string }} options  as referenceLines'
+ */
+function drawnSeries(result, { chart, series, locale }) {
+    const view = result.view;
+    // what is drawn: the caller's (chartPlan's) over the view's own, which carries the hidden series
+    const merged = { ...view.chart, ...(chart ?? {}) };
+    const drawn = merged.type === "auto" ? { ...merged, type: autoChartType(view, result.encoded) } : merged;
+    const s = series ?? toSeries(result);
+    const rules = referenceLineChecks(result, { chart: drawn, series: s });
+    const hidden = Array.isArray(/** @type {any} */ (drawn).hidden) ? /** @type {any} */ (drawn).hidden : [];
+    const parts = s.series.map((x, i) => ({ ...x, index: i })).filter((x) => !hidden.includes(x.name));
+    /** @param {number} i */
+    const totalAt = (i) => {
+        /** @type {number | null} */
+        let sum = null;
+        for (const part of parts) {
+            const v = part.data[i];
+            if (typeof v === "number") {
+                sum = (sum ?? 0) + v;
+            }
+        }
+        return sum;
+    };
+    const total = parts.length ? parts[0].data.map((_, i) => totalAt(i)) : [];
+    /** @type {{ series: number | null, data: (number | null)[] }[]} */
+    const lists = drawn.stacked ? [{ series: null, data: total }] : parts.map((x) => ({ series: x.index, data: x.data }));
+    const lang = resolveLocale(view.formatting.locale, locale ?? result.locale);
+    const formatOf = (/** @type {number | null} */ i, own = false) => {
+        const format = (i === null ? parts[0] : s.series[i])?.format ?? "number";
+        return formatterFor(!own && /^(?:number|integer)(?::\d+)?$/.test(format) ? "number" : format, lang);
+    };
+    return { view, s, rules, lists, formatOf };
+}
+
+/**
+ * @typedef {object} ExtremePoint
+ * @property {"max" | "min"} kind  the highest or the lowest value
+ * @property {number | null} series  the series' index in the chart data; null for a stack's total
+ * @property {number} index  the category it is at: the first of equal ones
+ * @property {number} value
+ * @property {(value: number) => string} format  writes the value as its series does, with its decimals
+ */
+
+/**
+ * The high and low points of a chart (chart.referenceLines.extremes): each drawn series' highest and
+ * lowest value, or a stack's total's, where the chart draws them (referenceLineChecks: where it draws
+ * an average). Per series in their order, the highest first. A list whose values are all the same (or
+ * one value) has no point: there is nothing to tell apart.
+ * @param {import("./pivot.js").PivotResult} result
+ * @param {{ chart?: { type: string, stacked?: boolean, stackPercent?: boolean, hidden?: string[] }, series?: { series: { name: string, data: (number | null)[], format: string }[], categoryPaths?: any[][] }, locale?: string }} [options]
+ *   as referenceLines'
+ * @returns {ExtremePoint[]}
+ */
+export function extremePoints(result, { chart, series, locale } = {}) {
+    if (!result.view.chart.referenceLines?.extremes) {
+        return [];
+    }
+    const { rules, lists, formatOf } = drawnSeries(result, { chart, series, locale });
+    if (!rules.extremes) {
+        return [];
+    }
+    /** @type {ExtremePoint[]} */
+    const points = [];
+    for (const l of lists) {
+        let max = -1;
+        let min = -1;
+        l.data.forEach((v, i) => {
+            if (typeof v !== "number") {
+                return;
+            }
+            if (max < 0 || v > /** @type {number} */ (l.data[max])) {
+                max = i;
+            }
+            if (min < 0 || v < /** @type {number} */ (l.data[min])) {
+                min = i;
+            }
+        });
+        if (max >= 0 && l.data[max] !== l.data[min]) {
+            const format = formatOf(l.series, true);
+            points.push({ kind: "max", series: l.series, index: max, value: /** @type {number} */ (l.data[max]), format });
+            points.push({ kind: "min", series: l.series, index: min, value: /** @type {number} */ (l.data[min]), format });
+        }
+    }
+    return points;
 }
 
 /**
@@ -158,44 +253,14 @@ function average(values) {
  * @returns {ReferenceLine[]}
  */
 export function referenceLines(result, { chart, series, words, locale } = {}) {
-    const view = result.view;
-    const setting = view.chart.referenceLines;
-    // what is drawn: the caller's (chartPlan's) over the view's own, which carries the hidden series
-    const merged = { ...view.chart, ...(chart ?? {}) };
-    const drawn = merged.type === "auto" ? { ...merged, type: autoChartType(view, result.encoded) } : merged;
+    const setting = result.view.chart.referenceLines;
     if (!setting || (!setting.average && !setting.trend && setting.target === null)) {
         return [];
     }
-    const s = series ?? toSeries(result);
-    const rules = referenceLineChecks(result, { chart: drawn, series: s });
+    const { view, s, rules, lists, formatOf } = drawnSeries(result, { chart, series, locale });
     const names = { ...DEFAULT_LABELS.referenceLines, ...words };
     const name = (/** @type {"average" | "trend" | "target"} */ kind) => names[kind];
-    // the series drawn: one hidden in the legend (chart.hidden) has no lines and is no part of a stack
-    const hidden = Array.isArray(/** @type {any} */ (drawn).hidden) ? /** @type {any} */ (drawn).hidden : [];
-    const parts = s.series.map((x, i) => ({ ...x, index: i })).filter((x) => !hidden.includes(x.name));
     const times = rules.trend ? timesOf(view, result.encoded, s.categoryPaths) : null;
-    /** @param {number} i */
-    const totalAt = (i) => {
-        /** @type {number | null} */
-        let sum = null;
-        for (const part of parts) {
-            const v = part.data[i];
-            if (typeof v === "number") {
-                sum = (sum ?? 0) + v;
-            }
-        }
-        return sum;
-    };
-    // a stack's lines are of its total: the sum of the parts at each category that has one
-    const total = parts.length ? parts[0].data.map((_, i) => totalAt(i)) : [];
-    const lists = drawn.stacked ? [{ series: null, data: total }] : parts.map((x) => ({ series: /** @type {number | null} */ (x.index), data: x.data }));
-    const lang = resolveLocale(view.formatting.locale, locale ?? result.locale);
-    // a plain number's own count of decimals ("number:0", "integer") gives way to "number": an
-    // average of whole numbers keeps its decimals
-    const formatOf = (/** @type {number | null} */ i) => {
-        const format = (i === null ? parts[0] : s.series[i])?.format ?? "number";
-        return formatterFor(/^(?:number|integer)(?::\d+)?$/.test(format) ? "number" : format, lang);
-    };
     /** @type {ReferenceLine[]} */
     const lines = [];
     if (setting.average && rules.average) {

@@ -33,7 +33,7 @@ export function loadECharts() {
  *   labels: import("./labels.js").UiLabels, locale: string,
  *   themeName: string, root: React.RefObject<HTMLElement>, onInstance: (chart: any) => void,
  *   onPoint: (point: { rowPath: any[], colPath: any[], valueIndex: number, value: unknown }) => void,
- *   onLines?: (checks: { average: boolean, trend: boolean, target: boolean, notes: string[], format?: string } | null) => void,
+ *   onLines?: (checks: { average: boolean, trend: boolean, target: boolean, extremes: boolean, notes: string[], format?: string } | null) => void,
  *   onLegend?: (change: { name: string, shown: boolean }) => void,
  *   valueNames: string[], chartOptions?: Record<string, unknown> | null, colorMap?: unknown,
  *   plan?: { name: string, chart: { type: string, stacked: boolean, horizontal: boolean } } }} props

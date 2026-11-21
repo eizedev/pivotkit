@@ -121,25 +121,31 @@ test("Reference lines: a level after Tooltip on bars, lines and areas: Average a
     const off = byId(of({ average: false, trend: false, target: null }), "lines");
     assert.deepEqual([off.title, off.kind, off.state, off.changed, off.note], ["Reference lines", "menu", "Off", false, null]);
     // the switches, as Layout's (a switch keeps its level open, levels.jsx); the Target row opens its form
-    const [average, trend, target] = choices(off);
+    const [average, trend, extremes, target] = choices(off);
     assert.deepEqual([average.checkbox, average.checked, trend.checkbox, target.open, target.hint], [true, false, true, "linesTarget", "No target"]);
+    // the high and low points (#574): a switch between the lines and the target
+    assert.deepEqual([extremes.id, extremes.text, extremes.checkbox, extremes.checked], ["line-extremes", "High and low points", true, false]);
+    extremes.run();
+    assert.deepEqual(patches.splice(0), [{ referenceLines: { average: false, trend: false, target: null, extremes: true } }]);
+    const marked = byId(of({ average: false, trend: false, target: null, extremes: true }), "lines");
+    assert.deepEqual([marked.state, marked.changed, choices(marked)[2].checked], ["High and low points", true, true]);
     average.run();
-    assert.deepEqual(patches.splice(0), [{ referenceLines: { average: true, trend: false, target: null } }]);
+    assert.deepEqual(patches.splice(0), [{ referenceLines: { average: true, trend: false, target: null, extremes: false } }]);
     const form = byId(of({ average: false, trend: false, target: null }), "linesTarget");
     assert.deepEqual([form.kind, form.hidden, form.levelTitle], ["panel", true, "Reference lines › Target"]);
     // what is on, and the target as the locale writes it
     const some = of({ average: true, trend: false, target: 26 }, { targetText: "26" });
-    assert.deepEqual([byId(some, "lines").state, byId(some, "lines").changed, choices(byId(some, "lines"))[2].hint], ["Average, Target", true, "26"]);
+    assert.deepEqual([byId(some, "lines").state, byId(some, "lines").changed, choices(byId(some, "lines"))[3].hint], ["Average, Target", true, "26"]);
     // a stack of averages: every line off with its reason
     const stack = byId(of({ average: true, trend: false, target: 26 }, { rules: { average: false, trend: false, target: false, notes: ["noTotal"] } }), "lines");
     const reasons = choices(stack).map((c) => [c.id, c.disabled ?? false, c.reason ?? null]);
     const why = "These lines need a total. Switch to Bars, not stacked, to draw them.";
-    assert.deepEqual(reasons, [["line-average", true, why], ["line-trend", true, why], ["line-target", true, why], ["target-remove", false, null]]);
-    choices(stack)[3].run();
-    assert.deepEqual(patches.splice(0), [{ referenceLines: { average: true, trend: false, target: null } }]);
+    assert.deepEqual(reasons, [["line-average", true, why], ["line-trend", true, why], ["line-extremes", true, why], ["line-target", true, why], ["target-remove", false, null]]);
+    choices(stack)[4].run();
+    assert.deepEqual(patches.splice(0), [{ referenceLines: { average: true, trend: false, target: null, extremes: false } }]);
     // no time line: the trend's reason; values in two units: the target's
     const regions = choices(byId(of({ average: false, trend: false, target: null }, { rules: { average: true, trend: false, target: false, notes: ["noTime", "mixedUnits"] } }), "lines"));
-    assert.deepEqual([regions[1].reason, regions[2].reason], ["A trend needs dates on Rows, in date order.", "The values have different units, so one target does not fit them."]);
+    assert.deepEqual([regions[1].reason, regions[3].reason], ["A trend needs dates on Rows, in date order.", "The values have different units, so one target does not fit them."]);
     // the chart not drawn yet: a note says the lines come once it is
     assert.equal(byId(of({ average: false, trend: false, target: null }, { rules: { average: true, trend: true, target: true, notes: ["table"] } }), "lines").note, "The lines show here once the chart is drawn.");
     // a pie, a donut and a heatmap have no lines

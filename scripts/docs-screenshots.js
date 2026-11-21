@@ -91,6 +91,15 @@ const VALUE_FILTER = encodeViewLink({
 const MONTHLY = { derived: [{ name: "Date by month", field: "Date", by: "yearMonth" }], rows: ["Date by month"], values: [{ field: "Mean °C", agg: "average" }] };
 const DATES = encodeViewLink({ ...MONTHLY, filters: [{ field: "Date by month", type: "relative", unit: "year", count: 2 }] });
 const CYCLIC = { derived: [{ name: "Date by month of year", field: "Date", by: "month" }], rows: ["Date by month of year"], cols: ["City"], values: [{ field: "Mean °C", agg: "average" }] };
+const POINTS = encodeViewLink({
+    derived: [{ name: "Date by month of year", field: "Date", by: "month" }, { name: "Date by year", field: "Date", by: "year" }],
+    rows: ["Date by month of year"],
+    cols: ["Date by year"],
+    values: [{ field: "Mean °C", agg: "average", format: "number:1" }],
+    filters: [{ field: "City", type: "in", items: ["Berlin"] }],
+    display: "chart",
+    chart: { type: "line", referenceLines: { extremes: true } }
+});
 const YEARS = encodeViewLink({ ...CYCLIC, filters: [{ field: "Date by month of year", type: "compare", op: "between", value: "2024-01-01", value2: "2025-12-31" }] });
 const RULES = encodeViewLink({ ...CYCLIC, filters: [{ field: "Date by month of year", type: "value", op: ">", value: 25, by: { field: "Mean °C", agg: "average" } }] });
 /** End-of-life dates by month, the next 2 years: the quick choices with More choices open (Next is one of them). */
@@ -342,6 +351,17 @@ const SHOTS = [
     },
     // a line with its average (dashed), its trend (dotted) and a target (solid)
     { name: "chart-lines", query: "data=sales", hash: LINES, size: WIDE, chart: true },
+    // one city's months, a line per year, each year's highest and lowest month marked
+    {
+        name: "chart-points",
+        query: "data=weather",
+        hash: POINTS,
+        size: WIDE,
+        chart: true,
+        open: async (page) => {
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+        }
+    },
     {
         // Display › Reference lines open over the same chart: the switches, the target and its row's level
         name: "chart-lines-level",

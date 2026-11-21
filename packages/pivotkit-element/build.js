@@ -405,18 +405,25 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * first line and its hints from the data. On top of #581, CI's zlib measures the first load at
  * 180.6 (178.3 before) and the menus at 53.6 (52.5 before): initial goes to 181 and menus to 54,
  * CI's measure plus about 0.5 KiB. The split of the first load is still #546 (0.9.0).
+ * High and low points on a chart (#574): ECharts' markPoint component draws the dots and their labels
+ * (0.6 KiB of the chart group alone), with pivotkit-core's points (extremePoints), the layout that
+ * keeps their labels inside the plot and apart (chart-fit.js pointLabels) and their sentence in the
+ * text alternative, the outline and the label budget for many series (2.3 together). The chart group
+ * goes from 241.5 to 244.4 with Homebrew's zlib; CI's zlib measures about 0.7 more: chart goes to 246.
+ * The menus' German texts reach 8.0 with the switch's words (they were at the budget of 8): texts goes
+ * to 8.5. The first load grows by the view key and the rule only, 180.2 to 180.3 on a Mac, within 181.
  * The split of the first load (#546). The first load's budget is a hard line at 181 KiB: a feature
  * that needs room there makes it by moving something out, not by raising the budget. Three parts left
  * it (pivotkit-react's deferred-late.js, src/css-split.js): the German first-load texts (group
  * "lang", 5.9 on CI's zlib, budget 6.2), loaded before a German report renders; the tips' rows
  * (group "tips", 1.5, budget 1.8), loaded after the first render, while the notices that the result
  * is cut or empty stay first (notices.js); and the style rules only the menus' code writes, which
- * now load inside the menus' chunk. CI's zlib measures the first load at 174.6 (180.9 before) and
- * the menus at 56.9 (53.6 before). The menus carry the rules they
- * took over, so their budget goes to 57.5, CI's measure plus about 0.5 KiB.
+ * now load inside the menus' chunk. With #574 merged, CI's zlib measures the first load at 174.8
+ * (180.9 before #574) and the menus at 57.0 (53.6 before). The menus carry the rules they took over, so
+ * their budget goes to 57.5, CI's measure plus about 0.5 KiB.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 181, chart: 243.5, export: 12.6, link: 7.5, menus: 57.5, texts: 8, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
+export const SIZE_BUDGET_KIB = { initial: 181, chart: 246, export: 12.6, link: 7.5, menus: 57.5, texts: 8.5, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

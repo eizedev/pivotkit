@@ -32,12 +32,12 @@ const flags = ({ average, trend, target }) => ({ average, trend, target });
 const brief = (lines) => lines.map((l) => [l.kind, l.series, ...(l.kind === "trend" ? [l.from, l.to] : [l.value])].map((x) => (typeof x === "number" ? Math.round(x * 1e9) / 1e9 : x)));
 
 test("chart.referenceLines: off by default; average, trend and a target as a number are kept; anything else is reported", () => {
-    assert.deepEqual(emptyView().chart.referenceLines, { average: false, trend: false, target: null });
+    assert.deepEqual(emptyView().chart.referenceLines, { average: false, trend: false, target: null, extremes: false });
     const ok = normalize({ chart: { referenceLines: { average: true, trend: true, target: 1500.5 } } }, data);
-    assert.deepEqual(ok.view.chart.referenceLines, { average: true, trend: true, target: 1500.5 });
+    assert.deepEqual(ok.view.chart.referenceLines, { average: true, trend: true, target: 1500.5, extremes: false });
     assert.deepEqual(ok.issues, []);
     const bad = normalize({ chart: { referenceLines: { average: "yes", target: "lots", color: "red" } } }, data);
-    assert.deepEqual(bad.view.chart.referenceLines, { average: false, trend: false, target: null });
+    assert.deepEqual(bad.view.chart.referenceLines, { average: false, trend: false, target: null, extremes: false });
     assert.deepEqual(
         bad.issues.map((i) => [i.path, i.code]),
         [

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { computePivot, encode, toEChartsOption, toGrid, toSeries } from "pivotkit-core";
 import { decorate, screenColor } from "../src/chart-decorate.js";
 import { chartSummary } from "../src/chart-summary.js";
-import { linesSummary, tooltipContent, tooltipFormatter, tooltipReferences } from "../src/chart-tooltip.js";
+import { linesSummary, pointsSummary, tooltipContent, tooltipFormatter, tooltipReferences } from "../src/chart-tooltip.js";
 import { BOTTOM_LEGEND_ROOM, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "pivotkit-core/chart";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
@@ -811,6 +811,27 @@ test("the chart's text alternative names the reference lines with their values",
     // no lines: no sentence, the text stays as it was
     assert.equal(linesSummary([], ["A"], en), "");
     assert.doesNotMatch(chartSummary(s, { type: "line", rows: ["Month"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US" }), /Reference/);
+});
+
+test("the chart's text alternative names each series' high and low points (#574)", async () => {
+    const { extremePoints } = await import("pivotkit-core/chart");
+    const ON = { average: false, trend: false, target: null, extremes: true };
+    const r = linePivot({ type: "line", referenceLines: ON });
+    const s = toSeries(r);
+    assert.equal(pointsSummary(extremePoints(r, { series: s }), s, en), "Highest 40 at Apr 2026 / A; lowest 10 at Jan 2026 / A. Highest 7 at Mar 2026 / B; lowest 3 at Apr 2026 / B.");
+    // a stack: its total's
+    const stack = linePivot({ type: "bar", stacked: true, referenceLines: ON });
+    const ss = toSeries(stack);
+    assert.equal(pointsSummary(extremePoints(stack, { series: ss }), ss, en), "Highest 43 at Apr 2026 / Total; lowest 15 at Jan 2026 / Total.");
+    // German words from the labels
+    const de = linePivot({ type: "line", referenceLines: ON }, "de-DE");
+    const ds = toSeries(de);
+    assert.match(pointsSummary(extremePoints(de, { series: ds }), ds, LABELS.de), /^Höchster Wert 40 bei .* \/ A; niedrigster 10 bei .* \/ A\./);
+    // one series: the summary's own highest and lowest already say it
+    const one = computePivot(encode(LINE_ROWS), { derived: [{ name: "Month", field: "Date", by: "yearMonth" }], rows: ["Month"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line", referenceLines: ON } });
+    const os = toSeries(one);
+    assert.equal(pointsSummary(extremePoints(one, { series: os }), os, en), "");
+    assert.equal(pointsSummary([], s, en), "");
 });
 
 test("labels the report no longer shows: each named with what replaces it, others ignored (#580 review)", async () => {

@@ -80,7 +80,7 @@ Reuse these instead of writing a second version:
 | The ECharts option, loaded with the chart | `toEChartsOption` in `chart.js`, also exported by `chart-style.js` |
 | Chart marks for screen, SVG and print | `decorateOption` in `chart-style.js` |
 | Which chart draws which reference line, and whether a value adds up | `referenceLineRules`, `valueAddsUp` in `chart-plan.js` |
-| A chart's reference lines as numbers | `referenceLines` in `chart-lines.js` |
+| A chart's reference lines and high and low points as numbers | `referenceLines`, `extremePoints` in `chart-lines.js` |
 | Chart theme fallbacks | `DEFAULT_THEME` in `defaults.js` |
 | Bounded caches | `createCache` in `util.js` |
 

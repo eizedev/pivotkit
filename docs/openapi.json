@@ -2019,6 +2019,9 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "extremes": {
+                    "type": "boolean"
                   }
                 }
               },

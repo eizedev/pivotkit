@@ -110,7 +110,8 @@ kept in a repository changes only when the view does.
 
 The writer leaves out the chart keys newer than pivotkit 0.7 (`tooltip`, `zoom`,
 `stackPercent`, `hidden`, `referenceLines`, `colors`, `tooltipShare`) while they hold their default. A 0.7 reader then takes the file without a
-warning. `fromViewFile` puts them back at their defaults when it reads a file.
+warning. It leaves out `extremes` in `referenceLines`, newer than 0.8, while it is `false`.
+`fromViewFile` puts them back at their defaults when it reads a file.
 
 The suggested file name is `<slug>.pivotkit.json`. The slug is the name in lower case, with accents
 dropped and every run of other characters turned into a `-`:

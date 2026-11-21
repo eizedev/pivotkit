@@ -55,7 +55,7 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
    [load your own data](use/load-data.md).
 2. **Table and chart, each with its settings.** Table and Chart are tabs, each with its own settings. "+ Add" puts
    a field into a zone without dragging. Charts zoom along a long axis, hide series from the legend,
-   stack to 100 % and draw an average, a trend or a target. See [charts](use/charts.md).
+   stack to 100 % and draw an average, a trend, a target or the high and low points. See [charts](use/charts.md).
 3. **Filters that say what they keep.** Pick items from a list that shows each item's row count.
    Take a range such as "last 3 months" or "this quarter" that stays right over time. Take a top 10
    with ties, or a rule on a total ("Sum of Revenue > 1,000"). Each filter says how many items it

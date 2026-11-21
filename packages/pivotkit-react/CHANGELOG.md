@@ -6,6 +6,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- Chart settings › Reference lines › High and low points puts a dot with ▲ or ▼ and the value at
+  each series' highest and lowest value. The text for screen readers names them
+  ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), #574).
+
 ### Changed
 
 - `dist/index.js` imports `dist/deferred.js`, a file of its own with the German texts of the first

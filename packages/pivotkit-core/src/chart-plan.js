@@ -79,16 +79,17 @@ export function stacksToPercent(chart) {
  *   stack to 100 % (chart.stackPercent: stacked bars, and areas, which it stacks).
  * - A trend only where the categories are points in time in their own order: every row field a date
  *   or a grouping along the time line, none sorted by a value or by hand.
+ * - The high and low points (extremes) where an average is drawn: per series, or of a stack's total.
  * A setting that is off here stays in the view: it draws again when the chart can.
  * @param {{ rows: string[], derived: any[], sort: any[], values: any[] }} view  a normalized view
  * @param {{ type: string, stacked?: boolean, stackPercent?: boolean }} chart  what is drawn: chartPlan's chart, never "auto"
  * @param {import("./encode.js").Encoded} encoded
- * @returns {{ average: boolean, trend: boolean, target: boolean }}
+ * @returns {{ average: boolean, trend: boolean, target: boolean, extremes: boolean }}
  */
 export function referenceLineRules(view, chart, encoded) {
     // a stack to 100 %: every stack the same height, no line
     const counted = (chart.type === "bar" || chart.type === "line" || chart.type === "area") && !stacksToPercent(chart) && !(chart.stacked && !view.values.every(valueAddsUp));
-    return { average: counted, trend: counted && timeLine(view, encoded), target: counted };
+    return { average: counted, trend: counted && timeLine(view, encoded), target: counted, extremes: counted };
 }
 
 /** "Show values as" types that name an axis, and their counterpart on the other one. */
