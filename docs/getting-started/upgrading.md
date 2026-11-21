@@ -181,6 +181,7 @@ Then restart Claude Code.
 | [Sort by one column](#sort-column) | you share views with pivotkit 0.8, or run pivotkit-server or pivotkit-mcp | nothing. pivotkit 0.8 sorts such a view by the whole row, with a warning. Reconnect MCP clients to see `column` in the view schema |
 | [Table and chart side by side](#display-both) | you share views with pivotkit 0.8, or a program reads `display` | nothing. A view shown as both has `display: "both"` |
 | [High and low points in the chart](#chart-points) | you share views with pivotkit 0.8, or your tests compare a normalized view or the chart option as a whole | nothing. A normalized view has `extremes` in `chart.referenceLines` |
+| [A click in the chart opens a menu](#chart-click-menu) | your app uses `onCellClick` or `pivot-cell-click` for chart points, or your tests click a chart to open its rows | expect the call at **Show the rows** or a double click. In tests, click **Show the rows** or double-click |
 
 ### Two chart types: bars and lines, and a treemap { #combo-treemap }
 
@@ -233,6 +234,17 @@ The tab **Both** shows the table and the chart side by side on a wide report
 - A view file and a link leave it out while it is off. pivotkit 0.8 then reads them as before.
 - pivotkit 0.8 reads a view with it on with an `unknownKey` warning and draws no points.
   Saved again there, the view loses the setting.
+
+### A click in the chart opens a menu { #chart-click-menu }
+
+Clicking a bar, a point, a slice or a heatmap cell opens a small menu at it. See
+[filter from the chart](../use/charts.md#filter-from-the-chart).
+
+- **Show the rows** opens the rows, as the click did before. A double click opens them at once.
+- `onCellClick` and `pivot-cell-click` come with the rows: at **Show the rows** or the double
+  click, no longer at the click that opens the menu.
+- On a phone or tablet, the second tap opens the menu.
+- The table does not change: clicking a value still opens its rows.
 
 ### `http.publicUrl` is an origin { #public-url-origin }
 

@@ -1172,6 +1172,8 @@ function Report(props) {
         [view, typeOf, commit, addTo, defaultsOf]
     );
 
+    // the menu of a clicked point of the chart (#53): where it opens, and the point
+    const [pointTarget, setPointTarget] = useState(/** @type {{ anchor: HTMLElement, home?: HTMLElement | null, point: any } | null} */ (null));
     const openCell = useCallback(
         /** @param {any} cell */
         ({ rowPath = [], colPath = [], value, valueIndex, text }) => {
@@ -1194,6 +1196,8 @@ function Report(props) {
         },
         [result, encodedProp, imported, data, drillDownLimit, onCellClick, drillDown, defaultsOf, nameOf, infoOf]
     );
+    /** A point's rows, as a table cell's. @param {any} p */
+    const openPoint = (p) => openCell({ rowPath: p.rowPath, colPath: p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") });
 
     const { run: doExport, prepare: prepareExport } = useExport({ fileName, result: computed.result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts, colorMap: stableColorMap });
 
@@ -1648,7 +1652,16 @@ function Report(props) {
             // the checks with the view they are of: the menu never shows another view's
             onLines={(checks) => setLineChecks(checks && { checks, view })}
             // a chart with rows and columns swapped names the view's paths the other way round
-            onPoint={(p) => openCell({ rowPath: plan.swap ? p.colPath : p.rowPath, colPath: plan.swap ? p.rowPath : p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
+            onPoint={(p) => {
+                const point = { ...p, rowPath: plan.swap ? p.colPath : p.rowPath, colPath: plan.swap ? p.rowPath : p.colPath, anchor: undefined, home: undefined };
+                // a double click: its rows at once; a click: its menu at the point (#53)
+                if (p.direct) {
+                    setPointTarget(null);
+                    openPoint(point);
+                } else if (p.anchor) {
+                    setPointTarget({ anchor: p.anchor, home: p.home, point });
+                }
+            }}
         />
     ) : null;
     const tableEl = gridState.grid ? (
@@ -1879,6 +1892,7 @@ function Report(props) {
                     </div>
                     {/* the filter and the drill-down load with the menus (lazy-menus.jsx) */}
                     {filterTarget ? <MenuPanel name="FilterPopover" props={{ target: filterTarget, onClose: closeFilter, view, encoded, locale, labels, commit }} /> : null}
+                    {pointTarget ? <MenuPanel name="PointMenu" props={{ target: pointTarget, onClose: () => setPointTarget(null), onRows: openPoint, view, encoded, locale, labels, commit }} /> : null}
                 </PivotDnd>
                 {/* loading data: the file input, the drop overlay, the preview (import-host.jsx) */}
                 {allowImport && importMod ? <importMod.ImportLayer api={api} input={fileInput} /> : null}

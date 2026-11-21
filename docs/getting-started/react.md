@@ -266,7 +266,8 @@ of fields are in [Field descriptions and names](../concepts/fields.md).
 <PivotReport data={rows} onCellClick={({ row, col, count }) => console.log(row, col, count)} />
 ```
 
-`onCellClick` gets every click on a value or a chart point, with the rows behind it.
+`onCellClick` gets the rows behind a value when someone clicks it in the table. For a chart point it
+comes at **Show the rows** or a double click.
 
 ## 8. Language and the data's name { #locale-and-source }
 
