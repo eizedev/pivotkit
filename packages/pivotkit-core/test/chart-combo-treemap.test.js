@@ -54,8 +54,10 @@ test("combo: the first value as bars on the left axis, the second as a line on i
     assert.equal(option.yAxis[1].nameTextStyle.rich.s.color, "#eb6834");
     // the right axis draws no grid lines of its own: one grid, the left axis's
     assert.equal(option.yAxis[1].splitLine.show, false);
-    // a legend names both series
+    // a legend names both series; the axes' names get a line of room below it
     assert.ok(option.legend);
+    const bars = toEChartsOption(pivot({ type: "bar" }), { theme: THEME });
+    assert.equal(option.grid.top - bars.grid.top, 14 + 10);
 });
 
 test("combo with a field on Columns: every series of the first value as bars, the others as lines", () => {
@@ -143,4 +145,12 @@ test("decorateOption: treemap labels take --pk-text or --pk-surface, whichever r
     // white label gets a dark outline it reads against
     assert.equal(out.series[0].data[0].label.textBorderColor, undefined);
     assert.deepEqual([out.series[0].data[1].label.textBorderColor, out.series[0].data[1].label.textBorderWidth], ["#1a1d23", 2]);
+});
+
+test("decorateOption: a combo's axis names each fit in half the chart", () => {
+    const out = decorateOption(toEChartsOption(pivot({ type: "combo" }), { theme: THEME }), { getPropertyValue: () => "" }, { width: 358, height: 300 });
+    for (const axis of out.yAxis) {
+        assert.ok(axis.nameTextStyle.width <= 155, String(axis.nameTextStyle.width));
+        assert.equal(axis.nameTextStyle.overflow, "truncate");
+    }
 });

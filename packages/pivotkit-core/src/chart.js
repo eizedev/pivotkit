@@ -368,7 +368,8 @@ export function toEChartsOption(result, options) {
         tooltip: { trigger: "axis", valueFormatter, shareFormatter },
         ...(type === "bar" ? { axisPointer: { triggerEmphasis: false } } : {}),
         // room for the title and the legend; ECharts keeps its own defaults for the label margins
-        grid: { top: GRID_TOP + titleRoom + room.top + marks.room, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
+        // a combo's axes are named above the plot: a line of room for their names below the legend
+        grid: { top: GRID_TOP + titleRoom + room.top + marks.room + (combo ? (theme.textSize ?? DEFAULT_THEME.textSize) + 10 : 0), ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
         xAxis: chart.horizontal && !combo ? valueAxis : groups ? [categoryAxis, groups.axis] : categoryAxis,
         yAxis: combo ? comboAxes(s, valueAxis, { theme, locale, colorOf, names: valueNames(result.view.values, { ...DEFAULT_LABELS, ...(options.labels || {}) }), firstValue }) : chart.horizontal ? (groups ? [{ ...categoryAxis, inverse: true }, { ...groups.axis, inverse: true }] : { ...categoryAxis, inverse: true }) : valueAxis,
         series: s.series.map((x, i) => {

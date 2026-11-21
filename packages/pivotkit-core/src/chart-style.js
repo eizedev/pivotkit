@@ -286,7 +286,10 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     const title = option.title ? { title: { ...option.title, textStyle: { ...option.title.textStyle, width: Math.max(40, width - 32), overflow: "truncate" } } } : {};
     // bars, lines and areas: the category axis writes every label that fits (categoryLabelLayout), the
     // group labels sit below (or left of) those labels
-    let axes = { xAxis: reach.xAxis ?? xAxis, yAxis: reach.yAxis ?? yAxis };
+    // two value axes (a combo) named above the plot: each name within half the chart, cut with "…"
+    const named = Array.isArray(yAxis) && yAxis.length === 2 && yAxis.every((a) => a?.type === "value" && a.name);
+    const halves = named ? yAxis.map((/** @type {any} */ a) => ({ ...a, nameTextStyle: { ...a.nameTextStyle, width: Math.max(40, Math.floor((width - 48) / 2) - 8), overflow: "truncate" } })) : null;
+    let axes = { xAxis: reach.xAxis ?? xAxis, yAxis: halves ?? reach.yAxis ?? yAxis };
     let axisEvery = 1;
     /** @type {object | null} the zoom slider (chart-zoom.js) */
     let slider = null;
