@@ -231,19 +231,47 @@ for (const theme of ["light", "dark"]) {
                 }
             });
 
-            test("#229 a donut without a legend keeps every slice's label, on lines where long", async ({ page }, testInfo) => {
+            test("#229 #544 a donut without a legend keeps a whole label on every slice it draws; many small ones share one slice 'Other'", async ({ page }, testInfo) => {
                 const view = { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "donut", valueLabels: "value", legend: "off" } };
                 const locator = await mount(page, { width, theme, data: SALES, view, height: HEIGHT[width] });
                 const d = await drawn(locator);
                 await locator.screenshot({ path: testInfo.outputPath(`229-off-${theme}-${width}.png`) });
                 expectReadable(d, "legend off");
                 expect(d.items.map((i) => i.lines.join(" "))).toEqual(["Central: 3,790,750.5", "East: 2,838,900.0", "North: 1,531,742.0", "South: 2,010,480.0", "West: 2,318,960.0"]);
-                // many slices without a legend: every name is there, even where two labels touch
+                // many slices without a legend (#544): the smallest go into one slice "Other (n)", so every
+                // slice shown keeps a whole label and no two labels touch
                 const many = { rows: ["Country"], values: [{ field: "Population", agg: "sum" }], sort: [{ field: "Country", by: "value", order: "desc" }], display: "chart", chart: { type: "donut", valueLabels: "percent", legend: "off" } };
-                const all = await drawn(await mount(page, { width, theme, data: COUNTRIES, view: many, height: HEIGHT[width] }));
-                await page.locator("#labels").getByTestId("pivot-chart").screenshot({ path: testInfo.outputPath(`229-many-off-${theme}-${width}.png`) });
-                expect(all.items.filter((i) => i.lines.length).length).toBe(COUNTRIES.length);
-                expectReadable(all, "many, legend off", () => false);
+                const chartEl = await mount(page, { width, theme, data: COUNTRIES, view: many, height: HEIGHT[width] });
+                const all = await drawn(chartEl);
+                await chartEl.screenshot({ path: testInfo.outputPath(`544-many-off-${theme}-${width}.png`) });
+                expect(all.items.every((i) => i.lines.length), "every slice shown has its label").toBe(true);
+                expectReadable(all, "many, legend off");
+                const other = all.items.at(-1);
+                expect(other.name).toMatch(/^Other \(\d+\)$/);
+                const held = Number(/\((\d+)\)/.exec(other.name)[1]);
+                // every country is a slice of its own or one of the slice "Other"
+                expect(all.items.length - 1 + held).toBe(COUNTRIES.length);
+                // pointing at it lists the slices it holds, the largest first
+                const at = await chartEl.evaluate(async (el) => {
+                    const { getInstanceByDom } = await import("echarts/core");
+                    const data = getInstanceByDom(el).getModel().getSeriesByIndex(0).getData();
+                    const l = data.getItemLayout(data.count() - 1);
+                    const angle = (l.startAngle + l.endAngle) / 2;
+                    const r = (l.r0 + l.r) / 2;
+                    const members = getInstanceByDom(el).getOption().series[0].data.at(-1).members;
+                    const largest = [...members].sort((a, b) => b.value - a.value)[0].name;
+                    return [l.cx + Math.cos(angle) * r, l.cy + Math.sin(angle) * r, largest];
+                });
+                const box = await chartEl.boundingBox();
+                await page.mouse.move(box.x + at[0] - 4, box.y + at[1] + 3);
+                await page.mouse.move(box.x + at[0], box.y + at[1], { steps: 3 });
+                const tip = () =>
+                    chartEl.evaluate((el) => {
+                        const t = [...el.children].find((c) => c.tagName === "DIV" && !c.querySelector("canvas"));
+                        return t && getComputedStyle(t).visibility !== "hidden" && getComputedStyle(t).display !== "none" ? t.textContent : "";
+                    });
+                await expect.poll(tip).toContain(other.name);
+                expect(await tip()).toContain(at[2]);
             });
 
             test("#229 a donut of many small slices: labels that have no room are left out, the others are whole", async ({ page }, testInfo) => {

@@ -148,8 +148,9 @@ test("Reference lines: a level after Tooltip on bars, lines and areas: Average a
     assert.deepEqual([regions[1].reason, regions[3].reason], ["A trend needs dates on Rows, in date order.", "The values have different units, so one target does not fit them."]);
     // the chart not drawn yet: a note says the lines come once it is
     assert.equal(byId(of({ average: false, trend: false, target: null }, { rules: { average: true, trend: true, target: true, notes: ["table"] } }), "lines").note, "The lines show here once the chart is drawn.");
-    // a pie, a donut and a heatmap have no lines
-    for (const type of ["pie", "donut", "heatmap"]) {
+    // a pie, a donut, a heatmap, bars and lines and a treemap have no lines (#518: two value axes,
+    // one tile per category)
+    for (const type of ["pie", "donut", "heatmap", "combo", "treemap"]) {
         assert.equal(byId(of({ average: true, trend: false, target: null }, { type }), "lines"), undefined, type);
     }
     // German
@@ -206,4 +207,13 @@ test("Layout's row says how the groups of Rows show: Each Country, Region only, 
     assert.deepEqual(state(one, rowFolding(one, [])), [null, false]);
     const de = { ...LABELS.de, ...menuDe };
     assert.equal(byId(chartTopics({ view: plain, drawn: "line", labels: de, names: [], act, folding: { canExpand: true, canCollapse: false, collapsed: 2, why: {} } }), "layout").state, "Nur Region");
+});
+
+test("a treemap has no legend and no axis; its Series level lists its tiles (#518)", () => {
+    const view = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" } });
+    const topics = chartTopics({ view, drawn: "treemap", labels, names: ["North", "South"], act: { display: () => {} } });
+    assert.equal(byId(topics, "legend"), undefined);
+    assert.equal(byId(topics, "axis"), undefined);
+    assert.ok(byId(topics, "valueLabels"));
+    assert.ok(byId(topics, "series"));
 });

@@ -421,9 +421,14 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * now load inside the menus' chunk. With #574 merged, CI's zlib measures the first load at 174.8
  * (180.9 before #574) and the menus at 57.0 (53.6 before). The menus carry the rules they took over, so
  * their budget goes to 57.5, CI's measure plus about 0.5 KiB.
+ * Two chart types (#518): a combo of bars and lines and a treemap. ECharts' treemap is about 12 KiB of
+ * the chart group (measured for the 0.9.0 concepts, 12.0); the combo needs no ECharts part of its own.
+ * The maintainer took the treemap into 0.9.0 with that cost. It loads with the chart, never first: the
+ * chart group goes from 244.9 to 258.0 with Homebrew's zlib; CI's zlib measures about 0.7 more: chart
+ * goes to 259.5. The first load gets the two names of the picker only.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 181, chart: 246, export: 12.6, link: 7.5, menus: 57.5, texts: 8.5, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
+export const SIZE_BUDGET_KIB = { initial: 181, chart: 259.5, export: 12.6, link: 7.5, menus: 57.5, texts: 8.5, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

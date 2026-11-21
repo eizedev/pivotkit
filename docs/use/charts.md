@@ -1,6 +1,6 @@
 ---
 title: Charts
-description: Show a pivotkit report as a chart - bars, lines, area, pie, donut or heatmap, the automatic type, value labels, legend, title, axis and group labels, the zoom slider, series shown or hidden, 100 % stacks, reference lines for an average, a trend and a target, high and low points, the tooltip of the element under the pointer, fixed colours, the share in the tooltip and the chart image.
+description: Show a pivotkit report as a chart - bars, lines, area, pie, donut, heatmap, bars and lines, or a treemap, the automatic type, value labels, legend, title, axis and group labels, the zoom slider, series shown or hidden, 100 % stacks, reference lines for an average, a trend and a target, high and low points, many slices in one slice "Other", the tooltip of the element under the pointer, fixed colours, the share in the tooltip and the chart image.
 ---
 
 # Charts
@@ -28,6 +28,8 @@ the table back.
 | Pie | A whole circle, one slice per row. |
 | Donut | A ring, one slice per row. |
 | Heatmap | A grid of rows and columns, coloured by value. |
+| Bars and lines | The first value as bars, every other value as a line on an axis of its own. See [bars and lines](#bars-and-lines). |
+| Treemap | A tile per row, its size the row's total. See [treemap](#treemap). |
 
 **Automatic** decides by the data:
 
@@ -40,6 +42,37 @@ the table back.
   table keeps its layout, and the view does not change. A click on a point opens its rows as in the
   table.
 - Anything else draws **bars**.
+
+### Bars and lines { #bars-and-lines }
+
+**Bars and lines** shows two values of different sizes in one chart, such as revenue and units.
+
+![Revenue per month as bars on the left axis, units as a line on the right axis](../assets/screenshots/chart-combo-light.png#only-light)
+![Revenue per month as bars on the left axis, units as a line on the right axis](../assets/screenshots/chart-combo-dark.png#only-dark)
+
+- The first field in **Values** draws bars on the left axis.
+- Every other value draws a line on the right axis.
+- Each axis is named after its values, with a small square in its series' colour. On a phone the
+  legend names them.
+- To swap bars and line, move the other value to the first place in **Values**.
+- It needs two fields in **Values**. With one, the type is greyed out and says "Needs two values."
+- The two axes have their own scales. Where the bars and the line meet means nothing.
+- It draws no reference lines.
+
+### Treemap { #treemap }
+
+**Treemap** shows many parts of a whole. Each row is a tile, and its size is the row's total.
+
+![A treemap of 20 countries by population, each tile named with its value](../assets/screenshots/chart-treemap-light.png#only-light)
+![A treemap of 20 countries by population, each tile named with its value](../assets/screenshots/chart-treemap-dark.png#only-dark)
+
+- Each tile shows its name and value. A small tile cuts the text with "…". The tooltip shows both.
+- A row with a total of 0 or less gets no tile.
+- The colours only tell the tiles apart. They do not stand for a value.
+- The text on a tile is light or dark, whichever reads better on its colour.
+- It has no legend. **Chart settings › Series** hides a tile or sets its colour.
+- With a field on Columns, a tile adds up every column, as a pie does.
+- A click on a tile opens no rows.
 
 The icon of the tab **Chart** shows the type drawn. In **Chart settings**, a screen reader hears the
 group of types as "Chart type: Bars". "Automatic" says what it draws now, such as "Now: Lines". A
@@ -116,7 +149,8 @@ labels of a pie.
     With a legend, each side of the pie writes as many labels as its height holds, those of the
     larger slices first. A smaller slice can then lose its label on the chart, in the chart image
     and in the HTML report. The legend still names it, and on screen the tooltip does too. With
-    the legend **Off**, every slice keeps its label, even where two labels touch.
+    the legend **Off**, the smallest slices share one slice instead. See
+    [many slices](#many-slices).
 
     ![A donut on a phone: a smaller ring, each region's name and revenue on two lines beside it](../assets/screenshots/donut-phone-light.png#only-light){ width="300" }
     ![A donut on a phone: a smaller ring, each region's name and revenue on two lines beside it](../assets/screenshots/donut-phone-dark.png#only-dark){ width="300" }
@@ -174,6 +208,24 @@ labels of a pie.
 
     ![Bars of the three largest countries per region, the regions as group labels under the country names](../assets/screenshots/chart-groups-light.png#only-light)
     ![Bars of the three largest countries per region, the regions as group labels under the country names](../assets/screenshots/chart-groups-dark.png#only-dark)
+
+## Many slices without a legend { #many-slices }
+
+With the legend **Off**, the labels are the only names of the slices. When they have no room, the
+smallest slices go into one grey slice, such as "Other (14)".
+
+![A donut of 20 countries on a phone: the six largest with their names, the rest as one grey slice "Other (14)"](../assets/screenshots/donut-other-light.png#only-light){ width="300" }
+![A donut of 20 countries on a phone: the six largest with their names, the rest as one grey slice "Other (14)"](../assets/screenshots/donut-other-dark.png#only-dark){ width="300" }
+
+- The number says how many slices it holds. Its size is their sum.
+- Point at it, or tap it on a phone, to see each slice it holds with its value, the largest first.
+- Every other slice keeps its whole label.
+- When even two slices and the grey one have no room, the chart draws every slice with its label, even where two labels touch.
+- The rule follows the room. A phone shows fewer slices than a wide screen. The chart image, the
+  HTML report and printing follow the same rule at their size.
+- The numbers stay the same: the table and the export list every slice.
+- To see every slice on the chart, set **Legend** to **Bottom** or **Right**, or show the table.
+- A slice you hid in the legend stays hidden. It is not part of the grey slice.
 
 ## Zoom and series { #zoom-and-series }
 

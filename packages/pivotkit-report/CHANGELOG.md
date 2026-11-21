@@ -8,6 +8,12 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Added
 
+- The chart as SVG and in the HTML report draws bars and lines, and a treemap
+  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).
+- The chart as SVG and in the HTML report merges a pie's smallest slices into "Other (n)" by the same
+  rule as the screen. The chart takes the report's words, so a German report writes "Andere (n)"
+  and the German names of the reference lines. `--pk-chart-other` is one of the report's tokens
+  ([many slices](https://pivotkit.eize.dev/use/charts/#many-slices), #544).
 - The chart as SVG and in the HTML report draws the high and low points. Their labels are placed
   after a second draw, as on the screen
   ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), #574).

@@ -556,6 +556,8 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
     const chart = view.chart;
     const pie = SLICE_TYPES.includes(drawn);
     const axis = CHART_TYPES[drawn]?.axis ?? false;
+    // a treemap names each tile on it: no legend
+    const legend = drawn !== "treemap";
     /** One choice of several: radio, its patch applied at once. @returns {Choice} */
     const pickOf = (/** @type {string} */ key, /** @type {string} */ value, /** @type {string} */ text, /** @type {string} */ id, /** @type {string | undefined} */ info = undefined) => ({ id, text, checked: (chart[key] ?? null) === value, info, run: () => act.display({ [key]: value }) });
     /** A switch. @returns {Choice} */
@@ -572,7 +574,7 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
             changed: valueLabels !== "auto",
             groups: [{ choices: (pie ? VALUE_LABELS.slices : VALUE_LABELS.other).map((v) => ({ ...pickOf("valueLabels", v, labels.valueLabelNames[v], `labels-${v}`), checked: valueLabels === v })) }]
         },
-        { id: "legend", title: labels.legend, kind: "menu", state: labels.legendNames[chart.legend], changed: chart.legend !== "auto", groups: [{ choices: ["auto", "bottom", "right", "off"].map((v) => pickOf("legend", v, labels.legendNames[v], `legend-${v}`)) }] },
+        ...(legend ? [/** @type {Topic} */ ({ id: "legend", title: labels.legend, kind: "menu", state: labels.legendNames[chart.legend], changed: chart.legend !== "auto", groups: [{ choices: ["auto", "bottom", "right", "off"].map((v) => pickOf("legend", v, labels.legendNames[v], `legend-${v}`)) }] })] : []),
         { id: "title", title: labels.chartTitle, kind: "panel", state: chart.title || labels.chartTitleNone, changed: Boolean(chart.title) }
     ];
     if (axis) {
@@ -605,7 +607,7 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
             groups: [...(axis ? [{ choices: ["auto", "axis"].map((v) => pickOf("tooltip", v, labels.tooltipNames[v], `tooltip-${v}`)) }] : []), { choices: [flip("tooltipShare", labels.tooltipShare, "chart-tooltip-share")] }]
         });
     }
-    if (axis) {
+    if (axis && CHART_TYPES[drawn]?.lines !== false) {
         // Reference lines: a level of switches (Average, Trend, High and low points), the target's row that opens its form
         // (the hidden topic "linesTarget", toolbar-panels.jsx), and why a line is off as a reason
         const now = chart.referenceLines ?? { average: false, trend: false, target: null, extremes: false };

@@ -51,7 +51,7 @@ export const de = {
     view: "Ansicht",
     chartType: "Diagrammtyp",
     chartTypeIs: "Diagrammtyp: {type}",
-    chartTypes: { auto: "Automatisch", bar: "Balken", stacked: "Gestapelte Balken", horizontal: "Liegende Balken", line: "Linien", area: "Fläche", pie: "Kreis", donut: "Ring", heatmap: "Heatmap" },
+    chartTypes: { auto: "Automatisch", bar: "Balken", stacked: "Gestapelte Balken", horizontal: "Liegende Balken", line: "Linien", area: "Fläche", pie: "Kreis", donut: "Ring", heatmap: "Heatmap", combo: "Balken und Linien", treemap: "Treemap" },
     undo: "Rückgängig",
     redo: "Wiederholen",
     startOver: "Neu beginnen",

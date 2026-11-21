@@ -170,6 +170,7 @@ export const de = {
     moveRight: "Nach rechts",
     remove: "Feld entfernen",
     chartAutoNow: "Jetzt: {type}",
+    chartNeedsValues: "Braucht zwei Werte.",
     sharedViews: "Gemeinsame Ansichten",
     myViews: "Meine Ansichten",
     noViews: "Noch keine gespeicherten Ansichten.",

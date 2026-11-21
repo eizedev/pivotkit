@@ -212,7 +212,8 @@ export async function render(view, data, options = {}) {
         return { ...base, body: null, issues, ok, summary: null, view: normalized.view };
     }
     // the report's own words in the language of its locale (pivotkit-core's REPORT_LABELS, as the report on a page shows them), unless given
-    const grid = toGrid(result, { labels: options.labels ?? reportLabels(result.locale ?? pivotOptions.locale), ...(options.limits ? { limits: options.limits } : {}) });
+    const words = options.labels ?? reportLabels(result.locale ?? pivotOptions.locale);
+    const grid = toGrid(result, { labels: words, ...(options.limits ? { limits: options.limits } : {}) });
     const summary = { rows: grid.bodyRows.length, columns: grid.columnCount, sourceRows: data2.length, keptRows: result.rows.length, truncated: false };
     const texts = textsFor(grid.locale, options.texts);
     const title = (options.title ?? (read.name || normalized.view.chart.title || texts.untitled)).trim() || texts.untitled;
@@ -228,7 +229,8 @@ export async function render(view, data, options = {}) {
             // set for the formats that draw a chart (svg, html), the only callers of chartOf
             .../** @type {{ width: number, height: number }} */ (size),
             locale: grid.locale,
-            labels: options.labels,
+            // the chart's words as the table's: "Other (n)", the reference lines, totals
+            labels: words,
             limits: options.limits,
             now: options.now,
             // a pair is light and dark (pivotkit-react's colorMap): a report is light

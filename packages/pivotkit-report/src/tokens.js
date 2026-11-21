@@ -30,7 +30,8 @@ export const LIGHT_TOKENS = Object.freeze({
     "--pk-chart-6": "#008300",
     "--pk-chart-7": "#6250d6",
     "--pk-chart-8": "#e34948",
-    "--pk-chart-reference": "var(--pk-muted)"
+    "--pk-chart-reference": "var(--pk-muted)",
+    "--pk-chart-other": "var(--pk-muted)"
 });
 
 /** The dark theme, for a report read on a screen in dark mode (never printed: print is light). */
@@ -58,7 +59,8 @@ export const DARK_TOKENS = Object.freeze({
     "--pk-chart-6": "#008300",
     "--pk-chart-7": "#9085e9",
     "--pk-chart-8": "#e66767",
-    "--pk-chart-reference": "var(--pk-muted)"
+    "--pk-chart-reference": "var(--pk-muted)",
+    "--pk-chart-other": "#6b7280"
 });
 
 /** The font weights, the same in both themes: pivotkit-react's scale (test/tokens.test.js compares them). */

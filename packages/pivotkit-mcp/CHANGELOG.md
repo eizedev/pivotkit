@@ -8,6 +8,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Added
 
+- The skill names the chart types `combo` and `treemap`
+  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).
 - `create_link` writes the values of a source's `linkParams` into the page's query string, and
   `list_sources` names `linkParams`. The tool's description says so: MCP clients reconnect to read it
   ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), #619).
