@@ -82,3 +82,19 @@ test("describeView: the view in parts, each with its words, and what is wrong wi
 test("describeSource counts in the singular for one row and one field", () => {
     assert.equal(describeSource(encode([{ A: 1 }])).text, "1 row, 1 field: A (number)");
 });
+
+// #696: a date item of a sort's column read as milliseconds ("in the column 1767571200000")
+test("describeView names a date item of a sort's column as its day, other items as they are", () => {
+    const day = Date.UTC(2026, 0, 5);
+    const d = describeView({ version: 2, rows: ["Region"], cols: ["Date", "Product"], values: [{ field: "Units", agg: "sum" }], sort: [{ field: "Region", by: "value", value: { field: "Units", agg: "sum" }, column: [day, "A"], order: "desc" }] }, data);
+    assert.equal(d.valid, true, JSON.stringify(d.errors));
+    assert.equal(d.sort[0].text, "Region by sum of Units in the column 2026-01-05 › A, descending");
+    assert.deepEqual(d.sort[0].column, [day, "A"], "the structured part keeps the key");
+    // a grouping of a date that is itself a date (day) reads as a day too; a number grouping stays a number
+    const grouped = describeView({ version: 2, rows: ["Region"], cols: ["Day", "Month"], derived: [{ name: "Day", field: "Date", by: "day" }, { name: "Month", field: "Date", by: "month" }], values: [{ field: "Units", agg: "sum" }], sort: [{ field: "Region", by: "value", value: { field: "Units", agg: "sum" }, column: [day, 1], order: "asc" }] }, data);
+    assert.equal(grouped.sort[0].text, "Region by sum of Units in the column 2026-01-05 › 1, ascending");
+    // a time of day keeps its minute; a key no date can hold stays a number instead of throwing
+    const at = (key) => describeView({ version: 2, rows: ["Region"], cols: ["Date"], values: [{ field: "Units", agg: "sum" }], sort: [{ field: "Region", by: "value", value: { field: "Units", agg: "sum" }, column: [key], order: "asc" }] }, data).sort[0]?.text;
+    assert.equal(at(day + 3600000), "Region by sum of Units in the column 2026-01-05T01:00, ascending");
+    assert.equal(at(1e20), "Region by sum of Units in the column 100000000000000000000, ascending");
+});

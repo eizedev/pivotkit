@@ -136,9 +136,7 @@ The `User-Agent` header of each request:
 
 | Request | `User-Agent` |
 | --- | --- |
-| the command line to a server's REST service | `pivotkit-cli/<version>` |
-| the command line's sign-in, to a host that is not loopback | Node's default, `node` |
-| the command line's sign-in, to a loopback address | none |
+| the command line to a server's REST service, and its sign-in to the server and the issuer | `pivotkit-cli/<version>` |
 | the server's request for the issuer's key set | the jose library's, `jose/v<version>` |
 | `pivotkit-server healthcheck` | Node's default, `node` |
 | every other request of the server | none, unless the operator sets the header for a source |

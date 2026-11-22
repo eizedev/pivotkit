@@ -12,6 +12,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   in the locale's language. pivotkit-react names months with it
   ([#662](https://github.com/eizedev/pivotkit/issues/662)).
 
+### Fixed
+
+- `describeView` writes a date item in a sort's `column` as its day, for example
+  "in the column 2026-01-05". It wrote the raw milliseconds
+  ([#696](https://github.com/eizedev/pivotkit/issues/696)).
+
 ## [0.9.0] - 2026-11-21
 
 ### Added

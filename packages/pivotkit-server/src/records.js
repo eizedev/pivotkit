@@ -123,7 +123,9 @@ export function createRecords(context) {
         }
         if (!Object.hasOwn(options.sources ?? {}, input.source) || !recordsOfProfile(options, caller.profile).includes(input.source)) {
             // a source that is not there answers alike: no probing for ids
-            throw new OperationError("NOT_ALLOWED", "your sign-in may not read the rows of this source; the operator grants it per profile (policy.profiles.<name>.records)");
+            // the caller's own profile by name: a placeholder in angle brackets reached a caller as "policy.profiles..records" (#693)
+            const where = caller.profile ? `in your profile (policy.profiles.${caller.profile}.records)` : "per profile (policy.profiles), and your sign-in has no profile";
+            throw new OperationError("NOT_ALLOWED", `your sign-in may not read the rows of this source; the operator grants it ${where}`);
         }
         const person = /** @type {string} */ (identityKey(caller));
         const release = places.take(person);
