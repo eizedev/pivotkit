@@ -748,7 +748,8 @@ function formattingSection(raw, view, ctx) {
  * Names of the report's own for fields (#158): each key a field of the data or a grouping, each name a
  * text up to the name limit, trimmed. Kept under the field's own spelling; none set, no key. A field
  * named twice (in another case) keeps the last name, with a warning; so does a name that another
- * field also goes by (its own name or the view's for it), since their headers read alike (#699).
+ * field of the report also goes by (its own name or the view's for it, in any case or spacing),
+ * since their headers read alike (#699).
  */
 function fieldLabelsSection(raw, view, ctx) {
     const map = get(raw, "fieldLabels");
@@ -784,21 +785,26 @@ function fieldLabelsSection(raw, view, ctx) {
         Object.defineProperty(out, f.name, { value: text, enumerable: true, writable: true, configurable: true });
         pathOf.set(f.name, path);
     }
-    // the name each field goes by: the view's for it, else its own; a name of two fields is said at each of the view's
+    if (!Object.keys(out).length) {
+        return;
+    }
+    view.fieldLabels = out;
+    // the name each field of the report goes by (the view's for it, else its own), alike in case and
+    // spacing: a name of two such fields is said at each name of the view's among them
+    const alike = (text) => text.toLowerCase().replace(/\s+/g, " ");
+    const placed = new Set([...view.rows, ...view.cols, ...view.values.map((v) => v.field), ...view.filters.map((f) => f.field)].filter((name) => typeof name === "string"));
     /** @type {Map<string, string[]>} */
     const byName = new Map();
-    for (const field of ctx.fields.values()) {
-        const name = Object.hasOwn(out, field.name) ? out[field.name] : field.name;
-        byName.set(name, [...(byName.get(name) ?? []), field.name]);
+    for (const name of placed) {
+        const key = alike(Object.hasOwn(out, name) ? out[name] : name);
+        byName.set(key, [...(byName.get(key) ?? []), name]);
     }
     for (const [name, text] of Object.entries(out)) {
-        const others = /** @type {string[]} */ (byName.get(text)).filter((other) => other !== name);
-        if (others.length) {
-            ctx.warn(/** @type {string} */ (pathOf.get(name)), `the name "${text}" is also the name of "${others[0]}"; their headers read alike`, "labelTaken", { field: name, value: shown(text) });
+        const other = placed.has(name) ? byName.get(alike(text))?.find((n) => n !== name) : undefined;
+        if (other !== undefined) {
+            const whose = Object.hasOwn(out, other) ? `the view's name for "${other}"` : `the name of the field "${other}"`;
+            ctx.warn(/** @type {string} */ (pathOf.get(name)), `"${text}" is also ${whose}; their headers read alike`, "labelTaken", { field: name, value: shown(text) });
         }
-    }
-    if (Object.keys(out).length) {
-        view.fieldLabels = out;
     }
 }
 

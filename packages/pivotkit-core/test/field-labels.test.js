@@ -78,6 +78,11 @@ test("normalize warns when fieldLabels names a field twice, and when two fields 
     assert.deepEqual(alike.issues.map((i) => [i.code, i.severity, i.path, i.params?.value]), [["labelTaken", "warning", "fieldLabels.cn", "Place"], ["labelTaken", "warning", "fieldLabels.cat", "Place"]]);
     const taken = normalize({ rows: ["cn", "cat"], fieldLabels: { cn: "cat" } }, data);
     assert.deepEqual(taken.issues.map((i) => [i.code, i.path, i.params?.field, i.params?.value]), [["labelTaken", "fieldLabels.cn", "cn", "cat"]]);
+    // alike in case and spacing; a derived field; a field not on the report is no clash
+    assert.deepEqual(normalize({ rows: ["cn", "cat"], fieldLabels: { cn: " CAT " } }, data).issues.map((i) => i.code), ["labelTaken"]);
+    const grouped = normalize({ derived: [{ name: "Bucket", field: "Revenue", by: "bin", size: 2 }], rows: ["Bucket", "cn"], fieldLabels: { Bucket: "cn" } }, data);
+    assert.deepEqual(grouped.issues.map((i) => [i.code, i.params?.field]), [["labelTaken", "Bucket"]]);
+    assert.deepEqual(normalize({ rows: ["cn"], fieldLabels: { cn: "cat" } }, data).issues, [], "cat is not on the report");
     // names that differ, or a field's own name for itself: no warning
     assert.deepEqual(normalize({ rows: ["cn"], fieldLabels: { cn: "City", cat: "Kind" } }, data).issues, []);
     assert.deepEqual(normalize({ rows: ["cn"], fieldLabels: { cn: "cn" } }, data).issues, []);
