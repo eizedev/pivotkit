@@ -60,7 +60,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   every value is ticked and no condition is set, its count says "All 14 selected · nothing filtered
   yet" ([#595](https://github.com/eizedev/pivotkit/issues/595)).
 - The buttons that add a rule in the Filter level read "Filter by <field>", "Filter by total" and
-  "Filter by name" (German "Nach <Feld> filtern", "Nach Wert filtern", "Nach Name filtern"). The
+  "Filter by name" (German "Nach <Feld> filtern", "Nach Gesamtwert filtern", "Nach Name filtern"). The
   menu's search finds them by "rule" too ([#177](https://github.com/eizedev/pivotkit/issues/177)).
 - On a touch screen every button takes a finger, at least 44 x 44 px: the toolbar, the tabs,
   Settings, Enlarge, Full screen, the zones' heading, the chips and the small text buttons. Every
