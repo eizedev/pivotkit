@@ -9,9 +9,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 ### Changed
 
 - REST, MCP, the download links and `serve` run their requests through one route handler
-  (`createRouteHandler`): request id, scope, the refused line and `X-Request-Id`. The answers and log
-  lines stay the same.
-
+  (`createRouteHandler`): request id, scope, the refused line and `X-Request-Id`. Every request
+  through `serve`, pivotkit-mcp or REST gets the same answers and log lines as before.
 - Depends on `pivotkit-node` `^0.1.0` for the file handling and the REST contract, which it took from
   `pivotkit-cli` before. pivotkit-cli stays a dependency for `pivotkit-server cli`.
 - Reads IP addresses, loopback, Retry-After and the code of a failed connection through

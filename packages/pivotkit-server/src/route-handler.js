@@ -15,7 +15,7 @@ import { logUnanswered, refusalReason } from "./log.js";
 import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
 
 /**
- * @typedef {{ address?: string, [key: symbol]: any }} RequestInfo  serveFetch's: `address` is the socket's peer; the same object reaches precheck, fetch and problem
+ * @typedef {Record<string | symbol, any>} RequestInfo  serveFetch's: `address` is the socket's peer; the same object reaches precheck, fetch and problem
  * @typedef {{ path?: string, notFound?: "info" }} RouteFamily  what a refused line of logUnanswered names
  * @typedef {(request: Request, info: RequestInfo) => Promise<Response | null>} Check
  * @typedef {(request: Request, info: RequestInfo) => Promise<Response>} Answer
@@ -32,7 +32,7 @@ import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./reques
  * @param {(response: Response, id: string) => Response | Promise<Response>} [family.finish]  the family's last touch on every answer (REST: the id in a problem's body)
  * @param {(info: RequestInfo) => void} [family.release]  gives back what the precheck held, after the route ran or its body could not be read
  * @param {object} [family.unreadable]  the answer to a body that cannot be read (too large, or the client left)
- * @param {string} family.unreadable.path  the path its refused line names
+ * @param {string} family.unreadable.path  the path its refused line names: problem has no request to ask familyOf with
  * @param {(path: string, info: RequestInfo) => number} family.unreadable.limitOf  the body cap a 413 names
  * @param {(status: 400 | 413, limit: number, id: string) => Response} family.unreadable.answer
  */

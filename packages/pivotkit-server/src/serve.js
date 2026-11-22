@@ -255,12 +255,16 @@ export async function createServerHandler(options, runtime) {
             }
         };
 
+        const hosted = createRouteHandler(context, { check: routes.precheck, answer: routes.fetch });
+
         return {
             context,
             enable,
             downloads,
-            // every 4xx answer has a line: the routes' own (each family names its path), or a refused line by its status
-            ...createRouteHandler(context, { check: routes.precheck, answer: routes.fetch }),
+            // every 4xx answer has a line: the routes' own (each family names its path), or a refused line by its
+            // status; a body that cannot be read goes to the family of its path (problem below)
+            precheck: hosted.precheck,
+            fetch: hosted.fetch,
             /** @type {import("./listen.js").FetchHandler["release"]} */
             release: (info) => rest?.release(info),
             problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status, path, info) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status, path, info) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? BODY_TOO_LARGE_TEXT : "the request cannot be read")),

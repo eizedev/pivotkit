@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { noteAnswered } from "../src/log.js";
-import { requestId } from "../src/request-id.js";
+import { plainAddress, requestId, requestScope } from "../src/request-id.js";
 import { createRouteHandler } from "../src/route-handler.js";
 
 /** A context whose log keeps its refused lines with the request id they were written under. */
@@ -59,11 +59,36 @@ test("an answer whose route wrote its own line gets no second one; finish touche
 
 test("with http.trustProxy the forwarded client is the request's address; without, the socket's peer", async () => {
     const seen = [];
-    const { requestScope } = await import("../src/request-id.js");
     for (const trustProxy of [true, false]) {
         const { context } = contextOf({ http: { trustProxy } });
         const routes = createRouteHandler(context, { check: async () => null, answer: async () => (seen.push(requestScope()?.address), new Response("ok")) });
         await routes.fetch(request("/", { "x-forwarded-for": "198.51.100.7" }), { address: "::ffff:192.0.2.1" });
     }
     assert.deepEqual(seen, ["198.51.100.7", "192.0.2.1"]);
+});
+
+test("a family hosted by another, given the host's info, names the host's id and writes the request's one line", async () => {
+    const { context, lines } = contextOf();
+    const inner = createRouteHandler(context, { check: async () => null, answer: async () => new Response("gone", { status: 404 }), familyOf: () => ({ path: "/inner", notFound: "info" }) });
+    const ids = [];
+    const host = createRouteHandler(context, { check: async () => null, answer: async (req, info) => (ids.push(requestId()), inner.fetch(req, info)) });
+    const answer = await host.fetch(request("/inner/x"), { address: "192.0.2.1" });
+    assert.deepEqual(ids, [answer.headers.get("x-request-id")]);
+    assert.deepEqual(lines, [{ status: 404, path: "/inner", reason: "not_found", id: ids[0], level: "info" }]);
+});
+
+test("release runs when the route throws, and the error reaches the caller", async () => {
+    const { context } = contextOf();
+    let released = 0;
+    const routes = createRouteHandler(context, { check: async () => null, answer: async () => { throw new Error("broken"); }, release: () => released++ });
+    await assert.rejects(routes.fetch(request("/")), /broken/);
+    assert.equal(released, 1);
+});
+
+test("plainAddress takes the IPv4 address out of a dotted IPv4-mapped one only, as a socket writes it", () => {
+    assert.equal(plainAddress("::ffff:192.0.2.10"), "192.0.2.10");
+    assert.equal(plainAddress("::FFFF:127.0.0.1"), "127.0.0.1");
+    assert.equal(plainAddress("::ffff:c000:20a"), "::ffff:c000:20a");
+    assert.equal(plainAddress("2001:db8::1"), "2001:db8::1");
+    assert.equal(plainAddress(undefined), "");
 });
