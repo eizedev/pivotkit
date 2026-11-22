@@ -15,12 +15,12 @@ import { normalize, validate, viewFields } from "./view.js";
 /** The most items a field's summary lists, and the characters of each. */
 export const DESCRIBE_LIMITS = Object.freeze({ items: 20, text: 80 });
 
-/** A value of the data as a summary writes it: a date as its ISO day or minute, text capped. */
+/** A value of the data as a summary writes it: a date as its ISO day or minute (one no date holds: its number), text capped. */
 function valueText(value, type) {
     if (value === null || value === undefined) {
         return null;
     }
-    if (type === "date" && typeof value === "number") {
+    if (type === "date" && typeof value === "number" && !Number.isNaN(new Date(value).getTime())) {
         const iso = new Date(value).toISOString();
         return iso.endsWith("T00:00:00.000Z") ? iso.slice(0, 10) : iso.slice(0, 16);
     }
