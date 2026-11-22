@@ -118,10 +118,11 @@ function protocolRefusal(log, error) {
 /**
  * The fetch handler of a context.
  * @param {any} context  createMcpContext's
- * @param {{ env?: Record<string, string | undefined>, loopback?: boolean }} [runtime]
+ * @param {{ env?: Record<string, string | undefined>, loopback?: boolean, notFound?: () => Response }} [runtime]  notFound: the answer to a path nobody serves (pivotkit-server's, which names its REST service); else a plain "not found"
  * @returns {Promise<{ fetch(request: Request): Promise<Response>, precheck(request: Request): Promise<Response | null>, problem(status: number): Response, close(): Promise<void>, auth: any, downloads: any }>}
  */
 export async function createHttpHandler(context, runtime = {}) {
+    const notFound = runtime.notFound ?? (() => new Response("not found", { status: 404 }));
     const http = context.options.http ?? {};
     const publicOrigin = publicOriginOf(context.options);
     const hosts = allowedHosts(context.options);
@@ -210,7 +211,7 @@ export async function createHttpHandler(context, runtime = {}) {
             return Response.json({ ok: true });
         }
         if (url.pathname.startsWith("/.well-known/")) {
-            return auth.metadata(request) ?? new Response("not found", { status: 404 });
+            return auth.metadata(request) ?? notFound();
         }
         const branded = brandingAnswer(branding, request);
         if (branded) {
@@ -218,7 +219,7 @@ export async function createHttpHandler(context, runtime = {}) {
         }
         if (url.pathname === "/" && request.method === "GET") {
             if (!page) {
-                return new Response("not found", { status: 404 });
+                return notFound();
             }
             const endpoint = publicOrigin ? `${publicOrigin}${ENDPOINT}` : `${url.protocol}//${url.host}${ENDPOINT}`;
             const html = quickStartPage({ endpoint, version: context.version, auth: auth.mode, issuer: auth.mode === "oauth" ? context.options.auth?.issuer : null, sources: page.sources ? context.registry.titles().filter((s) => !s.scopes.length) : null, branding });
@@ -227,7 +228,7 @@ export async function createHttpHandler(context, runtime = {}) {
         if (url.pathname !== ENDPOINT) {
             // a path nobody serves: on the debug log only, so a scan does not fill the log
             context.log.refused({ status: 404, reason: refusalReason("NOT_FOUND") }, { level: "debug" });
-            return new Response("not found", { status: 404 });
+            return notFound();
         }
         if (isBrowser(request)) {
             return branding.pageUrl ? pageRedirect(branding) : new Response(null, { status: 302, headers: { location: "/" } });
