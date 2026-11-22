@@ -15,19 +15,23 @@ async function onlyValue(page, value) {
     await page.getByTestId("filter-apply").click();
 }
 
+/**
+ * Picks only the given item in an open Filter level: "Only" shows on hover. With unfold, the items
+ * are folded first, as they are while the field has a rule.
+ */
+async function pickOnly(menu, item, { unfold = false } = {}) {
+    if (unfold) await menu.getByTestId("section-picks").click();
+    const row = menu.locator(".pk-value", { hasText: item });
+    await row.hover();
+    await row.locator(".pk-only").click();
+}
+
 test.describe("filters say what they keep", () => {
     /** Region's menu on the sales data, open on its first level. */
     async function regionMenu(page) {
         await page.goto("?data=sales");
         await chipMenu(page, "Region");
         return page.locator(".pk-chip-menu");
-    }
-
-    /** Picks only West in Region's open Filter level: "Only" shows on hover. */
-    async function onlyWest(menu) {
-        const row = menu.locator(".pk-value", { hasText: "West" });
-        await row.hover();
-        await row.locator(".pk-only").click();
     }
 
     const regionBadge = (page) => page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] .pk-badge-text');
@@ -47,7 +51,7 @@ test.describe("filters say what they keep", () => {
     test("Only applies at once and the level stays open; back on the first level, the Filter row says it with its dot and in words", async ({ page }) => {
         const menu = await regionMenu(page);
         await openLevel(menu, "filter");
-        await onlyWest(menu);
+        await pickOnly(menu, "West");
         await expect(regionBadge(page)).toHaveText(/^1 of \d+$/);
         await expect(menu.getByTestId("filter-summary-head")).toHaveText(/^1 of \d+ items shown$/);
         await expect(menu.getByTestId("filter-summary-why")).toHaveText(/^\d+ left out by your picks$/);
@@ -64,7 +68,7 @@ test.describe("filters say what they keep", () => {
     test("Clear picks in the Filter level shows every item again", async ({ page }) => {
         const menu = await regionMenu(page);
         await openLevel(menu, "filter");
-        await onlyWest(menu);
+        await pickOnly(menu, "West");
         await expect(regionBadge(page)).toHaveText(/^1 of \d+$/);
         await menu.getByTestId("filter-clear-picks").click();
         await expect(regionBadge(page)).toHaveCount(0);
@@ -322,6 +326,13 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
     async function regionRows(page) {
         return (await tableRows(page)).filter((r) => r[0] !== "Grand Total").map((r) => [r[0], number(r[1]), number(r[2])]);
     }
+    /** twoValues, then the region rows, the row with the least revenue, and a limit just above it. */
+    async function leastRevenue(page) {
+        await twoValues(page);
+        const rows = await regionRows(page);
+        const least = [...rows].sort((a, b) => a[2] - b[2])[0];
+        return { rows, least, limit: Math.floor(least[2]) + 1 };
+    }
 
     test("the sort level offers every value and marks the one it sorts by", async ({ page }) => {
         await twoValues(page);
@@ -350,9 +361,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
     });
 
     test("Top N ranks by the value chosen", async ({ page }) => {
-        await twoValues(page);
-        const rows = await regionRows(page);
-        const least = [...rows].sort((a, b) => a[2] - b[2])[0][0];
+        const { rows, least: [least] } = await leastRevenue(page);
         await chipMenu(page, "Region");
         const menu = page.locator(".pk-chip-menu");
         // bottom 1 by revenue keeps the region with the least revenue
@@ -382,10 +391,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
      * revenue, or between 0 and it. The menu stays on the Filter level.
      */
     async function revenueRule(page, { between = false } = {}) {
-        await twoValues(page);
-        const rows = await regionRows(page);
-        const least = [...rows].sort((a, b) => a[2] - b[2])[0];
-        const limit = Math.floor(least[2]) + 1;
+        const { rows, least, limit } = await leastRevenue(page);
         const shown = limit.toLocaleString("en-US");
         await chipMenu(page, "Region", "filter");
         const menu = page.locator(".pk-chip-menu");
@@ -400,21 +406,11 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
             await menu.getByTestId("value-filter-number2").fill("0");
             await expect(badge).toHaveText(`Sum of Revenue between 0 and ${shown}`);
         }
-        return { menu, badge, rows, least, limit, shown };
-    }
-
-    /** Picks only the given item in the open Filter level; the items are folded while the field has a rule. */
-    async function pickOnly(menu, item) {
-        await menu.getByTestId("section-picks").click();
-        const row = menu.locator(".pk-value", { hasText: item });
-        await row.hover();
-        await row.locator(".pk-only").click();
+        return { menu, badge, rows, least, shown };
     }
 
     test("a value condition is a sentence in the Filter level; text that is no number says what is wrong", async ({ page }) => {
-        await twoValues(page);
-        const least = [...(await regionRows(page))].sort((a, b) => a[2] - b[2])[0];
-        const limit = Math.floor(least[2]) + 1;
+        const { limit } = await leastRevenue(page);
         await chipMenu(page, "Region", "filter");
         const menu = page.locator(".pk-chip-menu");
         // a rule on the total: a sentence of the value, its comparison and a number
@@ -464,7 +460,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         const { menu, badge, least, shown } = await revenueRule(page, { between: true });
         await menu.getByTestId("level-back").click();
         await openLevel(menu, "filter");
-        await pickOnly(menu, least[0]);
+        await pickOnly(menu, least[0], { unfold: true });
         await expect(menu.getByTestId("filter-summary-head")).toHaveText(/^1 of \d+ items shown$/);
         await expect(menu.getByTestId("filter-summary-why")).toHaveText(/^\d+ left out by your picks$/);
         await menu.getByTestId("rule-remove").click();
@@ -480,7 +476,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         const { menu, badge, least } = await revenueRule(page, { between: true });
         await menu.getByTestId("level-back").click();
         await openLevel(menu, "filter");
-        await pickOnly(menu, least[0]);
+        await pickOnly(menu, least[0], { unfold: true });
         await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
         await chipMenu(page, "Region", "filter");
@@ -609,7 +605,7 @@ test.describe("menus in levels", () => {
         await expect(menu.locator("[data-section]")).toHaveCount(0);
     });
 
-    test("a value's level opens in place, titled with the value, the rare choices under a heading; a choice applies and goes back to its row", async ({ page }) => {
+    test("a value's level is titled with the value, the rare formats under a heading; a choice applies and goes back to its row", async ({ page }) => {
         await page.goto("?data=sales");
         await chipMenu(page, "Sum of Revenue");
         const menu = page.locator(".pk-chip-menu");
@@ -625,7 +621,7 @@ test.describe("menus in levels", () => {
         await expect(menu.getByTestId("topic-state-format")).toHaveText("● Percent");
     });
 
-    test("Highlight: three choices side by side on a value's first level; a choice applies, keeps the focus and says the change in words", async ({ page }) => {
+    test("Highlight on a value's first level: a choice applies, keeps the focus and says the change in words", async ({ page }) => {
         await page.goto("?data=sales");
         await chipMenu(page, "Sum of Revenue");
         const menu = page.locator(".pk-chip-menu");
@@ -722,6 +718,7 @@ test.describe("menus in levels", () => {
         const show = page.getByTestId("show-explanations");
         await show.focus();
         await show.press("Space");
+        await expect(show).not.toBeChecked();
         await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
         await toolbar(page, "table-settings");

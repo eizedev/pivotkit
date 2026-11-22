@@ -605,8 +605,7 @@ test("a condition on the names of spaces only is none, as an empty one", () => {
     assert.equal(filtersOf(setLabelFilter(v, "Region", { op: "contains", value: " a " }), "Region", ["text"]).length, 1);
 });
 
-
-test("filter: the condition on the labels by the field's type, none for dates and yes/no", () => {
+test("the condition on the labels by the field's type, none for dates and yes/no", () => {
     const data = encode([{ Region: "North", Units: 3, Day: "2026-01-05", Done: true }]);
     const view = { derived: [{ name: "Day by month", field: "Day", by: "yearMonth" }, { name: "Units (by 2)", field: "Units", by: "bin", size: 2 }] };
     assert.equal(conditionKind(data, view, "Region"), "text");

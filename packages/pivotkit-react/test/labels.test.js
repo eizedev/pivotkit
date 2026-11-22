@@ -1,17 +1,65 @@
-// The report's texts (labels.js): counts in the plural forms of a language, the row count under the
-// result, a host's labels, a limit of the core in words, and labels the report no longer shows.
+// The report's texts (labels.js): the language and a host's labels, the menus' texts under them,
+// counts in the plural forms of a language, the row count under the result, a limit of the core and a
+// host's refusal in words, and labels the report no longer shows.
 // The loading of a language's texts is labels-load.test.js.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ROW_COUNT_TEXTS, computePivot, encode, toGrid, toSeries } from "pivotkit-core";
 import { REPORT_TEXTS } from "pivotkit-report";
 import { chartSummary } from "../src/chart-summary.js";
-import { LABELS, errorText, fill, plural, removedLabels, resolveLabels, rowCount } from "../src/labels.js";
+import { LABELS, errorText, fill, hostFailure, plural, removedLabels, resolveLabels, rowCount } from "../src/labels.js";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../src/deferred.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
+import { addMenuTexts, en as menuEn, menuLabels } from "../src/menu-labels.js";
+
+/** The menus' texts of both languages (German is a chunk of its own in the package). */
+const MENU_LABELS = { en: menuEn, de: menuDe };
 
 const en = LABELS.en;
+
+test("labels: the locale picks the language, partial labels merge deeply, en and de have the same keys", () => {
+    assert.equal(resolveLabels("de-AT").zones.rows, "Zeilen");
+    assert.equal(resolveLabels("fr-FR").zones.rows, "Rows");
+    const custom = resolveLabels("de-DE", { zones: { rows: "Reihen" }, core: { grandTotal: "Summe" } });
+    assert.deepEqual([custom.zones.rows, custom.zones.cols, custom.core.grandTotal, custom.core.blank], ["Reihen", "Spalten", "Summe", "(Leer)"]);
+    assert.equal(resolveLabels("en", JSON.parse('{"__proto__": {"polluted": 1}}')).polluted, undefined);
+    const keys = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" && !Array.isArray(v) ? keys(v, `${p}${k}.`) : [`${p}${k}`])).sort();
+    assert.deepEqual(keys(LABELS.de), keys(LABELS.en));
+    // the menus' texts (loaded with the menus): the same keys too, none of them in the first load's
+    assert.deepEqual(keys(MENU_LABELS.de), keys(MENU_LABELS.en));
+    assert.deepEqual(Object.keys(MENU_LABELS.en).filter((k) => Object.hasOwn(LABELS.en, k)), []);
+    assert.equal(fill("{a} of {b} {c}", { a: 1, b: "x" }), "1 of x {c}");
+});
+
+test("labels: the menus' texts come under the report's labels, and a host's text for one of them wins", () => {
+    addMenuTexts("de", menuDe);
+    const plain = menuLabels(resolveLabels("de-DE"));
+    assert.deepEqual([plain.cancel, plain.zones.rows, plain.drillCount.other], ["Abbrechen", "Zeilen", "{count} Zeilen"]);
+    const custom = menuLabels(resolveLabels("de-DE", { cancel: "Doch nicht", apply: 42, showAsNames: { runningTotal: "Kumuliert" }, core: { grandTotal: "Summe" } }));
+    // a text of the host's wins; one of the wrong type is ignored; a partial object merges
+    assert.deepEqual([custom.cancel, custom.apply, custom.showAsNames.runningTotal, custom.showAsNames.percentRunningTotal, custom.core.grandTotal], ["Doch nicht", "Anwenden", "Kumuliert", "% laufende Summe", "Summe"]);
+    // a language of the host's own: the English menu texts under it
+    assert.equal(menuLabels(resolveLabels("fr-FR", { lang: "fr", cancel: "Annuler" })).apply, "Apply");
+    assert.equal(menuLabels(resolveLabels("fr-FR", { lang: "fr", cancel: "Annuler" })).cancel, "Annuler");
+    // no prototype pollution through a key the first load does not have
+    assert.equal(menuLabels(resolveLabels("en", JSON.parse('{"__proto__": {"cancel": "x"}, "constructor": 1}'))).cancel, "Cancel");
+});
+
+test("a host that refuses to save a view: its own message when it gives one, a plain note when not", () => {
+    // the texts of save, delete and publish load with the Views menu
+    const { en, de } = MENU_LABELS;
+    const save = (e, l = en) => hostFailure(l.toastSaveFailed, l.toastSaveRejected, e);
+    assert.equal(save(new Error("Name taken")), "The view could not be saved: Name taken");
+    assert.equal(save("Quota reached"), "The view could not be saved: Quota reached");
+    assert.equal(save({ message: "Forbidden" }), "The view could not be saved: Forbidden");
+    // nothing to show: no "undefined", no "[object Object]", no dangling colon
+    for (const e of [undefined, null, new Error(""), new Error("  "), "", {}, 42, false]) {
+        assert.equal(save(e), "The server could not save the view.", String(e));
+    }
+    assert.equal(save(undefined, de), "Der Server konnte die Ansicht nicht speichern.");
+    assert.equal(hostFailure(de.toastDeleteFailed, de.toastDeleteRejected, null), "Der Server konnte die Ansicht nicht löschen.");
+});
 
 test("counts in words take the plural form of the language: 1 series, 1 Reihe", () => {
     const r = computePivot(encode([{ R: "North", V: 5 }]), { rows: ["R"], values: [{ field: "V", agg: "sum" }] });
@@ -20,8 +68,8 @@ test("counts in words take the plural form of the language: 1 series, 1 Reihe", 
     assert.match(chartSummary(s, { type: "bar", rows: ["R"], valueNames: ["Summe von V"], labels: LABELS.de, locale: "de-DE" }), /\. 1 Kategorie, 1 Reihe\./);
     assert.equal(plural(en.rowsCount, 1, { lang: "en", locale: "en-US" }), "1 row");
     assert.equal(plural(en.rowsCount, 1234, { lang: "en", locale: "en-US" }), "1,234 rows");
-    assert.equal(plural(menuDe.drillCount, 1, { lang: "de", locale: "de-DE" }), "1 Zeile");
-    assert.equal(plural(menuDe.drillCount, 0, { lang: "de", locale: "de-DE" }), "0 Zeilen");
+    assert.equal(plural(MENU_LABELS.de.drillCount, 1, { lang: "de", locale: "de-DE" }), "1 Zeile");
+    assert.equal(plural(MENU_LABELS.de.drillCount, 0, { lang: "de", locale: "de-DE" }), "0 Zeilen");
     // a language with more forms: a host's labels keep "few" and "many", which English does not have
     const pl = resolveLabels("en", { lang: "pl", rowsCount: { one: "{count} wiersz", few: "{count} wiersze", many: "{count} wierszy", other: "{count} wiersza" } });
     assert.equal(plural(pl.rowsCount, 3, { lang: pl.lang, locale: "pl-PL" }), "3 wiersze");

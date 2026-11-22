@@ -654,6 +654,7 @@ test.describe("keyboard and focus inside the shadow root", () => {
 
     test("Ctrl or Cmd+Z inside the shadow root undoes the last change", async ({ page }) => {
         await page.locator("#sales").getByRole("button", { name: "Remove Country" }).click();
+        await expect.poll(() => zone(page, "#sales", "rows")).toEqual(["Region"]);
         await page.locator("#sales .pk-status").click();
         await page.keyboard.press("ControlOrMeta+z");
         await expect.poll(() => zone(page, "#sales", "rows")).toEqual(["Region", "Country"]);
