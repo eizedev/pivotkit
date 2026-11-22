@@ -178,7 +178,7 @@ test.describe("the field list for the keyboard", () => {
         await expect(page.getByRole("menu", { name: "Options for Region" })).toBeVisible();
         await expect(page.getByRole("menuitem", { name: "Add to Rows" })).toBeVisible();
         // the menu takes the focus a frame after it opens; an Escape before that leaves it on the name
-        await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest('[role="menu"]')))).toBe(true);
+        await expect(page.getByRole("menu", { name: "Options for Region" }).locator(":focus")).toHaveCount(1);
         await page.keyboard.press("Escape");
         // the focus goes back to the menu button, and Tab back into the list returns to it
         await expect(page.getByTestId("field-menu-Region")).toBeFocused();
