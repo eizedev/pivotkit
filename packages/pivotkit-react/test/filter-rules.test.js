@@ -8,7 +8,7 @@ import { LABELS, fill, plural } from "../src/labels.js";
 import "../src/deferred.js";
 import { en as menuEn } from "../src/menu-labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
-import { QUICK_UNITS, RULES_MAX, RULE_TYPES, filterState, keepsBlanks, rowsInRange, setRuleBlanks, setTopFilter, setLabelFilter, textOn, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, yearRules } from "../src/menu-ops.js";
+import { QUICK_UNITS, RULES_MAX, RULE_TYPES, conditionKind, filterState, keepsBlanks, rowsInRange, setRuleBlanks, setTopFilter, setLabelFilter, textOn, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, yearRules } from "../src/menu-ops.js";
 import { axisTopics, filterZoneTopics, searchEntries, searchHits } from "../src/menu-topics.js";
 import { compareText, itemRuleText, namedUntil, rangeShare, rangeText, relativeText } from "../src/names.js";
 import { addField, dateSpan, filterZoneFields, filtersOf, groupField, selectedItems } from "../src/view-ops.js";
@@ -605,3 +605,13 @@ test("a condition on the names of spaces only is none, as an empty one", () => {
     assert.equal(filtersOf(setLabelFilter(v, "Region", { op: "contains", value: " a " }), "Region", ["text"]).length, 1);
 });
 
+test("the condition on the labels by the field's type, none for dates and yes/no", () => {
+    const data = encode([{ Region: "North", Units: 3, Day: "2026-01-05", Done: true }]);
+    const view = { derived: [{ name: "Day by month", field: "Day", by: "yearMonth" }, { name: "Units (by 2)", field: "Units", by: "bin", size: 2 }] };
+    assert.equal(conditionKind(data, view, "Region"), "text");
+    assert.equal(conditionKind(data, view, "Units"), "number");
+    assert.equal(conditionKind(data, view, "Units (by 2)"), "number");
+    assert.equal(conditionKind(data, view, "Day"), null);
+    assert.equal(conditionKind(data, view, "Day by month"), null, "a grouping of a date is a date");
+    assert.equal(conditionKind(data, view, "Done"), null);
+});

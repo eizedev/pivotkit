@@ -35,7 +35,7 @@ async function tool(host, testId) {
 /** A custom property's value on an element's .pk-root. */
 const token = (page, host, name) => page.locator(`${host} .pk-root`).evaluate((el, n) => getComputedStyle(el).getPropertyValue(n).trim(), name);
 
-test("the menus' German texts load only for a German report, also when the language changes, never English first; a host's text wins", async ({ page }) => {
+test("the menus' German texts load only for a German report, also when the language changes, never English first", async ({ page }) => {
     const loaded = [];
     page.on("request", (r) => loaded.push(new URL(r.url()).pathname));
     await page.goto("pages/element-views.html");
@@ -61,8 +61,19 @@ test("the menus' German texts load only for a German report, also when the langu
     expect(loaded.filter((p) => /menu-texts-de-/.test(p))).toHaveLength(1);
     // the menu waited for the German texts: no English title in between
     expect(await page.evaluate(() => window.__seen.filter((t) => t !== "Hilfe und Tastenkürzel"))).toEqual([]);
+});
+
+test("a host's text for a menu text wins over the German one", async ({ page }) => {
+    await page.goto("pages/element-views.html");
+    const host = page.locator("#views");
+    await expect(host.locator(".pk-root")).toBeVisible();
+    await page.evaluate(() => {
+        document.getElementById("views").locale = "de-DE";
+    });
+    await expect(host.locator(".pk-root")).toHaveAttribute("lang", "de");
+    await tool(host, "more");
+    await expect(host.getByTestId("more-help")).toHaveText("Hilfe und Tastenkürzel");
     await page.keyboard.press("Escape");
-    // a host's text for a menu text wins over the German one
     await page.evaluate(() => {
         document.getElementById("views").labels = { helpAndShortcuts: "Hilfe und Tipps" };
     });
@@ -602,9 +613,12 @@ test.describe("a page with a React of its own", () => {
 });
 
 test.describe("keyboard and focus inside the shadow root", () => {
-    test("Tab enters the report, a menu opens and closes from the keyboard, the focus comes back", async ({ page }) => {
+    test.beforeEach(async ({ page }) => {
         await page.goto("pages/element-two.html");
         await expect(page.locator("#sales .pk-root")).toBeVisible();
+    });
+
+    test("Tab from the page enters the report inside the shadow root", async ({ page }) => {
         await page.locator("#before").focus();
         await page.keyboard.press("Tab");
         const inside = await page.evaluate(() => {
@@ -613,6 +627,9 @@ test.describe("keyboard and focus inside the shadow root", () => {
             return { host: host.id, inside: Boolean(el && el.closest(".pk-root")) };
         });
         expect(inside).toEqual({ host: "sales", inside: true });
+    });
+
+    test("a menu opens with Enter, moves with the arrow keys, closes with Escape and gives the focus back to its button", async ({ page }) => {
         const exportButton = page.locator("#sales").getByTestId("export");
         await exportButton.focus();
         await page.keyboard.press("Enter");
@@ -622,7 +639,9 @@ test.describe("keyboard and focus inside the shadow root", () => {
         await page.keyboard.press("Escape");
         await expect(page.locator("#sales .pk-popover")).toHaveCount(0);
         await expect(exportButton).toBeFocused();
-        // the table's values move with the arrow keys and open with Enter
+    });
+
+    test("the table's values move with the arrow keys; Enter opens a value's rows, Escape gives the focus back to it", async ({ page }) => {
         const first = page.locator('#sales [data-testid="pivot-table"] td.pk-clickable').first();
         await first.focus();
         await page.keyboard.press("ArrowRight");
@@ -631,8 +650,11 @@ test.describe("keyboard and focus inside the shadow root", () => {
         await expect(page.locator("#sales").getByTestId("drill-panel").getByRole("button", { name: "Close" })).toBeFocused();
         await page.keyboard.press("Escape");
         await expect(page.locator('#sales [data-testid="pivot-table"] td.pk-clickable').nth(1)).toBeFocused();
-        // undo from the keyboard, inside the shadow root
+    });
+
+    test("Ctrl or Cmd+Z inside the shadow root undoes the last change", async ({ page }) => {
         await page.locator("#sales").getByRole("button", { name: "Remove Country" }).click();
+        await expect.poll(() => zone(page, "#sales", "rows")).toEqual(["Region"]);
         await page.locator("#sales .pk-status").click();
         await page.keyboard.press("ControlOrMeta+z");
         await expect.poll(() => zone(page, "#sales", "rows")).toEqual(["Region", "Country"]);
