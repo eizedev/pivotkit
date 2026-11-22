@@ -110,6 +110,9 @@ async function accessToken(sub, aud = REST_RESOURCE, client = "claude", iss = is
 }
 
 /** The cookie a Set-Cookie header sets, as a Cookie header sends it. */
+/** A text with its last character changed to another one of base64url: always a different text (a forged token or signature). */
+const flipped = (text) => `${text.slice(0, -1)}${text.at(-1) === "A" ? "B" : "A"}`;
+
 const cookieOf = (response) => (response.headers.get("set-cookie") ?? "").split(";")[0];
 
 /** Reads a server's log as it is so far, as one text. */
@@ -156,7 +159,7 @@ test("token: a signed token reads back; a changed payload or signature, another 
     const later = Buffer.from(JSON.stringify({ v: 1, n, e: e + 3600, b: "none" })).toString("base64url");
     assert.equal(readToken(KEYS, `${later}.${sig}`), null);
     // a flipped character of the signature
-    assert.equal(readToken(KEYS, `${body}.${sig.slice(0, -1)}${sig.at(-1) === "A" ? "B" : "A"}`), null);
+    assert.equal(readToken(KEYS, `${body}.${flipped(sig)}`), null);
     // the key of another server
     assert.equal(readToken(subkeysOf(randomBytes(32)), token), null);
     // a payload with a member pivotkit does not write, signed right
@@ -312,7 +315,7 @@ test("an open source's report: a plain link on loopback without http.publicUrl; 
         const forged = signToken(subkeysOf(randomBytes(32)), { n: /** @type {any} */ (payload).n, e: Math.floor(Date.now() / 1000) - 1, b: "none" });
         const unknown = signToken(KEYS, { n: randomBytes(16).toString("base64url"), e: Math.floor(Date.now() / 1000) + 60, b: "none" });
         const answers = [];
-        for (const path of [forged, `${token.slice(0, -2)}AA`, "x", "not-a-token", `${token}/x`, "%2e%2e%2fconfig.json"]) {
+        for (const path of [forged, flipped(token), "x", "not-a-token", `${token}/x`, "%2e%2e%2fconfig.json"]) {
             const a = await call(`${server.url}/downloads/${path}`, { headers: { accept: "application/json" } });
             answers.push([a.status, a.data.code, a.data.detail]);
         }
