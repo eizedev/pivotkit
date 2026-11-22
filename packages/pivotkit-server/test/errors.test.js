@@ -17,6 +17,7 @@ import { GuardedFetchError } from "../src/sources/fetch.js";
 import { AnswerShapeError } from "../src/sources/json-rows.js";
 import { SourceError } from "../src/sources/run.js";
 import { UploadFailure } from "../src/upload.js";
+import { problemDocument } from "../src/rest/problem.js";
 
 test("every error class extends CodedError and keeps its name and members", () => {
     const cases = [
@@ -44,4 +45,17 @@ test("every error class extends CodedError and keeps its name and members", () =
     }
     // a class's own errors are not another's: PivotkitError stays what pivotkit-core throws
     assert.equal(new ConfigError("m") instanceof PivotkitError, false);
+});
+
+test("problemDocument is the one shape of a problem: type, title, status, code, detail, then further members", () => {
+    assert.deepEqual(Object.entries(problemDocument("LINK_EXPIRED", "gone", { status: 410, docs: "https://docs.example/", extra: { requestId: "r" } })), [
+        ["type", "https://docs.example/reference/rest/#error-link-expired"],
+        ["title", "Link expired"],
+        ["status", 410],
+        ["code", "LINK_EXPIRED"],
+        ["detail", "gone"],
+        ["requestId", "r"]
+    ]);
+    // the code's own status without one; no documentation: about:blank
+    assert.deepEqual(problemDocument("NOT_FOUND", "x", { docs: null }), { type: "about:blank", title: "Not found", status: 404, code: "NOT_FOUND", detail: "x" });
 });

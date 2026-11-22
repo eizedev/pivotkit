@@ -70,6 +70,7 @@ const HEADER_VALUE = /^[\t\x20-\x7e\x80-\xff]*$/;
  * `transient` says whether the same request may work later. The message never holds the address's
  * path or query.
  */
+/** @extends {CodedError<string, undefined>} */
 export class GuardedFetchError extends CodedError {
     /**
      * @param {string} code

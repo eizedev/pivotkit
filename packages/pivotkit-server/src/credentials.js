@@ -129,6 +129,7 @@ function helpOf(group) {
 }
 
 /** A refusal of the command: its exit code (2 usage, 1 a file), kind and code, as --json gives them. */
+/** @extends {CodedError<string, undefined>} */
 export class CommandError extends CodedError {
     /**
      * @param {1 | 2} exitCode

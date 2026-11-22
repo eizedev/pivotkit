@@ -22,6 +22,7 @@
 import { CodedError } from "pivotkit-core/internal";
 
 /** A body the reader refuses: no JSON, no UTF-8, nested too deeply. Its message is for the debug log. */
+/** @extends {CodedError<undefined, undefined>} */
 export class AnswerShapeError extends CodedError {
     name = "AnswerShapeError";
 

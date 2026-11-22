@@ -109,6 +109,7 @@ const sourcesDocs = (docs, anchor) => docsLink(docs, `reference/sources/#${ancho
 const docsRef = (docs, anchor) => (docs === null ? "" : ` (${sourcesDocs(docs, anchor)})`);
 
 /** A document or an operation that gives no source; the command exits 2 with the message. */
+/** @extends {CodedError<undefined, undefined>} */
 export class OpenApiError extends CodedError {
     /** @param {string} message */
     constructor(message) {

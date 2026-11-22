@@ -77,6 +77,7 @@ const EXPIRY_MAX_MS = 366 * 86_400_000;
  * `retryable` whether the same request may work later. The message is the code: no address, answer
  * or header value.
  */
+/** @extends {CodedError<string, undefined>} */
 export class UploadFailure extends CodedError {
     /**
      * @param {string} code

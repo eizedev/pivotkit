@@ -19,23 +19,25 @@
  * The base of every error class of pivotkit's packages (pivotkit-core/internal): `code`, a stable name
  * to match on, and `details`, what a caller may act on. A class whose errors carry no code or no
  * details leaves them unset, so an error has only the members its class names. Each class sets its
- * own `name`.
+ * own `name`. A subclass names the types of its code and details (`@extends {CodedError<C, D>}`);
+ * one without codes takes `undefined` for C.
+ * @template {string | undefined} [C=string]
+ * @template {Record<string, any> | undefined} [D=Record<string, any> | undefined]
  */
 export class CodedError extends Error {
     /**
-     * @param {string | undefined} code
+     * @param {C} code
      * @param {string} message
-     * @param {{ details?: Record<string, any>, cause?: unknown }} [more]  cause: as Error's option
+     * @param {{ details?: D, cause?: unknown }} [more]  cause: as Error's option
      */
     constructor(code, message, { details, cause } = {}) {
         super(message, cause !== undefined ? { cause } : undefined);
         if (code !== undefined) {
-            // typed as a string: a class without codes (AuthRefusal) is never matched by its code
-            /** @type {string} */
+            /** @type {C} */
             this.code = code;
         }
         if (details !== undefined) {
-            /** @type {Record<string, any> | undefined} */
+            /** @type {D} */
             this.details = details;
         }
     }
@@ -43,6 +45,7 @@ export class CodedError extends Error {
 
 /** @typedef {"INVALID_ARGUMENT" | "INVALID_OPTION" | "INVALID_VIEW" | "LIMIT_EXCEEDED" | "INVALID_FILE" | "INVALID_TEMPLATE"} PivotkitErrorCode */
 
+/** @extends {CodedError<PivotkitErrorCode, Record<string, unknown>>} */
 export class PivotkitError extends CodedError {
     /**
      * @param {PivotkitErrorCode} code
@@ -53,11 +56,6 @@ export class PivotkitError extends CodedError {
     constructor(code, message, details = {}) {
         super(code, message, { details });
         this.name = "PivotkitError";
-        // the same values again, typed as this class names them
-        /** @type {PivotkitErrorCode} */
-        this.code = code;
-        /** @type {Record<string, unknown>} */
-        this.details = details;
     }
 }
 

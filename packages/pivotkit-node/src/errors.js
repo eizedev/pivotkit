@@ -15,6 +15,7 @@ import { OperationError } from "pivotkit-report/operations";
 
 /** @typedef {"usage" | "io" | "limit" | "template" | "remote" | "internal"} ErrorKind */
 
+/** @extends {CodedError<string, undefined>} */
 export class CliError extends CodedError {
     /**
      * @param {ErrorKind} kind

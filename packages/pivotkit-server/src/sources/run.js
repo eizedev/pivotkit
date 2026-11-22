@@ -64,6 +64,7 @@ const DEFAULT_TEXT = Object.freeze({
  * "setup", the source is not set up correctly; none: not available right now). A refusal (the other
  * codes) is never transient.
  */
+/** @extends {CodedError<"NOT_ALLOWED" | "INVALID_INPUT" | "DATA_NOT_AVAILABLE" | "SOURCE_UNAVAILABLE", undefined>} */
 export class SourceError extends CodedError {
     /**
      * @param {"NOT_ALLOWED" | "INVALID_INPUT" | "DATA_NOT_AVAILABLE" | "SOURCE_UNAVAILABLE"} code
@@ -76,8 +77,6 @@ export class SourceError extends CodedError {
         const status = Number.isInteger(how.status) ? /** @type {number} */ (how.status) : undefined;
         super(code, `${code}${status !== undefined ? ` (status ${status})` : ""}`);
         this.name = "SourceError";
-        /** @type {"NOT_ALLOWED" | "INVALID_INPUT" | "DATA_NOT_AVAILABLE" | "SOURCE_UNAVAILABLE"} */
-        this.code = code;
         /** @type {boolean} */
         this.transient = code === "SOURCE_UNAVAILABLE" && (typeof how.transient === "boolean" ? how.transient : status !== undefined && TRANSIENT_STATUSES.includes(status));
         /** @type {string | undefined} */

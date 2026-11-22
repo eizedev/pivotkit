@@ -1,8 +1,8 @@
 /*
  * pivotkit-node/net: how pivotkit-cli and pivotkit-server read what the network hands them: an IP
- * address as its bytes, whether a host or an address is loopback, a Retry-After header, and the
- * system code of a connection that failed with what that code means. Each front end keeps its own error class and words; the
- * reading is here, once.
+ * address as its bytes, whether a host or an address is loopback, a Retry-After header, and a failed
+ * connection: where its system code is and what that code means (NETWORK_FAILURES). Each front end
+ * keeps its own error class; the readings and the words are here, once.
  */
 
 import { isIPv4, isIPv6 } from "node:net";
@@ -118,6 +118,9 @@ export function networkCodeOf(error, { client, accept = (code) => code !== undef
     return CODE_PLACES[client].map((place) => place(e)).find(accept) ?? null;
 }
 
+/** An object of objects, frozen at both levels. */
+const deepFreeze = (table) => Object.freeze(Object.fromEntries(Object.entries(table).map(([key, entry]) => [key, Object.freeze(entry)])));
+
 /**
  * The system codes of a failed connection that pivotkit knows, each once, with what it means:
  *
@@ -129,7 +132,7 @@ export function networkCodeOf(error, { client, accept = (code) => code !== undef
  * The two readings of "may work again" differ by code; each stays as its caller had it.
  * @type {Readonly<Record<string, Readonly<{ text?: string, retry?: true, passes?: true }>>>}
  */
-export const NETWORK_FAILURES = Object.freeze({
+export const NETWORK_FAILURES = deepFreeze({
     ECONNREFUSED: { text: "the connection was refused (is the server running on that port?)", retry: true, passes: true },
     ENOTFOUND: { text: "the host name is not known", retry: true, passes: true },
     EAI_AGAIN: { text: "the host name cannot be looked up now", retry: true, passes: true },

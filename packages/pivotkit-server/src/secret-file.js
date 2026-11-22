@@ -110,6 +110,7 @@ const SIGNALS = Object.freeze(["SIGINT", "SIGTERM"]);
 /** The codes of link() where a file system has no hard links. */
 const NO_HARD_LINKS = new Set(["EPERM", "ENOTSUP", "EOPNOTSUPP", "ENOSYS", "EXDEV", "EMLINK"]);
 
+/** @extends {CodedError<"EXISTS" | "NOT_REGULAR_FILE" | "NO_DIRECTORY" | "READ_ONLY" | "MOUNTED" | "UNUSABLE" | "UNREADABLE", undefined>} */
 export class SecretFileError extends CodedError {
     /**
      * @param {"EXISTS" | "NOT_REGULAR_FILE" | "NO_DIRECTORY" | "READ_ONLY" | "MOUNTED" | "UNUSABLE" | "UNREADABLE"} code

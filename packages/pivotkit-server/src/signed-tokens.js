@@ -76,6 +76,7 @@ export const looksSigned = (token) => token.length <= SIGNED_TOKEN.maxLength && 
  * EXPIRED, NOT_YET_VALID, TOO_LONG, REVOKED, or DENY_LIST (the deny list could not be read). The
  * message never holds the token.
  */
+/** @extends {CodedError<"INVALID" | "UNKNOWN_KEY" | "EXPIRED" | "NOT_YET_VALID" | "TOO_LONG" | "REVOKED" | "DENY_LIST", undefined>} */
 export class SignedTokenError extends CodedError {
     /**
      * @param {"INVALID" | "UNKNOWN_KEY" | "EXPIRED" | "NOT_YET_VALID" | "TOO_LONG" | "REVOKED" | "DENY_LIST"} code

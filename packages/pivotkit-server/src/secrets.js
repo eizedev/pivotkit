@@ -14,6 +14,7 @@ import { constants } from "node:fs";
 import { lstat, open, stat } from "node:fs/promises";
 import { pathOf } from "./config.js";
 
+/** @extends {CodedError<string, undefined>} */
 export class SecretError extends CodedError {
     /** @param {string} message */
     constructor(message) {

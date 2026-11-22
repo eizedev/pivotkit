@@ -57,6 +57,7 @@ export const OPERATION_ERRORS = Object.freeze({
  */
 
 /** An error of an operation a front end shows as it is: a stable code and a message without file content. */
+/** @extends {CodedError<keyof typeof OPERATION_ERRORS, OperationErrorDetails | undefined>} */
 export class OperationError extends CodedError {
     /**
      * @param {keyof typeof OPERATION_ERRORS} code
@@ -74,8 +75,6 @@ export class OperationError extends CodedError {
                 : undefined
         });
         this.name = "OperationError";
-        /** @type {keyof typeof OPERATION_ERRORS} */
-        this.code = code;
         this.status = OPERATION_ERRORS[code] ?? 500;
     }
 }

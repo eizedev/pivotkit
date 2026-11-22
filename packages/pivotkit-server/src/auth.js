@@ -98,6 +98,7 @@ const digest = (text) => createHash("sha256").update(text, "utf8").digest();
  * A request refused by authentication: 401 invalid_token (or invalid_request) or 503 while the
  * issuer is not loaded. `description` is safe to send; it never names the token.
  */
+/** @extends {CodedError<undefined, undefined>} */
 export class AuthRefusal extends CodedError {
     /**
      * @param {number} status

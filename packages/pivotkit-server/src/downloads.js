@@ -1062,6 +1062,7 @@ export function createDownloadHandler(context, runtime = {}) {
             answer: async (request) => (await check(request)) ?? route(request, new URL(request.url).pathname),
             // a link nobody has (404) is logged at info, since a person asks the operator about it
             familyOf: () => DOWNLOAD_FAMILY,
+            // a body that cannot be read gets a short problem: its code and the request id, no page
             unreadable: {
                 path: DOWNLOADS_PATH,
                 limitOf: () => DOWNLOAD_BODY_BYTES,

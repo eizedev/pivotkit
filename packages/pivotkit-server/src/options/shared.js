@@ -6,6 +6,7 @@
 
 import { CodedError } from "pivotkit-core/internal";
 
+/** @extends {CodedError<string, undefined>} */
 export class ConfigError extends CodedError {
     /**
      * @param {string} message
