@@ -1,7 +1,7 @@
 {
   "name": "pivotkit-node",
   "version": "0.1.0",
-  "description": "Internal to pivotkit: the Node.js file handling and REST contract that the pivotkit command line and pivotkit-server share. Use pivotkit-cli/files and pivotkit-cli/rest instead.",
+  "description": "Internal to pivotkit: the Node.js file handling, REST contract and network readings that the pivotkit command line and pivotkit-server share. Use pivotkit-cli/files and pivotkit-cli/rest instead.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",
   "homepage": "https://pivotkit.eize.dev",
@@ -19,6 +19,10 @@
     "./files": {
       "types": "./types/files.d.ts",
       "default": "./src/files.js"
+    },
+    "./net": {
+      "types": "./types/net.d.ts",
+      "default": "./src/net.js"
     },
     "./rest": {
       "types": "./types/rest.d.ts",

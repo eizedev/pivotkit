@@ -5,7 +5,6 @@
  * pivotkit-server and pivotkit-cli/rest re-export it under the same names.
  */
 
-import { isIPv4 } from "node:net";
 import { OPERATION_ERRORS } from "pivotkit-report/operations";
 
 /**
@@ -47,16 +46,8 @@ export const REST_ERRORS = Object.freeze({
 /** Every code a problem can carry. */
 export const PROBLEM_CODES = Object.freeze([...Object.keys(OPERATION_ERRORS), ...Object.keys(REST_ERRORS)]);
 
-/**
- * Whether a host is loopback: "localhost", an IPv4 address of 127.0.0.0/8 or ::1 (as a URL's
- * hostname writes it, "[::1]", too). Only literal addresses: "127.example.com" is a name, not
- * loopback.
- * @param {string} host
- */
-export function isLoopback(host) {
-    const plain = String(host ?? "").toLowerCase().replace(/^\[(.*)\]$/, "$1");
-    return plain === "localhost" || plain === "::1" || (isIPv4(plain) && plain.startsWith("127."));
-}
+/** Whether a host is loopback: pivotkit-node/net says which spellings count. */
+export { isLoopback } from "./net.js";
 
 /**
  * The RFC 9728 metadata address of a resource: /.well-known/oauth-protected-resource before its path

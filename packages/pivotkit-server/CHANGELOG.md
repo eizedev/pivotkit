@@ -10,6 +10,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 - Depends on `pivotkit-node` `^0.1.0` for the file handling and the REST contract, which it took from
   `pivotkit-cli` before. pivotkit-cli stays a dependency for `pivotkit-server cli`.
+- Reads IP addresses, loopback, Retry-After and the code of a failed connection through
+  `pivotkit-node/net`, shared with pivotkit-cli. The answers stay the same.
 
 ## [0.4.0] - 2026-11-22
 

@@ -41,8 +41,9 @@
 import { lookup as dnsLookup } from "node:dns";
 import http from "node:http";
 import https from "node:https";
-import { isIP, isIPv4, isIPv6 } from "node:net";
+import { isIP } from "node:net";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
+import { ipBytes, isLoopback, networkCodeOf } from "pivotkit-node/net";
 
 /** The functions createGuardedFetch made. */
 const guardedFetches = new WeakSet();
@@ -86,41 +87,6 @@ export class GuardedFetchError extends Error {
             this.status = more.status;
         }
     }
-}
-
-/**
- * An IP address as its bytes, or null.
- * @param {string} text
- * @returns {{ v: 4 | 6, bytes: number[] } | null}
- */
-export function ipBytes(text) {
-    const address = String(text).replace(/^\[|\]$/g, "").replace(/%.*$/, "");
-    if (isIPv4(address)) {
-        return { v: 4, bytes: address.split(".").map(Number) };
-    }
-    if (!isIPv6(address)) {
-        return null;
-    }
-    let tail = [];
-    let head = address;
-    // a dotted IPv4 address at the end ("::ffff:169.254.169.254") is the last two groups
-    const dotted = /(\d+\.\d+\.\d+\.\d+)$/.exec(address);
-    if (dotted) {
-        const v4 = dotted[1].split(".").map(Number);
-        tail = [(v4[0] << 8) | v4[1], (v4[2] << 8) | v4[3]];
-        head = address.slice(0, -dotted[1].length);
-        head = head.endsWith("::") ? head : head.slice(0, -1);
-    }
-    const [left, right] = head.includes("::") ? head.split("::") : [head, null];
-    const groups = (part) => (part ? part.split(":").filter((g) => g !== "").map((g) => parseInt(g, 16)) : []);
-    const l = groups(left);
-    const r = right === null ? [] : groups(right);
-    const missing = 8 - l.length - r.length - tail.length;
-    const words = right === null ? [...l, ...tail] : [...l, ...new Array(Math.max(missing, 0)).fill(0), ...r, ...tail];
-    if (words.length !== 8) {
-        return null;
-    }
-    return { v: 6, bytes: words.flatMap((w) => [w >> 8, w & 255]) };
 }
 
 /**
@@ -222,15 +188,8 @@ function embeddedV4(b) {
     return [];
 }
 
-/** Whether an address is a loopback address (127.0.0.0/8, ::1, ::ffff:127.x). */
-const isLoopback = (address) => {
-    const ip = ipBytes(address);
-    if (!ip) {
-        return false;
-    }
-    const b = ip.bytes;
-    return ip.v === 4 ? b[0] === 127 : (b.slice(0, 15).every((x) => x === 0) && b[15] === 1) || (b.slice(0, 10).every((x) => x === 0) && b[10] === 255 && b[11] === 255 && b[12] === 127);
-};
+/** How an address the request reaches is read: every spelling, IPv4-mapped ::ffff:127.x as loopback too. */
+const ANY_FORM = Object.freeze({ anyForm: true });
 
 /** A refusal of an address as the error a request ends with. */
 const refused = (rule) => new GuardedFetchError("REFUSED_ADDRESS", rule === "always" ? "the address is never connected to (link-local, metadata, multicast or unspecified)" : "the address is a loopback or private one, which this request may not reach");
@@ -260,7 +219,7 @@ function guardedLookup(lookup, rules) {
             }
             for (const entry of list) {
                 const rule = addressRefusal(entry.address, rules);
-                if (rule || (rules.plainHttp && !isLoopback(entry.address))) {
+                if (rule || (rules.plainHttp && !isLoopback(entry.address, ANY_FORM))) {
                     callback(rule ? refused(rule) : new GuardedFetchError("NOT_HTTPS", "plain http goes to a loopback address only"));
                     return;
                 }
@@ -352,7 +311,7 @@ export function createGuardedFetch(means = {}) {
             if (rule) {
                 throw refused(rule);
             }
-            if (plainHttp && !isLoopback(host)) {
+            if (plainHttp && !isLoopback(host, ANY_FORM)) {
                 throw new GuardedFetchError("NOT_HTTPS", "plain http goes to a loopback address only");
             }
         }
@@ -499,7 +458,7 @@ export function createGuardedFetch(means = {}) {
                 const check = () => {
                     const remote = socket.remoteAddress ?? "";
                     const rule = addressRefusal(remote, rules);
-                    if (rule || (plainHttp && !isLoopback(remote))) {
+                    if (rule || (plainHttp && !isLoopback(remote, ANY_FORM))) {
                         fail(rule ? refused(rule) : new GuardedFetchError("NOT_HTTPS", "plain http goes to a loopback address only"));
                     }
                 };
@@ -597,7 +556,7 @@ function networkError(e) {
     if (inner) {
         return inner;
     }
-    const code = String(/** @type {any} */ (e)?.code ?? /** @type {any} */ (e)?.errors?.[0]?.code ?? "unknown");
+    const code = String(networkCodeOf(e) ?? "unknown");
     return new GuardedFetchError("NETWORK", `the connection failed (${code.slice(0, 40)})`, { transient: TRANSIENT.has(code), cause: e });
 }
 

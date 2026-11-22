@@ -32,6 +32,7 @@
 import { randomBytes } from "node:crypto";
 import { cleanText } from "pivotkit-core/import";
 import { LIMITS } from "pivotkit-core";
+import { retryAfterSeconds } from "pivotkit-node/net";
 import { OperationError } from "pivotkit-report/operations";
 import { identityKey } from "../auth.js";
 import { overLimit, withoutHiddenRows } from "../data.js";
@@ -124,13 +125,13 @@ export function pointerValue(value, keys) {
     return at;
 }
 
-/** A Retry-After header in seconds (a number of seconds or an HTTP date), capped; undefined without one. */
+/**
+ * A Retry-After header in seconds, capped at RETRY_AFTER_MAX (a longer wait is passed on as the cap);
+ * undefined without one. A number of more than ten digits is read as a date.
+ */
 function retryAfterOf(value) {
-    if (typeof value !== "string" || !value.trim()) {
-        return undefined;
-    }
-    const seconds = /^\d{1,10}$/.test(value.trim()) ? Number(value.trim()) : Math.ceil((Date.parse(value) - Date.now()) / 1000);
-    return Number.isFinite(seconds) ? Math.min(Math.max(seconds, 0), RETRY_AFTER_MAX) : undefined;
+    const seconds = retryAfterSeconds(value, { maxDigits: 10 });
+    return seconds === null ? undefined : Math.min(seconds, RETRY_AFTER_MAX);
 }
 
 /**
