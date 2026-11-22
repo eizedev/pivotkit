@@ -100,14 +100,14 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Upgrading from 0.2
 
-What a script that runs `pivotkit` checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#cli-next) has the details.
+What a script that runs `pivotkit` checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1316) has the details.
 
 - Usage errors end with `run "pivotkit <command> --help"` (was `see "pivotkit help <command>"`),
   and unknown options and commands read `unknown option "--bogus"`. Scripts read the exit code or
   `--json`, not the text.
 - `--json` errors may have the new `kind` `remote`, with `status` and `retryAfter`.
 - `writeNew` (`pivotkit-cli/files`) keeps parentheses in file names
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#report-names)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1309)).
 
 ### Added
 
@@ -152,7 +152,7 @@ What a script that runs `pivotkit` checks; the [upgrade page](https://pivotkit.e
 
 ### Upgrading from 0.2.0
 
-What a script that runs `pivotkit` checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#cli-0-6-1) has the details.
+What a script that runs `pivotkit` checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1476) has the details.
 
 - `--sheet` for data that is no workbook is a warning `ignoredOption` (exit 1 with `--strict`).
 - `-o` naming the data or the view file, `--save-view` naming the data file, `-o -` and, on Windows,
@@ -196,7 +196,7 @@ What a script that runs `pivotkit` checks; the [upgrade page](https://pivotkit.e
 
 ### Upgrading from 0.1
 
-What a script that runs `pivotkit` checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#cli-0-6) has the details.
+What a script that runs `pivotkit` checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1539) has the details.
 
 - A view file or link that names a workbook's sheet the data lacks is exit 2 `NO_SHEET`, not a run on
   the first sheet.

@@ -77,7 +77,7 @@ configuration. Without a pinned version, `npx -y` runs the newest release at eac
 has looked at yet. One exception: when pivotkit-mcp is installed globally, or in the folder the
 client starts it in or a folder above it, `npx -y` runs that copy, whatever its version.
 `pivotkit-mcp@latest` is for a setup of your own. [Update an installation](upgrading.md#update-npx)
-has the details, and also says how to restart the client after an update.
+has the details. [Restart what runs](upgrading.md#update-restart) says how to restart the client.
 
 Then ask, for example:
 

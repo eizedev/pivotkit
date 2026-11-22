@@ -116,8 +116,8 @@ After `uvx zensical@<version> build --strict`, `node scripts/check-readme-links.
 
 ## Deprecate something
 
-[docs/versioning.md](docs/versioning.md) has the policy. In 0.x, every break goes on the
-upgrading page. From 1.0.0, nothing public goes away without a deprecation first.
+[docs/versioning.md](docs/versioning.md) has the policy. In 0.x, every break is marked
+**Breaking** in the changelog, and the upgrading page lists the next release's breaks with what to do. From 1.0.0, nothing public goes away without a deprecation first.
 
 A pull request that deprecates something delivers:
 
@@ -126,7 +126,7 @@ A pull request that deprecates something delivers:
 - for the services, a `check-config` line that names the id
 - where possible, the old form keeps working. pivotkit turns it into the new one
 - a test that uses the old form and checks the warning and the result
-- the register entry, an upgrading section with the id, and a changelog entry
+- the register entry, a changelog entry with the id, and a row on the upgrading page
 
 The removal waits for the next major release.
 

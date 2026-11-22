@@ -7,7 +7,7 @@
  *     addresses on: the socket's peer (with http.trustProxy the forwarded client, the proxy as peerAddress)
  *
  * check/index.js says what a section returns. The log has no "New in this version" note in this
- * version; upgrading.md has the log's changes of earlier versions.
+ * version; the changelog of pivotkit-server has the log's changes of earlier versions.
  */
 
 import { logSettingsOf } from "../log.js";

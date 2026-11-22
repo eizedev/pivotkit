@@ -1124,7 +1124,7 @@ name or an id. The names are not stable across page loads. Do not select the fie
 
 ## Test ids
 
-A `data-testid` is not public interface. The upgrading page lists the ones a release changes. Those of
+A `data-testid` is not public interface. The changelog lists the ones a release changes. Those of
 the layout:
 
 | Test id | What |

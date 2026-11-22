@@ -97,19 +97,19 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   at the end of that row. The labels `layout`, `showLayout`, `options` and `chartDisplay` are no longer
   shown, and the test ids `chart-type`, `options` and `layout` are gone
   ([#580](https://github.com/eizedev/pivotkit/issues/580),
-  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#view-tabs-0-8)).
+  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L511)).
 - The chart type menu lists the types, then a row per Display topic that opens a level: Value
   labels, Legend, Title, Axis, Tooltip, Series and Layout ([#106](https://github.com/eizedev/pivotkit/issues/106)). Tests open the
   level first; a choice is a menu item with `aria-checked`.
 - Bars, lines and areas with more than 20 categories get a zoom slider. Display › Axis › Zoom slider
   › Off draws every category as before. A click on the legend changes the view, so Undo takes it
-  back ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-7)).
+  back ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L471)).
 - Without `export-data`, the default, the drill-down panel has no Export menu: no copy and no
   download of its rows. Set `drill-down-export` to keep it
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#drill-export)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L669)).
 - The row count under the result says "2,190 of 4,386 rows" when a filter leaves rows out. A page
   whose `labels` set `rowsCount` or add a language sets the new label `rowsFiltered` too
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#rows-filtered)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L679)).
 
 ### Added
 
@@ -193,11 +193,11 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Upgrading from 0.6
 
-What a page checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-1) has the details.
+What a page checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L803) has the details.
 
 - Export → HTML report carries the dark colours set on the element. On a dark screen a colour
   scale's middle colour (`--pk-scale-mid`) is the one the dark theme sets, not the light one
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#dark-mid-colour)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1280)).
 - A field's Filter level shows its rules in a single column as wide as the menu, in every browser.
   Tests or screenshots of that form take the new layout.
 
@@ -253,7 +253,7 @@ What a page checks; the [upgrade page](https://pivotkit.eize.dev/getting-started
 
 ### Upgrading from 0.5
 
-What a page checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-5) has the details.
+What a page checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1490) has the details.
 
 - Export → **CSV file (.csv)** is called **Table as CSV (.csv)**; the `pivot-export` kind `"csv"`
   stays. Tests or screenshots that look for the old text take the new one.
@@ -284,7 +284,7 @@ What a page checks; the [upgrade page](https://pivotkit.eize.dev/getting-started
 
 ### Upgrading from 0.4
 
-What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-4) has the details.
+What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1554) has the details.
 
 - **Breaking:** views, view files and links are written in format version 2; pivotkit 0.4 refuses
   them as newer. Version 1 loads with the same result.

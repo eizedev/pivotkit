@@ -5,7 +5,6 @@
             "docs/concepts/limits.md": [430],
             "docs/getting-started/kubernetes.md": [628],
             "docs/getting-started/mcp.md": [449],
-            "docs/getting-started/upgrading.md": [1658],
             "docs/learn.md": [458],
             "docs/model-data.md": [571],
             "docs/privacy.md": [510],
@@ -21,7 +20,7 @@
             "docs/use/filters.md": [500],
             "docs/use/values.md": [326]
         },
-        "totalLines": 25820
+        "totalLines": 24345
     },
     "functions": {
         "complexity": {
