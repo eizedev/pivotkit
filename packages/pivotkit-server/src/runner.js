@@ -19,6 +19,7 @@ import { CONFIG_ENV, SERVER_FLAGS, flagLines, helpPointer, optionsFrom, startFor
 import { startErrorLine } from "./log.js";
 import { stopOnSignals } from "./stop.js";
 import { DEFAULT_PORT, TOKEN_ENV, loadMcp } from "./serve.js";
+import { importInstalled } from "./installed.js";
 
 /** The variable that names the configuration file (flags.js's). */
 export { CONFIG_ENV };
@@ -59,28 +60,12 @@ export function helpText() {
 const CLI_PACKAGE = "pivotkit-cli";
 
 /**
- * pivotkit-cli's main, or null when the package is not installed beside pivotkit-server. Only
- * pivotkit-cli itself missing is null; a pivotkit-cli whose own dependency is missing is an error.
- * @returns {Promise<((argv: string[], io: any) => Promise<number>) | null>}
- */
-async function loadCli() {
-    try {
-        return (await import(CLI_PACKAGE)).main;
-    } catch (e) {
-        if (e?.code === "ERR_MODULE_NOT_FOUND" && String(e.message).includes(`Cannot find package '${CLI_PACKAGE}'`)) {
-            return null;
-        }
-        throw e;
-    }
-}
-
-/**
- * The command line pivotkit, as `pivotkit-server cli`.
+ * The command line pivotkit, as `pivotkit-server cli`, when pivotkit-cli is installed beside pivotkit-server.
  * @param {string[]} argv
  * @param {any} io
  */
 async function runCli(argv, io) {
-    const main = await loadCli();
+    const main = (await importInstalled(CLI_PACKAGE))?.main;
     if (!main) {
         io.stderr.write(`pivotkit-server: cli needs the package ${CLI_PACKAGE} beside pivotkit-server (npm install ${CLI_PACKAGE}); the container image has it\n`);
         return 2;

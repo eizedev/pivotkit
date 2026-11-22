@@ -8,6 +8,9 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
+- pivotkit-server no longer brings pivotkit-cli. To run `pivotkit-server cli` from an npm install,
+  install pivotkit-cli beside pivotkit-server (`npm install --global pivotkit-cli` for a global
+  install). The container image has it.
 - Depends on `pivotkit-node` `^0.1.0`, the new internal package that holds the file handling and the
   REST contract. `pivotkit-cli/files` and `pivotkit-cli/rest` export the same names as before.
 - Remote mode reads Retry-After and the code of a failed connection through `pivotkit-node/net`,

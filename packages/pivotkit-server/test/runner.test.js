@@ -51,7 +51,7 @@ test("help, version, an unknown command; cli and mcp hand over to their packages
     assert.match(mcp.stdout, /^pivotkit-mcp /);
 });
 
-test("cli without pivotkit-cli installed says to install it; the other commands still run", () => {
+test("cli without pivotkit-cli installed says to install it; --version still runs", () => {
     // a file URL: --import takes a specifier, and on Windows a path with a drive letter is none
     const hook = new URL("./fixtures/cli-missing/hook.js", import.meta.url).href;
     const r = spawnSync(process.execPath, ["--import", hook, BIN, "cli", "--version"], { encoding: "utf8", cwd: workspace(), env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
