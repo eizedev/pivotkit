@@ -6,6 +6,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `normalize` warns about `fieldLabels` in two cases. `labelTwice`: a field is named twice in
+  another case, and the last name is used. `labelTaken`: a name that another field also goes by,
+  its own name or the view's name for it, so two headers read alike. Both names stay
+  ([#699](https://github.com/eizedev/pivotkit/issues/699)).
+
 ## [0.9.0] - 2026-11-21
 
 ### Added

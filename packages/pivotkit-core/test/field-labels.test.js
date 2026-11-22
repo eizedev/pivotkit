@@ -65,3 +65,20 @@ test("renameFields moves a field's own name along with the field", () => {
     assert.deepEqual(view.rows, ["town"]);
     assert.deepEqual(view.fieldLabels, { town: "City" });
 });
+
+// #699: one field named twice in another case kept the last name without a word, and two fields of
+// one name drew two headers that read alike
+test("normalize warns when fieldLabels names a field twice, and when two fields get one name", () => {
+    const twice = normalize({ rows: ["cn"], fieldLabels: { cn: "A", CN: "B" } }, data);
+    assert.deepEqual(twice.view.fieldLabels, { cn: "B" }, "the last name is still used");
+    assert.deepEqual(twice.issues.map((i) => [i.code, i.severity, i.path, i.params?.field]), [["labelTwice", "warning", "fieldLabels.CN", "cn"]]);
+    // two own names alike, and an own name that is another field's name: each such name is named
+    const alike = normalize({ rows: ["cn", "cat"], fieldLabels: { cn: "Place", cat: "Place" } }, data);
+    assert.deepEqual(alike.view.fieldLabels, { cn: "Place", cat: "Place" }, "both names are still used");
+    assert.deepEqual(alike.issues.map((i) => [i.code, i.severity, i.path, i.params?.value]), [["labelTaken", "warning", "fieldLabels.cn", "Place"], ["labelTaken", "warning", "fieldLabels.cat", "Place"]]);
+    const taken = normalize({ rows: ["cn", "cat"], fieldLabels: { cn: "cat" } }, data);
+    assert.deepEqual(taken.issues.map((i) => [i.code, i.path, i.params?.field, i.params?.value]), [["labelTaken", "fieldLabels.cn", "cn", "cat"]]);
+    // names that differ, or a field's own name for itself: no warning
+    assert.deepEqual(normalize({ rows: ["cn"], fieldLabels: { cn: "City", cat: "Kind" } }, data).issues, []);
+    assert.deepEqual(normalize({ rows: ["cn"], fieldLabels: { cn: "cn" } }, data).issues, []);
+});
