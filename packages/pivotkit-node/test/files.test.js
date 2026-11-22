@@ -6,10 +6,10 @@ import { linkSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tempDir } from "./helpers.js";
 
-// the two entries are what pivotkit-cli/files and pivotkit-cli/rest publish; safe-files.js stays internal
+// files and rest are what pivotkit-cli/files and pivotkit-cli/rest publish, net is for the two front ends (test/net.test.js); safe-files.js stays internal
 test("the package exports the file helpers of pivotkit-node/files and the REST contract of pivotkit-node/rest, not safe-files.js", async () => {
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-    assert.deepEqual(Object.keys(pkg.exports), ["./files", "./rest", "./package.json"]);
+    assert.deepEqual(Object.keys(pkg.exports), ["./files", "./net", "./rest", "./package.json"]);
     const rest = await import("pivotkit-node/rest");
     assert.deepEqual(Object.keys(rest).sort(), ["CLIENT_ID_SYNTAX", "PROBLEM_CODES", "REST_BASE", "REST_ERRORS", "SIGN_IN_CLIENT_FIELD", "SOURCE_ID", "TOKEN_SYNTAX", "TOKEN_SYNTAX_TEXT", "isLoopback", "resourceMetadataUrlOf"]);
     assert.equal(rest.resourceMetadataUrlOf("https://reports.example/api/v1/"), "https://reports.example/.well-known/oauth-protected-resource/api/v1");

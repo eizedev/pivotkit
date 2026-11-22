@@ -29,7 +29,8 @@ import { DOCS_SITE, docsLink, docsOf, docsUrlProblems } from "./options/branding
 import { SOURCE_ID } from "pivotkit-node/rest";
 import { FIELD_DESCRIPTION_MAX, TODO_MARK, todoEntries, todoPaths } from "./options/base.js";
 import { SECRET_NAME } from "./options/http.js";
-import { GuardedFetchError, addressRefusal, guardedFetch, ipBytes } from "./sources/fetch.js";
+import { ipBytes } from "pivotkit-node/net";
+import { GuardedFetchError, addressRefusal, guardedFetch } from "./sources/fetch.js";
 import { PARAM_LIMITS, PARAM_NAME, PARAM_TYPES, declaredProblems } from "./sources/params.js";
 import { compileTemplate } from "./sources/template.js";
 

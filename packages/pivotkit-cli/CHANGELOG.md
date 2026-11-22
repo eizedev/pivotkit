@@ -10,6 +10,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 - Depends on `pivotkit-node` `^0.1.0`, the new internal package that holds the file handling and the
   REST contract. `pivotkit-cli/files` and `pivotkit-cli/rest` export the same names as before.
+- Remote mode reads Retry-After and the code of a failed connection through `pivotkit-node/net`,
+  shared with pivotkit-server. The messages and codes stay the same.
 
 ## [0.5.0] - 2026-11-22
 
