@@ -116,8 +116,12 @@ export const UPSTREAM_REQUEST_ID = /^[A-Za-z0-9_.:+/=-]{1,128}$/;
  */
 export const upstreamRequestIdOf = (header) => (typeof header === "string" && UPSTREAM_REQUEST_ID.test(header) ? header : undefined);
 
-/** A socket's address as it is logged ("::ffff:192.0.2.10" is 192.0.2.10). */
-const plainAddress = (address) => String(address ?? "").replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, "");
+/**
+ * A socket's address as it is logged, counted and checked for loopback: an IPv4-mapped address
+ * becomes its IPv4 address ("::ffff:192.0.2.10" is 192.0.2.10). Only the dotted form, the one Node
+ * gives for a socket; a forwarded "::ffff:c000:20a" stays as written.
+ */
+export const plainAddress = (address) => String(address ?? "").replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, "");
 
 /** What a forwarded address is logged as when it is no IP address: never the proxy's in its place. */
 export const INVALID_ADDRESS = "invalid";

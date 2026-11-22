@@ -18,8 +18,8 @@
  */
 
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
-import { BODY_BYTES, ConfigError, DEFAULT_PORT, callerOf, requestScopeFor, serveFetch } from "pivotkit-server";
-import { DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, publicOriginOf, SIGNED_IN, allowedHosts, brandingAnswer, brandingOfContext, pageRedirect, hostProblem, hostRefusal, hostRefusedLine, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, limitKeyOf, logNotes, logUnanswered, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server/internal";
+import { BODY_BYTES, ConfigError, DEFAULT_PORT, callerOf, serveFetch } from "pivotkit-server";
+import { DOWNLOAD_BODY_BYTES, publicOriginOf, SIGNED_IN, allowedHosts, brandingAnswer, brandingOfContext, pageRedirect, hostProblem, hostRefusal, hostRefusedLine, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, createRouteHandler, isLoopback, limitKeyOf, logNotes, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, startFields, takeSignIn } from "pivotkit-server/internal";
 import { MCP_TOKEN_ENV, createMcpContext } from "./context.js";
 import { createAuth, refusedClientOf } from "./auth.js";
 import { pageCsp, quickStartPage } from "./page.js";
@@ -28,9 +28,6 @@ import { pageCsp, quickStartPage } from "./page.js";
 export const ENDPOINT = "/mcp";
 
 export { BODY_BYTES, DEFAULT_PORT, isLoopback };
-
-/** The route family of the download links: a link nobody has (404) is logged at info, since a person asks the operator about it. */
-const DOWNLOAD_FAMILY = Object.freeze({ path: DOWNLOADS_PATH, notFound: /** @type {const} */ ("info") });
 
 /** The headers every answer of this server carries. */
 const SAFE_HEADERS = { "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" };
@@ -119,7 +116,7 @@ function protocolRefusal(log, error) {
  * The fetch handler of a context.
  * @param {any} context  createMcpContext's
  * @param {{ env?: Record<string, string | undefined>, loopback?: boolean, notFound?: () => Response }} [runtime]  notFound: the answer to a path nobody serves (pivotkit-server's, which names its REST service); else a plain "not found"
- * @returns {Promise<{ fetch(request: Request): Promise<Response>, precheck(request: Request): Promise<Response | null>, problem(status: number): Response, close(): Promise<void>, auth: any, downloads: any }>}
+ * @returns {Promise<{ fetch(request: Request, info?: Record<string | symbol, any>): Promise<Response>, precheck(request: Request, info?: Record<string | symbol, any>): Promise<Response | null>, problem(status: 400 | 413, path: string, info?: Record<string | symbol, any>): Response, close(): Promise<void>, auth: any, downloads: any }>}
  */
 export async function createHttpHandler(context, runtime = {}) {
     const notFound = runtime.notFound ?? (() => new Response("not found", { status: 404 }));
@@ -201,7 +198,7 @@ export async function createHttpHandler(context, runtime = {}) {
     async function route(request, info) {
         const url = new URL(request.url);
         if (downloads.handles(url.pathname)) {
-            return downloads.fetch(request);
+            return downloads.fetch(request, info);
         }
         const refused = hostOrOrigin(request);
         if (refused) {
@@ -268,36 +265,16 @@ export async function createHttpHandler(context, runtime = {}) {
     return {
         auth,
         downloads,
-        /** The answer for a body that cannot be read, as JSON-RPC, with its refused line. */
-        problem(status, _path, info = {}) {
-            const scope = requestScopeFor(null, info, { trustProxy });
-            withRequestScope(scope, () => context.log.refused({ status, path: ENDPOINT, reason: refusalReason(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT"), ...(status === 413 ? { limit: BODY_BYTES } : {}) }));
-            return withRequestIdHeader(bodyProblem(status), scope.id);
-        },
-        /**
-         * The checks a request's headers allow, before its body is read: Host, Origin, the declared
-         * size, and the token for /mcp (kept in `info` for fetch, so it is checked once). A Response
-         * to send, or null to go on.
-         * @param {Request} request  without its body
-         * @param {{ address?: string, [SIGNED_IN]?: any }} [info]  the client's address; serveFetch hands the same object to fetch
-         */
-        async precheck(request, info = {}) {
-            // the request's scope: serveFetch's, or made here for a host that serves the handler itself
-            const scope = requestScopeFor(request, info, { trustProxy });
-            const answer = await logUnanswered(context.log, scope, await withRequestScope(scope, () => check(request, info)), routeFamily(request));
-            return answer && withRequestIdHeader(answer, scope.id);
-        },
-        /**
-         * @param {Request} request
-         * @param {{ address?: string, [SIGNED_IN]?: any }} [info]
-         */
-        async fetch(request, info = {}) {
-            const scope = requestScopeFor(request, info, { trustProxy });
-            // a 4xx without a line of its own (the SDK answers a body that is not JSON or an
-            // unsupported protocol version without reporting it) gets a refused line
-            const response = await logUnanswered(context.log, scope, await withRequestScope(scope, () => answer(request, info)), routeFamily(request));
-            return withRequestIdHeader(/** @type {Response} */ (response), scope.id);
-        },
+        // pivotkit-server's route handler: the request's scope, the refused line of an unlogged error
+        // (a 4xx the SDK answered without reporting it: a body that is not JSON, an unsupported
+        // protocol version), the id on every answer
+        ...createRouteHandler(context, {
+            check,
+            answer,
+            familyOf: (request) => (new URL(request.url).pathname === ENDPOINT ? { path: ENDPOINT } : {}),
+            // a body that cannot be read is answered as JSON-RPC
+            unreadable: { path: ENDPOINT, limitOf: () => BODY_BYTES, answer: (status) => bodyProblem(status) }
+        }),
         async close() {
             downloads.close();
             limits.close();
@@ -307,22 +284,13 @@ export async function createHttpHandler(context, runtime = {}) {
     };
 
     /**
-     * The route family of a request, for a refused line written by logUnanswered: /mcp or /downloads.
-     * @param {Request} request
-     */
-    function routeFamily(request) {
-        const path = new URL(request.url).pathname;
-        return path === ENDPOINT ? { path: ENDPOINT } : downloads.handles(path) ? DOWNLOAD_FAMILY : {};
-    }
-
-    /**
      * The checks before the body is read (precheck's work).
      * @param {Request} request
      * @param {{ address?: string, [SIGNED_IN]?: any }} info
      */
     async function check(request, info) {
         if (downloads.handles(new URL(request.url).pathname)) {
-            return downloads.precheck(request);
+            return downloads.precheck(request, info);
         }
         const refused = hostOrOrigin(request);
         if (refused) {
@@ -400,7 +368,7 @@ export async function listen(given, runtime) {
         handler = await createHttpHandler(context, { env: runtime.env, loopback: isLoopback(host) });
         const downloads = handler.downloads;
         const isDownload = (path) => downloads.handles(path.split("?")[0]);
-        listening = await serveFetch({ precheck: (request, info) => handler.precheck(request, info), fetch: (request, info) => handler.fetch(request, info), problem: (status, path, info) => (isDownload(path) ? downloads.problem(status) : handler.problem(status, path, info)) }, { host, port, bodyBytes: (request) => (isDownload(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : BODY_BYTES), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), trustProxy: options.http?.trustProxy ?? false, onClientError: (entry) => context.log.refused({ ...entry, reason: refusalReason("INVALID_INPUT") }), onInternalError: () => context.log.refused({ status: 500, reason: refusalReason("INTERNAL") }), onRefused: (entry) => context.log.warn(refusedText(entry), entry) });
+        listening = await serveFetch({ precheck: (request, info) => handler.precheck(request, info), fetch: (request, info) => handler.fetch(request, info), problem: (status, path, info) => (isDownload(path) ? downloads.problem(status, path, info) : handler.problem(status, path, info)) }, { host, port, bodyBytes: (request) => (isDownload(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : BODY_BYTES), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), trustProxy: options.http?.trustProxy ?? false, onClientError: (entry) => context.log.refused({ ...entry, reason: refusalReason("INVALID_INPUT") }), onInternalError: () => context.log.refused({ status: 500, reason: refusalReason("INTERNAL") }), onRefused: (entry) => context.log.warn(refusedText(entry), entry) });
     } catch (e) {
         await handler?.close();
         await context.close();

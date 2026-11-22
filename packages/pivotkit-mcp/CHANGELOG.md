@@ -6,6 +6,12 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Changed
+
+- The HTTP handler runs its requests through pivotkit-server's route handler (`createRouteHandler`
+  of `pivotkit-server/internal`), so it needs the pivotkit-server of the same release. The answers and
+  log lines stay the same.
+
 ## [0.4.0] - 2026-11-22
 
 ### Added

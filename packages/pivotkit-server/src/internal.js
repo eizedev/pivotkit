@@ -22,5 +22,6 @@ export { secretFileWarning } from "./secrets.js";
 export { CREATABLE_SECRET_REF } from "./options/shared.js";
 export { prepareHttpServe, logNotes, openAddressRefusal, planState, stateDirOf, configFrom, builtInConfig, tokenShowHint, IMAGE_PATHS, STATE_ENV, DEFAULT_TOKEN_NAME } from "./state.js";
 export { createDownloadHandler, linksOf, DOWNLOADS_PATH, CALLBACK_PATH, DOWNLOAD_BODY_BYTES } from "./downloads.js";
+export { createRouteHandler } from "./route-handler.js";
 export { optionsFrom, flagLines, httpFlags, startFormatOf, SERVER_FLAGS, SHARED_FLAGS } from "./flags.js";
 export { AUTO_VALUES_DEFAULT, AUTO_VALUES_DENY, AUTO_VALUES_WHOLE_WORDS, CLOSED_DATE_GROUPING, DESCRIBE_HINT, NAME_TEXT, UNNAMED_WHY, autoValuesOf, autoValuesOption, denyEntries, draftingOf, fieldKey, hiddenColumns, mayList } from "./policy.js";

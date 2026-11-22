@@ -153,6 +153,10 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Connections are bounded in all and per address. Slots stay free for loopback (`connectionGate`).
 - A stranger's body cap is `BODY_BYTES`. A signed-in caller's cap is at most `MAX_BODY_BYTES`.
 - A refused Host is answered and logged with `HOST_HINT` (`hostProblem`, `hostRefusedLine`).
+- `createRouteHandler` in `src/route-handler.js` runs every route family: REST, MCP, download links
+  and `serve`, which hosts them. It owns the request's scope, the refused line of an unlogged error
+  and `X-Request-Id`. A family supplies only its check, its answer and its answer to an unreadable body.
+- A host passes its `info` on to the family it routes to, so both name one request id.
 
 ## Untrusted documents
 

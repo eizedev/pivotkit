@@ -31,7 +31,8 @@ import { discover, ISSUER_LIMITS, issuerFetch, issuerHint, issuerRulesOf, jwksUr
 import { allowedHosts, hostRefusal, hostRefusedLine } from "./checks.js";
 import { isLoopback } from "./listen.js";
 import { OUTPUT_MARK, outputDir } from "./output.js";
-import { newRequestId, requestId, requestScope, withRequestId } from "./request-id.js";
+import { newRequestId, requestId, requestScope } from "./request-id.js";
+import { createRouteHandler } from "./route-handler.js";
 import { createLimits } from "./limits.js";
 import { readSecret } from "./secrets.js";
 import { typeOf } from "./rest/problem.js";
@@ -45,6 +46,9 @@ export const CALLBACK_PATH = `${DOWNLOADS_PATH}/callback`;
 
 /** The largest body a download request may carry (the one-time link's form sends none). */
 export const DOWNLOAD_BODY_BYTES = 1024;
+
+/** The route family's refused lines: a link nobody has (404) is logged at info, since a person asks the operator about it. */
+const DOWNLOAD_FAMILY = Object.freeze({ path: DOWNLOADS_PATH, notFound: /** @type {const} */ ("info") });
 
 /** The least length of output.downloads.key, in bytes. */
 export const KEY_MIN_BYTES = 32;
@@ -549,7 +553,7 @@ function answerOf(brand, request, code, headers = {}) {
  * so the REST service and the MCP endpoint on one port share it).
  * @param {any} context
  * @param {{ env?: Record<string, string | undefined>, loopback?: boolean, sweepEveryMs?: number }} [runtime]  sweepEveryMs: how often expired one-time markers are swept (tests)
- * @returns {{ handles(path: string): boolean, precheck(request: Request): Promise<Response | null>, fetch(request: Request): Promise<Response>, problem(status: number): Response, listening(url: string): void, close(): void }}
+ * @returns {{ handles(path: string): boolean, precheck(request: Request, info?: Record<string | symbol, any>): Promise<Response | null>, fetch(request: Request, info?: Record<string | symbol, any>): Promise<Response>, problem(status: 400 | 413, path: string, info?: Record<string | symbol, any>): Response, listening(url: string): void, close(): void }}
  */
 export function createDownloadHandler(context, runtime = {}) {
     const existing = states.get(context);
@@ -1008,7 +1012,7 @@ export function createDownloadHandler(context, runtime = {}) {
         return fileAnswer(found.report, "GET", { headers: { "set-cookie": cookie } });
     }
 
-    /** A request of the route after its precheck, inside its request id. */
+    /** A request of the route after its precheck, inside its request's scope. */
     async function route(request, path) {
         try {
             if (!active || !state.base) {
@@ -1029,40 +1033,41 @@ export function createDownloadHandler(context, runtime = {}) {
         }
     }
 
+    /**
+     * The checks before the body is read: Host, and a body of at most DOWNLOAD_BODY_BYTES.
+     * @param {Request} request
+     */
+    async function check(request) {
+        const refused = hostRefusal(request, hosts);
+        if (refused) {
+            context.log.refused(hostRefusedLine(request, refused, { path: DOWNLOADS_PATH }));
+            return answer(request, "FORBIDDEN_HOST");
+        }
+        if (Number(request.headers.get("content-length") ?? 0) > DOWNLOAD_BODY_BYTES) {
+            context.log.refused({ status: 413, path: DOWNLOADS_PATH, reason: "body_too_large", limit: DOWNLOAD_BODY_BYTES, size: Number(request.headers.get("content-length")) });
+            return answer(request, "BODY_TOO_LARGE");
+        }
+        return null;
+    }
+
     const handler = {
         /** Whether a path is the route's (anything under /downloads; what is not a link answers 404). */
         handles: (path) => path === DOWNLOADS_PATH || path.startsWith(`${DOWNLOADS_PATH}/`),
 
-        /** The checks before the body is read: Host, and a body of at most DOWNLOAD_BODY_BYTES. */
-        async precheck(request) {
-            const refused = hostRefusal(request, hosts);
-            if (refused) {
-                context.log.refused(hostRefusedLine(request, refused, { path: DOWNLOADS_PATH }));
-                return answer(request, "FORBIDDEN_HOST");
+        // the request's scope, the refused line of an unlogged error, the id on every answer
+        // (route-handler.js); a host passes its `info`, so the route names the host's request id
+        ...createRouteHandler(context, {
+            check,
+            // the precheck again: a host that serves the route without one still checks Host and size
+            answer: async (request) => (await check(request)) ?? route(request, new URL(request.url).pathname),
+            // a link nobody has (404) is logged at info, since a person asks the operator about it
+            familyOf: () => DOWNLOAD_FAMILY,
+            unreadable: {
+                path: DOWNLOADS_PATH,
+                limitOf: () => DOWNLOAD_BODY_BYTES,
+                answer: (status, _limit, id) => new Response(JSON.stringify({ code: status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", requestId: id }), { status, headers: { ...BASE_HEADERS, "content-type": "application/problem+json", connection: "close" } })
             }
-            if (Number(request.headers.get("content-length") ?? 0) > DOWNLOAD_BODY_BYTES) {
-                context.log.refused({ status: 413, path: DOWNLOADS_PATH, reason: "body_too_large", limit: DOWNLOAD_BODY_BYTES, size: Number(request.headers.get("content-length")) });
-                return answer(request, "BODY_TOO_LARGE");
-            }
-            return null;
-        },
-
-        /** A request of the route. */
-        async fetch(request) {
-            const early = await handler.precheck(request);
-            if (early) {
-                return early;
-            }
-            const path = new URL(request.url).pathname;
-            // one id per request: its log lines, its problem document and its page name the same one
-            return withRequestId(requestId() ?? newRequestId(), () => route(request, path));
-        },
-
-        /** The answer for a body that cannot be read (too large, cut off), with its refused line. */
-        problem: (status) => {
-            context.log.refused({ status, path: DOWNLOADS_PATH, reason: status === 413 ? "body_too_large" : "bad_request", ...(status === 413 ? { limit: DOWNLOAD_BODY_BYTES } : {}) });
-            return new Response(JSON.stringify({ code: status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", requestId: requestId() ?? newRequestId() }), { status, headers: { ...BASE_HEADERS, "content-type": "application/problem+json", connection: "close" } });
-        },
+        }),
 
         /**
          * The address the server listens on, once it does: the links' base on loopback without

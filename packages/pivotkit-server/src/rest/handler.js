@@ -33,8 +33,9 @@ import { readMultipart } from "./multipart.js";
 import { openApiDocument } from "./openapi.js";
 import { SAFE_HEADERS, json, problemsFor, withRequestIdMember } from "./problem.js";
 import { brandingOfContext, docsLink } from "../branding.js";
-import { callerFields, logUnanswered, refusalReason } from "../log.js";
-import { requestId, requestScopeFor, withRequestIdHeader, withRequestScope } from "../request-id.js";
+import { callerFields, refusalReason } from "../log.js";
+import { requestId } from "../request-id.js";
+import { createRouteHandler } from "../route-handler.js";
 import { offeredScopes } from "../scopes.js";
 import { REST_ROUTES } from "./routes.js";
 import { createRecords } from "../records.js";
@@ -457,54 +458,28 @@ export async function createRestHandler(context, runtime = {}) {
         give?.();
     }
 
+    // the scope, the refused line of an unlogged error, the id in the answer's header and problem body
+    const routes = createRouteHandler(context, {
+        check,
+        answer,
+        familyOf: routeFamily,
+        finish: withRequestIdMember,
+        // a place for a large body, held since the precheck: given back once the request ran or its body could not be read
+        release,
+        unreadable: {
+            path: REST_BASE,
+            limitOf: (path, info) => restBodyBytesAt(options, peekSignIn(info)?.caller, new URL(path, "http://localhost").pathname),
+            answer: (status, cap, id) => problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? bodyTooLargeText(options, cap) : "the request cannot be read", { headers: { connection: "close" }, extra: { requestId: id } })
+        }
+    });
+
     return {
         handles,
         openapi,
-        /**
-         * The checks a request's headers allow, before its body is read: Host, Origin, the declared
-         * size and, for a POST to an operation, the token. A Response to send, or null to go on.
-         * @param {Request} request  without its body
-         * @param {{ address?: string, [SIGNED_IN]?: any }} [info]  serveFetch hands the same object to fetch: the sign-in is kept there
-         */
-        async precheck(request, info = {}) {
-            // the request's scope (its id, trace and addresses), made here or by serveFetch and kept in
-            // info for the route: its refusals name it too
-            const scope = requestScopeFor(request, info, { trustProxy });
-            const answer = await logUnanswered(context.log, scope, await withRequestScope(scope, () => check(request, info)), routeFamily(request));
-            return answer && withRequestIdHeader(await withRequestIdMember(answer, scope.id), scope.id);
-        },
-        /**
-         * @param {Request} request
-         * @param {{ address?: string, [SIGNED_IN]?: any }} [info]  the client's address (listen() gives it), for the limits
-         */
-        async fetch(request, info = {}) {
-            // the request's id (the precheck's, when it ran): on every log line of the request, in its
-            // work (a source's code, an error's details) and in an error's answer
-            const scope = requestScopeFor(request, info, { trustProxy });
-            try {
-                const response = await logUnanswered(context.log, scope, await withRequestScope(scope, () => answer(request, info)), routeFamily(request));
-                return withRequestIdHeader(await withRequestIdMember(/** @type {Response} */ (response), scope.id), scope.id);
-            } finally {
-                // a place for a large body, held since the precheck: given back once the request ran
-                release(info);
-            }
-        },
+        precheck: routes.precheck,
+        fetch: routes.fetch,
         release,
-        /**
-         * The answer to a body that cannot be read (serveFetch's problem): 413 or 400, with the
-         * request's id, also on a log line.
-         * @param {400 | 413} status
-         * @param {string} path  the request's
-         * @param {Record<string | symbol, any>} [info]
-         */
-        problem(status, path, info = {}) {
-            const scope = requestScopeFor(null, info, { trustProxy });
-            // the body was not read (too large, or the client left): its place is free again
-            release(info);
-            const cap = restBodyBytesAt(options, peekSignIn(info)?.caller, new URL(path, "http://localhost").pathname);
-            withRequestScope(scope, () => context.log.refused({ status, path: REST_BASE, reason: refusalReason(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT"), ...(status === 413 ? { limit: cap } : {}) }));
-            return withRequestIdHeader(problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? bodyTooLargeText(options, cap) : "the request cannot be read", { headers: { connection: "close" }, extra: { requestId: scope.id } }), scope.id);
-        },
+        problem: routes.problem,
         async close() {
             limits.close();
         }
