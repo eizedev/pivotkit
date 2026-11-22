@@ -20,7 +20,6 @@ import { OUTPUT_DEFAULTS, maxAgeDaysOf, pathOf } from "../config.js";
 import { OUTPUT_INSIDE_ALLOWED, SHARED_OUTPUT_TEXT, cannotCreate, entryOf, notWritable, notWritableText, outputRefusal, ownFileDirs, plannedPath } from "../context.js";
 import { draftBytesCap, draftCap, expiredIn, reportsIn, waitingDrafts } from "../output.js";
 import { bytesText, countText } from "../text.js";
-import { personBound } from "../sources/auth.js";
 import { heading, plain, problem, warning } from "./format.js";
 import { checkTemplates } from "../print-template.js";
 import { templateItems } from "./sources.js";
@@ -38,12 +37,7 @@ export async function section(options, registry) {
         return { items: [heading("Output: none (reports only as inline csv or json where the policy allows)"), ...(await serverTemplate(options))], upgrade: [] };
     }
     const items = [heading(`Output: ${out.dir}`)];
-    // drafts are made over configured sources not bound to a person (registry.js schedulable)
-    const drafts = Object.values(options.sources ?? {}).some((s) => s && !personBound(options, s));
-    const upgrade = [
-        ...(drafts ? [{ text: "schedule drafts take at most half of output.maxMb (output.draftMaxAgeDays lets waiting drafts expire)", anchor: "draft-quota" }] : []),
-        { text: "inline csv and json results round numbers as the view shows them; report files and drafts are named in lower case without spaces", anchor: "results-0-8" }
-    ];
+    const upgrade = [];
     const dir = pathOf(options, out.dir);
     // only ENOENT is missing: any other error (a name too long, a symbolic link loop) cannot be made
     const entry = await entryOf(dir);

@@ -1339,10 +1339,6 @@ Sources (1):
 ...
 Auth: token
   token export from $PIVOTKIT_TOKEN: all scopes, profile export
-
-New in this version:
-  at most 32 connections per address (http.maxConnectionsPerAddress)
-    -> https://pivotkit.eize.dev/getting-started/upgrading/#per-address
 ```
 
 Each line holds one fact. A fact under another is two spaces further in, a wrapped line four. Lines

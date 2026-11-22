@@ -92,7 +92,7 @@ try {
 }
 ```
 
-To check a view before you compute, call `validate(view, data)`. It gives the same problems as
+To check a view before you compute, call `validate(view, data)` from `pivotkit-core`. It gives the same problems as
 `errors` and `warnings`.
 
 ## Drawing the grid

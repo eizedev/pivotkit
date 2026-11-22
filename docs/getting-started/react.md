@@ -156,7 +156,10 @@ from `onViewChange`. The undo history stays inside the report however often your
     import { PivotReport } from "pivotkit-react";
     import "pivotkit-react/styles.css";
 
-    const rows = [/* the rows of the app above */];
+    const rows = [
+        { Region: "North", Product: "A", Sales: 120, Date: "2026-01-05" },
+        { Region: "South", Product: "B", Sales: 340, Date: "2026-02-14" }
+    ];
     const presets = [
         { name: "Sales per region", view: { rows: ["Region"], cols: ["Product"], values: [{ field: "Sales", agg: "sum" }] } }
     ];
@@ -174,7 +177,10 @@ from `onViewChange`. The undo history stays inside the report however often your
     import { PivotReport, type PivotView } from "pivotkit-react";
     import "pivotkit-react/styles.css";
 
-    const rows = [/* the rows of the app above */];
+    const rows = [
+        { Region: "North", Product: "A", Sales: 120, Date: "2026-01-05" },
+        { Region: "South", Product: "B", Sales: 340, Date: "2026-02-14" }
+    ];
     const presets = [
         { name: "Sales per region", view: { rows: ["Region"], cols: ["Product"], values: [{ field: "Sales", agg: "sum" }] } }
     ];
@@ -296,7 +302,7 @@ All props are listed in the [pivotkit-react reference](../reference/react.md).
 On the first chart it loads `./echarts.js` next to it. That file imports two things:
 
 - `echarts/core`, `echarts/charts`, `echarts/components` and `echarts/renderers` by name, so a
-  bundler keeps only the four chart types the report draws
+  bundler keeps only the five chart types the report draws
 - `pivotkit-core/chart`: the ECharts option, the chart's marks and label layout
 
 Any bundler that understands ES modules resolves these imports. A page without a bundler maps each

@@ -12,9 +12,9 @@ Sources: [#520](https://github.com/eizedev/pivotkit/pull/520),
 
 ## Context and Problem Statement
 
-pivotkit supports Node 22 and later (`engines: ">=22"`). `@types/node` describes which Node APIs the
-code may use. Dependabot proposes each new major of `@types/node`. Which major should the
-repository use?
+pivotkit supports Node 24 and later (`engines: ">=24"`). It was Node 22 when this was decided.
+`@types/node` describes which Node APIs the code may use. Dependabot proposes each new major of
+`@types/node`. Which major should the repository use?
 
 ## Considered Options
 
@@ -25,12 +25,12 @@ repository use?
 
 Chosen option: the lowest supported Node major.
 
-- `@types/node` stays on 22.x while Node 22 is the floor.
-- Dependabot ignores its major updates. Minor and patch updates of 22.x still come.
+- `@types/node` stays on the floor's major: 24.x while Node 24 is the floor.
+- Dependabot ignores its major updates. Minor and patch updates of that major still come.
 - The floor and the types rise together, in one change.
 
-The reason recorded in #520: types of a newer Node would let code use APIs that Node 22 lacks. Only
-users on Node 22 would notice.
+The reason recorded in #520: types of a newer Node would let code use APIs that the floor lacks. Only
+users on the floor would notice.
 
 ### Consequences
 
