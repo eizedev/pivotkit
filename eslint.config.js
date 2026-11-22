@@ -7,7 +7,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 
 // pivotkit-server never imports its command line: shared code lives in pivotkit-node. The runner's
-// `cli` command loads it by name with import(), which this rule does not see.
+// `cli` command loads it by name with import(), when it is installed; this rule does not see that.
 const NO_CLI_IN_SERVER = { regex: "^pivotkit-cli(/|$)", message: "shared code goes into pivotkit-node; pivotkit-server does not import its command line" };
 
 export default [

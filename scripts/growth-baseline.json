@@ -111,7 +111,7 @@
             "packages/pivotkit-server/src/rest/handler.js Async function 'run'": [39],
             "packages/pivotkit-server/src/rest/multipart.js Async function 'readMultipart'": [27],
             "packages/pivotkit-server/src/rest/openapi.js Function 'openApiDocument'": [46],
-            "packages/pivotkit-server/src/runner.js Async function 'run'": [40],
+            "packages/pivotkit-server/src/runner.js Async function 'run'": [38],
             "packages/pivotkit-server/src/signed-tokens.js Async method 'verify'": [29],
             "packages/pivotkit-server/src/sources/auth.js Function 'tokenAnswer'": [36],
             "packages/pivotkit-server/src/sources/fetch.js Async function 'guarded'": [36],

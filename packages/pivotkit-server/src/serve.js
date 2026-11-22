@@ -12,6 +12,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ConfigError, noRouteDetail } from "./config.js";
 import { fitsRange } from "./version-range.js";
+import { importInstalled } from "./installed.js";
 import { TOKEN_ENV, VERSION, createContext } from "./context.js";
 
 export { TOKEN_ENV };
@@ -48,12 +49,8 @@ export const MCP_PACKAGE = "pivotkit-mcp";
 export async function loadMcp(docs = undefined) {
     let mcp;
     try {
-        mcp = await import(MCP_PACKAGE);
+        mcp = await importInstalled(MCP_PACKAGE);
     } catch (e) {
-        // only pivotkit-mcp itself missing; a pivotkit-mcp whose own dependency is missing is an error
-        if (e?.code === "ERR_MODULE_NOT_FOUND" && String(e.message).includes(`Cannot find package '${MCP_PACKAGE}'`)) {
-            return null;
-        }
         // a missing export is a SyntaxError of the import, before any of pivotkit-mcp runs; only one
         // of pivotkit-server's (or a subpath's, pivotkit-server/policy) is a mismatch of the two
         if (e instanceof SyntaxError && /requested module 'pivotkit-server(?:\/[^']*)?'/.test(String(e.message))) {
@@ -66,6 +63,9 @@ export async function loadMcp(docs = undefined) {
             throw await releaseMismatch({ message: `this pivotkit-server has no entry point pivotkit-server/${entry}` });
         }
         throw e;
+    }
+    if (!mcp) {
+        return null;
     }
     const versions = installedVersions();
     const needs = versions.mcp?.dependencies?.["pivotkit-server"];
