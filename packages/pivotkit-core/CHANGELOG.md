@@ -6,26 +6,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
-### Added
-
-- `normalize` warns about `fieldLabels` in two cases. `labelTwice`: a field is named twice in
-  another case, and the last name is used. `labelTaken`: a name that another field of the report
-  also goes by, its own name or the view's name for it, so two headers read alike. Both names stay
-  ([#699](https://github.com/eizedev/pivotkit/issues/699)).
-- `monthName(month, locale)`: the short name of a month as the month grouping labels it, Gregorian,
-  in the locale's language. pivotkit-react names months with it
-  ([#662](https://github.com/eizedev/pivotkit/issues/662)).
-
-### Fixed
-
-- `toEChartsOption` draws the reference lines and the high and low points of its `chart` option's
-  `referenceLines`, over the view's, as the other chart keys. It drew the view's only. A key the
-  option's `referenceLines` leaves out is off.
-- `describeView` writes a date item in a sort's `column` as its day, for example
-  "in the column 2026-01-05". It wrote the raw milliseconds
-  ([#696](https://github.com/eizedev/pivotkit/issues/696)).
-
-## [0.9.0] - 2026-11-21
+## [0.9.0] - 2026-11-22
 
 ### Added
 
@@ -62,6 +43,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - `chartThemeFrom` reads the axis line's colour from `--pk-chart-axis`, else `--pk-border` as before.
   A print template or a host can draw the axis apart from the table's lines
   ([theming](https://pivotkit.eize.dev/reference/theming/), [#614](https://github.com/eizedev/pivotkit/issues/614)).
+- `normalize` warns about `fieldLabels` in two cases. `labelTwice`: a field is named twice in
+  another case, and the last name is used. `labelTaken`: a name that another field of the report
+  also goes by, its own name or the view's name for it, so two headers read alike. Both names stay
+  ([#699](https://github.com/eizedev/pivotkit/issues/699)).
+- `monthName(month, locale)`: the short name of a month as the month grouping labels it, Gregorian,
+  in the locale's language. pivotkit-react names months with it
+  ([#662](https://github.com/eizedev/pivotkit/issues/662)).
 
 ### Changed
 
@@ -73,6 +61,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - A `month` grouping (month of the year) names the data's Gregorian month in a locale with another
   calendar, such as `en-US-u-ca-islamic-civil`. January was "Ram." in exports and in the CLI's
   output ([#596](https://github.com/eizedev/pivotkit/issues/596)).
+- `toEChartsOption` draws the reference lines and the high and low points of its `chart` option's
+  `referenceLines`, over the view's, as the other chart keys. It drew the view's only. A key the
+  option's `referenceLines` leaves out is off.
+- `describeView` writes a date item in a sort's `column` as its day, for example
+  "in the column 2026-01-05". It wrote the raw milliseconds
+  ([#696](https://github.com/eizedev/pivotkit/issues/696)).
 
 ## [0.8.0] - 2026-11-18
 

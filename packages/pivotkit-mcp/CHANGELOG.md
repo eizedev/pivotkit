@@ -6,14 +6,7 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
-### Fixed
-
-- Inside pivotkit-server, a path nobody serves gets the server's 404, which names the REST service
-  and the OpenAPI document. `createHttpHandler` takes the answer as `notFound`. A server of
-  pivotkit-mcp alone still answers a plain "not found"
-  ([#630](https://github.com/eizedev/pivotkit/issues/630)).
-
-## [0.4.0] - 2026-11-21
+## [0.4.0] - 2026-11-22
 
 ### Added
 
@@ -58,6 +51,13 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#internal-exports), [#561](https://github.com/eizedev/pivotkit/issues/561)).
 - pivotkit-mcp imports what it shares with pivotkit-server from `pivotkit-server/internal`. Install
   pivotkit-server and pivotkit-mcp of one release.
+
+### Fixed
+
+- Inside pivotkit-server, a path nobody serves gets the server's 404, which names the REST service
+  and the OpenAPI document. `createHttpHandler` takes the answer as `notFound`. A server of
+  pivotkit-mcp alone still answers a plain "not found"
+  ([#630](https://github.com/eizedev/pivotkit/issues/630)).
 
 ## [0.3.2] - 2026-11-19
 
