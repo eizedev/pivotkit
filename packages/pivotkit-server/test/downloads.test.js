@@ -109,10 +109,14 @@ async function accessToken(sub, aud = REST_RESOURCE, client = "claude", iss = is
     return new SignJWT({ scope: "pivotkit", client_id: client }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(iss).setAudience(aud).setSubject(sub).setIssuedAt().setExpirationTime("5m").sign(key.privateKey);
 }
 
-/** The cookie a Set-Cookie header sets, as a Cookie header sends it. */
-/** A text with its last character changed to another one of base64url: always a different text (a forged token or signature). */
-const flipped = (text) => `${text.slice(0, -1)}${text.at(-1) === "A" ? "B" : "A"}`;
+/**
+ * A forged token, signature or cookie: the text with its next-to-last character changed to "A" or
+ * "B", so it always differs from the real one. Not the last character: in a base64url digest it
+ * carries only 4 bits, and "A" and "B" there can decode to the same bytes.
+ */
+const flipped = (text) => `${text.slice(0, -2)}${text.at(-2) === "A" ? "B" : "A"}${text.at(-1)}`;
 
+/** The cookie a Set-Cookie header sets, as a Cookie header sends it. */
 const cookieOf = (response) => (response.headers.get("set-cookie") ?? "").split(";")[0];
 
 /** Reads a server's log as it is so far, as one text. */
@@ -498,7 +502,7 @@ test("once: GET and HEAD answer a page and never use the link; one POST from the
         const repeat = await fetch(url, { method: "POST", headers: { "sec-fetch-site": "same-origin", cookie: cookieOf(first) } });
         assert.equal(repeat.status, 200, "the same browser within two minutes");
         // a cookie whose signature does not hold is no cookie
-        const tampered = cookieOf(first).replace(/.$/, (c) => (c === "A" ? "B" : "A"));
+        const tampered = flipped(cookieOf(first));
         assert.equal((await fetch(url, { method: "POST", headers: { origin: PUBLIC, cookie: tampered } })).status, 409);
         // the marker sits in the output directory, where a second replica sees it
         const markers = readdirSync(join(dir, "out", ".pivotkit-downloads"));
