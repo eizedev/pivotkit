@@ -24,7 +24,9 @@ Check a UI change in the playground: light and dark theme, wide and narrow.
 
 ## Where things go
 
-- `PivotReport.jsx` wires the parts and defines `commit()`.
+- `PivotReport.jsx` composes the report from hooks and parts. Its header lists the hooks by concern.
+- Each concern of the report is a hook in its own file, `use-<concern>.js`. A new state or effect goes there, not into `Report`.
+- `use-steps.js` defines `commit()`, Undo, Redo and Reset.
 - `use-view-history.js` owns the view and its undo history, controlled or not.
 - Every view change is a pure function in `view-ops.js`.
 - Changes only the menus make go into `menu-ops.js`, which loads with the menus.
@@ -63,6 +65,7 @@ The first load holds only what the first render needs. Everything else loads on 
 - A menus module never imports `chart.jsx`. `export-run.js` gets `loadECharts` through its context.
 - `echarts.js` brings pivotkit-core's `toEChartsOption`, from `pivotkit-core/chart`. `chart.jsx` never imports it.
 - `PivotReport.jsx` imports `deferred.js` as a file of its own: German texts and the tips' table.
+  No other module may import it. A hook that needs it gets its value from `PivotReport.jsx`.
 - pivotkit-element bundles `deferred-late.js` in its place. It loads them later.
 - What the first render needs of the tips is in `tip-state.js`, not in `tips.js`.
 - The notices (the result is cut or empty) are rows of `notices.js`, in the first load. A new one

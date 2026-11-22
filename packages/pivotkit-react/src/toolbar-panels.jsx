@@ -543,7 +543,7 @@ function LoadView({ labels, onLoadText, close }) {
 }
 
 /**
- * What the Views menu's buttons do, from what the report passes (PivotReport: templateActions): save
+ * What the Views menu's buttons do, from what the report passes (use-saved-views.js: actions): save
  * the view under a new name (the host's onSaveTemplate wins over the browser store), save the loaded
  * view where it is kept (view-save.js), delete an entry (a host's goes to
  * its onDeleteTemplate, a stored one to the store) and publish a user's view (onPublishTemplate, when

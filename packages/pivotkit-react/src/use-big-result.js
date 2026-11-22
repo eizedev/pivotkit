@@ -1,7 +1,7 @@
 /*
  * More room for the result. "Enlarge" lets the result fill the report (the field list, the zones and
  * the tips step aside; Escape inside the report, once no menu of it is open, or the same button brings
- * them back - PivotReport's keys); "Full screen" puts the whole report on the screen (the Fullscreen
+ * them back - report-keys.js); "Full screen" puts the whole report on the screen (the Fullscreen
  * API on the report's root, also inside a shadow root; Escape leaves it, the browser's own key, before
  * a menu would close;
  * not offered where the browser has no such API, such as Safari on an iPhone). Neither is part of the
@@ -68,7 +68,7 @@ export function useBigResult(root) {
  * higher changes nothing; a lower one lets the report grow past it, so the page scrolls. Measured
  * after every render and when the report or a part of its column changes size. The ref holds the
  * last value (`need`, 0: none) and what the report needs with its zones open (`open`), so a box too
- * low for the open zones folds them (PivotReport) instead of growing, and they stay folded until the
+ * low for the open zones folds them (use-report-size.js) instead of growing, and they stay folded until the
  * box has room. `onOpen` runs when `open` changed: the zones can need more while the report's box
  * keeps its size (longer texts in another language, a font or stylesheet that loads late), and no
  * resize of the report says so (#93).

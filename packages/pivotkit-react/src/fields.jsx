@@ -150,7 +150,7 @@ function wordsOf(name) {
  *   `collapsed`, `onCollapse`: the list folded to a rail ("Fields" and a search button) beside the
  *   report, and the change of it (not in the drawer)
  */
-export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, drawer, open, onClose, nameOf, sourceNameOf, info, showInfo = true, onSkip, collapsed = false, onCollapse }) {
+function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, drawer, open, onClose, nameOf, sourceNameOf, info, showInfo = true, onSkip, collapsed = false, onCollapse }) {
     const [query, setQuery] = useState("");
     const active = useActiveDrag();
     const { setNodeRef, isOver } = useDropTarget("panel", { kind: "panel" });
@@ -297,5 +297,44 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
                 </div>
             ) : null}
         </aside>
+    );
+}
+
+/**
+ * The field list in the report's layout: its slot (a drawer on a narrow report, with a scrim behind
+ * it), wired to placing a field, filtering one and folding the list to a rail.
+ * @param {{ slotRef: React.MutableRefObject<HTMLDivElement | null>, root: React.RefObject<HTMLElement | null>, labels: any,
+ *   fields: ReturnType<typeof import("./use-fields.js").useFields>, placing: ReturnType<typeof import("./use-placing.js").usePlacing>,
+ *   drawer: ReturnType<typeof import("./use-drawer.js").useDrawer>, dismissed: ReturnType<typeof import("./use-dismissed.js").useDismissed>,
+ *   announce: (text: string) => void }} props  slotRef: the slot, which the drawer makes inert while closed
+ */
+export function FieldSlot({ slotRef, root, labels, fields, placing, drawer, dismissed, announce }) {
+    return (
+        <>
+            <div className="pk-panel-slot" ref={slotRef}>
+                <FieldPanel
+                    fields={fields.fields}
+                    placed={fields.placed}
+                    labels={labels}
+                    onAdd={(f, z) => {
+                        placing.addTo(f, z);
+                        drawer.closeIfNarrow();
+                    }}
+                    onNote={(text) => announce(text)}
+                    onFilter={placing.filterField}
+                    nameOf={fields.nameOf}
+                    sourceNameOf={fields.sourceNameOf}
+                    info={fields.fieldInfo}
+                    showInfo={dismissed.showFieldInfo}
+                    drawer={drawer.narrow}
+                    open={drawer.open}
+                    onClose={drawer.close}
+                    collapsed={dismissed.railed}
+                    onCollapse={dismissed.collapseFields}
+                    onSkip={() => /** @type {HTMLElement | null | undefined} */ (root.current?.querySelector(".pk-toolbar button:not([disabled])"))?.focus()}
+                />
+            </div>
+            {drawer.open ? <div className="pk-scrim pk-drawer-scrim" onClick={drawer.close} aria-hidden="true" /> : null}
+        </>
     );
 }

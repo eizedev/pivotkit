@@ -5,6 +5,8 @@
  * used, so the first load does not carry it.
  */
 
+import { warnOnce } from "./warn-once.js";
+
 /**
  * @typedef {boolean | { columns?: string[] }} ExportDataOption
  * @typedef {{ source: boolean, columns?: string[], unknown: string[], notList?: boolean }} DataExport
@@ -84,9 +86,6 @@ export function pickColumns(names, wanted) {
     return picked;
 }
 
-/** What the console was told already, so a host's mistake is said once per page. */
-const warned = new Set();
-
 /**
  * dataExportOf against the data shown (its columns without derived fields), with the host's names
  * that match nothing said once in the console.
@@ -108,12 +107,4 @@ export function dataExportFor(exportData, encoded) {
         }
     }
     return scope;
-}
-
-/** @param {string} text */
-function warnOnce(text) {
-    if (!warned.has(text)) {
-        warned.add(text);
-        console.warn(text);
-    }
 }

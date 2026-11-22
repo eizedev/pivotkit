@@ -48,7 +48,7 @@ export const TIP_LIMIT = 1;
  * @property {string} id
  * @property {(ctx: TipContext) => Record<string, any> | null} when  null: not now; else the
  *   placeholders of its text (and `action` data)
- * @property {string} [action]  the action of its button: a key of labels.tipActions and of PivotReport's actions
+ * @property {string} [action]  the action of its button: a key of labels.tipActions and of use-tips.js's tipStep
  * @property {"notice"} [kind]  a notice: always shown, not dismissible, outside the tips' limit
  * @property {string} [icon]
  */

@@ -11,7 +11,7 @@
  * once the host's data is shown again (Back to original data, Undo of the load). At most KEPT_REPORTS
  * keys, the one written longest ago going first, so reports that never come back free their data.
  * An entry names the host's data it was made over (`host`); a report mounted on other data takes
- * nothing, and lets the entry go (PivotReport.jsx, unless that data has no columns yet). Pure apart
+ * nothing, and lets the entry go (use-shown-data.js: useKeepData, unless that data has no columns yet). Pure apart
  * from the module's map, so it is tested without a DOM.
  */
 
