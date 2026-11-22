@@ -40,20 +40,20 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   with `records`. It is off by default. Only fields at `show` leave, in the columnar shape
   pivotkit-core's `encode` reads, written in pieces. A field below `show` answers 403
   `NOT_ALLOWED` with `notShown`; a hidden one answers as one that does not exist. A view's filters
-  do not limit the rows ([rows route](https://pivotkit.eize.dev/reference/rest/#records), #615).
+  do not limit the rows ([rows route](https://pivotkit.eize.dev/reference/rest/#records), [#615](https://github.com/eizedev/pivotkit/issues/615)).
 - `rest.records.maxRows` (50,000), `.maxCells` (1,000,000), `.concurrency` (1), `.idleMs` (30 s),
   `.writeMs` (10 s) and `sources.<id>.records.maxRows` bound the route: 413 `LIMIT_EXCEEDED` before
   the first byte, 503 `BUSY` beyond the requests at once or for a second request of the same
   person. A reader idle too long, or one that has not read the answer within `writeMs`, loses its
-  place, so a slow reader keeps others at `BUSY` for seconds, not for `compute.timeMs` (#636).
+  place, so a slow reader keeps others at `BUSY` for seconds, not for `compute.timeMs` ([#636](https://github.com/eizedev/pivotkit/issues/636)).
 - `POST /api/v1/sources/records` takes the name of a source's view as `view`. A view that uses a
   field at `values` or `summary` answers 403 `NOT_ALLOWED` naming only those fields. One that uses a
-  hidden field answers as a name that does not exist (#644).
+  hidden field answers as a name that does not exist ([#644](https://github.com/eizedev/pivotkit/issues/644)).
 - `GET /api/v1/sources` adds `"records": true` to each source the caller may read the rows of.
 - `GET /api/v1/sources` and MCP `list_sources` give a source's row count (`rows`) and `dataAsOf`
   once the server has read its data. Only a file source and a shared code source without parameters
   get them, and `rows` only where the caller's policy shows the row count
-  ([row count and data date](https://pivotkit.eize.dev/reference/rest/#source-list), #617).
+  ([row count and data date](https://pivotkit.eize.dev/reference/rest/#source-list), [#617](https://github.com/eizedev/pivotkit/issues/617)).
 - `check-config` lists per profile the sources and the fields that would leave. It reports an
   unknown source id, a static or signed token whose profile reads rows, a source without a field at
   `show`, and a profile whose default is `show`.
@@ -65,7 +65,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   ([sizing](https://pivotkit.eize.dev/reference/rest/#records-sizing)).
 - `create_link` (`POST /views/link`) writes a source's parameters into the page's query string,
   such as `?customer=acme`. The view stays in the fragment. A host application's backend reads the
-  query ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), #619).
+  query ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), [#619](https://github.com/eizedev/pivotkit/issues/619)).
     - `sources.<id>.linkParams` lists the parameters a link may carry. Any other answers
       `INVALID_INPUT` and names the allowed ones. Without the list, a link carries none, as before.
     - The server refuses a list with a parameter bound to a claim, an undeclared one, or without a
@@ -81,15 +81,15 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `list_sources` and `describe_source` list them. `render_view`, `create_link` and
   `draft_schedule` take a name as `view`. The files are read on every request. The start and
   `check-config` check them, and `check-config` lists the fields each view needs
-  ([named views](https://pivotkit.eize.dev/reference/sources/#views), #616).
+  ([named views](https://pivotkit.eize.dev/reference/sources/#views), [#616](https://github.com/eizedev/pivotkit/issues/616)).
 - A caller never learns of a view that uses a field hidden from it. A view that holds values of a
   field the caller sees at `summary` gets no link and no draft.
 - `output.template` is the print template of every html report whose source sets none. Data sent in
   the request (`inline:`) and, over MCP, `file:` paths take it too. The server reads it on every
   html render and checks it at start and in `check-config`, as it does `sources.<id>.template`
-  ([print template](https://pivotkit.eize.dev/reference/print-template/), #614).
+  ([print template](https://pivotkit.eize.dev/reference/print-template/), [#614](https://github.com/eizedev/pivotkit/issues/614)).
 - Branding for intranet deployments, all optional
-  ([your own name and links](https://pivotkit.eize.dev/reference/branding/), #608, #612):
+  ([your own name and links](https://pivotkit.eize.dev/reference/branding/), [#608](https://github.com/eizedev/pivotkit/issues/608), [#612](https://github.com/eizedev/pivotkit/issues/612)):
     - `branding.name` puts the operator's name on the download pages, the OpenAPI title and the
       `resource_name` ("<name> REST"), and the realm of a static token's 401.
     - `branding.docsUrl` is the base of every documentation link: a problem's `type`, the OAuth
@@ -112,18 +112,18 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   query or fragment stops the start with an error that names the remedy. Download links, the
   OpenAPI document, the REST resource, the 404 text, `check-config` and the hints of `token new`
   all use the origin, and none of them shows a user name or password
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#public-url-origin), #629).
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#public-url-origin), [#629](https://github.com/eizedev/pivotkit/issues/629)).
 - **Breaking:** `auth.resource` and `rest.resource` with a user name, password, query or fragment
-  stop the start. They appear in metadata and messages (#629).
+  stop the start. They appear in metadata and messages ([#629](https://github.com/eizedev/pivotkit/issues/629)).
 - **Breaking:** needs Node 24 or later. Node 22 is no longer supported
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
-- The container image runs on a distroless Node 24 base (#519).
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), [#519](https://github.com/eizedev/pivotkit/issues/519)).
+- The container image runs on a distroless Node 24 base ([#519](https://github.com/eizedev/pivotkit/issues/519)).
 - An HTTP source reads a JSON answer while it arrives. Each row becomes a table row at once, so the
   server never holds the whole body and its parsed objects together. The peak memory of a first
   call fell from about 390 to 300 MB for a 20 MiB answer, and from about 910 to 590 MB for
   500,000 rows, measured on one laptop. A body that repeats a key on the way to the rows after
   them is refused (`SOURCE_UNAVAILABLE`). CSV answers are read as before
-  ([Memory while a source loads](https://pivotkit.eize.dev/reference/sources/#http-memory), #620).
+  ([Memory while a source loads](https://pivotkit.eize.dev/reference/sources/#http-memory), [#620](https://github.com/eizedev/pivotkit/issues/620)).
 - Two texts callers read name the server instead of pivotkit. `SOURCE_UNAVAILABLE` says "the
   source's backend refused this server's access", and `UNSUPPORTED_FORMAT` says "the server reads
   csv, tsv, txt, json and xlsx files". The codes stay
@@ -132,7 +132,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - **Breaking:** `pivotkit-server` exports only its public names. The names pivotkit-mcp shares with it
   move to `pivotkit-server/internal`, which is no public interface. `pivotkit-server/policy` exports
   the policy's public part. A host that imported a moved name reads the
-  [upgrading page](https://pivotkit.eize.dev/getting-started/upgrading/#internal-exports) (#561).
+  [upgrading page](https://pivotkit.eize.dev/getting-started/upgrading/#internal-exports) ([#561](https://github.com/eizedev/pivotkit/issues/561)).
 - A new page lists every export of the services
   ([JavaScript exports](https://pivotkit.eize.dev/reference/service-exports/)).
 - A pivotkit-mcp that imports an entry point this pivotkit-server lacks is refused with both
@@ -143,40 +143,40 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - `docker/pivotkit.example.json` sets `"policy": { "results": true }`. With Compose, step 3 of
   "Server in 5 minutes" downloads the rendered file.
 - A missing print template fails only html reports. Other formats, `describe_source` and
-  `validate_view` over the source answer as usual (#614).
+  `validate_view` over the source answer as usual ([#614](https://github.com/eizedev/pivotkit/issues/614)).
 - An html render whose print template cannot be read answers 502 `SOURCE_UNAVAILABLE` with a fixed
   text and `retryable: false`. It was 404 `FILE_NOT_AVAILABLE`, which read like a missing source and
   named the template's file. A warning line names the file and the reader's code for the operator
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#template-unavailable), #653).
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#template-unavailable), [#653](https://github.com/eizedev/pivotkit/issues/653)).
 - A 503 `BUSY` answer logs at `warn`, not `error`: the server is full, not broken. Every other 5xx
-  stays at `error` (#638).
+  stays at `error` ([#638](https://github.com/eizedev/pivotkit/issues/638)).
 - `create_link` over a source with a link and params but no `linkParams` warns with
   `paramsNotCarried`: the link carries none of the params given, so the page opens without them
-  (#641).
+  ([#641](https://github.com/eizedev/pivotkit/issues/641)).
 - `check-config` points to the security notes under a source's link params. It warns about a listed
   name the page address already holds, and about a text parameter without `pattern`, `enum` or
-  `format`. A linked source with params but no list gets a hint (#642).
+  `format`. A linked source with params but no list gets a hint ([#642](https://github.com/eizedev/pivotkit/issues/642)).
 - `check-config` no longer says that the audit names a person only with `auth.mode oauth` when an
-  external issuer is set. It checks the audit key there too, as the start does (#639).
+  external issuer is set. It checks the audit key there too, as the start does ([#639](https://github.com/eizedev/pivotkit/issues/639)).
 - A stop no longer waits the whole `http.graceMs` after a request whose body was lost while its
-  sign-in was still checked: a chunked body the parser refused, or a client that left (#655).
+  sign-in was still checked: a chunked body the parser refused, or a client that left ([#655](https://github.com/eizedev/pivotkit/issues/655)).
 - An answer whose stream fails while the client's socket is full ends the connection at once. It
-  stayed open until the client read again or left (#637).
+  stayed open until the client read again or left ([#637](https://github.com/eizedev/pivotkit/issues/637)).
 - A named view that uses a column the file gives no header ("Column 2") is not listed, and its name
-  answers as one that does not exist. Such a column is hidden from every caller (#645).
+  answers as one that does not exist. Such a column is hidden from every caller ([#645](https://github.com/eizedev/pivotkit/issues/645)).
 - A file in a source's `viewsDir` whose name is no view name, such as `My view (1).json`, is
-  skipped with a warning. It stopped the start (#646).
-- A view file whose name holds ":" is named whole in a problem (#646).
+  skipped with a warning. It stopped the start ([#646](https://github.com/eizedev/pivotkit/issues/646)).
+- A view file whose name holds ":" is named whole in a problem ([#646](https://github.com/eizedev/pivotkit/issues/646)).
 - A view name that does not exist suggests the nearest view the caller may know of. A nearer view
   that uses a hidden field took its place, so a missing hint told that such a view exists.
 - `list_sources` and `GET /sources` give at most 10,000 characters of view descriptions per source.
-  Later views keep their name and title (#646).
+  Later views keep their name and title ([#646](https://github.com/eizedev/pivotkit/issues/646)).
 - A streamed JSON answer of an HTTP source stops at the first row over `limits.rows`. The error
   says "more rows than the limit of 40 (limits.rows)" instead of counting the whole answer
-  first (#648).
+  first ([#648](https://github.com/eizedev/pivotkit/issues/648)).
 - An HTTP source's JSON answer leaves out the columns the caller's policy hides while its rows
   arrive, not after the whole answer is in. With one of seven columns hidden, the main thread's peak
-  heap fell by about 9 % for a 20 MB answer (`bench/server`, #649).
+  heap fell by about 9 % for a 20 MB answer (`bench/server`, [#649](https://github.com/eizedev/pivotkit/issues/649)).
 
 ## [0.3.2] - 2026-11-19
 

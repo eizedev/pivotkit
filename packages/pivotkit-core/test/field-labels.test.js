@@ -78,6 +78,9 @@ test("normalize warns when fieldLabels names a field twice, and when two fields 
     assert.deepEqual(alike.issues.map((i) => [i.code, i.severity, i.path, i.params?.value]), [["labelTaken", "warning", "fieldLabels.cn", "Place"], ["labelTaken", "warning", "fieldLabels.cat", "Place"]]);
     const taken = normalize({ rows: ["cn", "cat"], fieldLabels: { cn: "cat" } }, data);
     assert.deepEqual(taken.issues.map((i) => [i.code, i.path, i.params?.field, i.params?.value]), [["labelTaken", "fieldLabels.cn", "cn", "cat"]]);
+    // the message names the name once, and the other field's name only where the view renamed it
+    assert.equal(taken.issues[0].message, 'another field of the report is called "cat" too; the two headers read alike');
+    assert.equal(alike.issues[0].message, '"Place" is also the view\'s name for "cat"; the two headers read alike');
     // alike in case and spacing; a derived field; a field not on the report is no clash
     assert.deepEqual(normalize({ rows: ["cn", "cat"], fieldLabels: { cn: " CAT " } }, data).issues.map((i) => i.code), ["labelTaken"]);
     const grouped = normalize({ derived: [{ name: "Bucket", field: "Revenue", by: "bin", size: 2 }], rows: ["Bucket", "cn"], fieldLabels: { Bucket: "cn" } }, data);

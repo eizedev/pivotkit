@@ -50,6 +50,7 @@ Release packages in this order. It follows their run-time dependencies.
   - pivotkit-server's full version in `docs/getting-started/server-in-5-minutes.md`:
     every image tag, the release tag `pivotkit-server@<version>` and `PIVOTKIT_VERSION`
   - the release tag `pivotkit-server@<version>` in `docs/getting-started/kubernetes.md`
+  - the image tag of the docker line in `README.md`
   - the example version in `docker/compose*.example.yml` and `docker/kubernetes.example.yaml`
 - Two more files carry a version. Their package's tests check them:
   - `docs/openapi.json`. Run `node scripts/openapi.js`.

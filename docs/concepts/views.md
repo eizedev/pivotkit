@@ -89,7 +89,7 @@ value:
 | `collapsed` | Key paths of collapsed groups per axis. | |
 | `display`, `chart` | Table, chart or both side by side (a narrower report shows the table), the chart's type, stacking and direction, and how it is drawn: value labels, legend, title, smooth lines, axis labels, group labels, tooltip, reference lines ([Charts](charts.md)). | |
 | `formatting` | The view's own locale and time zone, and the first day of a week for relative ranges in weeks (`weekStart`, 1 Monday to 7 Sunday). | [Locale and time zones](limits.md), [Relative date ranges](filters.md#relative-date-ranges) |
-| `fieldLabels` | Names of the report's own for fields, by the field's name. The headers, the chart and the exports show them instead of the field's name or a host's display name. Only a view with a name has the key. pivotkit 0.8 does not know it. | [Upgrading](../getting-started/upgrading.md#field-labels) |
+| `fieldLabels` | Names of the report's own for fields, by the field's name. The headers, the chart and the exports show them instead of the field's name or a host's display name. A view has the key only when it gives at least one field a name. pivotkit 0.8 does not know it. | [Upgrading](../getting-started/upgrading.md#field-labels) |
 | `version` | The view format's version. pivotkit migrates older views. | |
 
 ## A view is user input
