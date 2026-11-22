@@ -255,6 +255,8 @@ test("toEChartsOption's chart option sets the reference lines over the view's: a
     const off = toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } }), { chart: { referenceLines: { target: 25 } } });
     assert.equal(off.series[0].markPoint, undefined);
     assert.equal(off.series.flatMap((s) => s.markLine?.data ?? []).length, 1, "the target alone");
-    // without the option, the view's own
+    // without the option, or with it undefined, the view's own; null switches them off
     assert.equal(toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } })).series[0].markPoint.data.length, 2);
+    assert.equal(toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } }), { chart: { referenceLines: undefined } }).series[0].markPoint.data.length, 2);
+    assert.equal(toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } }), { chart: { referenceLines: null } }).series[0].markPoint, undefined);
 });
