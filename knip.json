@@ -1,0 +1,19 @@
+{
+    "$schema": "https://unpkg.com/knip@6.45.1/schema.json",
+    "include": ["files", "exports", "nsExports", "types", "nsTypes", "enumMembers", "namespaceMembers", "duplicates"],
+    "ignore": ["examples/angular/**"],
+    "workspaces": {
+        ".": {
+            "entry": ["scripts/*.js", "bench/**/*.{js,jsx}", "examples/playground/src/main.jsx", "examples/playground/src/validator.js", "examples/element/*.js", "tests/browser/pages/**/*.{js,jsx}"]
+        },
+        "packages/pivotkit-core": {
+            "entry": ["scripts/*.js"]
+        },
+        "packages/pivotkit-react": {
+            "entry": ["src/{index,echarts,menus,menu-labels-de,all-labels,import-module,import-worker,deferred,deferred-late}.js", "test/types/*.tsx"]
+        },
+        "packages/pivotkit-element": {
+            "entry": ["src/{index,element}.js", "test/types/*.tsx"]
+        }
+    }
+}

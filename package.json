@@ -19,6 +19,7 @@
   },
   "scripts": {
     "lint": "eslint .",
+    "growth": "node scripts/growth.js",
     "build": "npm run build --workspaces --if-present",
     "test": "node scripts/test-run.js npm test --workspaces --if-present && node scripts/test-run.js node --test \"tests/*.test.js\"",
     "types": "npm run types --workspaces --if-present && npm run test:types --workspaces --if-present",
@@ -42,6 +43,8 @@
     "eslint": "10.15.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.14.0",
+    "jscpd": "5.4.3",
+    "knip": "6.45.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "typescript": "7.0.2"

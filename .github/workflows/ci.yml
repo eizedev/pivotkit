@@ -37,6 +37,20 @@ jobs:
         run: npm audit signatures
       - name: Lint
         run: npm run lint
+      # The growth guards (scripts/growth.js): a ratchet on scripts/growth-baseline.json, one step
+      # each so a red step names its guard. The numbers do not depend on the Node version
+      - name: Function size and complexity
+        if: matrix.node == '24'
+        run: node scripts/growth.js functions
+      - name: Unused exports and files
+        if: matrix.node == '24'
+        run: node scripts/growth.js unused
+      - name: Duplicated code
+        if: matrix.node == '24'
+        run: node scripts/growth.js duplication
+      - name: Docs size
+        if: matrix.node == '24'
+        run: node scripts/growth.js docs
       - name: Types
         # type check of the JSDoc sources, generated .d.ts, and a TypeScript consumer compiled against them
         run: npm run types

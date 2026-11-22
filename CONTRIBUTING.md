@@ -40,6 +40,7 @@ Every change:
 npm run lint
 npm run types
 npm test
+npm run growth
 ```
 
 Then, depending on what you changed:
