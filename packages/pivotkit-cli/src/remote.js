@@ -283,7 +283,7 @@ export function createClient({ server, values, ctx, userAgent }) {
         if (signal.aborted) {
             return new RemoteError("TIMEOUT", `the server did not answer within ${timeoutMs / 1000} s (--timeout)${proxyNote(server, env)}`);
         }
-        const code = /** @type {string | null} */ (networkCodeOf(e, isCodeShaped));
+        const code = /** @type {string | null} */ (networkCodeOf(e, { client: "fetch", accept: isCodeShaped }));
         const what = code && Object.hasOwn(NETWORK_TEXTS, code) ? NETWORK_TEXTS[code] : "no answer";
         return new RemoteError(code ?? "NETWORK", `the server cannot be reached: ${what}${proxyNote(server, env)}`);
     }

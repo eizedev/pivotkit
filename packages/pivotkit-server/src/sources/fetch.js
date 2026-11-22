@@ -189,7 +189,7 @@ function embeddedV4(b) {
 }
 
 /** How an address the request reaches is read: every spelling, IPv4-mapped ::ffff:127.x as loopback too. */
-const ANY_FORM = Object.freeze({ anyForm: true });
+const AN_ADDRESS = Object.freeze({ address: true });
 
 /** A refusal of an address as the error a request ends with. */
 const refused = (rule) => new GuardedFetchError("REFUSED_ADDRESS", rule === "always" ? "the address is never connected to (link-local, metadata, multicast or unspecified)" : "the address is a loopback or private one, which this request may not reach");
@@ -219,7 +219,7 @@ function guardedLookup(lookup, rules) {
             }
             for (const entry of list) {
                 const rule = addressRefusal(entry.address, rules);
-                if (rule || (rules.plainHttp && !isLoopback(entry.address, ANY_FORM))) {
+                if (rule || (rules.plainHttp && !isLoopback(entry.address, AN_ADDRESS))) {
                     callback(rule ? refused(rule) : new GuardedFetchError("NOT_HTTPS", "plain http goes to a loopback address only"));
                     return;
                 }
@@ -311,7 +311,7 @@ export function createGuardedFetch(means = {}) {
             if (rule) {
                 throw refused(rule);
             }
-            if (plainHttp && !isLoopback(host, ANY_FORM)) {
+            if (plainHttp && !isLoopback(host, AN_ADDRESS)) {
                 throw new GuardedFetchError("NOT_HTTPS", "plain http goes to a loopback address only");
             }
         }
@@ -458,7 +458,7 @@ export function createGuardedFetch(means = {}) {
                 const check = () => {
                     const remote = socket.remoteAddress ?? "";
                     const rule = addressRefusal(remote, rules);
-                    if (rule || (plainHttp && !isLoopback(remote, ANY_FORM))) {
+                    if (rule || (plainHttp && !isLoopback(remote, AN_ADDRESS))) {
                         fail(rule ? refused(rule) : new GuardedFetchError("NOT_HTTPS", "plain http goes to a loopback address only"));
                     }
                 };
@@ -556,7 +556,7 @@ function networkError(e) {
     if (inner) {
         return inner;
     }
-    const code = String(networkCodeOf(e) ?? "unknown");
+    const code = String(networkCodeOf(e, { client: "node" }) ?? "unknown");
     return new GuardedFetchError("NETWORK", `the connection failed (${code.slice(0, 40)})`, { transient: TRANSIENT.has(code), cause: e });
 }
 

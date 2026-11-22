@@ -1,7 +1,7 @@
 # pivotkit-node
 
 What pivotkit-cli and pivotkit-server share in Node: reading and writing files for a caller, the
-REST contract, and how a network answer is read. Node only. The root [AGENTS.md](../../AGENTS.md) applies too.
+REST contract, and how addresses, Retry-After headers and failed connections are read. Node only. The root [AGENTS.md](../../AGENTS.md) applies too.
 
 ## Commands
 
@@ -35,8 +35,9 @@ Use `src/safe-files.js` for every file a front end reads or writes.
 
 - `src/net.js` (`pivotkit-node/net`) is the one copy of `ipBytes`, `isLoopback`, `retryAfterSeconds`
   and `networkCodeOf`. The front ends keep their own error classes, words and caps.
-- `isLoopback(host)` reads a host as written. `{ anyForm: true }` reads an address a lookup or a
+- `isLoopback(host)` reads a host as written. `{ address: true }` reads an IP address a lookup or a
   socket gave: every spelling, IPv4-mapped too. `test/net.test.js` pins both.
+- `networkCodeOf` looks where the caller's client puts the code: `client: "node"` or `"fetch"`.
 - A front end that needs another result passes an option. It never keeps a copy of its own.
 
 ## REST contract

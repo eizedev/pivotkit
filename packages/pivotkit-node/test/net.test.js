@@ -16,12 +16,13 @@ test("isLoopback reads a host as written: localhost, 127.0.0.0/8 dotted, ::1; no
     for (const host of others) assert.equal(isLoopback(host), false, String(host));
 });
 
-test("isLoopback with anyForm reads an address a lookup or a socket gave: every spelling, a zone dropped, IPv4-mapped too, never a name", () => {
+test("isLoopback with address: true reads an address a lookup or a socket gave: every spelling, a zone dropped, IPv4-mapped too, never a name", () => {
     for (const address of ["127.0.0.1", "127.9.9.9", "::1", "[::1]", "0:0:0:0:0:0:0:1", "::0001", "::1%lo0", "127.0.0.1%eth0", "::ffff:127.0.0.1", "::FFFF:127.0.0.1", "[::ffff:7f00:1]"]) {
-        assert.equal(isLoopback(address, { anyForm: true }), true, address);
+        assert.equal(isLoopback(address, { address: true }), true, address);
     }
+    assert.equal(isLoopback("::ffff:127.0.0.1", null), false);
     for (const address of ["localhost", "::ffff:128.0.0.1", "::127.0.0.1", "::", "0.0.0.0", "10.0.0.1", "fe80::1%lo0", "", undefined]) {
-        assert.equal(isLoopback(address, { anyForm: true }), false, String(address));
+        assert.equal(isLoopback(address, { address: true }), false, String(address));
     }
 });
 
@@ -46,16 +47,26 @@ test("retryAfterSeconds with maxDigits reads a longer number as a date, as pivot
     assert.equal(retryAfterSeconds("00000000001"), 1);
 });
 
-test("networkCodeOf finds the code where node:http and fetch put it; accept narrows what counts", () => {
+test("networkCodeOf looks where each client puts the code; accept narrows what counts", () => {
     const coded = (code, more = {}) => Object.assign(new Error("failed"), { code }, more);
-    assert.equal(networkCodeOf(coded("ECONNRESET")), "ECONNRESET");
-    assert.equal(networkCodeOf(Object.assign(new AggregateError([coded("ECONNREFUSED"), coded("ETIMEDOUT")]), { code: "ECONNREFUSED" })), "ECONNREFUSED");
-    assert.equal(networkCodeOf(new AggregateError([coded("ETIMEDOUT")])), "ETIMEDOUT");
-    assert.equal(networkCodeOf(new TypeError("fetch failed", { cause: coded("UND_ERR_SOCKET") })), "UND_ERR_SOCKET");
-    assert.equal(networkCodeOf(new TypeError("fetch failed", { cause: new Error("x", { cause: coded("ENOTFOUND") }) })), "ENOTFOUND");
-    for (const error of [undefined, null, {}, new TypeError("fetch failed", { cause: new Error("x") })]) assert.equal(networkCodeOf(error), null);
+    const node = { client: "node" };
+    const fetchLike = { client: "fetch" };
+    // node:http(s): on the error, or on the first error of an AggregateError; never on a cause
+    assert.equal(networkCodeOf(coded("ECONNRESET"), node), "ECONNRESET");
+    assert.equal(networkCodeOf(Object.assign(new AggregateError([coded("ECONNREFUSED"), coded("ETIMEDOUT")]), { code: "ECONNREFUSED" }), node), "ECONNREFUSED");
+    assert.equal(networkCodeOf(new AggregateError([coded("ETIMEDOUT")]), node), "ETIMEDOUT");
+    assert.equal(networkCodeOf(new Error("x", { cause: coded("ECONNRESET") }), node), null);
+    // fetch: on the cause first, then on the error, then one cause deeper; never in an AggregateError's list
+    assert.equal(networkCodeOf(new TypeError("fetch failed", { cause: coded("UND_ERR_SOCKET") }), fetchLike), "UND_ERR_SOCKET");
+    assert.equal(networkCodeOf(coded("EPIPE", { cause: coded("ECONNRESET") }), fetchLike), "ECONNRESET");
+    assert.equal(networkCodeOf(new TypeError("fetch failed", { cause: new Error("x", { cause: coded("ENOTFOUND") }) }), fetchLike), "ENOTFOUND");
+    assert.equal(networkCodeOf(new AggregateError([coded("ETIMEDOUT")]), fetchLike), null);
+    for (const error of [undefined, null, {}, new TypeError("fetch failed", { cause: new Error("x") })]) {
+        assert.equal(networkCodeOf(error, node), null);
+        assert.equal(networkCodeOf(error, fetchLike), null);
+    }
     const shaped = (code) => typeof code === "string" && /^[A-Z][A-Z0-9_]{1,40}$/.test(code);
-    assert.equal(networkCodeOf(coded("lower case")), "lower case");
-    assert.equal(networkCodeOf(coded("lower case"), shaped), null);
-    assert.equal(networkCodeOf(coded(5, { cause: coded("EPIPE") }), shaped), "EPIPE");
+    assert.equal(networkCodeOf(coded("lower case"), node), "lower case");
+    assert.equal(networkCodeOf(coded("lower case"), { client: "fetch", accept: shaped }), null);
+    assert.equal(networkCodeOf(coded(5, { cause: coded("EPIPE") }), { client: "fetch", accept: shaped }), "EPIPE");
 });

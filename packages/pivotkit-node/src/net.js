@@ -64,13 +64,13 @@ function loopbackBytes(ip, mapped) {
  * of 127.0.0.0/8 or "::1", brackets allowed ("[::1]"), any case. Only these spellings: a name such as
  * "127.example.com" is no loopback, and neither is an IPv4-mapped "[::ffff:7f00:1]".
  *
- * `anyForm` is for an address a lookup gave or a socket reached: every spelling of an IP address
- * counts, a zone is dropped, and the IPv4-mapped ::ffff:127.0.0.0/104 is loopback too. A name never is.
+ * `address: true` reads an IP address a lookup gave or a socket reached: every spelling counts, a
+ * zone is dropped, and the IPv4-mapped ::ffff:127.0.0.0/104 is loopback too. A name never is.
  * @param {string} host
- * @param {{ anyForm?: boolean }} [how]
+ * @param {{ address?: boolean }} [how]
  */
-export function isLoopback(host, { anyForm = false } = {}) {
-    if (anyForm) {
+export function isLoopback(host, how) {
+    if (how?.address === true) {
         return loopbackBytes(ipBytes(String(host ?? "")), true);
     }
     const plain = String(host ?? "").toLowerCase().replace(/^\[(.*)\]$/, "$1");
@@ -96,15 +96,24 @@ export function retryAfterSeconds(value, { maxDigits = Infinity } = {}) {
 }
 
 /**
- * The system code of a connection that failed (ECONNREFUSED, UND_ERR_SOCKET, a TLS code), or null.
+ * Where each kind of client puts the code of a failed connection, in the order it is looked for.
  * node:http and node:https put it on the error, or on each error of an AggregateError when they tried
- * IPv6 and IPv4; Node's fetch puts it on the error's cause, sometimes one level deeper. The first code
- * `accept` takes wins.
+ * IPv6 and IPv4. Node's fetch puts it on the error's cause, sometimes one level deeper; a client that
+ * uses fetch and node:http (the command line's remote mode) looks there first, then on the error.
+ */
+const CODE_PLACES = Object.freeze({
+    node: [(e) => e?.code, (e) => e?.errors?.[0]?.code],
+    fetch: [(e) => e?.cause?.code, (e) => e?.code, (e) => e?.cause?.cause?.code]
+});
+
+/**
+ * The system code of a connection that failed (ECONNREFUSED, UND_ERR_SOCKET, a TLS code), or null.
+ * `client` says where to look (CODE_PLACES); the first code `accept` takes wins.
  * @param {unknown} error
- * @param {(code: unknown) => boolean} [accept]  by default any code that is there
+ * @param {{ client: "node" | "fetch", accept?: (code: unknown) => boolean }} how  by default any code that is there
  * @returns {unknown}
  */
-export function networkCodeOf(error, accept = (code) => code !== undefined && code !== null) {
+export function networkCodeOf(error, { client, accept = (code) => code !== undefined && code !== null }) {
     const e = /** @type {any} */ (error);
-    return [e?.code, e?.errors?.[0]?.code, e?.cause?.code, e?.cause?.cause?.code].find(accept) ?? null;
+    return CODE_PLACES[client].map((place) => place(e)).find(accept) ?? null;
 }
