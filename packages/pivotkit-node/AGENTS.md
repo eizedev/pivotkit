@@ -12,7 +12,7 @@ npm test -w pivotkit-node    # the file handling in one process; CI runs it on W
 ## Layering
 
 - pivotkit-cli and pivotkit-server depend on this package. It depends on neither.
-- `pivotkit-cli/files` and `pivotkit-cli/rest` re-export its names. pivotkit published them there first.
+- `pivotkit-cli/files` and `pivotkit-cli/rest` re-export its names. They stay for compatibility.
 - Its exports are internal. Add a name only when a second package needs it.
 
 ## Files
@@ -34,5 +34,6 @@ Use `src/safe-files.js` for every file a front end reads or writes.
 ## REST contract
 
 - `src/rest.js` is the one copy of what the REST service and its client agree on.
-- It is the entry `pivotkit-node/rest`.
+- Its entry is `pivotkit-node/rest`.
 - pivotkit-server and pivotkit-cli/rest re-export it.
+- ESLint refuses an import of pivotkit-cli or pivotkit-server here, and of pivotkit-cli in pivotkit-server.

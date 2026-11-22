@@ -713,10 +713,10 @@ The JSON of Source data keeps all of it. The files hold wall-clock dates without
   from a view or the data are cleaned of control characters and cut at 200 characters.
 - **`pivotkit example`** writes its files the same way, in the current directory, after checking that
   none of them is there yet. If one is, nothing is written (exit 2, `EXISTS`). `--allow-dir` holds.
-- Templates and file paths come only from the person running the command. The [MCP server](mcp.md)
-  is built on the same file handling (`pivotkit-cli/files`: `readSafe`, `writeSafe`, `writeNew`,
-  `allowedDirs`, `readTable`, all from pivotkit-node). It takes a template only from its operator,
-  and a path from a model only inside the operator's allowed directories. It refuses hard links there.
+- Templates and file paths come only from the person running the command. The REST service and the
+  [MCP server](mcp.md) use the same file handling (`pivotkit-cli/files`: `readSafe`, `writeSafe`,
+  `writeNew`, `allowedDirs`, `readTable`). They take a template only from their operator, and a path
+  from a model only inside the operator's allowed directories. They refuse hard links there.
 
 ## Completion
 

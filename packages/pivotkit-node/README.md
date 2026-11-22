@@ -1,6 +1,6 @@
 # pivotkit-node
 
-Internal to [pivotkit](https://github.com/eizedev/pivotkit). Do not depend on it directly.
+Internal to [pivotkit](https://github.com/eizedev/pivotkit).
 
 It holds what the command line [pivotkit-cli](https://www.npmjs.com/package/pivotkit-cli) and
 [pivotkit-server](https://www.npmjs.com/package/pivotkit-server) share in Node:

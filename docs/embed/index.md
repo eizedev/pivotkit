@@ -5,7 +5,7 @@ description: For developers and the people who run applications with pivotkit - 
 
 # Embed pivotkit
 
-pivotkit comes as eight npm packages:
+pivotkit comes as eight public npm packages:
 
 - three to show the report
 - one plugin to read Excel files
