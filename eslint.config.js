@@ -1,6 +1,7 @@
 // Only the recommended rules: they find real errors (undefined names, unreachable code, unused
 // variables), and for the React code the rules of hooks with React's own checks (eslint-plugin-react-hooks).
-// Formatting is left to .editorconfig.
+// Formatting is left to .editorconfig. Function length and complexity are a ratchet in
+// scripts/growth.js (npm run growth), not rules here: today's long functions would fail them.
 import js from "@eslint/js";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
