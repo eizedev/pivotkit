@@ -243,6 +243,10 @@ jobs:
           curl -fsS -H "authorization: Bearer $token" -H 'content-type: application/json' \
             -d '{"source":"sales","view":{"rows":["Region"],"values":[{"agg":"count"}]},"format":"csv"}' \
             http://localhost:3333/api/v1/views/render | grep -q '"ok":true'
+          # the file route needs the example's policy.results: it fails when the example loses it
+          curl -fsS -H "authorization: Bearer $token" -H 'content-type: application/json' \
+            -d '{"source":"sales","view":{"rows":["Region"],"values":[{"agg":"count"}]},"format":"csv"}' \
+            http://localhost:3333/api/v1/views/render/file | grep -q '^North,'
           docker compose down
 
   publish:
