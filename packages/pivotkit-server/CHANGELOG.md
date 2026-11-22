@@ -6,6 +6,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- A path nobody serves answers 404 `NOT_FOUND` with the REST and OpenAPI addresses also when
+  pivotkit-mcp is installed. pivotkit-mcp's handler answered such a path with a plain "not found"
+  ([#630](https://github.com/eizedev/pivotkit/issues/630)).
+
 ## [0.4.0] - 2026-11-21
 
 ### Added

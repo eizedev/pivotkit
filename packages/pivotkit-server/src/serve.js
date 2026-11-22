@@ -163,14 +163,16 @@ export async function createServerHandler(options, runtime) {
         made = downloads;
         const isDownload = (request) => downloads.handles(new URL(request.url).pathname);
         rest = enable.includes("rest") ? await createRestHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
-        const mcp = enable.includes("mcp") && mcpModule ? await mcpModule.createHttpHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
-        const hosts = allowedHosts(options);
-        const trustProxy = options.http?.trustProxy ?? false;
         // the answers of this handler name the operator's documentation (branding.js)
         const { problem, hostProblem } = problemsFor(context.branding.docs);
-        const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
-        // a path nobody serves names the REST service and its OpenAPI document by their full address
+        // a path nobody serves names the REST service and its OpenAPI document by their full address,
+        // also where pivotkit-mcp's handler answers it
         const noRoute = rest ? noRouteDetail(options) : "no such route";
+        const notFound = rest ? () => problem("NOT_FOUND", noRoute) : undefined;
+        const mcp = enable.includes("mcp") && mcpModule ? await mcpModule.createHttpHandler(context, { env: runtime.env, loopback: runtime.loopback, notFound }) : null;
+        const hosts = allowedHosts(options);
+        const trustProxy = options.http?.trustProxy ?? false;
+        const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
 
         /** Whether /readyz last found the server ready (it starts out so): a line is written only when that changes. */
         let wasReady = true;

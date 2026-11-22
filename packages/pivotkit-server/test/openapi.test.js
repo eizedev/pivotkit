@@ -167,6 +167,27 @@ test("a 404 names the OpenAPI document's full address: under http.publicUrl, els
     await assert.rejects(detailOf({ http: { publicUrl: "https://pk.example.com/reports/" } }), /http\.publicUrl \(or --public-url\): the address has a path/);
 });
 
+// #630: with pivotkit-mcp's handler beside REST, a path nobody serves reached the MCP handler, which
+// answered a plain "not found"; it names the REST service and the OpenAPI document as serve.js's own 404
+test("with MCP beside REST, a path nobody serves names the REST and OpenAPI addresses too", async () => {
+    const dir = workspace();
+    const options = { sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir };
+    const server = await restServer(options, { env: { PIVOTKIT_TOKEN: TOKEN }, enable: ["rest", "mcp"] });
+    try {
+        const want = "no such route; the REST service is at https://pk.example.com/api/v1, its OpenAPI document at https://pk.example.com/openapi.json (not under /api/v1)";
+        for (const path of ["/nothing", "/.well-known/nothing", "/api/v1/openapi.json"]) {
+            const res = await call(`${server.url}${path}`, { token: TOKEN });
+            assert.equal(res.status, 404, path);
+            assert.equal(res.data.code, "NOT_FOUND", path);
+            assert.equal(res.data.detail, want, path);
+        }
+        // the MCP endpoint itself is still MCP's
+        assert.notEqual((await call(`${server.url}/mcp`, { method: "POST", token: TOKEN, body: {} })).status, 404);
+    } finally {
+        await server.close();
+    }
+});
+
 test("save is an input of POST /views/render, not of the file route", () => {
     const doc = openApiDocument();
     const schemaOf = (path) => {

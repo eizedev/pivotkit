@@ -6,6 +6,13 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Fixed
+
+- Inside pivotkit-server, a path nobody serves gets the server's 404, which names the REST service
+  and the OpenAPI document. `createHttpHandler` takes the answer as `notFound`. A server of
+  pivotkit-mcp alone still answers a plain "not found"
+  ([#630](https://github.com/eizedev/pivotkit/issues/630)).
+
 ## [0.4.0] - 2026-11-21
 
 ### Added
