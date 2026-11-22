@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { DOCS_LIMITS, FUNCTION_LIMITS, GUARD_NAMES, compareCounts, compareLists, compareTotal, docsLimit, docsPages, formatBaseline, measureDocs, measureFunctions, parseFunctionMessage, parseKnipReport } from "../scripts/growth.js";
+import { DOCS_LIMITS, DOCS_TOTAL_MARGIN, FUNCTION_LIMITS, GUARD_NAMES, compareCounts, compareLists, compareTotal, docsLimit, docsPages, formatBaseline, measureDocs, measureFunctions, parseFunctionMessage, parseKnipReport } from "../scripts/growth.js";
 import { tempDir } from "./temp-dir.js";
 
 test("the installed ESLint's messages give each function's name and numbers", async () => {
@@ -13,6 +13,8 @@ test("the installed ESLint's messages give each function's name and numbers", as
     writeFileSync(join(dir, "eslint.config.js"), "export default [{}];\n");
     const statements = (n) => Array.from({ length: n }, (_, i) => `    if (x > ${i}) x -= 1;`).join("\n");
     writeFileSync(join(dir, "packages/a/src/index.js"), [
+        // a disable comment does not hide a function from the guard
+        "// eslint-disable-next-line max-lines-per-function, complexity",
         `export function long(x) {\n${statements(FUNCTION_LIMITS.lines + 5)}\n    return x;\n}`,
         `export const small = (x) => x + 1;`,
         `export const branched = (x) => {\n${statements(FUNCTION_LIMITS.complexity + 1)}\n    return x;\n};`,
@@ -53,9 +55,10 @@ test("compareCounts: anonymous functions of one file compare by their sorted num
 
 test("compareLists and compareTotal", () => {
     assert.deepEqual(compareLists(["a.js exports x", "b.js files"], ["a.js exports x", "c.js exports y"]), { grew: ["c.js exports y"], stale: ["b.js files: gone"] });
-    assert.deepEqual(compareTotal(1000, 1020), { grew: [], stale: [] });
-    assert.equal(compareTotal(1000, 1021).grew.length, 1);
-    assert.equal(compareTotal(1000, 979).stale.length, 1);
+    const margin = 10 * DOCS_TOTAL_MARGIN;
+    assert.deepEqual(compareTotal(1000, 1000 + margin), { grew: [], stale: [] });
+    assert.equal(compareTotal(1000, 1000 + margin + 1).grew.length, 1);
+    assert.equal(compareTotal(1000, 1000 - margin - 1).stale.length, 1);
 });
 
 test("parseKnipReport lists files, exports and duplicates and refuses another shape", () => {

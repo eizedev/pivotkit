@@ -11,11 +11,13 @@
 //
 // functions, unused and docs are ratchets: the offenders of the day they came in are in
 // scripts/growth-baseline.json with their numbers. A check fails when an offender grows or a new
-// one appears. It also fails when an offender shrank
-// or went: the baseline must follow in the same pull request (--update), or the room it left could be
-// filled again unseen. --update never raises an entry by itself. Raising one is --accept-growth, and
-// the pull request says why. ESLint's own bulk suppressions count violations per file and rule, so
-// a function that grows from 300 to 400 lines would pass them: this script keeps the numbers.
+// one appears. It also fails when an offender shrank or went: the baseline must follow in the same
+// pull request (--update), or the room it left could be filled again unseen.
+//
+// --update never raises an entry by itself. Raising one is --accept-growth, and the pull request
+// says why. A function is known by its file and name, so a renamed or moved offender counts as a new
+// one and needs --accept-growth too. ESLint's own bulk suppressions count violations per file and
+// rule, so a function that grows from 300 to 400 lines would pass them: this script keeps the numbers.
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -32,9 +34,9 @@ const EMPTY = Object.freeze({ functions: { lines: {}, complexity: {} }, unused: 
 
 /**
  * The limits for a function in packages/*\/src. ESLint's defaults are 50 lines and a complexity of
- * 20. A ratchet starts where the outliers begin, so this one names the 49 longest and the 106 most
- * branched functions, not half of the code. Blank lines and comments do not count: the why-comments
- * this repository asks for should cost nothing.
+ * 20. A ratchet starts where the outliers begin, so its baseline names the outliers, not half of the
+ * code. Blank lines and comments do not count: the why-comments this repository asks for should cost
+ * nothing.
  */
 export const FUNCTION_LIMITS = Object.freeze({ lines: 120, complexity: 25 });
 
@@ -46,8 +48,12 @@ export const FUNCTION_LIMITS = Object.freeze({ lines: 120, complexity: 25 });
  */
 export const DOCS_LIMITS = Object.freeze({ "": 400, use: 300, concepts: 300, embed: 300, "getting-started": 400, reference: 600, decisions: 150 });
 
-/** How far the lines of all docs together may drift from the baseline, in percent, before it is updated. */
-export const DOCS_TOTAL_MARGIN = 2;
+/**
+ * How far the lines of all docs together may drift from the baseline, in percent, before it is
+ * updated. Not zero: every docs change would then edit the same line of the baseline, and parallel
+ * pull requests would conflict on it. One percent is about 250 lines.
+ */
+export const DOCS_TOTAL_MARGIN = 1;
 
 /** The folders under docs/ that hold build output, not pages. */
 const DOCS_BUILD_OUTPUT = new Set(["playground", "schema", "assets"]);
@@ -98,7 +104,8 @@ export async function measureFunctions(cwd = root) {
         "max-lines-per-function": ["error", { max: FUNCTION_LIMITS.lines, skipBlankLines: true, skipComments: true }],
         complexity: ["error", { max: FUNCTION_LIMITS.complexity }],
     };
-    const eslint = new ESLint({ cwd, overrideConfig: { files: ["packages/*/src/**"], rules }, ruleFilter: ({ ruleId }) => ruleId in rules });
+    // allowInlineConfig: an eslint-disable comment does not hide a function from the guard
+    const eslint = new ESLint({ cwd, allowInlineConfig: false, overrideConfig: { files: ["packages/*/src/**"], rules }, ruleFilter: ({ ruleId }) => ruleId in rules });
     const results = await eslint.lintFiles(["packages/*/src/**/*.{js,jsx}"]);
     if (results.length === 0) throw new Error("growth: ESLint found no files in packages/*/src");
     const found = { lines: {}, complexity: {} };
@@ -306,10 +313,13 @@ export function formatBaseline(baseline) {
 async function main(argv) {
     const update = argv.includes("--update");
     const acceptGrowth = argv.includes("--accept-growth");
+    const unknown = argv.filter((a) => a.startsWith("--") && a !== "--update" && a !== "--accept-growth");
+    if (unknown.length > 0) throw new Error(`growth: unknown option ${unknown.join(" ")}; the options are --update and --accept-growth`);
     const names = argv.filter((a) => !a.startsWith("--"));
     for (const name of names) if (!(name in GUARDS)) throw new Error(`growth: no guard "${name}"; the guards are ${Object.keys(GUARDS).join(", ")}`);
     const chosen = names.length > 0 ? names : Object.keys(GUARDS);
     const baseline = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, "utf8")) : EMPTY;
+    for (const key of Object.keys(EMPTY)) if (!(key in baseline)) throw new Error(`growth: scripts/growth-baseline.json has no "${key}": write it with ${UPDATE} --accept-growth`);
     const next = { ...baseline };
     let failed = false;
     for (const name of chosen) {

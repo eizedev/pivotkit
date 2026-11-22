@@ -51,8 +51,9 @@ npm run types          # tsc with checkJs, generated .d.ts, TypeScript consumers
 npm test               # node --test in every workspace and tests/*.test.js
 npm run coverage       # the tests with a coverage report
 npm run pack:check     # what npm pack would publish, checked
-npm run growth         # functions, unused exports, duplication, docs pages may not grow (scripts/growth.js)
+npm run growth         # functions, unused exports, duplication, docs pages may not grow
 ```
+`npm run growth` compares with `scripts/growth-baseline.json`; when an offender shrinks, `node scripts/growth.js --update` lowers it.
 
 One package, the UI and the browser tests. A package's `AGENTS.md` lists its size and benchmark commands:
 
