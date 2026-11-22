@@ -41,7 +41,7 @@ texts of "Undone: …": set it as `labels: { steps: { added: "…" } }`. The men
 `chartShowTotals`, `chartFoldEach`, `chartFoldOnly` and `chartFoldSome`. `LABELS.en` lists them all.
 
 The report ignores the keys `layout`, `showLayout`, `options` and `chartDisplay`. It says once in the
-console which key holds that text now ([upgrading](../getting-started/upgrading.md#view-tabs-0-8)).
+console which key holds that text now.
 
 The report's `lang` attribute follows the labels, so screen readers use the right voice.
 

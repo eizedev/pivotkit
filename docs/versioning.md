@@ -6,7 +6,8 @@ description: How pivotkit numbers its releases, what counts as its public interf
 # Versioning
 
 This page says when a release of pivotkit may break your setup. It also lists every deprecation.
-The [upgrading page](getting-started/upgrading.md) says what changed between two releases.
+The [upgrading page](getting-started/upgrading.md) says how to update and what the newest release
+asks you to change.
 
 ## The promise
 
@@ -16,7 +17,8 @@ pivotkit is 0.x and under active development.
 
 - A minor release, from 0.y to 0.(y+1), can break things.
 - pivotkit breaks as little as possible.
-- The upgrading page lists every break, with what to do.
+- Each break is marked **Breaking** in the package's changelog. The upgrading page lists the
+  breaks of the newest release, with what to do.
 
 In a project's `package.json`, a caret range on a 0.x release covers patch releases only. `npm update`
 in that project therefore stays on the same minor release.
