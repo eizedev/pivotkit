@@ -153,7 +153,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   comes from the grid and the column names (102 px for straight names at 14 px, was 120 px), and a
   row name needs a px more than the text (was 4/3 of it). Every layout function weighs CJK and
   fullwidth characters a whole em and capitals 0.7 em. The
-  [upgrading page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md) has the details.
+  [upgrading page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L471) has the details.
 - `checkLimit`, the view link, pivotkit-cli and pivotkit-server word a limit through one internal
   helper (`pivotkit-core/internal`, no public API). The text stays the same
   ([#509](https://github.com/eizedev/pivotkit/issues/509)).
@@ -202,7 +202,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Upgrading from 0.6.0
 
-The [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md) has the details.
+The [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1462) has the details.
 
 - Date labels of years before 1 AD carry the era ("Q1 2 BC", was "Q1 -1"); `toCsv` and `toJson`
   write dates before year 0 or after 9999 in signed ISO form.

@@ -6,8 +6,8 @@ description: How to update pivotkit's packages, the image and the plugin, and wh
 # Upgrading
 
 For everyone who updates an installation of pivotkit. The first part says how to update, for each
-way of installing. The second part lists only the changes of the newest release that need your
-action. Every other change is in the package's `CHANGELOG.md`. [Versioning](../versioning.md) says
+way of installing. The second part lists the changes of the next release and of the latest one that
+need your action. Every other change is in the package's `CHANGELOG.md`. [Versioning](../versioning.md) says
 which releases may break things.
 
 ## Update an installation { #update }
@@ -63,7 +63,8 @@ A running process keeps the version it started with.
 ### The container image { #update-image }
 
 Each release of pivotkit-server builds the image. It holds pivotkit-mcp and pivotkit-cli of
-the same release. Its [tags](../reference/container.md): `<version>` never moves, `<major>.<minor>`
+the same commit, so a release of pivotkit-cli or pivotkit-mcp alone reaches the image with the next
+pivotkit-server release. Its [tags](../reference/container.md): `<version>` never moves, `<major>.<minor>`
 follows that minor version's patches, and `latest` follows the release published last, which can be
 a new minor version. Use the exact version or its digest in production, and
 [check the signature](../reference/container.md#verify) before you restart.
@@ -85,12 +86,14 @@ Pulling a tag does not change a running container. Make it again:
 
     Set `PIVOTKIT_VERSION` (shell or `.env`) for
     [compose.example.yml](https://github.com/eizedev/pivotkit/blob/main/docker/compose.example.yml),
-    then `docker compose pull` and `docker compose up -d`.
+    then `docker compose pull` and `docker compose up -d`. With a `<major>.<minor>` tag, each pull
+    takes that line's newest patch: check its signature too.
 
 === "Kubernetes"
 
-    Change the tag or digest in the manifest and apply it again, or use `kubectl set image`. Never
-    use `latest` there: it is pulled at every start. The [example](kubernetes.md) replaces the pod
+    Write the exact version or the digest into the manifest. A node that pulled a moving tag once keeps
+    that image, and `latest` is pulled at every start, so either updates when you don't expect it.
+    Change the version and apply the manifest again, or use `kubectl set image`. The [example](kubernetes.md) replaces the pod
     (`strategy: Recreate`), as one output directory takes one server process.
 
 `docker run --rm ghcr.io/eizedev/pivotkit:<version> --version` prints the version. Add `mcp` or
@@ -136,7 +139,8 @@ changes that need an action. The changelogs list changes of texts, of the layout
 | [Versions move together](#update) | you list pivotkit-core, pivotkit-report or pivotkit-xlsx yourself | update them to the release of pivotkit-react 0.9: core 0.9.0, report 0.5.0, xlsx 0.6.0 |
 | A link names [a source's parameters](../concepts/sharing.md#link-params) | links carry a source's parameters | list them in `sources.<id>.linkParams`. Send `Referrer-Policy: same-origin` or `no-referrer`, see [security](../security.md#link-params) |
 | New MCP tool descriptions and view schema | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients |
-| Error and message texts without the product name | a program or log rule matches the words of an error | match the error's `code` |
+| Error and message texts without the product name | a program or log rule matches the words of an error, or of pivotkit-react's messages about a loaded view | match the error's `code`, or update the words |
+| Views of 0.9 opened by pivotkit 0.8 | pages with pivotkit 0.8 open views made with 0.9: names of a field (`fieldLabels`), table and chart side by side, the two new chart types, sort by one column | update every page that shares views to 0.9. pivotkit 0.8 opens such a view with an error note and falls back to the fields' own names, the table, its automatic chart type and the sort by the whole row. Saved there, the view loses these settings |
 | An unreadable print template is the server's error | a program reads the answer of an html render | expect 502 `SOURCE_UNAVAILABLE`, not 404 `FILE_NOT_AVAILABLE` |
 | 503 `BUSY` logs at `warn` | a log rule counts `error` lines | count `BUSY` among the warnings, or match its `code` |
 | A click in the chart opens a menu | your app uses `onCellClick` or `pivot-cell-click` for chart points, or tests click a chart point | the call comes at **Show the rows** or a double click |
@@ -179,5 +183,7 @@ The changes of 0.8 and earlier are in each package's changelog:
 [pivotkit-server](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-server/CHANGELOG.md),
 [pivotkit-mcp](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-mcp/CHANGELOG.md),
 [pivotkit-cli](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-cli/CHANGELOG.md) and
-the [other packages](https://github.com/eizedev/pivotkit/tree/main/packages). Read the **Breaking**
-entries of every minor version from yours to the new one.
+the [other packages](https://github.com/eizedev/pivotkit/tree/main/packages). Read the entries marked
+**Breaking** and the sections "Upgrading from" of every minor version from yours to the new one. The
+[page as it was for 0.9](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)
+has the details for 0.4 to 0.8.

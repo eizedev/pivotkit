@@ -143,19 +143,19 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   at the end of that row. The labels `layout`, `showLayout`, `options` and `chartDisplay` are no longer
   shown, and the test ids `chart-type`, `options` and `layout` are gone
   ([#580](https://github.com/eizedev/pivotkit/issues/580),
-  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L511)).
 - The chart type menu lists the types, then a row per Display topic that opens a level: Value
   labels, Legend, Title, Axis, Tooltip, Series and Layout ([#106](https://github.com/eizedev/pivotkit/issues/106)). Tests open the
   level first; a choice is a menu item with `aria-checked`.
 - Bars, lines and areas with more than 20 categories get a zoom slider. Display › Axis › Zoom slider
   › Off draws every category as before. A click on the legend changes the view, so Undo takes it
-  back ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  back ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L471)).
 - With `exportData` off, the default, the drill-down panel has no Export menu: no copy and no
   download of its rows. Set `drillDownExport` to keep it
-  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L669)).
 - The row count under the result says "2,190 of 4,386 rows" when a filter leaves rows out. A host
   whose `labels` set `rowsCount` or add a language sets the new label `rowsFiltered` too
-  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L679)).
 
 ### Deprecated
 
@@ -302,11 +302,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Upgrading from 0.6
 
-What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md) has the details.
+What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L803) has the details.
 
 - Export → HTML report carries the host's dark colours too. On a dark screen a colour scale's middle
   colour (`--pk-scale-mid`) is the one your dark theme sets, not the light one; without it the cells
-  run halfway between the dark low and high colours ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  run halfway between the dark low and high colours ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1280)).
 - A field's Filter level shows its rules in a single column as wide as the menu, in every browser.
   Tests or screenshots of that form take the new layout.
 - pivotkit-core moves to `^0.7.0` and pivotkit-report to `^0.3.0` with it.
@@ -413,7 +413,7 @@ What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/
 
 ### Upgrading from 0.5
 
-What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md) has the details.
+What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1490) has the details.
 
 - Export → **CSV file (.csv)** is called **Table as CSV (.csv)** (German **Tabelle als CSV (.csv)**);
   its label key `exportCsv` and its `onExport` kind `"csv"` stay. Tests or screenshots that look for
@@ -460,7 +460,7 @@ What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/
 
 ### Upgrading from 0.4
 
-What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md) has the details.
+What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1554) has the details.
 
 - **Breaking:** views, view files and links are written in format version 2; pivotkit 0.4 refuses
   them as newer. Version 1 loads with the same result.

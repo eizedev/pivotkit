@@ -85,13 +85,13 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Upgrading from 0.2
 
-What code that calls `render` checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md) has the details.
+What code that calls `render` checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L803) has the details.
 
 - **Breaking:** `render` refuses `tokens` or `darkTokens` that is no object (a CSS text, a list,
   `null`, a number) with `INVALID_OPTION`; pass an object, or leave the option out
-  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1292)).
 - On a dark screen `--pk-scale-mid` is `initial` unless `darkTokens` sets it: pass the middle
-  colour there to keep one ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  colour there to keep one ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1280)).
 - A token's value with a quoted string is left out, except in `font-family`, in the host's
   `tokens` too.
 - pivotkit-core moves to `^0.7.0` with it.
@@ -177,7 +177,7 @@ What code that calls `render` checks; the [upgrade page](https://github.com/eize
 
 ### Upgrading from 0.1
 
-What a script that reads the reports checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md) has the details.
+What a script that reads the reports checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1527) has the details.
 
 - Without `labels`, the report's words follow its locale (German for `de-DE`) and, in English, the
   report on a page: "Yes"/"No" instead of "true"/"false", "Distinct count" instead of "Count

@@ -74,8 +74,9 @@ Every decision is measured against these. When two conflict, the earlier one win
 ## Promises and limits
 
 - **Versions.** pivotkit is 0.x and under active development: a minor release can break things,
-  though we break as little as possible. The [upgrading page](docs/getting-started/upgrading.md)
-  lists every break. From 1.0.0 on, pivotkit follows Semantic
+  though we break as little as possible. Every break is marked **Breaking** in
+  the changelog, and the [upgrading page](docs/getting-started/upgrading.md) says what to do for
+  the newest release. From 1.0.0 on, pivotkit follows Semantic
   Versioning strictly: only a major release removes or breaks something, after a numbered
   deprecation (`PK-DEP-NNNN`) with a warning and a migration path. The one exception is a security
   fix, marked as such. [Versioning](docs/versioning.md) has the details.

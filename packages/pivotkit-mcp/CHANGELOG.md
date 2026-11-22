@@ -92,20 +92,20 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   shows them (saved files keep full precision), inline json is on one line, and saved reports and
   drafts are named in lower case without spaces. A `resource_link`'s `title` is the report's title.
   Reconnect a client to see the new inputs; a session that stays connected keeps working ([#478](https://github.com/eizedev/pivotkit/issues/478), [#481](https://github.com/eizedev/pivotkit/issues/481),
-  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L705)).
 - Behaviour change from pivotkit-server: a source hidden by default whose named fields are all
   `show` or `hide` is open, and its reports get plain download links. "Show everything except"
   stays closed
   ([#510](https://github.com/eizedev/pivotkit/issues/510),
-  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L599)).
 - Behaviour change from pivotkit-server: over HTTP, one address may hold at most 32 connections by
   default, none with `http.trustProxy` (`http.maxConnectionsPerAddress`)
   ([#511](https://github.com/eizedev/pivotkit/issues/511),
-  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L637)).
 - Behaviour change from pivotkit-server: schedule drafts may take at most half of `output.maxMb`,
   and `output.draftMaxAgeDays` lets waiting drafts expire
   ([#513](https://github.com/eizedev/pivotkit/issues/513),
-  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L619)).
 
 ### Fixed
 
@@ -122,17 +122,17 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   `output.maxAgeDays` (30 by default) are deleted at the first start; this release's
   `--check-config` counts them. Schedule drafts (`*.pivotkit-out.report.json`) that still wait for
   approval stay
-  ([upgrading, from 0.6.1 / 0.1.1](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([upgrading, from 0.6.1 / 0.1.1](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L803)).
 - Behaviour change: `mcp.rateLimit` and `mcp.concurrency` count per person, no longer per OAuth
-  client; one client's people together get eight times both ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  client; one client's people together get eight times both ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1199)).
   Needs pivotkit-server 0.2.0 (`limitKeyOf`).
-- The log ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)): on a terminal it
+- The log ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1227)): on a terminal it
   is text unless `log.format` is `json`; JSON lines only gain fields; over HTTP the client's address
   is logged by default (`log.address: "off"` keeps it out).
 - Behaviour change: pivotkit-server's `output.maxAgeDays` is 30 by default, so reports older than 30
   days are deleted from `output.dir` at start and every hour. A schedule draft whose `status` is
   still `"draft"` waits for approval and stays; one the host gave another status goes by age. Set
-  `output.maxAgeDays: 0` for no age limit ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  `output.maxAgeDays: 0` for no age limit ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1064)).
 - Breaking: a trivial static token keeps the server from starting: one with fewer than 8 different
   characters, or one that repeats one piece, "is too easy to guess". The rule stops trivial tokens;
   it does not measure strength. Make one with `npx -y pivotkit-server token new`.
@@ -146,10 +146,10 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 - With OAuth, the issuer's metadata, its keys and the download sign-in's token endpoint are requested
   through the server's guarded requests: an issuer on a loopback or private address needs
   `auth.intranet: true`, the environment's proxy is not used, and a key set over 256 KiB is refused
-  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1382)).
 - Behaviour change: a source's print template (`sources.<id>.template`) is checked at start and by
   `--check-config`; one with an unknown placeholder, over 1 MiB or not a regular file keeps the
-  server from starting; a missing template file is a warning, as a missing source file ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  server from starting; a missing template file is a warning, as a missing source file ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L965)).
 
 ### Added
 
@@ -264,7 +264,7 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Upgrading from 0.1.0
 
-What an operator checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md) has the details.
+What an operator checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1398) has the details.
 
 - Over HTTP, each caller is limited (`mcp.rateLimit`: 120 per minute, burst 30; `mcp.concurrency`: 4);
   over a limit the answer is 429 with `Retry-After`. A method other than `POST` on `/mcp` is 405.

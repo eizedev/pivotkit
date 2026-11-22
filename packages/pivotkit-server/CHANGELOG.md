@@ -263,7 +263,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   precision), and inline json is on one line. The message says when rounding writes a value as 0
   that is not 0. Saved report files and schedule drafts are named in lower case without spaces
   (`sales-by-region.pivotkit-out.xlsx`); the file route still names its download by the title
-  ([#478](https://github.com/eizedev/pivotkit/issues/478), [#481](https://github.com/eizedev/pivotkit/issues/481), [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([#478](https://github.com/eizedev/pivotkit/issues/478), [#481](https://github.com/eizedev/pivotkit/issues/481), [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L705)).
 - Behaviour change: a source is open for plain links only where nothing new can become visible,
   for every caller alike. A source hidden by default whose named fields are all `show` or `hide`
   is open now: its reports get plain download links, an `output.baseUrl` address and plain store
@@ -272,21 +272,21 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   callers only stay closed. `check-config` says why each is closed, and how a deny list gets
   plain links
   ([#510](https://github.com/eizedev/pivotkit/issues/510),
-  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L599)).
 - Behaviour change: one address may hold at most 32 connections by default. With
   `http.trustProxy` there is no bound by default, since every client has the proxy's address.
   `http.maxConnectionsPerAddress` overrides both, and `0` switches the bound off. `check-config`
   prints the bound under `HTTP:`. `CONNECTION_LIMITS.perAddress` is 32, and `serveFetch` without
   `limits.perAddress` takes 32, or none with `trustProxy`
   ([#511](https://github.com/eizedev/pivotkit/issues/511),
-  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L637)).
 - Behaviour change: schedule drafts that wait for approval may take at most half of
   `output.maxMb`, as they take at most half of `output.maxFiles`. A draft over it answers 409
   `NO_OUTPUT`. Renders keep working. A single draft larger than the whole byte cap gets its own
   answer, which says the operator must raise `output.maxMb`. `check-config` prints both caps and
   warns of a directory whose waiting drafts are already over the byte cap
   ([#513](https://github.com/eizedev/pivotkit/issues/513),
-  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L619)).
 - Behaviour change: REST answers `params` on a server where no source takes parameters with
   `INVALID_INPUT` "this server has no source that takes params; leave params out (GET /sources
   lists the sources)", instead of `input has no key "params"`. JSON and multipart bodies alike
@@ -341,7 +341,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 - The HTML report leaves out the row count where the policy withholds it (`rows: false`). To show
   the count again, the policy sets `rows: true` ([#547](https://github.com/eizedev/pivotkit/issues/547),
-  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L773)).
 
 ## [0.2.0] - 2026-11-16
 
@@ -349,7 +349,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 - The container image starts without a configuration. It makes its token `admin` at the first start
   in `/var/lib/pivotkit`: mount a volume there (`-v pivotkit:/var/lib/pivotkit`)
-  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L872)).
 - With `--read-only` and no volume at `/var/lib/pivotkit`, the start is refused, since the token
   cannot be made. With `$PIVOTKIT_TOKEN` or tokens of your own it starts, and warns at every start
   that the download key cannot be made.
@@ -366,17 +366,17 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - Copy the reports you want to keep out of `output.dir` before you update: reports older than
   `output.maxAgeDays` (30 by default) are deleted at the first start; this release's `check-config`
   counts them. Schedule drafts (`*.pivotkit-out.report.json`) that still wait for approval stay
-  ([upgrading, from 0.6.1 / 0.1.1](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([upgrading, from 0.6.1 / 0.1.1](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L803)).
 - Breaking: with download links on, an `http://` `http.publicUrl` on a host other than loopback
   keeps the server from starting; use `https://`, or set `output.downloads.allowInsecureUrl: true`
-  for a network you trust ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  for a network you trust ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1098)).
 - Behaviour change: a column a file gives no header (a blank header cell, a row longer than the
   header) is `hide` whatever the policy's default; a rule that names it still holds
-  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1117)).
 - Behaviour change: where a caller sees a field below `show`, a row wider than the named header (a
   uniform file that ends every line with a separator aside) is left out whole, with a `ROWS_DROPPED` note that counts such rows;
   `check-config` counts them ([#479](https://github.com/eizedev/pivotkit/issues/479),
-  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  [upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1126)).
 - Behaviour change: where a caller sees a field below `show`, a CSV, TSV or TXT file with a quoted
   value that spans lines is refused with `INVALID_FILE`. An unclosed quote pulled the rows after it,
   hidden values too, into one shown cell. A line break inside a quoted value is refused too, since
@@ -390,9 +390,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - Behaviour change: the request limits (`rest.*`, `mcp.*` `rateLimit` and `concurrency`) count per
   person, no longer per OAuth client; one client's people together get eight times the rate and run
   at most eight times `concurrency` at once; `auth.subjectClaim` must name a claim users cannot change
-  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1199)).
 
-- The log ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)): on a terminal it
+- The log ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1227)): on a terminal it
   is text unless `log.format` is `json` (stderr that is no terminal, and the container image, stay
   JSON). JSON lines gain fields. The client's address is logged by default as `address` (with
   `http.trustProxy` the forwarded client, as before, or `invalid` for one that is no IP address),
@@ -404,9 +404,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   from `output.dir` at start and every hour. A schedule draft waits for approval while its `status`
   is `"draft"` and is never deleted by age. A draft the host gave another status (approved,
   rejected) goes by age like a report. `output.maxAgeDays: 0` keeps them with no age limit, as before. The default does not apply where `output.dir` holds the
-  configuration or a source, template or token file ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  configuration or a source, template or token file ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1064)).
 
-Every field keeps its level and the automatic rule is off; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md) has the details.
+Every field keeps its level and the automatic rule is off; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L803) has the details.
 
 - html reports print "Data as of" in their details; xlsx files carry the document property
   `DataAsOf`.
@@ -419,13 +419,13 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   the file".
 - `check-config` prints more lines (each field's level and why, each profile's levels) in a new
   layout: a script that reads its text uses the exit code or the first line instead
-  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L945)).
 - Behaviour change: a source's print template (`sources.<id>.template`) is read and checked at
   start; one the parser refuses (an unknown placeholder), over 1 MiB or not a regular file keeps
   the server from starting, where before every html report of that source failed with
   `INVALID_TEMPLATE` (a parse error) or `LIMIT_EXCEEDED`. `check-config` lists the template per
   source and reports that message as a PROBLEM line; a template file that is not there is NOT
-  FOUND, and the start only warns, as for a missing source file ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  FOUND, and the start only warns, as for a missing source file ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L965)).
 - Log lines written inside a request (`call`, `request`, `download`, `refused`, `error`) carry
   `requestId`; every REST problem document carries it too. A body over the cap gets a `refused` line.
 - `check-config` warns of a static token's file that other users of the machine can read.
@@ -434,7 +434,7 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   good data up to an hour old after a transient failure, with `stale` (`maxStale: 0` turns it off);
   an error thrown by `load` answers `SOURCE_UNAVAILABLE` (502) instead of `INTERNAL` (500); the data
   has a file's limits; the report over it is computed in a worker under `compute.timeMs`,
-  `compute.memoryMb` and `compute.queueMs` ([code sources](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  `compute.memoryMb` and `compute.queueMs` ([code sources](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1321)).
 - `checkConfig(options)` checks the options as `createContext` does first and throws the same
   `ConfigError`; its second argument is optional.
 - MCP clients may send a small table of their own (`inline:`, below); `"mcp": { "data": false }`
@@ -451,7 +451,7 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - With OAuth, the issuer's metadata, its keys and the download sign-in's token endpoint are requested
   through the server's guarded requests: an issuer on a loopback or private address needs
   `auth.intranet: true`, the environment's proxy is not used, and a key set over 256 KiB is refused
-  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1382)).
 
 ### Added
 
@@ -718,7 +718,7 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 - The 401 for a request without a token says `send Authorization: Bearer YOUR_TOKEN` (it said
   `<token>`, which PowerShell's error details leave out)
-  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1221)).
 - The privacy page says what the server's memory holds of a hidden column of a code or HTTP source:
   nothing it keeps (the loads per person, the workers' data sets), measured by `test/memory.test.js`
   for texts and numbers, with and without a caller's identity, in the kept data and in heap snapshots
@@ -929,7 +929,7 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Upgrading from 0.1.0
 
-What an operator checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md) has the details.
+What an operator checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1398) has the details.
 
 - Reports and drafts are named `<name>.pivotkit-out.<format>`; reports written by 0.1.0 are neither
   counted nor deleted: remove them from the output directory by hand once.
