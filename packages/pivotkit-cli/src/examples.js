@@ -9,8 +9,7 @@ import { lstat } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
-import { CliError, printable } from "./errors.js";
-import { writeSafe } from "./safe-files.js";
+import { CliError, printable, writeSafe } from "pivotkit-node/files";
 
 const DIR = new URL("../examples/", import.meta.url);
 

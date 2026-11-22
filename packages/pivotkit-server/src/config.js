@@ -10,7 +10,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { LIMITS, closest } from "pivotkit-core";
 import { OPERATION_NAMES } from "pivotkit-report/operations";
-import { REST_BASE, SOURCE_ID } from "pivotkit-cli/rest";
+import { REST_BASE, SOURCE_ID } from "pivotkit-node/rest";
 import { POLICY_LEVELS } from "./policy.js";
 import { STATS_DISTINCT } from "./stats.js";
 import { expiryOf } from "./signed-tokens.js";
@@ -236,8 +236,8 @@ const FROM_SLOTS = {
 /** Every option, nested as the options object is. */
 export const OPTION_KEYS = Object.freeze(Object.fromEntries(Object.entries(SLOTS.top).map(([key, schema]) => [key, schema === SLOT ? FROM_SLOTS[/** @type {keyof typeof FROM_SLOTS} */ (key)] : schema])));
 
-/** A source id: letters, digits, "_", "-", "." (no "file:", no path); pivotkit-cli/rest's, which the CLI checks an id against. */
-export { SOURCE_ID } from "pivotkit-cli/rest";
+/** A source id: letters, digits, "_", "-", "." (no "file:", no path); pivotkit-node/rest's, which the CLI checks an id against. */
+export { SOURCE_ID } from "pivotkit-node/rest";
 
 /** Checks a value against a schema of the small language above; throws ConfigError with the key's path. */
 function check(value, schema, path) {
@@ -526,8 +526,8 @@ export async function loadConfig(file) {
     return { ...options, baseDir: options.baseDir ? resolve(dirname(resolve(file)), options.baseDir) : dirname(resolve(file)) };
 }
 
-/** The REST service's path (pivotkit-cli/rest's, the CLI's remote mode names it). */
-export { REST_BASE } from "pivotkit-cli/rest";
+/** The REST service's path (pivotkit-node/rest's, the CLI's remote mode names it). */
+export { REST_BASE } from "pivotkit-node/rest";
 
 /** The OpenAPI document's path. It sits at the server's root, not under REST_BASE. */
 export const OPENAPI_PATH = "/openapi.json";

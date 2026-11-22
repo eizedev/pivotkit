@@ -103,7 +103,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 ## Scopes
 
 - `offeredScopes` lists the scopes in the metadata. It never offers a `scopeProfiles` scope.
-- `rest.signIn.clientId` adds `SIGN_IN_CLIENT_FIELD` (pivotkit-cli/rest) to the REST metadata. A public client only.
+- `rest.signIn.clientId` adds `SIGN_IN_CLIENT_FIELD` (pivotkit-node/rest) to the REST metadata. A public client only.
 - The 401 challenge names the required scopes only.
 
 ## Policy and privacy
@@ -174,7 +174,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - A new operation gets its words and an example in `routes.js`.
 - Then run `node scripts/openapi.js`. `test/openapi.test.js` fails until you do.
 - Errors are RFC 9457 problems (`rest/problem.js`).
-- The REST contract shared with the CLI lives in `pivotkit-cli/rest`. Change it there.
+- The REST contract shared with the CLI lives in `pivotkit-node/rest`. Change it there.
+- Files are read and written through `pivotkit-node/files`. Never import pivotkit-cli; only the runner's `cli` command loads it.
 - The rows route (`src/records.js`) is REST only, no operation. The policy decides there, never in the worker.
 - Its worker job (`RECORDS_JOB`) posts a head, then one piece per pull (`records-writer.js`). Always write or stop it.
 

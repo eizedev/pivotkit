@@ -14,12 +14,14 @@ Release packages in this order. It follows their run-time dependencies.
 3. `pivotkit-report` - core
 4. `pivotkit-react` - core, report
 5. `pivotkit-element` - bundles core, react and report as devDependencies
-6. `pivotkit-cli` - core, report, xlsx
-7. `pivotkit-server` - core, report, cli, xlsx
-8. `pivotkit-mcp` - report, server
+6. `pivotkit-node` - core, report, xlsx
+7. `pivotkit-cli` - core, node, report, xlsx
+8. `pivotkit-server` - core, node, report, cli, xlsx
+9. `pivotkit-mcp` - report, server
 
-- pivotkit-server imports `pivotkit-report/operations` and `pivotkit-cli/files`.
-  Release both before it when they changed.
+- pivotkit-cli and pivotkit-server import `pivotkit-node/files` and `pivotkit-node/rest`.
+  Release pivotkit-node before them when it changed.
+- pivotkit-server imports `pivotkit-report/operations`. Release it before when it changed.
 - Release pivotkit-mcp after pivotkit-server whenever pivotkit-server changed.
 - pivotkit-server loads pivotkit-mcp by name and does not depend on it. There is no cycle.
 - When pivotkit-core's minor moves, release every package that depends on it.

@@ -141,7 +141,7 @@ for (const example of MANIFEST.examples.filter((e) => !e.templates)) {
 }
 
 test("the example writer (writeSafe exclusive) refuses a file that is there with EXISTS and leaves it as it was", async () => {
-    const { writeSafe } = await import("../src/safe-files.js");
+    const { writeSafe } = await import("pivotkit-node/files");
     const dir = tempDir();
     writeFileSync(join(dir, "late.csv"), "mine");
     // (the link() into place refuses one that appears after this check, too)

@@ -6,7 +6,7 @@
 
 import { realpath } from "node:fs/promises";
 import { isAbsolute, resolve, sep } from "node:path";
-import { isInside } from "pivotkit-cli/files";
+import { isInside } from "pivotkit-node/files";
 import { OperationError } from "pivotkit-report/operations";
 import { pathOf } from "../config.js";
 

@@ -12,7 +12,7 @@ import { brandingOf } from "./branding.js";
 import { createRequire } from "node:module";
 import { access, constants, lstat, mkdir, realpath, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { isInside } from "pivotkit-cli/files";
+import { isInside } from "pivotkit-node/files";
 import { ConfigError, OUTPUT_DEFAULTS, maxAgeDaysOf, pathOf, validateOptions } from "./config.js";
 import { COMPUTE_HOOKS, createComputer } from "./compute.js";
 import { createLog } from "./log.js";

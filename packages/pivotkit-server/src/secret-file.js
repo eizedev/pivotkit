@@ -27,12 +27,12 @@
  *
  * No message holds the value; a path is named as the caller labels it.
  *
- * Why not pivotkit-cli's writeSafe (pivotkit-cli/files): it writes a file and refuses or replaces
+ * Why not writeSafe of pivotkit-node/files: it writes a file and refuses or replaces
  * what is there, which is right for a report. A secret needs more: keeping the file that is there and
  * reading it back checked (--if-missing, several runs at once), a mode of 0600 whatever the umask, the
  * old file's owner and group on a replacement, a clear word for a mounted file, and the temporary
- * file removed on a signal. pivotkit-cli also ships on its own release line, so its writer is not
- * changed for the server's needs.
+ * file removed on a signal. writeSafe also writes the command line's files, so it is not changed for
+ * the server's needs.
  */
 
 import { randomBytes } from "node:crypto";

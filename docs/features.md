@@ -354,7 +354,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - `pivotkit-element`: `<pivot-report>` with its own React, for Angular, PHP and plain HTML. It
       has attributes, properties, and `pivot-*` events with `respondWith()`.
     - `pivotkit-core`: the engine, for the browser and Node.
-    - `pivotkit-xlsx`, `pivotkit-report`, `pivotkit-cli`, `pivotkit-server` and `pivotkit-mcp`.
+    - `pivotkit-xlsx`, `pivotkit-report`, `pivotkit-cli`, `pivotkit-server` and `pivotkit-mcp`,
+      with the internal `pivotkit-node` that the last three share.
 - Programs over REST and AI clients through MCP. You set per field what a caller may see
   ([REST service](getting-started/rest.md), [MCP server](getting-started/mcp.md)).
 - Recipes ([recipes](embed/recipes.md), [PowerShell Universal](getting-started/react.md#powershell-universal)):

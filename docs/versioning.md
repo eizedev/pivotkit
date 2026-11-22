@@ -69,6 +69,8 @@ These are not public interface. They can change in any release:
 - The wording of messages. Match on the code, not on the text.
 - Internal modules: the ones no package exports, and the `internal` entry points that this
   repository's packages share, such as `pivotkit-server/internal`.
+- The package pivotkit-node. pivotkit-cli and pivotkit-server share it. Use `pivotkit-cli/files`
+  and `pivotkit-cli/rest`, which export its names.
 - The layout of an exported workbook beyond its values.
 
 ## How a deprecation works

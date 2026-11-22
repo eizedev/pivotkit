@@ -11,7 +11,7 @@
 import { describeSource, encode, isIdentifierName, normalize, toViewFile } from "pivotkit-core";
 import { sourceIdOf } from "pivotkit-core/import";
 import { LAYOUT_NOTE_SEVERITY, OperationError, viewOfLayout } from "pivotkit-report/operations";
-import { CliError, printable, shortName } from "./errors.js";
+import { CliError, printable, shortName } from "pivotkit-node/files";
 import { LAYOUT_FLAGS, isJsonFilter, layoutOf, parseFilter, parseMap, parseShortFilter } from "./layout-flags.js";
 
 /** The most bytes of a --filter @file (a filter is small; a view may be larger). */

@@ -6,6 +6,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Changed
+
+- Depends on `pivotkit-node` `^0.1.0` for the file handling and the REST contract, which it took from
+  `pivotkit-cli` before. pivotkit-cli stays a dependency for `pivotkit-server cli`.
+
 ## [0.4.0] - 2026-11-22
 
 ### Added

@@ -27,7 +27,7 @@
 
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { OperationError } from "pivotkit-report/operations";
-import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
+import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-node/rest";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
 import { AUDIT_KEY_MIN, auditText, noteAudit } from "./log.js";
 import { UTF16_TEXT, readSecret, readSecretFile, secretValue, unreadable } from "./secrets.js";
@@ -75,8 +75,8 @@ export function tokenGuessable(value) {
     return value.length - border[value.length - 1] <= value.length / 2 ? "too easy to guess (one piece repeated)" : null;
 }
 
-/** What a bearer token may hold and why another one does not work: pivotkit-cli/rest's, which the CLI checks a token against before it sends it. */
-export { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-cli/rest";
+/** What a bearer token may hold and why another one does not work: pivotkit-node/rest's, which the CLI checks a token against before it sends it. */
+export { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-node/rest";
 
 /** The command that makes a token, for the messages. */
 export const MAKE_TOKEN = "pivotkit-server token new (with --file <path> it writes a file only you read)";
@@ -205,8 +205,8 @@ export function scopesOf(payload, claim) {
     return Array.isArray(raw) ? raw.filter((s) => typeof s === "string") : typeof raw === "string" ? raw.split(/\s+/).filter(Boolean) : [];
 }
 
-/** The RFC 9728 metadata address of a resource: pivotkit-cli/rest's, which the CLI reads it with. */
-export { resourceMetadataUrlOf } from "pivotkit-cli/rest";
+/** The RFC 9728 metadata address of a resource: pivotkit-node/rest's, which the CLI reads it with. */
+export { resourceMetadataUrlOf } from "pivotkit-node/rest";
 
 /**
  * @typedef {object} AuthInfo

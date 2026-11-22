@@ -7,7 +7,7 @@
 
 import { readdir, realpath, stat } from "node:fs/promises";
 import { extname, resolve } from "node:path";
-import { allowedDirs } from "pivotkit-cli/files";
+import { allowedDirs } from "pivotkit-node/files";
 import { closest } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
 import { OperationError } from "pivotkit-report/operations";

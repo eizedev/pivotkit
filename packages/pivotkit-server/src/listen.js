@@ -7,12 +7,12 @@
  */
 
 import { createServer } from "node:http";
-import { isLoopback } from "pivotkit-cli/rest";
+import { isLoopback } from "pivotkit-node/rest";
 import { HOST_SYNTAX } from "./checks.js";
 import { newRequestId, requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
 
-/** Whether an address is loopback (pivotkit-cli/rest's: the CLI decides with it where http is allowed). */
-export { isLoopback } from "pivotkit-cli/rest";
+/** Whether an address is loopback (pivotkit-node/rest's: the CLI decides with it where http is allowed). */
+export { isLoopback } from "pivotkit-node/rest";
 
 /**
  * Where a front end's precheck keeps a request's sign-in in the `info` object serveFetch hands to

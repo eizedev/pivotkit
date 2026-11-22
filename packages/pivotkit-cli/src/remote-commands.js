@@ -13,12 +13,12 @@
 
 import { viewFileText } from "pivotkit-core";
 import { RENDER_FORMATS } from "pivotkit-report";
-import { CliError, RemoteError, asCliError, shortName } from "./errors.js";
+import { CliError, asCliError, shortName, writeSafe } from "pivotkit-node/files";
+import { RemoteError } from "./errors.js";
 import { fromFields, filtersOf, hasLayoutFlags, mapOf } from "./layout-view.js";
 import { layoutOf } from "./layout-flags.js";
 import { checkTls, createClient, readToken, serverOf, sourceId, timeoutOf } from "./remote.js";
-import { SOURCE_ID } from "./rest-contract.js";
-import { writeSafe } from "./safe-files.js";
+import { SOURCE_ID } from "pivotkit-node/rest";
 import { USER_AGENT } from "./user-agent.js";
 
 /** Permissions of a file remote mode writes: only its owner reads it (the server's data). */

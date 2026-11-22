@@ -23,9 +23,9 @@ import https from "node:https";
 import { lstat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { RENDER_FORMATS } from "pivotkit-report";
-import { CliError, RemoteError, asCliError, printable, shortName } from "./errors.js";
-import { PROBLEM_CODES, REST_BASE, SOURCE_ID, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT, isLoopback } from "./rest-contract.js";
-import { readSafe } from "./safe-files.js";
+import { CliError, asCliError, printable, readSafe, shortName } from "pivotkit-node/files";
+import { RemoteError } from "./errors.js";
+import { PROBLEM_CODES, REST_BASE, SOURCE_ID, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT, isLoopback } from "pivotkit-node/rest";
 
 /** The most bytes of an answer after decoding: a JSON answer, and a rendered file. */
 export const ANSWER_BYTES = Object.freeze({ json: 5 * 1024 * 1024, file: 64 * 1024 * 1024 });

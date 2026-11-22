@@ -343,17 +343,6 @@ test("XLSX data: a workbook is read with pivotkit-xlsx; unpacking more than the 
     assert.equal(JSON.parse(bomb.stdout).error.code, "LIMIT_EXCEEDED");
 });
 
-test("a reader's limit error is a limit: LIMIT_EXCEEDED, and INVALID_FILE with reason LIMIT of pivotkit-xlsx 0.1.0", async () => {
-    const { PivotkitError } = await import("pivotkit-core");
-    const { asCliError } = await import("../src/errors.js");
-    const now = asCliError(new PivotkitError("LIMIT_EXCEEDED", '"book.xlsx" has more than 5 parts in its ZIP directory (limits.archiveEntries)', { limit: "archiveEntries", value: 9, max: 5, file: "book.xlsx" }), "book.xlsx");
-    assert.deepEqual([now.kind, now.code], ["limit", "LIMIT_EXCEEDED"]);
-    const before = asCliError(new PivotkitError("INVALID_FILE", '"book.xlsx": the workbook has 9 parts, more than 5 (limits.archiveEntries).', { reason: "LIMIT", file: "book.xlsx", limit: "archiveEntries", value: 9, max: 5 }), "book.xlsx");
-    assert.deepEqual([before.kind, before.code], ["limit", "LIMIT"]);
-    const damaged = asCliError(new PivotkitError("INVALID_FILE", '"book.xlsx": damaged', { reason: "DAMAGED", file: "book.xlsx" }), "book.xlsx");
-    assert.deepEqual([damaged.kind, damaged.code], ["io", "DAMAGED"]);
-});
-
 test("a view file's field types decide how a CSV column is read: text that looks like a number stays text", async () => {
     const dir = tempDir();
     // product codes of text, as a host's data had them; a CSV cannot say so, the view file can

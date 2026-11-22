@@ -23,7 +23,7 @@
 
 import { basename, extname } from "node:path";
 import { closest, encode } from "pivotkit-core";
-import { readSafe, readTable } from "pivotkit-cli/files";
+import { readSafe, readTable } from "pivotkit-node/files";
 import { findingText } from "pivotkit-report/operations";
 import { serverLimitsOf } from "../config.js";
 import { autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, withStats } from "../policy.js";

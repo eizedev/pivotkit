@@ -1,7 +1,7 @@
 name: Release
 
 # Stages a package of this repository (pivotkit-core, pivotkit-react, pivotkit-element,
-# pivotkit-xlsx, pivotkit-report, pivotkit-cli, pivotkit-server or pivotkit-mcp) on npm with
+# pivotkit-xlsx, pivotkit-report, pivotkit-node, pivotkit-cli, pivotkit-server or pivotkit-mcp) on npm with
 # provenance when a tag <package>@<version> is pushed; a maintainer approves the staged version on
 # npm with two-factor authentication before it is published. It needs trusted publishing on npm for
 # this workflow and the environment "npm" (staging only), the GitHub environment "npm" with required
@@ -16,7 +16,7 @@ name: Release
 # integrity the Pack step recorded.
 on:
   push:
-    tags: ["pivotkit-core@*", "pivotkit-react@*", "pivotkit-element@*", "pivotkit-xlsx@*", "pivotkit-report@*", "pivotkit-cli@*", "pivotkit-server@*", "pivotkit-mcp@*"]
+    tags: ["pivotkit-core@*", "pivotkit-react@*", "pivotkit-element@*", "pivotkit-xlsx@*", "pivotkit-report@*", "pivotkit-node@*", "pivotkit-cli@*", "pivotkit-server@*", "pivotkit-mcp@*"]
 
 permissions:
   contents: read
@@ -53,7 +53,7 @@ jobs:
         run: |
           name="${TAG%@*}"
           case "$name" in
-            pivotkit-core|pivotkit-react|pivotkit-element|pivotkit-xlsx|pivotkit-report|pivotkit-cli|pivotkit-server|pivotkit-mcp) ;;
+            pivotkit-core|pivotkit-react|pivotkit-element|pivotkit-xlsx|pivotkit-report|pivotkit-node|pivotkit-cli|pivotkit-server|pivotkit-mcp) ;;
             *) echo "tag $TAG names no package of this repository"; exit 1 ;;
           esac
           version="$(node -p "require('./packages/$name/package.json').version")"

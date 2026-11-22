@@ -21,7 +21,7 @@
  * `hardLinks: false` refuses a file with more than one name (a hard link), for callers that read on
  * behalf of someone else (pivotkit-mcp). `writeNew` never replaces a file: the final name is created
  * by writeSafe's exclusive write (link(), which fails when the name exists). The module is exported
- * as `pivotkit-cli/files`.
+ * as `pivotkit-node/files` (and `pivotkit-cli/files`).
  */
 
 import { constants } from "node:fs";

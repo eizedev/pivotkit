@@ -26,7 +26,7 @@
 
 import { open, readFile } from "node:fs/promises";
 import { DOCS_SITE, docsLink, docsOf, docsUrlProblems } from "./options/branding.js";
-import { SOURCE_ID } from "pivotkit-cli/rest";
+import { SOURCE_ID } from "pivotkit-node/rest";
 import { FIELD_DESCRIPTION_MAX, TODO_MARK, todoEntries, todoPaths } from "./options/base.js";
 import { SECRET_NAME } from "./options/http.js";
 import { GuardedFetchError, addressRefusal, guardedFetch, ipBytes } from "./sources/fetch.js";

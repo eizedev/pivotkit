@@ -3,7 +3,7 @@
 ## Scope
 
 The packages in this repository (`pivotkit-core`, `pivotkit-react`, `pivotkit-element`,
-`pivotkit-xlsx`, `pivotkit-report`, `pivotkit-cli`, `pivotkit-server`, `pivotkit-mcp`) and the
+`pivotkit-xlsx`, `pivotkit-report`, `pivotkit-node`, `pivotkit-cli`, `pivotkit-server`, `pivotkit-mcp`) and the
 container image built from it. A view (report template), the data, a loaded file
 (CSV, JSON, a workbook read by pivotkit-xlsx), a print template and a host's theme tokens can come
 from users; anything that lets them run code, load or read something they should not (a file outside

@@ -13,7 +13,7 @@ npm install --global pivotkit-server pivotkit-mcp
 pivotkit-server serve --source sales=/path/to/sales.csv --output /path/to/reports   # http://127.0.0.1:3333/api/v1
 ```
 
-Node 24 or later. It brings pivotkit-report, pivotkit-cli's file handling, pivotkit-xlsx, ECharts
+Node 24 or later. It brings pivotkit-report, pivotkit-cli, pivotkit-xlsx, ECharts
 6.1.0 and jose. It does not bring the MCP SDK.
 
 ## Example

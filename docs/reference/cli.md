@@ -715,8 +715,8 @@ The JSON of Source data keeps all of it. The files hold wall-clock dates without
   none of them is there yet. If one is, nothing is written (exit 2, `EXISTS`). `--allow-dir` holds.
 - Templates and file paths come only from the person running the command. The [MCP server](mcp.md)
   is built on the same file handling (`pivotkit-cli/files`: `readSafe`, `writeSafe`, `writeNew`,
-  `allowedDirs`, `readTable`). It takes a template only from its operator, and a path from a model
-  only inside the operator's allowed directories. It refuses hard links there.
+  `allowedDirs`, `readTable`, all from pivotkit-node). It takes a template only from its operator,
+  and a path from a model only inside the operator's allowed directories. It refuses hard links there.
 
 ## Completion
 
