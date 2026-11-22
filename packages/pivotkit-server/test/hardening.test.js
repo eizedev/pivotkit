@@ -461,7 +461,9 @@ test("#479: a row longer than its header only by an empty last cell is left out 
     const server = await restServer({ sources: { people: { file: "data/people.csv", policy: { default: "show", fields: { ssn: "hide" } } } }, baseDir: dir });
     try {
         const city = await call(`${server.api}/views/render`, { body: { source: "people", view: { rows: ["city"], values: [{ agg: "count" }] }, format: "json" } });
-        assert.doesNotMatch(JSON.stringify(city.data), /"3"|\b3\b(?=[^0-9])/, JSON.stringify(city.data));
+        // the request's random id may hold a 3 (#721): only the parts that can carry data are read
+        const answer = JSON.stringify({ ...city.data, requestId: undefined });
+        assert.doesNotMatch(answer, /"3"|\b3\b(?=[^0-9])/, answer);
         const described = await call(`${server.api}/sources/describe`, { body: { source: "people" } });
         assert.equal(described.data.rows, 1);
     } finally {

@@ -9,7 +9,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, 
 import { join } from "node:path";
 import { main } from "pivotkit-cli";
 import { run, tempDir } from "./helpers.js";
-import { accountOf, credentialStore, storeMeans } from "../src/credential-store.js";
+import { accountOf, credentialStore, storeMeans, takeOver } from "../src/credential-store.js";
 import { utimesSync } from "node:fs";
 import { scopeOf, signInMeans } from "../src/sign-in.js";
 import { versions } from "../src/cli.js";
@@ -922,6 +922,50 @@ test("the lock: two runs that find a stale lock at once take it over one after t
         // a lock replaced by another run's while the work ran stays where it is
         await store.locked(resource, async () => writeFileSync(path, "another run's id"));
         assert.equal(readFileSync(path, "utf8"), "another run's id");
+    });
+});
+
+// #717: three runs read a stale lock's age at once. The first takes it over and works; the second,
+// late, must not move the first one's fresh lock even for a moment, or the third gets in beside it
+test("the lock's takeover: a late run leaves a lock made since alone, never letting a third run in; one takeover at a time", async () => {
+    await withLock({ lockStaleMs: 1000 }, async () => {
+        const dir = tempDir();
+        const path = join(dir, "server.lock");
+        // a lock another run made since this run read the old one's age: the late takeover finds it fresh
+        writeFileSync(path, "run A");
+        const { open } = await import("node:fs/promises");
+        let late = true;
+        const taking = takeOver(path).finally(() => {
+            late = false;
+        });
+        // a third run tries O_EXCL the whole time: it must never find the path free
+        let thirdIn = false;
+        while (late) {
+            const third = await open(path, "wx").catch(() => null);
+            if (third) {
+                thirdIn = true;
+                await third.close();
+                break;
+            }
+        }
+        await taking;
+        assert.equal(thirdIn, false, "a third run got in while the late takeover ran");
+        assert.equal(readFileSync(path, "utf8"), "run A", "the fresh lock stays");
+        assert.deepEqual(readdirSync(dir), ["server.lock"], "no takeover lock or copy left");
+
+        // a stale lock while another run takes over: left to that run
+        const old = new Date(1_000_000_000_000);
+        utimesSync(path, old, old);
+        writeFileSync(`${path}.takeover`, "");
+        await takeOver(path);
+        assert.ok(existsSync(path), "another run's takeover goes on");
+        // that run's takeover lock, when it crashed, is removed; the next try takes the stale lock over
+        utimesSync(`${path}.takeover`, old, old);
+        await takeOver(path);
+        assert.ok(!existsSync(`${path}.takeover`), "a crashed takeover's lock is removed");
+        assert.ok(existsSync(path));
+        await takeOver(path);
+        assert.deepEqual(readdirSync(dir), [], "the stale lock is taken over");
     });
 });
 
