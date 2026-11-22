@@ -83,9 +83,10 @@ Then ask, for example:
 
 - "Which sources does pivotkit have?"
 - "Make an Excel report of sales by region per quarter"
-- "Make a link to that report"
+- "Now the same report as CSV, only for the North region"
 
-The server answers with the file's place. A report can use fields whose values you did not let the
+The server answers with the file's place. A link to a report needs a page that shows reports, a
+source's `link` ([PowerShell Universal](#psu) has an example). A report can use fields whose values you did not let the
 model see. Then the server says that the model has not seen the content.
 
 !!! warning "A client with file tools can read the files"
@@ -409,9 +410,9 @@ then counts refused tokens per client and logs the client's address. See
 [behind a reverse proxy](../reference/rest.md#running).
 
 ARR ends a request that takes longer than its **Time-out**, in the same **Server Proxy Settings**.
-Keep it above the longest time a request to the server may take, so ARR does not cut off a long
-answer. An HTTP request to `/mcp` has 30 seconds, as [MCP server](../reference/mcp.md#http) says.
-This is not tested with ARR.
+Keep it longer than `compute.queueMs` + `compute.timeMs`, which is 40 seconds with the defaults, so
+ARR does not cut off a long answer ([configuration](../reference/mcp.md#configuration)). This is
+not tested with ARR.
 
 A server that offers MCP alone runs the same way with `pivotkit-mcp`'s own command:
 `node_modules\pivotkit-mcp\bin\pivotkit-mcp.js --config ... --http --auth token`. The token goes in

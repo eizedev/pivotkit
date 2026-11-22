@@ -520,7 +520,7 @@ test("the release workflow holds the OIDC token only behind the npm environment,
 // one behind: no caret range of a pivotkit package. The statements that must name the current version
 // are listed here, each with the package whose version it names, and in RELEASING.md's release steps.
 const VERSION_STATEMENTS = [
-    { file: "docs/compare.md", pattern: /^\| \*\*pivotkit\*\* \| [^|]+ \| (\d+\.\d+\.\d+) on \d{4}-\d{2}-\d{2} \|/m, pkg: "pivotkit-core" },
+    { file: "docs/compare.md", pattern: /^\| \*\*pivotkit\*\* \| [^|]+ \| pivotkit-core (\d+\.\d+\.\d+) on \d{4}-\d{2}-\d{2} \|/m, pkg: "pivotkit-core" },
     { file: "docs/reference/view-file.md", pattern: /"generator": \{ "name": "pivotkit-react", "version": "(\d+\.\d+\.\d+)" \}/, pkg: "pivotkit-react" },
     // the official plugins table: the pivotkit-core version pivotkit-xlsx needs (its caret range on core)
     { file: "docs/reference/plugins.md", pattern: /^\| <span id="pivotkit-xlsx"><\/span>.*\| (\d+\.\d+(?:\.\d+)?) \(plugin API \d+\) \|$/m, pkg: "pivotkit-core" }
