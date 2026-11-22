@@ -13,24 +13,24 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 - An HTML report of a view with `display: "both"` has the chart above the table
   ([#51](https://github.com/eizedev/pivotkit/issues/51)).
 - The chart as SVG and in the HTML report draws bars and lines, and a treemap
-  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).
+  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), [#518](https://github.com/eizedev/pivotkit/issues/518)).
 - The chart as SVG and in the HTML report merges a pie's smallest slices into "Other (n)" by the same
   rule as the screen. The chart takes the report's words, so a German report writes "Andere (n)"
   and the German names of the reference lines. `--pk-chart-other` is one of the report's tokens
-  ([many slices](https://pivotkit.eize.dev/use/charts/#many-slices), #544).
+  ([many slices](https://pivotkit.eize.dev/use/charts/#many-slices), [#544](https://github.com/eizedev/pivotkit/issues/544)).
 - The chart as SVG and in the HTML report draws the high and low points. Their labels are placed
   after a second draw, as on the screen
-  ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), #574).
+  ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), [#574](https://github.com/eizedev/pivotkit/issues/574)).
 - `list_sources`' output schema has `linkParams` per source, and `create_link`'s description names it
-  ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), #619).
+  ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), [#619](https://github.com/eizedev/pivotkit/issues/619)).
 
 ### Changed
 
 - Depends on `pivotkit-core` `^0.9.0` (was `^0.8.0`).
 - **Breaking:** needs Node 24 or later. Node 22 is no longer supported
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), [#519](https://github.com/eizedev/pivotkit/issues/519)).
 - `create_link` and `draft_schedule` take exactly one of `view` or `layout`, through the same
-  `viewOrLayout` as `validate_view` and `render_view`. `view` is no longer required (#469).
+  `viewOrLayout` as `validate_view` and `render_view`. `view` is no longer required ([#469](https://github.com/eizedev/pivotkit/issues/469)).
 
 ## [0.4.0] - 2026-11-18
 

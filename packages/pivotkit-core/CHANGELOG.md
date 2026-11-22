@@ -18,6 +18,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- `toEChartsOption` draws the reference lines and the high and low points of its `chart` option's
+  `referenceLines`, over the view's, as the other chart keys. It drew the view's only. A key the
+  option's `referenceLines` leaves out is off.
 - `describeView` writes a date item in a sort's `column` as its day, for example
   "in the column 2026-01-05". It wrote the raw milliseconds
   ([#696](https://github.com/eizedev/pivotkit/issues/696)).
@@ -29,13 +32,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - `view.fieldLabels`: names of the report's own for fields, by the field's name. `normalize` checks
   them, `toGrid()` and `toSeries()` show them, and `withFieldLabels(labels, fieldLabels)` puts them
   over a host's display names. Only a view with a name has the key; pivotkit 0.8 reads such a view
-  with an `unknownKey` error ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#field-labels), #158).
+  with an `unknownKey` error ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#field-labels), [#158](https://github.com/eizedev/pivotkit/issues/158)).
 - `display: "both"`: the table and the chart side by side. `describeView` says "as a table and a
   chart". pivotkit 0.8 reads such a view with an `unknownSetting` error and shows the table
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#display-both), #51).
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#display-both), [#51](https://github.com/eizedev/pivotkit/issues/51)).
 - `computePivot`'s option `strict`: a view with an error issue throws `INVALID_VIEW`, with the issues
   in `error.details.issues`, instead of giving numbers
-  ([check the issues](https://pivotkit.eize.dev/getting-started/engine/#check-issues), #563).
+  ([check the issues](https://pivotkit.eize.dev/getting-started/engine/#check-issues), [#563](https://github.com/eizedev/pivotkit/issues/563)).
 - `stacksToPercent(chart)`: whether a view's chart is drawn stacked to 100 %, for pivotkit-react's
   tip on stacks of values that do not add up ([#536](https://github.com/eizedev/pivotkit/issues/536)).
 - `COLOR_SCALES`: the colour scales the value menu offers, blue to orange, blue to red and red to
@@ -46,24 +49,24 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - Two chart types. `"combo"` draws the first value as bars on the left axis and every other value as a
   line on an axis of its own. `"treemap"` draws a tile per category. `labelColorOn` in
   `pivotkit-core/chart` picks a tile's label colour from the theme's tokens
-  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).
+  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), [#518](https://github.com/eizedev/pivotkit/issues/518)).
 - A pie or donut without a legend whose labels outside have no room puts its smallest slices into one
   slice "Other (n)" (`decorateOption`). Its data item lists them in `members`. The word is the new
   label `otherSlices`, "Other ({count})" and "Andere ({count})"
-  ([many slices](https://pivotkit.eize.dev/use/charts/#many-slices), #544).
+  ([many slices](https://pivotkit.eize.dev/use/charts/#many-slices), [#544](https://github.com/eizedev/pivotkit/issues/544)).
 - High and low points on bars, lines and areas: `chart.referenceLines.extremes` marks each series'
   highest and lowest value, or a stack's total's. `extremePoints` in `pivotkit-core/chart` gives
   them, `toEChartsOption` draws them as a `markPoint`, and `decorateOption` keeps their labels
   inside the plot and apart. A view file leaves the key out while it is off
-  ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), #574).
+  ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), [#574](https://github.com/eizedev/pivotkit/issues/574)).
 - `chartThemeFrom` reads the axis line's colour from `--pk-chart-axis`, else `--pk-border` as before.
   A print template or a host can draw the axis apart from the table's lines
-  ([theming](https://pivotkit.eize.dev/reference/theming/), #614).
+  ([theming](https://pivotkit.eize.dev/reference/theming/), [#614](https://github.com/eizedev/pivotkit/issues/614)).
 
 ### Changed
 
 - **Breaking:** needs Node 24 or later. Node 22 is no longer supported
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), [#519](https://github.com/eizedev/pivotkit/issues/519)).
 
 ### Fixed
 

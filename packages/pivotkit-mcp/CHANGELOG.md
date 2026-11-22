@@ -18,15 +18,15 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 ### Added
 
 - The skill names the chart types `combo` and `treemap`
-  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).
+  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), [#518](https://github.com/eizedev/pivotkit/issues/518)).
 - `create_link` writes the values of a source's `linkParams` into the page's query string, and
   `list_sources` names `linkParams`. The tool's description says so: MCP clients reconnect to read it
-  ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), #619).
+  ([link parameters](https://pivotkit.eize.dev/concepts/sharing/#link-params), [#619](https://github.com/eizedev/pivotkit/issues/619)).
 - `list_sources` gives a source's row count (`rows`) and `dataAsOf` where pivotkit-server knows them
   from the last read. Clients see the two keys in the output schema after they reconnect
-  ([row count and data date](https://pivotkit.eize.dev/reference/rest/#source-list), #617).
+  ([row count and data date](https://pivotkit.eize.dev/reference/rest/#source-list), [#617](https://github.com/eizedev/pivotkit/issues/617)).
 - Branding for intranet deployments
-  ([your own name and links](https://pivotkit.eize.dev/reference/branding/), #608, #612):
+  ([your own name and links](https://pivotkit.eize.dev/reference/branding/), [#608](https://github.com/eizedev/pivotkit/issues/608), [#612](https://github.com/eizedev/pivotkit/issues/612)):
     - `branding.name` is the `serverInfo.title`, the OAuth metadata's `resource_name` and the
       quick-start page's title. The page's client configurations and a static token's realm use it
       as a short identifier. `serverInfo.name` stays `pivotkit-mcp`.
@@ -43,19 +43,19 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 - **Breaking:** `http.publicUrl` and `--public-url` take an origin. A path, user name, password,
   query or fragment stops the start with an error that names the remedy. The quick-start page names
   the endpoint under the origin, without a user name or password
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#public-url-origin), #629).
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#public-url-origin), [#629](https://github.com/eizedev/pivotkit/issues/629)).
 - **Breaking:** `auth.resource` and `rest.resource` with a user name, password, query or fragment
-  stop the start. They appear in metadata and messages (#629).
+  stop the start. They appear in metadata and messages ([#629](https://github.com/eizedev/pivotkit/issues/629)).
 - **Breaking:** needs Node 24 or later. Node 22 is no longer supported
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), [#519](https://github.com/eizedev/pivotkit/issues/519)).
 - `create_link` and `draft_schedule` take a `layout` instead of a `view`, as `render_view` does.
-  The schema's placeholder `layout` that refused every layout is gone (#469).
+  The schema's placeholder `layout` that refused every layout is gone ([#469](https://github.com/eizedev/pivotkit/issues/469)).
 - `render_view`, `create_link` and `draft_schedule` take the name of a view the operator published
-  ([named views](https://pivotkit.eize.dev/reference/sources/#views), #616). MCP clients reconnect
+  ([named views](https://pivotkit.eize.dev/reference/sources/#views), [#616](https://github.com/eizedev/pivotkit/issues/616)). MCP clients reconnect
   to read the new schemas.
 - **Breaking:** `pivotkit-mcp/policy` exports the policy's public part, as `pivotkit-server/policy`
   does ([JavaScript exports](https://pivotkit.eize.dev/reference/service-exports/),
-  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#internal-exports), #561).
+  [upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#internal-exports), [#561](https://github.com/eizedev/pivotkit/issues/561)).
 - pivotkit-mcp imports what it shares with pivotkit-server from `pivotkit-server/internal`. Install
   pivotkit-server and pivotkit-mcp of one release.
 

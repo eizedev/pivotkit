@@ -113,6 +113,10 @@ The writer leaves out the chart keys newer than pivotkit 0.7 (`tooltip`, `zoom`,
 warning. It leaves out `extremes` in `referenceLines`, newer than 0.8, while it is `false`.
 `fromViewFile` puts them back at their defaults when it reads a file.
 
+`display` is `"table"`, `"chart"` or `"both"`. `"both"` shows the table and the chart side by side.
+It is newer than 0.8, and the writer keeps it. A 0.8 reader reports it as `unknownSetting` and shows
+the table.
+
 The suggested file name is `<slug>.pivotkit.json`. The slug is the name in lower case, with accents
 dropped and every run of other characters turned into a `-`:
 

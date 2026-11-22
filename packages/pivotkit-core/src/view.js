@@ -802,8 +802,9 @@ function fieldLabelsSection(raw, view, ctx) {
     for (const [name, text] of Object.entries(out)) {
         const other = placed.has(name) ? byName.get(alike(text))?.find((n) => n !== name) : undefined;
         if (other !== undefined) {
-            const whose = Object.hasOwn(out, other) ? `the view's name for "${other}"` : `the name of the field "${other}"`;
-            ctx.warn(/** @type {string} */ (pathOf.get(name)), `"${text}" is also ${whose}; their headers read alike`, "labelTaken", { field: name, value: shown(text) });
+            // the other field's own name reads as the name itself: said once
+            const said = Object.hasOwn(out, other) ? `"${text}" is also the view's name for "${other}"` : `another field of the report is called "${text}" too`;
+            ctx.warn(/** @type {string} */ (pathOf.get(name)), `${said}; the two headers read alike`, "labelTaken", { field: name, value: shown(text) });
         }
     }
 }
