@@ -4,51 +4,30 @@
 // REST and the other way round.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { createServer } from "node:http";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
-import { REQUEST_LIMITS } from "../src/limits.js";
+import { REQUEST_LIMITS } from "../../src/limits.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { checkConfig, validateOptions } from "pivotkit-server";
-import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspace } from "./helpers.js";
+import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, untilReady, workspace } from "../helpers.js";
+import { localIssuer, signingKey } from "./local-issuer.js";
 
 const MCP_RESOURCE = "https://pk.example.com/mcp";
 const REST_RESOURCE = "https://pk.example.com/api/v1";
+/** The local issuer (local-issuer.js), its address, and a key it does not publish. */
+let local;
 let issuer;
-let issuerServer;
-let key;
 let otherKey;
 
 before(async () => {
-    key = await generateKeyPair("RS256");
-    otherKey = await generateKeyPair("RS256");
-    const jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
-    issuerServer = createServer((req, res) => {
-        if (req.url === "/.well-known/openid-configuration") {
-            res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, jwks_uri: `${issuer}/jwks`, response_types_supported: ["code"], subject_types_supported: ["public"], id_token_signing_alg_values_supported: ["RS256"] }));
-        } else if (req.url === "/jwks") {
-            res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ keys: [jwk] }));
-        } else {
-            res.writeHead(404);
-            res.end();
-        }
-    });
-    await new Promise((resolve) => issuerServer.listen(0, "127.0.0.1", resolve));
-    issuer = `http://127.0.0.1:${issuerServer.address().port}`;
+    local = await localIssuer();
+    issuer = local.url;
+    otherKey = (await signingKey()).key;
 });
-after(() => new Promise((resolve) => issuerServer.close(resolve)));
+after(() => local.close());
 
-/** A signed access token; `claims` and `header` change it. */
-async function jwt({ claims = {}, header = {}, signWith = key.privateKey, expires = "5m", aud = REST_RESOURCE, sub = "someone" } = {}) {
-    let token = new SignJWT({ scope: "pivotkit", client_id: "report-bot", ...claims }).setProtectedHeader({ alg: "RS256", kid: "k1", ...header }).setIssuer(claims.iss ?? issuer).setAudience(aud).setSubject(sub).setIssuedAt();
-    if (expires) {
-        token = token.setExpirationTime(expires);
-    }
-    return token.sign(signWith);
-}
+/** A signed access token of the local issuer for the REST resource, of "someone"; the options change it. */
+const jwt = ({ aud = REST_RESOURCE, sub = "someone", ...options } = {}) => local.token({ aud, sub, ...options });
 
 const SOURCES = { sales: { file: "data/sales.csv", policy: { fields: { Region: "show" } } }, hr: { file: "data/sales.csv", scopes: ["pivotkit:hr"] } };
 
@@ -152,21 +131,10 @@ async function oauthServer(extra = {}) {
     return restServer({ sources: SOURCES, output: { dir: "out" }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"], ...extra }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir }, { enable: ["rest", "mcp"] });
 }
 
-/** Waits until the server has loaded the issuer (readyz). */
-async function ready(server) {
-    for (let i = 0; i < 50; i++) {
-        if ((await call(`${server.url}/readyz`)).status === 200) {
-            return;
-        }
-        await new Promise((r) => setTimeout(r, 50));
-    }
-    throw new Error("not ready");
-}
-
 test("oauth: the REST resource's metadata names it and the issuer; a token for the MCP endpoint does not reach REST, nor the other way round", async () => {
     const server = await oauthServer();
     try {
-        await ready(server);
+        await untilReady(server);
         const prm = await call(`${server.url}/.well-known/oauth-protected-resource/api/v1`);
         assert.equal(prm.status, 200);
         assert.equal(prm.data.resource, REST_RESOURCE);
@@ -197,7 +165,7 @@ test("oauth: the REST resource's metadata names it and the issuer; a token for t
 test("oauth: an expired token, another key, alg none, another issuer and missing scopes are refused; scopes per source and operation hold", async () => {
     const server = await oauthServer({ toolScopes: { render_view: ["pivotkit:render"] } });
     try {
-        await ready(server);
+        await untilReady(server);
         const [header, payload] = (await jwt()).split(".");
         const unsigned = `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${payload}.`;
         const bad = [await jwt({ expires: "-1m" }), await jwt({ signWith: otherKey.privateKey }), unsigned, `${header}.${payload}.AAAA`, await jwt({ claims: { iss: "https://evil.example" } })];
@@ -246,7 +214,7 @@ test("oauth: a person's subject, groups and other claims never reach a log line,
         const claims = { groups: ["finance-secret-group"], customer: "acme-secret-claim", email: "person@secret.example", name: "Secret Person" };
         const client = new Client({ name: "claims", version: "1.0.0" });
         try {
-            await ready(server);
+            await untilReady(server);
             assert.equal((await call(`${server.api}/views/validate`, { body: { source: "sales", view: BY_REGION }, token: await jwt({ claims }) })).status, 200);
             assert.equal((await call(`${server.api}/sources/nope`, { token: await jwt({ claims }) })).status, 404);
             const token = await jwt({ claims, aud: MCP_RESOURCE });
@@ -331,7 +299,7 @@ test("rest.signIn.clientId: the REST metadata publishes the command line's publi
     const options = { sources: SOURCES, output: { dir: "out" }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, rest: { signIn: { clientId: "pivotkit-cli" } }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir };
     const server = await restServer(options, { enable: ["rest", "mcp"] });
     try {
-        await ready(server);
+        await untilReady(server);
         const prm = await call(`${server.url}/.well-known/oauth-protected-resource/api/v1`);
         assert.equal(prm.status, 200);
         assert.equal(prm.data.pivotkit_client_id, "pivotkit-cli");
@@ -341,7 +309,7 @@ test("rest.signIn.clientId: the REST metadata publishes the command line's publi
     }
     const plain = await oauthServer();
     try {
-        await ready(plain);
+        await untilReady(plain);
         assert.equal(Object.hasOwn((await call(`${plain.url}/.well-known/oauth-protected-resource/api/v1`)).data, "pivotkit_client_id"), false, "nothing without the setting");
     } finally {
         await plain.close();

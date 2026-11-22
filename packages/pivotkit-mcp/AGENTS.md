@@ -35,3 +35,4 @@ npx pivotkit-mcp --source sales=data.csv --output out --check-config
 ## Tests
 
 `test/` drives the server with the SDK's client: stdio, HTTP, a local OAuth issuer, hostile inputs.
+The local issuer is pivotkit-server's `test/auth/local-issuer.js`. `test/config.test.js` reads check-config's text with pivotkit-server's `test/helpers.js`.

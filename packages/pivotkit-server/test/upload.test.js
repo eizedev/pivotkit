@@ -9,9 +9,8 @@
 // answer body on the log.
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { createHash, createHmac, hkdfSync } from "node:crypto";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { platform } from "node:process";
 import { createServer } from "node:https";
 import { join } from "node:path";
@@ -25,7 +24,7 @@ import { deliver, NO_LINK_NOTE, storeFor } from "../src/delivery.js";
 import { createDownloadHandler, subkeysOf } from "../src/downloads.js";
 import { createContext } from "../src/context.js";
 import { withRequestId } from "../src/request-id.js";
-import { BY_REGION, SALES_CSV, call, factsOf, restServer, tempDir, workspace } from "./helpers.js";
+import { BY_REGION, call, factsOf, loopbackCert, restServer, SALES_CSV, workspace } from "./helpers.js";
 
 /** The store's credential: an environment variable, as an operator gives it. */
 const STORE_TOKEN = "STORE-TOKEN-must-never-leave-the-presign-request";
@@ -51,10 +50,9 @@ const ADDRESSES = { "meta.example.test": "169.254.169.254", "private.example.tes
 let cert;
 
 before(async () => {
-    const dir = tempDir();
-    execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", join(dir, "key.pem"), "-out", join(dir, "cert.pem"), "-days", "2", "-subj", "/CN=store.example.test", "-addext", "subjectAltName=DNS:store.example.test,DNS:bucket.example.test,DNS:files.example.test,DNS:evil.example.test"], { stdio: "ignore" });
-    cert = readFileSync(join(dir, "cert.pem"));
-    server = createServer({ key: readFileSync(join(dir, "key.pem")), cert }, (req, res) => {
+    const tls = loopbackCert("store.example.test", "bucket.example.test", "files.example.test", "evil.example.test");
+    cert = tls.cert;
+    server = createServer({ key: tls.key, cert }, (req, res) => {
         const url = new URL(req.url ?? "/", "https://x");
         const chunks = [];
         open++;

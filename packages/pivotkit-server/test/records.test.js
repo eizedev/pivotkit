@@ -8,17 +8,17 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { createServer } from "node:http";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
+import { SignJWT } from "jose";
 import { encode } from "pivotkit-core";
 import { dataToJson } from "pivotkit-core/export";
 import { checkConfig, createContext, validateOptions } from "pivotkit-server";
 import { createRestHandler } from "pivotkit-server/rest";
 import { answeredType, columnPieces } from "../src/records-writer.js";
 import { recordsBoundsOf } from "../src/options/records.js";
-import { BIN, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
+import { BIN, call, factsOf, restServer, TOKEN, untilReady, workspace } from "./helpers.js";
+import { localIssuer } from "./auth/local-issuer.js";
 
 /** Orders with one field per level: Region, Sales and OrderDate show, Product values, Team summary, Customer hide. */
 const CSV = ["Region,Product,Team,Customer,Sales,OrderDate", "North,VALUESMARKA,SUMMARYMARKA,HIDDENMARKA,10,2025-11-05", "South,VALUESMARKB,SUMMARYMARKB,HIDDENMARKB,20.5,2026-09-01", "North,VALUESMARKA,SUMMARYMARKC,HIDDENMARKC,5,2026-10-01", "West,VALUESMARKB,SUMMARYMARKA,HIDDENMARKD,7,2026-10-20", ",VALUESMARKA,SUMMARYMARKB,HIDDENMARKE,,2024-12-31"].join("\n") + "\n";
@@ -257,41 +257,24 @@ function writeConfig(options) {
 // OAuth: a token of the configured issuer with a subject is a person; one without is not
 
 const REST_RESOURCE = "https://pk.example.com/api/v1";
+/** The local issuer (auth/local-issuer.js) and its address. */
+let local;
 let issuer;
-let issuerServer;
-let rsa;
 
 before(async () => {
-    rsa = await generateKeyPair("RS256");
-    const jwk = { ...(await exportJWK(rsa.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
-    issuerServer = createServer((req, res) => {
-        const body = req.url === "/jwks" ? { keys: [jwk] } : req.url === "/.well-known/openid-configuration" ? { issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, jwks_uri: `${issuer}/jwks`, response_types_supported: ["code"], subject_types_supported: ["public"], id_token_signing_alg_values_supported: ["RS256"] } : null;
-        res.writeHead(body ? 200 : 404, { "content-type": "application/json" });
-        res.end(body ? JSON.stringify(body) : "");
-    });
-    await new Promise((resolve) => issuerServer.listen(0, "127.0.0.1", resolve));
-    issuer = `http://127.0.0.1:${issuerServer.address().port}`;
+    local = await localIssuer();
+    issuer = local.url;
 });
-after(() => new Promise((resolve) => issuerServer.close(resolve)));
+after(() => local.close());
 
 /** An access token of the local issuer for the REST resource (sub null: none). */
-const oauthToken = (sub) => {
-    const token = new SignJWT({ scope: "pivotkit", client_id: "host-app" }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(issuer).setAudience(REST_RESOURCE).setIssuedAt().setExpirationTime("5m");
-    return (sub === null ? token : token.setSubject(sub)).sign(rsa.privateKey);
-};
-
-/** Waits until the server has loaded the issuer (readyz). */
-async function ready(server) {
-    for (let i = 0; i < 100 && (await call(`${server.url}/readyz`)).status !== 200; i++) {
-        await new Promise((r) => setTimeout(r, 50));
-    }
-}
+const oauthToken = (sub) => local.token({ claims: { client_id: "host-app" }, aud: REST_RESOURCE, sub: sub ?? undefined });
 
 test("an OAuth token with a subject reads the rows; one without a subject is refused", async () => {
     const dir = workspace({ "sales.csv": CSV });
     const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { fields: { Customer: "hide" } } } }, policy: { profiles: PROFILES }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"], defaultProfile: "staff" }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir });
     try {
-        await ready(server);
+        await untilReady(server, 100);
         const ok = await rows(server, await oauthToken("ana"), { source: "sales" });
         assert.equal(ok.status, 200, ok.text);
         assert.deepEqual(ok.data.columns, ["Region", "Sales", "OrderDate"]);
@@ -307,7 +290,7 @@ test("an OAuth person without a profile is refused without a placeholder for one
     const dir = workspace({ "sales.csv": CSV });
     const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { fields: { Customer: "hide" } } } }, policy: { profiles: PROFILES }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir });
     try {
-        await ready(server);
+        await untilReady(server, 100);
         const none = await rows(server, await oauthToken("ana"), { source: "sales" });
         assert.equal(none.status, 403, none.text);
         assert.equal(none.data.code, "NOT_ALLOWED");
@@ -326,7 +309,7 @@ test("a parameter bound to a claim, sent by the caller, answers INVALID_INPUT", 
     const dir = workspace({ "sales.csv": CSV });
     const server = await restServer({ sources: { mine: { load, params: { team: { type: "string", claim: "team", pattern: "^[a-z]+$" } }, policy: { default: "show" } } }, policy: { profiles: { staff: { records: ["mine"] } } }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"], defaultProfile: "staff" }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir });
     try {
-        await ready(server);
+        await untilReady(server, 100);
         const answer = await rows(server, await oauthToken("ana"), { source: "mine", params: { team: "other" } });
         assert.equal(answer.status, 400, answer.text);
         assert.equal(answer.data.code, "INVALID_INPUT");
@@ -396,7 +379,7 @@ test("LIMIT_EXCEEDED names a parameter only for a source that takes one the call
     const dir = workspace({ "sales.csv": CSV });
     const server = await restServer({ sources: { mine: { load, params: { who: { type: "string", claim: "sub", pattern: "^[a-z]+$" } }, policy: { default: "show" }, records: { maxRows: 3 } } }, policy: { profiles: { staff: { records: ["mine"] } } }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"], defaultProfile: "staff" }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir });
     try {
-        await ready(server);
+        await untilReady(server, 100);
         const answer = await rows(server, await oauthToken("ana"), { source: "mine" });
         assert.equal(answer.status, 413, answer.text);
         assert.ok(answer.data.detail.endsWith("; ask the operator"), answer.data.detail);

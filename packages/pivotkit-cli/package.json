@@ -56,8 +56,8 @@
   },
   "scripts": {
     "build": "node ../../scripts/examples.js",
-    "test": "npm run build && node ../../scripts/test-run.js node --test \"test/*.test.js\"",
-    "coverage": "npm run build && node ../../scripts/test-run.js node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\"",
+    "test": "npm run build && node ../../scripts/test-run.js node --test \"test/**/*.test.js\"",
+    "coverage": "npm run build && node ../../scripts/test-run.js node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/**/*.test.js\"",
     "types": "tsc -p .",
     "test:types": "tsc -p test/types",
     "prepack": "npm run build && npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\""

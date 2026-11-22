@@ -3,45 +3,25 @@
 // 401 and 403 challenges, and the tokens a server must refuse.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { createServer } from "node:http";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
+import { SignJWT } from "jose";
 import { BY_REGION, call, httpClient, httpServer, workspace } from "./helpers.js";
+import { localIssuer, signingKey } from "../../pivotkit-server/test/auth/local-issuer.js";
 
 const RESOURCE = "https://mcp.example.com/mcp";
+/** The local issuer (pivotkit-server's test/auth/local-issuer.js), its address, and a key it does not publish. */
+let local;
 let issuer;
-let issuerServer;
-let key;
 let otherKey;
 
 before(async () => {
-    key = await generateKeyPair("RS256");
-    otherKey = await generateKeyPair("RS256");
-    const jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
-    issuerServer = createServer((req, res) => {
-        if (req.url === "/.well-known/openid-configuration") {
-            res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, jwks_uri: `${issuer}/jwks`, response_types_supported: ["code"], subject_types_supported: ["public"], id_token_signing_alg_values_supported: ["RS256"], code_challenge_methods_supported: ["S256"] }));
-        } else if (req.url === "/jwks") {
-            res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ keys: [jwk] }));
-        } else {
-            res.writeHead(404);
-            res.end();
-        }
-    });
-    await new Promise((resolve) => issuerServer.listen(0, "127.0.0.1", resolve));
-    issuer = `http://127.0.0.1:${issuerServer.address().port}`;
+    local = await localIssuer();
+    issuer = local.url;
+    otherKey = (await signingKey()).key;
 });
-after(() => new Promise((resolve) => issuerServer.close(resolve)));
+after(() => local.close());
 
-/** A signed access token; `claims` and `header` change it. */
-async function token({ claims = {}, header = {}, signWith = key.privateKey, expires = "5m" } = {}) {
-    let jwt = new SignJWT({ scope: "pivotkit", client_id: "test-client", ...claims }).setProtectedHeader({ alg: "RS256", kid: "k1", ...header }).setIssuer(claims.iss ?? issuer).setAudience(claims.aud ?? RESOURCE).setSubject("someone").setIssuedAt();
-    if (expires) {
-        jwt = jwt.setExpirationTime(expires);
-    }
-    return jwt.sign(signWith);
-}
+/** A signed access token of "someone" for the MCP endpoint; `claims` (also `iss` and `aud`) and the options change it. */
+const token = ({ claims = {}, ...options } = {}) => local.token({ claims: { client_id: "test-client", ...claims }, aud: /** @type {string | undefined} */ (claims.aud) ?? RESOURCE, sub: "someone", ...options });
 
 async function oauthServer(extra = {}) {
     const dir = workspace();
@@ -100,7 +80,7 @@ test("tokens the server must refuse: expired, another issuer, another audience, 
     const server = await oauthServer();
     try {
         const { exportSPKI } = await import("jose");
-        const pem = await exportSPKI(key.publicKey);
+        const pem = await exportSPKI(local.key.publicKey);
         const hmac = await new SignJWT({ scope: "pivotkit" }).setProtectedHeader({ alg: "HS256", kid: "k1" }).setIssuer(issuer).setAudience(RESOURCE).setExpirationTime("5m").sign(new TextEncoder().encode(pem));
         const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
         const body = Buffer.from(JSON.stringify({ iss: issuer, aud: RESOURCE, scope: "pivotkit", exp: Math.floor(Date.now() / 1000) + 300 })).toString("base64url");
@@ -202,28 +182,18 @@ for (const era of ["legacy", "modern"]) {
 }
 
 test("the issuer's keys are read through pivotkit-server's guarded requests: a key set over the cap is refused, so its key signs nothing in", async () => {
-    // an issuer whose key set holds the signing key and is padded far over 256 KiB with more keys
-    const jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
-    const big = JSON.stringify({ keys: [jwk, ...Array.from({ length: 1200 }, (_, i) => ({ ...jwk, kid: `pad${i}` }))] });
+    // an issuer whose key set holds its signing key and is padded far over 256 KiB with more keys
+    const padded = await localIssuer();
+    const big = JSON.stringify({ keys: [padded.jwk, ...Array.from({ length: 1200 }, (_, i) => ({ ...padded.jwk, kid: `pad${i}` }))] });
     assert.ok(big.length > 262_144);
-    let own;
-    const padded = createServer((req, res) => {
-        if (req.url === "/.well-known/openid-configuration") {
-            res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ issuer: own, authorization_endpoint: `${own}/authorize`, token_endpoint: `${own}/token`, jwks_uri: `${own}/jwks`, response_types_supported: ["code"] }));
-        } else if (req.url === "/jwks") {
-            res.writeHead(200, { "content-type": "application/json" });
-            res.end(big);
-        } else {
-            res.writeHead(404);
-            res.end();
-        }
-    });
-    await new Promise((resolve) => padded.listen(0, "127.0.0.1", resolve));
-    own = `http://127.0.0.1:${padded.address().port}`;
+    padded.routes["/jwks"] = (_req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(big);
+    };
+    const own = padded.url;
     const server = await oauthServer({ issuer: own });
     try {
-        const good = await token({ claims: { iss: own } });
+        const good = await token({ claims: { iss: own }, signWith: padded.key.privateKey });
         let response = await post(server.url, good);
         for (let i = 0; i < 100 && response.status === 503; i++) {
             await new Promise((resolve) => setTimeout(resolve, 30));
@@ -233,6 +203,6 @@ test("the issuer's keys are read through pivotkit-server's guarded requests: a k
         assert.match(JSON.stringify(server.log), /the issuer's keys could not be read from .*\/jwks: TOO_LARGE/);
     } finally {
         await server.close();
-        await new Promise((resolve) => padded.close(resolve));
+        await padded.close();
     }
 });

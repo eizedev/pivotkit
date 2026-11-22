@@ -2,45 +2,36 @@
 // "local"; identityKey is the only identity caches and bindings use, and it fails closed (null) for a
 // token without a usable subject and for a caller the server did not make. The caller never holds the
 // access token; only exchangeTokenFor sends it, and only sources/auth.js may import it.
-// The https tests make a certificate per run with the openssl command: it must be on the PATH
-// (it is on the Linux and macOS runners; this package's tests do not run on Windows).
+// The https tests make a certificate per run with the openssl command (loopbackCert in helpers.js):
+// it must be on the PATH.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { execFile, execFileSync } from "node:child_process";
-import { createServer } from "node:http";
+import { execFile } from "node:child_process";
 import { createServer as createTlsServer } from "node:https";
 import { promisify } from "node:util";
-import { tempDir } from "./helpers.js";
+import { loopbackCert } from "../helpers.js";
+import { localIssuer } from "./local-issuer.js";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { callerOf, createContext } from "pivotkit-server";
-import { identityKey } from "../src/context.js";
-import { callerView, createAuthCore, exchangeTokenFor } from "../src/auth.js";
+import { identityKey } from "../../src/context.js";
+import { callerView, createAuthCore, exchangeTokenFor } from "../../src/auth.js";
 
-let issuer;
-let issuerServer;
-let key;
 const RESOURCE = "http://127.0.0.1/mcp";
 const quiet = { info() {}, warn() {}, debug() {}, error() {} };
+/** The local issuer (local-issuer.js) and its address. */
+let local;
+let issuer;
 
 before(async () => {
-    key = await generateKeyPair("RS256");
-    const jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
-    issuerServer = createServer((req, res) => {
-        res.writeHead(req.url === "/.well-known/openid-configuration" || req.url === "/jwks" ? 200 : 404, { "content-type": "application/json" });
-        res.end(req.url === "/jwks" ? JSON.stringify({ keys: [jwk] }) : JSON.stringify({ issuer, jwks_uri: `${issuer}/jwks`, token_endpoint: `${issuer}/token` }));
-    });
-    await new Promise((resolve) => issuerServer.listen(0, "127.0.0.1", resolve));
-    issuer = `http://127.0.0.1:${issuerServer.address().port}`;
+    local = await localIssuer();
+    issuer = local.url;
 });
-after(() => new Promise((resolve) => issuerServer.close(resolve)));
+after(() => local.close());
 
-/** A signed access token with these claims (sub only when given). */
-async function jwt(claims = {}, iss = issuer) {
-    return new SignJWT({ scope: "pivotkit", client_id: "bot", ...claims }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(iss).setAudience(RESOURCE).setIssuedAt().setExpirationTime("5m").sign(key.privateKey);
-}
+/** A signed access token of the client "bot" with these claims (sub only when given). */
+const jwt = (claims = {}) => local.token({ claims: { client_id: "bot", ...claims }, aud: RESOURCE });
 
 /** The OAuth core of these auth options, and a function from claims to a verified caller. */
 async function oauth(extra = {}) {
@@ -139,7 +130,7 @@ test("exchangeTokenFor refuses a caller without a signed-in person, and only sou
         core.close();
     }
     // no module of the server but auth.js and sources/auth.js names it, and the package does not export it
-    const src = fileURLToPath(new URL("../src/", import.meta.url));
+    const src = fileURLToPath(new URL("../../src/", import.meta.url));
     const files = readdirSync(src, { recursive: true }).map(String).filter((f) => f.endsWith(".js"));
     const users = files.filter((f) => readFileSync(join(src, f), "utf8").includes("exchangeTokenFor")).sort();
     assert.deepEqual(users.filter((f) => f !== "auth.js" && f !== join("sources", "auth.js")), []);
@@ -154,10 +145,9 @@ test("auth.subjectClaim is an option of the configuration", async () => {
 test("exchangeTokenFor sends the caller's token as the subject_token to the token endpoint only, with the client's credentials", async () => {
     // a token endpoint over https with a certificate made for this run; the child process trusts it
     // through NODE_EXTRA_CA_CERTS, so the module's own guardedFetch is used as it is
-    const dir = tempDir();
-    execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", join(dir, "key.pem"), "-out", join(dir, "cert.pem"), "-days", "2", "-subj", "/CN=localhost", "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1"], { stdio: "ignore" });
+    const tls = loopbackCert("localhost", "127.0.0.1");
     const seen = [];
-    const endpoint = createTlsServer({ key: readFileSync(join(dir, "key.pem")), cert: readFileSync(join(dir, "cert.pem")) }, (req, res) => {
+    const endpoint = createTlsServer({ key: tls.key, cert: tls.cert }, (req, res) => {
         let body = "";
         req.on("data", (c) => (body += c));
         req.on("end", () => {
@@ -168,13 +158,13 @@ test("exchangeTokenFor sends the caller's token as the subject_token to the toke
     });
     await new Promise((resolve) => endpoint.listen(0, "127.0.0.1", resolve));
     try {
-        const auth = new URL("../src/auth.js", import.meta.url).href;
+        const auth = new URL("../../src/auth.js", import.meta.url).href;
         const url = `https://localhost:${endpoint.address().port}/token`;
         const script = `const { callerOf, exchangeTokenFor } = await import(${JSON.stringify(auth)});
 const caller = callerOf("oauth", { token: "the-callers-own-token", clientId: "bot", scopes: ["pivotkit"], expiresAt: 1900000000, extra: { subject: "ana", issuer: "https://issuer.example" } });
 const answer = await exchangeTokenFor(caller, { url: ${JSON.stringify(url)}, clientId: "pivotkit backend", clientSecret: "s3cret:x", audience: "platform-api", scope: "platform:read" });
 console.log(JSON.stringify({ status: answer.status, body: new TextDecoder().decode(answer.body), subjectExpiresAt: answer.subjectExpiresAt, callerKeys: Object.keys(caller) }));`;
-        const { stdout } = await promisify(execFile)(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, NODE_EXTRA_CA_CERTS: join(dir, "cert.pem") }, encoding: "utf8" });
+        const { stdout } = await promisify(execFile)(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, NODE_EXTRA_CA_CERTS: tls.certFile }, encoding: "utf8" });
         const out = JSON.parse(stdout);
         assert.equal(out.status, 200);
         assert.equal(JSON.parse(out.body).access_token, "exchanged");

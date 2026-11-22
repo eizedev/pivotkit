@@ -6,51 +6,28 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, generateKeyPairSync } from "node:crypto";
-import { createServer } from "node:http";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { unzipSync, strFromU8 } from "fflate";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { ConfigError, callerOf, checkConfig, createContext, groupRefusal, offeredScopes, validateOptions } from "pivotkit-server";
 import { groupsOf, profileOf } from "pivotkit-server/internal";
 import { listHint } from "../src/scopes.js";
-import { BY_REGION, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
+import { BY_REGION, call, factsOf, restServer, TOKEN, untilReady, workspace } from "./helpers.js";
+import { localIssuer } from "./auth/local-issuer.js";
 
 const REST_RESOURCE = "https://pk.example.com/api/v1";
+/** The local issuer (auth/local-issuer.js) and its address. */
+let local;
 let issuer;
-let issuerServer;
-let key;
 
 before(async () => {
-    key = await generateKeyPair("RS256");
-    const jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
-    issuerServer = createServer((req, res) => {
-        res.writeHead(req.url === "/.well-known/openid-configuration" || req.url === "/jwks" ? 200 : 404, { "content-type": "application/json" });
-        res.end(req.url === "/jwks" ? JSON.stringify({ keys: [jwk] }) : JSON.stringify({ issuer, jwks_uri: `${issuer}/jwks`, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, response_types_supported: ["code"] }));
-    });
-    await new Promise((resolve) => issuerServer.listen(0, "127.0.0.1", resolve));
-    issuer = `http://127.0.0.1:${issuerServer.address().port}`;
+    local = await localIssuer();
+    issuer = local.url;
 });
-after(() => new Promise((resolve) => issuerServer.close(resolve)));
+after(() => local.close());
 
 /** A signed access token for the REST resource; the subject only when given. */
-async function jwt(claims = {}, { sub = "ana@example.com", aud = REST_RESOURCE } = {}) {
-    let token = new SignJWT({ scope: "pivotkit", client_id: "report-bot", ...claims }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(issuer).setAudience(aud).setIssuedAt().setExpirationTime("5m");
-    if (sub) {
-        token = token.setSubject(sub);
-    }
-    return token.sign(key.privateKey);
-}
-
-async function ready(server) {
-    for (let i = 0; i < 50; i++) {
-        if ((await call(`${server.url}/readyz`)).status === 200) {
-            return;
-        }
-        await new Promise((r) => setTimeout(r, 50));
-    }
-    throw new Error("not ready");
-}
+const jwt = (claims = {}, { sub = "ana@example.com", aud = REST_RESOURCE } = {}) => local.token({ claims, sub, aud });
 
 // finance sees customers, staff sees regions only, restricted sees no value at all
 const PROFILES = { finance: { default: "show" }, staff: { fields: { Region: "show" } }, restricted: { default: "summary" } };
@@ -63,7 +40,7 @@ const GROUP_PROFILES = [
 async function oauthServer(auth = {}, more = {}, env = {}) {
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "summary" } }, hr: { file: "data/sales.csv", scopes: ["pivotkit:hr"] } }, policy: { profiles: PROFILES }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"], ...auth }, http: { publicUrl: "https://pk.example.com/" }, output: { dir: "out" }, baseDir: dir, ...more }, { env });
-    await ready(server);
+    await untilReady(server);
     return server;
 }
 
@@ -240,7 +217,7 @@ test("list_sources: an empty list for a sign-in without the sources' scopes says
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv", scopes: ["pivotkit:sales"] }, vms: { file: "data/sales.csv", scopes: ["pivotkit:vms"] }, admin: { file: "data/sales.csv", scopes: ["pivotkit:admin"] } }, policy: { profiles: PROFILES }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"], scopeProfiles: { "pivotkit:admin": "finance" }, offerSourceScopes: true }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir });
     try {
-        await ready(server);
+        await untilReady(server);
         const empty = await call(`${server.api}/sources`, { token: await jwt() });
         assert.equal(empty.status, 200);
         assert.deepEqual(empty.data.sources, []);

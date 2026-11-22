@@ -6,8 +6,6 @@
 // check-source.
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { createServer } from "node:https";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
@@ -20,7 +18,7 @@ import { compileTemplate, expandUrl } from "../src/sources/template.js";
 import { checkSource, paramFlags } from "../src/check-source.js";
 import { loadRunner } from "../src/sources/run.js";
 import { run } from "../src/runner.js";
-import { call, factsOf, restServer, tempDir } from "./helpers.js";
+import { call, factsOf, loopbackCert, restServer, tempDir } from "./helpers.js";
 
 /** What the backend answers per path, set by each test; and what it was asked. */
 let routes = new Map();
@@ -33,10 +31,9 @@ let cert;
 const ADDRESSES = new Map();
 
 before(async () => {
-    const dir = tempDir();
-    execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", join(dir, "key.pem"), "-out", join(dir, "cert.pem"), "-days", "2", "-subj", "/CN=api.example.test", "-addext", "subjectAltName=DNS:api.example.test,DNS:other.example.test,DNS:localhost"], { stdio: "ignore" });
-    cert = readFileSync(join(dir, "cert.pem"));
-    server = createServer({ key: readFileSync(join(dir, "key.pem")), cert }, (req, res) => {
+    const tls = loopbackCert("api.example.test", "other.example.test", "localhost");
+    cert = tls.cert;
+    server = createServer({ key: tls.key, cert }, (req, res) => {
         const url = new URL(req.url ?? "/", "https://x");
         asked.push({ path: url.pathname, query: url.search, headers: req.headers });
         const route = routes.get(url.pathname);

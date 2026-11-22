@@ -206,6 +206,11 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `test/conformance.test.js` checks that MCP and REST answer alike.
 - `test/cli-remote.test.js` runs the CLI against the service.
 - Use the `tempDir` of `test/helpers.js` for files on disk.
+- `test/helpers.js` holds the shared helpers. `runBin` runs the command as an operator does.
+  `loopbackCert` makes a certificate for loopback. `untilReady` waits until `/readyz` answers 200.
+- `test/auth/` holds the sign-in tests: static and signed tokens, OAuth 2.1, external issuers, credentials and a backend's sign-in.
+- A test that signs in through an OAuth 2.1 issuer uses `localIssuer()` from `test/auth/local-issuer.js`.
+  pivotkit-mcp's tests use it too.
 
 ## Branding
 

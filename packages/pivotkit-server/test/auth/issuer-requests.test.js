@@ -5,21 +5,23 @@
 // PATH) and point a made-up name at loopback with a stand-in lookup.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createServer as createTlsServer } from "node:https";
-import { join } from "node:path";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
+import { SignJWT } from "jose";
 import { checkConfig } from "pivotkit-server";
-import { ISSUER_LIMITS, discover, issuerMeans } from "../src/issuer.js";
-import { createGuardedFetch } from "../src/sources/fetch.js";
-import { call, factsOf, restServer, tempDir, workspace } from "./helpers.js";
+import { ISSUER_LIMITS, discover, issuerMeans } from "../../src/issuer.js";
+import { createGuardedFetch } from "../../src/sources/fetch.js";
+import { call, factsOf, loopbackCert, restServer, workspace } from "../helpers.js";
+import { metadataOf, signingKey } from "./local-issuer.js";
 
 const REST_RESOURCE = "https://pk.example.com/api/v1";
 const NAME = "idp.example.test";
 const SOURCES = { sales: { file: "data/sales.csv", policy: { fields: { Region: "show" } } } };
 
+/**
+ * These tests are a hostile or broken issuer, not localIssuer(): a plain and an https server that
+ * share one key and answer only what `routes` says, so every other path stays a 404.
+ */
 let key;
 let jwk;
 let cert;
@@ -52,12 +54,8 @@ let plainIssuer;
 let tlsPort;
 
 before(async () => {
-    key = await generateKeyPair("RS256");
-    jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
-    const dir = tempDir();
-    execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", join(dir, "key.pem"), "-out", join(dir, "cert.pem"), "-days", "2", "-subj", `/CN=${NAME}`, "-addext", `subjectAltName=DNS:${NAME},IP:127.0.0.1`], { stdio: "ignore" });
-    cert = readFileSync(join(dir, "cert.pem"));
-    tlsKey = readFileSync(join(dir, "key.pem"));
+    ({ key, jwk } = await signingKey());
+    ({ cert, key: tlsKey } = loopbackCert(NAME, "127.0.0.1"));
     plain = createServer(handler("http"));
     tls = createTlsServer({ key: tlsKey, cert }, handler("https"));
     await new Promise((resolve) => plain.listen(0, "127.0.0.1", resolve));
@@ -69,9 +67,6 @@ after(async () => {
     await new Promise((resolve) => plain.close(resolve));
     await new Promise((resolve) => tls.close(resolve));
 });
-
-/** The metadata of an issuer at `issuer`, with `more` over it. */
-const metadataOf = (issuer, more = {}) => ({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, jwks_uri: `${issuer}/jwks`, response_types_supported: ["code"], ...more });
 
 /** A signed access token of `issuer` for the REST resource. */
 const accessToken = (issuer) => new SignJWT({ scope: "pivotkit", client_id: "report-bot" }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(issuer).setAudience(REST_RESOURCE).setSubject("someone").setIssuedAt().setExpirationTime("5m").sign(key.privateKey);
@@ -101,7 +96,11 @@ async function withLookup(answers, body) {
     }
 }
 
-/** A REST server signed in through `issuer`; waits until its metadata is loaded or `waitMs` passed. */
+/**
+ * A REST server signed in through `issuer`; waits until its metadata is loaded or `waitMs` passed.
+ * Not untilReady(): an issuer these tests break on purpose never gets the server ready, and the test
+ * then checks the server that did not get ready.
+ */
 async function oauthServer(issuer, auth = {}, waitMs = 3000) {
     const server = await restServer({ sources: SOURCES, auth: { mode: "oauth", issuer, resource: REST_RESOURCE, requiredScopes: ["pivotkit"], ...auth }, baseDir: workspace() });
     const until = Date.now() + waitMs;

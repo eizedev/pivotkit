@@ -5,14 +5,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { connect } from "node:net";
-import { createServer, request as httpRequest } from "node:http";
+import { request as httpRequest } from "node:http";
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
+import { SignJWT, generateKeyPair } from "jose";
 import { CONNECTION_LIMITS, connectionGate, connectionLimitsOf, refusedText } from "../src/listen.js";
 import { checkConfig, serveFetch } from "pivotkit-server";
-import { BIN, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
+import { BIN, call, factsOf, restServer, TOKEN, untilReady, workspace } from "./helpers.js";
+import { localIssuer, signingKey } from "./auth/local-issuer.js";
 
 /** Sends raw bytes and gives back what the server answers (until it closes or `ms` pass). */
 function rawExchange(port, text, ms = 3000) {
@@ -166,34 +167,33 @@ test("a static token with characters a bearer token cannot carry is refused at s
     await ok.close();
 });
 
-/** A local issuer whose jwks_uri can move to another key set. */
+/**
+ * The local issuer (auth/local-issuer.js) with three more key sets, kid "a", "b" and "c", each at its
+ * own path; moveTo() points its jwks_uri at one of them.
+ */
 async function movingIssuer() {
-    const first = await generateKeyPair("RS256");
-    const second = await generateKeyPair("RS256");
-    const third = await generateKeyPair("RS256");
-    const jwks = {
-        "/jwks-c": { keys: [{ ...(await exportJWK(third.publicKey)), kid: "c", alg: "RS256", use: "sig" }] },
-        "/jwks-a": { keys: [{ ...(await exportJWK(first.publicKey)), kid: "a", alg: "RS256", use: "sig" }] },
-        "/jwks-b": { keys: [{ ...(await exportJWK(second.publicKey)), kid: "b", alg: "RS256", use: "sig" }] }
+    const issuer = await localIssuer();
+    const pairs = {};
+    for (const kid of ["a", "b", "c"]) {
+        const { key, jwk } = await signingKey(kid);
+        pairs[kid] = key;
+        issuer.routes[`/jwks-${kid}`] = { keys: [jwk] };
+    }
+    const moveTo = (kid) => {
+        issuer.metadata = { jwks_uri: `${issuer.url}/jwks-${kid}` };
     };
-    const state = { jwksPath: "/jwks-a", metadataReads: 0 };
-    const server = createServer((req, res) => {
-        if (req.url === "/.well-known/openid-configuration") {
-            state.metadataReads++;
-            res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ issuer: url, jwks_uri: `${url}${state.jwksPath}`, response_types_supported: ["code"] }));
-        } else if (jwks[req.url ?? ""]) {
-            res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify(jwks[req.url ?? ""]));
-        } else {
-            res.writeHead(404);
-            res.end();
-        }
-    });
-    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-    const url = `http://127.0.0.1:${/** @type {any} */ (server.address()).port}`;
-    const sign = (pair, kid) => new SignJWT({ scope: "pivotkit", client_id: "bot" }).setProtectedHeader({ alg: "RS256", kid }).setIssuer(url).setAudience("https://pk.example.com/api/v1").setExpirationTime("5m").sign(pair.privateKey);
-    return { url, state, server, tokenA: () => sign(first, "a"), tokenB: () => sign(second, "b"), tokenC: () => sign(third, "c") };
+    moveTo("a");
+    const sign = (kid) => issuer.token({ claims: { client_id: "bot" }, header: { kid }, aud: "https://pk.example.com/api/v1", signWith: pairs[kid].privateKey });
+    return {
+        url: issuer.url,
+        moveTo,
+        /** How often the issuer's metadata was read. */
+        metadataReads: () => issuer.asked.filter((path) => path === "/.well-known/openid-configuration").length,
+        close: issuer.close,
+        tokenA: () => sign("a"),
+        tokenB: () => sign("b"),
+        tokenC: () => sign("c")
+    };
 }
 
 test("oauth: a token signed with a key of a moved jwks_uri works without a restart; unknown keys do not read the metadata on every request", async () => {
@@ -201,24 +201,22 @@ test("oauth: a token signed with a key of a moved jwks_uri works without a resta
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "oauth", issuer: issuer.url, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, baseDir: dir });
     try {
-        for (let i = 0; i < 50 && (await call(`${server.url}/readyz`)).status !== 200; i++) {
-            await new Promise((r) => setTimeout(r, 100));
-        }
+        await untilReady(server, 100);
         assert.equal((await call(`${server.api}/sources`, { token: await issuer.tokenA() })).status, 200);
-        issuer.state.jwksPath = "/jwks-b";
-        const reads = issuer.state.metadataReads;
+        issuer.moveTo("b");
+        const reads = issuer.metadataReads();
         assert.equal((await call(`${server.api}/sources`, { token: await issuer.tokenB() })).status, 200, "the new key set is found");
-        assert.equal(issuer.state.metadataReads, reads + 1);
+        assert.equal(issuer.metadataReads(), reads + 1);
         // a stream of tokens with unknown keys reads the metadata once, then not again within a minute
         const stranger = await generateKeyPair("RS256");
         for (let i = 0; i < 5; i++) {
             const token = await new SignJWT({ scope: "pivotkit" }).setProtectedHeader({ alg: "RS256", kid: `x${i}` }).setIssuer(issuer.url).setAudience("https://pk.example.com/api/v1").setExpirationTime("5m").sign(stranger.privateKey);
             assert.equal((await call(`${server.api}/sources`, { token })).status, 401);
         }
-        assert.equal(issuer.state.metadataReads, reads + 2);
+        assert.equal(issuer.metadataReads(), reads + 2);
     } finally {
         await server.close();
-        await new Promise((resolve) => issuer.server.close(resolve));
+        await issuer.close();
     }
 });
 
@@ -227,18 +225,16 @@ test("oauth: a made-up key that triggers a read which finds a new key set does n
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "oauth", issuer: issuer.url, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, baseDir: dir });
     try {
-        for (let i = 0; i < 50 && (await call(`${server.url}/readyz`)).status !== 200; i++) {
-            await new Promise((r) => setTimeout(r, 100));
-        }
-        issuer.state.jwksPath = "/jwks-b";
+        await untilReady(server, 100);
+        issuer.moveTo("b");
         const stranger = await generateKeyPair("RS256");
         const made = await new SignJWT({ scope: "pivotkit" }).setProtectedHeader({ alg: "RS256", kid: "made-up" }).setIssuer(issuer.url).setAudience("https://pk.example.com/api/v1").setExpirationTime("5m").sign(stranger.privateKey);
         assert.equal((await call(`${server.api}/sources`, { token: made })).status, 401, "its read finds jwks-b, but the token is still not signed by it");
-        issuer.state.jwksPath = "/jwks-c";
+        issuer.moveTo("c");
         assert.equal((await call(`${server.api}/sources`, { token: await issuer.tokenC() })).status, 200, "the next rotation is read at once");
     } finally {
         await server.close();
-        await new Promise((resolve) => issuer.server.close(resolve));
+        await issuer.close();
     }
 });
 

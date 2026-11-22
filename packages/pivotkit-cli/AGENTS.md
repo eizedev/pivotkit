@@ -75,3 +75,4 @@ npx pivotkit-cli render view.json --data data.csv -o out.html
 
 - `test/` spawns the CLI as a user runs it.
 - `test/remote.test.js` runs remote mode against a fake server and a fake proxy on loopback.
+- `test/sign-in/` runs login, token and logout against the fake server and issuer of `test/sign-in/fake-issuer.js`.

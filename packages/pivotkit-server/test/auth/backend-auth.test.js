@@ -3,29 +3,27 @@
 // exchange for the signed-in person; the token cache (per settings, per person with client and
 // scopes, expiry, one request at a time, a backend's 401); parameters bound to claims of the
 // verified token; who may see and schedule such sources; check-config and check-source. A backend
-// and a token endpoint run over https on loopback (a certificate made per run with openssl, as
-// http-sources.test.js does); the names resolve to 127.0.0.1 through a lookup of the test's own.
+// and a token endpoint run over https on loopback (a certificate from loopbackCert in helpers.js);
+// the names resolve to 127.0.0.1 through a lookup of the test's own.
 // Every secret, token and error description is a sentinel that must never show up in a log line, an
 // answer, check-config or check-source.
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { chmodSync, readFileSync, writeFileSync } from "node:fs";
-import { createServer as createHttpServer } from "node:http";
+import { chmodSync, writeFileSync } from "node:fs";
 import { createServer } from "node:https";
 import { join } from "node:path";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { callerOf, checkConfig, createContext, present, validateOptions } from "pivotkit-server";
 import { serverTextOf } from "pivotkit-server/internal";
-import { createAuthCore, exchangeTokenFor } from "../src/auth.js";
-import { checkSource } from "../src/check-source.js";
-import { authMeans, backendHeaders, tokenCache, TOKEN_LIMITS } from "../src/sources/auth.js";
-import { httpSettingsOf } from "../src/options/http.js";
-import { createGuardedFetch } from "../src/sources/fetch.js";
-import { httpMeans } from "../src/sources/http.js";
-import { withRequestId } from "../src/request-id.js";
+import { createAuthCore, exchangeTokenFor } from "../../src/auth.js";
+import { checkSource } from "../../src/check-source.js";
+import { authMeans, backendHeaders, tokenCache, TOKEN_LIMITS } from "../../src/sources/auth.js";
+import { httpSettingsOf } from "../../src/options/http.js";
+import { createGuardedFetch } from "../../src/sources/fetch.js";
+import { httpMeans } from "../../src/sources/http.js";
+import { withRequestId } from "../../src/request-id.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { call, factsOf, restServer, tempDir } from "./helpers.js";
+import { call, factsOf, loopbackCert, restServer, tempDir } from "../helpers.js";
+import { localIssuer } from "./local-issuer.js";
 
 /** Values that must never leave the server: a secret, a person's own token, the tokens issued, an error description. */
 const SECRET = "SENTINEL-client-secret-7f3a";
@@ -42,10 +40,8 @@ let port = 0;
 let issued = 0;
 
 before(async () => {
-    const dir = tempDir();
-    execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", join(dir, "key.pem"), "-out", join(dir, "cert.pem"), "-days", "2", "-subj", "/CN=api.example.test", "-addext", "subjectAltName=DNS:api.example.test,DNS:auth.example.test"], { stdio: "ignore" });
-    const cert = readFileSync(join(dir, "cert.pem"));
-    server = createServer({ key: readFileSync(join(dir, "key.pem")), cert }, (req, res) => {
+    const { key, cert } = loopbackCert("api.example.test", "auth.example.test");
+    server = createServer({ key, cert }, (req, res) => {
         const url = new URL(req.url ?? "/", "https://x");
         let body = "";
         req.on("data", (c) => (body += c));
@@ -636,14 +632,8 @@ test("a source only a signed-in person can use: not listed and not found without
 });
 
 test("claims: only the claims the configuration names reach a caller, email only when verified; a claim-bound value fills the address, is checked like a caller's and is never said back", async () => {
-    const key = await generateKeyPair("RS256");
-    const jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
-    const issuerServer = createHttpServer((req, res) => {
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end(req.url === "/jwks" ? JSON.stringify({ keys: [jwk] }) : JSON.stringify({ issuer, jwks_uri: `${issuer}/jwks` }));
-    });
-    await new Promise((resolve) => issuerServer.listen(0, "127.0.0.1", resolve));
-    const issuer = `http://127.0.0.1:${issuerServer.address().port}`;
+    const local = await localIssuer();
+    const issuer = local.url;
     const RESOURCE = "http://127.0.0.1/mcp";
     /** What the code source was given. */
     const loads = [];
@@ -659,7 +649,7 @@ test("claims: only the claims the configuration names reach a caller, email only
     };
     const core = await createAuthCore(options, { env: {}, log: { info() {}, warn() {}, debug() {}, error() {} }, loopback: true });
     const callerFor = async (claims) => {
-        const jwt = await new SignJWT({ scope: "pivotkit", client_id: "claude", sub: "ana", ...claims }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(issuer).setAudience(RESOURCE).setIssuedAt().setExpirationTime("5m").sign(key.privateKey);
+        const jwt = await local.token({ claims: { client_id: "claude", sub: "ana", ...claims }, aud: RESOURCE });
         return callerOf("oauth", await core.verify(jwt, { audience: [RESOURCE], resource: new URL(RESOURCE) }), auth);
     };
     const context = await contextOf(options, "debug");
@@ -709,7 +699,7 @@ test("claims: only the claims the configuration names reach a caller, email only
     } finally {
         await context.close();
         core.close();
-        await new Promise((resolve) => issuerServer.close(resolve));
+        await local.close();
     }
 });
 

@@ -1,18 +1,16 @@
 // guardedFetch, the one way the server makes a request to another server: https only, no redirect,
 // the address checked where the socket connects (also a name that resolves to a forbidden one, and
 // IPv4-mapped IPv6), bodies counted after decompression while they stream, one time limit for all.
-// The https tests make a certificate per run with the openssl command: it must be on the PATH
-// (it is on the Linux and macOS runners; this package's tests do not run on Windows).
+// The https tests make a certificate per run with the openssl command (loopbackCert in helpers.js):
+// it must be on the PATH.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { execFile, execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createServer as createTlsServer } from "node:https";
-import { join } from "node:path";
 import { gzipSync } from "node:zlib";
-import { tempDir } from "./helpers.js";
+import { loopbackCert } from "./helpers.js";
 import { GuardedFetchError, addressRefusal, createGuardedFetch, guardedFetch } from "../src/sources/fetch.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
 
@@ -256,11 +254,8 @@ test("addressRefusal: the rules by range", () => {
 });
 
 test("https: a server whose certificate is trusted answers; a redirect over https is refused too; an untrusted one fails", async () => {
-    // a certificate made for this run (openssl), so no key is kept in the repository
-    const dir = tempDir();
-    execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", join(dir, "key.pem"), "-out", join(dir, "cert.pem"), "-days", "2", "-subj", "/CN=localhost", "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1"], { stdio: "ignore" });
-    const cert = readFileSync(join(dir, "cert.pem"));
-    const tls = createTlsServer({ key: readFileSync(join(dir, "key.pem")), cert }, (req, res) => {
+    const { key: tlsKey, cert } = loopbackCert("localhost", "127.0.0.1");
+    const tls = createTlsServer({ key: tlsKey, cert }, (req, res) => {
         if (req.url === "/moved") {
             res.writeHead(301, { location: "https://localhost/elsewhere" });
             res.end();
