@@ -30,6 +30,7 @@ import { fromFields, hasLayoutFlags, layoutView, mapOf, normalized, pickLines, q
 import { allowedDirs, readSafe, readStdin, writeSafe } from "./safe-files.js";
 import { remoteCommand } from "./remote-commands.js";
 import { loginCommand, logoutCommand, tokenCommand } from "./sign-in.js";
+import { CLI_VERSION } from "./user-agent.js";
 import { resolve as resolvePath } from "node:path";
 import { stat } from "node:fs/promises";
 
@@ -54,7 +55,7 @@ const TEMPLATE_BYTES = 262_144 * 4;
 export function versions() {
     const require = createRequire(import.meta.url);
     const of = (name) => require(`${name}/package.json`).version;
-    return { "pivotkit-cli": of("pivotkit-cli"), "pivotkit-report": of("pivotkit-report"), "pivotkit-core": of("pivotkit-core") };
+    return { "pivotkit-cli": CLI_VERSION, "pivotkit-report": of("pivotkit-report"), "pivotkit-core": of("pivotkit-core") };
 }
 
 /**
@@ -244,7 +245,7 @@ export async function main(argv, io) {
         checkValues(values, fromEnv);
         const ctx = await context(values, io);
         const outcome = remote
-            ? await remoteCommand(/** @type {any} */ (command), positionals, values, ctx, { version: versions()["pivotkit-cli"], readView, withMap, renderFormat, checkNotInput, ignoredOptions, renderInputs, formatNames: FORMAT_NAMES })
+            ? await remoteCommand(/** @type {any} */ (command), positionals, values, ctx, { readView, withMap, renderFormat, checkNotInput, ignoredOptions, renderInputs, formatNames: FORMAT_NAMES })
             : command === "render" ? await renderCommand(positionals, values, ctx) : command === "validate" ? await validateCommand(positionals, values, ctx) : command === "example" ? await exampleCommand(positionals, values, ctx) : await describeCommand(positionals, values, ctx);
         findings = outcome.findings;
         const failing = findings.filter((f) => f.severity === "error" || (values.strict && f.severity === "warning"));

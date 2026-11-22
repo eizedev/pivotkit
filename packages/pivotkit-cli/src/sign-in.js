@@ -28,6 +28,7 @@ import { CliError, RemoteError, printable } from "./errors.js";
 import { checkTls, send, serverOf } from "./remote.js";
 import { CLIENT_ID_SYNTAX, SIGN_IN_CLIENT_FIELD, TOKEN_SYNTAX, isLoopback, resourceMetadataUrlOf } from "./rest-contract.js";
 import { credentialStore, fileStoreText } from "./credential-store.js";
+import { USER_AGENT } from "./user-agent.js";
 
 /** The most bytes of a metadata document or token answer. */
 const ANSWER_BYTES = 262_144;
@@ -122,7 +123,7 @@ async function call(url, form, env, { parse = true } = {}) {
     const limitMs = signInMeans.requestMs;
     const timer = setTimeout(() => controller.abort(), limitMs);
     try {
-        const headers = { accept: "application/json", ...(form ? { "content-type": "application/x-www-form-urlencoded" } : {}) };
+        const headers = { accept: "application/json", "user-agent": USER_AGENT, ...(form ? { "content-type": "application/x-www-form-urlencoded" } : {}) };
         let answer;
         try {
             answer = await send(url, { method: form ? "POST" : "GET", headers, body: form ? new URLSearchParams(form).toString() : undefined }, isLoopback(url.hostname), controller.signal);

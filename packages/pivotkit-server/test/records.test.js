@@ -41,10 +41,10 @@ function pair() {
     return { privateKey, publicPem: publicKey.export({ type: "spki", format: "pem" }).toString() };
 }
 
-/** A token as the external issuer mints it for a person (sub null: none). */
+/** A token as the external issuer mints it for a person (sub or profile null: none). */
 function mint(privateKey, { sub = "alice@example.com", profile = "staff" } = {}) {
     const now = Math.floor(Date.now() / 1000);
-    return new SignJWT({ jti: `psu-${Math.random().toString(16).slice(2, 10)}`, profile, ...(sub === null ? {} : { sub }) })
+    return new SignJWT({ jti: `psu-${Math.random().toString(16).slice(2, 10)}`, ...(profile === null ? {} : { profile }), ...(sub === null ? {} : { sub }) })
         .setProtectedHeader({ alg: "EdDSA", kid: PSU.kid, typ: PSU.typ })
         .setIssuer(PSU.issuer)
         .setIssuedAt(now)
@@ -232,6 +232,20 @@ test("NOT_ALLOWED without the right, and for every caller without a person", asy
     }
 });
 
+// #693: the detail named the profile as a placeholder in angle brackets, which an HTML view drops
+// ("policy.profiles..records"); it names the caller's own profile (no profile: see the OAuth tests)
+test("the refusal names the caller's profile", async () => {
+    const { server, person } = await serverOf();
+    try {
+        const plain = await rows(server, await person({ profile: "plain" }), { source: "sales" });
+        assert.equal(plain.status, 403, plain.text);
+        assert.match(plain.data.detail, /policy\.profiles\.plain\.records/);
+        assert.doesNotMatch(plain.data.detail, /[<>]|\.\./);
+    } finally {
+        await server.close();
+    }
+});
+
 /** The options as a configuration file in their directory (for the token command). */
 function writeConfig(options) {
     const file = join(options.baseDir, "pivotkit.json");
@@ -284,6 +298,21 @@ test("an OAuth token with a subject reads the rows; one without a subject is ref
         const none = await rows(server, await oauthToken(null), { source: "sales" });
         assert.equal(none.status, 403);
         assert.equal(none.data.code, "NOT_ALLOWED");
+    } finally {
+        await server.close();
+    }
+});
+
+test("an OAuth person without a profile is refused without a placeholder for one (#693)", async () => {
+    const dir = workspace({ "sales.csv": CSV });
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { fields: { Customer: "hide" } } } }, policy: { profiles: PROFILES }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir });
+    try {
+        await ready(server);
+        const none = await rows(server, await oauthToken("ana"), { source: "sales" });
+        assert.equal(none.status, 403, none.text);
+        assert.equal(none.data.code, "NOT_ALLOWED");
+        assert.doesNotMatch(none.data.detail, /[<>]|\.\./);
+        assert.match(none.data.detail, /no profile/);
     } finally {
         await server.close();
     }
