@@ -56,7 +56,8 @@ export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
     filterRelativeDirection: "error schema", filterRelativeUnit: "error schema", filterRelativeCount: "error schema", filterRelativeAnchor: "error schema",
     sortNoItems: "error schema", sortedTwice: "error", sortColumn: "warning",
     badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", badTitle: "error schema",
-    unknownLocale: "error", unknownTimeZone: "error", timeZoneMismatch: "error", tooManyIssues: "warning"
+    unknownLocale: "error", unknownTimeZone: "error", timeZoneMismatch: "error", tooManyIssues: "warning",
+    labelTwice: "warning", labelTaken: "warning"
 });
 
 /** Every code of VIEW_ISSUES. */
@@ -745,7 +746,10 @@ function formattingSection(raw, view, ctx) {
 
 /**
  * Names of the report's own for fields (#158): each key a field of the data or a grouping, each name a
- * text up to the name limit, trimmed. Kept under the field's own spelling; none set, no key.
+ * text up to the name limit, trimmed. Kept under the field's own spelling; none set, no key. A field
+ * named twice (in another case) keeps the last name, with a warning; so does a name that another
+ * field of the report also goes by (its own name or the view's for it, in any case or spacing),
+ * since their headers read alike (#699).
  */
 function fieldLabelsSection(raw, view, ctx) {
     const map = get(raw, "fieldLabels");
@@ -761,6 +765,8 @@ function fieldLabelsSection(raw, view, ctx) {
     }
     /** @type {Record<string, string>} */
     const out = {};
+    /** the path of each field's name in the view, for its warnings */
+    const pathOf = new Map();
     for (const key of keys.slice(0, ctx.limits.columns)) {
         const path = `fieldLabels.${key.slice(0, 100)}`;
         const f = ctx.resolve(key);
@@ -773,10 +779,32 @@ function fieldLabelsSection(raw, view, ctx) {
             ctx.issue(path, `not a text up to ${ctx.limits.name} characters`, "badLabel", { max: ctx.limits.name });
             continue;
         }
+        if (Object.hasOwn(out, f.name)) {
+            ctx.warn(path, `"${f.name}" is named twice; the last name is used`, "labelTwice", { field: f.name, value: shown(key) });
+        }
         Object.defineProperty(out, f.name, { value: text, enumerable: true, writable: true, configurable: true });
+        pathOf.set(f.name, path);
     }
-    if (Object.keys(out).length) {
-        view.fieldLabels = out;
+    if (!Object.keys(out).length) {
+        return;
+    }
+    view.fieldLabels = out;
+    // the name each field of the report goes by (the view's for it, else its own), alike in case and
+    // spacing: a name of two such fields is said at each name of the view's among them
+    const alike = (text) => text.normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim();
+    const placed = new Set([...view.rows, ...view.cols, ...view.values.map((v) => v.field), ...view.filters.map((f) => f.field)].filter((name) => typeof name === "string"));
+    /** @type {Map<string, string[]>} */
+    const byName = new Map();
+    for (const name of placed) {
+        const key = alike(Object.hasOwn(out, name) ? out[name] : name);
+        byName.set(key, [...(byName.get(key) ?? []), name]);
+    }
+    for (const [name, text] of Object.entries(out)) {
+        const other = placed.has(name) ? byName.get(alike(text))?.find((n) => n !== name) : undefined;
+        if (other !== undefined) {
+            const whose = Object.hasOwn(out, other) ? `the view's name for "${other}"` : `the name of the field "${other}"`;
+            ctx.warn(/** @type {string} */ (pathOf.get(name)), `"${text}" is also ${whose}; their headers read alike`, "labelTaken", { field: name, value: shown(text) });
+        }
     }
 }
 
