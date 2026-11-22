@@ -15,12 +15,12 @@ import { normalize, validate, viewFields } from "./view.js";
 /** The most items a field's summary lists, and the characters of each. */
 export const DESCRIBE_LIMITS = Object.freeze({ items: 20, text: 80 });
 
-/** A value of the data as a summary writes it: a date as its ISO day or minute, text capped. */
+/** A value of the data as a summary writes it: a date as its ISO day or minute (one no date holds: its number), text capped. */
 function valueText(value, type) {
     if (value === null || value === undefined) {
         return null;
     }
-    if (type === "date" && typeof value === "number") {
+    if (type === "date" && typeof value === "number" && !Number.isNaN(new Date(value).getTime())) {
         const iso = new Date(value).toISOString();
         return iso.endsWith("T00:00:00.000Z") ? iso.slice(0, 10) : iso.slice(0, 16);
     }
@@ -164,7 +164,10 @@ export function describeView(input, schema, options) {
     const values = view.values.map((v) => ({ field: v.field, agg: v.agg, label: v.label, showAs: v.showAs?.type ?? null, text: v.label ?? refText(v) }));
     const filters = view.filters.map((f) => ({ ...f, text: filterText(f) }));
     const derived = view.derived.map((d) => ({ ...d, text: `${d.name}: ${d.field} by ${d.by}${d.by === "bin" ? ` of ${d.size}` : ""}` }));
-    const sort = view.sort.map((s) => ({ ...s, text: `${s.field} ${s.by === "value" ? `by ${refText(s.value)}${s.column ? ` in the column ${s.column.map((k) => String(k)).join(" › ")}` : ""}` : s.by === "custom" ? "in a custom order" : "by label"}, ${s.order === "desc" ? "descending" : "ascending"}` }));
+    // a sort's column holds one key per column field: a date's key is milliseconds, written as its day
+    const types = new Map(viewFields(view, schema).map((f) => [f.name, f.type]));
+    const keyText = (key, i) => (types.get(view.cols[i]) === "date" ? (valueText(key, "date") ?? String(key)) : String(key));
+    const sort = view.sort.map((s) => ({ ...s, text: `${s.field} ${s.by === "value" ? `by ${refText(s.value)}${s.column ? ` in the column ${s.column.map(keyText).join(" › ")}` : ""}` : s.by === "custom" ? "in a custom order" : "by label"}, ${s.order === "desc" ? "descending" : "ascending"}` }));
     const parts = [
         values.length ? values.map((v) => v.text).join(", ") : "count of rows",
         view.rows.length ? `by ${view.rows.join(" > ")}` : null,

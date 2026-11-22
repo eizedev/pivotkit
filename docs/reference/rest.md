@@ -588,7 +588,7 @@ A machine's token with a subject cannot be told apart from a person's. Give no s
 profile with `records`.
 
 A caller whose profile does not name the source gets 403 `NOT_ALLOWED`. A source that does not
-exist answers the same.
+exist answers the same. The `detail` names the caller's profile, or says that the caller has none.
 
 `GET /sources` adds `"records": true` to each source the caller may read the rows of.
 

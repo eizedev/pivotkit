@@ -12,6 +12,7 @@ import { run, tempDir } from "./helpers.js";
 import { accountOf, credentialStore, storeMeans } from "../src/credential-store.js";
 import { utimesSync } from "node:fs";
 import { scopeOf, signInMeans } from "../src/sign-in.js";
+import { versions } from "../src/cli.js";
 
 const DEVICE_CODE = "DEVICE-CODE-SECRET-5d1c";
 const USER_CODE = "WDJB-MJHT";
@@ -37,7 +38,7 @@ async function fakeIssuer(plan = {}) {
         req.on("data", (c) => chunks.push(c));
         req.on("end", () => {
             const body = Object.fromEntries(new URLSearchParams(Buffer.concat(chunks).toString("utf8")));
-            requests.push({ method: req.method, url: req.url, body });
+            requests.push({ method: req.method, url: req.url, body, userAgent: req.headers["user-agent"] });
             if (plan.hook?.({ req, res, body, origin, state, send })) {
                 return;
             }
@@ -172,6 +173,23 @@ test("token prints a fresh access token alone and keeps the rotated refresh toke
         assert.equal(json.code, 0, json.stderr);
         assert.deepEqual(JSON.parse(json.stdout), { ok: true, exitCode: 0, command: "token", findings: [], server: fake.url, accessToken: ACCESS[3] });
         assertClean(json);
+    } finally {
+        await fake.close();
+    }
+});
+
+// #628: the sign-in requests sent Node's default user agent, the REST calls pivotkit-cli's
+test("login, token and logout send pivotkit-cli's user agent to the server and the issuer", async () => {
+    const fake = await fakeIssuer({ revocation: true });
+    const dir = tempDir();
+    try {
+        assert.equal((await run(["login", "--url", fake.url, "--client-id", CLIENT, "--store", "file"], { env: envOf(dir) })).code, 0);
+        assert.equal((await run(["token"], { env: envOf(dir) })).code, 0);
+        const out = await run(["logout"], { env: envOf(dir) });
+        assert.equal(out.code, 0, out.stderr);
+        assert.ok(fake.requests.some((q) => q.url === "/revoke"), "logout revoked the token");
+        const agents = new Set(fake.requests.map((q) => q.userAgent));
+        assert.deepEqual([...agents], [`pivotkit-cli/${versions()["pivotkit-cli"]}`]);
     } finally {
         await fake.close();
     }
