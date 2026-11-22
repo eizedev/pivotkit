@@ -889,7 +889,7 @@ In every layout:
 The report starts in the compact layout when it is lower than a threshold. It measures the border
 box before the first paint:
 
-- below 600 px of height (`COMPACT_HEIGHT` in `PivotReport.jsx`)
+- below 600 px of height (`COMPACT_HEIGHT` in `use-report-size.js`)
 - below 820 px in the narrow layout, where the zones stack (`COMPACT_HEIGHT_NARROW`)
 
 The zones sit in a section between two rules (`--pk-section-rule`), under the toolbar and above the

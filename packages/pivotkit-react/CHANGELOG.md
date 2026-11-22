@@ -6,6 +6,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- `<PivotReport>` is built from hooks and small components, one per concern, instead of one large
+  component. Its props, events, markup and behaviour stay the same.
+
 ## [0.9.0] - 2026-11-22
 
 ### Added
