@@ -19,9 +19,17 @@
  * longer character is, so a piece may end anywhere, also inside a character.
  */
 
+import { CodedError } from "pivotkit-core/internal";
+
 /** A body the reader refuses: no JSON, no UTF-8, nested too deeply. Its message is for the debug log. */
-export class AnswerShapeError extends Error {
+/** @extends {CodedError<undefined, undefined>} */
+export class AnswerShapeError extends CodedError {
     name = "AnswerShapeError";
+
+    /** @param {string} message  no code: sources/http.js answers every such error alike */
+    constructor(message) {
+        super(undefined, message);
+    }
 }
 
 const QUOTE = 0x22;

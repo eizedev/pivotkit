@@ -27,6 +27,7 @@
  * elsewhere (an issuer's public key) can be verified the same way.
  */
 
+import { CodedError } from "pivotkit-core/internal";
 import { createPrivateKey, createPublicKey, generateKeyPairSync, randomBytes } from "node:crypto";
 import { constants, lstat, mkdir, open, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -75,15 +76,15 @@ export const looksSigned = (token) => token.length <= SIGNED_TOKEN.maxLength && 
  * EXPIRED, NOT_YET_VALID, TOO_LONG, REVOKED, or DENY_LIST (the deny list could not be read). The
  * message never holds the token.
  */
-export class SignedTokenError extends Error {
+/** @extends {CodedError<"INVALID" | "UNKNOWN_KEY" | "EXPIRED" | "NOT_YET_VALID" | "TOO_LONG" | "REVOKED" | "DENY_LIST", undefined>} */
+export class SignedTokenError extends CodedError {
     /**
      * @param {"INVALID" | "UNKNOWN_KEY" | "EXPIRED" | "NOT_YET_VALID" | "TOO_LONG" | "REVOKED" | "DENY_LIST"} code
      * @param {string} message
      */
     constructor(code, message) {
-        super(message);
+        super(code, message);
         this.name = "SignedTokenError";
-        this.code = code;
         /** @type {string | undefined} the ID of a revoked token, which is genuinely signed */
         this.id = undefined;
     }

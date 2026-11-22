@@ -35,6 +35,7 @@
  * the server's needs.
  */
 
+import { CodedError } from "pivotkit-core/internal";
 import { randomBytes } from "node:crypto";
 import { constants, unlinkSync } from "node:fs";
 import { link, lstat, open, realpath, rename, unlink } from "node:fs/promises";
@@ -109,15 +110,15 @@ const SIGNALS = Object.freeze(["SIGINT", "SIGTERM"]);
 /** The codes of link() where a file system has no hard links. */
 const NO_HARD_LINKS = new Set(["EPERM", "ENOTSUP", "EOPNOTSUPP", "ENOSYS", "EXDEV", "EMLINK"]);
 
-export class SecretFileError extends Error {
+/** @extends {CodedError<"EXISTS" | "NOT_REGULAR_FILE" | "NO_DIRECTORY" | "READ_ONLY" | "MOUNTED" | "UNUSABLE" | "UNREADABLE", undefined>} */
+export class SecretFileError extends CodedError {
     /**
      * @param {"EXISTS" | "NOT_REGULAR_FILE" | "NO_DIRECTORY" | "READ_ONLY" | "MOUNTED" | "UNUSABLE" | "UNREADABLE"} code
      * @param {string} message
      */
     constructor(code, message) {
-        super(message);
+        super(code, message);
         this.name = "SecretFileError";
-        this.code = code;
     }
 }
 

@@ -4,15 +4,17 @@
  * add keys to, and the schema of a secret reference.
  */
 
-export class ConfigError extends Error {
+import { CodedError } from "pivotkit-core/internal";
+
+/** @extends {CodedError<string, undefined>} */
+export class ConfigError extends CodedError {
     /**
      * @param {string} message
      * @param {string[]} [problems]  each problem's own message, where the error names several
      */
     constructor(message, problems = [message]) {
-        super(message);
+        super("CONFIG", message);
         this.name = "ConfigError";
-        this.code = "CONFIG";
         this.problems = problems;
     }
 }

@@ -15,6 +15,7 @@
 
 import { CATALOG, LAYOUT_LIMITS, OUTSIDE_LIMITS, PivotkitError, closest, describeSource, describeView, foldText, fromViewFile, isIdentifierName, normalize, outsideLimits, suggestLayout, toViewFile, validate, viewFileFields, viewFromLayout, withLinkFragment } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
+import { CodedError } from "pivotkit-core/internal";
 import { toCsv, toJson } from "pivotkit-core/export";
 import { encodeViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS, render } from "./render.js";
@@ -56,25 +57,25 @@ export const OPERATION_ERRORS = Object.freeze({
  */
 
 /** An error of an operation a front end shows as it is: a stable code and a message without file content. */
-export class OperationError extends Error {
+/** @extends {CodedError<keyof typeof OPERATION_ERRORS, OperationErrorDetails | undefined>} */
+export class OperationError extends CodedError {
     /**
      * @param {keyof typeof OPERATION_ERRORS} code
      * @param {string} message
      * @param {OperationErrorDetails} [details]
      */
     constructor(code, message, details = undefined) {
-        super(message);
+        super(code, message, {
+            details: details
+                ? {
+                      ...(typeof details.requestId === "string" ? { requestId: details.requestId } : {}),
+                      ...(typeof details.retryable === "boolean" ? { retryable: details.retryable } : {}),
+                      ...(Number.isSafeInteger(details.retryAfter) && /** @type {number} */ (details.retryAfter) >= 0 ? { retryAfter: details.retryAfter } : {})
+                  }
+                : undefined
+        });
         this.name = "OperationError";
-        this.code = code;
         this.status = OPERATION_ERRORS[code] ?? 500;
-        if (details) {
-            /** @type {OperationErrorDetails | undefined} */
-            this.details = {
-                ...(typeof details.requestId === "string" ? { requestId: details.requestId } : {}),
-                ...(typeof details.retryable === "boolean" ? { retryable: details.retryable } : {}),
-                ...(Number.isSafeInteger(details.retryAfter) && /** @type {number} */ (details.retryAfter) >= 0 ? { retryAfter: details.retryAfter } : {})
-            };
-        }
     }
 }
 

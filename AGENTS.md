@@ -108,7 +108,7 @@ Docs site: build and preview commands are in [CONTRIBUTING.md](CONTRIBUTING.md#d
 ### Errors and API shape
 
 - A bad view never throws: `normalize()` reports issues.
-- A programmer error or a limit throws `PivotkitError` with a code.
+- A programmer error or a limit throws `PivotkitError` with a code. Every error class extends `CodedError`.
 - Required inputs come first. Every optional setting goes into one trailing options object.
 - Locale: the view's, then `options.locale`, then `"en-US"`. Never the runtime's locale.
 - Dates are wall clock. Instants use `encode`'s `timeZone`, default `"UTC"`. Never the machine's zone.

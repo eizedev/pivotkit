@@ -2,11 +2,11 @@
 // front end got from its own copy before the copies became one.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isLoopback, networkCodeOf, retryAfterSeconds } from "pivotkit-node/net";
+import { NETWORK_FAILURES, isLoopback, networkCodeOf, networkFailureOf, retryAfterSeconds } from "pivotkit-node/net";
 import * as rest from "pivotkit-node/rest";
 
 test("pivotkit-node/net exports the shared readings, and pivotkit-node/rest the same isLoopback", async () => {
-    assert.deepEqual(Object.keys(await import("pivotkit-node/net")).sort(), ["ipBytes", "isLoopback", "networkCodeOf", "retryAfterSeconds"]);
+    assert.deepEqual(Object.keys(await import("pivotkit-node/net")).sort(), ["NETWORK_FAILURES", "ipBytes", "isLoopback", "networkCodeOf", "networkFailureOf", "retryAfterSeconds"]);
     assert.equal(rest.isLoopback, isLoopback);
 });
 
@@ -69,4 +69,14 @@ test("networkCodeOf looks where each client puts the code; accept narrows what c
     assert.equal(networkCodeOf(coded("lower case"), node), "lower case");
     assert.equal(networkCodeOf(coded("lower case"), { client: "fetch", accept: shaped }), null);
     assert.equal(networkCodeOf(coded(5, { cause: coded("EPIPE") }), { client: "fetch", accept: shaped }), "EPIPE");
+});
+
+test("NETWORK_FAILURES holds the codes each reading had as a list of its own", () => {
+    const codes = (key) => Object.keys(NETWORK_FAILURES).filter((code) => NETWORK_FAILURES[code][key] !== undefined).sort();
+    // guardedFetch's transient codes, a source's codes that may pass, the command line's worded codes
+    assert.deepEqual(codes("retry"), ["EAI_AGAIN", "ECONNABORTED", "ECONNREFUSED", "ECONNRESET", "EHOSTUNREACH", "ENETUNREACH", "ENOTFOUND", "EPIPE", "ETIMEDOUT", "UND_ERR_SOCKET"]);
+    assert.deepEqual(codes("passes"), ["EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ENOTFOUND", "ETIMEDOUT", "UND_ERR_BODY_TIMEOUT", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_SOCKET"]);
+    assert.equal(codes("text").length, 18);
+    assert.equal(networkFailureOf("ECONNREFUSED").text, "the connection was refused (is the server running on that port?)");
+    for (const code of ["unknown", "toString", "__proto__", undefined, 5]) assert.deepEqual(networkFailureOf(code), {}, String(code));
 });

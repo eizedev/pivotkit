@@ -21,6 +21,7 @@
  * only where it would be printed. No message and no error holds a value.
  */
 
+import { CodedError } from "pivotkit-core/internal";
 import { access, constants as fsConstants, lstat, readFile, unlink } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
@@ -128,17 +129,17 @@ function helpOf(group) {
 }
 
 /** A refusal of the command: its exit code (2 usage, 1 a file), kind and code, as --json gives them. */
-export class CommandError extends Error {
+/** @extends {CodedError<string, undefined>} */
+export class CommandError extends CodedError {
     /**
      * @param {1 | 2} exitCode
      * @param {string} code
      * @param {string} message
      */
     constructor(exitCode, code, message) {
-        super(message);
+        super(code, message);
         this.exitCode = exitCode;
         this.kind = exitCode === 2 ? "usage" : "io";
-        this.code = code;
     }
 }
 

@@ -23,6 +23,7 @@
  * would tell a caller about the store's setup, so it stays on the log).
  */
 
+import { CodedError } from "pivotkit-core/internal";
 import { randomBytes } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readSecret } from "./secrets.js";
@@ -76,15 +77,15 @@ const EXPIRY_MAX_MS = 366 * 86_400_000;
  * `retryable` whether the same request may work later. The message is the code: no address, answer
  * or header value.
  */
-export class UploadFailure extends Error {
+/** @extends {CodedError<string, undefined>} */
+export class UploadFailure extends CodedError {
     /**
      * @param {string} code
      * @param {boolean} retryable
      */
     constructor(code, retryable) {
-        super(`upload: ${code}`);
+        super(code, `upload: ${code}`);
         this.name = "UploadFailure";
-        this.code = code;
         this.retryable = retryable;
     }
 }

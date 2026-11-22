@@ -25,7 +25,7 @@ import { resolve } from "node:path";
 import { RENDER_FORMATS } from "pivotkit-report";
 import { CliError, asCliError, printable, readSafe, shortName } from "pivotkit-node/files";
 import { RemoteError } from "./errors.js";
-import { networkCodeOf, retryAfterSeconds } from "pivotkit-node/net";
+import { networkCodeOf, networkFailureOf, retryAfterSeconds } from "pivotkit-node/net";
 import { PROBLEM_CODES, REST_BASE, SOURCE_ID, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT, isLoopback } from "pivotkit-node/rest";
 
 /** The most bytes of an answer after decoding: a JSON answer, and a rendered file. */
@@ -42,28 +42,6 @@ const PROBLEM_TYPE = "application/problem+json";
 
 /** A network error's code as the command line passes it on (--json's error code): a system code's shape only. */
 const isCodeShaped = (code) => typeof code === "string" && /^[A-Z][A-Z0-9_]{1,40}$/.test(code);
-
-/** What a network error's code says, in fixed words. */
-const NETWORK_TEXTS = Object.freeze({
-    ECONNREFUSED: "the connection was refused (is the server running on that port?)",
-    ENOTFOUND: "the host name is not known",
-    EAI_AGAIN: "the host name cannot be looked up now",
-    ECONNRESET: "the connection was reset",
-    EPIPE: "the connection was closed",
-    ETIMEDOUT: "the connection timed out",
-    EHOSTUNREACH: "the host cannot be reached",
-    ENETUNREACH: "the network cannot be reached",
-    UND_ERR_SOCKET: "the connection was closed",
-    UND_ERR_CONNECT_TIMEOUT: "the connection timed out",
-    CERT_HAS_EXPIRED: "the server's certificate has expired",
-    DEPTH_ZERO_SELF_SIGNED_CERT: "the server's certificate is self-signed and not trusted",
-    SELF_SIGNED_CERT_IN_CHAIN: "the server's certificate is not trusted (a self-signed certificate in its chain)",
-    UNABLE_TO_VERIFY_LEAF_SIGNATURE: "the server's certificate cannot be verified",
-    UNABLE_TO_GET_ISSUER_CERT_LOCALLY: "the server's certificate cannot be verified (its issuer is not known here; NODE_EXTRA_CA_CERTS adds one)",
-    ERR_TLS_CERT_ALTNAME_INVALID: "the server's certificate is for another host name",
-    ERR_SSL_WRONG_VERSION_NUMBER: "the server does not speak TLS on that port (http instead of https?)",
-    EPROTO: "the TLS handshake failed (http instead of https on that port?)"
-});
 
 /**
  * The server of remote mode: --url, else PIVOTKIT_URL, checked.
@@ -284,7 +262,7 @@ export function createClient({ server, values, ctx, userAgent }) {
             return new RemoteError("TIMEOUT", `the server did not answer within ${timeoutMs / 1000} s (--timeout)${proxyNote(server, env)}`);
         }
         const code = /** @type {string | null} */ (networkCodeOf(e, { client: "fetch", accept: isCodeShaped }));
-        const what = code && Object.hasOwn(NETWORK_TEXTS, code) ? NETWORK_TEXTS[code] : "no answer";
+        const what = networkFailureOf(code).text ?? "no answer";
         return new RemoteError(code ?? "NETWORK", `the server cannot be reached: ${what}${proxyNote(server, env)}`);
     }
 

@@ -38,12 +38,13 @@
  * docs give no rule.
  */
 
+import { CodedError } from "pivotkit-core/internal";
 import { lookup as dnsLookup } from "node:dns";
 import http from "node:http";
 import https from "node:https";
 import { isIP } from "node:net";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
-import { ipBytes, isLoopback, networkCodeOf } from "pivotkit-node/net";
+import { ipBytes, isLoopback, networkCodeOf, networkFailureOf } from "pivotkit-node/net";
 
 /** The functions createGuardedFetch made. */
 const guardedFetches = new WeakSet();
@@ -63,25 +64,22 @@ const TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 /** A header's value: Latin-1 without control characters but tab. */
 const HEADER_VALUE = /^[\t\x20-\x7e\x80-\xff]*$/;
 
-/** Network errors after which the same request may work again. */
-const TRANSIENT = new Set(["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN", "EPIPE", "ENETUNREACH", "EHOSTUNREACH", "ECONNABORTED", "UND_ERR_SOCKET"]);
-
 /**
  * A request guardedFetch refused or could not finish. `code` is one of BAD_URL, NOT_HTTPS, USERINFO,
  * BAD_HEADER, BAD_METHOD, BAD_BODY, IP_LITERAL, REFUSED_ADDRESS, REDIRECT, TOO_LARGE, TIMEOUT, ABORTED, BAD_ENCODING, NETWORK;
  * `transient` says whether the same request may work later. The message never holds the address's
  * path or query.
  */
-export class GuardedFetchError extends Error {
+/** @extends {CodedError<string, undefined>} */
+export class GuardedFetchError extends CodedError {
     /**
      * @param {string} code
      * @param {string} message
      * @param {{ transient?: boolean, cause?: unknown, status?: number }} [more]
      */
     constructor(code, message, more = {}) {
-        super(message, more.cause !== undefined ? { cause: more.cause } : undefined);
+        super(code, message, { cause: more.cause });
         this.name = "GuardedFetchError";
-        this.code = code;
         this.transient = more.transient ?? false;
         if (more.status !== undefined) {
             this.status = more.status;
@@ -557,7 +555,7 @@ function networkError(e) {
         return inner;
     }
     const code = String(networkCodeOf(e, { client: "node" }) ?? "unknown");
-    return new GuardedFetchError("NETWORK", `the connection failed (${code.slice(0, 40)})`, { transient: TRANSIENT.has(code), cause: e });
+    return new GuardedFetchError("NETWORK", `the connection failed (${code.slice(0, 40)})`, { transient: networkFailureOf(code).retry === true, cause: e });
 }
 
 /**

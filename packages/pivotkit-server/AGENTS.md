@@ -177,7 +177,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `REST_ROUTES` in `routes.js` has one route per operation of pivotkit-report's table.
 - A new operation gets its words and an example in `routes.js`.
 - Then run `node scripts/openapi.js`. `test/openapi.test.js` fails until you do.
-- Errors are RFC 9457 problems (`rest/problem.js`).
+- Errors are RFC 9457 problems (`rest/problem.js`). `problemDocument` is the one shape of one;
+  the download links' problems use it too.
 - The REST contract shared with the CLI lives in `pivotkit-node/rest`. Change it there.
 - Files are read and written through `pivotkit-node/files`. Never import pivotkit-cli; only the runner's `cli` command loads it.
 - The rows route (`src/records.js`) is REST only, no operation. The policy decides there, never in the worker.
@@ -208,6 +209,6 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 
 - `src/branding.js` holds the operator's name, documentation base, icon and page (`context.branding`).
 - Every documentation link goes through `docsLink`. `null` docs means no link, never pivotkit's site.
-- A handler binds its problems with `problemsFor(docs)`. Never call `typeOf` without the docs.
+- A handler binds its problems with `problemsFor(docs)`. Never build a problem without the docs (`problemDocument`).
 - Identifiers stay pivotkit's: tool names, the view format, cookies, variables, log fields.
 - `test/branding.test.js` sweeps every route for the site's address. A new route joins the sweep.

@@ -35,7 +35,7 @@ import { newRequestId, requestId, requestScope } from "./request-id.js";
 import { createRouteHandler } from "./route-handler.js";
 import { createLimits } from "./limits.js";
 import { readSecret } from "./secrets.js";
-import { typeOf } from "./rest/problem.js";
+import { problemDocument } from "./rest/problem.js";
 import { brandingOfContext } from "./branding.js";
 
 /** Where the route lives. */
@@ -542,7 +542,7 @@ const wantsJson = (request) => {
 function answerOf(brand, request, code, headers = {}) {
     const { status, heading, text, code: shown = code } = /** @type {{ status: number, heading: string, text: string, code?: string }} */ (ANSWERS[code]);
     if (wantsJson(request)) {
-        const body = { type: typeOf(shown, brand.docs), title: shown.toLowerCase().replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()), status, code: shown, detail: text, requestId: requestId() ?? newRequestId() };
+        const body = problemDocument(shown, text, { status, docs: brand.docs, extra: { requestId: requestId() ?? newRequestId() } });
         return new Response(JSON.stringify(body), { status, headers: { ...BASE_HEADERS, "content-type": "application/problem+json", ...headers } });
     }
     return pageOf(brand, heading, `<p>${escapeHtml(text)}</p>`, { status, headers });
@@ -1062,6 +1062,7 @@ export function createDownloadHandler(context, runtime = {}) {
             answer: async (request) => (await check(request)) ?? route(request, new URL(request.url).pathname),
             // a link nobody has (404) is logged at info, since a person asks the operator about it
             familyOf: () => DOWNLOAD_FAMILY,
+            // a body that cannot be read gets a short problem: its code and the request id, no page
             unreadable: {
                 path: DOWNLOADS_PATH,
                 limitOf: () => DOWNLOAD_BODY_BYTES,

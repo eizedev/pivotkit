@@ -3,4 +3,4 @@
  * each is defined once. Not public API: no docs page names them, and any release may change them.
  */
 
-export { limitText } from "./errors.js";
+export { CodedError, limitText } from "./errors.js";

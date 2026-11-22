@@ -6,6 +6,11 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Changed
+
+- `OperationError` extends `CodedError` of `pivotkit-core/internal`. Its members and their types stay
+  the same.
+
 ## [0.5.0] - 2026-11-22
 
 ### Added

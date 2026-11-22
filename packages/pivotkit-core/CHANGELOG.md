@@ -6,6 +6,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Changed
+
+- `PivotkitError` extends `CodedError` of `pivotkit-core/internal`, the base of every error class
+  of pivotkit's packages. Its members stay the same.
+
 ## [0.9.0] - 2026-11-22
 
 ### Added

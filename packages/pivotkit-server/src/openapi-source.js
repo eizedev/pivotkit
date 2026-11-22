@@ -24,6 +24,7 @@
  * is built, so what comes out passes validateOptions once its TODO values are filled in.
  */
 
+import { CodedError } from "pivotkit-core/internal";
 import { open, readFile } from "node:fs/promises";
 import { DOCS_SITE, docsLink, docsOf, docsUrlProblems } from "./options/branding.js";
 import { SOURCE_ID } from "pivotkit-node/rest";
@@ -108,10 +109,12 @@ const sourcesDocs = (docs, anchor) => docsLink(docs, `reference/sources/#${ancho
 const docsRef = (docs, anchor) => (docs === null ? "" : ` (${sourcesDocs(docs, anchor)})`);
 
 /** A document or an operation that gives no source; the command exits 2 with the message. */
-export class OpenApiError extends Error {
+/** @extends {CodedError<undefined, undefined>} */
+export class OpenApiError extends CodedError {
     /** @param {string} message */
     constructor(message) {
-        super(message);
+        // no code: the runner's command prints the message
+        super(undefined, message);
         this.name = "OpenApiError";
     }
 }

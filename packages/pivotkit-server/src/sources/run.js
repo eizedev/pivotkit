@@ -19,6 +19,8 @@
  * its publicMessage (shown only for codes below 500), anything else is SOURCE_UNAVAILABLE.
  */
 
+import { CodedError } from "pivotkit-core/internal";
+import { networkFailureOf } from "pivotkit-node/net";
 import { cleanText } from "pivotkit-core/import";
 import { OperationError } from "pivotkit-report/operations";
 import { errorDetails } from "../request-id.js";
@@ -35,12 +37,6 @@ export const SOURCE_REASONS = Object.freeze(["refused", "setup"]);
 
 /** A backend's HTTP statuses that mean "try again later". */
 export const TRANSIENT_STATUSES = Object.freeze([429, 502, 503, 504]);
-
-/**
- * The error codes of a network failure that may pass (Node's and undici's), looked for on an error,
- * its causes and an AggregateError's errors.
- */
-export const NETWORK_CODES = Object.freeze(["ECONNRESET", "ETIMEDOUT", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "UND_ERR_SOCKET", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT"]);
 
 /** The most characters of a SourceError's publicMessage a caller gets. */
 export const PUBLIC_MESSAGE_MAX = 300;
@@ -68,7 +64,8 @@ const DEFAULT_TEXT = Object.freeze({
  * "setup", the source is not set up correctly; none: not available right now). A refusal (the other
  * codes) is never transient.
  */
-export class SourceError extends Error {
+/** @extends {CodedError<"NOT_ALLOWED" | "INVALID_INPUT" | "DATA_NOT_AVAILABLE" | "SOURCE_UNAVAILABLE", undefined>} */
+export class SourceError extends CodedError {
     /**
      * @param {"NOT_ALLOWED" | "INVALID_INPUT" | "DATA_NOT_AVAILABLE" | "SOURCE_UNAVAILABLE"} code
      * @param {{ transient?: boolean, publicMessage?: string, status?: number, retryAfter?: number, reason?: "refused" | "setup" }} [how]
@@ -78,10 +75,8 @@ export class SourceError extends Error {
             throw new TypeError(`SourceError: the code is one of ${SOURCE_ERROR_CODES.join(", ")}`);
         }
         const status = Number.isInteger(how.status) ? /** @type {number} */ (how.status) : undefined;
-        super(`${code}${status !== undefined ? ` (status ${status})` : ""}`);
+        super(code, `${code}${status !== undefined ? ` (status ${status})` : ""}`);
         this.name = "SourceError";
-        /** @type {"NOT_ALLOWED" | "INVALID_INPUT" | "DATA_NOT_AVAILABLE" | "SOURCE_UNAVAILABLE"} */
-        this.code = code;
         /** @type {boolean} */
         this.transient = code === "SOURCE_UNAVAILABLE" && (typeof how.transient === "boolean" ? how.transient : status !== undefined && TRANSIENT_STATUSES.includes(status));
         /** @type {string | undefined} */
@@ -134,13 +129,13 @@ const read = (value, key) => {
     }
 };
 
-/** Whether an error, its causes or an AggregateError's errors carry a network code that may pass. */
+/** Whether an error, its causes or an AggregateError's errors carry a network code that may pass (pivotkit-node/net's `passes`). */
 function hasNetworkCode(error, depth = 0) {
     if (depth > 4 || error === null || typeof error !== "object") {
         return false;
     }
     const code = read(error, "code");
-    if (typeof code === "string" && NETWORK_CODES.includes(code)) {
+    if (networkFailureOf(code).passes === true) {
         return true;
     }
     const errors = read(error, "errors");

@@ -12,5 +12,8 @@ All notable changes to `pivotkit-node` are documented in this file. The format i
   `pivotkit-cli/rest`, which pivotkit-cli and pivotkit-server now share from here.
 - `pivotkit-node/net`: `ipBytes`, `isLoopback`, `retryAfterSeconds` and `networkCodeOf`, the one copy
   of how both front ends read addresses, Retry-After headers and failed connections.
+  `NETWORK_FAILURES` is the one table of a failed connection's codes: the command line's words and
+  which codes may work again.
+- `CliError` extends `CodedError` of `pivotkit-core/internal`.
 
 [Unreleased]: https://github.com/eizedev/pivotkit/commits/main/packages/pivotkit-node

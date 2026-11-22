@@ -124,3 +124,15 @@ test("options in an older shape fail loudly instead of being ignored", async () 
     // undefined and null still mean "no options"
     assert.equal(toGrid(result, undefined).locale, toGrid(result, null).locale);
 });
+
+test("CodedError (pivotkit-core/internal) sets code, details and cause only when given; PivotkitError is one", async () => {
+    const { CodedError, limitText } = await import("pivotkit-core/internal");
+    assert.equal(typeof limitText, "function");
+    const bare = new CodedError(undefined, "m");
+    assert.deepEqual(Object.getOwnPropertyNames(bare).sort(), ["message", "stack"]);
+    const full = new CodedError("X", "m", { details: { a: 1 }, cause: "why" });
+    assert.deepEqual([full.code, full.details, full.cause], ["X", { a: 1 }, "why"]);
+    const error = new core.PivotkitError("INVALID_ARGUMENT", "m");
+    assert.ok(error instanceof CodedError && error instanceof Error);
+    assert.deepEqual([error.name, error.code, error.details], ["PivotkitError", "INVALID_ARGUMENT", {}]);
+});
