@@ -37,4 +37,15 @@
   <meta name="twitter:description" content="{{ og_description | e }}">
   <meta name="twitter:image" content="{{ og_image }}">
   <meta name="twitter:image:alt" content="{{ og_image_alt | e }}">
+  {#- A page whose sections moved to another page names that page in `anchors_moved_to` (its front
+      matter, relative to the page's address). A link to an anchor this page no longer has goes on
+      to that page, to the same anchor, so links in changelogs and release notes keep working. #}
+  {% if page.meta and page.meta.anchors_moved_to %}
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var id = decodeURIComponent(location.hash.slice(1));
+        if (id && !document.getElementById(id)) location.replace({{ page.meta.anchors_moved_to | tojson }} + location.hash);
+      });
+    </script>
+  {% endif %}
 {% endblock %}

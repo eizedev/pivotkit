@@ -6,7 +6,8 @@ description: How pivotkit numbers its releases, what counts as its public interf
 # Versioning
 
 This page says when a release of pivotkit may break your setup. It also lists every deprecation.
-The [upgrading page](getting-started/upgrading.md) says what changed between two releases.
+The [upgrading page](getting-started/upgrading.md) says what to change for the newest release.
+[Upgrading from older releases](getting-started/upgrading-older.md) covers the releases before it.
 
 ## The promise
 

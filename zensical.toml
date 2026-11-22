@@ -38,6 +38,7 @@ nav = [
     { "Getting started: engine only" = "getting-started/engine.md" },
     { "Recipes" = "embed/recipes.md" },
     { "Upgrading" = "getting-started/upgrading.md" },
+    { "Upgrading from older releases" = "getting-started/upgrading-older.md" },
     { "Concepts" = [
       { "Views and saved views" = "concepts/views.md" },
       { "Templates and shared views" = "concepts/templates.md" },
