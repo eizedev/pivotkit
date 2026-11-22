@@ -246,3 +246,35 @@ test("check-config: the REST section names the service's and the OpenAPI documen
     assert.ok(off.includes("  OpenAPI document: off"), off.join("\n"));
     assert.ok(!named.concat(unnamed, off).some((l) => l.includes("/api/v1/openapi.json")));
 });
+
+test("check-config and serve name every value out of its range at once, each on a line of its own; one alone reads as before", async () => {
+    const { run } = await import("../src/runner.js");
+    const dir = workspace();
+    const config = (options) => {
+        const file = join(dir, "pivotkit.json");
+        writeFileSync(file, JSON.stringify({ sources: { sales }, output: { dir: "out" }, ...options }));
+        return file;
+    };
+    const ranged = {
+        rest: { records: { maxRows: 0, concurrency: 99 } },
+        compute: { workers: 0 },
+        auth: { signedTokens: { dir: "signed", maxDays: 400 }, mode: "token" },
+        mcp: { data: { rows: 0 } },
+        sources: { sales: { ...sales, records: { maxRows: 0 } } }
+    };
+    for (const command of ["check-config", "serve"]) {
+        const out = [];
+        const io = { env: { PIVOTKIT_TOKEN: TOKEN }, stdout: { write: (t) => out.push(t) }, stderr: { write: (t) => out.push(t) } };
+        assert.equal(await run([command, "--config", config(ranged), "--log-format", "text"], io), 2, out.join(""));
+        const text = out.join("");
+        assert.match(text, /6 problems in the configuration:/, text);
+        for (const line of ["compute.workers: must be 1 or more", "rest.records.maxRows: from 1 to 10000000", "rest.records.concurrency: from 1 to 64", "sources.sales.records.maxRows: 1 or more", "auth.signedTokens.maxDays: 1 to 365", "mcp.data.rows: must be 1 or more"]) {
+            assert.ok(text.includes(`\n  ${line}`), `${command} names ${line}: ${text}`);
+        }
+    }
+    // a single problem keeps its one line
+    const out = [];
+    const io = { env: {}, stdout: { write: (t) => out.push(t) }, stderr: { write: (t) => out.push(t) } };
+    assert.equal(await run(["check-config", "--config", config({ rest: { records: { maxRows: 0 } } })], io), 2);
+    assert.equal(out.join(""), "pivotkit-server: rest.records.maxRows: from 1 to 10000000\n");
+});

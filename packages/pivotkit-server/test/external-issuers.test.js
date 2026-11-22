@@ -430,6 +430,26 @@ test("check-config warns when the profile a token without one gets is not in the
     assert.doesNotMatch((await checkConfig(fine.options, { env: { OPS: TOKEN }, http: true, rest: true })).text, /which its profiles do not list/);
 });
 
+test("issuers without auth.mode token check nothing: the start and check-config warn, and say what to set", async () => {
+    // no mode written and no state directory: the server runs without auth, and an issuer's token is never read
+    const { options } = setup({ auth: { mode: undefined, tokens: undefined } });
+    const server = await restServer(options);
+    try {
+        const said = server.log.filter((l) => l.level === "warn").map((l) => l.msg);
+        assert.ok(
+            said.some((t) => /auth\.externalIssuers is set, but auth\.mode is "none": its tokens are not checked.*set auth\.mode "token"/.test(t)),
+            JSON.stringify(server.log)
+        );
+    } finally {
+        await server.close();
+    }
+    const { text } = await checkConfig(options, { env: {}, http: true, rest: true });
+    assert.match(factsOf(text), /WARNING \(Auth\): auth\.externalIssuers is set, but auth\.mode is "none": its tokens are not checked.*set auth\.mode "token"/);
+    // with mode token, no such warning
+    const fine = setup();
+    assert.doesNotMatch((await checkConfig(fine.options, { env: { OPS: TOKEN }, http: true, rest: true })).text, /auth\.externalIssuers is set, but/);
+});
+
 test("sub: surrogates, private-use and unassigned characters get 401; a subject is compared in NFC", async () => {
     const { privateKey, options } = setup();
     const { core, of } = await callerWith(options);

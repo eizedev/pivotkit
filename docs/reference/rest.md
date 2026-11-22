@@ -58,6 +58,9 @@ The routes are RPC-style (`POST /views/validate`), one per operation of the
 | `POST /schedules/draft` | `draft_schedule` | A draft of a scheduled report for a person to approve. It runs and sends nothing |
 | `POST /sources/records` | none (REST only) | The rows of a source for a person who signed in, where a profile allows it ([below](#records)) |
 
+`GET /sources/records` and `GET /sources/describe` answer 405 with `Allow: POST`. A source with the
+id `records` or `describe` is still described there for a caller who may use it.
+
 A POST takes its input as JSON (`Content-Type: application/json`), at most 2 MiB. A caller that may
 [send its own data](#data) can also send multipart, up to `rest.data.maxBytes`. The
 [OpenAPI document](#openapi) holds the input and the answer of each route.
@@ -620,6 +623,13 @@ warns about such a profile.
 
 ### Limits { #records-limits }
 
+!!! warning "One rows request at a time by default"
+
+    `rest.records.concurrency` is 1 by default, for the whole server. One person's rows request
+    holds the route. Every other person gets 503 `BUSY` until that answer is read or cut off. Raise
+    `rest.records.concurrency` and `compute.workers` together when several people open live reports
+    at once.
+
 The load stays bounded by the server's other limits: `limits.rows`, `limits.fileBytes`,
 `http.maxBytes` and `sourceCache.maxMb`. These keys bound what one answer hands out. The smallest
 limit wins.
@@ -639,6 +649,7 @@ The defaults are a first guess. Real row counts will set them better.
 - Over a row or cell limit, the answer is 413 `LIMIT_EXCEEDED`, for example "this source has too
   many rows to open here (60,000, the limit is 50,000); filter it with a parameter or ask the
   operator". Where the policy hides the row count (`rows: false`), the message leaves the count out.
+  It names a parameter only for a source that takes one the caller sends.
 - The server checks the fields and the limits before it writes the first byte.
 - Beyond `concurrency`, or for a second request of the same person, the answer is 503 `BUSY` with
   `Retry-After` and `retryable: true`.
@@ -725,6 +736,9 @@ It never holds a value. An answer cut off has `outcome: "error"` and `reason`: `
 read within `writeMs`), `client` (the reader left), `timeout` or `error`.
 
 ### Sizing { #records-sizing }
+
+By default the route serves one request at a time, server-wide: `rest.records.concurrency` is 1
+([limits](#records-limits)). Size for the number of people who open live reports at the same moment.
 
 An answer holds every row of the source. Three places hold it.
 
@@ -1341,6 +1355,16 @@ Auth: token
   token export from $PIVOTKIT_TOKEN: all scopes, profile export
 ```
 
+A configuration with an unknown key, a value of the wrong type or a rule it breaks gets no report.
+`check-config` and `serve` print why and exit 2. A number out of its range does not stop the check.
+The message names every such number at once, one per line:
+
+```text
+pivotkit-server: 2 problems in the configuration:
+  rest.records.maxRows: from 1 to 10000000
+  rest.records.concurrency: from 1 to 64
+```
+
 Each line holds one fact. A fact under another is two spaces further in, a wrapped line four. Lines
 are wrapped at 78 columns at spaces. A path stands on a line of its own and is never cut, so a long
 one makes its line longer.
@@ -1666,8 +1690,10 @@ it: the scopes and profiles of its entry.
 
 ```json
 {
+  "policy": { "profiles": { "staff": { "default": "show" } } },
   "auth": {
     "mode": "token",
+    "tokens": [{ "name": "ops", "file": "/run/secrets/ops" }],
     "externalIssuers": [{
       "issuer": "psu",
       "typ": "psu+jwt",
@@ -1680,6 +1706,11 @@ it: the scopes and profiles of its entry.
   }
 }
 ```
+
+The issuer's tokens work with `auth.mode` `"token"` only. That mode needs a token of the server's own
+too: one in `auth.tokens`, as `ops` here, or `$PIVOTKIT_TOKEN`. Each profile the entry names must be
+in `policy.profiles`. With no `auth.mode` and no state directory, the server runs without auth and
+never checks the issuer's tokens. The start and `check-config` then warn.
 
 What a token gets:
 
@@ -1709,7 +1740,7 @@ The rest:
 - `maxMinutes` caps a token's lifetime (default 60, at most 1440). A token that lives longer gets
   401, even with a valid signature.
 - There is no deny list. A token works until it expires.
-- The tokens work with `auth.mode` `"token"` only, on REST and MCP alike.
+- The tokens work on REST and MCP alike.
 - At most 8 issuers.
 
 !!! warning "What a leak costs"

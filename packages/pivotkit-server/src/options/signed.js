@@ -14,7 +14,7 @@
 import { isAbsolute, resolve } from "node:path";
 import { isInside } from "pivotkit-cli/files";
 import { SIGNED_TOKEN } from "../signed-tokens.js";
-import { ConfigError } from "./shared.js";
+import { ConfigError, throwRange } from "./shared.js";
 
 export const NAME = "signed";
 
@@ -36,14 +36,15 @@ export const maxLifetimeOf = (options) => (options.auth?.signedTokens?.maxDays ?
  * written, which a state directory makes "token"); dir never inside output.dir, which the server
  * serves and prunes.
  * @param {import("../config.js").ServerOptions} options
+ * @param {import("./shared.js").RangeProblem} [range]  where a value out of its range goes (validateOptions collects them)
  */
-export function validate(options) {
+export function validate(options, range = throwRange) {
     const signed = options.auth?.signedTokens;
     if (!signed) {
         return;
     }
     if (signed.maxDays !== undefined && (signed.maxDays < 1 || signed.maxDays > SIGNED_TOKEN.maxDaysLimit)) {
-        throw new ConfigError(`auth.signedTokens.maxDays: 1 to ${SIGNED_TOKEN.maxDaysLimit}`);
+        range(`auth.signedTokens.maxDays: 1 to ${SIGNED_TOKEN.maxDaysLimit}`);
     }
     if (options.auth?.mode !== undefined && options.auth.mode !== "token") {
         throw new ConfigError(`auth.signedTokens: signed tokens work with auth.mode "token" only, not "${options.auth.mode}"`);

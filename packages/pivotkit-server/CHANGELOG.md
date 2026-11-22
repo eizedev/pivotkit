@@ -6,8 +6,23 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Changed
+
+- `check-config` and `serve` name every number out of its range at once, one per line, instead of
+  the first only. A single problem reads as before.
+- `GET /api/v1/sources/records` and `GET /api/v1/sources/describe` answer 405 `METHOD_NOT_ALLOWED`
+  with `Allow: POST`. They answered 404 `SOURCE_NOT_FOUND` for a source of that id. A caller who may
+  use a source with such an id still gets it described.
+- `check-config` and the start warn when `auth.externalIssuers` or `auth.signedTokens` is set while
+  `auth.mode` is not `"token"`. The server then checks none of those tokens.
+
 ### Fixed
 
+- `create_link` and `draft_schedule` refuse a named view that holds values of a field the caller
+  sees at `summary` in a sort by one column's values (`sort[].column`) or in a relative date
+  filter's own anchor date. Such a view went into the link or draft with those values.
+- The rows route's 413 `LIMIT_EXCEEDED` says to filter with a parameter only for a source that takes
+  one the caller sends.
 - The rows route's 403 `NOT_ALLOWED` names the caller's profile in its `detail`, or says that the
   caller has none. It named the profile with the placeholder `<name>`, which reached a caller as
   "policy.profiles..records" ([#693](https://github.com/eizedev/pivotkit/issues/693)).

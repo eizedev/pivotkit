@@ -430,6 +430,13 @@ export async function createRestHandler(context, runtime = {}) {
                     context.log.error(error?.cause ?? e, { where: "rest", operation: match.route.operation, requestId: id });
                 }
                 response = problemOf(error ?? e);
+                // GET /sources/records or /sources/describe: the id is a POST route's own path. A source
+                // of that id the caller cannot use answers as that route's wrong method, alike for one
+                // there is none of and one hidden from the caller.
+                const allow = error?.code === "SOURCE_NOT_FOUND" && match.route.id === "getSource" ? [...new Set(candidates.filter((m) => !m.route.path.includes("{")).map((m) => m.route.method))] : [];
+                if (allow.length) {
+                    response = problem("METHOD_NOT_ALLOWED", `use ${allow.join(" or ")} ${REST_BASE}${sub}`, { headers: { allow: allow.join(", ") } });
+                }
             }
         } finally {
             limits.leave(limitKey, caller.client);

@@ -16,7 +16,7 @@
  */
 
 import { SIGNED_TOKEN, TOKEN_ID } from "../signed-tokens.js";
-import { ConfigError, SECRET_REF } from "./shared.js";
+import { ConfigError, SECRET_REF, throwRange } from "./shared.js";
 
 export const NAME = "external";
 
@@ -54,8 +54,9 @@ export const KEYS = Object.freeze({
  * distinct IDs, and a lifetime of 1 to 1440 minutes; only with auth.mode "token" (or none written,
  * which a state directory makes "token").
  * @param {import("../config.js").ServerOptions} options
+ * @param {import("./shared.js").RangeProblem} [range]  where a value out of its range goes (validateOptions collects them)
  */
-export function validate(options) {
+export function validate(options, range = throwRange) {
     const list = options.auth?.externalIssuers;
     if (!list) {
         return;
@@ -123,7 +124,7 @@ export function validate(options) {
             throw new ConfigError(`${at}.profile: "${entry.profile.slice(0, 60)}" is not in policy.profiles`);
         }
         if (entry.maxMinutes !== undefined && (entry.maxMinutes < 1 || entry.maxMinutes > EXTERNAL_ISSUER.maxMinutesLimit)) {
-            throw new ConfigError(`${at}.maxMinutes: 1 to ${EXTERNAL_ISSUER.maxMinutesLimit}`);
+            range(`${at}.maxMinutes: 1 to ${EXTERNAL_ISSUER.maxMinutesLimit}`);
         }
     }
 }

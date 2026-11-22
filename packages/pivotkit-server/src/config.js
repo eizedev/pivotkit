@@ -16,7 +16,7 @@ import { STATS_DISTINCT } from "./stats.js";
 import { expiryOf } from "./signed-tokens.js";
 import { FRAGMENTS, composeSlots } from "./options/index.js";
 import { PAGE } from "./options/branding.js";
-import { CREATE_NEEDS_FILE, ConfigError } from "./options/shared.js";
+import { CREATE_NEEDS_FILE, ConfigError, configErrorOf } from "./options/shared.js";
 import { linkParamsProblem } from "./link-params.js";
 
 /** The error of a wrong option (options/shared.js, so a fragment can throw it without importing this module). */
@@ -306,12 +306,35 @@ function check(value, schema, path) {
 
 /**
  * Checks an options object: every key known, every value of its type, and the rules between keys.
- * Throws ConfigError with the key's path and what to do.
+ * Throws ConfigError with the key's path and what to do. The keys and their types stop at the first
+ * problem. A value out of its range (a number below or above its bounds) does not stop the check:
+ * the error names every such value at once, with the problem that stopped the check, if any.
  * @param {ServerOptions} options
  * @returns {ServerOptions}  the same object
  */
 export function validateOptions(options) {
     check(options, { object: OPTION_KEYS }, "");
+    /** @type {string[]} */
+    const ranges = [];
+    try {
+        rules(options, (message) => {
+            ranges.push(message);
+        });
+    } catch (e) {
+        throw e instanceof ConfigError && ranges.length ? configErrorOf([...ranges, ...e.problems]) : e;
+    }
+    if (ranges.length) {
+        throw configErrorOf(ranges);
+    }
+    return options;
+}
+
+/**
+ * The rules between keys (validateOptions), each fragment's after the table's own.
+ * @param {ServerOptions} options  of the right keys and types
+ * @param {import("./options/shared.js").RangeProblem} range
+ */
+function rules(options, range) {
     for (const [id, source] of Object.entries(options.sources ?? {})) {
         if (!SOURCE_ID.test(id)) {
             throw new ConfigError(`sources.${id.slice(0, 60)}: an id is letters, digits, "_", "-" and "." (at most 64), starting with a letter or digit`);
@@ -383,12 +406,12 @@ export function validateOptions(options) {
     for (const [path, policy] of /** @type {Array<[string, any]>} */ ([["policy", options.policy], ...Object.entries(options.sources ?? {}).map(([id, source]) => [`sources.${id}.policy`, source.policy])])) {
         for (const [key, value] of /** @type {Array<[string, number | undefined]>} */ ([["valuesMax", policy?.valuesMax], ["autoValues.maxDistinct", policy?.autoValues?.maxDistinct]])) {
             if (value !== undefined && (value < 1 || value > STATS_DISTINCT)) {
-                throw new ConfigError(`${path}.${key}: 1 to ${STATS_DISTINCT}`);
+                range(`${path}.${key}: 1 to ${STATS_DISTINCT}`);
             }
         }
         for (const key of ["minRows", "minRowsPerValue"]) {
             if (policy?.autoValues?.[key] !== undefined && policy.autoValues[key] < 1) {
-                throw new ConfigError(`${path}.autoValues.${key}: must be 1 or more`);
+                range(`${path}.autoValues.${key}: must be 1 or more`);
             }
         }
     }
@@ -413,25 +436,24 @@ export function validateOptions(options) {
         urlOf(options.output.baseUrl, "output.baseUrl");
     }
     if (options.http?.maxConnectionsPerAddress !== undefined && options.http.maxConnectionsPerAddress > 256) {
-        throw new ConfigError("http.maxConnectionsPerAddress: 0 (no bound) to 256");
+        range("http.maxConnectionsPerAddress: 0 (no bound) to 256");
     }
     if (options.compute?.workers !== undefined && options.compute.workers > 16) {
-        throw new ConfigError("compute.workers: at most 16");
+        range("compute.workers: at most 16");
     }
     for (const [path, value] of /** @type {Array<[string, number | undefined]>} */ ([["compute.workers", options.compute?.workers], ["compute.timeMs", options.compute?.timeMs], ["compute.memoryMb", options.compute?.memoryMb], ["output.maxFiles", options.output?.maxFiles], ["output.maxMb", options.output?.maxMb], ["rest.concurrency", options.rest?.concurrency], ["rest.rateLimit.perMinute", options.rest?.rateLimit?.perMinute], ["rest.rateLimit.burst", options.rest?.rateLimit?.burst], ["rest.rateLimit.failedAuthPerMinute", options.rest?.rateLimit?.failedAuthPerMinute], ["mcp.concurrency", options.mcp?.concurrency], ["mcp.rateLimit.perMinute", options.mcp?.rateLimit?.perMinute], ["mcp.rateLimit.burst", options.mcp?.rateLimit?.burst], ["mcp.rateLimit.failedAuthPerMinute", options.mcp?.rateLimit?.failedAuthPerMinute], ["http.port", options.http?.port === 0 ? undefined : options.http?.port]])) {
         if (value !== undefined && value < 1) {
-            throw new ConfigError(`${path}: must be 1 or more`);
+            range(`${path}: must be 1 or more`);
         }
     }
     // 0 switches the age limit off (the default is OUTPUT_DEFAULTS.maxAgeDays)
     if (options.output?.maxAgeDays !== undefined && options.output.maxAgeDays < 0) {
-        throw new ConfigError("output.maxAgeDays: 0 (no age limit) or more");
+        range("output.maxAgeDays: 0 (no age limit) or more");
     }
     // each feature's own rules, in the fragments' order
     for (const fragment of FRAGMENTS) {
-        fragment.validate(options);
+        fragment.validate(options, range);
     }
-    return options;
 }
 
 /** An http(s) address, or a ConfigError. */
