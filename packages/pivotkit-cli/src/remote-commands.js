@@ -19,13 +19,13 @@ import { layoutOf } from "./layout-flags.js";
 import { checkTls, createClient, readToken, serverOf, sourceId, timeoutOf } from "./remote.js";
 import { SOURCE_ID } from "./rest-contract.js";
 import { writeSafe } from "./safe-files.js";
+import { USER_AGENT } from "./user-agent.js";
 
 /** Permissions of a file remote mode writes: only its owner reads it (the server's data). */
 const PRIVATE_FILE = 0o600;
 
 /**
  * @typedef {object} Helpers  what remote commands share with the local ones in cli.js
- * @property {string} version  pivotkit-cli's
  * @property {(positionals: string[], values: Record<string, any>, ctx: any) => Promise<any>} readView
  * @property {(view: any, values: Record<string, any>) => any} withMap
  * @property {(values: Record<string, any>, ctx: any) => string} renderFormat  render's checks of -o, -f and the terminal; the format
@@ -64,7 +64,7 @@ export async function remoteCommand(command, positionals, values, ctx, helpers) 
     if (first.warning) {
         ctx.io.stderr.write(`warning: ${first.warning}\n`);
     }
-    const client = createClient({ server, values, ctx, userAgent: `pivotkit-cli/${helpers.version}` });
+    const client = createClient({ server, values, ctx, userAgent: USER_AGENT });
     const run = { render: renderRemote, validate: validateRemote, describe: describeRemote, sources: sourcesRemote }[command];
     return run(positionals, { ...values, sourceParams }, ctx, client, helpers);
 }

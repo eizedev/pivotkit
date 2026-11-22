@@ -244,7 +244,7 @@ export async function main(argv, io) {
         checkValues(values, fromEnv);
         const ctx = await context(values, io);
         const outcome = remote
-            ? await remoteCommand(/** @type {any} */ (command), positionals, values, ctx, { version: versions()["pivotkit-cli"], readView, withMap, renderFormat, checkNotInput, ignoredOptions, renderInputs, formatNames: FORMAT_NAMES })
+            ? await remoteCommand(/** @type {any} */ (command), positionals, values, ctx, { readView, withMap, renderFormat, checkNotInput, ignoredOptions, renderInputs, formatNames: FORMAT_NAMES })
             : command === "render" ? await renderCommand(positionals, values, ctx) : command === "validate" ? await validateCommand(positionals, values, ctx) : command === "example" ? await exampleCommand(positionals, values, ctx) : await describeCommand(positionals, values, ctx);
         findings = outcome.findings;
         const failing = findings.filter((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
