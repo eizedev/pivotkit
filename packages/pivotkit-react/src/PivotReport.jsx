@@ -1,171 +1,81 @@
 /*
- * <PivotReport>: the report builder. The view and its undo history live in useViewHistory (controlled
- * by the host or not); the field list, the zones, the toolbar, the table and the chart are views of
- * that state and change it through commit(), which they get as a prop. The pivot is computed once per
- * view; the grid only for the table.
+ * <PivotReport>: the report builder. Report composes it from hooks, one per concern, and the parts
+ * it renders. The view and its undo history live in useViewHistory (controlled by the host or not);
+ * the field list, the zones, the toolbar, the table and the chart are views of that state and change
+ * it through commit() (use-steps.js), which they get as a prop. The pivot is computed once per view;
+ * the grid only for the table (use-pivot-result.js).
  *
  * While the host loads its data (`loading`), and while a large data set is encoded for the first time,
  * the report shows its skeleton (skeleton.jsx). A view can come back by itself: the tab's own
  * (`persistView`, sessionStorage) or a shared link in the page's address (`shareLink`); both are read
- * after the first render, so a server render and its hydration match, and both pass normalize().
+ * after the first render, so a server render and its hydration match, and both pass normalize()
+ * (use-share-link.js).
+ *
+ * The hooks, in the order Report calls them (their effects run in that order):
+ *
+ * - use-host-props.js: the host's props compared by value, and the warnings about them
+ * - use-report-size.js, use-drawer.js: width and height classes, Enlarge, the field list's drawer
+ * - use-shown-data.js: the host's data encoded, or a loaded file's; what a new mount keeps
+ * - use-import.js: the import UI's state and the object it works on
+ * - use-view-history.js, use-report-labels.js, use-pivot-result.js, use-fields.js: the view, its
+ *   texts, what is computed from it and what the parts ask about its fields
+ * - use-zone-fold.js, use-tips.js (useActivity), use-steps.js: the zones folded, what the user did,
+ *   commit() with Undo, Redo and Reset
+ * - use-unused-notes.js, use-view-loading.js, use-share-link.js: views loaded from outside and what
+ *   they left out
+ * - use-dismissed.js, use-menus.js, use-saved-views.js, use-drill.js, use-placing.js,
+ *   use-chart-state.js, use-export.js: the rest of what the toolbar, the zones and the result need
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { flushSync } from "react-dom";
-import { computePivot, emptyView, encode, fieldLabel, normalize, suggestDateUnit, toGrid, toSeries, viewFields, withFieldLabels } from "pivotkit-core";
-import { PivotChart, loadECharts } from "./chart.jsx";
-import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
-import { groupingName, layoutSummary, sourceFieldName, valueLabels } from "./names.js";
+import { loadECharts } from "./chart.jsx";
 import { PivotDnd } from "./dnd.jsx";
-import { DRILL_LIMIT, drillRows } from "./drill.js";
-import { dateContext, dateRangeText, dateDisplayLocale } from "./date-context.js";
-import { displayNames, fieldDefaultsFor, fieldInfoOf, typesOf } from "./field-info.js";
-import { FieldPanel } from "./fields.jsx";
-import { Icon, TYPE_ICON } from "./icons.jsx";
-import { errorText, fill, hasLabels, labelsHere, langOf, onLabels, plural, removedLabels, requestLabels, resolveLabels, rowCount } from "./labels.js";
+import { AboveResult } from "./above-result.jsx";
+import { FieldSlot } from "./fields.jsx";
+import { labelsHere, langOf, onLabels, requestLabels, resolveLabels } from "./labels.js";
 import { DEFERRED } from "./deferred.js";
-import { useIsoLayoutEffect } from "./iso.js";
-import { MenuPanel, loadMenus, menusNow, onMenuTexts } from "./lazy-menus.jsx";
-import { importNow, loadImport } from "./lazy-import.js";
-import { importLimitsOf } from "./import-limits.js";
+import { MenuPanel } from "./lazy-menus.jsx";
 import { LayerContext } from "./popover.jsx";
-import { linkNow, loadCheck, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, writeStoredView } from "./share.js";
 import { HelpContext } from "./help.js";
+import { ResultArea } from "./result-area.jsx";
+import { reportKeys } from "./report-keys.js";
+import { resultSteps } from "./result-steps.js";
 import { Skeleton } from "./skeleton.jsx";
-import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
-import { localStore, readItem, subscribeItem, writeItem } from "./storage.js";
-import { templateEntries, viewsName } from "./templates.js";
-import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, subscribeStored, withoutFilters, writeDismissed } from "./tip-state.js";
-import { NOTICES, activeEntries, tipActionText, tipContext, tipText } from "./notices.js";
-import { Tips } from "./tip-list.jsx";
-import { Unused } from "./unused.jsx";
-import { FormNameContext, activeIn } from "./dom.js";
-import { stillApplies } from "./unused-keep.js";
-import { Toolbar } from "./toolbar.jsx";
-import { SPLIT, SideBySide } from "./side-by-side.jsx";
-import { ViewTabs, tabId } from "./view-tabs.jsx";
+import { FormNameContext, useFormPrefix } from "./dom.js";
+import { ReportToolbar } from "./report-toolbar.jsx";
+import { useChartState } from "./use-chart-state.js";
+import { useDismissed } from "./use-dismissed.js";
+import { useDrawer } from "./use-drawer.js";
+import { useDrill } from "./use-drill.js";
 import { useExport } from "./use-export.js";
+import { useFields } from "./use-fields.js";
+import { useHostProps } from "./use-host-props.js";
+import { useImport, useImportApi } from "./use-import.js";
+import { useMenus } from "./use-menus.js";
+import { usePivotResult } from "./use-pivot-result.js";
+import { usePlacing } from "./use-placing.js";
+import { useReportLabels } from "./use-report-labels.js";
+import { useReportSize } from "./use-report-size.js";
+import { useSavedViews } from "./use-saved-views.js";
+import { useShareLink } from "./use-share-link.js";
+import { useKeepData, useShownData } from "./use-shown-data.js";
+import { useSteps } from "./use-steps.js";
 import { useResolvedTheme } from "./use-theme.js";
-import { schemaKeyOf, useViewHistory } from "./use-view-history.js";
-import { forgetData, hostIdentity, keepData, keptData } from "./data-keep.js";
-import { tagFor } from "./view-history.js";
-import { useBigResult, useFitHeight } from "./use-big-result.js";
-import {
-    addField, dateSpan, filterZoneFields, groupField, hiddenAfter, isEmptyView, moveField, removeAt, rowFolding, same, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneMax, zoneOverLimit
-} from "./view-ops.js";
-import { Zones, zoneEntries } from "./zones.jsx";
-
-/** A saved view's identity (view-save.js: LoadedView), for the keys of the views as saved. */
-const savedKeyOf = (t) => JSON.stringify([t.scope, t.store, t.storeSource ?? null, t.storeSheet ?? null, t.sourceId ?? null, t.name]);
-
-/** Width classes of the report (its own width, not the window's). */
-export function sizeOf(width) {
-    return width < 640 ? "narrow" : width < 1024 ? "medium" : "wide";
-}
-
-/**
- * Below this height (px, border box) the report starts with its zones folded into one line, the
- * compact layout; a narrow report (its zones stacked, one line each) below COMPACT_HEIGHT_NARROW.
- */
-export const COMPACT_HEIGHT = 600;
-export const COMPACT_HEIGHT_NARROW = 820;
-
-/** Whether a report of this width class and height starts compact. */
-export const compactAt = (size, height) => height < (size === "narrow" ? COMPACT_HEIGHT_NARROW : COMPACT_HEIGHT);
-
-/**
- * The zones' start state from the host's `zones`: folded (true), open (false), or null, the report's
- * height decides (compactAt). Any other value is null too.
- * @param {unknown} zones
- */
-export const zonesStart = (zones) => (zones === "folded" ? true : zones === "open" ? false : null);
-
-/** True while a popover or menu of the report is open in its layer (the layer also holds a probe). */
-const layerOpen = (layer) => Boolean(layer && [...layer.children].some((c) => !c.classList.contains("pk-origin")));
-
-/** A performance measure for the browser's performance timeline ("pivotkit:computePivot"). */
-function measured(name, fn) {
-    const t0 = typeof performance !== "undefined" ? performance.now() : 0;
-    const out = fn();
-    if (typeof performance !== "undefined" && typeof performance.measure === "function") {
-        try {
-            performance.measure(`pivotkit:${name}`, { start: t0, end: performance.now() });
-        } catch {
-            // an old browser without the options form of measure(): no timing, nothing else changes
-        }
-    }
-    return out;
-}
-
-/** Every key path of the row tree down to the second-last level: what "collapse all" collapses. */
-function outerPaths(result) {
-    const depth = result.rowFields.length;
-    const out = [];
-    const walk = (node) => {
-        if (node.depth > 0 && node.depth < depth) {
-            out.push(node.path);
-        }
-        if (node.depth < depth - 1) {
-            node.children.forEach(walk);
-        }
-    };
-    walk(result.rowRoot);
-    return out;
-}
-
-/** The tab's sessionStorage, or null where it is missing or blocked. */
-function sessionStore() {
-    try {
-        return typeof window !== "undefined" && window.sessionStorage ? window.sessionStorage : null;
-    } catch {
-        return null;
-    }
-}
-
-/** What the console was told already, so a developer's mistake is said once per page. */
-const warned = new Set();
-const warnOnce = (text) => {
-    if (!warned.has(text)) {
-        warned.add(text);
-        console.warn(text);
-    }
-};
-
-/** A host's chartOptions as a text that changes only when they do, or the object itself (a cycle). */
-function optionsKey(options) {
-    try {
-        return JSON.stringify(options ?? null, (k, v) => (["function", "symbol", "bigint"].includes(typeof v) ? `\u0000${typeof v}` : v));
-    } catch {
-        return options;
-    }
-}
-
-/** The page's address and fragment, or undefined outside a browser. */
-const here = () => (typeof location !== "undefined" ? { href: location.href, hash: location.hash } : undefined);
+import { tipsShown, useActivity } from "./use-tips.js";
+import { useUnusedNotes } from "./use-unused-notes.js";
+import { useViewHistory } from "./use-view-history.js";
+import { useViewLoading } from "./use-view-loading.js";
+import { useZoneFold } from "./use-zone-fold.js";
+import { warnOnce } from "./warn-once.js";
+import { isEmptyView } from "./view-ops.js";
+import { DragChip, Zones } from "./zones.jsx";
 
 /** Rows above which the report shows its skeleton first and encodes the data in the next frame. */
 export const DEFER_ROWS = 10_000;
 
-/** The host's data as encode() takes it: rows, or columnar ({ columns, types, data }, one array per column). */
-const dataOf = (d) => (Array.isArray(d) || Array.isArray(d?.columns) ? d : []);
-/** Rows of the host's data. */
+/** Rows of the host's data: rows, or columnar ({ columns, types, data }, one array per column). */
 const rowsOf = (d) => (Array.isArray(d) ? d.length : (d?.data?.[0]?.length ?? 0));
-
-/** No data steps (data-history.js): none until a file is loaded. */
-const NO_STEPS = Object.freeze({ past: [], future: [] });
-/** @type {readonly string[]} */
-const NO_SHEETS = Object.freeze([]);
-/** The sheet of a stored view loaded on another sheet (its own is gone): no entry is that view. */
-const SHEET_GONE = "\u0000";
-
-/**
- * The issues of a view loaded from outside as the warning's notes, with the view as given; a
- * template's name and description are unknown keys of its view, nothing the person can act on.
- * @param {import("pivotkit-core").Issue[]} issues
- * @param {unknown} raw
- */
-const unusedNotes = (issues, raw) => issues.filter((i) => (i.code ?? (i.message === "unknown key" ? "unknownKey" : "")) !== "unknownKey" || !["name", "description"].includes(i.path)).map((issue) => ({ issue, raw }));
 
 /**
  * The pivot report builder. While the host's data loads (`loading`) or a large data set is encoded for
@@ -279,1416 +189,80 @@ function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto",
 }
 
 /**
- * The host's view as JSON, to compare it by value; "null" for none, and for one that is no JSON (a
- * cycle, a BigInt): normalize() reports nothing of that kind here.
- * @param {unknown} view
- */
-function keyOfHostView(view) {
-    try {
-        return JSON.stringify(view ?? null) ?? "null";
-    } catch {
-        return "null";
-    }
-}
-
-/** A subscription to something that never changes (useSyncExternalStore of a value chosen once). */
-const staysTheSame = () => () => undefined;
-
-/**
- * The start screen of an empty view; with `onLoad` (allowImport) a place to drop a file or pick one,
- * and without any data (`noData`) only that.
- */
-function EmptyState({ labels, templates, onTemplate, onLoad, noData }) {
-    return (
-        <div className="pk-empty" data-testid="empty-state">
-            <div className="pk-empty-art" aria-hidden="true">
-                <span className="pk-empty-chip pk-c1" />
-                <span className="pk-empty-chip pk-c2" />
-                <span className="pk-empty-chip pk-c3" />
-            </div>
-            <h2>{noData ? labels.emptyNoData : labels.emptyTitle}</h2>
-            {noData ? null : (
-                <ol className="pk-steps">
-                    {labels.emptySteps.map((s, i) => (
-                        <li key={i}>
-                            <span className="pk-step-n" aria-hidden="true">
-                                {i + 1}
-                            </span>
-                            <span>{s}</span>
-                        </li>
-                    ))}
-                </ol>
-            )}
-            {onLoad ? (
-                <div className="pk-drop-zone" data-testid="empty-drop">
-                    <p>{noData ? labels.emptyDrop : labels.emptyLoad}</p>
-                    <button type="button" className="pk-btn" onClick={onLoad} data-testid="empty-load">
-                        <Icon name="upload" />
-                        <span className="pk-btn-text">{labels.loadData}</span>
-                    </button>
-                </div>
-            ) : null}
-            {templates.length ? (
-                <div className="pk-empty-actions">
-                    {templates.slice(0, 3).map((t, i) => (
-                        <button key={`${i}:${t.name}`} type="button" className="pk-btn" onClick={() => onTemplate(t)}>
-                            <Icon name="sparkle" />
-                            <span className="pk-btn-text">{fill(labels.tryView, { name: t.name })}</span>
-                        </button>
-                    ))}
-                </div>
-            ) : null}
-        </div>
-    );
-}
-
-/**
  * The report itself, once it has its data.
  * @param {import("./index.js").PivotReportProps} props
  */
 function Report(props) {
-    const {
-        data,
-        dataKey,
-        encoded: encodedProp,
-        view: viewProp,
-        defaultView,
-        onViewChange,
-        templates = [],
-        onSaveTemplate,
-        onDeleteTemplate,
-        onPublishTemplate,
-        canPublish = false,
-        templateStore,
-        onCellClick,
-        drillDown = true,
-        drillDownLimit = DRILL_LIMIT,
-        locale = "en-US",
-        timeZone,
-        labels: customLabels,
-        theme = "auto",
-        height = 640,
-        limits: limitsProp,
-        importLimits: importLimitsProp,
-        className,
-        fileName = "pivot",
-        fieldDefaults,
-        onExport,
-        exportData = false,
-        drillDownExport = false,
-        label,
-        tips: tipsProp = "on",
-        storageKey,
-        dismissedTips,
-        onTipDismiss,
-        chartOptions,
-        colorMap,
-        shareLink,
-        persistView,
-        fieldInfo: fieldInfoProp,
-        zoneInfo: zoneInfoProp,
-        settingInfo: settingInfoProp,
-        source: sourceProp,
-        sources,
-        onSourceSwitch,
-        schemaUrl,
-        grow: growProp,
-        fieldList,
-        zones: zonesProp,
-        loading = false,
-        allowImport = false,
-        plugins: pluginsProp,
-        onDataLoad,
-        importWorker
-    } = props;
-    // past its box only without a height of the host's (or when the host asks for it): a card with a
-    // height keeps the report inside, its result scrolls
-    const grow = growProp === "on" || (growProp !== "off" && props.height === undefined);
-    // the data the view is made for (the host's source), for the view files and the check before a load
-    const hostSourceId = typeof sourceProp?.id === "string" && sourceProp.id ? sourceProp.id : undefined;
-    const hostSourceName = typeof sourceProp?.name === "string" && sourceProp.name ? sourceProp.name : undefined;
-    // loading data in the browser (allowImport): the file being read (the import dialog), a file
-    // dragged over the report, and the import UI once loaded (lazy-import.jsx); the file's data shown
-    // and the data steps further down, with the host's data
-    const [job, setJob] = useState(/** @type {import("./import-host.jsx").ImportJob | null} */ (null));
-    // what waits for another sheet of the file shown to be read (a view made on it, viaSheet below):
-    // it runs once that sheet's data is shown
-    const afterSheet = useRef(/** @type {(() => void) | null} */ (null));
-    const [dragging, setDragging] = useState(false);
-    const dragDepth = useRef(0);
-    const [importMod, setImportMod] = useState(importNow);
-    const fileInput = useRef(/** @type {HTMLInputElement | null} */ (null));
-    const plugins = Array.isArray(pluginsProp) ? pluginsProp : [];
-
-    // props a host may rebuild on every render, compared by value
-    const labelsKey = JSON.stringify(customLabels ?? null);
-    const defaultsKey = JSON.stringify(fieldDefaults ?? null);
-    // what the host says about its fields: display names, descriptions, links; nothing changes without it
-    const info = useMemo(() => fieldInfoOf(JSON.parse(defaultsKey)), [defaultsKey]);
-    // English while the language's texts are not here; texts that arrive after English stood in for
-    // them (deferred-late.js) take their place
-    const textsHere = useSyncExternalStore(onLabels, () => hasLabels(locale), () => hasLabels(locale));
-    const baseLabels = useMemo(() => resolveLabels(textsHere ? locale : "en", JSON.parse(labelsKey)), [textsHere, locale, labelsKey]);
-    const typesKey = JSON.stringify(typesOf(fieldDefaults));
-    const limitsKey = JSON.stringify(limitsProp ?? null);
-    const hostLimits = useMemo(() => JSON.parse(limitsKey) ?? undefined, [limitsKey]);
-    // a loaded file's limits: the host's `importLimits` over its `limits`, key by key, so a host that
-    // keeps uploads small does not cap its own data; without importLimits the very object of hostLimits,
-    // so showing a file or the host's data again does not re-run what depends on the limits
-    const importLimitsKey = JSON.stringify(importLimitsProp ?? null);
-    const fileLimits = useMemo(() => importLimitsOf(hostLimits, JSON.parse(importLimitsKey)), [hostLimits, importLimitsKey]);
+    const { locale = "en-US", theme = "auto", height = 640, className, label, loading = false, allowImport = false, fileName = "pivot", onExport, exportData = false, drillDownExport = false } = props;
+    const host = useHostProps(props);
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
+    // the column with the toolbar, the zones and the result
+    const mainRef = useRef(/** @type {HTMLDivElement | null} */ (null));
+    // the field list's slot: a drawer on a narrow report
+    const panelRef = useRef(/** @type {HTMLDivElement | null} */ (null));
     const themeName = useResolvedTheme(theme, root);
+    // the layer of the report's popovers and menus
     const [layer, setLayer] = useState(/** @type {HTMLElement | null} */ (null));
-    const [size, setSize] = useState("wide");
-    // the measured height class, and the one the layout follows: a change waits while a popover is
-    // open, so a resize never pulls the zones (and a chip menu's anchor) from under the user
-    const [measuredShort, setMeasuredShort] = useState(false);
-    const [short, setShort] = useState(false);
-    // the zones folded or open: the user's choice (the section's fold button) until the next load, else
-    // the host's start state (zones), else by the report's height; a new start state from the host
-    // starts over from it
-    const [folded, setFolded] = useState(/** @type {boolean | null} */ (zonesStart(zonesProp)));
-    // the zones are open only because nothing is placed yet (a low report): see layoutFolded
-    const foldOpenWhileEmpty = useRef(false);
-    const [zonesSeen, setZonesSeen] = useState(zonesProp);
-    if (zonesProp !== zonesSeen) {
-        setZonesSeen(zonesProp);
-        setFolded(zonesStart(zonesProp));
-    }
     const zonesId = useId();
     const resultId = useId();
-    // the prefix of the names of this report's form fields (dom.js useFormName): useId is unique in
-    // one React root only, two web components are two roots; chosen in the browser, so a server
-    // render and its hydration agree (the server's snapshot is the plain prefix)
-    const ownPrefix = useRef(/** @type {string | null} */ (null));
-    const formPrefix = useSyncExternalStore(staysTheSame, () => (ownPrefix.current ??= `pk-${Math.random().toString(36).slice(2, 8)}`), () => "pk");
-    const [drawer, setDrawer] = useState(false);
-    const [filterTarget, setFilterTarget] = useState(/** @type {{ field: string, anchor: HTMLElement, base?: object } | null} */ (null));
-    const [drill, setDrill] = useState(/** @type {import("./drill-table.js").DrillSource | null} */ (null));
-    const [hinted, setHinted] = useState(false);
-    // changes of the view in this session, and their number at the first drag (for the tips)
-    const changesRef = useRef(0);
-    const [changes, setChanges] = useState(0);
-    const [dragAt, setDragAt] = useState(/** @type {number | null} */ (null));
-    // `changes` when the view was last saved: the tip to save it waits for new changes
-    const [savedAt, setSavedAt] = useState(0);
-    // the menus' module once loaded: its texts are those of the "i" of the settings (help.labels)
-    const [menus, setMenus] = useState(/** @type {typeof import("./menus.js") | null} */ (null));
-    // a language's menu texts arrived or failed: the help's labels follow (counted, to render again)
-    const [, setTexts] = useState(0);
-    useEffect(() => onMenuTexts(() => setTexts((n) => n + 1)), []);
-    // a tip's "Save view" opens the Views menu: a new number is a new request
-    const [viewsRequest, setViewsRequest] = useState(0);
-    // what a loaded view (a file, a link, a saved view) left out, for the area above the result; it
-    // stays until it is dismissed or another view is loaded
-    // (`loaded`: that view normalized, for the lines that still apply to the view shown, unused-keep.js;
-    // `after`: the host's view then, so a host's broken view given later takes the area over)
-    const [leftOut, setLeftOut] = useState(/** @type {{ notes: import("./unused.jsx").UnusedNote[], loaded: any, after: string | null }} */ ({ notes: [], loaded: null, after: null }));
-    const [issuesDismissed, setIssuesDismissed] = useState(/** @type {string | null} */ (null));
-    // views loaded from outside (a template, a file, a link, New): a new one is a new warning of its
-    // unused parts (open again, not dismissed), also with the same parts as the view before
-    const [loads, setLoads] = useState(0);
-    // the status note of the last load said already that some parts did not fit
-    const [unusedSaid, setUnusedSaid] = useState(false);
-    // the view loaded: the saved view or file it came from (its name names the files it is shared as),
-    // its group ("user", "shared"; null for a file or a link), whether the browser store keeps it, and
-    // its view as saved (`key`, history.keyOf), so the toolbar shows when it has unsaved changes
-    // the saved view each step of the history shows travels with it (history.tag, view-save.js's
-    // LoadedView); `savedKeys` (with the file's data, below) holds each saved view as it was loaded or
-    // saved
-    // the whole label of the row in use while the table is virtual (table.jsx: onRowLabel)
-    const [rowLabel, setRowLabel] = useState(/** @type {string | null} */ (null));
-    const chartRef = useRef(null);
-    const [chartReady, setChartReady] = useState(false);
-    // which reference lines the drawn chart can draw, with its numbers' reasons (chart.jsx onLines), and the view they are of
-    const [lineChecks, setLineChecks] = useState(/** @type {any} */ (null));
     const hintId = useId();
-    const closeFilter = useCallback(() => setFilterTarget(null), []);
+    const formPrefix = useFormPrefix();
+    const { size, short, big } = useReportSize({ root, main: mainRef, grow: host.grow, layer });
+    const drawer = useDrawer(size, panelRef);
     const { toasts, push, dismiss, pause } = useToasts();
-    const announce = useCallback(
-        /** @param {string} text @param {{ action?: { label: string, run: () => void }, tone?: "error" }} [extra] */
-        (text, extra) => push({ text, ...extra }),
-        [push]
-    );
-
-    // the data, encoded once per data set: per array, or per dataKey when the host gives one (a host
-    // that builds a new array on every render passes a key, so the rows are not encoded again)
-    const dataIdentity = dataKey !== undefined ? dataKey : data;
-    const source = useMemo(() => {
-        try {
-            const types = JSON.parse(typesKey);
-            const enc = encodedProp ?? measured("encode", () => encode(dataOf(data), { timeZone: timeZone ?? "UTC", limits: hostLimits, ...(types ? { types } : {}) }));
-            return { encoded: enc, error: null };
-        } catch (error) {
-            return { encoded: encode([]), error };
-        }
-        // data is read through dataIdentity: with a dataKey a new array with the same key is the same data
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [encodedProp, dataIdentity, timeZone, hostLimits, typesKey]);
-    // the file's data shown (null: the host's) and the data steps of the undo history (data-history.js);
-    // a report mounted again with its storageKey over the same host data starts where it was
-    // (data-keep.js: memory only, restored by the layout effect below)
-    const keepKey = allowImport && typeof storageKey === "string" && storageKey ? storageKey : null;
-    const hostData = hostIdentity({ dataKey, sourceId: hostSourceId, schemaKey: schemaKeyOf(source.encoded) });
-    const [kept] = useState(() => (keepKey ? keptData(keepKey, hostData) : null));
-    const [imported, setImported] = useState(/** @type {import("./import-steps.js").ShownData | null} */ (kept?.imported ?? null));
-    const [dataSteps, setDataSteps] = useState(/** @type {import("./data-history.js").DataSteps} */ (kept?.steps ?? NO_STEPS));
-    // each saved view as it was loaded or saved (history.keyOf, by savedKeyOf), so the toolbar shows
-    // when the view shown has unsaved changes
-    const [savedKeys, setSavedKeys] = useState(/** @type {Record<string, string>} */ (kept?.savedKeys ?? {}));
-    // the data the view is made for: the file's (its name and the hash of its columns, so the browser
-    // store keeps views per file), else the host's source
-    const sourceId = imported ? imported.source.id : hostSourceId;
-    const sourceName = imported ? imported.source.name : hostSourceName;
-    // the sheet of a workbook shown (a loaded file's), which the views saved, downloaded and linked from
-    // it name (source.params.sheet, sheet-views.js); the host's own source is passed on as it is
-    const shownSheet = imported?.sheet ?? null;
-    const shownSheets = imported?.sheets ?? NO_SHEETS;
-    const sourceParams = shownSheet ? { sheet: shownSheet } : undefined;
-    const encoded = imported ? imported.encoded : source.encoded;
-    // the limits of the data shown: a file's are the import limits, so its views, results and exports
-    // are bounded the way it was read
-    const limits = imported ? fileLimits : hostLimits;
-    // the display names (labels.fields), told apart where two fields would look the same
-    const fieldNamesKey = encoded.schema.fields.map((f) => f.name).join("\u0000");
-    const hostLabels = useMemo(() => {
-        const fields = displayNames(info, fieldNamesKey ? fieldNamesKey.split("\u0000") : []);
-        return fields ? { ...baseLabels, core: { ...baseLabels.core, fields } } : baseLabels;
-    }, [baseLabels, info, fieldNamesKey]);
-
-    // the host's custom orders (fieldDefaults.order), compared by value: every view shown sorts by them
-    const ordersKey = JSON.stringify(
-        fieldDefaults && typeof fieldDefaults === "object"
-            ? Object.entries(fieldDefaults).filter(([, d]) => d && Array.isArray(d.order) && d.order.length > 0).map(([field, d]) => [field, d.order])
-            : []
-    );
-    const orderOf = useMemo(() => {
-        const orders = /** @type {[string, unknown[]][]} */ (JSON.parse(ordersKey));
-        if (!orders.length) {
-            return undefined;
-        }
-        return (/** @type {string} */ field) => orders.find(([name]) => name.toLowerCase() === field.toLowerCase())?.[1];
-    }, [ordersKey]);
-    const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: hostLabels.steps.outside, orderOf, dataKey: imported ? imported.key : 0, initial: kept?.history });
+    /** A status note: `extra` holds its action (a button) and its tone. */
+    const announce = useCallback((/** @type {string} */ text, /** @type {{ action?: { label: string, run: () => void }, tone?: "error" }} */ extra = {}) => push({ text, ...extra }), [push]);
+    const data = useShownData(props, host);
+    const { encoded, limits, imported } = data;
+    const imp = useImport(imported);
+    const history = useViewHistory({ encoded, view: props.view, defaultView: props.defaultView, onViewChange: props.onViewChange, limits, outsideNote: host.baseLabels.steps.outside, orderOf: host.orderOf, dataKey: imported ? imported.key : 0, initial: data.kept?.history });
     const view = history.view;
-    // the view's own names for fields (#158) over the host's display names; `hostNames` keeps the
-    // host's, for the name a field has without the report's (a rename's placeholder, the field list)
-    const fieldLabelsKey = view.fieldLabels ? JSON.stringify(view.fieldLabels) : "";
-    const labels = useMemo(() => {
-        if (!fieldLabelsKey) {
-            return hostLabels;
-        }
-        return { ...hostLabels, hostNames: hostLabels.core.fields ?? null, core: withFieldLabels(hostLabels.core, JSON.parse(fieldLabelsKey)) };
-    }, [hostLabels, fieldLabelsKey]);
-    // what the result shows: the table, the chart, or both side by side (#51). Both need a wide
-    // report; a narrower one shows the table and offers the tabs Table and Chart
-    const shown = view.display === "both" && size !== "wide" ? "table" : view.display;
-    const tableShown = shown !== "chart";
-    // the table's share of Both, kept while the report is shown (side-by-side.jsx)
-    const [split, setSplit] = useState(/** @type {number} */ (SPLIT.start));
-    const chartShown = shown !== "table";
-    // the host's view (`view`, else the first `defaultView`) and what of it the data cannot use: shown
-    // above the result like a loaded view's unused parts, once per distinct view (a host may render the
-    // same view again and again), not while the data is still on its way
-    const [startView] = useState(() => defaultView);
-    const hostKey = keyOfHostView(viewProp !== undefined ? viewProp : startView);
-    const keyOf = history.keyOf;
-    const hostNotes = useMemo(() => {
-        // a file's data shown: the host's view is the host's data's business, not the person's
-        if (hostKey === "null" || loading || imported || encoded.schema.fields.length === 0) {
-            return null;
-        }
-        const raw = JSON.parse(hostKey);
-        if (raw === null) {
-            return null;
-        }
-        const notes = unusedNotes(normalize(raw, encoded, { limits }).issues, raw);
-        return notes.length ? { notes, loaded: JSON.parse(keyOf(raw)) } : null;
-    }, [hostKey, loading, imported, encoded, limits, keyOf]);
-    /** What a loaded view (`given`, as given) left out, for the area above the result. */
-    const leaveOut = useCallback((notes, given) => setLeftOut({ notes, loaded: given ? JSON.parse(keyOf(given)) : null, after: hostKey }), [keyOf, hostKey]);
-    // the saved view shown: the history step's, when it was loaded for the data shown now (another
-    // source with the same columns keeps the history, not the name)
-    const loadedView = tagFor(history.tag, sourceId);
-    const viewName = loadedView?.name ?? null;
-    const unsaved = Boolean(loadedView) && savedKeys[savedKeyOf(loadedView)] !== history.viewKey;
-
-    // the host's chartOptions and colorMap, compared by value (a function or another value JSON cannot
-    // hold counts as its kind); the chart checks them (chart-options.js, loaded with ECharts) before it draws
-    const chartHostKey = optionsKey([chartOptions, colorMap]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const [stableChartOptions, stableColorMap] = useMemo(() => [chartOptions, colorMap], [chartHostKey]);
-
-    const stepText = useCallback(
-        (note) => {
-            const template = Object.hasOwn(labels.steps, note.step) ? labels.steps[note.step] : labels.steps.change;
-            return fill(template, {
-                field: note.field ?? "",
-                name: note.name ?? "",
-                zone: labels.zones[note.zone] ?? note.zone ?? "",
-                display: note.display === "both" ? labels.bothShown : note.display ? labels[note.display] : "",
-                type: note.type ? labels.chartTypes[note.type] : ""
-            });
-        },
-        [labels]
-    );
-    // the import UI's view of the report (`api` below), for the steps an event starts
-    const apiNow = useRef(/** @type {any} */ (null));
-    // Undo and Redo: the view's own steps first, then a data step (a file loaded, the original data)
-    const undo = () => {
-        const note = history.canUndo || !importMod ? history.undo() : importMod.moveData(apiNow.current, true);
-        if (note !== null) {
-            announce(fill(labels.toastUndone, { step: note }));
-        }
-    };
-    const redo = () => {
-        const note = history.canRedo || !importMod ? history.redo() : importMod.moveData(apiNow.current, false);
-        if (note !== null) {
-            announce(fill(labels.toastRedone, { step: note }));
-        }
-    };
-    /** A new step drops the data steps undone before it. */
-    const newStep = useCallback(() => setDataSteps((s) => (s.future.length ? { past: s.past, future: [] } : s)), []);
-    // the toast's Undo runs later, on the history of that moment
-    const undoLater = useRef(undo);
-    useEffect(() => {
-        undoLater.current = undo;
-    });
-    // Reset shows the start view, no saved view: the history's step has no tag (Undo brings it back)
-    const reset = useCallback(() => {
-        history.reset(labels.steps.reset);
-        newStep();
-        // as New's note: Undo right there brings the view back
-        announce(labels.toastReset, { action: { label: labels.undo, run: () => undoLater.current() } });
-    }, [history, labels, announce, newStep]);
-
-    // a view that comes back by itself: the tab's stored one, then a shared link (which wins); read
-    // once, after the first render. A link needs pivotkit-core/link: while it loads the result waits.
-    const [opening, setOpening] = useState(false);
-    const appliedLink = useRef(/** @type {string | null} */ (null));
-    // commit() is defined further down: the ref gets it after the render
-    const latest = useRef({ history, encoded, limits, labels, announce, commit: /** @type {any} */ (null), sourceId, loaded: /** @type {any} */ (null), sources, onSourceSwitch });
-    // a link for other data, waiting for the user's choice (Load anyway, Cancel, Switch)
-    const [linkCheck, setLinkCheck] = useState(/** @type {null | { lines: string[], quiet: boolean, load: () => void, switchTo?: { name: string, run: () => void } }} */ (null));
-    /**
-     * Opens the view of a link text; the result waits while the link module loads. At load the link is
-     * where the report starts (a new history); a link opened later in the tab (only the fragment
-     * changed) is a step Undo takes back, like Open view file.
-     */
-    const openLink = useCallback((text, asStep = false) => {
-        appliedLink.current = text;
-        const now = linkNow();
-        const apply = (m) => {
-            const { history: h, encoded: enc, limits: lim, labels: l, announce: say, sourceId: id, loaded: done, sources: list, onSourceSwitch: switchTo } = latest.current;
-            const decoded = m.decodeViewLink(text);
-            // a link carries a view file (its link profile) or, made before it, a bare view
-            const loaded = decoded.view ? viewFromObject(decoded.view, enc, { limits: lim, sourceId: id }) : null;
-            if (!loaded || !loaded.view) {
-                say(loaded?.failed === "newer" ? l.viewFailed.newer : l.viewFailed.badLink, { tone: "error" });
-                return;
-            }
-            const open = () => {
-                if (asStep) {
-                    done(loaded, { link: true });
-                } else {
-                    h.restore(/** @type {object} */ (loaded.view));
-                    done(loaded, { link: true, restored: true });
-                }
-            };
-            // a link made for other data asks first, as a pasted view does
-            const check = loadCheck(loaded, l, Array.isArray(list) ? list : []);
-            if (!check) {
-                open();
-                return;
-            }
-            const target = check.switchTo;
-            setLinkCheck({
-                lines: check.lines,
-                quiet: !asStep,
-                load: open,
-                switchTo:
-                    target && typeof switchTo === "function"
-                        ? { name: target.name, run: () => switchTo({ source: { id: target.id, name: target.name }, view: /** @type {Record<string, unknown>} */ (loaded.file?.view ?? loaded.view), name: loaded.file?.name || undefined }) }
-                        : undefined
-            });
-        };
-        if (now) {
-            apply(now);
-            return;
-        }
-        setOpening(true);
-        loadLink().then(
-            (m) => {
-                setOpening(false);
-                apply(m);
-            },
-            () => {
-                setOpening(false);
-                latest.current.announce(latest.current.labels.viewFailed.badLink, { tone: "error" });
-            }
-        );
-    }, []);
-    useIsoLayoutEffect(() => {
-        // a report mounted again with its file's data (data-keep.js) is where it was: its own view
-        // comes back below, not the link's or the tab's
-        if (kept) {
-            return;
-        }
-        const page = here();
-        const link = shareLink ? readLinkParam(page?.hash ?? "", storageKey) : null;
-        if (link) {
-            openLink(link);
-        } else if (persistView === "session") {
-            const raw = readStoredView(storageKey, sessionStore());
-            if (raw) {
-                try {
-                    const loaded = viewFromObject(JSON.parse(raw), encoded, { limits });
-                    if (loaded.view) {
-                        history.restore(loaded.view);
-                    }
-                } catch {
-                    // a stored text that is no JSON (changed by hand): the start view stays
-                }
-            }
-        }
-        // once per mounted report: a later change of these props does not bring a stored view back
-    }, []);
-    // a link opened in the same tab (only the fragment changed): its view, once
-    useEffect(() => {
-        if (!shareLink || typeof window === "undefined") {
-            return undefined;
-        }
-        const onHash = () => {
-            const link = readLinkParam(here()?.hash ?? "", storageKey);
-            if (link && link !== appliedLink.current) {
-                openLink(link, true);
-            }
-        };
-        window.addEventListener("hashchange", onHash);
-        return () => window.removeEventListener("hashchange", onHash);
-    }, [shareLink, storageKey, openLink]);
-    // the tab keeps the view shown (persistView="session"); Reset stores the start view the same way
-    useEffect(() => {
-        if (persistView === "session") {
-            writeStoredView(storageKey, sessionStore(), JSON.parse(history.viewKey));
-        }
-    }, [persistView, storageKey, history.viewKey]);
-
-    /**
-     * Every change of the view: `note.step` names it for "Undone: ...". Adding needs no note on
-     * screen (the chip appears); a removal offers Undo.
-     */
-    const commit = useCallback(
-        /** @param {object} next @param {{ step: string, removed?: boolean, field?: string, zone?: string, name?: string, display?: string, type?: string }} [note] @param {any} [tag] the saved view it is (history.tag) @returns {boolean} whether the view changed */
-        (next, note = { step: "change" }, tag = undefined) => {
-            // a field beyond the limit of its zone would vanish in normalize(): refuse the step and say so
-            const over = note.step === "template" ? null : zoneOverLimit(next, limits);
-            if (over) {
-                announce(fill(labels.zoneFull, { zone: labels.zones[over.zone], max: over.max.toLocaleString(locale) }), { tone: "error" });
-                return false;
-            }
-            const changed = history.commit(next, stepText(note), tag);
-            // the user placed the first field of an empty low report: its zones stay open, as if
-            // opened by hand, so they do not fold under the user's hand (a view loaded folds them)
-            if (changed && note.step === "added" && foldOpenWhileEmpty.current) {
-                setFolded(false);
-            }
-            if (changed) {
-                changesRef.current += 1;
-                setChanges(changesRef.current);
-                newStep();
-            }
-            if (changed && note.removed) {
-                announce(fill(labels.toastRemoved, { field: note.field ?? "" }).trim(), { action: { label: labels.undo, run: () => undoLater.current() } });
-            }
-            // whether the view changed: "+ Add" waits for its chip only then
-            return changed;
-        },
-        [history, stepText, labels, announce, limits, locale, newStep]
-    );
-
-    /** A saved view as it is kept now (loaded or saved): the view shown differs from it, or not. */
-    const remember = useCallback((tag, key) => setSavedKeys((all) => ({ ...all, [savedKeyOf(tag)]: key })), []);
-
-    /**
-     * A view loaded from outside (a file, pasted JSON, a link) is shown: a step Undo takes back (a link
-     * read at the start is where the report starts, `restored`), a note that it was loaded (with Undo)
-     * that goes by itself, and what it left out in the area above the result, which stays.
-     */
-    const applyLoaded = useCallback(
-        /** @param {import("./share.js").LoadedView} loaded @param {{ link?: boolean, restored?: boolean }} [how] */
-        (loaded, { link = false, restored = false } = {}) => {
-            if (!loaded.view) {
-                return;
-            }
-            // a file or a link names its view, which is not among the saved ones (Save is off for it)
-            const tag = loaded.file?.name ? { name: loaded.file.name, scope: null, store: false, sourceId: latest.current.sourceId } : null;
-            if (tag) {
-                remember(tag, latest.current.history.keyOf(loaded.view));
-            }
-            if (restored) {
-                latest.current.history.setTag(tag);
-            } else {
-                commit(loaded.view, { step: "viewLoaded" }, tag);
-            }
-            const notes = unusedNotes(loaded.issues, loaded.file?.view);
-            leaveOut(notes, loaded.view);
-            setIssuesDismissed(null);
-            setLoads((x) => x + 1);
-            // the status note says some parts did not fit: the warning's live region stays quiet
-            setUnusedSaid(notes.length > 0);
-            const text = link ? (notes.length ? labels.toastLinkOpenedPartly : labels.toastLinkOpened) : notes.length ? labels.toastViewLoadedPartly : labels.toastViewLoaded;
-            announce(text, restored ? undefined : { action: { label: labels.undo, run: () => undoLater.current() } });
-        },
-        [commit, labels, announce, remember, leaveOut]
-    );
-
-    useEffect(() => {
-        latest.current = { history, encoded, limits, labels, announce, commit, sourceId, loaded: applyLoaded, sources, onSourceSwitch };
-    });
-
-    // the pivot, once per view
-    const computed = useMemo(() => {
-        try {
-            return { result: measured("computePivot", () => computePivot(encoded, view, { locale, limits })), error: null };
-        } catch (error) {
-            return { result: null, error };
-        }
-    }, [encoded, view, locale, limits]);
-    const context = useMemo(() => dateContext(computed.result, labels), [computed.result, labels]);
-    const result = context.result;
-    // Computation may fail before providing a locale; warning counts still follow the view.
-    const unusedLocale = useMemo(() => {
-        const requested = view.formatting?.locale || locale;
-        try { new Intl.NumberFormat(requested); return requested; }
-        catch { return "en-US"; }
-    }, [view.formatting?.locale, locale]);
-    // what the chart draws: the user's type, or the one the data suggests ("auto"), for which rows and
-    // columns may be swapped for the chart alone (dates on Columns run along the axis)
-    const plan = useMemo(() => chartPlan(view, encoded), [view, encoded]);
-    const chartComputed = useMemo(() => {
-        if (!plan.swap || !chartShown || !result) {
-            return computed;
-        }
-        try {
-            return { result: measured("computePivot", () => computePivot(encoded, swapAxes(view), { locale, limits })), error: null };
-        } catch (error) {
-            return { result: null, error };
-        }
-    }, [plan.swap, chartShown, view, encoded, locale, limits, computed, result]);
-    // a chip keeps the plain name; its tooltip names the years its date grouping combines
-    const titleOf = useCallback((/** @type {string} */ field) => context.titles.get(field), [context]);
-    const chartContext = useMemo(() => chartComputed.result === computed.result ? context : dateContext(chartComputed.result, labels), [chartComputed.result, computed.result, context, labels]);
-    const chartResult = chartContext.result;
+    const labels = useReportLabels(host.baseLabels, host.info, encoded, view);
     const empty = isEmptyView(view);
-    // a low report with no field placed shows its zones, so "+ Add" is there to start with (the host's
-    // `zones` and the user's click win); the first field the user places keeps them open (commit)
-    const layoutFolded = folded ?? (short && !empty);
-    useEffect(() => {
-        foldOpenWhileEmpty.current = empty && short && folded === null;
-    });
-    const gridState = useMemo(() => {
-        if (!result || !tableShown || empty) {
-            return { grid: null, error: null };
-        }
-        try {
-            return { grid: measured("toGrid", () => toGrid(result, { locale, labels: context.labels.core, limits })), error: null };
-        } catch (error) {
-            return { grid: null, error };
-        }
-    }, [result, tableShown, empty, locale, context.labels, limits]);
-    const error = source.error ?? computed.error ?? gridState.error ?? (chartShown ? chartComputed.error : null);
-
-    // fields: the data's columns for the list; the type of a chip is its source field's
-    const dateLocale = useMemo(() => dateDisplayLocale(view.formatting?.locale || locale), [view.formatting?.locale, locale]);
-    const fields = encoded.schema.fields;
-    const types = useMemo(() => new Map(viewFields(view, encoded).map((f) => [f.name.toLowerCase(), f.type])), [view, encoded]);
-    const typeOf = useCallback((field) => types.get(sourceOf(view, field ?? "").toLowerCase()) ?? "string", [types, view]);
-    /** A field's display name (fieldDefaults label), else its name. */
-    const nameOf = useCallback((field) => fieldLabel(field, labels.core), [labels]);
-    // the name a field has without the report's own (#158), for the field list
-    const sourceNameOf = useCallback((field) => sourceFieldName(field, labels), [labels]);
-    /** True when the host gives a field on an axis an order (fieldDefaults.order); a grouping has items of its own. */
-    const hostOrdered = useCallback((field) => sourceOf(view, field) === field && (orderOf?.(field)?.length ?? 0) > 0, [view, orderOf]);
-    /** A click on a table header: the field's new sort, a step Undo takes back as the chip menu's. */
-    const sortFromHeader = useCallback((field, sort) => commit(setSort(view, field, sort), { step: "sort", field: nameOf(field) }), [view, commit, nameOf]);
-    /** A field's description and link (of its source field for a grouping), or undefined. */
-    const infoOf = useCallback(
-        (field) => {
-            if (!field) {
-                return undefined;
-            }
-            const entry = info.get(sourceOf(view, field).toLowerCase());
-            const range = dateRangeText(dateSpan(encoded, sourceOf(view, field)), dateLocale);
-            const description = [entry?.description, range && fill(labels.dateRangeData, { range })].filter(Boolean).join(" · ");
-            return description ? { ...entry, description } : undefined;
-        },
-        [info, view, encoded, dateLocale, labels]
-    );
-    const fieldInfo = useMemo(() => {
-        const entries = new Map(info);
-        for (const field of encoded.schema.fields) {
-            const entry = infoOf(field.name);
-            if (entry) entries.set(field.name.toLowerCase(), entry);
-        }
-        return entries;
-    }, [info, infoOf, encoded]);
-    const placed = useMemo(() => {
-        const map = new Map();
-        const mark = (name, zone) => {
-            const key = sourceOf(view, name).toLowerCase();
-            const list = map.get(key) ?? [];
-            if (!list.includes(zone)) {
-                list.push(zone);
-            }
-            map.set(key, list);
-        };
-        view.rows.forEach((f) => mark(f, "rows"));
-        view.cols.forEach((f) => mark(f, "cols"));
-        view.values.forEach((v) => v.field && mark(v.field, "values"));
-        filterZoneFields(view).forEach((f) => mark(f, "filters"));
-        return map;
-    }, [view]);
-
-    // the menus' panels, right after the first render: there before anyone opens a menu; with the
-    // menu texts of the report's language, again when it changes
-    const lang = labels.lang;
-    useEffect(() => {
-        let live = true;
-        loadMenus(lang).then(
-            (m) => {
-                if (live) {
-                    setMenus(() => m);
-                }
-            },
-            () => undefined
-        );
-        return () => {
-            live = false;
-        };
-    }, [lang]);
-    // the report's least height: it grows past a host box too low for it (use-big-result.js)
-    const mainRef = useRef(/** @type {HTMLDivElement | null} */ (null));
-    // the low check below, also when the open zones need more in a box that keeps its size (#93)
-    const checkLow = useRef(() => {});
-    const fit = useFitHeight(root, mainRef, grow, () => checkLow.current());
-    const big = useBigResult(root);
-    // size class from the report's own width; the height class from its border box, measured before
-    // the first paint, so a low report never shows its zones open for a frame. A box lower than the
-    // open zones need (fit) is low too.
-    useIsoLayoutEffect(() => {
-        const el = root.current;
-        if (!el) {
-            return undefined;
-        }
-        const box = el.getBoundingClientRect();
-        // the width class before the first paint too: never a frame of the wide layout on a phone
-        setSize(sizeOf(box.width));
-        const first = compactAt(sizeOf(box.width), box.height);
-        setMeasuredShort(first);
-        setShort(first);
-        // low: below the size class's height, or too low for what the open zones need (then the
-        // report would grow past its box; folded, it fits)
-        const low = (/** @type {"narrow" | "medium" | "wide"} */ width, /** @type {number} */ height) => compactAt(width, height) || (fit.current.open > 0 && height <= fit.current.open + 1);
-        // what the open zones need changed inside a box of the same size (an edit of the fields, a
-        // language, a font): while the user works in the zones' section (a drag, the focus or the
-        // pointer in it, or a menu open, such as one of its "+ Add") the check waits, and runs once
-        // they have left it, so the area never folds under their hand. A resize of the box and the
-        // load decide at once (below).
-        let waiting = false;
-        // where the user last pressed or put the focus: in the section or a menu (the layer), a pick
-        // that closed its menu leaves the focus nowhere for a moment before it reaches the new chip
-        let lastInArea = false;
-        const inArea = (/** @type {EventTarget | null} */ t) => t instanceof Node && Boolean(el.querySelector(".pk-zone-section")?.contains(t) || el.querySelector(".pk-layer")?.contains(t));
-        const note = (/** @type {Event} */ e) => {
-            lastInArea = inArea(e.composedPath()[0] ?? e.target);
-        };
-        el.addEventListener("pointerdown", note, true);
-        el.addEventListener("focusin", note, true);
-        const busy = () => {
-            const section = el.querySelector(".pk-zone-section");
-            if (!section) {
-                return false;
-            }
-            const active = /** @type {Document | ShadowRoot} */ (el.getRootNode()).activeElement;
-            const focusGone = !active || active === el.ownerDocument.body;
-            return Boolean(layerOpen(el.querySelector(".pk-layer")) || section.matches(":hover") || section.matches(":focus-within") || section.querySelector(".pk-dropping") || (lastInArea && focusGone));
-        };
-        const doc = el.ownerDocument;
-        let again = 0;
-        const retry = () => {
-            clearTimeout(again);
-            // after the focus or the pointer has moved on
-            again = window.setTimeout(() => waiting && checkLow.current(), 0);
-        };
-        const watch = (on) => {
-            const how = on ? "addEventListener" : "removeEventListener";
-            el[how]("pointerout", retry);
-            el[how]("focusout", retry);
-            doc[how]("pointerup", retry);
-        };
-        checkLow.current = () => {
-            if (busy()) {
-                if (!waiting) {
-                    waiting = true;
-                    watch(true);
-                }
-                return;
-            }
-            if (waiting) {
-                waiting = false;
-                watch(false);
-            }
-            const now = el.getBoundingClientRect();
-            setMeasuredShort(low(sizeOf(now.width), now.height));
-        };
-        const release = () => {
-            el.removeEventListener("pointerdown", note, true);
-            el.removeEventListener("focusin", note, true);
-            clearTimeout(again);
-            if (waiting) {
-                waiting = false;
-                watch(false);
-            }
-        };
-        if (typeof ResizeObserver !== "function") {
-            return release;
-        }
-        // Two observers on purpose: this one reads the report's box in its callback, so the width
-        // class and the fold follow a resize in the same frame. useFitHeight's measures the column a
-        // frame later (setting min-height in the callback would loop) and calls checkLow when what
-        // the open zones need changes inside a box of the same size. A box at most 1 px higher than
-        // what they need counts as too low (`<= open + 1`): measures round, and a growing report's
-        // min-height makes its box exactly as high as it needs.
-        const ro = new ResizeObserver(([entry]) => {
-            const width = sizeOf(entry.contentRect.width);
-            setSize(width);
-            setMeasuredShort(low(width, entry.borderBoxSize?.[0]?.blockSize ?? el.getBoundingClientRect().height));
-        });
-        ro.observe(el);
-        return () => {
-            checkLow.current = () => {};
-            release();
-            ro.disconnect();
-        };
-    }, []);
-    useEffect(() => {
-        if (measuredShort === short) {
-            return undefined;
-        }
-        const apply = () => {
-            if (!layerOpen(layer)) {
-                setShort(measuredShort);
-            }
-        };
-        apply();
-        if (!layer || typeof MutationObserver !== "function") {
-            return undefined;
-        }
-        // a popover is open: apply when it closes
-        const mo = new MutationObserver(apply);
-        mo.observe(layer, { childList: true });
-        return () => mo.disconnect();
-    }, [measuredShort, short, layer]);
-    const drawerOpen = drawer && size === "narrow";
-    const panelRef = useRef(/** @type {HTMLDivElement | null} */ (null));
-    useEffect(() => {
-        // the closed drawer is out of the tab order and hidden from assistive technology
-        if (panelRef.current) {
-            panelRef.current.inert = size === "narrow" && !drawerOpen;
-        }
-    }, [size, drawerOpen]);
-
-    /** A field's settings: the host's (fieldDefaults), and an identifier's own when the host says nothing (field-info.js). */
-    const defaultsOf = useCallback((field) => fieldDefaultsFor(fieldDefaults, field, encoded.column(field)), [fieldDefaults, encoded]);
-    /** How a field from the field list is placed: a date grouped by its span, a value with the field's settings. */
-    const placeOptions = useCallback(
-        (field, zone, index = undefined) => {
-            const column = encoded.column(field);
-            const unit = zone !== "values" && column && column.type === "date" && !column.derived ? suggestDateUnit(encoded, field) : null;
-            return { index, type: typeOf(field), defaults: defaultsOf(field), dateUnit: unit, groupName: unit ? groupingName(nameOf(column.name), unit, labels) : undefined };
-        },
-        [encoded, typeOf, defaultsOf, labels, nameOf]
-    );
-    const addTo = useCallback(
-        (field, zone, index = undefined) => {
-            const options = placeOptions(field, zone, index);
-            return commit(addField(view, field, zone, options), { step: "added", field: options.groupName ?? nameOf(field), zone });
-        },
-        [view, placeOptions, commit, nameOf]
-    );
-
-    /** What placing a field in a zone puts there: a date's grouping, else the field. */
-    const placeName = useCallback((field, zone) => placeOptions(field, zone).groupName ?? field, [placeOptions]);
-    /**
-     * The filter of a field on its way into Filters: the name it gets there (a date grouped as it would
-     * be placed) and a draft that puts it there (a field on Rows or Columns moved), so Apply places it
-     * with the selection and Cancel changes nothing; none for a field in Filters already (its own filter).
-     */
-    const filterDraft = useCallback(
-        (field) => {
-            const options = placeOptions(field, "filters");
-            const name = options.groupName ?? field;
-            return { field: name, base: filterZoneFields(view).some((f) => same(f, name)) ? undefined : addField(view, field, "filters", options) };
-        },
-        [placeOptions, view]
-    );
-    /** The field list's "Add to Filters": the field's filter (filterDraft) in a popover at the field. */
-    const filterField = useCallback(
-        (field, anchor) => {
-            const draft = filterDraft(field);
-            // on a narrow report the field list is a drawer: it closes, the filter anchors to its button
-            const opener = size === "narrow" ? /** @type {HTMLElement | null} */ (root.current?.querySelector("[data-pk-opener='fields']") ?? null) : null;
-            if (size === "narrow") {
-                setDrawer(false);
-            }
-            const target = opener ?? anchor;
-            if (target) {
-                setFilterTarget({ field: draft.field, anchor: target, base: draft.base });
-            }
-        },
-        [filterDraft, size]
-    );
-    // what "+ Add" in each zone needs (zones.jsx, add-menu.jsx)
-    // a zone at its limit (`limits`) takes no more: its picks are off, with the reason
-    const zoneFullText = useCallback(
-        (zone, count) => {
-            const max = zoneMax(zone, limits);
-            return max !== null && count >= max ? fill(labels.zoneFull, { zone: labels.zones[zone], max: max.toLocaleString(locale) }) : null;
-        },
-        [limits, labels, locale]
-    );
-    const adding = useMemo(() => ({ fields, placed, nameOf, info, placeName, onAdd: addTo, filterDraft, fullText: zoneFullText }), [fields, placed, nameOf, info, placeName, addTo, filterDraft, zoneFullText]);
-
-    const onDrop = useCallback(
-        (src, target) => {
-            // the first drag: a tip about Undo and the menus follows (it counts the change it makes)
-            setDragAt((at) => at ?? changesRef.current + 1);
-            if (target.zone === "panel") {
-                if (src.kind !== "field") {
-                    commit(removeAt(view, src.zone, src.index), { step: "removed", removed: true, field: src.label ?? src.field });
-                }
-                return;
-            }
-            if (src.kind === "field") {
-                addTo(src.field, target.zone, target.index);
-            } else {
-                const zone = /** @type {any} */ (target.zone);
-                const note = src.zone !== zone ? { step: "moved", field: src.label ?? src.field, zone } : { step: "reordered", zone };
-                // into Values: a new value, counted or summed by the field's settings as one from the field list
-                commit(moveField(view, src.zone, src.index, zone, target.index, { type: typeOf(src.field), defaults: zone === "values" && src.field ? defaultsOf(src.field) : undefined }), note);
-            }
-        },
-        [view, typeOf, commit, addTo, defaultsOf]
-    );
-
-    // the menu of a clicked point of the chart (#53): where it opens, and the point
-    const [pointTarget, setPointTarget] = useState(/** @type {{ anchor: HTMLElement, home?: HTMLElement | null, point: any } | null} */ (null));
-    const openCell = useCallback(
-        /** @param {any} cell */
-        ({ rowPath = [], colPath = [], value, valueIndex, text }) => {
-            if (!result) {
-                return;
-            }
-            setHinted(true);
-            // the host's own row objects, unless the rows are rebuilt from the columns (encoded, columnar, a file's)
-            const { count, rows, indices } = drillRows(result, { rowPath, colPath, data: encodedProp || imported || !Array.isArray(data) ? null : data, limit: drillDownLimit });
-            onCellClick?.({ row: rowPath, col: colPath, value, valueIndex, text, count, rows });
-            if (drillDown) {
-                // the values as the table shows them; a host's format for a field (fieldDefaults) applies
-                const formatOf = (name) => {
-                    const d = defaultsOf(name);
-                    return d ? (d.drillFormat ?? d.format) : undefined;
-                };
-                // the panel's table is drill-table.js's, with the menus: here only what it is made of
-                setDrill({ result, rowPath, colPath, count, indices, formatOf, nameOf, infoOf });
-            }
-        },
-        [result, encodedProp, imported, data, drillDownLimit, onCellClick, drillDown, defaultsOf, nameOf, infoOf]
-    );
-    /** A point's rows, as a table cell's. @param {any} p */
-    const openPoint = (p) => openCell({ rowPath: p.rowPath, colPath: p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") });
-
-    const { run: doExport, prepare: prepareExport } = useExport({ fileName, result: computed.result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts, colorMap: stableColorMap });
-
-    // loading data (allowImport): the import UI (import-host.jsx) loads on first use (the Data menu, a
-    // file dragged over the report, the empty report's button) and renders the file input, the drop
-    // overlay and the preview; "Load data" there replaces the data shown (import-steps.js)
-    // (rendered at once: the empty report's "Load data…" clicks the file input the module renders)
-    const requestImport = () => loadImport().then((m) => (flushSync(() => setImportMod(() => m)), m));
-    /** What the import UI works on: this render's state, its setters and the props it needs. */
-    const api = {
-        imported, setImported, steps: dataSteps, setSteps: setDataSteps, job, setJob, dragging, history, encoded, hostEncoded: source.encoded, hostSource: sourceProp, sourceName, labels, locale, plugins, worker: importWorker, limits: fileLimits, timeZone, onDataLoad, announce, dismiss,
-        undo: () => undoLater.current(),
-        box: () => root.current?.getBoundingClientRect(),
-        pick: () => importMod?.pickFile(fileInput.current),
-        load: requestImport,
-        // what waits for another sheet of the file to be read (openOnSheet): it runs once that data is shown
-        afterData: (/** @type {(() => void) | null} */ run) => void (afterSheet.current = run)
-    };
-    useEffect(() => {
-        apiNow.current = api;
-    });
-    // a report mounted again with its file's data (data-keep.js) starts on its kept view history (the
-    // first render already, so the kept entry is never written from a history before it, even when the
-    // host unmounts the report again before it renders twice); the host hears that the file is shown
-    // again (onDataLoad "restore"), then the history's view through onViewChange (a host that controls
-    // the view takes the file's) before the browser paints
-    // (once: React's StrictMode runs a mount's effects twice)
-    const restored = useRef(false);
-    useIsoLayoutEffect(() => {
-        if (kept && !restored.current) {
-            restored.current = true;
-            importMod?.restoreData(api);
+    const pivot = usePivotResult({ encoded, view, locale, limits, labels, size, empty, sourceError: data.source.error });
+    const { shown } = pivot;
+    const fields = useFields({ view, encoded, labels, info: host.info, fieldDefaults: props.fieldDefaults, orderOf: host.orderOf, locale, context: pivot.context });
+    const fold = useZoneFold({ zones: props.zones, short, empty });
+    const activity = useActivity();
+    const steps = useSteps({ history, labels, limits, locale, announce, moveData: imp.moveData, newStep: data.newStep, onChange: activity.countChange, onAdded: fold.keepOpen });
+    const { commit } = steps;
+    const notes = useUnusedNotes(props, { imported, encoded, limits, keyOf: history.keyOf, view, result: pivot.result, empty, locale });
+    const loads = useViewLoading(props, { history, encoded, limits, labels, locale, announce, sourceId: data.sourceId, empty, commit, undoAction: steps.undoAction, remember: data.remember, noteLoad: notes.noteLoad, viaSheet: imp.viaSheet, runAfterSheet: imp.runAfterSheet });
+    const dismissed = useDismissed(props, { size, describedFields: [...fields.fieldInfo.values()].some((i) => i.description) });
+    const { menus, help } = useMenus(labels, dismissed.explainSettings);
+    const saved = useSavedViews(props, { menus, shown: data, history, view, empty, locale, announce, latest: loads.latest, noteSaved: activity.noteSaved });
+    // sharing: a link (when the host allows it), the view as a view file (JSON, a file), loading one
+    const link = useShareLink(props, { latest: loads.latest, kept: Boolean(data.kept), history, view, viewName: saved.name, data, encoded, limits, root, announce, fileName, viaSheet: loads.fileViaSheet, applyLoaded: loads.applyLoaded });
+    const drill = useDrill(props, { result: pivot.result, imported, swapped: pivot.plan.swap, defaultsOf: fields.defaultsOf, nameOf: fields.nameOf, infoOf: fields.infoOf, noteDrilled: activity.noteDrilled });
+    const placing = usePlacing({ view, encoded, labels, limits, locale, commit, fields, info: host.info, drawer, root, noteDrag: activity.noteDrag });
+    const chart = useChartState({ view, labels, commit, announce });
+    const exporting = useExport({ fileName, result: pivot.computed, encoded, exportData, locale, labels, limits, root, chartRef: chart.chartRef, announce, onExport, title: saved.name, source: data.sourceName, loadECharts, colorMap: host.colorMap });
+    const api = useImportApi(imp, { imported, setImported: data.setImported, steps: data.steps, setSteps: data.setSteps, history, encoded, hostEncoded: data.source.encoded, hostSource: props.source, sourceName: data.sourceName, labels, locale, plugins: host.plugins, worker: props.importWorker, limits: host.fileLimits, timeZone: props.timeZone, onDataLoad: props.onDataLoad, announce, dismiss, undo: steps.undoLatest, box: () => root.current?.getBoundingClientRect() });
+    useKeepData(data, {
+        snapshot: history.snapshot,
+        restore: (kept) => {
+            imp.mod?.restoreData(api);
             history.replace(kept.history);
         }
-        // once per mounted report
-    }, []);
-    // while a file's data is shown the report's latest state is kept for a new mount; the host's data
-    // shown again after a file lets it go (Back to original data, Undo of the load). An unmount keeps
-    // it. A report mounted over other host data lets an entry made over another go; over data without
-    // columns (a host still on its way, without `loading`) it leaves it for the next mount.
-    const snapshot = history.snapshot;
-    const keptKey = useRef(keepKey);
-    const fileShown = useRef(false);
-    const hostHasColumns = source.encoded.schema.fields.length > 0;
-    useIsoLayoutEffect(() => {
-        if (keepKey !== null && !kept && hostHasColumns) {
-            forgetData(keepKey);
-        }
-        // once per mounted report
-    }, []);
-    useEffect(() => {
-        if (keptKey.current !== keepKey && keptKey.current !== null) {
-            forgetData(keptKey.current);
-        }
-        keptKey.current = keepKey;
-        if (keepKey === null) {
-            return;
-        }
-        if (imported) {
-            fileShown.current = true;
-            keepData(keepKey, { host: hostData, imported, steps: dataSteps, history: snapshot(), savedKeys });
-        } else if (fileShown.current) {
-            fileShown.current = false;
-            forgetData(keepKey);
-        }
-    }, [keepKey, hostData, imported, dataSteps, snapshot, savedKeys]);
-    /** A file dragged over the report and dropped: counted in and out of its parts, then read. */
-    const fileDrag = (/** @type {React.DragEvent} */ e) => {
-        if (!Array.prototype.includes.call(e.dataTransfer?.types ?? [], "Files")) {
-            return;
-        }
-        e.preventDefault();
-        const files = e.type === "drop" ? [...e.dataTransfer.files] : null;
-        dragDepth.current = files ? 0 : Math.max(0, dragDepth.current + (e.type === "dragenter" ? 1 : e.type === "dragleave" ? -1 : 0));
-        setDragging(dragDepth.current > 0);
-        if (e.type !== "dragover") {
-            requestImport().then((m) => files && m.startFiles(apiNow.current, files), () => undefined);
-        }
-    };
-
-    // sharing: a link (when the host allows it), the view as a view file (JSON, a file), loading one;
-    // what each does is share-actions.js's, loaded with the menus
-    const base = shareBase(shareLink, here()?.href);
-    /** @type {import("./share-actions.js").ShareContext} */
-    const share = {
-        canLink: base !== null,
-        prepare: base !== null ? () => void loadLink().catch(() => undefined) : undefined,
-        view,
-        viewName,
-        sourceId,
-        sourceName,
-        sourceParams,
-        // a view file that names another sheet of the workbook shown reads that sheet first
-        viaSheet: (made, name, file) => viaSheet(made, name, () => loadLater.current?.({ file })),
-        schemaUrl,
-        encoded,
-        shareLink,
-        linkKey: storageKey,
-        root,
-        fileName,
-        onExport,
-        announce,
-        limits,
-        sources,
-        onSourceSwitch,
-        applyLoaded
-    };
-
-    /**
-     * A view that names another sheet of the workbook shown is opened on that sheet (the import UI's
-     * openOnSheet, sheet-views.js): "switch" when reading that sheet started (`then` runs once its
-     * data is shown), "missing" when the workbook has no such sheet (said; the view loads on the sheet
-     * shown), else "none". A file's data is shown only through the import UI, so it is loaded then.
-     * @param {{ id?: string | null, sheet?: string | null }} made  the data and sheet the view names
-     * @param {string} name  the view's name, for the note when the sheet is gone
-     * @param {() => void} then
-     */
-    const viaSheet = (made, name, then) => (imported && importMod ? importMod.openOnSheet(apiNow.current, made, name, then) : "none");
-    const loadTemplate = useCallback(
-        (t) => {
-            // which saved view this is: its group, the browser store's entry (by its name, the data and
-            // the sheet it names), and the data it was loaded for
-            const tag = { name: t.name, scope: t.scope === "user" ? "user" : "shared", store: t.at !== undefined, storeSource: t.sourceId ?? null, storeSheet: t.sheet ?? null, sourceId };
-            remember(tag, history.keyOf(t.view));
-            commit(t.view, { step: "template", name: t.name }, tag);
-            // a saved view made with other limits loads with the fields that fit: what was left out
-            // goes into the area above the result, the note says it was loaded
-            const over = zoneOverLimit(t.view, limits);
-            // what else of it the data cannot use (a field that is gone, a setting this version lacks);
-            // a zone over the limit is said in its own words above
-            const issues = normalize(t.view, encoded, { limits }).issues.filter((i) => !over || i.code !== "tooMany");
-            leaveOut([...(over ? [{ text: fill(labels.viewTrimmed, { name: t.name, zone: labels.zones[over.zone], max: over.max.toLocaleString(locale) }), path: over.zone }] : []), ...unusedNotes(issues, t.view)], t.view);
-            setIssuesDismissed(null);
-            setLoads((x) => x + 1);
-            setUnusedSaid(false);
-            announce(fill(labels.toastLoaded, { name: t.name }));
-        },
-        [commit, labels, announce, limits, locale, history, remember, sourceId, encoded, leaveOut]
-    );
-    /** A saved view chosen in the menu or on the start screen: on its sheet of the workbook first. */
-    const openTemplate = (t) => {
-        const how = viaSheet({ id: t.sourceId ?? t.sheetOf, sheet: t.sheet }, t.name, () => loadLater.current?.({ template: t }));
-        if (how !== "switch") {
-            // on a sheet it was not made for, the view is not that saved view: Save adds one for this
-            // sheet instead of moving the saved one here
-            loadTemplate(how === "missing" ? { ...t, sheet: SHEET_GONE } : t);
-        }
-    };
-    // the view that waited for its sheet, once that sheet is shown (this render's loadTemplate and data)
-    const loadLater = useRef(/** @type {((what: { template?: any, file?: object }) => void) | null} */ (null));
-    useEffect(() => {
-        loadLater.current = ({ template, file }) => {
-            if (template) {
-                loadTemplate(template);
-            } else if (file) {
-                const loaded = viewFromObject(file, encoded, { limits, sourceId });
-                applyLoaded(loaded);
-            }
-        };
-        const run = afterSheet.current;
-        if (run && imported) {
-            afterSheet.current = null;
-            run();
-        }
-    }, [imported, loadTemplate, encoded, limits, sourceId, applyLoaded]);
-    /** New: an empty report (the start screen), one step Undo takes back; the loaded view's name goes. */
-    const newReport = () => {
-        if (empty) {
-            return;
-        }
-        commit(emptyView(), { step: "new" }, null);
-        leaveOut([], null);
-        setLoads((x) => x + 1);
-        setUnusedSaid(false);
-        announce(labels.newEmpty, { action: { label: labels.undo, run: () => undoLater.current() } });
-    };
-    // the browser store (templateStore="browser"): the user's own views in localStorage under the
-    // storageKey; read after hydration, as the tips. Its views are read with the menus' module
-    // (view-store.js), loaded right after the first render
-    const viewStore = templateStore === "browser";
-    const storeName = viewsName(storageKey);
-    const subscribeViews = useCallback((callback) => (viewStore ? subscribeItem(storeName, callback) : () => {}), [viewStore, storeName]);
-    const viewsText = useSyncExternalStore(subscribeViews, () => (viewStore ? readItem(storeName, localStore()) : null), () => null);
-    const entries = useMemo(
-        () => templateEntries(templates, viewStore && menus ? menus.storedViews(viewsText, sourceId, { sheet: shownSheet, sheets: shownSheets }) : [], Boolean(onDeleteTemplate)),
-        [templates, viewStore, menus, viewsText, sourceId, shownSheet, shownSheets, onDeleteTemplate]
-    );
-    // what the Views menu needs to save, delete and publish (toolbar-panels.jsx: viewActions): the
-    // host's callbacks, else the browser store; the notes come when they are kept
-    const templateActions = {
-        view,
-        announce,
-        locale,
-        sourceId,
-        // the sheet of a workbook shown, which a view saved into the browser store names, and the data
-        // shown as the host's callbacks get it
-        sheet: shownSheet,
-        source: sourceId ? { id: sourceId, ...(sourceName ? { name: sourceName } : {}), ...(sourceParams ? { params: sourceParams } : {}) } : null,
-        viewsText,
-        store: viewStore,
-        keep: (text) => writeItem(storeName, localStore(), text),
-        onSave: onSaveTemplate,
-        onDelete: onDeleteTemplate,
-        onPublish: canPublish ? onPublishTemplate : undefined,
-        // a view leaves the report checked against the data, never as it was stored, and in the form a
-        // save hands over (the view as shown: normalized, with the host's orders), so Publish and
-        // Save send the same view
-        normalized: (v) => JSON.parse(history.keyOf(v)),
-        loaded: loadedView,
-        empty,
-        /**
-         * A save kept: the view as it was when the save was clicked (`key`) is that saved view now. The
-         * view shown takes its name only while it is still that view: a slow host may answer after
-         * New, another view loaded or a change, and none of those may become the saved view.
-         */
-        onSaved: (/** @type {any} */ saved, /** @type {string} */ key) => {
-            setSavedAt(changesRef.current);
-            const tag = { ...saved, sourceId };
-            remember(tag, key);
-            const now = latest.current.history;
-            if (now.viewKey === key) {
-                now.setTag(tag);
-            }
-        },
-        viewKey: history.viewKey
-    };
-
-    const onKeyDown = (e) => {
-        const target = /** @type {HTMLElement} */ (e.target);
-        // Escape ends Enlarge: only inside the report (never a host dialog's key), only once no menu,
-        // drawer, filter or drill-down of the report is open (those close first, on their own Escape)
-        if (e.key === "Escape" && big.enlarged && !e.defaultPrevented && !layerOpen(layer) && !drawerOpen && !drill && !filterTarget) {
-            e.preventDefault();
-            big.setEnlarged(false);
-            return;
-        }
-        // a modal dialog of the report (the preview of a file) keeps its keys: Undo never changes what is behind it
-        if (target.closest("input, textarea, select, [contenteditable], [aria-modal='true']")) {
-            return;
-        }
-        const mod = e.ctrlKey || e.metaKey;
-        if (mod && !e.altKey && (e.key === "z" || e.key === "Z")) {
-            e.preventDefault();
-            if (e.shiftKey) {
-                redo();
-            } else {
-                undo();
-            }
-        } else if (mod && (e.key === "y" || e.key === "Y")) {
-            e.preventDefault();
-            redo();
-        }
-    };
-
+    });
+    const tipsTable = useTipsTable();
+    const tips = tipsShown({ table: tipsTable, view, display: shown, pivot, encoded, empty, typeOf: fields.typeOf, showTable: pivot.tableOnScreen, activity, canSave: saved.canSave, dismissed, labels, locale, commit, nameOf: fields.nameOf, openViews: saved.openViews });
+    const results = resultSteps({ view, commit, announce, labels, locale, result: pivot.result, outer: pivot.outer, folding: pivot.folding });
     const layerValue = useMemo(() => ({ layer, size }), [layer, size]);
-    const renderOverlay = (src) => (
-        <div className="pk-chip pk-overlay">
-            <Icon name="grip" size={14} />
-            <span className={`pk-type pk-type-${src.type ?? typeOf(src.field)}`}>
-                <Icon name={/** @type {any} */ (TYPE_ICON[src.type ?? typeOf(src.field)] ?? "text")} size={13} />
-            </span>
-            <span className="pk-chip-text">{src.label ?? src.field}</span>
-        </div>
-    );
-
-    const showTable = !error && !(empty && tableShown) && tableShown && gridState.grid;
-
-    // Expand all and Collapse all: offered when they change something, and they say what they did
-    const outer = useMemo(() => (result ? outerPaths(result) : []), [result]);
-    const folding = rowFolding(view, outer);
-    // `texts`: the Options menu's labels, with the menus' texts that say what was done
-    const expandAll = (texts) => {
-        const count = view.collapsed.rows.length;
-        commit(setCollapsed(view, "rows", null), { step: "collapse" });
-        announce(plural(texts.groupsExpanded, count, { lang: labels.lang, locale }));
-    };
-    const collapseAll = (texts) => {
-        if (!result) {
-            return;
-        }
-        commit(setCollapsed(view, "rows", outer), { step: "collapse" });
-        announce(plural(texts.groupsCollapsed, folding.open, { lang: labels.lang, locale }));
-    };
-
-    // the chart's series, once per result: drawn by the chart, read by its tips
-    const series = useMemo(() => {
-        if (!chartResult || !chartShown || view.values.length === 0) {
-            return null;
-        }
-        try {
-            return toSeries(chartResult, { labels: chartContext.labels.core, maxCategories: MAX_CATEGORIES });
-        } catch {
-            return null;
-        }
-    }, [chartResult, chartShown, view.values.length, chartContext.labels]);
-
-    // tips: the host allows some or all, the user dismisses them (remembered per storageKey)
-    const allowedKey = JSON.stringify(allowedTips(tipsProp));
-    const allowed = useMemo(() => JSON.parse(allowedKey), [allowedKey]);
-    const dismissedKey = JSON.stringify(cleanDismissed(dismissedTips));
-    // what this report holds (from the host, or dismissed here) and what is stored under storageKey;
-    // the storage is read after hydration: on the server and in the first render nothing is stored,
-    // so the markup of both is the same (useSyncExternalStore's server snapshot)
-    const [own, setOwn] = useState(() => cleanDismissed(JSON.parse(dismissedKey)));
-    const [lastDismissedKey, setLastDismissedKey] = useState(dismissedKey);
-    if (dismissedKey !== lastDismissedKey) {
-        // the host passed other dismissed tips: they replace the list (the host stores it itself)
-        setLastDismissedKey(dismissedKey);
-        setOwn(JSON.parse(dismissedKey));
-    }
-    const subscribe = useCallback((callback) => subscribeStored(storageKey, callback), [storageKey]);
-    const storedRaw = useSyncExternalStore(subscribe, () => readStored(storageKey, localStore()), () => null);
-    const dismissed = useMemo(() => cleanDismissed([...own, ...parseStored(storedRaw)]), [own, storedRaw]);
-    const changeDismissed = useCallback(
-        (next, id) => {
-            setOwn(next);
-            writeDismissed(storageKey, localStore(), next);
-            onTipDismiss?.({ id, dismissed: next });
-        },
-        [storageKey, onTipDismiss]
-    );
-    const tipsOn = allowed !== "off" && !dismissed.includes(ALL_TIPS);
-    // the i of the field descriptions and of the zones: the host forces them, else the user's switch
-    const describedFields = [...fieldInfo.values()].some((i) => i.description);
-    // one switch of the user's ("Show explanations") for the three kinds; a host's prop forces its kind
-    const fieldSwitch = helpSwitch(fieldInfoProp, dismissed);
-    const zoneSwitch = helpSwitch(zoneInfoProp, dismissed);
-    const settingSwitch = helpSwitch(settingInfoProp, dismissed);
-    const explainUser = settingSwitch.user || zoneSwitch.user || (describedFields && fieldSwitch.user);
-    // what the setting "i" read: shown or not
-    // with the menus' texts once they are loaded (the explanations are among them); while the
-    // language changes, the last ones until the new language's are here, never English in between
-    const ready = menus ? menusNow(labels.lang) : null;
-    const withTexts = ready ? ready.menuLabels(labels) : null;
-    const [keptTexts, setKeptTexts] = useState(/** @type {any} */ (null));
-    if (withTexts && withTexts !== keptTexts) {
-        setKeptTexts(withTexts);
-    }
-    const helpLabels = withTexts ?? keptTexts ?? labels;
-    const help = useMemo(
-        () => ({
-            explain: settingSwitch.on,
-            labels: helpLabels
-        }),
-        [settingSwitch.on, helpLabels]
-    );
-    // the field list folded to a rail (wide and medium; a narrow report has the drawer): the user's
-    // choice is stored with the tips, unless the host's fieldList decides, then it lasts this session
-    const [fieldsSession, setFieldsSession] = useState(/** @type {boolean | null} */ (null));
-    useEffect(() => {
-        if (fieldList !== undefined && fieldList !== "open" && fieldList !== "collapsed") {
-            warnOnce(`pivotkit: fieldList ${JSON.stringify(String(fieldList)).slice(0, 40)} is neither "open" nor "collapsed"; the user's choice decides`);
-        }
-    }, [fieldList]);
-    // a host's labels for texts the report no longer shows: ignored, said once with what replaces them
-    useEffect(() => {
-        for (const [key, now] of removedLabels(JSON.parse(labelsKey))) {
-            warnOnce(`pivotkit: labels.${key} is no longer shown and is ignored; set labels.${now} instead`);
-        }
-    }, [labelsKey]);
-    useEffect(() => {
-        if (zonesProp !== undefined && zonesStart(zonesProp) === null) {
-            warnOnce(`pivotkit: zones ${JSON.stringify(String(zonesProp)).slice(0, 40)} is neither "open" nor "folded"; the report's height decides`);
-        }
-    }, [zonesProp]);
-    const railed = size !== "narrow" && fieldsCollapsed(fieldsSession, fieldList, dismissed);
-    const collapseFields = (next) => {
-        if (fieldList === "open" || fieldList === "collapsed") {
-            setFieldsSession(next);
-        } else {
-            changeDismissed(next ? [...dismissed, FIELDS_COLLAPSED] : dismissed.filter((d) => d !== FIELDS_COLLAPSED), null);
-        }
-    };
-    const toggle = (id, on) => changeDismissed(on ? dismissed.filter((d) => d !== id) : [...dismissed, id], on ? null : id);
-    // the tips' table: here at once, or loaded after the first render (pivotkit-element); the notices
-    // (the result is cut or empty) until then
-    const tipsMod = useTipsTable();
-    const ctx = tipContext({ view, display: shown, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate) || viewStore, savedAt, chartPlan: plan });
-    const shownTips = activeEntries(tipsMod?.TIPS ?? NOTICES, ctx, { allowed, dismissed }).map((t) => ({
-        id: t.id,
-        params: t.params,
-        icon: t.entry.icon ?? "info",
-        notice: t.entry.kind === "notice",
-        action: t.entry.action ?? "",
-        text: tipText(t.id, t.params, labels, locale),
-        actionText: tipActionText(t.entry, t.params, labels)
-    }));
-    const runTip = (id, action) => {
-        const params = shownTips.find((t) => t.id === id)?.params ?? {};
-        if (action === "swap") {
-            commit(swapAxes(view), { step: "swap" });
-        } else if (action === "removeFilters") {
-            commit(withoutFilters(view), { step: "filtersRemoved" });
-        } else if (action === "groupDate") {
-            commit(groupField(view, params.source, params.unit, { name: groupingName(nameOf(params.source), params.unit, labels) }).view, { step: "group", field: nameOf(params.source) });
-        } else if (action === "bars") {
-            commit(setChart(view, "bar"), { step: "chart", type: "bar" });
-        } else if (action === "auto") {
-            commit(setChart(view, "auto"), { step: "chart", type: "auto" });
-        } else if (action === "saveTemplate") {
-            setViewsRequest((n) => n + 1);
-        } else if (action === "colSubtotalsOff") {
-            commit(setTotal(view, "colSubtotals", false), { step: "totals" });
-        }
-    };
-
-    // a link not opened: the same link given again (the fragment set once more) asks again
-    const cancelLink = () => {
-        appliedLink.current = null;
-        setLinkCheck(null);
-    };
-    // the area above the result: what a loaded view (or the host's, when it came later) left out, the
-    // lines that still apply to the view shown (unused-keep.js), then what computePivot() could not use
-    const fromHost = hostNotes !== null && leftOut.after !== hostKey;
-    const given = fromHost ? hostNotes : leftOut;
-    const notes = useMemo(
-        () => [...given.notes.filter((n) => stillApplies(n, given.loaded, view)), ...(result && !empty ? result.issues.slice(0, 20).map((issue) => ({ issue, raw: view })) : [])],
-        [given, result, empty, view]
-    );
-    // the warning's identity: its view's lines, all of them (one that no longer applies does not open
-    // or bring back a warning folded or dismissed), and the load
-    const notesKey = useMemo(
-        () => JSON.stringify([fromHost ? "host" : loads, ...given.notes.map((n) => ("issue" in n ? [n.issue.path, n.issue.message] : n.text)), ...(result && !empty ? result.issues.slice(0, 20).map((i) => [i.path, i.message]) : [])]),
-        [fromHost, given, loads, result, empty]
-    );
-    // while enlarged, the fields in one line: what the result shows, without the zones
-    const summaryParts = big.enlarged ? layoutSummary(zoneEntries(view, types, context.labels), context.labels) : [];
-    const summaryText = summaryParts.length ? summaryParts.map((p) => `${p.title}: ${p.fields}`).join(" · ") : labels.layoutEmpty;
-
-    // the chart and the table of the result: one of them, or both side by side (#51)
-    const chartEl = chartResult ? (
-        <PivotChart
-            result={chartResult}
-            plan={plan}
-            series={series}
-            labels={context.labels}
-            locale={locale}
-            themeName={themeName}
-            root={root}
-            valueNames={valueLabels(view.values, labels)}
-            chartOptions={stableChartOptions}
-            colorMap={stableColorMap}
-            // a legend entry hidden or shown: kept in the view, said to a screen reader
-            onLegend={({ name, shown }) => {
-                commit(setChartDisplay(view, { hidden: hiddenAfter(view.chart.hidden, name, shown) }), { step: "chartDisplay" });
-                announce(fill(shown ? labels.chartShown : labels.chartHidden, { name }));
-            }}
-            onInstance={(c) => {
-                chartRef.current = c;
-                setChartReady(Boolean(c));
-            }}
-            // the checks with the view they are of: the menu never shows another view's
-            onLines={(checks) => setLineChecks(checks && { checks, view })}
-            // a chart with rows and columns swapped names the view's paths the other way round
-            onPoint={(p) => {
-                const point = { ...p, rowPath: plan.swap ? p.colPath : p.rowPath, colPath: plan.swap ? p.rowPath : p.colPath, anchor: undefined, home: undefined };
-                // a double click: its rows at once; a click: its menu at the point (#53)
-                if (p.direct) {
-                    setPointTarget(null);
-                    openPoint(point);
-                } else if (p.anchor) {
-                    setPointTarget({ anchor: p.anchor, home: p.home, point });
-                }
-            }}
-        />
-    ) : null;
-    const tableEl = gridState.grid ? (
-        <PivotTable grid={gridState.grid} view={view} labels={context.labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} infoOf={infoOf} showInfo={fieldSwitch.on} typeOf={typeOf} hostOrdered={hostOrdered} onSort={sortFromHeader} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
-    ) : null;
-
+    const focusReport = () => root.current?.focus({ preventScroll: true });
+    const onDrag = allowImport ? imp.fileDrag : undefined;
+    // the start screen of an empty view: saved views to try and, with allowImport, a file to load
+    const startScreen = { templates: saved.entries, onTemplate: loads.openTemplate, onLoad: allowImport ? () => imp.pickLater(() => announce(labels.menuFailed, { tone: "error" })) : undefined, noData: allowImport && fields.fields.length === 0 };
     return (
         <div
             ref={root}
             className={`pk-root${className ? ` ${className}` : ""}`}
             data-pk-theme={themeName}
             data-pk-size={size}
-            data-pk-layout={layoutFolded ? "compact" : undefined}
+            data-pk-layout={fold.folded ? "compact" : undefined}
             data-pk-enlarged={big.enlarged ? "" : undefined}
-            data-pk-fields={railed ? "collapsed" : undefined}
-            data-pk-fit={grow ? undefined : "contain"}
+            data-pk-fields={dismissed.railed ? "collapsed" : undefined}
+            data-pk-fit={host.grow ? undefined : "contain"}
             lang={labels.lang}
             // a named region, not <main>: the host's page has its own main landmark around the report
             role="region"
@@ -1696,218 +270,37 @@ function Report(props) {
             style={{ height }}
             // a click anywhere in the report focuses it, so the undo and redo shortcuts work
             tabIndex={-1}
-            onKeyDown={onKeyDown}
-            onDragEnter={allowImport ? fileDrag : undefined}
-            onDragOver={allowImport ? fileDrag : undefined}
-            onDragLeave={allowImport ? fileDrag : undefined}
-            onDrop={allowImport ? fileDrag : undefined}
+            onKeyDown={reportKeys({ big, layer, open: drawer.open || Boolean(drill.drill) || Boolean(placing.filterTarget), undo: steps.undo, redo: steps.redo })}
+            onDragEnter={onDrag}
+            onDragOver={onDrag}
+            onDragLeave={onDrag}
+            onDrop={onDrag}
         >
             <LayerContext.Provider value={layerValue}>
               <FormNameContext.Provider value={formPrefix}>
               <HelpContext.Provider value={help}>
-                <PivotDnd
-                    labels={labels}
-                    onDrop={onDrop}
-                    renderOverlay={renderOverlay}
-                    onDragStart={(src) => {
-                        if (src.kind === "field" && size === "narrow") {
-                            setDrawer(false);
-                        }
-                    }}
-                >
-                    <div className={`pk-layout${drawerOpen ? " pk-drawer-open" : ""}`}>
-                        <div className="pk-panel-slot" ref={panelRef}>
-                            <FieldPanel
-                                fields={fields}
-                                placed={placed}
-                                labels={labels}
-                                onAdd={(f, z) => {
-                                    addTo(f, z);
-                                    if (size === "narrow") {
-                                        setDrawer(false);
-                                    }
-                                }}
-                                onNote={(text) => announce(text)}
-                                onFilter={filterField}
-                                nameOf={nameOf}
-                                sourceNameOf={sourceNameOf}
-                                info={fieldInfo}
-                                showInfo={fieldSwitch.on}
-                                drawer={size === "narrow"}
-                                open={drawerOpen}
-                                onClose={() => setDrawer(false)}
-                                collapsed={railed}
-                                onCollapse={collapseFields}
-                                onSkip={() => /** @type {HTMLElement | null | undefined} */ (root.current?.querySelector(".pk-toolbar button:not([disabled])"))?.focus()}
-                            />
-                        </div>
-                        {drawerOpen ? <div className="pk-scrim pk-drawer-scrim" onClick={() => setDrawer(false)} aria-hidden="true" /> : null}
+                <PivotDnd labels={labels} onDrop={placing.onDrop} renderOverlay={(src) => <DragChip src={src} typeOf={fields.typeOf} />} onDragStart={(src) => void (src.kind === "field" && drawer.closeIfNarrow())}>
+                    <div className={`pk-layout${drawer.open ? " pk-drawer-open" : ""}`}>
+                        <FieldSlot slotRef={panelRef} root={root} labels={labels} fields={fields} placing={placing} drawer={drawer} dismissed={dismissed} announce={announce} />
                         <div className="pk-main" ref={mainRef}>
-                            <Toolbar
-                                view={view}
-                                labels={labels}
-                                size={size}
-                                canUndo={history.canUndo || dataSteps.past.length > 0}
-                                canRedo={history.canRedo || dataSteps.future.length > 0}
-                                canReset={history.canReset}
-                                startEmpty={history.startEmpty}
-                                canNew={!empty}
-                                onUndo={undo}
-                                onRedo={redo}
-                                onReset={reset}
-                                onNew={newReport}
-                                loadedView={loadedView ? { name: loadedView.name, changed: unsaved } : null}
-                                share={share}
-                                templates={entries}
-                                onLoadTemplate={openTemplate}
-                                templateActions={templateActions}
-                                onExport={doExport}
-                                prepareExport={prepareExport}
-                                dataExport={{ exportData, encoded }}
-                                chartReady={chartShown && chartReady}
-                                display={shown}
-                                empty={empty}
-                                onShowFields={() => setDrawer(true)}
-                                tipsControls={allowed !== "off"}
-                                tipsOn={tipsOn}
-                                onTipsOn={(on) => changeDismissed(on ? dismissed.filter((id) => id !== ALL_TIPS) : [...dismissed, ALL_TIPS], on ? null : ALL_TIPS)}
-                                canResetTips={dismissed.some((id) => !keptOnReset(id))}
-                                onResetTips={() => changeDismissed(dismissed.filter(keptOnReset), null)}
-                                help={{
-                                    explanations: explainUser ? { on: !dismissed.includes(NO_EXPLANATIONS), set: (on) => toggle(NO_EXPLANATIONS, on) } : null
-                                }}
-                                viewsRequest={viewsRequest}
-                                data={allowImport ? { loaded: Boolean(imported), panel: (/** @type {() => void} */ close) => <MenuPanel name="DataMenu" loadingText={labels.loadingMenu} props={{ api, close, labels }} /> } : null}
-                            />
-                            <Zones
-                                view={view}
-                                types={types}
-                                labels={labels}
-                                commit={commit}
-                                encoded={encoded}
-                                locale={dateLocale}
-                                onSwap={() => commit(swapAxes(view), { step: "swap" })}
-                                id={zonesId}
-                                folded={layoutFolded}
-                                onFold={() => setFolded(!layoutFolded)}
-                                defaultsOf={defaultsOf}
-                                infoOf={infoOf}
-                                titleOf={titleOf}
-                                earlier={history.earlier}
-                                explain={zoneSwitch.on}
-                                showInfo={fieldSwitch.on}
-                                adding={adding}
-                            />
-                            {linkCheck ? (
-                                <div className="pk-link-check" data-testid="link-check">
-                                    <MenuPanel name="LoadCheck" props={{ check: linkCheck, labels, title: labels.linkCheckTitle, quiet: linkCheck.quiet, close: () => setLinkCheck(null), onCancel: cancelLink }} />
-                                </div>
-                            ) : null}
-                            {/* what a loaded view left out and what the view asks for that this data has not: it stays
-                                (the status note goes by itself) until it is dismissed */}
-                            <Unused
-                                notes={notes}
-                                notesKey={notesKey}
-                                dismissed={issuesDismissed === notesKey}
-                                onDismiss={(next) => {
-                                    setIssuesDismissed(notesKey);
-                                    // what follows the warning, else the report
-                                    next?.focus({ preventScroll: true });
-                                    if (!next || activeIn(next) !== next) {
-                                        root.current?.focus({ preventScroll: true });
-                                    }
-                                }}
-                                labels={labels}
-                                locale={result?.locale ?? unusedLocale}
-                                narrow={size === "narrow"}
-                                // the status note "View loaded; some parts did not fit this data" said it
-                                quiet={unusedSaid && !fromHost}
-                            />
-                            <Tips
-                                tips={shownTips}
-                                labels={labels}
-                                onDismiss={(id) => changeDismissed([...dismissed, id], id)}
-                                onAction={runTip}
-                                focusFallback={() => root.current?.focus({ preventScroll: true })}
-                            />
-                            {showTable && view.values.length ? (
-                                <p id={hintId} className="pk-sr" data-testid="cell-hint">
-                                    {labels.tips.cells}
-                                </p>
-                            ) : null}
-                            {/* while enlarged, the fields in one line: what the result shows, without the zones */}
-                            {big.enlarged ? (
-                                <p className="pk-enlarged-fields" data-testid="enlarged-fields">
-                                    {summaryText}
-                                </p>
-                            ) : null}
-                            <ViewTabs
-                                view={view}
-                                labels={labels}
-                                panelId={resultId}
-                                narrow={size === "narrow"}
-                                shown={shown}
-                                // side by side needs a wide report (#51)
-                                both={size === "wide"}
-                                big={big}
-                                plan={plan}
-                                encoded={encoded}
-                                lineChecks={lineChecks?.view === view ? lineChecks.checks : null}
-                                locale={locale}
-                                chartSeries={series}
-                                chartColors={{ chart: chartRef }}
-                                onDisplay={(d) => commit(setDisplay(view, d), { step: "display", display: d })}
-                                onChart={(p) => commit(setChart(view, p), { step: "chart", type: p })}
-                                onChartDisplay={(patch) => commit(setChartDisplay(view, patch), { step: "chartDisplay" })}
-                                onTotal={(key, on) => commit(setTotal(view, key, on), { step: "totals" })}
-                                onExpand={expandAll}
-                                onCollapse={collapseAll}
-                                folding={folding}
-                            />
-                            <section className="pk-result" id={resultId} role="tabpanel" aria-labelledby={tabId(resultId, shown)}>
-                                {loading || opening ? (
-                                    <Skeleton text={labels.loadingReport} />
-                                ) : error ? (
-                                    <div className="pk-message pk-error" role="alert">
-                                        <Icon name="info" />
-                                        <p>{errorText(error, labels, locale)}</p>
-                                    </div>
-                                ) : empty && tableShown ? (
-                                    <EmptyState labels={labels} templates={entries} onTemplate={openTemplate} onLoad={allowImport ? () => requestImport().then((m) => m.pickFile(fileInput.current), () => announce(labels.menuFailed, { tone: "error" })) : undefined} noData={allowImport && fields.length === 0} />
-                                ) : shown === "both" ? (
-                                    <SideBySide labels={labels} split={split} onSplit={setSplit} table={gridState.grid ? tableEl : null} chart={chartResult ? chartEl : null} />
-                                ) : shown === "chart" && chartResult ? (
-                                    chartEl
-                                ) : gridState.grid ? (
-                                    tableEl
-                                ) : null}
-                            </section>
-                            <div className="pk-status">
-                                <span className="pk-row-count" data-testid="row-count">
-                                    {result ? rowCount(result.rows.length, result.encoded.length, labels, locale) : ""}
-                                </span>
-                                {context.ranges.map(({ field, text }) => <span key={field} data-testid="date-range" title={fill(labels.dateRangeTitle, { field: fieldLabel(field, labels.core) })}>{context.ranges.length > 1 ? fill(labels.dateRangeField, { field: fieldLabel(field, labels.core), range: text }) : fill(labels.dateRangeData, { range: text })}</span>)}
-                                {importMod ? <importMod.SourceLine api={api} /> : null}
-                                {rowLabel && showTable ? (
-                                    <span className="pk-row-label" data-testid="row-label">
-                                        {fill(labels.rowLabel, { label: rowLabel })}
-                                    </span>
-                                ) : null}
-                            </div>
+                            <ReportToolbar view={view} labels={labels} size={size} shown={shown} empty={empty} exportData={exportData} history={history} data={data} steps={steps} loads={loads} saved={saved} share={link.context} exporting={exporting} chartReady={pivot.chartShown && chart.ready} drawer={drawer} dismissed={dismissed} dataMenu={allowImport ? { api } : null} />
+                            <Zones view={view} types={fields.types} labels={labels} commit={commit} encoded={encoded} locale={fields.dateLocale} onSwap={results.onSwap} id={zonesId} folded={fold.folded} onFold={() => fold.setFolded(!fold.folded)} defaultsOf={fields.defaultsOf} infoOf={fields.infoOf} titleOf={fields.titleOf} earlier={history.earlier} explain={dismissed.explainZones} showInfo={dismissed.showFieldInfo} adding={placing.adding} />
+                            <AboveResult labels={labels} view={view} types={fields.types} context={pivot.context} narrow={drawer.narrow} enlarged={big.enlarged} hint={pivot.tableOnScreen && view.values.length ? hintId : null} link={link} notes={notes} tips={tips} onTipDismiss={dismissed.dismiss} focusReport={focusReport} />
+                            <ResultArea id={resultId} hintId={hintId} view={view} labels={labels} locale={locale} size={size} themeName={themeName} root={root} big={big} waiting={loading || link.opening} encoded={encoded} viewKey={history.viewKey} pivot={pivot} chart={chart} chartHost={host} drill={drill} fields={fields} showInfo={dismissed.showFieldInfo} onSort={placing.sortFromHeader} steps={results} empty={startScreen} source={imp.mod ? <imp.mod.SourceLine api={api} /> : null} />
                             {/* the status notes at the bottom edge of what is on screen of the report */}
                             <div className="pk-toast-dock">
                                 <Toasts toasts={toasts} dismiss={dismiss} pause={pause} closeLabel={labels.close} />
                             </div>
                         </div>
                         {/* inside the layout: clipped to the report's box with it (its slide-in too) */}
-                        {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels: context.labels, locale, exportContext: { encoded, onExport, announce, root, exportData, drillDownExport } }} /> : null}
+                        {drill.drill ? <MenuPanel name="DrillPanel" props={{ drill: drill.drill, onClose: drill.closeDrill, labels: pivot.context.labels, locale, exportContext: { encoded, onExport, announce, root, exportData, drillDownExport } }} /> : null}
                     </div>
                     {/* the filter and the drill-down load with the menus (lazy-menus.jsx) */}
-                    {filterTarget ? <MenuPanel name="FilterPopover" props={{ target: filterTarget, onClose: closeFilter, view, encoded, locale, labels, commit }} /> : null}
-                    {pointTarget ? <MenuPanel name="PointMenu" props={{ target: pointTarget, onClose: () => setPointTarget(null), onRows: openPoint, view, encoded, locale, labels, commit, showRows: drillDown || Boolean(onCellClick) }} /> : null}
+                    {placing.filterTarget ? <MenuPanel name="FilterPopover" props={{ target: placing.filterTarget, onClose: placing.closeFilter, view, encoded, locale, labels, commit }} /> : null}
+                    {drill.point ? <MenuPanel name="PointMenu" props={{ target: drill.point, onClose: drill.closePoint, onRows: drill.openPoint, view, encoded, locale, labels, commit, showRows: drill.pointRows }} /> : null}
                 </PivotDnd>
                 {/* loading data: the file input, the drop overlay, the preview (import-host.jsx) */}
-                {allowImport && importMod ? <importMod.ImportLayer api={api} input={fileInput} /> : null}
+                {allowImport && imp.mod ? <imp.mod.ImportLayer api={api} input={imp.fileInput} /> : null}
                 <div className="pk-layer" ref={setLayer}>
                     {/* a fixed probe at 0, 0: where fixed popovers start (popover.jsx) */}
                     <span className="pk-origin" aria-hidden="true" />

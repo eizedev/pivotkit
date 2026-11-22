@@ -2,7 +2,7 @@
  * What the Views menu's sharing does (toolbar-panels.jsx: ShareSection): copy a link, copy the view as
  * JSON, download it as a view file, and load one that was pasted or chosen. Loaded with the menus
  * (menus.js), so the first load holds only what reads a link at the start (share.js); the report passes
- * what it knows (PivotReport: the `share` context), the menu its texts (with the menus' own).
+ * what it knows (use-share-link.js: the share context), the menu its texts (with the menus' own).
  */
 
 import { toViewFile, viewFileName, viewFileText } from "pivotkit-core";
@@ -16,7 +16,7 @@ import { VERSION } from "./version.js";
 const here = () => (typeof location !== "undefined" ? location.href : undefined);
 
 /**
- * @typedef {object} ShareContext  what the report passes (PivotReport.jsx)
+ * @typedef {object} ShareContext  what the report passes (use-share-link.js)
  * @property {boolean} canLink  the host allows links (shareLink) and the page has an address
  * @property {(() => void) | undefined} prepare  starts loading pivotkit-core/link, so a copy happens in the click
  * @property {any} view  the view shown

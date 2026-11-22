@@ -8,7 +8,7 @@
 import { fieldLabel, findNode, formatter, isFormat } from "pivotkit-core";
 
 /**
- * What the report hands the panel (PivotReport: a click on a value): the result, the cell's paths,
+ * What the report hands the panel (use-drill.js: a click on a value): the result, the cell's paths,
  * the rows found (drillRows) and how the report names, describes and formats a field.
  * @typedef {{ result: import("pivotkit-core").PivotResult, rowPath: unknown[], colPath: unknown[], count: number, indices: ArrayLike<number>,
  *   formatOf: (field: string) => unknown, nameOf: (field: string) => string, infoOf: (field: string) => { description?: string } | null | undefined }} DrillSource

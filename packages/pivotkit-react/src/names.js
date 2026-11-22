@@ -21,7 +21,7 @@ export const valueLabels = (values, labels) => numberRepeats(values.map((v) => v
  * The name a field has without the report's own (#158): the host's display name, else the field's.
  * The placeholder of its Name level, and the field list's second line under a renamed field.
  * @param {string} field
- * @param {any} labels  the report's labels (PivotReport: hostNames when the view renames a field)
+ * @param {any} labels  the report's labels (use-report-labels.js: hostNames when the view renames a field)
  */
 export function sourceFieldName(field, labels) {
     return fieldLabel(field, { fields: labels.hostNames !== undefined ? labels.hostNames : labels.core?.fields });

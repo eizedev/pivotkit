@@ -248,6 +248,23 @@ function Zone({ zone, entries, labels, children, explain, add }) {
 const SAY_AFTER = 100;
 const SAY_FOR = 8000;
 
+/**
+ * The chip under the pointer while a field or a chip is dragged (dnd.jsx: renderOverlay).
+ * @param {{ src: { field: string, type?: string, label?: string }, typeOf: (field: string) => string }} props
+ */
+export function DragChip({ src, typeOf }) {
+    const type = src.type ?? typeOf(src.field);
+    return (
+        <div className="pk-chip pk-overlay">
+            <Icon name="grip" size={14} />
+            <span className={`pk-type pk-type-${type}`}>
+                <Icon name={/** @type {any} */ (TYPE_ICON[type] ?? "text")} size={13} />
+            </span>
+            <span className="pk-chip-text">{src.label ?? src.field}</span>
+        </div>
+    );
+}
+
 /** Chip entries of every zone: id, field, text, type (of the source field: a grouped date stays a date). */
 export function zoneEntries(view, types, labels) {
     const typeOf = (f) => types.get(String(sourceOf(view, f)).toLowerCase()) ?? "string";
