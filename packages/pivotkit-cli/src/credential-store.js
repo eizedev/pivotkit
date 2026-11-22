@@ -16,7 +16,7 @@
 
 import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { chmod, link, lstat, mkdir, open, readFile, rename, stat, unlink, utimes } from "node:fs/promises";
+import { chmod, lstat, mkdir, open, readFile, stat, unlink, utimes } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { CliError } from "./errors.js";
@@ -249,23 +249,56 @@ export const fileStoreText = () => (storeMeans.platform === "win32" ? "a file in
 /** Whether the lock file at `path` still holds this run's id. */
 const ownsLock = (path, id) => readFile(path, "utf8").then((text) => text === id, () => false);
 
+/** A takeover lock older than this is a crashed run's: a takeover takes milliseconds. */
+const guardStaleMs = () => Math.min(GUARD_STALE_MS, storeMeans.lockStaleMs);
+const GUARD_STALE_MS = 10_000;
+
+/** The takeover lock beside a lock file (takeOver). */
+const guardOf = (path) => `${path}.takeover`;
+
+/** A file's age in ms, or null when it is not there. */
+const ageOf = (file) => stat(file).then((info) => Date.now() - info.mtimeMs, () => null);
+
+/** Removes a takeover lock a crashed run left (older than guardStaleMs). */
+async function clearCrashedGuard(path) {
+    if (((await ageOf(guardOf(path))) ?? 0) > guardStaleMs()) {
+        await unlink(guardOf(path)).catch(() => undefined);
+    }
+}
+
 /**
- * Takes over a stale lock: renamed to a name of this run, so only one run gets it. When the renamed
- * lock turns out live (a newer run made it after the age was read), it goes back with link(), which
- * never replaces a lock made since.
+ * Takes over a stale lock, for a run that read its age as stale. Only one run at a time may: it
+ * holds a second lock, the takeover lock, made with O_EXCL. Holding it, the run reads the lock's
+ * age again and removes the lock only if it is still stale, so a lock another run made since the
+ * first read is never moved. A run that makes a lock while a takeover lock is there backs off
+ * (locked), so a lock made between the age and the removal is never used. A takeover lock older
+ * than guardStaleMs is a crashed run's and is removed. Exported for the tests.
+ * @param {string} path  the lock file
+ * @returns {Promise<boolean>}  whether this run removed the stale lock
  */
-async function takeOver(path, id) {
-    const aside = `${path}.${id}.stale`;
+export async function takeOver(path) {
+    const guard = guardOf(path);
+    let handle;
     try {
-        await rename(path, aside);
-    } catch {
-        return;
+        handle = await open(guard, "wx", 0o600);
+    } catch (e) {
+        if (/** @type {any} */ (e)?.code === "EEXIST") {
+            await clearCrashedGuard(path);
+        }
+        return false;
     }
-    const age = await stat(aside).then((info) => Date.now() - info.mtimeMs, () => Infinity);
-    if (age <= storeMeans.lockStaleMs) {
-        await link(aside, path).catch(() => undefined);
+    try {
+        await handle.close();
+        if (((await ageOf(path)) ?? 0) > storeMeans.lockStaleMs) {
+            return await unlink(path).then(
+                () => true,
+                () => false
+            );
+        }
+        return false;
+    } finally {
+        await unlink(guard).catch(() => undefined);
     }
-    await unlink(aside).catch(() => undefined);
 }
 
 /** Writes a file only its owner reads, through a temporary file. */
@@ -349,9 +382,9 @@ export function credentialStore(env) {
     /**
      * Runs `work` while this process alone may refresh the server's token: a lock file made with
      * O_EXCL that holds a random id. While held, its time is renewed every lockBeatMs, so a lock
-     * whose time is older than lockStaleMs is a crashed run's. Such a lock is taken over by
-     * renaming it to a name of this run first, so two runs cannot both take it; a lock found live
-     * after the rename goes back. The owner removes only a lock that still holds its own id.
+     * whose time is older than lockStaleMs is a crashed run's. One run at a time takes such a lock
+     * over (takeOver), and only while it is still stale; a run that made its lock during a takeover
+     * backs off. The owner removes only a lock that still holds its own id.
      * @template T
      * @param {string} resource
      * @param {() => Promise<T>} work
@@ -368,15 +401,23 @@ export function credentialStore(env) {
                 const handle = await open(path, "wx", 0o600);
                 await handle.writeFile(id);
                 await handle.close();
-                break;
+                // a takeover runs: it may have read the lock before this one as stale and remove
+                // this one, so this run backs off and tries again
+                if (!(await lstat(guardOf(path)).then(() => true, () => false))) {
+                    break;
+                }
+                if (await ownsLock(path, id)) {
+                    await unlink(path).catch(() => undefined);
+                }
+                await clearCrashedGuard(path);
             } catch (e) {
                 if (/** @type {any} */ (e)?.code !== "EEXIST") {
                     throw e;
                 }
             }
             const age = await stat(path).then((info) => Date.now() - info.mtimeMs, () => 0);
-            if (age > storeMeans.lockStaleMs) {
-                await takeOver(path, id);
+            // a takeover that removed the lock tries again at once; one that did not waits as any run
+            if (age > storeMeans.lockStaleMs && (await takeOver(path))) {
                 continue;
             }
             if (Date.now() - start > storeMeans.lockWaitMs) {

@@ -8,6 +8,10 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Fixed
 
+- Two runs that sign in at once never hold the refresh lock together. A run that read a crashed
+  run's lock as stale moved it aside to take it over, also when another run had just taken it over.
+  A third run could then get in beside that run. Now one run at a time takes a lock over, and only
+  while it is still stale ([#717](https://github.com/eizedev/pivotkit/issues/717)).
 - `pivotkit login`, `token` and `logout` send the user agent `pivotkit-cli/<version>` to the server
   and its issuer, as the REST calls do. They sent Node's default `node`, or none to a loopback
   address ([#628](https://github.com/eizedev/pivotkit/issues/628)).
