@@ -51,8 +51,8 @@ export function isoWeek(ms) {
 
 /**
  * "Jan" for 1: the month number of the data (1 to 12), a Gregorian month, in the locale's language,
- * also for a locale of another calendar ("en-US-u-ca-islamic-civil"). The month grouping's label, and
- * pivotkit-react's month names around it.
+ * also for a locale of another calendar ("en-US-u-ca-islamic-civil"). Another number wraps (0 is
+ * December). The month grouping's label; pivotkit-react names its months with it too.
  * @param {number} month
  * @param {string} locale
  * @returns {string}
