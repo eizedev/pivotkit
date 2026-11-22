@@ -8,11 +8,8 @@
  * the same way round. A new step of either kind drops what was undone (withoutFuture). Each data set
  * kept is memory, so at most DATA_STEPS steps are kept back and forth together, the oldest going first.
  * Pure: the data and the histories are values the report hands in. Loaded with the import UI (the
- * report has data steps only once a file was loaded); what the report needs before that is in
- * data-steps.js.
+ * report has data steps only once a file was loaded).
  */
-
-export { NO_DATA_STEPS, withoutFuture } from "./data-steps.js";
 
 /** Data steps kept for Undo and Redo together: each may hold a whole data set. */
 export const DATA_STEPS = 3;
@@ -25,6 +22,9 @@ export const DATA_STEPS = 3;
  *
  * @typedef {{ past: DataStep[], future: DataStep[] }} DataSteps
  */
+
+/** No data steps. */
+export const NO_DATA_STEPS = Object.freeze({ past: Object.freeze([]), future: Object.freeze([]) });
 
 /**
  * A new data step: the data shown before it, with its history, goes into the past; what was undone
@@ -67,6 +67,13 @@ export function redoData(steps, now) {
     }
     return { steps: { past: [...steps.past, { data: now.data, history: now.history, note: step.note }], future: steps.future.slice(0, -1) }, step };
 }
+
+/**
+ * The steps without what was undone: a new step of the view drops the data steps undone before it.
+ * @param {DataSteps} steps
+ * @returns {DataSteps}
+ */
+export const withoutFuture = (steps) => (steps.future.length ? { past: steps.past, future: [] } : steps);
 
 /**
  * The history the host's data had when it was left last (for "Back to original data": its view comes

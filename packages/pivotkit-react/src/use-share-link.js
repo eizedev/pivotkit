@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { linkNow, loadCheck, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, writeStoredView } from "./share.js";
+import { linkNow, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, writeStoredView } from "./share.js";
 import { useIsoLayoutEffect } from "./iso.js";
 
 /** The page's address and fragment, or undefined outside a browser. */
@@ -24,67 +24,10 @@ function sessionStore() {
 }
 
 /**
- * @typedef {object} LinkReport  the report as a link meets it, at the moment it is opened
- * @property {any} history
- * @property {import("pivotkit-core").Encoded} encoded
- * @property {object | undefined} limits
- * @property {any} labels
- * @property {(text: string, extra?: object) => void} announce
- * @property {string | undefined} sourceId
- * @property {(loaded: import("./share.js").LoadedView, how?: { link?: boolean, restored?: boolean }) => void} loaded
- * @property {unknown} sources
- * @property {unknown} onSourceSwitch
- */
-
-/**
- * Opens the view of a link with the link module `m`: at once, or after the check for other data.
- * @param {any} m  pivotkit-core/link
- * @param {string} text  the link
- * @param {boolean} asStep  a step Undo takes back, else where the report starts (a new history)
- * @param {LinkReport} report
- * @param {(check: any) => void} setCheck
- */
-function openWith(m, text, asStep, report, setCheck) {
-    const { history: h, encoded: enc, limits: lim, labels: l, announce: say, sourceId: id, loaded: done, sources: list, onSourceSwitch: switchTo } = report;
-    const decoded = m.decodeViewLink(text);
-    // a link carries a view file (its link profile) or, made before it, a bare view
-    const loaded = decoded.view ? viewFromObject(decoded.view, enc, { limits: lim, sourceId: id }) : null;
-    if (!loaded || !loaded.view) {
-        say(loaded?.failed === "newer" ? l.viewFailed.newer : l.viewFailed.badLink, { tone: "error" });
-        return;
-    }
-    const open = () => {
-        if (asStep) {
-            done(loaded, { link: true });
-        } else {
-            h.restore(/** @type {object} */ (loaded.view));
-            done(loaded, { link: true, restored: true });
-        }
-    };
-    // a link made for other data asks first, as a pasted view does
-    const check = loadCheck(loaded, l, Array.isArray(list) ? list : []);
-    if (!check) {
-        open();
-        return;
-    }
-    const target = check.switchTo;
-    setCheck({
-        lines: check.lines,
-        quiet: !asStep,
-        load: open,
-        switchTo:
-            target && typeof switchTo === "function"
-                ? { name: target.name, run: () => switchTo({ source: { id: target.id, name: target.name }, view: /** @type {Record<string, unknown>} */ (loaded.file?.view ?? loaded.view), name: loaded.file?.name || undefined }) }
-                : undefined
-    });
-}
-
-/**
  * @param {import("./index.js").PivotReportProps} props
- * @param {{ latest: React.MutableRefObject<LinkReport>, kept: boolean, history: any, encoded: import("pivotkit-core").Encoded,
- *   limits: object | undefined } & Parameters<typeof shareContext>[1]} report  latest: the report as it is when a link
- *   opens (filled after every render); kept: the report was mounted again with its file's data (data-keep.js): its own
- *   view comes back
+ * @param {{ latest: React.MutableRefObject<import("./link-open.js").LinkReport>, kept: boolean, history: any, encoded: import("pivotkit-core").Encoded,
+ *   limits: object | undefined } & ShareParts} report  latest: the report as it is when a link opens (filled after
+ *   every render); kept: the report was mounted again with its file's data (data-keep.js): its own view comes back
  */
 export function useShareLink(props, report) {
     const { latest, kept, history, encoded, limits } = report;
@@ -98,14 +41,14 @@ export function useShareLink(props, report) {
         appliedLink.current = text;
         const now = linkNow();
         if (now) {
-            openWith(now, text, asStep, latest.current, setCheck);
+            now.openWith(text, asStep, latest.current, setCheck);
             return;
         }
         setOpening(true);
         loadLink().then(
             (m) => {
                 setOpening(false);
-                openWith(m, text, asStep, latest.current, setCheck);
+                m.openWith(text, asStep, latest.current, setCheck);
             },
             () => {
                 setOpening(false);
@@ -170,13 +113,18 @@ export function useShareLink(props, report) {
 }
 
 /**
+ * What the Share menu needs of the report besides its props.
+ * @typedef {{ view: import("pivotkit-core").View, viewName: string | null, data: { sourceId?: string, sourceName?: string, sourceParams?: Record<string, string> },
+ *   encoded: import("pivotkit-core").Encoded, limits: object | undefined, root: React.RefObject<HTMLElement | null>,
+ *   announce: (text: string, extra?: object) => void, fileName: string, viaSheet: (made: { id?: string | null, sheet?: string | null }, name: string, file: object) => "switch" | "missing" | "none",
+ *   applyLoaded: (loaded: import("./share.js").LoadedView) => void }} ShareParts
+ */
+
+/**
  * What the toolbar's Share menu works with (share-actions.js, loaded with the menus): a link when the
  * host allows it, the view as a view file, and loading one.
  * @param {import("./index.js").PivotReportProps} props
- * @param {{ view: import("pivotkit-core").View, viewName: string | null, data: { sourceId?: string, sourceName?: string, sourceParams?: Record<string, string> },
- *   encoded: import("pivotkit-core").Encoded, limits: object | undefined, root: React.RefObject<HTMLElement | null>,
- *   announce: (text: string, extra?: object) => void, fileName: string, viaSheet: (made: { id?: string | null, sheet?: string | null }, name: string, file: object) => "switch" | "missing" | "none",
- *   applyLoaded: (loaded: import("./share.js").LoadedView) => void }} report
+ * @param {ShareParts} report
  * @returns {import("./share-actions.js").ShareContext}
  */
 function shareContext(props, { view, viewName, data, encoded, limits, root, announce, fileName, viaSheet, applyLoaded }) {

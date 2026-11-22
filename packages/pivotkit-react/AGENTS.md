@@ -24,7 +24,7 @@ Check a UI change in the playground: light and dark theme, wide and narrow.
 
 ## Where things go
 
-- `PivotReport.jsx` composes the report from hooks and parts. Its header lists the hooks in call order.
+- `PivotReport.jsx` composes the report from hooks and parts. Its header lists the hooks by concern.
 - Each concern of the report is a hook in its own file, `use-<concern>.js`. A new state or effect goes there, not into `Report`.
 - `use-steps.js` defines `commit()`, Undo, Redo and Reset.
 - `use-view-history.js` owns the view and its undo history, controlled or not.

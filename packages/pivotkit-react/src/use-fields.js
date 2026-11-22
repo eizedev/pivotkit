@@ -76,5 +76,5 @@ export function useFields({ view, encoded, labels, info, fieldDefaults, orderOf,
     const placed = useMemo(() => placedZones(view), [view]);
     /** A field's settings: the host's (fieldDefaults), and an identifier's own when the host says nothing (field-info.js). */
     const defaultsOf = useCallback((field) => fieldDefaultsFor(fieldDefaults, field, encoded.column(field)), [fieldDefaults, encoded]);
-    return { fields: /** @type {import("pivotkit-core").SchemaField[]} */ (encoded.schema.fields), dateLocale, types, typeOf, nameOf, sourceNameOf, hostOrdered, titleOf, infoOf, fieldInfo, placed, defaultsOf };
+    return { described: [...fieldInfo.values()].some((i) => i.description), fields: /** @type {import("pivotkit-core").SchemaField[]} */ (encoded.schema.fields), dateLocale, types, typeOf, nameOf, sourceNameOf, hostOrdered, titleOf, infoOf, fieldInfo, placed, defaultsOf };
 }

@@ -9,15 +9,15 @@
 import { VIEW_FILE_LIMITS, fromViewFile, linkFragment, normalize, outsideLimits, withLinkFragment } from "pivotkit-core";
 import { fill } from "./labels.js";
 
-/** @type {Promise<typeof import("pivotkit-core/link")> | null} */
+/** @type {Promise<typeof import("./link-open.js")> | null} */
 let linkModule = null;
 /** The link module once loaded: a click can then encode without waiting (a browser may allow a copy only within the click). */
-/** @type {typeof import("pivotkit-core/link") | null} */
+/** @type {typeof import("./link-open.js") | null} */
 let linkLoaded = null;
 
-/** pivotkit-core/link (fflate), loaded once, on first use. */
+/** pivotkit-core/link (fflate) with opening a link's view (link-open.js), loaded once, on first use. */
 export function loadLink() {
-    linkModule ??= import("pivotkit-core/link").then((m) => {
+    linkModule ??= import("./link-open.js").then((m) => {
         linkLoaded = m;
         return m;
     });

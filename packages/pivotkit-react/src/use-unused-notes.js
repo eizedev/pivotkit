@@ -59,12 +59,15 @@ export function useUnusedNotes(props, { imported, encoded, limits, keyOf, view, 
     }, [hostKey, loading, imported, encoded, limits, keyOf]);
     /**
      * A view was loaded from outside: what it left out (`given`: the view as given, null for none) and
-     * whether its status note says so.
+     * whether its status note says so. `reopen`: a warning dismissed before shows again (New, which
+     * loads nothing, leaves a dismissed host's warning dismissed when the host gives it again).
      */
     const noteLoad = useCallback(
-        (/** @type {import("./unused.jsx").UnusedNote[]} */ notes, /** @type {object | null} */ given, /** @type {boolean} */ saidSo) => {
+        (/** @type {import("./unused.jsx").UnusedNote[]} */ notes, /** @type {object | null} */ given, /** @type {boolean} */ saidSo, reopen = true) => {
             setLeftOut({ notes, loaded: given ? JSON.parse(keyOf(given)) : null, after: hostKey });
-            setDismissedKey(null);
+            if (reopen) {
+                setDismissedKey(null);
+            }
             setLoads((x) => x + 1);
             setSaid(saidSo);
         },

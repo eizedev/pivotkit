@@ -4,7 +4,7 @@
  * button runs. The notices (the result is cut or empty) come first, from notices.js, which the first
  * load has. The tips follow: at most TIP_LIMIT at a time, the most important first, each can be
  * dismissed, and a host can allow some or none (the `tips` prop). A new tip is one row here, its id in
- * tip-state.js, its text in every language and, for a button, its action in PivotReport.
+ * tip-state.js, its text in every language and, for a button, its action in use-tips.js (tipStep).
  */
 
 import { CATALOG, stacksToPercent, suggestDateUnit, valueAddsUp } from "pivotkit-core";

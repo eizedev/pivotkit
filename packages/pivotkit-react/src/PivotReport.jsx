@@ -11,12 +11,13 @@
  * after the first render, so a server render and its hydration match, and both pass normalize()
  * (use-share-link.js).
  *
- * The hooks, in the order Report calls them (their effects run in that order):
+ * The hooks Report calls, by concern (each file says what it holds; effects run in call order, and
+ * Report keeps the order that refs filled after a render rely on):
  *
  * - use-host-props.js: the host's props compared by value, and the warnings about them
  * - use-report-size.js, use-drawer.js: width and height classes, Enlarge, the field list's drawer
- * - use-shown-data.js: the host's data encoded, or a loaded file's; what a new mount keeps
- * - use-import.js: the import UI's state and the object it works on
+ * - use-shown-data.js: the host's data encoded, or a loaded file's; useKeepData, what a new mount keeps
+ * - use-import.js: the import UI's state (useImport) and the object it works on (useImportApi)
  * - use-view-history.js, use-report-labels.js, use-pivot-result.js, use-fields.js: the view, its
  *   texts, what is computed from it and what the parts ask about its fields
  * - use-zone-fold.js, use-tips.js (useActivity), use-steps.js: the zones folded, what the user did,
@@ -25,6 +26,9 @@
  *   they left out
  * - use-dismissed.js, use-menus.js, use-saved-views.js, use-drill.js, use-placing.js,
  *   use-chart-state.js, use-export.js: the rest of what the toolbar, the zones and the result need
+ *
+ * useLabelsOf and useTipsTable stay in this file: they read deferred.js, which only this file may
+ * import (build.js: deferredFile).
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -228,7 +232,7 @@ function Report(props) {
     const { commit } = steps;
     const notes = useUnusedNotes(props, { imported, encoded, limits, keyOf: history.keyOf, view, result: pivot.result, empty, locale });
     const loads = useViewLoading(props, { history, encoded, limits, labels, locale, announce, sourceId: data.sourceId, empty, commit, undoAction: steps.undoAction, remember: data.remember, noteLoad: notes.noteLoad, viaSheet: imp.viaSheet, runAfterSheet: imp.runAfterSheet });
-    const dismissed = useDismissed(props, { size, describedFields: [...fields.fieldInfo.values()].some((i) => i.description) });
+    const dismissed = useDismissed(props, { size, describedFields: fields.described });
     const { menus, help } = useMenus(labels, dismissed.explainSettings);
     const saved = useSavedViews(props, { menus, shown: data, history, view, empty, locale, announce, latest: loads.latest, noteSaved: activity.noteSaved });
     // sharing: a link (when the host allows it), the view as a view file (JSON, a file), loading one

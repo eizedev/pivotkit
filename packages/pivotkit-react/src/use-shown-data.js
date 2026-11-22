@@ -9,13 +9,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { encode } from "pivotkit-core";
 import { forgetData, hostIdentity, keepData, keptData } from "./data-keep.js";
-import { NO_DATA_STEPS, withoutFuture } from "./data-steps.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { measured } from "./measure.js";
 import { schemaKeyOf } from "./use-view-history.js";
 
 /** The host's data as encode() takes it: rows, or columnar ({ columns, types, data }, one array per column). */
 const dataOf = (d) => (Array.isArray(d) || Array.isArray(d?.columns) ? d : []);
+
+/**
+ * No data steps (data-history.js), and a new step of the view dropping those undone: here as well as
+ * there, since data-history.js loads with the import UI and a module the first load shares with it
+ * would be a file of its own in the first load.
+ */
+const NO_DATA_STEPS = Object.freeze({ past: [], future: [] });
+const withoutFuture = (s) => (s.future.length ? { past: s.past, future: [] } : s);
 
 /** @type {readonly string[]} */
 const NO_SHEETS = Object.freeze([]);
