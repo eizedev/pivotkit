@@ -4,13 +4,26 @@
  * composed path, and Escape closes only the topmost layer (popover, dialog, drawer) of a page.
  */
 
-import { createContext, useContext, useEffect, useId, useRef } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useSyncExternalStore } from "react";
 
 /**
- * The prefix of the names of a report's form fields (PivotReport sets one per report instance, after
+ * The prefix of the names of a report's form fields (useFormPrefix sets one per report instance, after
  * mounting: React's useId is unique inside one React root only, and two web components are two roots).
  */
 export const FormNameContext = createContext("pk");
+
+/** A subscription to something that never changes (useSyncExternalStore of a value chosen once). */
+const staysTheSame = () => () => undefined;
+
+/**
+ * The prefix of this report's form field names, for FormNameContext: chosen in the browser, so a server
+ * render and its hydration agree (the server's snapshot is the plain prefix).
+ * @returns {string}
+ */
+export function useFormPrefix() {
+    const own = useRef(/** @type {string | null} */ (null));
+    return useSyncExternalStore(staysTheSame, () => (own.current ??= `pk-${Math.random().toString(36).slice(2, 8)}`), () => "pk");
+}
 
 /**
  * A name for a form field (input, select, textarea) of this report: browsers autofill and restore by
@@ -22,6 +35,12 @@ export function useFormName() {
     const prefix = useContext(FormNameContext);
     return `${prefix}-${useId().replace(/[^A-Za-z0-9_-]/g, "")}`;
 }
+
+/**
+ * True while a popover or menu of the report is open in its layer (the layer also holds a probe).
+ * @param {HTMLElement | null | undefined} layer
+ */
+export const layerOpen = (layer) => Boolean(layer && [...layer.children].some((c) => !c.classList.contains("pk-origin")));
 
 /** Elements that can take the focus (by Tab or not: tabStops says which Tab stops at). */
 export const FOCUSABLE = "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])";

@@ -13,7 +13,7 @@ import { valueLabel } from "../src/names.js";
 import { de } from "../src/unused-texts-de.js";
 import { en, unusedItem, unusedItems } from "../src/unused-texts.js";
 import { UNUSED_TEXTS_OF, loadUnused, unusedNow, unusedTexts } from "../src/unused-load.js";
-import { partOf, stillApplies } from "../src/unused-keep.js";
+import { partOf, stillApplies, unusedNotes } from "../src/unused-keep.js";
 
 const data = encode(SALES);
 const keys = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" && !Array.isArray(v) ? keys(v, `${p}${k}.`) : [`${p}${k}`])).sort();
@@ -180,4 +180,15 @@ test("a key inside a section is named by itself, and an item in another case nam
         "“lable”: this setting is unknown here - it is ignored",
         "Region: the data has no item “north”, but “North” - the filter keeps the item as written"
     ]);
+});
+
+test("a loaded view's issues become lines, all but a template's own name and description", () => {
+    const raw = { name: "Sales", description: "By region", rows: ["region"], lable: 1 };
+    const { issues } = normalize(raw, data);
+    const lines = unusedNotes(issues, raw);
+    assert.deepEqual(lines.map((n) => n.issue.path), ["lable"]);
+    assert.ok(lines.every((n) => n.raw === raw));
+    // the same keys anywhere else are lines like every other unknown key
+    const nested = [{ path: "chart.name", message: "unknown key", code: "unknownKey" }];
+    assert.equal(unusedNotes(nested, raw).length, 1);
 });

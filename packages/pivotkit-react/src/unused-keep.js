@@ -5,6 +5,8 @@
  * was loaded (or given by the host), and goes once the user changed it by hand or removed it: the
  * value with the colour scale that did not fit is gone, the legend has a place of the user's choice.
  * Undo back to the loaded view brings the line back. Pure, tested without a DOM.
+ *
+ * The lines come from the issues normalize() reported for that view (unusedNotes).
  */
 
 const PATH = /^([A-Za-z]+)(?:\[(\d+)\])?(?:\.([A-Za-z]+))?/;
@@ -58,3 +60,12 @@ export function stillApplies(note, loaded, shown) {
     }
     return note.path === undefined || partOf(note.path, null, loaded) === partOf(note.path, null, shown);
 }
+
+/**
+ * The issues of a view loaded from outside as the warning's lines, with the view as given; a
+ * template's name and description are unknown keys of its view, nothing the person can act on.
+ * @param {import("pivotkit-core").Issue[]} issues
+ * @param {unknown} raw  the view as given
+ * @returns {{ issue: import("pivotkit-core").Issue, raw: unknown }[]}
+ */
+export const unusedNotes = (issues, raw) => issues.filter((i) => (i.code ?? (i.message === "unknown key" ? "unknownKey" : "")) !== "unknownKey" || !["name", "description"].includes(i.path)).map((issue) => ({ issue, raw }));
