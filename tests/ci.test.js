@@ -443,7 +443,10 @@ test("the Angular example installs from its own lock file, at the versions its p
 
 // The browser tests run as one job per engine, shard and React version, each well inside
 // its timeout: the matrix covers every Playwright project on React 18 and 19, every shard of a project,
-// and each job runs its own project and shard only.
+// and each job runs its own project and shard only. Playwright gives each shard the same number of
+// tests; `weights` gives the shards of one engine other shares (PWTEST_SHARD_WEIGHTS, #672). Every
+// shard of that engine needs the same weights, one per shard, or Playwright runs some tests twice or
+// none at all.
 test("the browser jobs cover every engine and every shard on React 18 and 19", () => {
     const ci = readFileSync(new URL(".github/workflows/ci.yml", root), "utf8");
     const config = readFileSync(new URL("playwright.config.js", root), "utf8");
@@ -451,14 +454,26 @@ test("the browser jobs cover every engine and every shard on React 18 and 19", (
     assert.deepEqual(projects, ["chromium", "firefox", "webkit"]);
     const job = ci.slice(ci.indexOf("\n  browser:"));
     assert.match(job, /react: \["18", "19"\]/);
-    const targets = [...job.matchAll(/- \{ browser: (\w+), shard: (\d+), of: (\d+) \}/g)].map((m) => ({ browser: m[1], shard: Number(m[2]), of: Number(m[3]) }));
+    const lines = [...job.matchAll(/^ +- \{ browser: .*\}$/gm)].map((m) => m[0].trim());
+    const targets = lines.map((line) => /^- \{ browser: (\w+), shard: (\d+), of: (\d+)(?:, weights: "(\d+(?::\d+)*)")? \}$/.exec(line)).map((m, i) => {
+        assert.ok(m, `a target the test cannot read: ${lines[i]}`);
+        return { browser: m[1], shard: Number(m[2]), of: Number(m[3]), weights: m[4] ?? null };
+    });
     for (const browser of projects) {
         const shards = targets.filter((t) => t.browser === browser);
         assert.ok(shards.length > 0, `${browser} has no job`);
         assert.deepEqual(shards.map((t) => t.shard), Array.from({ length: shards[0].of }, (_, i) => i + 1), `${browser}: every shard once`);
         assert.ok(shards.every((t) => t.of === shards.length), `${browser}: shards of one size`);
+        assert.equal(new Set(shards.map((t) => t.weights)).size, 1, `${browser}: every shard has the same weights`);
+        const weights = shards[0].weights;
+        if (weights !== null) {
+            assert.equal(weights.split(":").length, shards.length, `${browser}: one weight per shard`);
+            assert.ok(weights.split(":").every((w) => Number(w) > 0), `${browser}: no shard without tests`);
+        }
     }
+    assert.ok(targets.some((t) => t.browser === "webkit" && t.weights), "the WebKit shards are weighted by their run time (#672)");
     assert.match(job, /npx playwright test --project=\$\{\{ matrix\.target\.browser \}\} --shard=\$\{\{ matrix\.target\.shard \}\}\/\$\{\{ matrix\.target\.of \}\}/);
+    assert.match(job, /PWTEST_SHARD_WEIGHTS: \$\{\{ matrix\.target\.weights \}\}/, "the test step passes the weights");
     const minutes = Number(/timeout-minutes: (\d+)/.exec(job)?.[1]);
     assert.ok(minutes > 0 && minutes <= 15, `browser job timeout ${minutes} minutes`);
 });

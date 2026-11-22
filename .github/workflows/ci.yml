@@ -151,6 +151,10 @@ jobs:
     # PowerShell Universal provides it) and on React 19 (tests/react19, its own lock file). One job per
     # engine, shard and React version, so a failure names its engine. Shards keep each job's tests near
     # 8 minutes, half of its timeout: one Chromium or three WebKit shards ran up to 14.3 minutes (#627)
+    # Playwright gives each shard the same number of tests. WebKit's slow tests sit in its second and
+    # fourth quarter, so `weights` gives its shards other shares, from the shards' measured run times
+    # (#672). PWTEST_SHARD_WEIGHTS is Playwright's own variable but not in its docs: a workaround. An
+    # engine without weights passes an empty value, which Playwright ignores.
     # Playwright's own image carries the browsers and their system libraries, so nothing is installed
     # with apt. Its version must be the one of @playwright/test in package-lock.json; tests/ci.test.js
     # checks that and this matrix.
@@ -166,10 +170,10 @@ jobs:
           - { browser: chromium, shard: 2, of: 2 }
           - { browser: firefox, shard: 1, of: 2 }
           - { browser: firefox, shard: 2, of: 2 }
-          - { browser: webkit, shard: 1, of: 4 }
-          - { browser: webkit, shard: 2, of: 4 }
-          - { browser: webkit, shard: 3, of: 4 }
-          - { browser: webkit, shard: 4, of: 4 }
+          - { browser: webkit, shard: 1, of: 4, weights: "31:22:29:18" }
+          - { browser: webkit, shard: 2, of: 4, weights: "31:22:29:18" }
+          - { browser: webkit, shard: 3, of: 4, weights: "31:22:29:18" }
+          - { browser: webkit, shard: 4, of: 4, weights: "31:22:29:18" }
     container:
       image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe
       options: --user 1001
@@ -197,6 +201,7 @@ jobs:
         # temporary directory behind fails (scripts/test-run.js)
         env:
           PIVOTKIT_REACT: ${{ matrix.react }}
+          PWTEST_SHARD_WEIGHTS: ${{ matrix.target.weights }}
         run: node scripts/test-run.js npx playwright test --project=${{ matrix.target.browser }} --shard=${{ matrix.target.shard }}/${{ matrix.target.of }}
       - name: Playground build
         # the static files the tests opened, to try the playground without building it
