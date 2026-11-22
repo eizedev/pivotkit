@@ -12,6 +12,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   REST contract. `pivotkit-cli/files` and `pivotkit-cli/rest` export the same names as before.
 - Remote mode reads Retry-After and the code of a failed connection through `pivotkit-node/net`,
   shared with pivotkit-server. The messages and codes stay the same.
+- The words for a failed connection come from `NETWORK_FAILURES` of `pivotkit-node/net`. They stay the same.
 
 ## [0.5.0] - 2026-11-22
 

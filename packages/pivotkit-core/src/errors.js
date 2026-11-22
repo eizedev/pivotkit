@@ -15,9 +15,35 @@
  *   (pivotkit-report) throws INVALID_TEMPLATE, with `details.reason` and the placeholder.
  */
 
+/**
+ * The base of every error class of pivotkit's packages (pivotkit-core/internal): `code`, a stable name
+ * to match on, and `details`, what a caller may act on. A class whose errors carry no code or no
+ * details leaves them unset, so an error has only the members its class names. Each class sets its
+ * own `name`.
+ */
+export class CodedError extends Error {
+    /**
+     * @param {string | undefined} code
+     * @param {string} message
+     * @param {{ details?: Record<string, any>, cause?: unknown }} [more]  cause: as Error's option
+     */
+    constructor(code, message, { details, cause } = {}) {
+        super(message, cause !== undefined ? { cause } : undefined);
+        if (code !== undefined) {
+            // typed as a string: a class without codes (AuthRefusal) is never matched by its code
+            /** @type {string} */
+            this.code = code;
+        }
+        if (details !== undefined) {
+            /** @type {Record<string, any> | undefined} */
+            this.details = details;
+        }
+    }
+}
+
 /** @typedef {"INVALID_ARGUMENT" | "INVALID_OPTION" | "INVALID_VIEW" | "LIMIT_EXCEEDED" | "INVALID_FILE" | "INVALID_TEMPLATE"} PivotkitErrorCode */
 
-export class PivotkitError extends Error {
+export class PivotkitError extends CodedError {
     /**
      * @param {PivotkitErrorCode} code
      * @param {string} message
@@ -25,8 +51,9 @@ export class PivotkitError extends Error {
      *   { file, what } (what was counted, in English); for INVALID_FILE: { reason, file }
      */
     constructor(code, message, details = {}) {
-        super(message);
+        super(code, message, { details });
         this.name = "PivotkitError";
+        // the same values again, typed as this class names them
         /** @type {PivotkitErrorCode} */
         this.code = code;
         /** @type {Record<string, unknown>} */

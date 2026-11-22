@@ -8,6 +8,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- Every error class extends `CodedError` of `pivotkit-core/internal`, which holds `code` and
+  `details`. A problem document has one builder, `problemDocument`, for REST and the download links.
+  The network codes come from `NETWORK_FAILURES` of `pivotkit-node/net`. Errors, answers and log
+  lines stay the same.
 - REST, MCP, the download links and `serve` run their requests through one route handler
   (`createRouteHandler`): request id, scope, the refused line and `X-Request-Id`. Every request
   through `serve`, pivotkit-mcp or REST gets the same answers and log lines as before.

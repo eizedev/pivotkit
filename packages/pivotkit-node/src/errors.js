@@ -9,22 +9,22 @@
 
 import { basename } from "node:path";
 import { PivotkitError } from "pivotkit-core";
+import { CodedError } from "pivotkit-core/internal";
 import { cleanText } from "pivotkit-core/import";
 import { OperationError } from "pivotkit-report/operations";
 
 /** @typedef {"usage" | "io" | "limit" | "template" | "remote" | "internal"} ErrorKind */
 
-export class CliError extends Error {
+export class CliError extends CodedError {
     /**
      * @param {ErrorKind} kind
      * @param {string} code  a stable name, e.g. NOT_FOUND, OUTSIDE_ALLOWED_DIR, UNKNOWN_OPTION
      * @param {string} message
      */
     constructor(kind, code, message) {
-        super(message);
+        super(code, message);
         this.name = "CliError";
         this.kind = kind;
-        this.code = code;
     }
 }
 

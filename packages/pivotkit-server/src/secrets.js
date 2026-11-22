@@ -9,16 +9,16 @@
  * in UTF-16 (PowerShell 5.1's ">") named as such.
  */
 
+import { CodedError } from "pivotkit-core/internal";
 import { constants } from "node:fs";
 import { lstat, open, stat } from "node:fs/promises";
 import { pathOf } from "./config.js";
 
-export class SecretError extends Error {
+export class SecretError extends CodedError {
     /** @param {string} message */
     constructor(message) {
-        super(message);
+        super("SECRET", message);
         this.name = "SecretError";
-        this.code = "SECRET";
     }
 }
 

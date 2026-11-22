@@ -32,7 +32,7 @@ const titleOf = (code) => code.toLowerCase().replace(/_/g, " ").replace(/^./, (c
  * @param {string} code
  * @param {string | null} [docs]  the base (branding.js docsOf); pivotkit's site when left out
  */
-export const typeOf = (code, docs = DOCS_SITE) => (docs === null ? "about:blank" : `${docs}reference/rest/#error-${code.toLowerCase().replace(/_/g, "-")}`);
+const typeOf = (code, docs = DOCS_SITE) => (docs === null ? "about:blank" : `${docs}reference/rest/#error-${code.toLowerCase().replace(/_/g, "-")}`);
 
 /** What a 5xx says instead of the error's message. */
 const SERVER_TEXT = { BUSY: "the server is busy with other reports; try again in a moment", NOT_READY: "the server is starting or shutting down; try again in a moment", AUTH_NOT_READY: "the server is waiting for its authorization server; try again in a moment", TIMEOUT: "the report took longer than the server allows; make the view smaller or filter more", SOURCE_UNAVAILABLE: "the source is not available right now; if it stays so, give the operator the request id", UPLOAD_FAILED: "the report was made but could not be stored; give the operator the request id", INTERNAL: "internal error" };
@@ -59,6 +59,15 @@ export const serverTextOf = (code, reason = undefined) => {
 export const SAFE_HEADERS = Object.freeze({ "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "cache-control": "no-store" });
 
 /**
+ * The one problem document (RFC 9457) of a code, for every answer that is one (REST, the download
+ * links): `type`, `title`, `status`, `code` and `detail` as given, then further members.
+ * @param {string} code
+ * @param {string} detail  shown as it is: the caller picks the words
+ * @param {{ status?: number, docs?: string | null, extra?: Record<string, unknown> }} [more]  status: the code's (statusOf) unless given; docs: the documentation's base (typeOf)
+ */
+export const problemDocument = (code, detail, { status = statusOf(code), docs = undefined, extra = {} } = {}) => ({ type: typeOf(code, docs), title: titleOf(code), status, code, detail, ...extra });
+
+/**
  * A problem document as a Response.
  * @param {string} code
  * @param {string} detail
@@ -66,7 +75,7 @@ export const SAFE_HEADERS = Object.freeze({ "x-content-type-options": "nosniff",
  */
 export function problem(code, detail, more = {}) {
     const status = statusOf(code);
-    const body = { type: typeOf(code, more.docs), title: titleOf(code), status, code, detail: status >= 500 ? serverTextOf(code, more.reason) : String(detail).slice(0, 1000), ...(more.extra ?? {}) };
+    const body = problemDocument(code, status >= 500 ? serverTextOf(code, more.reason) : String(detail).slice(0, 1000), { status, docs: more.docs, extra: more.extra });
     return new Response(JSON.stringify(body), { status, headers: { ...SAFE_HEADERS, "content-type": "application/problem+json", ...(more.headers ?? {}) } });
 }
 

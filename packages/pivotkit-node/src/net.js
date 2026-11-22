@@ -1,7 +1,7 @@
 /*
  * pivotkit-node/net: how pivotkit-cli and pivotkit-server read what the network hands them: an IP
  * address as its bytes, whether a host or an address is loopback, a Retry-After header, and the
- * system code of a connection that failed. Each front end keeps its own error class and words; the
+ * system code of a connection that failed with what that code means. Each front end keeps its own error class and words; the
  * reading is here, once.
  */
 
@@ -117,3 +117,45 @@ export function networkCodeOf(error, { client, accept = (code) => code !== undef
     const e = /** @type {any} */ (error);
     return CODE_PLACES[client].map((place) => place(e)).find(accept) ?? null;
 }
+
+/**
+ * The system codes of a failed connection that pivotkit knows, each once, with what it means:
+ *
+ * - `text`: the command line's words for it (remote mode's "the server cannot be reached: ...")
+ * - `retry`: pivotkit-server's guardedFetch marks a request that failed so as transient
+ * - `passes`: a source's load that failed so may pass by itself, so last good data may stand in
+ *   (sources/run.js; Node's and undici's codes, also on a cause or an AggregateError's errors)
+ *
+ * The two readings of "may work again" differ by code; each stays as its caller had it.
+ * @type {Readonly<Record<string, Readonly<{ text?: string, retry?: true, passes?: true }>>>}
+ */
+export const NETWORK_FAILURES = Object.freeze({
+    ECONNREFUSED: { text: "the connection was refused (is the server running on that port?)", retry: true, passes: true },
+    ENOTFOUND: { text: "the host name is not known", retry: true, passes: true },
+    EAI_AGAIN: { text: "the host name cannot be looked up now", retry: true, passes: true },
+    ECONNRESET: { text: "the connection was reset", retry: true, passes: true },
+    EPIPE: { text: "the connection was closed", retry: true },
+    ETIMEDOUT: { text: "the connection timed out", retry: true, passes: true },
+    EHOSTUNREACH: { text: "the host cannot be reached", retry: true },
+    ENETUNREACH: { text: "the network cannot be reached", retry: true },
+    ECONNABORTED: { retry: true },
+    UND_ERR_SOCKET: { text: "the connection was closed", retry: true, passes: true },
+    UND_ERR_CONNECT_TIMEOUT: { text: "the connection timed out", passes: true },
+    UND_ERR_HEADERS_TIMEOUT: { passes: true },
+    UND_ERR_BODY_TIMEOUT: { passes: true },
+    CERT_HAS_EXPIRED: { text: "the server's certificate has expired" },
+    DEPTH_ZERO_SELF_SIGNED_CERT: { text: "the server's certificate is self-signed and not trusted" },
+    SELF_SIGNED_CERT_IN_CHAIN: { text: "the server's certificate is not trusted (a self-signed certificate in its chain)" },
+    UNABLE_TO_VERIFY_LEAF_SIGNATURE: { text: "the server's certificate cannot be verified" },
+    UNABLE_TO_GET_ISSUER_CERT_LOCALLY: { text: "the server's certificate cannot be verified (its issuer is not known here; NODE_EXTRA_CA_CERTS adds one)" },
+    ERR_TLS_CERT_ALTNAME_INVALID: { text: "the server's certificate is for another host name" },
+    ERR_SSL_WRONG_VERSION_NUMBER: { text: "the server does not speak TLS on that port (http instead of https?)" },
+    EPROTO: { text: "the TLS handshake failed (http instead of https on that port?)" }
+});
+
+/**
+ * What pivotkit knows of a failed connection's code (NETWORK_FAILURES), or an empty entry.
+ * @param {unknown} code
+ * @returns {Readonly<{ text?: string, retry?: true, passes?: true }>}
+ */
+export const networkFailureOf = (code) => (typeof code === "string" && Object.hasOwn(NETWORK_FAILURES, code) ? NETWORK_FAILURES[code] : {});

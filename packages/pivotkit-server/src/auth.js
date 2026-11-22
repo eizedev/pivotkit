@@ -25,6 +25,7 @@
  * token without a usable subject has none, and `client` alone never is one.
  */
 
+import { CodedError } from "pivotkit-core/internal";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { OperationError } from "pivotkit-report/operations";
 import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-node/rest";
@@ -97,14 +98,15 @@ const digest = (text) => createHash("sha256").update(text, "utf8").digest();
  * A request refused by authentication: 401 invalid_token (or invalid_request) or 503 while the
  * issuer is not loaded. `description` is safe to send; it never names the token.
  */
-export class AuthRefusal extends Error {
+export class AuthRefusal extends CodedError {
     /**
      * @param {number} status
      * @param {string} error  the OAuth error code
      * @param {string} description
      */
     constructor(status, error, description) {
-        super(description);
+        // no code: the OAuth error code is `error`, as RFC 6750 names it
+        super(undefined, description);
         this.name = "AuthRefusal";
         this.status = status;
         this.error = error;

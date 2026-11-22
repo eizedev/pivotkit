@@ -27,7 +27,7 @@ Use `src/safe-files.js` for every file a front end reads or writes.
 
 ## Errors
 
-- Errors are `CliError` with a kind. `src/errors.js` defines it.
+- Errors are `CliError` with a kind. `src/errors.js` defines it on `CodedError` (`pivotkit-core/internal`).
 - A message holds no file content beyond field names and one cell value cut at 20 characters.
 - Clean names with `printable` before printing them.
 
@@ -38,6 +38,8 @@ Use `src/safe-files.js` for every file a front end reads or writes.
 - `isLoopback(host)` reads a host as written. `{ address: true }` reads an IP address a lookup or a
   socket gave: every spelling, IPv4-mapped too. `test/net.test.js` pins both.
 - `networkCodeOf` looks where the caller's client puts the code: `client: "node"` or `"fetch"`.
+- `NETWORK_FAILURES` is the one table of those codes: the command line's words (`text`), guardedFetch's
+  transient ones (`retry`) and a source's that may pass (`passes`). Add a code there, never a list.
 - A front end that needs another result passes an option. It never keeps a copy of its own.
 
 ## REST contract
