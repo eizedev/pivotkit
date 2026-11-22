@@ -21,7 +21,7 @@
  */
 
 import { HEADER_NAME, HEADER_VALUE, SECRET_NAME, pointerKeys, pointerProblem } from "./http.js";
-import { ConfigError, SECRET_REF } from "./shared.js";
+import { ConfigError, SECRET_REF, throwRange } from "./shared.js";
 
 export const NAME = "upload";
 
@@ -228,6 +228,23 @@ function checkTemplate(template) {
 }
 
 /**
+ * output.upload's numbers out of their range, as messages: validate collects them, compile throws the first.
+ * @param {any} u  output.upload
+ * @returns {string[]}
+ */
+function numberProblems(u) {
+    const out = [];
+    const timeMs = u.timeMs ?? UPLOAD_DEFAULTS.timeMs;
+    if (timeMs < UPLOAD_TIME_MS.min || timeMs > UPLOAD_TIME_MS.max) {
+        out.push(`output.upload.timeMs: from ${UPLOAD_TIME_MS.min} to ${UPLOAD_TIME_MS.max} (10 minutes)`);
+    }
+    if (u.maxBytes !== undefined && u.maxBytes < 1) {
+        out.push("output.upload.maxBytes: 1 or more (the largest report uploaded, in bytes)");
+    }
+    return out;
+}
+
+/**
  * The settings, checked; throws ConfigError.
  * @param {import("../config.js").ServerOptions} options
  * @returns {UploadSettings}
@@ -278,13 +295,11 @@ function compile(options) {
     if (u.link !== undefined) {
         link = u.link.toLowerCase() === "header:location" ? { header: /** @type {"location"} */ ("location") } : { pointer: pointerOf(u.link, "output.upload.link") };
     }
+    const [outOfRange] = numberProblems(u);
+    if (outOfRange) {
+        throw new ConfigError(outOfRange);
+    }
     const timeMs = u.timeMs ?? UPLOAD_DEFAULTS.timeMs;
-    if (timeMs < UPLOAD_TIME_MS.min || timeMs > UPLOAD_TIME_MS.max) {
-        throw new ConfigError(`output.upload.timeMs: from ${UPLOAD_TIME_MS.min} to ${UPLOAD_TIME_MS.max} (10 minutes)`);
-    }
-    if (u.maxBytes !== undefined && u.maxBytes < 1) {
-        throw new ConfigError("output.upload.maxBytes: 1 or more (the largest report uploaded, in bytes)");
-    }
     return {
         mode: presign ? "presign" : "url",
         template: presign ? null : u.url,
@@ -322,9 +337,16 @@ export function addressText(address) {
 /**
  * Checks the rules between these keys; throws ConfigError.
  * @param {import("../config.js").ServerOptions} options
+ * @param {import("./shared.js").RangeProblem} [range]  where a value out of its range goes (validateOptions collects them)
  */
-export function validate(options) {
+export function validate(options, range = throwRange) {
     if (!options.output?.upload) {
+        return;
+    }
+    // its numbers out of range are said all at once; the rest is checked once they fit
+    const numbers = numberProblems(options.output.upload);
+    if (numbers.length) {
+        numbers.forEach((message) => range(message));
         return;
     }
     if (!options.output.dir) {

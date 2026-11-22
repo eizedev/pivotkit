@@ -5,12 +5,37 @@
  */
 
 export class ConfigError extends Error {
-    /** @param {string} message */
-    constructor(message) {
+    /**
+     * @param {string} message
+     * @param {string[]} [problems]  each problem's own message, where the error names several
+     */
+    constructor(message, problems = [message]) {
         super(message);
         this.name = "ConfigError";
         this.code = "CONFIG";
+        this.problems = problems;
     }
+}
+
+/**
+ * How a rule reports a value out of its range (a number below or above its bounds). validateOptions
+ * collects these, so check-config and the start name every such value at once; a rule never reads
+ * on from a value it reported. Called alone, without validateOptions, it throws.
+ * @typedef {(message: string) => void} RangeProblem
+ */
+
+/** @type {RangeProblem} */
+export const throwRange = (message) => {
+    throw new ConfigError(message);
+};
+
+/**
+ * One ConfigError for the problems found: a single one as its own message, several counted, each on a
+ * line of its own.
+ * @param {string[]} problems  at least one
+ */
+export function configErrorOf(problems) {
+    return problems.length === 1 ? new ConfigError(problems[0]) : new ConfigError(`${problems.length} problems in the configuration:\n  ${problems.join("\n  ")}`, problems);
 }
 
 /**

@@ -8,7 +8,7 @@
  */
 
 import { LOAD_CACHE, OWNER_SHARE } from "../sources/cache.js";
-import { ConfigError } from "./shared.js";
+import { ConfigError, throwRange } from "./shared.js";
 
 export const NAME = "code";
 
@@ -49,11 +49,12 @@ export const CODE_TIME_MAX = 600_000;
 /**
  * Checks the rules between these keys; throws ConfigError.
  * @param {import("../config.js").ServerOptions} options
+ * @param {import("./shared.js").RangeProblem} [range]  where a value out of its range goes (validateOptions collects them)
  */
-export function validate(options) {
+export function validate(options, range = throwRange) {
     const maxMb = options.sourceCache?.maxMb;
     if (maxMb !== undefined && (maxMb < 1 || maxMb > SOURCE_CACHE_MAX_MB)) {
-        throw new ConfigError(`sourceCache.maxMb: from 1 to ${SOURCE_CACHE_MAX_MB}`);
+        range(`sourceCache.maxMb: from 1 to ${SOURCE_CACHE_MAX_MB}`);
     }
     for (const [id, source] of Object.entries(options.sources ?? {})) {
         if (/** @type {any} */ (source).cacheShared !== undefined && !source.load) {
@@ -69,7 +70,7 @@ export function validate(options) {
             continue;
         }
         if (source.timeMs !== undefined && source.timeMs > CODE_TIME_MAX) {
-            throw new ConfigError(`sources.${id}.timeMs: at most ${CODE_TIME_MAX} (ten minutes)`);
+            range(`sources.${id}.timeMs: at most ${CODE_TIME_MAX} (ten minutes)`);
         }
     }
 }
