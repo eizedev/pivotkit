@@ -25,7 +25,7 @@ import { access, constants as fsConstants, lstat, readFile, unlink } from "node:
 import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
 import { closest } from "pivotkit-core";
-import { isInside } from "pivotkit-cli/files";
+import { isInside } from "pivotkit-node/files";
 import { ConfigError, REST_BASE, loadConfig, pathOf, publicOriginOf, validateOptions } from "./config.js";
 import { STATE_ENV, configFrom, planState, psQuoted, shellQuoted, stateDirOf } from "./state.js";
 import { KEY_USES, keyProblem, tokenProblem } from "./secret-rules.js";

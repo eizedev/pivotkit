@@ -33,20 +33,13 @@ npx pivotkit-cli render view.json --data data.csv -o out.html
 
 ## Files
 
-Use `src/safe-files.js` for every file the CLI reads or writes.
-
-- Read a regular file once, with its size checked first.
-- `hardLinks: false` refuses a file with a second name.
-- Write through a temporary file. `exclusive` and `writeNew` never replace a file.
-- `--allow-dir` compares real paths.
-- `pivotkit-cli/files` exports these and `readTable` for pivotkit-mcp.
+- Read and write every file through `pivotkit-node/files`. Its rules: [pivotkit-node](../pivotkit-node/AGENTS.md).
+- `pivotkit-cli/files` and `pivotkit-cli/rest` re-export pivotkit-node's names. Add none of their own.
 - `pivotkit example` never writes over an existing file.
 
 ## Errors
 
-- Errors are `CliError` with a kind, or `RemoteError`.
-- A message holds no file content beyond field names and one cell value cut at 20 characters.
-- Clean names with `printable` before printing them.
+- Errors are `CliError` of pivotkit-node, or `RemoteError` (`src/errors.js`).
 
 ## Remote mode
 
@@ -57,8 +50,7 @@ Use `src/safe-files.js` for every file the CLI reads or writes.
 - No redirects. A time limit and size caps on every answer. Check the answer's type.
 - Loopback goes through `node:http` with its own agent, so no proxy applies.
 - Never show a fetch error's message. Wrap it as `RemoteError`.
-- `src/rest-contract.js` (`pivotkit-cli/rest`) is the one copy of the REST contract.
-- pivotkit-server re-exports it. Change it here.
+- The REST contract is `pivotkit-node/rest`, shared with pivotkit-server. Change it there.
 
 ## Sign-in
 

@@ -7,7 +7,7 @@
  */
 
 import { basename } from "node:path";
-import { readSafe } from "pivotkit-cli/files";
+import { readSafe } from "pivotkit-node/files";
 import { OperationError } from "pivotkit-report/operations";
 import { parseTemplate } from "pivotkit-report/template";
 import { errorDetails } from "./request-id.js";

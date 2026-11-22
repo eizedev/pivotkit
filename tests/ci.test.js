@@ -303,14 +303,15 @@ test("no workflow passes a value that may start with \"-\" where a command reads
     }
 });
 
-// pivotkit-cli's file handling (junctions, drive letters, device names) and the whole of
+// the file handling of pivotkit-node (junctions, drive letters, device names), pivotkit-cli and the whole of
 // pivotkit-server (workers, output directory, download markers, listen, state, sign-in, secret
 // files) are tested on Windows and macOS too, not only on Linux
-test("CI runs pivotkit-cli's and pivotkit-server's tests on Windows and macOS", () => {
+test("CI runs pivotkit-node's, pivotkit-cli's and pivotkit-server's tests on Windows and macOS", () => {
     const job = jobOf(".github/workflows/ci.yml", "platforms");
     assert.match(job, /runs-on: \$\{\{ matrix\.os \}\}/);
     assert.match(job, /os: windows-latest/);
     assert.match(job, /os: macos-latest/);
+    assert.match(job, /run: npm test -w pivotkit-node\n/);
     assert.match(job, /run: npm test -w pivotkit-cli\n/);
     assert.match(job, /run: npm test -w pivotkit-server\n/);
 });

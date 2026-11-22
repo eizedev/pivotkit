@@ -11,7 +11,7 @@
 import { readFile, readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
-import { TEMP_FILE_NAME, writeNew } from "pivotkit-cli/files";
+import { TEMP_FILE_NAME, writeNew } from "pivotkit-node/files";
 import { OperationError } from "pivotkit-report/operations";
 import { bytesText, countText } from "./text.js";
 import { nameSlug } from "./upload.js";
@@ -128,7 +128,7 @@ export async function expiredIn(dir, days, draftDays = 0) {
 const TEMP_MAX_AGE_MS = 3_600_000;
 
 /**
- * The temporary files of pivotkit's writes into the output directory (pivotkit-cli/files'
+ * The temporary files of pivotkit's writes into the output directory (pivotkit-node/files'
  * TEMP_FILE_NAME of a name with the mark): left there by a server killed between creating one and
  * renaming it. They are not reports: neither counted nor deleted to make room.
  * @param {string} dir

@@ -34,7 +34,7 @@ npm install --global pivotkit-server pivotkit-mcp
 PIVOTKIT_TOKEN=... pivotkit-server serve --config pivotkit.json --auth token   # http://127.0.0.1:3333/api/v1
 ```
 
-It needs Node 24 or later. It brings [pivotkit-report](report.md), pivotkit-cli's file handling,
+It needs Node 24 or later. It brings [pivotkit-report](report.md), the command line pivotkit-cli,
 pivotkit-xlsx, ECharts 6.1.0 and jose (for OAuth). It does not bring the MCP SDK.
 
 ## Routes { #routes }

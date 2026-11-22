@@ -190,7 +190,8 @@ For agents and the maintainer. See also [PRODUCT.md](PRODUCT.md#what-a-contribut
 - [packages/pivotkit-element/AGENTS.md](packages/pivotkit-element/AGENTS.md) - shadow root, bundle, size
 - [packages/pivotkit-xlsx/AGENTS.md](packages/pivotkit-xlsx/AGENTS.md) - workbook reader safety
 - [packages/pivotkit-report/AGENTS.md](packages/pivotkit-report/AGENTS.md) - rendering, operations table
-- [packages/pivotkit-cli/AGENTS.md](packages/pivotkit-cli/AGENTS.md) - commands, files, remote mode
+- [packages/pivotkit-node/AGENTS.md](packages/pivotkit-node/AGENTS.md) - files and the REST contract, shared
+- [packages/pivotkit-cli/AGENTS.md](packages/pivotkit-cli/AGENTS.md) - commands, remote mode, sign-in
 - [packages/pivotkit-server/AGENTS.md](packages/pivotkit-server/AGENTS.md) - options, sources, policy, REST
 - [packages/pivotkit-mcp/AGENTS.md](packages/pivotkit-mcp/AGENTS.md) - MCP tools and plugin
 - [tests/AGENTS.md](tests/AGENTS.md) - browser tests, temporary directories, repository checks

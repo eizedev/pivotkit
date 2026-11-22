@@ -1,0 +1,57 @@
+{
+  "name": "pivotkit-node",
+  "version": "0.1.0",
+  "description": "Internal to pivotkit: the Node.js file handling and REST contract that the pivotkit command line and pivotkit-server share. Use pivotkit-cli/files and pivotkit-cli/rest instead.",
+  "license": "MIT",
+  "author": "eizedev <oss@eize.dev>",
+  "homepage": "https://pivotkit.eize.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eizedev/pivotkit.git",
+    "directory": "packages/pivotkit-node"
+  },
+  "bugs": "https://github.com/eizedev/pivotkit/issues",
+  "keywords": [
+    "pivotkit"
+  ],
+  "type": "module",
+  "exports": {
+    "./files": {
+      "types": "./types/files.d.ts",
+      "default": "./src/files.js"
+    },
+    "./rest": {
+      "types": "./types/rest.d.ts",
+      "default": "./src/rest.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "types",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node ../../scripts/test-run.js node --test \"test/*.test.js\"",
+    "coverage": "node ../../scripts/test-run.js node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\"",
+    "types": "tsc -p .",
+    "test:types": "tsc -p test/types",
+    "prepack": "npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\""
+  },
+  "dependencies": {
+    "pivotkit-core": "^0.9.0",
+    "pivotkit-report": "^0.5.0",
+    "pivotkit-xlsx": "^0.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

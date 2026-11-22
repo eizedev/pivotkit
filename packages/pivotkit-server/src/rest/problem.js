@@ -9,15 +9,15 @@
 
 import { OPERATION_ERRORS, OperationError } from "pivotkit-report/operations";
 import { isRequestId, requestId } from "../request-id.js";
-import { REST_ERRORS } from "pivotkit-cli/rest";
+import { REST_ERRORS } from "pivotkit-node/rest";
 import { hostRefusedLine } from "../checks.js";
 import { PARAMS_BUSY_TEXT } from "../sources/params.js";
 import { TEMPLATE_UNAVAILABLE_TEXT } from "../print-template.js";
 import { DOCS_SITE } from "../options/branding.js";
 
 
-/** The codes the REST layer adds to the operations', with their status, and every code a problem can carry: pivotkit-cli/rest's, which the CLI's remote mode checks answers against. */
-export { REST_ERRORS, PROBLEM_CODES } from "pivotkit-cli/rest";
+/** The codes the REST layer adds to the operations', with their status, and every code a problem can carry: pivotkit-node/rest's, which the CLI's remote mode checks answers against. */
+export { REST_ERRORS, PROBLEM_CODES } from "pivotkit-node/rest";
 
 /** A code's status. */
 export const statusOf = (code) => REST_ERRORS[code] ?? OPERATION_ERRORS[code] ?? 500;

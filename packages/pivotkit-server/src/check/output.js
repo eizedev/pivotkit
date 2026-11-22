@@ -15,7 +15,7 @@
  */
 
 import { lstat, realpath } from "node:fs/promises";
-import { isInside } from "pivotkit-cli/files";
+import { isInside } from "pivotkit-node/files";
 import { OUTPUT_DEFAULTS, maxAgeDaysOf, pathOf } from "../config.js";
 import { OUTPUT_INSIDE_ALLOWED, SHARED_OUTPUT_TEXT, cannotCreate, entryOf, notWritable, notWritableText, outputRefusal, ownFileDirs, plannedPath } from "../context.js";
 import { draftBytesCap, draftCap, expiredIn, reportsIn, waitingDrafts } from "../output.js";

@@ -6,6 +6,10 @@ import js from "@eslint/js";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 
+// pivotkit-server never imports its command line: shared code lives in pivotkit-node. The runner's
+// `cli` command loads it by name with import(), which this rule does not see.
+const NO_CLI_IN_SERVER = { regex: "^pivotkit-cli(/|$)", message: "shared code goes into pivotkit-node; pivotkit-server does not import its command line" };
+
 export default [
     { ignores: ["**/node_modules/", "**/dist/", "**/coverage/", "packages/*/types/", "test-results/", "playwright-report/", "site/", "docs/playground/"] },
     js.configs.recommended,
@@ -36,9 +40,14 @@ export default [
         languageOptions: { globals: { ...globals["shared-node-browser"] } }
     },
     {
-        // the command line, the REST service and the MCP server run in Node only
-        files: ["packages/pivotkit-cli/src/**/*.js", "packages/pivotkit-cli/bin/**/*.js", "packages/pivotkit-server/src/**/*.js", "packages/pivotkit-server/bin/**/*.js", "packages/pivotkit-mcp/src/**/*.js", "packages/pivotkit-mcp/bin/**/*.js"],
+        // the command line, the REST service, the MCP server and what they share run in Node only
+        files: ["packages/pivotkit-node/src/**/*.js", "packages/pivotkit-cli/src/**/*.js", "packages/pivotkit-cli/bin/**/*.js", "packages/pivotkit-server/src/**/*.js", "packages/pivotkit-server/bin/**/*.js", "packages/pivotkit-mcp/src/**/*.js", "packages/pivotkit-mcp/bin/**/*.js"],
         languageOptions: { globals: { ...globals.node } }
+    },
+    {
+        // the layering: pivotkit-node is shared by the command line and the server and imports neither
+        files: ["packages/pivotkit-node/src/**/*.js"],
+        rules: { "no-restricted-imports": ["error", { patterns: [{ regex: "^pivotkit-(cli|server|mcp)(/|$)", message: "pivotkit-node is below the command line and the services; it imports neither" }] }] }
     },
     {
         // a caller's access token leaves auth.js only through exchangeTokenFor, and only the token
@@ -46,8 +55,13 @@ export default [
         files: ["packages/pivotkit-server/src/**/*.js"],
         ignores: ["packages/pivotkit-server/src/auth.js", "packages/pivotkit-server/src/sources/auth.js"],
         rules: {
-            "no-restricted-imports": ["error", { patterns: [{ regex: "(^|/)auth\\.js$", importNames: ["exchangeTokenFor"], message: "only sources/auth.js may use exchangeTokenFor (the caller's token goes to a token endpoint and nowhere else)" }] }]
+            "no-restricted-imports": ["error", { patterns: [{ regex: "(^|/)auth\\.js$", importNames: ["exchangeTokenFor"], message: "only sources/auth.js may use exchangeTokenFor (the caller's token goes to a token endpoint and nowhere else)" }, NO_CLI_IN_SERVER] }]
         }
+    },
+    {
+        // auth.js and sources/auth.js may use exchangeTokenFor, but they do not import the command line either
+        files: ["packages/pivotkit-server/src/auth.js", "packages/pivotkit-server/src/sources/auth.js"],
+        rules: { "no-restricted-imports": ["error", { patterns: [NO_CLI_IN_SERVER] }] }
     },
     {
         // the UI, the web component, the playground and the element example run in browsers

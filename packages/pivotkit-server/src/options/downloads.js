@@ -9,7 +9,7 @@
  */
 
 import { docsLink, docsOf } from "./branding.js";
-import { isLoopback } from "pivotkit-cli/rest";
+import { isLoopback } from "pivotkit-node/rest";
 import { ConfigError, CREATABLE_SECRET_REF, SECRET_REF, throwRange } from "./shared.js";
 
 export const NAME = "downloads";

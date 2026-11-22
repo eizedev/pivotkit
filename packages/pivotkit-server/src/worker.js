@@ -13,7 +13,7 @@
 
 import { parentPort, workerData } from "node:worker_threads";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
-import { readTable } from "pivotkit-cli/files";
+import { readTable } from "pivotkit-node/files";
 import { KEPT_JOB, READ_JOB, RECORDS_JOB, asOperationError, keptDataSets, cacheBytesNow, fileData, holds, packedUpload, setCacheBytes, tableData, uploadData } from "./data.js";
 import { draftingOf } from "./policy.js";
 import { answeredType, columnPieces } from "./records-writer.js";

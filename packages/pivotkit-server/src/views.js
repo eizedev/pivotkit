@@ -18,7 +18,7 @@ import { readdir } from "node:fs/promises";
 import { basename } from "node:path";
 import { CATALOG, VIEW_ISSUES, closest, fromViewFile, normalize, viewFileFields } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
-import { readSafe } from "pivotkit-cli/files";
+import { readSafe } from "pivotkit-node/files";
 import { OperationError, findingText } from "pivotkit-report/operations";
 import { pathOf } from "./config.js";
 import { fieldKey, levelOf } from "./policy.js";

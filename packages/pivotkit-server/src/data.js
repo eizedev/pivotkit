@@ -1,5 +1,5 @@
 /*
- * The data of a source for an operation: read a file the safe way (pivotkit-cli/files), drop the
+ * The data of a source for an operation: read a file the safe way (pivotkit-node/files), drop the
  * columns the policy hides, encode, and keep the last few data sets (by the file's identity, size and
  * time, or a table job's key), so a model's run of describe, validate and render reads a file once
  * (a code source's data is kept by sources/run.js). Each data set says when it is from (asOf, sources/as-of.js). Encoding
@@ -13,7 +13,7 @@ import { stat } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { LIMITS, PivotkitError, encode } from "pivotkit-core";
 import { limitText } from "pivotkit-core/internal";
-import { asCliError, readSafe, readTable } from "pivotkit-cli/files";
+import { asCliError, readSafe, readTable } from "pivotkit-node/files";
 import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, levelOf } from "./policy.js";
 import { sourceStats } from "./stats.js";

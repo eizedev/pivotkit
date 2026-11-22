@@ -90,6 +90,7 @@ clients, data sources and platforms, and how each one was tested.
 | [pivotkit-element](packages/pivotkit-element/) | The report builder as the web component `<pivot-report>`, with its own React. For Angular, PHP and plain HTML. | `npm install pivotkit-element` |
 | [pivotkit-xlsx](packages/pivotkit-xlsx/) | A [plugin](https://pivotkit.eize.dev/reference/plugins/) that reads Excel workbooks in the browser. pivotkit-core reads CSV and JSON itself. | `npm install pivotkit-xlsx` |
 | [pivotkit-report](packages/pivotkit-report/) | [Reports without a browser](https://pivotkit.eize.dev/reference/report/): JSON, CSV, XLSX, an SVG chart or printable HTML. | `npm install pivotkit-report echarts` |
+| [pivotkit-node](packages/pivotkit-node/) | Internal: the file handling and REST contract that pivotkit-cli and pivotkit-server share. Not for direct use. | comes with pivotkit-cli and pivotkit-server |
 | [pivotkit-cli](packages/pivotkit-cli/) | The [command line](https://pivotkit.eize.dev/reference/cli/) `pivotkit`: render, validate and describe views, also in CI. | `npm install --global pivotkit-cli` |
 | [pivotkit-server](packages/pivotkit-server/) | A [REST service](https://pivotkit.eize.dev/reference/rest/) with sign-in by token or OAuth and policy profiles, over files or an operator's API ([HTTP sources](https://pivotkit.eize.dev/reference/sources/#http)). With pivotkit-mcp beside it, it serves MCP too. The [container image](https://pivotkit.eize.dev/reference/container/) holds both. | `npm install --global pivotkit-server pivotkit-mcp` |
 | [pivotkit-mcp](packages/pivotkit-mcp/) | An [MCP server](https://pivotkit.eize.dev/reference/mcp/): an AI client builds reports and reads only what the policy shows. Over stdio or HTTP. | `npx -y pivotkit-mcp` |
@@ -192,7 +193,7 @@ Each package has releases of its own. The [GitHub releases](https://github.com/e
 list them with their notes. Each package keeps a `CHANGELOG.md`:
 [core](packages/pivotkit-core/CHANGELOG.md), [react](packages/pivotkit-react/CHANGELOG.md),
 [element](packages/pivotkit-element/CHANGELOG.md), [xlsx](packages/pivotkit-xlsx/CHANGELOG.md),
-[report](packages/pivotkit-report/CHANGELOG.md), [cli](packages/pivotkit-cli/CHANGELOG.md),
+[report](packages/pivotkit-report/CHANGELOG.md), [node](packages/pivotkit-node/CHANGELOG.md), [cli](packages/pivotkit-cli/CHANGELOG.md),
 [server](packages/pivotkit-server/CHANGELOG.md), [mcp](packages/pivotkit-mcp/CHANGELOG.md).
 Before you update, read [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/).
 [Versioning](https://pivotkit.eize.dev/versioning/) says which releases may break things.

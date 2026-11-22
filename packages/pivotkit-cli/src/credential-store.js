@@ -19,8 +19,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { chmod, lstat, mkdir, open, readFile, stat, unlink, utimes } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { CliError } from "./errors.js";
-import { readSafe, writeSafe } from "./safe-files.js";
+import { CliError, readSafe, writeSafe } from "pivotkit-node/files";
 
 /** The keychain service name of every entry. */
 export const KEYCHAIN_SERVICE = "pivotkit";

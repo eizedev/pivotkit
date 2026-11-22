@@ -2,14 +2,14 @@
 // Windows, a symbolic link elsewhere (Node makes a symbolic link to a directory when the type
 // "junction" is given on another system). Only CI's Windows job proves the reparse point; on Linux
 // and macOS the same tests run on a symbolic link. Creating a junction needs no administrator rights.
-// pivotkit-cli/files must follow it to its real path and refuse what lies outside, and never write
+// pivotkit-node/files must follow it to its real path and refuse what lies outside, and never write
 // through it or replace it. Each test first uses the allowed directory itself, so a refusal is the
 // junction's, not a path the check does not recognise (on Windows a short 8.3 name would be one).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { readSafe, writeNew, writeSafe } from "pivotkit-cli/files";
+import { readSafe, writeNew, writeSafe } from "pivotkit-node/files";
 import { SALES_CSV, tempDir } from "./helpers.js";
 
 /** An allowed directory with a junction "out" to a directory beside it that holds secret.csv. */
@@ -60,7 +60,7 @@ test("a junction at the target is refused, never replaced, with or without allow
 
 test("an allowed directory given as a junction is its real directory", async () => {
     const { allowed, outside } = junctionToOutside();
-    const { allowedDirs } = await import("pivotkit-cli/files");
+    const { allowedDirs } = await import("pivotkit-node/files");
     const allow = await allowedDirs(["out"], allowed);
     assert.deepEqual(allow, [outside]);
     assert.equal(new TextDecoder().decode(await readSafe("out/secret.csv", { cwd: allowed, allow, maxBytes: 1_000_000 })), SALES_CSV);

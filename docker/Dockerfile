@@ -26,7 +26,7 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund --include-workspace-
         --workspace pivotkit-server --workspace pivotkit-mcp --workspace pivotkit-cli \
     && node scripts/examples.js \
     && mkdir -p /app/packages \
-    && for p in core xlsx report cli server mcp; do cp -a "packages/pivotkit-$p" /app/packages/; done \
+    && for p in core xlsx report node cli server mcp; do cp -a "packages/pivotkit-$p" /app/packages/; done \
     && rm -rf /app/packages/*/test /app/packages/*/bench /app/packages/*/node_modules \
     && cp -a node_modules LICENSE /app/ \
     && mkdir -p /app/examples /out \

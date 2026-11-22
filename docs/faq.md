@@ -15,7 +15,7 @@ description: Common questions about pivotkit - which package to use, data size, 
 - Reports for programs over HTTP, or as a container: [pivotkit-server](getting-started/rest.md).
 - Reports from an AI client: [pivotkit-mcp](getting-started/mcp.md).
 
-[Embed pivotkit](embed/index.md) lists all eight packages and what a host switches on.
+[Embed pivotkit](embed/index.md) lists the packages and what a host switches on.
 
 ## How many rows can it handle?
 

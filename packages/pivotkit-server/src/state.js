@@ -29,7 +29,7 @@ import { access, constants, lstat, mkdir, readdir, readFile, stat } from "node:f
 import { hostname } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { closest } from "pivotkit-core";
-import { isInside } from "pivotkit-cli/files";
+import { isInside } from "pivotkit-node/files";
 import { ConfigError, loadConfig, pathOf } from "./config.js";
 import { isLoopback } from "./listen.js";
 import { settingsOf } from "./options/downloads.js";

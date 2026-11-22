@@ -12,7 +12,7 @@
  */
 
 import { isAbsolute, resolve } from "node:path";
-import { isInside } from "pivotkit-cli/files";
+import { isInside } from "pivotkit-node/files";
 import { SIGNED_TOKEN } from "../signed-tokens.js";
 import { ConfigError, throwRange } from "./shared.js";
 

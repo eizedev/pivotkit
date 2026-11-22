@@ -87,7 +87,7 @@ jobs:
         run: npm run size -w pivotkit-xlsx
 
   platforms:
-    # pivotkit-cli and pivotkit-server on Windows and macOS; the other jobs run on Linux. Windows:
+    # pivotkit-node, pivotkit-cli and pivotkit-server on Windows and macOS; the other jobs run on Linux. Windows:
     # drive letters, junctions (reparse points), no O_NOFOLLOW, no POSIX modes. macOS: its own file
     # system and signals. The server's tests cover the workers, the output directory, download
     # markers (hard links), listen, the state directory, sign-in and the secret files. On Windows,
@@ -113,6 +113,8 @@ jobs:
         run: npm ci --no-audit --no-fund --ignore-scripts
       - name: Build
         run: npm run build
+      - name: pivotkit-node tests
+        run: npm test -w pivotkit-node
       - name: pivotkit-cli tests
         run: npm test -w pivotkit-cli
       - name: pivotkit-server tests

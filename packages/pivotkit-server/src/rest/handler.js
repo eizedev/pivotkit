@@ -19,7 +19,7 @@
 
 import { OperationError, checkInput } from "pivotkit-report/operations";
 import { RENDER_FORMATS } from "pivotkit-report";
-import { SIGN_IN_CLIENT_FIELD } from "pivotkit-cli/rest";
+import { SIGN_IN_CLIENT_FIELD } from "pivotkit-node/rest";
 import { OPENAPI_PATH, REST_BASE, noRouteDetail, publicOriginOf, restResourceOf } from "../config.js";
 import { AuthRefusal, bearerOf, groupRefusal, resourceMetadataUrlOf } from "../auth.js";
 import { allowedHosts, clientAddress, hostRefusal } from "../checks.js";

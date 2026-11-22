@@ -7,7 +7,7 @@
 
 import { AGGREGATOR_ALIASES, CATALOG, closest } from "pivotkit-core";
 import { DOCS } from "./commands.js";
-import { CliError, printable } from "./errors.js";
+import { CliError, printable } from "pivotkit-node/files";
 
 /** The flags that make a layout; any of them given turns render into the flags mode. */
 export const LAYOUT_FLAGS = Object.freeze(["rows", "cols", "values", "group", "filter", "chart-type", "map"]);

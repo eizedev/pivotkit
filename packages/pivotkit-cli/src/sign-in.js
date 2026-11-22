@@ -24,9 +24,10 @@
  * issuer's error is named by its OAuth error code only, never by its text.
  */
 
-import { CliError, RemoteError, printable } from "./errors.js";
+import { CliError, printable } from "pivotkit-node/files";
+import { RemoteError } from "./errors.js";
 import { checkTls, send, serverOf } from "./remote.js";
-import { CLIENT_ID_SYNTAX, SIGN_IN_CLIENT_FIELD, TOKEN_SYNTAX, isLoopback, resourceMetadataUrlOf } from "./rest-contract.js";
+import { CLIENT_ID_SYNTAX, SIGN_IN_CLIENT_FIELD, TOKEN_SYNTAX, isLoopback, resourceMetadataUrlOf } from "pivotkit-node/rest";
 import { credentialStore, fileStoreText } from "./credential-store.js";
 import { USER_AGENT } from "./user-agent.js";
 

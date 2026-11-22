@@ -4,13 +4,13 @@
  * other outbound request (an HTTP source's backend, the upload target, a token endpoint).
  *
  * And rest.signIn.clientId: the issuer's public client that `pivotkit login` signs in with. The REST
- * metadata publishes it (pivotkit-cli/rest SIGN_IN_CLIENT_FIELD), so a user needs only the address.
+ * metadata publishes it (pivotkit-node/rest SIGN_IN_CLIENT_FIELD), so a user needs only the address.
  *
  * A key is declared here once, never also in config.js or another fragment (options/index.js refuses
  * a second declaration).
  */
 
-import { CLIENT_ID_SYNTAX } from "pivotkit-cli/rest";
+import { CLIENT_ID_SYNTAX } from "pivotkit-node/rest";
 import { ConfigError } from "./shared.js";
 
 export const NAME = "issuer";

@@ -21,7 +21,7 @@
             "docs/use/filters.md": [500],
             "docs/use/values.md": [326]
         },
-        "totalLines": 25817
+        "totalLines": 25820
     },
     "functions": {
         "complexity": {
@@ -29,7 +29,6 @@
             "packages/pivotkit-cli/src/cli.js Async function 'main'": [74],
             "packages/pivotkit-cli/src/cli.js Async function 'readData'": [35],
             "packages/pivotkit-cli/src/cli.js Async function 'renderCommand'": [66],
-            "packages/pivotkit-cli/src/errors.js Function 'asCliError'": [27],
             "packages/pivotkit-cli/src/remote.js Async function 'request'": [30],
             "packages/pivotkit-cli/src/sign-in.js Async function 'loginCommand'": [27],
             "packages/pivotkit-core/src/chart-fit.js Function 'pointLabels'": [43],
@@ -197,7 +196,6 @@
         "packages/pivotkit-cli/src/credential-store.js exports KEYCHAIN_SERVICE",
         "packages/pivotkit-cli/src/credential-store.js exports WINDOWS_BLOB_BYTES",
         "packages/pivotkit-cli/src/credential-store.js exports configDirOf",
-        "packages/pivotkit-cli/src/errors.js exports PRINT_LENGTH",
         "packages/pivotkit-cli/src/layout-flags.js exports UNIT_TEXTS",
         "packages/pivotkit-cli/src/layout-flags.js exports parseGroup",
         "packages/pivotkit-cli/src/layout-flags.js exports parseValue",
