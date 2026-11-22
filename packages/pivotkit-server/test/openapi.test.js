@@ -180,11 +180,20 @@ test("with MCP beside REST, a path nobody serves names the REST and OpenAPI addr
             assert.equal(res.status, 404, path);
             assert.equal(res.data.code, "NOT_FOUND", path);
             assert.equal(res.data.detail, want, path);
+            assert.match(res.headers.get("x-request-id") ?? "", /^[A-Za-z0-9_-]+$/, path);
         }
         // the MCP endpoint itself is still MCP's
         assert.notEqual((await call(`${server.url}/mcp`, { method: "POST", token: TOKEN, body: {} })).status, 404);
     } finally {
         await server.close();
+    }
+    // MCP without REST: the same problem as a server without MCP, with no address to name
+    const alone = await restServer(options, { env: { PIVOTKIT_TOKEN: TOKEN }, enable: ["mcp"] });
+    try {
+        const res = await call(`${alone.url}/nothing`, { token: TOKEN });
+        assert.deepEqual([res.status, res.data.code, res.data.detail], [404, "NOT_FOUND", "no such route"]);
+    } finally {
+        await alone.close();
     }
 });
 

@@ -165,10 +165,10 @@ export async function createServerHandler(options, runtime) {
         rest = enable.includes("rest") ? await createRestHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
         // the answers of this handler name the operator's documentation (branding.js)
         const { problem, hostProblem } = problemsFor(context.branding.docs);
-        // a path nobody serves names the REST service and its OpenAPI document by their full address,
-        // also where pivotkit-mcp's handler answers it
+        // a path nobody serves names the REST service and its OpenAPI document by their full address;
+        // pivotkit-mcp's handler answers such a path with the same problem
         const noRoute = rest ? noRouteDetail(options) : "no such route";
-        const notFound = rest ? () => problem("NOT_FOUND", noRoute) : undefined;
+        const notFound = () => problem("NOT_FOUND", noRoute);
         const mcp = enable.includes("mcp") && mcpModule ? await mcpModule.createHttpHandler(context, { env: runtime.env, loopback: runtime.loopback, notFound }) : null;
         const hosts = allowedHosts(options);
         const trustProxy = options.http?.trustProxy ?? false;

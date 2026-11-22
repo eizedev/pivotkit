@@ -524,6 +524,8 @@ Their names are letters, digits and `_`.
   lengths and range.
 
 `createHttpHandler(context, { env })` reads static tokens from `env` (default `process.env`).
+Its `notFound` option, a function that returns a `Response`, answers a path nobody serves. Without
+it, such a path gets a plain "not found". pivotkit-server passes its own 404 problem.
 `pivotkit-mcp/policy` exports the exposure policy (`resolvePolicy`, `withStats`, `levelOf`,
 `levelInfo`, `autoLevel`, `deniedWord`, `listsAll`, `stricter`, `exposeSource`, `exposeFindings`,
 `touchesClosed`) for another front end over the same sources. It is `pivotkit-server/policy` under
