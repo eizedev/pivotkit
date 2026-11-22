@@ -3,8 +3,8 @@
 // exchange for the signed-in person; the token cache (per settings, per person with client and
 // scopes, expiry, one request at a time, a backend's 401); parameters bound to claims of the
 // verified token; who may see and schedule such sources; check-config and check-source. A backend
-// and a token endpoint run over https on loopback (a certificate made per run with openssl, as
-// http-sources.test.js does); the names resolve to 127.0.0.1 through a lookup of the test's own.
+// and a token endpoint run over https on loopback (a certificate from loopbackCert in helpers.js);
+// the names resolve to 127.0.0.1 through a lookup of the test's own.
 // Every secret, token and error description is a sentinel that must never show up in a log line, an
 // answer, check-config or check-source.
 import { test, before, after, beforeEach } from "node:test";

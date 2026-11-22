@@ -23,11 +23,14 @@ export const metadataOf = (issuer, more = {}) => ({
 });
 
 /**
- * An issuer on a free loopback port. It answers its discovery document (`metadata` over the default
- * one) and its key set. `routes` answers a path, by path, with a JSON body or a handler
- * `(req, res) => void`, also in place of those two. Both can change while a test runs. `asked` keeps the path of every request.
- * `token()` signs an access token: scope "pivotkit", client "report-bot", five minutes, the subject
- * and audience only when given.
+ * An issuer on a free loopback port. Each part can change while a test runs:
+ *
+ * - `metadata`: fields over its default discovery document.
+ * - `routes`: an answer per path, a JSON body or a handler `(req, res) => void`. A route also takes
+ *   the place of the discovery document or the key set.
+ * - `asked`: the path of every request.
+ * - `token()`: an access token signed with its key: scope "pivotkit", client "report-bot", five
+ *   minutes; the subject and audience only when given.
  */
 export async function localIssuer() {
     const { key, jwk } = await signingKey();

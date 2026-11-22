@@ -15,12 +15,18 @@ export const BIN = fileURLToPath(new URL("../bin/pivotkit-server.js", import.met
 export const POSIX = process.platform !== "win32";
 
 /**
- * Runs the command as an operator does (the container image runs it the same way): a fresh process
- * with only PATH, HOME and SystemRoot of this one's environment, plus `env`.
+ * The environment of the command as an operator runs it (the container image runs it the same way):
+ * only PATH, HOME and SystemRoot of this process's environment, plus `env`.
+ * @param {Record<string, string>} [env]
+ */
+export const binEnv = (env = {}) => ({ PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", SystemRoot: process.env.SystemRoot ?? "", ...env });
+
+/**
+ * Runs the command as an operator does, in a fresh process with binEnv(env), and waits for it.
  * @param {string[]} args
  * @param {{ env?: Record<string, string>, cwd?: string }} [options]
  */
-export const runBin = (args, { env = {}, cwd } = {}) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", cwd, env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", SystemRoot: process.env.SystemRoot ?? "", ...env }, timeout: 30_000 });
+export const runBin = (args, { env = {}, cwd } = {}) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", cwd, env: binEnv(env), timeout: 30_000 });
 
 /** Orders of a made-up shop: a personal field (Customer), dates over two years, a one-letter field. */
 export const SALES_CSV = ["Region,Product,Customer,Sales,OrderDate,Q", "North,A,Alice Example,10,2025-11-05,1", "South,B,Bob Example,20,2026-09-01,2", "North,B,Carol Example,5,2026-10-01,3", "West,A,Dan Example,7,2026-10-20,1", ",A,Eve Example,3,2024-12-31,2"].join("\n") + "\n";

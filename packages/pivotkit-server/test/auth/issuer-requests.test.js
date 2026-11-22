@@ -18,6 +18,10 @@ const REST_RESOURCE = "https://pk.example.com/api/v1";
 const NAME = "idp.example.test";
 const SOURCES = { sales: { file: "data/sales.csv", policy: { fields: { Region: "show" } } } };
 
+/**
+ * These tests are a hostile or broken issuer, not localIssuer(): a plain and an https server that
+ * share one key and answer only what `routes` says, so every other path stays a 404.
+ */
 let key;
 let jwk;
 let cert;
@@ -92,7 +96,11 @@ async function withLookup(answers, body) {
     }
 }
 
-/** A REST server signed in through `issuer`; waits until its metadata is loaded or `waitMs` passed. */
+/**
+ * A REST server signed in through `issuer`; waits until its metadata is loaded or `waitMs` passed.
+ * Not untilReady(): an issuer these tests break on purpose never gets the server ready, and the test
+ * then checks the server that did not get ready.
+ */
 async function oauthServer(issuer, auth = {}, waitMs = 3000) {
     const server = await restServer({ sources: SOURCES, auth: { mode: "oauth", issuer, resource: REST_RESOURCE, requiredScopes: ["pivotkit"], ...auth }, baseDir: workspace() });
     const until = Date.now() + waitMs;

@@ -9,12 +9,12 @@ import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "pivotkit-server";
-import { BIN, BY_REGION, POSIX, call, factsOf, restServer, runBin, tempDir, workspace } from "../helpers.js";
+import { BIN, BY_REGION, POSIX, binEnv, call, factsOf, restServer, runBin, tempDir, workspace } from "../helpers.js";
 
 /** The command as a person runs it (runBin), not waiting: for runs at the same time. */
 const runAsync = (args, { cwd } = {}) =>
     new Promise((resolve) => {
-        const child = spawn(process.execPath, [BIN, ...args], { cwd, env: { PATH: process.env.PATH ?? "", SystemRoot: process.env.SystemRoot ?? "" } });
+        const child = spawn(process.execPath, [BIN, ...args], { cwd, env: binEnv() });
         let stdout = "";
         let stderr = "";
         child.stdout.on("data", (c) => (stdout += c));
@@ -472,10 +472,10 @@ test("a token too easy to guess: fewer than 8 different characters or one piece 
     const dir = workspace();
     const weak = "x".repeat(40);
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, baseDir: dir }, { env: { PIVOTKIT_TOKEN: weak } }), /^ConfigError: auth: the token \(\$PIVOTKIT_TOKEN\) is too easy to guess \(1 different character, at least 8\); make one with: /);
-    const check = spawnSync(process.execPath, [BIN, "check-config", "--source", "sales=data/sales.csv", "--auth", "token"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", PIVOTKIT_TOKEN: weak } });
+    const check = runBin(["check-config", "--source", "sales=data/sales.csv", "--auth", "token"], { cwd: dir, env: { PIVOTKIT_TOKEN: weak } });
     assert.match(factsOf(check.stdout), /^PROBLEM: the token token \(\$PIVOTKIT_TOKEN\) is too easy to guess \(1 different character, at least 8\) -> the server does not start$/m);
     writeFileSync(join(dir, "weak.token"), `${weak}\n`, { mode: 0o600 });
-    const kept = spawnSync(process.execPath, [BIN, "token", "new", "--file", "weak.token", "--if-missing"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "" } });
+    const kept = runBin(["token", "new", "--file", "weak.token", "--if-missing"], { cwd: dir });
     assert.equal(kept.status, 1, kept.stderr);
     assert.match(kept.stderr, /weak\.token: is there but not a usable token \(too easy to guess \(1 different character, at least 8\)\); replace it with --force/);
 });
@@ -623,7 +623,7 @@ test("on a terminal: a kept file is one line; MCP only where the configuration s
     err = "";
     assert.equal(await credentialsCommand("token", ["new", "--file", "loose.token"], io), 0);
     assert.match(err, /claude mcp add .*\(where the server serves MCP\)/);
-    const help = (await import("node:child_process")).spawnSync(process.execPath, [BIN, "token", "--help"], { encoding: "utf8" }).stdout;
+    const help = runBin(["token", "--help"]).stdout;
     assert.match(help, /--add .*needs --file/);
 });
 
