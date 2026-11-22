@@ -153,7 +153,7 @@ export const de = {
     ruleAnd: "und",
     addRule: "Regel hinzufügen",
     addRuleItem: "Nach {field} filtern",
-    addRuleTotal: "Nach Wert filtern",
+    addRuleTotal: "Nach Gesamtwert filtern",
     addRuleName: "Nach Name filtern",
     removeRule: "Diese Regel entfernen",
     rulesFull: "Höchstens {max} Regeln je Feld.",
