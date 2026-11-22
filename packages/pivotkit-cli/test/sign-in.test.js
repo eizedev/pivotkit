@@ -966,6 +966,45 @@ test("the lock's takeover: a late run leaves a lock made since alone, never lett
         assert.ok(existsSync(path));
         await takeOver(path);
         assert.deepEqual(readdirSync(dir), [], "the stale lock is taken over");
+
+        // runs that take over at once: exactly one removes the stale lock
+        writeFileSync(path, "a crashed run's id");
+        utimesSync(path, old, old);
+        const taken = await Promise.all([1, 2, 3, 4, 5].map(() => takeOver(path)));
+        assert.equal(taken.filter(Boolean).length, 1, JSON.stringify(taken));
+        assert.deepEqual(readdirSync(dir), []);
+    });
+});
+
+test("the lock while a takeover runs: a waiting run neither spins nor enters, and gives up after lockWaitMs", async () => {
+    await withLock({ lockStaleMs: 1000, lockWaitMs: 300, lockPollMs: 20 }, async () => {
+        const dir = tempDir();
+        const store = credentialStore(envOf(dir));
+        const resource = "https://reports.example/api/v1";
+        const locks = join(dir, "pivotkit", "locks");
+        mkdirSync(locks, { recursive: true, mode: 0o700 });
+        const path = join(locks, `${accountOf(resource)}.lock`);
+        // a stale lock and another run's live takeover: this run waits for it, as for any lock
+        writeFileSync(path, "a crashed run's id");
+        utimesSync(path, new Date(1_000_000_000_000), new Date(1_000_000_000_000));
+        writeFileSync(`${path}.takeover`, "");
+        let ran = false;
+        await assert.rejects(
+            store.locked(resource, async () => {
+                ran = true;
+            }),
+            (e) => e.code === "LOCKED"
+        );
+        assert.equal(ran, false);
+        // no lock: a run that makes its own while the takeover lock is there backs off until it goes
+        unlinkSync(path);
+        const started = Date.now();
+        setTimeout(() => unlinkSync(`${path}.takeover`), 100);
+        await store.locked(resource, async () => {
+            ran = true;
+        });
+        assert.ok(ran && Date.now() - started >= 90, `entered after ${Date.now() - started} ms`);
+        assert.deepEqual(readdirSync(locks), []);
     });
 });
 
