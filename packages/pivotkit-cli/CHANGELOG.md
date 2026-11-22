@@ -6,6 +6,12 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Fixed
+
+- `pivotkit login`, `token` and `logout` send the user agent `pivotkit-cli/<version>` to the server
+  and its issuer, as the REST calls do. They sent Node's default `node`, or none to a loopback
+  address ([#628](https://github.com/eizedev/pivotkit/issues/628)).
+
 ## [0.5.0] - 2026-11-21
 
 ### Added
