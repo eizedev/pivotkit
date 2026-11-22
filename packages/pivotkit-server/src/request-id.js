@@ -10,10 +10,9 @@
  * (W3C Trace Context: the one of a strictly parsed incoming `traceparent`, else a new one), an
  * incoming `X-Request-Id` after a length and character check (upstreamRequestId: a proxy's id, never
  * the server's own), and the client's address: behind a trusted proxy the forwarded one, with the
- * socket's peer (the proxy) beside it. The
- * HTTP edge (listen.js serveFetch, and each front end's handler for hosts that serve it themselves)
- * makes the scope once per request (requestScopeFor); the log adds its fields to every line written
- * inside it.
+ * socket's peer (the proxy) beside it. The HTTP edge (listen.js serveFetch, and route-handler.js
+ * createRouteHandler for a host that serves a front end itself) makes the scope once per request
+ * (requestScopeFor) and keeps it in `info`; the log adds its fields to every line written inside it.
  *
  *   await withRequestId(newRequestId(), () => present(...));
  *   throw new OperationError("SOURCE_UNAVAILABLE", "...", errorDetails({ retryable: true }));
@@ -116,8 +115,12 @@ export const UPSTREAM_REQUEST_ID = /^[A-Za-z0-9_.:+/=-]{1,128}$/;
  */
 export const upstreamRequestIdOf = (header) => (typeof header === "string" && UPSTREAM_REQUEST_ID.test(header) ? header : undefined);
 
-/** A socket's address as it is logged ("::ffff:192.0.2.10" is 192.0.2.10). */
-const plainAddress = (address) => String(address ?? "").replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, "");
+/**
+ * A socket's address as it is logged, counted and checked for loopback: an IPv4-mapped address
+ * becomes its IPv4 address ("::ffff:192.0.2.10" is 192.0.2.10). Only the dotted form, the one Node
+ * gives for a socket; a forwarded "::ffff:c000:20a" stays as written.
+ */
+export const plainAddress = (address) => String(address ?? "").replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, "");
 
 /** What a forwarded address is logged as when it is no IP address: never the proxy's in its place. */
 export const INVALID_ADDRESS = "invalid";

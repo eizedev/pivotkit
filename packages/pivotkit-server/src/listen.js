@@ -9,7 +9,7 @@
 import { createServer } from "node:http";
 import { isLoopback } from "pivotkit-node/rest";
 import { HOST_SYNTAX } from "./checks.js";
-import { newRequestId, requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
+import { newRequestId, plainAddress, requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
 
 /** Whether an address is loopback (pivotkit-node/rest's: the CLI decides with it where http is allowed). */
 export { isLoopback } from "pivotkit-node/rest";
@@ -85,9 +85,6 @@ export function refusedText(entry) {
     const why = { total: "every connection the server may hold was open", loopbackReserve: "the network held every slot not kept for loopback", perAddress: "an address held as many as http.maxConnectionsPerAddress allows" };
     return `connections refused since the last report: ${entry.limits.map((l) => why[l]).join("; ")}`;
 }
-
-/** A socket's address as a loopback check reads it ("::ffff:127.0.0.1" is 127.0.0.1). */
-const plainAddress = (address) => String(address ?? "").replace(/^::ffff:/i, "");
 
 /**
  * Who may open a connection: a count in all and per address. A connection from loopback may use

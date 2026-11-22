@@ -18,13 +18,13 @@ export { TOKEN_ENV };
 import { allowedHosts, hostRefusal } from "./checks.js";
 import { connectionLimitsOf, isLoopback, refusedText, serveFetch } from "./listen.js";
 import { bodyBytesOf } from "./limits.js";
-import { DOWNLOADS_PATH, DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
+import { DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
 import { bytesText } from "./text.js";
 import { problemsFor } from "./rest/problem.js";
 import { brandingAnswer, docsOf } from "./branding.js";
-import { logUnanswered, noteAnswered, refusalReason, startFields } from "./log.js";
-import { requestScopeFor, withRequestIdHeader, withRequestScope } from "./request-id.js";
+import { noteAnswered, refusalReason, startFields } from "./log.js";
+import { createRouteHandler } from "./route-handler.js";
 import { logNotes, openAddressRefusal, prepareHttpServe } from "./state.js";
 
 /** The default port. */
@@ -171,7 +171,6 @@ export async function createServerHandler(options, runtime) {
         const notFound = () => problem("NOT_FOUND", noRoute);
         const mcp = enable.includes("mcp") && mcpModule ? await mcpModule.createHttpHandler(context, { env: runtime.env, loopback: runtime.loopback, notFound }) : null;
         const hosts = allowedHosts(options);
-        const trustProxy = options.http?.trustProxy ?? false;
         const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
 
         /** Whether /readyz last found the server ready (it starts out so): a line is written only when that changes. */
@@ -204,14 +203,11 @@ export async function createServerHandler(options, runtime) {
             return Response.json(ready, { status: ready.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
         }
 
-        /** The route family of a request, for a refused line written by logUnanswered (REST's and MCP's own handlers name theirs). */
-        const routeFamily = (request) => (isDownload(request) ? { path: DOWNLOADS_PATH, notFound: /** @type {const} */ ("info") } : {});
-
         /** The routes, in order: health, download links, REST, MCP. */
         const routes = {
             async precheck(request, info) {
                 if (isDownload(request)) {
-                    return downloads.precheck(request);
+                    return downloads.precheck(request, info);
                 }
                 if (rest && isRest(request)) {
                     return rest.precheck(request, info);
@@ -236,7 +232,7 @@ export async function createServerHandler(options, runtime) {
                     return early;
                 }
                 if (isDownload(request)) {
-                    return downloads.fetch(request);
+                    return downloads.fetch(request, info);
                 }
                 if (rest && isRest(request)) {
                     return rest.fetch(request, info);
@@ -259,27 +255,19 @@ export async function createServerHandler(options, runtime) {
             }
         };
 
+        const hosted = createRouteHandler(context, { check: routes.precheck, answer: routes.fetch });
+
         return {
             context,
             enable,
             downloads,
-            /** @type {import("./listen.js").FetchHandler["precheck"]} */
-            async precheck(request, info = { address: "" }) {
-                // the request's scope: serveFetch's, or made here for a host that serves the handler itself
-                const scope = requestScopeFor(request, info, { trustProxy });
-                const answer = await logUnanswered(context.log, scope, await withRequestScope(scope, () => routes.precheck(request, info)), routeFamily(request));
-                return answer && withRequestIdHeader(answer, scope.id);
-            },
-            /** @type {import("./listen.js").FetchHandler["fetch"]} */
-            async fetch(request, info = { address: "" }) {
-                const scope = requestScopeFor(request, info, { trustProxy });
-                // every 4xx answer has a line: the routes' own, or a refused line by its status
-                const response = await logUnanswered(context.log, scope, await withRequestScope(scope, () => routes.fetch(request, info)), routeFamily(request));
-                return withRequestIdHeader(/** @type {Response} */ (response), scope.id);
-            },
+            // every 4xx answer has a line: the routes' own (each family names its path), or a refused line by its
+            // status; a body that cannot be read goes to the family of its path (problem below)
+            precheck: hosted.precheck,
+            fetch: hosted.fetch,
             /** @type {import("./listen.js").FetchHandler["release"]} */
             release: (info) => rest?.release(info),
-            problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status, path, info) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? BODY_TOO_LARGE_TEXT : "the request cannot be read")),
+            problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status, path, info) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status, path, info) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? BODY_TOO_LARGE_TEXT : "the request cannot be read")),
             async close() {
                 downloads.close();
                 await rest?.close();
