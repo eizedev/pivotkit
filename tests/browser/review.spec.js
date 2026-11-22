@@ -177,8 +177,11 @@ test.describe("the field list for the keyboard", () => {
         await page.keyboard.press("Shift+F10");
         await expect(page.getByRole("menu", { name: "Options for Region" })).toBeVisible();
         await expect(page.getByRole("menuitem", { name: "Add to Rows" })).toBeVisible();
+        // the menu takes the focus a frame after it opens; an Escape before that leaves it on the name
+        await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest('[role="menu"]')))).toBe(true);
         await page.keyboard.press("Escape");
-        // Tab back into the list returns to the field last in focus
+        // the focus goes back to the menu button, and Tab back into the list returns to it
+        await expect(page.getByTestId("field-menu-Region")).toBeFocused();
         await page.getByTestId("field-search").focus();
         await page.keyboard.press("Tab");
         await expect(page.getByTestId("field-menu-Region")).toBeFocused();
