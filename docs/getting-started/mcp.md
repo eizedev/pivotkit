@@ -85,9 +85,11 @@ Then ask, for example:
 - "Make an Excel report of sales by region per quarter"
 - "Now the same report as CSV, only for the North region"
 
-The server answers with the file's place. A link to a report needs a page that shows reports, a
-source's `link` ([PowerShell Universal](#psu) has an example). A report can use fields whose values you did not let the
+The server answers with the file's place. A report can use fields whose values you did not let the
 model see. Then the server says that the model has not seen the content.
+
+A link to a report needs a page that shows reports. You set it as the source's `link`.
+[PowerShell Universal](#psu) has an example.
 
 !!! warning "A client with file tools can read the files"
     Over stdio, the answer names the report's absolute path. Claude Code, VS Code and other clients
