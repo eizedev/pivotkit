@@ -9,11 +9,19 @@ anchors_moved_to: ../upgrading-older/
 This page answers two questions:
 
 - [How do I update?](#update) One short section per way of installing.
-- [What must I change for the newest release?](#from-0-8-2) Breaking changes first, then the
-  changes that can break a test, a script, or a client.
+- [What must I change for 0.9?](#from-0-8-2) Breaking changes first, then the changes that can
+  break a test, a script, or a client.
 
-On an older release? [Upgrading from older releases](upgrading-older.md) has the steps for
-pivotkit 0.8.1 and earlier. Do them in order, then the steps on this page.
+Going from 0.8.2 to 0.9.0? Do these four things, then check the
+[other changes](#other-changes-0-9):
+
+1. Update Node to 24 or later. [Details](#node-24)
+2. Server operators: set `http.publicUrl` to an origin without a path. [Details](#public-url-origin)
+3. Code that imports from pivotkit-server: use only the listed exports. [Details](#internal-exports)
+4. Update all pivotkit packages of the release in one command. [Details](#versions-0-9)
+
+On 0.8.1 or earlier? [Upgrading from older releases](upgrading-older.md) has the steps. Do them
+first, then the steps on this page.
 
 This page lists only what needs your action. Each package's `CHANGELOG.md` lists everything new.
 
@@ -26,7 +34,7 @@ Three rules hold for every way of installing:
 3. Restart what runs. A running process keeps its old version.
 
 To see the newest release of a package, run `npm view <package> version`. For a setup other people
-rely on, update to a version you name and tested, not to whatever is newest.
+rely on, pin the version you tested. Do not take whatever is newest.
 
 ### <span id="update-global"></span>Installed with `npm install --global`
 
@@ -36,9 +44,11 @@ npm install --global pivotkit-server@<version> pivotkit-mcp@<version> pivotkit-c
 pivotkit-server --version
 ```
 
+The versions of 0.9 are in [the table of the release](#from-0-8-2).
+
 - `npm outdated --global` lists the global packages that have a newer release.
 - You can also update pivotkit-cli on its own.
-- Install global packages into a folder you own, npm's `prefix`. Do not use `sudo`.
+- Install global packages into a folder you own: set npm's `prefix` to it. Do not use `sudo`.
 
 pivotkit-server loads the pivotkit-mcp installed beside it. If the two come from different releases,
 `serve` and `mcp` do not start. The error says "does not fit" or "does not provide an export
@@ -46,8 +56,8 @@ named". Install both again in one command.
 
 ### <span id="update-project"></span>In a project or an app folder
 
-`npm update` does not move to the next 0.x release. In 0.x, a caret range in `package.json` covers
-patch releases only. Name the new version:
+`npm update` does not move to the next 0.x release. `package.json` holds a caret range: `^` and a
+version. In 0.x, a caret range covers patch releases only. Name the new version:
 
 ```bash
 npm install <package>@<version>
@@ -83,7 +93,7 @@ Pick a tag:
 | `<major>.<minor>` | each patch of that minor release | a test setup |
 | `latest` | the newest pivotkit-server release, breaking ones too | trying things out |
 
-For production, use the exact version or its digest. A digest looks like
+For production, use the exact version or its digest. A digest is the image's fixed hash, such as
 `ghcr.io/eizedev/pivotkit@sha256:...`. [Check the signature](../reference/container.md#verify)
 of the new image before you restart. A release of pivotkit-cli or pivotkit-mcp alone reaches the
 image with the next pivotkit-server release.
@@ -97,10 +107,10 @@ Pulling a new tag does not change a running container. Create the container agai
 - **Kubernetes**: write the new version or digest into the manifest and apply it again. Never use
   `latest` or `<major>.<minor>` there. [Kubernetes](kubernetes.md) has the details.
 
-**Warning: reports in `/out` need a volume.** The token, the keys and the reports under
-`/var/lib/pivotkit/out` stay in the volume `pivotkit`. A configuration that writes to `/out` needs a
-volume there too, such as `-v pivotkit-out:/out`. Without it, `docker rm` deletes the reports and
-the drafts that wait for approval.
+**Warning: an `output.dir` of `/out` needs its own volume.** The default state volume `pivotkit`
+keeps the token, the keys and the reports in `/var/lib/pivotkit/out`. If your configuration sets
+`output.dir` to `/out`, mount a volume there too, such as `-v pivotkit-out:/out`. Without it,
+`docker rm` deletes the reports and the drafts that wait for approval.
 
 Check the versions inside the new image:
 
@@ -124,7 +134,8 @@ Then restart Claude Code.
 
 ### <span id="update-restart"></span>Restart what runs
 
-- **An MCP client over stdio**: restart the client, or start a new session.
+- **An MCP client that starts the server itself over stdio**: restart the client, or start a new
+  session.
 - **`pivotkit-server serve` and `pivotkit-mcp --http`**: restart the process. Under Windows, restart
   the service, for example `nssm restart pivotkit` for
   [the service under NSSM](mcp.md#psu-service).
@@ -141,16 +152,12 @@ The packages of this release:
 | pivotkit-xlsx | 0.5.x | 0.6.0 |
 | pivotkit-server, pivotkit-mcp, the container image | 0.3.x | 0.4.0 |
 
-On 0.8.0 or 0.8.1? Do the [steps from 0.8.0](upgrading-older.md#from-0-8-0) first.
+On 0.8.1? Do the steps [from 0.8.1 to 0.8.2](upgrading-older.md#from-0-8-1) first. On 0.8.0, do
+the steps [from 0.8.0 to 0.8.1](upgrading-older.md#from-0-8-0) before them.
 
 ### Breaking changes
 
-| Change | Who it affects | What to do |
-| --- | --- | --- |
-| [Node 24 or later](#node-24) | everyone who installs or runs pivotkit with Node | update Node first |
-| [`http.publicUrl` is an origin](#public-url-origin) | operators whose public address has a path | serve pivotkit at the root of a host |
-| [Fewer exports of pivotkit-server](#internal-exports) | code that imports from pivotkit-server | use a listed name |
-| [One release together](#versions-0-9) | hosts that list several pivotkit packages | update them in one command |
+Every reader checks these four.
 
 #### <span id="node-24"></span>Node 24 or later
 
@@ -177,13 +184,13 @@ fragment stops the start too, also in `auth.resource` and `rest.resource`.
 and port, without a path. A trailing `/` is fine.
 
 The server does not start with a path in the address. The error names the remedy. Run
-`check-config` to see it before you restart.
+`pivotkit-server check-config` to see it before you restart.
 
 If your address had a path:
 
 - Give pivotkit a host name of its own, such as a subdomain. Or route these paths at the root of the
-  shared host: `/mcp`, `/.well-known/`, `/api/v1`, `/openapi.json`, `/downloads/` and `/`, and
-  `/icon.png` with `branding.icon`. A proxy that strips a prefix such as `/reports` no longer works.
+  shared host: `/mcp`, `/.well-known/`, `/api/v1`, `/openapi.json`, `/downloads/` and `/`. With
+  `branding.icon`, route `/icon.png` too. A proxy that strips a prefix such as `/reports` no longer works.
 - Point MCP clients at the new address, and set `auth.resource` to it.
 - With `output.downloads.signIn`, register the new callback at the identity provider.
   `check-config` prints it.
@@ -215,16 +222,18 @@ pivotkit-server with pivotkit-mcp.
 - pivotkit-mcp 0.4.0 beside pivotkit-server 0.3.x does not start. The error names
   `pivotkit-server/internal`. The other way round, the error names a missing export.
 
-### Other changes to check
+### <span id="other-changes-0-9"></span>Other changes to check
 
 Each of these can break a test, a script, or a client. Skip the ones that do not apply to you.
+pivotkit-core and pivotkit-cli users need only the breaking changes and
+[views shared with pivotkit 0.8](#views-0-8).
 
 | Change | Who it affects |
 | --- | --- |
 | [A click in the chart opens a menu](#chart-click-menu) | apps with `onCellClick` or `pivot-cell-click`, and tests that click a chart |
 | [The element reads `"false"` as off](#element-false) | pages that use `<pivot-report>` |
 | [New texts in the report and the errors](#neutral-texts) | tests, screenshots, and log rules that match words |
-| [Views shared with pivotkit 0.8](#views-0-8) | teams with apps on 0.8 and 0.9 at the same time |
+| [Views shared with pivotkit 0.8](#views-0-8) | apps on 0.8 and 0.9 at once, and tests that compare views |
 | [Reconnect MCP clients](#mcp-reconnect) | operators of pivotkit-server or pivotkit-mcp |
 | [A print template the server cannot read](#template-unavailable) | programs that read the status of an html render |
 | [503 `BUSY` logs at `warn`](#busy-warn) | log rules that count `error` lines |
@@ -233,12 +242,12 @@ Each of these can break a test, a script, or a client. Skip the ones that do not
 
 #### <span id="chart-click-menu"></span>A click in the chart opens a menu
 
-Click a bar, a point, a slice, or a heatmap cell, and a small menu opens there. **Show the rows** in that
-menu opens the rows, as the click did before. A double click opens them at once.
+Click a bar, a point, a slice, or a heatmap cell, and a small menu opens there. Its first item,
+**Show the rows**, opens the rows, as the click did before. A double click opens them at once.
 See [filter from the chart](../use/charts.md#filter-from-the-chart).
 
-- `onCellClick` and `pivot-cell-click` for a chart point come at **Show the rows** or at the double
-  click. They no longer come at the first click.
+- `onCellClick` and `pivot-cell-click` for a chart point fire at **Show the rows** or at the double
+  click. They no longer fire at the first click.
 - In tests, click **Show the rows** or double-click the point.
 - On a phone, the second tap opens the menu.
 - The table does not change. Clicking a value still opens its rows.
@@ -259,8 +268,8 @@ Some texts changed. Error codes stay the same.
 **Do:** match an error's `code`, not its words. Take screenshots again.
 
 - Errors of the services no longer name pivotkit. `SOURCE_UNAVAILABLE` says "the source's backend
-  refused this server's access". `UNSUPPORTED_FORMAT` says "<name>: the server reads csv, tsv,
-  txt, json and xlsx files".
+  refused this server's access". `UNSUPPORTED_FORMAT` says "`<name>`: the server reads csv,
+  tsv, txt, json and xlsx files".
 - pivotkit-react's messages about a loaded view no longer name pivotkit, for example "This is not a
   view.". A host that sets these texts through `labels` keeps its own.
 - The filter has plainer words. "Text condition" is now "Only if the name". The buttons that add a
@@ -285,15 +294,18 @@ The new settings are these. A view file or a link that uses none of them reads i
   `"treemap"`.
 - <span id="sort-column"></span>[Sort by one column](../use/filters.md#sort-with-a-click-on-a-header):
   `column` in a sort entry.
-- <span id="field-labels"></span>[Names of the report's own](../use/fields.md) for fields:
+- <span id="field-labels"></span>[A field's own name in the report](../use/fields.md):
   `fieldLabels`.
 - <span id="display-both"></span>[Table and chart side by side](../use/charts.md#both):
   `display: "both"`.
 - <span id="chart-points"></span>[High and low points](../use/charts.md#high-and-low-points):
   `chart.referenceLines.extremes`.
 
-A program that reads views gets these keys too. A normalized view always has `extremes`, set to
-`false` when it is off. A test that compares a whole normalized view needs the new key.
+This also concerns code that uses pivotkit-core, with no 0.8 app around:
+
+- A normalized view always has `chart.referenceLines.extremes`, `false` when it is off. A test
+  that compares a whole normalized view needs the new key.
+- A program that reads views gets the new keys.
 
 #### <span id="mcp-reconnect"></span>Reconnect MCP clients
 
@@ -311,7 +323,7 @@ What changed in the tools:
 - `create_link` writes the parameters that `sources.<id>.linkParams` lists into the page's query
   string. The host page then sends `Referrer-Policy: same-origin` or `no-referrer`. See
   [link parameters](../concepts/sharing.md#link-params).
-- `list_sources` adds `rows` and `dataAsOf`. A client that stays connected keeps working.
+- `list_sources` adds `rows` and `dataAsOf`.
 
 #### <span id="template-unavailable"></span>A print template the server cannot read
 
@@ -331,8 +343,9 @@ now have the level `warn`. Every other 5xx stays at `error`.
 
 #### <span id="http-json"></span>HTTP sources read JSON while it arrives
 
-An HTTP source reads a JSON answer row by row, while it arrives. That needs less memory. A JSON body
-that repeats a key on the way to the rows, after the rows, is now refused with `SOURCE_UNAVAILABLE`.
+An HTTP source reads a JSON answer row by row, while it arrives. That needs less memory. One rare
+body is now refused with `SOURCE_UNAVAILABLE`: a body that repeats, after the rows, a key on the
+path to the rows.
 CSV answers do not change.
 
 **Do:** if a source fails after the update, fix the backend's answer. See
