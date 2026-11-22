@@ -7,21 +7,26 @@ superseded is history. A task that conflicts with an accepted record stops and p
 
 This file holds what you need on every task. Packages and some folders have their own `AGENTS.md`.
 
+## How we build
+
+pivotkit is one product. Judge code, tests, docs and these rules as a whole.
+
+- **Look at the whole.** Before and after a change, read the whole files, pages and flows it touches,
+  as the people who use, run, and build on pivotkit. A change is done when the product is better.
+- **Shape what exists.** Edit, merge, move or delete until the result reads as if written today.
+  Adding is the last option.
+- **One place per fact.** A rule, a fact or a piece of logic lives in one place. Others link or import it.
+- **Small units.** A file holds one concept, a function one job. When a second place needs
+  something, build the shared piece first.
+- **Common practice first.** Write JavaScript, React, and Node the way their communities do.
+  A deviation names its reason.
+- **Say what does not fit.** Duplication, a growing function or a page nobody can read: name it in the
+  pull request and propose the fix.
+
 ## Packages
 
-pivotkit is a pivot report builder in the spirit of Excel's PivotTable, as npm workspaces:
-
-| Package | What it is |
-| --- | --- |
-| `pivotkit-core` | the engine: plain JavaScript, no UI |
-| `pivotkit-react` | the React UI, `<PivotReport>` |
-| `pivotkit-element` | the web component `<pivot-report>` |
-| `pivotkit-xlsx` | the reader plugin for Excel workbooks |
-| `pivotkit-report` | a report as a file, without a browser |
-| `pivotkit-cli` | the command line `pivotkit` |
-| `pivotkit-server` | the REST service and the core both servers share |
-| `pivotkit-mcp` | the MCP server |
-
+pivotkit is a pivot report builder in the spirit of Excel's PivotTable, as npm workspaces.
+The [README](README.md#packages) lists each package and what it is.
 The root `package.json` lists the workspaces in build order. `npm run types` and the builds need it.
 
 ## Layout
@@ -67,15 +72,7 @@ node scripts/decisions.js                               # docs/decisions/index.m
 PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-report    # golden files; review the diff
 ```
 
-Docs site:
-
-```bash
-npm run docs:demo           # the live demo, schemas, social preview, robots.txt
-npm run docs:screenshots    # take docs/assets/screenshots/ again
-curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css
-uvx zensical@<version> build --strict     # version: eizedev/brand docs-site/requirements.txt
-node scripts/check-readme-links.js site   # after the build: README links resolve
-```
+Docs site: build and preview commands are in [CONTRIBUTING.md](CONTRIBUTING.md#docs).
 
 ## Hard rules
 
@@ -133,9 +130,10 @@ node scripts/check-readme-links.js site   # after the build: README links resolv
 - Docs describe the current state. History goes into changelogs, commits and pull requests.
 - Add an `[Unreleased]` entry to the `CHANGELOG.md` of each package you change.
 - Use Conventional Commits with the package as scope: `feat(core): ...`.
-- Document every change people see on its detail page of the site. Small behaviour too.
-- Update the overview pages with it: README top, `docs/index.md`, `docs/features.md`,
-  `docs/compare.md`, the package READMEs and the getting-started pages.
+- Describe a change people see on the one page that owns its topic. Rewrite that page's
+  section instead of adding a paragraph beside the old one.
+- Check the overview pages (README top, `docs/index.md`, `docs/features.md`, `docs/compare.md`,
+  package READMEs, getting-started). Correct what the change made false; link instead of copying.
 - The commands and examples on those pages still run as written.
 
 ### Audiences
@@ -169,10 +167,9 @@ For agents and the maintainer. See also [PRODUCT.md](PRODUCT.md#what-a-contribut
 
 ### Reviews
 
-- The agent that wrote a change does not review it.
-- For the maintainer's own AI agents, an independent review before the pull request is mandatory.
-- For outside contributors it is strongly recommended.
-  The maintainer reviews every pull request neutrally. Findings come back as change requests.
+- A review judges the product after the change, not the diff: whole files, pages and flows.
+- Whoever wrote a change does not review it. AI-written changes get an independent review before
+  the pull request. The maintainer reviews every pull request; findings come back as change requests.
 - A larger feature gets reviews as user, operator and developer, run with the packed packages.
 - A change to what a caller may see gets an adversarial privacy review until it finds nothing new.
   Limits that cannot be closed go into `docs/privacy.md`.
