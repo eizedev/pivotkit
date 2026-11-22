@@ -791,7 +791,7 @@ function fieldLabelsSection(raw, view, ctx) {
     view.fieldLabels = out;
     // the name each field of the report goes by (the view's for it, else its own), alike in case and
     // spacing: a name of two such fields is said at each name of the view's among them
-    const alike = (text) => text.toLowerCase().replace(/\s+/g, " ");
+    const alike = (text) => text.normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim();
     const placed = new Set([...view.rows, ...view.cols, ...view.values.map((v) => v.field), ...view.filters.map((f) => f.field)].filter((name) => typeof name === "string"));
     /** @type {Map<string, string[]>} */
     const byName = new Map();

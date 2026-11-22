@@ -83,6 +83,9 @@ test("normalize warns when fieldLabels names a field twice, and when two fields 
     const grouped = normalize({ derived: [{ name: "Bucket", field: "Revenue", by: "bin", size: 2 }], rows: ["Bucket", "cn"], fieldLabels: { Bucket: "cn" } }, data);
     assert.deepEqual(grouped.issues.map((i) => [i.code, i.params?.field]), [["labelTaken", "Bucket"]]);
     assert.deepEqual(normalize({ rows: ["cn"], fieldLabels: { cn: "cat" } }, data).issues, [], "cat is not on the report");
+    // a field in Values or Filters counts: its name shows in a value's header and on its chip
+    assert.deepEqual(normalize({ rows: ["cn"], values: [{ field: "Revenue", agg: "sum" }], fieldLabels: { Revenue: "CN" } }, data).issues.map((i) => i.path), ["fieldLabels.Revenue"]);
+    assert.deepEqual(normalize({ rows: ["cn"], filters: [{ field: "cat", type: "in", items: ["A"], blanks: "exclude" }], fieldLabels: { cat: "cn" } }, data).issues.map((i) => i.path), ["fieldLabels.cat"]);
     // names that differ, or a field's own name for itself: no warning
     assert.deepEqual(normalize({ rows: ["cn"], fieldLabels: { cn: "City", cat: "Kind" } }, data).issues, []);
     assert.deepEqual(normalize({ rows: ["cn"], fieldLabels: { cn: "cn" } }, data).issues, []);
