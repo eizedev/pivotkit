@@ -55,6 +55,7 @@ npm run bench:browser                                     # benchmark, 100k to 1
 
 - They run in Chromium, Firefox and WebKit, on React 18 and 19. CI has one job per engine and React.
 - A test fails on any console error or warning (`tests/browser/fixtures.js`).
+- The chart specs are in `chart/`, named like the unit tests of pivotkit-core and pivotkit-react. `chart/report.js` mounts the chart report these specs point at.
 - A test that measures layout waits until the layout has settled.
 - A test waits for a file chooser with `nextFileChooser(page)` from `import-helpers.js`, not `page.waitForEvent`.
   It keeps Firefox from opening the native picker on the second pick.

@@ -6,8 +6,8 @@ import assert from "node:assert/strict";
 import { DEFAULT_THEME, computePivot, encode, toEChartsOption } from "pivotkit-core";
 import { CATEGORY_LABEL_WIDTH, categoryLabelLayout, decorateOption, rowLabelInterval } from "pivotkit-core/chart";
 // the layout's internal parts: "pivotkit-core/chart" does not export them
-import { PIE_MIN_SCALE, barExtent, pieLabelFit, valueLabelRoom } from "../src/chart-fit.js";
-import { heatmapFrame, textWidth } from "../src/chart-measure.js";
+import { PIE_MIN_SCALE, barExtent, pieLabelFit, valueLabelRoom } from "../../src/chart-fit.js";
+import { heatmapFrame, textWidth } from "../../src/chart-measure.js";
 
 const NO_TOKENS = { getPropertyValue: () => "" };
 const fontSize = DEFAULT_THEME.textSize;

@@ -4,12 +4,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, toSeries } from "pivotkit-core";
 import { extremePoints, referenceLines } from "pivotkit-core/chart";
-import { chartSummary } from "../src/chart-summary.js";
-import { linesSummary, pointsSummary } from "../src/chart-tooltip.js";
-import { LABELS } from "../src/labels.js";
+import { chartSummary } from "../../src/chart-summary.js";
+import { linesSummary, pointsSummary } from "../../src/chart-tooltip.js";
+import { LABELS } from "../../src/labels.js";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
-import "../src/deferred.js";
-import { LINE_ROWS, linePivot } from "./chart-fixtures.js";
+import "../../src/deferred.js";
+import { LINE_ROWS, linePivot } from "./fixtures.js";
 
 const en = LABELS.en;
 

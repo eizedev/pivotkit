@@ -125,6 +125,7 @@ A loaded file is user input. Every reader follows these rules:
 
 - Test through the public API. Import an internal module only when the API cannot reach it.
 - Shared rows are in `test/fixtures.js`.
+- The chart tests are in `test/chart/`, one file per topic. pivotkit-react's `test/chart/` and `tests/browser/chart/` use the same names.
 - Behaviour that depends on the machine runs in child processes with `TZ` and `LANG` set.
 - See `test/time-zones.test.js` for the pattern.
 - A type change: `test/types/consumer.ts` must compile against the generated declarations.

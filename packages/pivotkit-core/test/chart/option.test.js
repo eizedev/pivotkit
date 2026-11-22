@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PivotkitError, autoChartType, computePivot, encode, normalize, toEChartsOption, toSeries } from "../src/index.js";
-import { SALES } from "./fixtures.js";
+import { PivotkitError, autoChartType, computePivot, encode, normalize, toEChartsOption, toSeries } from "../../src/index.js";
+import { SALES } from "../fixtures.js";
 
 const data = encode(SALES);
 const r = computePivot(data, { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], formatting: { locale: "en-US" } });

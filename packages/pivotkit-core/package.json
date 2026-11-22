@@ -70,10 +70,10 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --test \"test/*.test.js\"",
+    "test": "node --test \"test/**/*.test.js\"",
     "test:types": "tsc -p test/types",
     "types": "tsc -p .",
-    "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\"",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/**/*.test.js\"",
     "bench": "node bench/bench.js",
     "prepack": "npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\""
   },
