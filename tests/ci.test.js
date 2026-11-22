@@ -443,7 +443,9 @@ test("the Angular example installs from its own lock file, at the versions its p
 
 // The browser tests run as one job per engine, shard and React version, each well inside
 // its timeout: the matrix covers every Playwright project on React 18 and 19, every shard of a project,
-// and each job runs its own project and shard only.
+// and each job runs its own project and shard only. Playwright gives each shard the same number of
+// tests; PWTEST_SHARD_WEIGHTS gives WebKit's shards other shares (#672). One weight per shard: another
+// count makes Playwright throw. Each weight above zero, or a shard runs nothing.
 test("the browser jobs cover every engine and every shard on React 18 and 19", () => {
     const ci = readFileSync(new URL(".github/workflows/ci.yml", root), "utf8");
     const config = readFileSync(new URL("playwright.config.js", root), "utf8");
@@ -451,7 +453,11 @@ test("the browser jobs cover every engine and every shard on React 18 and 19", (
     assert.deepEqual(projects, ["chromium", "firefox", "webkit"]);
     const job = ci.slice(ci.indexOf("\n  browser:"));
     assert.match(job, /react: \["18", "19"\]/);
-    const targets = [...job.matchAll(/- \{ browser: (\w+), shard: (\d+), of: (\d+) \}/g)].map((m) => ({ browser: m[1], shard: Number(m[2]), of: Number(m[3]) }));
+    const lines = [...job.matchAll(/^ +- \{ browser: .*\}$/gm)].map((m) => m[0].trim());
+    const targets = lines.map((line) => /^- \{ browser: (\w+), shard: (\d+), of: (\d+) \}$/.exec(line)).map((m, i) => {
+        assert.ok(m, `a target the test cannot read: ${lines[i]}`);
+        return { browser: m[1], shard: Number(m[2]), of: Number(m[3]) };
+    });
     for (const browser of projects) {
         const shards = targets.filter((t) => t.browser === browser);
         assert.ok(shards.length > 0, `${browser} has no job`);
@@ -459,8 +465,21 @@ test("the browser jobs cover every engine and every shard on React 18 and 19", (
         assert.ok(shards.every((t) => t.of === shards.length), `${browser}: shards of one size`);
     }
     assert.match(job, /npx playwright test --project=\$\{\{ matrix\.target\.browser \}\} --shard=\$\{\{ matrix\.target\.shard \}\}\/\$\{\{ matrix\.target\.of \}\}/);
+    const weighted = /PWTEST_SHARD_WEIGHTS: \$\{\{ matrix\.target\.browser == '(\w+)' && '(\d+(?::\d+)*)' \|\| '' \}\}/.exec(job);
+    assert.ok(weighted, "the test step gives WebKit's shards their weights");
+    assert.equal(weighted[1], "webkit");
+    const weights = weighted[2].split(":").map(Number);
+    assert.equal(weights.length, targets.filter((t) => t.browser === "webkit").length, "one weight per WebKit shard");
+    assert.ok(weights.every((w) => w > 0), "no shard without tests");
     const minutes = Number(/timeout-minutes: (\d+)/.exec(job)?.[1]);
     assert.ok(minutes > 0 && minutes <= 15, `browser job timeout ${minutes} minutes`);
+});
+
+// PWTEST_SHARD_WEIGHTS is not in Playwright's docs: an update that drops it would quietly bring back
+// shards of equal test counts, so the installed Playwright must still read it
+test("the installed Playwright still reads PWTEST_SHARD_WEIGHTS", () => {
+    const cli = readFileSync(new URL("node_modules/playwright/lib/cli/testActions.js", root), "utf8");
+    assert.match(cli, /process\.env\.PWTEST_SHARD_WEIGHTS/, "Playwright no longer reads PWTEST_SHARD_WEIGHTS: balance the WebKit shards in ci.yml another way (#672)");
 });
 
 // npm reads "dir/file.tgz" as the GitHub repository <owner>/<repo>; a local tarball needs ./ or /
