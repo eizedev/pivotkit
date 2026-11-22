@@ -6,6 +6,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- The warning above the result names a field that a view names twice, and two fields of one name,
+  in English and German (pivotkit-core's `labelTwice` and `labelTaken`,
+  [#699](https://github.com/eizedev/pivotkit/issues/699)).
+
 ### Changed
 
 - The month names of a combined month grouping and of the grouping hint come from pivotkit-core's

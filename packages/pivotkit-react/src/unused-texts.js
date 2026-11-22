@@ -89,6 +89,9 @@ export const en = {
         aggregatorType: "{agg} does not work on “{field}” ({type}) - {dropped}",
         unknownFormat: "the number format “{value}” is unknown - the usual format is used",
         badLabel: "the name is empty or longer than {max} characters - the usual name is used",
+        // {field} would read as the view's own name in the report, so these lines name the name only
+        labelTwice: "a field is named twice, in another spelling - the last name is used",
+        labelTaken: "two fields are called “{value}” - their headers read alike",
         unknownShowAs: "“Show as” “{value}” is unknown - the plain value is shown",
         showAsNotAdditive: "this “Show as” needs a sum or a count, not {agg} - the plain value is shown",
         showAsNotNumber: "{agg} gives no number to show as a share - the plain value is shown",

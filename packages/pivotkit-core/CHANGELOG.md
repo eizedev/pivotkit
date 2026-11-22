@@ -8,6 +8,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `normalize` warns about `fieldLabels` in two cases. `labelTwice`: a field is named twice in
+  another case, and the last name is used. `labelTaken`: a name that another field of the report
+  also goes by, its own name or the view's name for it, so two headers read alike. Both names stay
+  ([#699](https://github.com/eizedev/pivotkit/issues/699)).
 - `monthName(month, locale)`: the short name of a month as the month grouping labels it, Gregorian,
   in the locale's language. pivotkit-react names months with it
   ([#662](https://github.com/eizedev/pivotkit/issues/662)).

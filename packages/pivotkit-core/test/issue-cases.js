@@ -20,6 +20,8 @@ export const ISSUE_CASES = Object.freeze({
     itemType: { filters: [{ field: "Units", type: "include", items: ["many"] }] },
     itemTooLong: { filters: [{ field: "Region", type: "include", items: ["x".repeat(10_001)] }] },
     itemCase: { filters: [{ field: "Region", type: "include", items: ["north"] }] },
+    labelTwice: { rows: ["Region"], fieldLabels: { Region: "Area", region: "Zone" } },
+    labelTaken: { rows: ["Region", "Product"], fieldLabels: { Region: "Product" } },
     unknownField: { rows: ["Planet"] },
     placedTwice: { rows: ["Region"], cols: ["region"] },
     groupingNoName: { derived: [{ field: "Date", by: "year" }] },

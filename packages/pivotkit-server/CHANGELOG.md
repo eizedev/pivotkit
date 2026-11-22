@@ -11,6 +11,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - The rows route's 403 `NOT_ALLOWED` names the caller's profile in its `detail`, or says that the
   caller has none. It named the profile with the placeholder `<name>`, which reached a caller as
   "policy.profiles..records" ([#693](https://github.com/eizedev/pivotkit/issues/693)).
+- With pivotkit-mcp installed, a path nobody serves answers the server's 404 `NOT_FOUND` problem,
+  which names the REST and OpenAPI addresses when REST is on. pivotkit-mcp's handler answered such a
+  path with a plain "not found"
+  ([#630](https://github.com/eizedev/pivotkit/issues/630)).
 
 ## [0.4.0] - 2026-11-21
 

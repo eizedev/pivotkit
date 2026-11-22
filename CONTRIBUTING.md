@@ -109,13 +109,11 @@ uvx zensical@<version> serve
 - A host that uses pivotkit-core directly must stay inside that range.
 - `pivotkit-core` has no runtime dependency except `fflate`. Keep it that way.
 
-### Bundles and overrides
+### Bundles
 
 - `pivotkit-element` and `pivotkit-xlsx` bundle their dependencies.
   Their licences land in `dist/THIRD_PARTY_LICENSES.txt` by themselves.
 - React 19 for the browser tests has its own install and lock file in `tests/react19/`.
-- The root override pins ESLint's `minimatch` to 11.0.1 for an advisory (#76).
-  Remove it once ESLint requires a patched version itself.
 
 ## Deprecate something
 
