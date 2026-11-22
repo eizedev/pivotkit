@@ -6,6 +6,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `monthName(month, locale)`: the short name of a month as the month grouping labels it, Gregorian,
+  in the locale's language. pivotkit-react names months with it
+  ([#662](https://github.com/eizedev/pivotkit/issues/662)).
+
 ## [0.9.0] - 2026-11-21
 
 ### Added

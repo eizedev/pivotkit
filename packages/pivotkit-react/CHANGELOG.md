@@ -6,6 +6,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- The month names of a combined month grouping and of the grouping hint come from pivotkit-core's
+  `monthName`, so the names are defined in one place. They read as before
+  ([#662](https://github.com/eizedev/pivotkit/issues/662)).
+
 ## [0.9.0] - 2026-11-21
 
 ### Added
