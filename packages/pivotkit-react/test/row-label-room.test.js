@@ -1,4 +1,5 @@
-// The room the row labels share (label-room.js).
+// The room the table's row labels share (label-room.js). The room of a chart's labels is
+// pivotkit-core's test/chart/label-room.test.js.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { commonCap } from "../src/label-room.js";

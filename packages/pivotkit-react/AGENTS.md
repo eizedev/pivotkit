@@ -158,5 +158,5 @@ Visual values come from `--pk-*` tokens. A host can then match its design withou
 
 - `test/` runs the `.js` modules with `node --test`, plus a server render of the built package.
 - `test/types/` is a TypeScript consumer.
-- The chart's tests are in `test/chart/`, named like pivotkit-core's `test/chart/` by topic.
+- The chart's tests are in `test/chart/`. A topic pivotkit-core's `test/chart/` also tests has the same filename.
 - The `.jsx` components are covered by the browser tests in `tests/browser/`.
