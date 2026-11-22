@@ -33,6 +33,7 @@ test("labels: the locale picks the language, partial labels merge deeply, en and
 });
 
 test("labels: the menus' texts come under the report's labels, and a host's text for one of them wins", () => {
+    // adds German to the menus' module state for the rest of this file (menu-texts.test.js starts without it)
     addMenuTexts("de", menuDe);
     const plain = menuLabels(resolveLabels("de-DE"));
     assert.deepEqual([plain.cancel, plain.zones.rows, plain.drillCount.other], ["Abbrechen", "Zeilen", "{count} Zeilen"]);
@@ -48,8 +49,7 @@ test("labels: the menus' texts come under the report's labels, and a host's text
 
 test("a host that refuses to save a view: its own message when it gives one, a plain note when not", () => {
     // the texts of save, delete and publish load with the Views menu
-    const { en, de } = MENU_LABELS;
-    const save = (e, l = en) => hostFailure(l.toastSaveFailed, l.toastSaveRejected, e);
+    const save = (e, l = menuEn) => hostFailure(l.toastSaveFailed, l.toastSaveRejected, e);
     assert.equal(save(new Error("Name taken")), "The view could not be saved: Name taken");
     assert.equal(save("Quota reached"), "The view could not be saved: Quota reached");
     assert.equal(save({ message: "Forbidden" }), "The view could not be saved: Forbidden");
@@ -57,8 +57,8 @@ test("a host that refuses to save a view: its own message when it gives one, a p
     for (const e of [undefined, null, new Error(""), new Error("  "), "", {}, 42, false]) {
         assert.equal(save(e), "The server could not save the view.", String(e));
     }
-    assert.equal(save(undefined, de), "Der Server konnte die Ansicht nicht speichern.");
-    assert.equal(hostFailure(de.toastDeleteFailed, de.toastDeleteRejected, null), "Der Server konnte die Ansicht nicht löschen.");
+    assert.equal(save(undefined, menuDe), "Der Server konnte die Ansicht nicht speichern.");
+    assert.equal(hostFailure(menuDe.toastDeleteFailed, menuDe.toastDeleteRejected, null), "Der Server konnte die Ansicht nicht löschen.");
 });
 
 test("counts in words take the plural form of the language: 1 series, 1 Reihe", () => {

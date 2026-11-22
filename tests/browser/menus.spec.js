@@ -5,25 +5,21 @@
 import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
 import { chipMenu, chips, expect, openLevel, openRules, openSaveAs, openZones, tableRows, test, toolbar } from "./fixtures.js";
 
-/** Filters a field of the Filters zone or an axis to one value through its popover. */
-async function onlyValue(page, value) {
-    const popover = page.locator(".pk-filter-popover");
-    const row = popover.locator(".pk-value", { hasText: value }).first();
-    // "Only" shows on hover
+/**
+ * Picks only the given item in an open filter (the popover or a menu's Filter level): "Only" shows on
+ * hover. With unfold, the items are folded first, as they are while the field has a rule.
+ */
+async function pickOnly(scope, item, { unfold = false } = {}) {
+    if (unfold) await scope.getByTestId("section-picks").click();
+    const row = scope.locator(".pk-value", { hasText: item }).first();
     await row.hover();
     await row.locator(".pk-only").click();
-    await page.getByTestId("filter-apply").click();
 }
 
-/**
- * Picks only the given item in an open Filter level: "Only" shows on hover. With unfold, the items
- * are folded first, as they are while the field has a rule.
- */
-async function pickOnly(menu, item, { unfold = false } = {}) {
-    if (unfold) await menu.getByTestId("section-picks").click();
-    const row = menu.locator(".pk-value", { hasText: item });
-    await row.hover();
-    await row.locator(".pk-only").click();
+/** Filters a field of the Filters zone or an axis to one value through its popover. */
+async function onlyValue(page, value) {
+    await pickOnly(page.locator(".pk-filter-popover"), value);
+    await page.getByTestId("filter-apply").click();
 }
 
 test.describe("filters say what they keep", () => {
