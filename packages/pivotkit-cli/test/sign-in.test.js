@@ -998,12 +998,16 @@ test("the lock while a takeover runs: a waiting run neither spins nor enters, an
         assert.equal(ran, false);
         // no lock: a run that makes its own while the takeover lock is there backs off until it goes
         unlinkSync(path);
-        const started = Date.now();
-        setTimeout(() => unlinkSync(`${path}.takeover`), 100);
+        let guardGone = false;
+        setTimeout(() => {
+            unlinkSync(`${path}.takeover`);
+            guardGone = true;
+        }, 100);
+        let enteredAfterGuard = null;
         await store.locked(resource, async () => {
-            ran = true;
+            enteredAfterGuard = guardGone;
         });
-        assert.ok(ran && Date.now() - started >= 90, `entered after ${Date.now() - started} ms`);
+        assert.equal(enteredAfterGuard, true, "the run entered only once the takeover lock was gone");
         assert.deepEqual(readdirSync(locks), []);
     });
 });
