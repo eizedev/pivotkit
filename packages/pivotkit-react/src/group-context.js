@@ -1,6 +1,6 @@
 import { MAX_DATE_MS, isDateMs } from "pivotkit-core";
 // Group-level hints load only with the menus.
-import { CATALOG } from "pivotkit-core";
+import { CATALOG, monthName } from "pivotkit-core";
 import { yearText } from "./names.js";
 import { plural } from "./labels.js";
 import { dateFormatter, dateRangeText } from "./date-context.js";
@@ -47,7 +47,7 @@ export function groupHint(encoded, field, unit, locale, labels, stats = groupSta
     if (CATALOG.cyclicUnits.includes(unit)) {
         let example = labels.unitHints[unit];
         if (unit === "month" || unit === "quarter") {
-            const name = (m) => unit === "quarter" ? `Q${Math.floor(m / 3) + 1}` : dateFormatter(locale, {calendar: "gregory", month: "short", timeZone: "UTC"}).format(new Date(Date.UTC(2000, m, 1)));
+            const name = (m) => unit === "quarter" ? `Q${Math.floor(m / 3) + 1}` : monthName(m + 1, locale);
             const periods = [...new Set(months.map((m) => unit === "quarter" ? Math.floor(m / 3) : m))];
             const runs = [];
             const text = (p) => name(unit === "quarter" ? p * 3 : p);

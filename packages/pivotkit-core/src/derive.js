@@ -50,10 +50,14 @@ export function isoWeek(ms) {
 }
 
 /**
- * "Jan" for 1: the month number of the data, a Gregorian month, in the locale's language. A locale of
- * another calendar ("en-US-u-ca-islamic-civil") would name the month its calendar has on that day.
+ * "Jan" for 1: the month number of the data (1 to 12), a Gregorian month, in the locale's language,
+ * also for a locale of another calendar ("en-US-u-ca-islamic-civil"). Another number wraps (0 is
+ * December). The month grouping's label; pivotkit-react names its months with it too.
+ * @param {number} month
+ * @param {string} locale
+ * @returns {string}
  */
-const monthName = (month, locale) =>
+export const monthName = (month, locale) =>
     dateTimeFormat(locale, { month: "short", calendar: "gregory", timeZone: "UTC" }).format(new Date(Date.UTC(2000, month - 1, 1)));
 
 /** "Jan 2025" in English, "Jan. 2025" in German, "Jan 2 BC": the month of a year, as the locale writes it. */

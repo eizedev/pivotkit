@@ -1,6 +1,6 @@
 import { isDateMs } from "pivotkit-core";
 // Date context is display-only: never rename a saved derived field or change its grouping keys.
-import { CATALOG, fieldLabel } from "pivotkit-core";
+import { CATALOG, fieldLabel, monthName } from "pivotkit-core";
 import { dateSpan, filterZoneFields, sourceOf } from "./view-ops.js";
 import { yearText } from "./names.js";
 import { fill } from "./labels.js";
@@ -165,7 +165,7 @@ export function dateContext(result, labels) {
         const text = result.label(axis, node, core);
         const field = (axis === "rows" ? result.rowFields : result.colFields)[node.depth - 1];
         if (node.parent && typeof node.key === "number" && combinedMonths.has(field)) {
-            return dateFormatter(locale, {calendar: "gregory", month: "short", timeZone: "UTC"}).format(Date.UTC(2000, node.key - 1, 1));
+            return monthName(node.key, locale);
         }
         const span = typeof node.key === "number" ? observedMonths.get(field)?.get(node.key) : undefined;
         if (node.parent && span) {

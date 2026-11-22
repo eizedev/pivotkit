@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, suggestDateUnit, toGrid, validate } from "../src/index.js";
+import { computePivot, encode, monthName, suggestDateUnit, toGrid, validate } from "../src/index.js";
 import { isoWeek } from "../src/derive.js";
 import { SALES } from "./fixtures.js";
 
@@ -147,4 +147,14 @@ test("suggestDateUnit picks a grouping from the span of a date field", () => {
     assert.equal(suggestDateUnit(encode([{ d: "2026-01-01", n: 1 }]), "n"), null, "not a date");
     assert.equal(suggestDateUnit(data, "missing"), null);
     assert.equal(suggestDateUnit(data, "date"), "yearMonth", "case-insensitive, SALES spans Dec 2025 to Apr 2026");
+});
+
+// #662: pivotkit-react names months with the same function as the month grouping's labels
+test("monthName: a Gregorian month in the locale's language, also for a locale of another calendar", () => {
+    assert.equal(monthName(1, "en-US"), "Jan");
+    assert.equal(monthName(3, "de-DE"), "Mär");
+    assert.equal(monthName(1, "en-US-u-ca-islamic-civil"), "Jan");
+    // the label of the month grouping is the same text
+    const grid = toGrid(computePivot(encode([{ When: "2026-03-15" }]), { rows: ["M"], derived: [{ name: "M", field: "When", by: "month" }] }));
+    assert.ok(grid.rows.flat().some((c) => c?.text === monthName(3, "en-US")), "the grouping labels March as monthName does");
 });
