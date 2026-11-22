@@ -6,14 +6,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createPrivateKey, generateKeyPairSync } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT } from "jose";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { checkConfig, loadConfig, validateOptions } from "pivotkit-server";
-import { callerOf, createAuthCore, identityKey } from "../src/auth.js";
-import { BIN, BY_REGION, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
+import { callerOf, createAuthCore, identityKey } from "../../src/auth.js";
+import { BY_REGION, TOKEN, call, factsOf, restServer, runBin, workspace } from "../helpers.js";
 
 const PSU = Object.freeze({ issuer: "psu", typ: "psu+jwt", kid: "psu-2026-11" });
 
@@ -183,8 +182,7 @@ test("with the server's own signed tokens on: each kind passes only its own veri
     const { baseDir, ...written } = options;
     void baseDir;
     writeFileSync(config, `${JSON.stringify(written, null, 2)}\n`);
-    const env = { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", SystemRoot: process.env.SystemRoot ?? "", OPS: TOKEN };
-    const issued = spawnSync(process.execPath, [BIN, "token", "issue", "--config", config, "--name", "ci", "--expires", "10m", "--json"], { encoding: "utf8", env, timeout: 30_000 });
+    const issued = runBin(["token", "issue", "--config", config, "--name", "ci", "--expires", "10m", "--json"], { env: { OPS: TOKEN } });
     assert.equal(issued.status, 0, issued.stderr);
     const own = JSON.parse(issued.stdout).token;
     // the server's own signing key, as the test can read it from its directory
@@ -319,8 +317,8 @@ test("two issuers with their keys and types swapped: each token passes only as i
 });
 
 test("the identity is ['external', issuer, sub]; token exchange and bound reports are refused for such a caller", async () => {
-    const { identityBasisOf, exchangeTokenFor } = await import("../src/auth.js");
-    const { signedInForDelivery, linkFor } = await import("../src/delivery.js");
+    const { identityBasisOf, exchangeTokenFor } = await import("../../src/auth.js");
+    const { signedInForDelivery, linkFor } = await import("../../src/delivery.js");
     const { privateKey, options } = setup();
     const { core, of } = await callerWith(options);
     try {
@@ -468,7 +466,7 @@ test("sub: surrogates, private-use and unassigned characters get 401; a subject 
 });
 
 test("the once-a-minute log limiter has a hard cap: when it is full, the oldest text goes and may be said again", async () => {
-    const { onceAMinute } = await import("../src/auth.js");
+    const { onceAMinute } = await import("../../src/auth.js");
     const said = [];
     const limited = onceAMinute({ info: (t) => said.push(t), warn: (t) => said.push(t) });
     limited("info", "first");

@@ -1,6 +1,8 @@
 // Runs the REST service as a program meets it: serve() on a free port, requests with fetch or raw
-// node:http (for what fetch will not send: two Authorization headers, a lying Content-Length).
-import { writeFileSync, mkdirSync } from "node:fs";
+// node:http (for what fetch will not send: two Authorization headers, a lying Content-Length), the
+// command as an operator runs it, and a certificate for TLS on loopback.
+import { execFileSync, spawnSync } from "node:child_process";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { request as httpRequest } from "node:http";
 import { fileURLToPath } from "node:url";
@@ -8,6 +10,17 @@ import { tempDir as sharedTempDir } from "../../../tests/temp-dir.js";
 import { serve } from "pivotkit-server";
 
 export const BIN = fileURLToPath(new URL("../bin/pivotkit-server.js", import.meta.url));
+
+/** Mode bits and symbolic links are POSIX facts: tests of them are left out on Windows. */
+export const POSIX = process.platform !== "win32";
+
+/**
+ * Runs the command as an operator does (the container image runs it the same way): a fresh process
+ * with only PATH, HOME and SystemRoot of this one's environment, plus `env`.
+ * @param {string[]} args
+ * @param {{ env?: Record<string, string>, cwd?: string }} [options]
+ */
+export const runBin = (args, { env = {}, cwd } = {}) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", cwd, env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", SystemRoot: process.env.SystemRoot ?? "", ...env }, timeout: 30_000 });
 
 /** Orders of a made-up shop: a personal field (Customer), dates over two years, a one-letter field. */
 export const SALES_CSV = ["Region,Product,Customer,Sales,OrderDate,Q", "North,A,Alice Example,10,2025-11-05,1", "South,B,Bob Example,20,2026-09-01,2", "North,B,Carol Example,5,2026-10-01,3", "West,A,Dan Example,7,2026-10-20,1", ",A,Eve Example,3,2024-12-31,2"].join("\n") + "\n";
@@ -49,6 +62,21 @@ export function factsOf(text) {
         indent = line.trim() ? own : -1;
     }
     return out.join("\n");
+}
+
+/**
+ * A certificate and its key for TLS on loopback, made for this run with the openssl command (it must
+ * be on the PATH), so no key is kept in the repository. The first name is the subject; every name
+ * goes into subjectAltName, an IP address as one.
+ * @param {...string} names
+ */
+export function loopbackCert(...names) {
+    const dir = tempDir();
+    const keyFile = join(dir, "key.pem");
+    const certFile = join(dir, "cert.pem");
+    const alt = names.map((n) => (/^[\d.]+$|:/.test(n) ? `IP:${n}` : `DNS:${n}`)).join(",");
+    execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", keyFile, "-out", certFile, "-days", "2", "-subj", `/CN=${names[0]}`, "-addext", `subjectAltName=${alt}`], { stdio: "ignore" });
+    return { key: readFileSync(keyFile), cert: readFileSync(certFile), certFile };
 }
 
 /** The REST service on a free port, its log kept as parsed lines. */
@@ -98,6 +126,20 @@ export function raw(url, { method = "GET", headers = {}, body } = {}) {
         }
         req.end();
     });
+}
+
+/**
+ * Waits until the server is ready (/readyz answers 200), such as after it loaded its OAuth issuer.
+ * Throws when it is not ready after `tries` polls 50 ms apart.
+ */
+export async function untilReady(server, tries = 50) {
+    for (let i = 0; i < tries; i++) {
+        if ((await call(`${server.url}/readyz`)).status === 200) {
+            return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error("the server did not get ready");
 }
 
 /** A view of the sales data. */

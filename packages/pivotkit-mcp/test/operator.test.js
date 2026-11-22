@@ -6,29 +6,22 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { createServer } from "node:http";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { call, httpClient, httpServer, workspace } from "./helpers.js";
+import { localIssuer } from "../../pivotkit-server/test/auth/local-issuer.js";
 
 const RESOURCE = "https://mcp.example.com/mcp";
+/** The local issuer (pivotkit-server's test/auth/local-issuer.js) and its address. */
+let local;
 let issuer;
-let issuerServer;
-let key;
 
 before(async () => {
-    key = await generateKeyPair("RS256");
-    const jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
-    issuerServer = createServer((req, res) => {
-        res.writeHead(req.url === "/.well-known/openid-configuration" || req.url === "/jwks" ? 200 : 404, { "content-type": "application/json" });
-        res.end(req.url === "/jwks" ? JSON.stringify({ keys: [jwk] }) : JSON.stringify({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, jwks_uri: `${issuer}/jwks`, response_types_supported: ["code"], code_challenge_methods_supported: ["S256"] }));
-    });
-    await new Promise((resolve) => issuerServer.listen(0, "127.0.0.1", resolve));
-    issuer = `http://127.0.0.1:${issuerServer.address().port}`;
+    local = await localIssuer();
+    issuer = local.url;
 });
-after(() => new Promise((resolve) => issuerServer.close(resolve)));
+after(() => local.close());
 
 /** A signed access token of the person "ana" for the MCP endpoint. */
-const token = (claims = {}) => new SignJWT({ scope: "pivotkit", client_id: "desktop-client", ...claims }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(issuer).setAudience(RESOURCE).setSubject("ana").setIssuedAt().setExpirationTime("5m").sign(key.privateKey);
+const token = (claims = {}) => local.token({ claims: { client_id: "desktop-client", ...claims }, aud: RESOURCE, sub: "ana" });
 
 async function oauthServer(auth = {}, more = {}, env = {}) {
     const server = await httpServer(

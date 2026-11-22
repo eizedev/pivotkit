@@ -9,11 +9,12 @@ import { createServer } from "node:http";
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, unlinkSync, utimesSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
+import { SignJWT } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
 import { KEY_READ_MS, SIGN_IN_CALLBACKS, dispositionOf, filenameOf, placeMarker, readToken, signToken, sizeText, subjectDigest, subkeysOf, sweepMarkers } from "../src/downloads.js";
 import { NO_LINK_NOTE, linkFor, resourceLinkOf } from "../src/delivery.js";
-import { BY_REGION, SALES_CSV, TOKEN, call, factsOf, raw, restServer, tempDir, workspace } from "./helpers.js";
+import { BY_REGION, call, factsOf, raw, restServer, SALES_CSV, tempDir, TOKEN, untilReady, workspace } from "./helpers.js";
+import { localIssuer, signingKey } from "./auth/local-issuer.js";
 import { createContext } from "../src/context.js";
 import { deliver } from "../src/delivery.js";
 
@@ -24,67 +25,55 @@ const CLIENT_ID = "pivotkit-downloads";
 const DL_KEY = "a-download-key-for-tests-that-is-long-enough-0123456789";
 const KEYS = subkeysOf(Buffer.from(DL_KEY, "utf8"));
 
+/** The provider (auth/local-issuer.js with a token endpoint), its address and its key. */
+let provider;
 let issuer;
-let issuerServer;
 let key;
 let otherKey;
 /** The provider's public key as a JWK (also served by the half provider of the 503 test). */
 let jwk;
 /** Codes the provider gave out: what the token endpoint checks and puts in the ID token. */
 const codes = new Map();
-/** What the issuer's metadata says besides its own addresses (a hostile issuer's tests); reset after each. */
-let metadataMore = {};
-/** The paths the issuer was asked for. */
-const issuerAsked = [];
 
 before(async () => {
-    key = await generateKeyPair("RS256");
-    otherKey = await generateKeyPair("RS256");
-    jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
-    issuerServer = createServer((req, res) => {
-        const url = new URL(req.url, issuer);
-        issuerAsked.push(url.pathname);
-        if (url.pathname === "/.well-known/openid-configuration") {
-            res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, jwks_uri: `${issuer}/jwks`, response_types_supported: ["code"], subject_types_supported: ["public"], id_token_signing_alg_values_supported: ["RS256"], ...metadataMore }));
-        } else if (url.pathname === "/jwks") {
-            res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ keys: [jwk] }));
-        } else if (url.pathname === "/token" && req.method === "POST") {
-            const chunks = [];
-            req.on("data", (c) => chunks.push(c));
-            req.on("end", async () => {
-                const form = new URLSearchParams(Buffer.concat(chunks).toString("utf8"));
-                const grant = codes.get(form.get("code"));
-                // a code is used once; PKCE, the client and the redirect address are checked as a provider does
-                codes.delete(form.get("code"));
-                const verifier = form.get("code_verifier") ?? "";
-                const ok = grant && form.get("grant_type") === "authorization_code" && form.get("client_id") === grant.clientId && form.get("redirect_uri") === grant.redirectUri && createHash("sha256").update(verifier).digest("base64url") === grant.challenge;
-                if (!ok) {
-                    res.writeHead(400, { "content-type": "application/json" });
-                    res.end(JSON.stringify({ error: "invalid_grant" }));
-                    return;
-                }
-                const idToken = await new SignJWT({ nonce: grant.nonce, ...grant.claims })
-                    .setProtectedHeader({ alg: "RS256", kid: "k1" })
-                    .setIssuer(grant.iss ?? issuer)
-                    .setAudience(grant.aud ?? grant.clientId)
-                    .setSubject(grant.sub)
-                    .setIssuedAt()
-                    .setExpirationTime("5m")
-                    .sign(grant.signWith ?? key.privateKey);
-                res.writeHead(200, { "content-type": "application/json" });
-                res.end(JSON.stringify({ access_token: "x", token_type: "Bearer", id_token: idToken }));
-            });
-        } else {
+    provider = await localIssuer();
+    ({ url: issuer, key, jwk } = provider);
+    otherKey = (await signingKey()).key;
+    // the token endpoint: a code for an ID token
+    provider.routes["/token"] = (req, res) => {
+        if (req.method !== "POST") {
             res.writeHead(404);
             res.end();
+            return;
         }
-    });
-    await new Promise((resolve) => issuerServer.listen(0, "127.0.0.1", resolve));
-    issuer = `http://127.0.0.1:${issuerServer.address().port}`;
+        const chunks = [];
+        req.on("data", (c) => chunks.push(c));
+        req.on("end", async () => {
+            const form = new URLSearchParams(Buffer.concat(chunks).toString("utf8"));
+            const grant = codes.get(form.get("code"));
+            // a code is used once; PKCE, the client and the redirect address are checked as a provider does
+            codes.delete(form.get("code"));
+            const verifier = form.get("code_verifier") ?? "";
+            const ok = grant && form.get("grant_type") === "authorization_code" && form.get("client_id") === grant.clientId && form.get("redirect_uri") === grant.redirectUri && createHash("sha256").update(verifier).digest("base64url") === grant.challenge;
+            if (!ok) {
+                res.writeHead(400, { "content-type": "application/json" });
+                res.end(JSON.stringify({ error: "invalid_grant" }));
+                return;
+            }
+            const idToken = await new SignJWT({ nonce: grant.nonce, ...grant.claims })
+                .setProtectedHeader({ alg: "RS256", kid: "k1" })
+                .setIssuer(grant.iss ?? issuer)
+                .setAudience(grant.aud ?? grant.clientId)
+                .setSubject(grant.sub)
+                .setIssuedAt()
+                .setExpirationTime("5m")
+                .sign(grant.signWith ?? key.privateKey);
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(JSON.stringify({ access_token: "x", token_type: "Bearer", id_token: idToken }));
+        });
+    };
 });
-after(() => new Promise((resolve) => issuerServer.close(resolve)));
+after(() => provider.close());
 
 /**
  * The provider's sign-in page, as a person passes it: reads the redirect's parameters and gives a
@@ -105,8 +94,8 @@ function signInAt(location, sub, grant = {}) {
 }
 
 /** A signed access token of the provider for one of the server's resources. */
-async function accessToken(sub, aud = REST_RESOURCE, client = "claude", iss = issuer) {
-    return new SignJWT({ scope: "pivotkit", client_id: client }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(iss).setAudience(aud).setSubject(sub).setIssuedAt().setExpirationTime("5m").sign(key.privateKey);
+function accessToken(sub, aud = REST_RESOURCE, client = "claude", iss = issuer) {
+    return provider.token({ claims: { client_id: client }, aud, sub, iss });
 }
 
 /**
@@ -706,9 +695,7 @@ async function signInServer({ signIn = {}, downloads = {}, more = {} } = {}) {
         },
         { env: { DL_KEY }, enable: ["rest", "mcp"] }
     );
-    for (let i = 0; i < 100 && (await call(`${server.url}/readyz`)).status !== 200; i++) {
-        await new Promise((r) => setTimeout(r, 30));
-    }
+    await untilReady(server, 100);
     const local = (url) => url.replace(PUBLIC, server.url);
     /** render_view as `sub` over REST: its output. */
     const render = async (sub, source = "sales") => {
@@ -930,9 +917,7 @@ test("signIn: while the sign-in issuer is not loaded a link answers 503; REST ca
         { env: { DL_KEY }, enable: ["rest", "mcp"] }
     );
     try {
-        for (let i = 0; i < 100 && (await call(`${server.url}/readyz`)).status !== 200; i++) {
-            await new Promise((r) => setTimeout(r, 30));
-        }
+        await untilReady(server, 100);
         const r = await call(`${server.api}/views/render`, { token: await accessToken("alice", REST_RESOURCE, "claude", halfIssuer), body: { source: "sales", view: BY_REGION, format: "csv", name: "Waiting" } });
         assert.equal(r.data.output.bound, "signIn");
         const waiting = await call(r.data.output.url.replace(PUBLIC, server.url), { headers: { accept: "application/json" } });
@@ -1160,8 +1145,8 @@ test("a sign-in callback without its cookie is on the debug log only", async () 
 
 test("signIn: the issuer's metadata cannot send the key request elsewhere; with auth.jwksUri the sign-in reads the keys there, as the access tokens do", async () => {
     // the metadata names a key set at a cloud metadata address; the operator pinned the real one
-    metadataMore = { jwks_uri: "http://169.254.169.254/latest/meta-data/jwks" };
-    issuerAsked.length = 0;
+    provider.metadata = { jwks_uri: "http://169.254.169.254/latest/meta-data/jwks" };
+    provider.asked.length = 0;
     const { server, render, open, callback } = await signInServer({ more: { auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"], jwksUri: `${issuer}/jwks` } } });
     try {
         const output = await render("alice");
@@ -1169,13 +1154,13 @@ test("signIn: the issuer's metadata cannot send the key request elsewhere; with 
         const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
         const got = await callback(code, state, cookieOf(redirect));
         assert.equal(got.status, 200, logText(server));
-        assert.ok(issuerAsked.includes("/jwks"));
+        assert.ok(provider.asked.includes("/jwks"));
     } finally {
-        metadataMore = {};
+        provider.metadata = {};
         await server.close();
     }
     // without auth.jwksUri the sign-in issuer is refused, as the access tokens' is (the issuer's origin only)
-    metadataMore = { jwks_uri: "http://169.254.169.254/latest/meta-data/jwks" };
+    provider.metadata = { jwks_uri: "http://169.254.169.254/latest/meta-data/jwks" };
     try {
         const dir = workspace({ "sales.csv": SALES_CSV });
         const server2 = await restServer({ sources: SOURCES, output: { dir: "out", downloads: { key: { env: "DL_KEY" }, signIn: { clientId: CLIENT_ID } } }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true }, http: { publicUrl: PUBLIC }, baseDir: dir }, { env: { DL_KEY }, enable: ["rest", "mcp"] });
@@ -1188,14 +1173,14 @@ test("signIn: the issuer's metadata cannot send the key request elsewhere; with 
             await server2.close();
         }
     } finally {
-        metadataMore = {};
+        provider.metadata = {};
     }
 });
 
 test("signIn: the metadata's token endpoint must be on the issuer's origin; output.downloads.signIn.tokenUrl names another one", async () => {
     // the same token endpoint under another origin (localhost instead of 127.0.0.1)
     const elsewhere = `${issuer.replace("127.0.0.1", "localhost")}/token`;
-    metadataMore = { token_endpoint: elsewhere };
+    provider.metadata = { token_endpoint: elsewhere };
     try {
         const dir = workspace({ "sales.csv": SALES_CSV });
         const refused = await restServer({ sources: SOURCES, output: { dir: "out", downloads: { key: { env: "DL_KEY" }, signIn: { clientId: CLIENT_ID } } }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true }, http: { publicUrl: PUBLIC }, baseDir: dir }, { env: { DL_KEY }, enable: ["rest", "mcp"] });
@@ -1208,7 +1193,7 @@ test("signIn: the metadata's token endpoint must be on the issuer's origin; outp
             await refused.close();
         }
         // the operator names it: the sign-in works and the code goes there
-        issuerAsked.length = 0;
+        provider.asked.length = 0;
         const { server, render, open, callback } = await signInServer({ signIn: { tokenUrl: elsewhere } });
         try {
             const output = await render("alice");
@@ -1216,12 +1201,12 @@ test("signIn: the metadata's token endpoint must be on the issuer's origin; outp
             const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
             const got = await callback(code, state, cookieOf(redirect));
             assert.equal(got.status, 200, logText(server));
-            assert.ok(issuerAsked.includes("/token"));
+            assert.ok(provider.asked.includes("/token"));
         } finally {
             await server.close();
         }
     } finally {
-        metadataMore = {};
+        provider.metadata = {};
     }
 });
 

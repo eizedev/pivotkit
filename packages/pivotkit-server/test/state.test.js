@@ -4,22 +4,19 @@
 // making them. Mode bits, users and symbolic links are POSIX facts.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ConfigError, checkConfig, serve, validateOptions } from "pivotkit-server";
 import { IMAGE_PATHS, STATE_ENV, builtInConfig, configFrom, prepareHttpServe } from "pivotkit-server/internal";
-import { BIN, BY_REGION, call, factsOf, tempDir, workspace } from "./helpers.js";
+import { BY_REGION, call, factsOf, POSIX, runBin, tempDir, workspace } from "./helpers.js";
 
-const POSIX = process.platform !== "win32";
 const ROOT = process.getuid?.() === 0;
 const OPEN = "0.0.0.0";
 
 /** A token as the start makes it: 32 random bytes in base64url. */
 const TOKEN_TEXT = /^[A-Za-z0-9_-]{43}$/;
 
-/** The command as the image runs it, without a terminal. */
-const run = (args, { env = {}, cwd } = {}) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", cwd, env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env }, timeout: 30_000 });
 
 /** A workspace with an empty state directory beside it. */
 function setup() {
@@ -49,7 +46,7 @@ test("without a state directory an open address without auth is still refused, a
     await assert.rejects(openServer({ sources, baseDir: dir }), /needs --auth token or oauth/);
     assert.deepEqual(readdirSync(state), []);
     // the runner: an empty $PIVOTKIT_STATE_DIR is no state directory
-    const r = run(["serve", "--host", OPEN, "--source", `s=${join(dir, "data", "sales.csv")}`], { env: { [STATE_ENV]: "" } });
+    const r = runBin(["serve", "--host", OPEN, "--source", `s=${join(dir, "data", "sales.csv")}`], { env: { [STATE_ENV]: "" } });
     assert.equal(r.status, 2);
     assert.match(r.stderr, /needs --auth token or oauth/);
 });
@@ -115,7 +112,7 @@ test("a state directory that cannot be written stops the start when the token is
         await assert.rejects(openServer({ sources, baseDir: dir }, { stateDir: state }), (e) => e instanceof ConfigError && /mount a writable volume at .*state/.test(e.message));
         stateMeans.container = container;
         // the runner: exit 2 and no listening line
-        const r = run(["serve", "--host", OPEN, "--port", "0", "--source", `s=${join(dir, "data", "sales.csv")}`, "--log-format", "json"], { env: { [STATE_ENV]: state } });
+        const r = runBin(["serve", "--host", OPEN, "--port", "0", "--source", `s=${join(dir, "data", "sales.csv")}`, "--log-format", "json"], { env: { [STATE_ENV]: state } });
         assert.equal(r.status, 2);
         assert.doesNotMatch(r.stderr, /"event":"started"/);
         assert.match(r.stderr, /cannot be made/);
@@ -380,12 +377,12 @@ test("auth.mode token written without a token and without the variable is refuse
     );
     assert.deepEqual(readdirSync(state), []);
     // the runner with --auth token: the same
-    const r = run(["serve", "--host", OPEN, "--port", "0", "--auth", "token", "--source", `s=${join(dir, "data", "sales.csv")}`], { env: { [STATE_ENV]: state } });
+    const r = runBin(["serve", "--host", OPEN, "--port", "0", "--auth", "token", "--source", `s=${join(dir, "data", "sales.csv")}`], { env: { [STATE_ENV]: state } });
     assert.equal(r.status, 2);
     assert.match(r.stderr, /neither auth\.tokens nor \$PIVOTKIT_TOKEN gives a token/);
     assert.deepEqual(readdirSync(state), []);
     // token show and check-config see no admin there
-    const shown = run(["token", "show", "admin", "--state-dir", state, "--config", join(dir, "token.json")], { env: {} });
+    const shown = runBin(["token", "show", "admin", "--state-dir", state, "--config", join(dir, "token.json")], { env: {} });
     assert.equal(shown.status, 2);
     // check-config says the same as the start, and never "the token token"
     const checked = await checkConfig({ sources, auth: { mode: "token" }, http: { host: OPEN }, baseDir: dir }, { http: true, env: {}, tokenEnv: "PIVOTKIT_TOKEN", stateDir: state });
@@ -441,12 +438,12 @@ test("check-config resolves the same files without making them, and has no PROBL
     stateMeans.container = container;
     assert.deepEqual(readdirSync(state), []);
     // the runner, as the image runs it: exit 0, nothing made
-    const r = run(["check-config", "--host", OPEN, "--source", `s=${join(dir, "data", "sales.csv")}`], { env: { [STATE_ENV]: state } });
+    const r = runBin(["check-config", "--host", OPEN, "--source", `s=${join(dir, "data", "sales.csv")}`], { env: { [STATE_ENV]: state } });
     assert.equal(r.status, 0, r.stdout);
     assert.deepEqual(readdirSync(state), []);
     // after the start: there, and no value printed
     await prepareHttpServe({ sources, output: { dir: "out" }, baseDir: dir }, { env: {}, host: OPEN, tokenEnv: "PIVOTKIT_TOKEN", stateDir: state });
-    const after = run(["check-config", "--host", OPEN, "--source", `s=${join(dir, "data", "sales.csv")}`, "--output", join(dir, "out")], { env: { [STATE_ENV]: state } });
+    const after = runBin(["check-config", "--host", OPEN, "--source", `s=${join(dir, "data", "sales.csv")}`, "--output", join(dir, "out")], { env: { [STATE_ENV]: state } });
     assert.equal(after.status, 0, after.stdout);
     assert.match(factsOf(after.stdout), /admin\.token, there/);
     assert.ok(!after.stdout.includes(valueOf(join(state, "secrets", "admin.token"))));
@@ -468,34 +465,34 @@ test("check-config: a state directory that cannot be written is a PROBLEM for th
 
 test("token show: not made before the first start (exit 1, nothing made), then the value; without a configuration; the variable's token", async () => {
     const { dir, state } = setup();
-    const before = run(["token", "show", "admin"], { env: { [STATE_ENV]: state } });
+    const before = runBin(["token", "show", "admin"], { env: { [STATE_ENV]: state } });
     assert.equal(before.status, 1);
     assert.match(before.stderr, /the token "admin" is not created yet .*start the server first/);
     assert.deepEqual(readdirSync(state), []);
-    const json = JSON.parse(run(["token", "show", "admin", "--json"], { env: { [STATE_ENV]: state } }).stdout);
+    const json = JSON.parse(runBin(["token", "show", "admin", "--json"], { env: { [STATE_ENV]: state } }).stdout);
     assert.deepEqual([json.ok, json.exitCode, json.error.code], [false, 1, "NOT_CREATED"]);
     await prepareHttpServe({ sources, baseDir: dir }, { env: {}, host: OPEN, tokenEnv: "PIVOTKIT_TOKEN", stateDir: state });
     const value = valueOf(join(state, "secrets", "admin.token"));
-    const shown = run(["token", "show", "admin", "--state-dir", state]);
+    const shown = runBin(["token", "show", "admin", "--state-dir", state]);
     assert.equal(shown.status, 0, shown.stderr);
     assert.equal(shown.stdout, `${value}\n`);
     // the token of $PIVOTKIT_TOKEN is "token"; then no admin is made or shown
-    const variable = run(["token", "show", "token", "--state-dir", state], { env: { PIVOTKIT_TOKEN: "a-test-token-that-is-long-enough-0123456789" } });
+    const variable = runBin(["token", "show", "token", "--state-dir", state], { env: { PIVOTKIT_TOKEN: "a-test-token-that-is-long-enough-0123456789" } });
     assert.equal(variable.stdout, "a-test-token-that-is-long-enough-0123456789\n");
     // pivotkit-mcp's variable, where only it is set: "token" is that one, and no admin is made for it
-    const mcpVariable = run(["token", "show", "token", "--state-dir", state], { env: { PIVOTKIT_MCP_TOKEN: "an-mcp-test-token-that-is-long-enough-012345" } });
+    const mcpVariable = runBin(["token", "show", "token", "--state-dir", state], { env: { PIVOTKIT_MCP_TOKEN: "an-mcp-test-token-that-is-long-enough-012345" } });
     assert.equal(mcpVariable.stdout, "an-mcp-test-token-that-is-long-enough-012345\n", mcpVariable.stderr);
-    const mcpAdmin = run(["token", "show", "admin", "--state-dir", state], { env: { PIVOTKIT_MCP_TOKEN: "an-mcp-test-token-that-is-long-enough-012345" } });
+    const mcpAdmin = runBin(["token", "show", "admin", "--state-dir", state], { env: { PIVOTKIT_MCP_TOKEN: "an-mcp-test-token-that-is-long-enough-012345" } });
     assert.equal(mcpAdmin.status, 2, mcpAdmin.stderr);
     assert.match(mcpAdmin.stderr, /no token "admin"/);
     // neither a configuration nor a state directory
-    const none = run(["token", "show", "admin"]);
+    const none = runBin(["token", "show", "admin"]);
     assert.equal(none.status, 2);
     assert.match(none.stderr, /--state-dir/);
     // a configuration with its own tokens: admin is not one of them
     const config = join(dir, "pivotkit.json");
     writeFileSync(config, JSON.stringify({ auth: { mode: "token", tokens: [{ name: "bot", env: "BOT" }] } }));
-    const own = run(["token", "show", "admin", "--config", config, "--state-dir", state]);
+    const own = runBin(["token", "show", "admin", "--config", config, "--state-dir", state]);
     assert.equal(own.status, 2);
     assert.match(own.stderr, /no token "admin"/);
 });

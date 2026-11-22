@@ -7,11 +7,11 @@ import assert from "node:assert/strict";
 import { connect } from "node:net";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
 import { REST_ROUTES } from "../src/rest/routes.js";
 import { sourceFromOpenApiCommand } from "../src/openapi-source.js";
-import { TOKEN, call, factsOf, raw, restServer, workspace } from "./helpers.js";
+import { call, factsOf, raw, restServer, TOKEN, untilReady, workspace } from "./helpers.js";
+import { localIssuer } from "./auth/local-issuer.js";
 
 /** The documentation site pivotkit names by default. */
 const SITE = "pivotkit.eize.dev";
@@ -24,43 +24,18 @@ const MCP_RESOURCE = `${PUBLIC}/mcp`;
 const REST_RESOURCE = `${PUBLIC}/api/v1`;
 const SOURCES = { sales: { file: "data/sales.csv", title: "Sales", policy: { default: "show" } } };
 
+/** The local issuer (auth/local-issuer.js) and its address. */
+let local;
 let issuer;
-let issuerServer;
-let key;
 
 before(async () => {
-    key = await generateKeyPair("RS256");
-    const jwk = { ...(await exportJWK(key.publicKey)), kid: "k1", alg: "RS256", use: "sig" };
-    issuerServer = (await import("node:http")).createServer((req, res) => {
-        if (req.url === "/.well-known/openid-configuration") {
-            res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, jwks_uri: `${issuer}/jwks`, response_types_supported: ["code"], subject_types_supported: ["public"], id_token_signing_alg_values_supported: ["RS256"] }));
-        } else if (req.url === "/jwks") {
-            res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ keys: [jwk] }));
-        } else {
-            res.writeHead(404);
-            res.end();
-        }
-    });
-    await new Promise((resolve) => issuerServer.listen(0, "127.0.0.1", resolve));
-    issuer = `http://127.0.0.1:${issuerServer.address().port}`;
+    local = await localIssuer();
+    issuer = local.url;
 });
-after(() => new Promise((resolve) => issuerServer.close(resolve)));
+after(() => local.close());
 
 /** An access token of the test issuer for a resource. */
-const jwt = (aud) => new SignJWT({ scope: "pivotkit", client_id: "report-bot" }).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(issuer).setAudience(aud).setSubject("someone").setIssuedAt().setExpirationTime("5m").sign(key.privateKey);
-
-/** Waits until the server has loaded the issuer (readyz). */
-async function ready(server) {
-    for (let i = 0; i < 100; i++) {
-        if ((await call(`${server.url}/readyz`)).status === 200) {
-            return;
-        }
-        await new Promise((r) => setTimeout(r, 50));
-    }
-    throw new Error("not ready");
-}
+const jwt = (aud) => local.token({ aud, sub: "someone" });
 
 /** A workspace with the sales data, an icon and an empty out/. */
 function brandedWorkspace() {
@@ -202,7 +177,7 @@ async function sweepServer(branding, http = {}) {
 test("docsUrl null: no body or header of any route names pivotkit's documentation site, errors included", async () => {
     const server = await sweepServer({ docsUrl: null });
     try {
-        await ready(server);
+        await untilReady(server, 100);
         const answers = await everyAnswer(server);
         const naming = answers.filter(([, text]) => text.includes(SITE)).map(([what, text]) => `${what}: ...${text.slice(Math.max(0, text.indexOf(SITE) - 120), text.indexOf(SITE) + 80)}...`);
         assert.deepEqual(naming, [], naming.join("\n\n"));
@@ -220,7 +195,7 @@ test("docsUrl null: no body or header of any route names pivotkit's documentatio
 test("docsUrl null: a problem's type is about:blank, the code stays; the metadata leave the documentation out", async () => {
     const server = await sweepServer({ docsUrl: null });
     try {
-        await ready(server);
+        await untilReady(server, 100);
         const missing = await call(`${server.api}/sources/salse`, { token: await jwt(REST_RESOURCE) });
         assert.equal(missing.status, 404);
         assert.equal(missing.data.type, "about:blank");
@@ -241,7 +216,7 @@ test("docsUrl: every documentation link starts with the operator's address", asy
     const docs = "https://docs.intranet.example/pivot/";
     const server = await sweepServer({ docsUrl: docs });
     try {
-        await ready(server);
+        await untilReady(server, 100);
         const answers = await everyAnswer(server);
         const naming = answers.filter(([, text]) => text.includes(SITE)).map(([what]) => what);
         assert.deepEqual(naming, []);
@@ -266,7 +241,7 @@ test("docsUrl: every documentation link starts with the operator's address", asy
 test("branding.name: the titles end users and clients see carry the operator's name", async () => {
     const server = await sweepServer({ name: "Team Reports", docsUrl: null, icon: "icon.png" });
     try {
-        await ready(server);
+        await untilReady(server, 100);
         const restToken = await jwt(REST_RESOURCE);
         const openapi = await call(`${server.url}/openapi.json`, { token: restToken });
         assert.equal(openapi.data.info.title, "Team Reports REST");

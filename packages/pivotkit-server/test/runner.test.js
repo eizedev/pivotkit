@@ -8,11 +8,10 @@ import { join } from "node:path";
 import { createRequire } from "node:module";
 import { serve } from "pivotkit-server";
 import { fitsRange } from "../src/version-range.js";
-import { BIN, BY_REGION, TOKEN, call, factsOf, workspace } from "./helpers.js";
+import { BIN, BY_REGION, call, factsOf, runBin, TOKEN, workspace } from "./helpers.js";
 
 const { version: VERSION } = createRequire(import.meta.url)("../package.json");
 
-const run = (args, { env = {}, cwd } = {}) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", cwd, env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env }, timeout: 30_000 });
 
 /**
  * A start error as the person reads it: serve writes it as a JSON line where stderr is no terminal
@@ -29,24 +28,24 @@ const startError = (stderr, program = "pivotkit-server") => {
 };
 
 test("help, version, an unknown command; cli and mcp hand over to their packages", () => {
-    const help = run(["--help"]);
+    const help = runBin(["--help"]);
     assert.equal(help.status, 0);
     assert.match(help.stdout, /Usage: pivotkit-server <command>/);
     for (const name of ["serve", "check-config", "mcp", "cli", "healthcheck", "--enable", "PIVOTKIT_TOKEN"]) {
         assert.ok(help.stdout.includes(name), name);
     }
-    assert.match(run(["--version"]).stdout, /^pivotkit-server \d+\.\d+\.\d+\n$/);
-    const unknown = run(["srve"]);
+    assert.match(runBin(["--version"]).stdout, /^pivotkit-server \d+\.\d+\.\d+\n$/);
+    const unknown = runBin(["srve"]);
     assert.equal(unknown.status, 2);
     assert.match(unknown.stderr, /unknown command "srve"/);
-    assert.equal(run([]).status, 2);
-    const typo = run(["serve", "--prot", "1"]);
+    assert.equal(runBin([]).status, 2);
+    const typo = runBin(["serve", "--prot", "1"]);
     assert.equal(typo.status, 2);
     assert.match(typo.stderr, /did you mean --port\?/);
-    const cli = run(["cli", "--version"]);
+    const cli = runBin(["cli", "--version"]);
     assert.equal(cli.status, 0, cli.stderr);
     assert.match(cli.stdout, /pivotkit/);
-    const mcp = run(["mcp", "--version"]);
+    const mcp = runBin(["mcp", "--version"]);
     assert.equal(mcp.status, 0, mcp.stderr);
     assert.match(mcp.stdout, /^pivotkit-mcp /);
 });
@@ -134,13 +133,13 @@ test("check-config reads the file $PIVOTKIT_CONFIG names and says what REST woul
     const dir = workspace();
     const config = join(dir, "pivotkit.json");
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" }, gone: { file: "data/gone.csv" } }, policy: { profiles: { export: { results: true } } }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT", profile: "export" }] }, rest: { cors: { origins: ["https://app.example.com"] } }, output: { dir: "out" } }));
-    const unset = run(["check-config"], { env: { PIVOTKIT_CONFIG: config } });
+    const unset = runBin(["check-config"], { env: { PIVOTKIT_CONFIG: config } });
     assert.equal(unset.status, 1, unset.stderr);
     // the verdict and the counts first, then the problems: the token stops the start, the missing file does not
     const said = factsOf(unset.stdout).split("\n");
     assert.deepEqual(said.slice(0, 2), ["pivotkit-server: the server does not start with this configuration.", "2 problems, 0 warnings."]);
     assert.deepEqual(said.slice(3, 5), ["PROBLEM: the token bot ($BOT) is not set or shorter than 32 characters -> the server does not start", "PROBLEM: sources.gone.file: data/gone.csv is not there -> the server starts; gone answers FILE_NOT_AVAILABLE"]);
-    const res = run(["check-config"], { env: { PIVOTKIT_CONFIG: config, BOT: TOKEN } });
+    const res = runBin(["check-config"], { env: { PIVOTKIT_CONFIG: config, BOT: TOKEN } });
     assert.equal(res.status, 1, res.stderr);
     const text = factsOf(res.stdout);
     assert.match(text, /^pivotkit-server: the server starts, but not everything will work\.\n1 problem, 0 warnings\./);
@@ -149,9 +148,9 @@ test("check-config reads the file $PIVOTKIT_CONFIG names and says what REST woul
     assert.match(text, /\nProfile export:\n {2}policy: [^\n]*\n {2}file downloads \(REST\): allowed\n/);
     // what REST does differently from its defaults: here only CORS
     assert.match(text, /\nREST: \/api\/v1\n {2}CORS: https:\/\/app\.example\.com\n/);
-    const open = run(["check-config", "--config", config, "--host", "0.0.0.0", "--auth", "none"], { env: { BOT: TOKEN } });
+    const open = runBin(["check-config", "--config", config, "--host", "0.0.0.0", "--auth", "none"], { env: { BOT: TOKEN } });
     assert.match(factsOf(open.stdout), /PROBLEM: 0\.0\.0\.0 is not loopback: it needs auth token or oauth \(or auth\.allowUnauthenticated\) -> the server does not start/);
-    const bad = run(["check-config", "--config", config, "--enable", "rest,soap"]);
+    const bad = runBin(["check-config", "--config", config, "--enable", "rest,soap"]);
     assert.equal(bad.status, 2);
     assert.match(bad.stderr, /http\.enable\[1\]: must be one of mcp, rest/);
 });
@@ -293,7 +292,7 @@ test("PIVOTKIT_PORT as Kubernetes service links set it (tcp://...): serve, check
     const said = 'pivotkit-server: PIVOTKIT_PORT is "tcp://10.0.0.1:3333", which Kubernetes sets for a Service named pivotkit; set enableServiceLinks: false in the pod, or PIVOTKIT_PORT to the port number\n';
     // healthcheck fails with 1: a container's health check reserves 2
     for (const [args, status] of [[["serve", "--source", "sales=data/sales.csv"], 2], [["check-config", "--source", "sales=data/sales.csv"], 2], [["healthcheck"], 1]]) {
-        const r = run(args, { env, cwd: dir });
+        const r = runBin(args, { env, cwd: dir });
         assert.equal(r.status, status, `${args[0]}: ${r.stderr}`);
         assert.equal(args[0] === "serve" ? startError(r.stderr) : r.stderr, said, args[0]);
     }
@@ -301,13 +300,13 @@ test("PIVOTKIT_PORT as Kubernetes service links set it (tcp://...): serve, check
     // variable is not read then (port 1: nothing answers there, so the probe fails at once)
     const config = join(dir, "port.json");
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, http: { port: 1 } }));
-    const fromFile = run(["check-config"], { env: { ...env, PIVOTKIT_CONFIG: config }, cwd: dir });
+    const fromFile = runBin(["check-config"], { env: { ...env, PIVOTKIT_CONFIG: config }, cwd: dir });
     assert.equal(fromFile.status, 0, fromFile.stderr);
-    const probe = run(["healthcheck"], { env: { ...env, PIVOTKIT_CONFIG: config }, cwd: dir });
+    const probe = runBin(["healthcheck"], { env: { ...env, PIVOTKIT_CONFIG: config }, cwd: dir });
     assert.equal(probe.status, 1);
     assert.match(probe.stderr, /^pivotkit-server: http:\/\/127\.0\.0\.1:1\/healthz: /);
     // a port given otherwise wins, as before: --port for serve, a URL for healthcheck
-    const check = run(["check-config", "--source", "sales=data/sales.csv", "--port", "3333"], { env, cwd: dir });
+    const check = runBin(["check-config", "--source", "sales=data/sales.csv", "--port", "3333"], { env, cwd: dir });
     assert.equal(check.status, 0, check.stderr);
-    assert.equal(run(["healthcheck", "http://127.0.0.1:1/healthz"], { env }).status, 1);
+    assert.equal(runBin(["healthcheck", "http://127.0.0.1:1/healthz"], { env }).status, 1);
 });

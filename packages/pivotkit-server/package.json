@@ -60,8 +60,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node ../../scripts/test-run.js node --test \"test/*.test.js\"",
-    "coverage": "node ../../scripts/test-run.js node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\"",
+    "test": "node ../../scripts/test-run.js node --test \"test/**/*.test.js\"",
+    "coverage": "node ../../scripts/test-run.js node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/**/*.test.js\"",
     "types": "tsc -p .",
     "bench:records": "node --expose-gc bench/records.js",
     "test:types": "tsc -p test/types",
