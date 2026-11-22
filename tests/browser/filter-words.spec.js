@@ -10,7 +10,7 @@ const byYear = { derived: [{ name: YEAR, field: "Released", by: "year" }], rows:
 
 for (const [lang, t] of [
     ["en", { legend: "Only if the name…", none: "(any name)", all: "All 3 selected · nothing filtered yet", some: "2 selected", total: "Filter by total", name: "Filter by name", item: `Filter by ${YEAR}` }],
-    ["de", { legend: "Der Name …", none: "(jeder Name)", all: "Alle 3 ausgewählt · noch nichts gefiltert", some: "2 ausgewählt", total: "Nach Wert filtern", name: "Nach Name filtern", item: `Nach ${YEAR} filtern` }]
+    ["de", { legend: "Der Name …", none: "(jeder Name)", all: "Alle 3 ausgewählt · noch nichts gefiltert", some: "2 ausgewählt", total: "Nach Gesamtwert filtern", name: "Nach Name filtern", item: `Nach ${YEAR} filtern` }]
 ]) {
     test(`${lang}: a field's filter says when it keeps every value, and its condition on the names in plain words`, async ({ page }) => {
         await page.goto(`?data=sales&lang=${lang}`);
