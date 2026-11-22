@@ -6,7 +6,7 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
-## [0.5.0] - 2026-11-21
+## [0.5.0] - 2026-11-22
 
 ### Added
 

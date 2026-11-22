@@ -6,32 +6,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
-### Changed
-
-- `check-config` and `serve` name the numbers out of their range together, one per line, instead
-  of stopping at the first. A single problem reads as before.
-- `GET /api/v1/sources/records` and `GET /api/v1/sources/describe` answer 405 `METHOD_NOT_ALLOWED`
-  with `Allow: POST`. They answered 404 `SOURCE_NOT_FOUND` for a source of that id. A caller who may
-  use a source with such an id still gets it described.
-- `check-config` and the start warn when `auth.externalIssuers` or `auth.signedTokens` is set while
-  `auth.mode` is not `"token"`. The server then checks none of those tokens.
-
-### Fixed
-
-- `create_link` and `draft_schedule` refuse a named view that holds values of a field the caller
-  sees at `summary` in a sort by one column's values (`sort[].column`) or in a relative date
-  filter's own anchor date. Such a view went into the link or draft with those values.
-- The rows route's 413 `LIMIT_EXCEEDED` says to filter with a parameter only for a source that takes
-  one the caller sends.
-- The rows route's 403 `NOT_ALLOWED` names the caller's profile in its `detail`, or says that the
-  caller has none. It named the profile with the placeholder `<name>`, which reached a caller as
-  "policy.profiles..records" ([#693](https://github.com/eizedev/pivotkit/issues/693)).
-- With pivotkit-mcp installed, a path nobody serves answers the server's 404 `NOT_FOUND` problem,
-  which names the REST and OpenAPI addresses when REST is on. pivotkit-mcp's handler answered such a
-  path with a plain "not found"
-  ([#630](https://github.com/eizedev/pivotkit/issues/630)).
-
-## [0.4.0] - 2026-11-21
+## [0.4.0] - 2026-11-22
 
 ### Added
 
@@ -137,6 +112,13 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   ([JavaScript exports](https://pivotkit.eize.dev/reference/service-exports/)).
 - A pivotkit-mcp that imports an entry point this pivotkit-server lacks is refused with both
   versions, as one that imports a missing name is.
+- `check-config` and `serve` name the numbers out of their range together, one per line, instead
+  of stopping at the first. A single problem reads as before.
+- `GET /api/v1/sources/records` and `GET /api/v1/sources/describe` answer 405 `METHOD_NOT_ALLOWED`
+  with `Allow: POST`. They answered 404 `SOURCE_NOT_FOUND` for a source of that id. A caller who may
+  use a source with such an id still gets it described.
+- `check-config` and the start warn when `auth.externalIssuers` or `auth.signedTokens` is set while
+  `auth.mode` is not `"token"`. The server then checks none of those tokens.
 
 ### Fixed
 
@@ -177,6 +159,18 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - An HTTP source's JSON answer leaves out the columns the caller's policy hides while its rows
   arrive, not after the whole answer is in. With one of seven columns hidden, the main thread's peak
   heap fell by about 9 % for a 20 MB answer (`bench/server`, [#649](https://github.com/eizedev/pivotkit/issues/649)).
+- `create_link` and `draft_schedule` refuse a named view that holds values of a field the caller
+  sees at `summary` in a sort by one column's values (`sort[].column`) or in a relative date
+  filter's own anchor date. Such a view went into the link or draft with those values.
+- The rows route's 413 `LIMIT_EXCEEDED` says to filter with a parameter only for a source that takes
+  one the caller sends.
+- The rows route's 403 `NOT_ALLOWED` names the caller's profile in its `detail`, or says that the
+  caller has none. It named the profile with the placeholder `<name>`, which reached a caller as
+  "policy.profiles..records" ([#693](https://github.com/eizedev/pivotkit/issues/693)).
+- With pivotkit-mcp installed, a path nobody serves answers the server's 404 `NOT_FOUND` problem,
+  which names the REST and OpenAPI addresses when REST is on. pivotkit-mcp's handler answered such a
+  path with a plain "not found"
+  ([#630](https://github.com/eizedev/pivotkit/issues/630)).
 
 ## [0.3.2] - 2026-11-19
 

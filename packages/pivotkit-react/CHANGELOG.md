@@ -6,19 +6,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
-### Added
-
-- The warning above the result names a field that a view names twice, and two fields of one name,
-  in English and German (pivotkit-core's `labelTwice` and `labelTaken`,
-  [#699](https://github.com/eizedev/pivotkit/issues/699)).
-
-### Changed
-
-- The month names of a combined month grouping and of the grouping hint come from pivotkit-core's
-  `monthName`, so the names are defined in one place. They read as before
-  ([#662](https://github.com/eizedev/pivotkit/issues/662)).
-
-## [0.9.0] - 2026-11-21
+## [0.9.0] - 2026-11-22
 
 ### Added
 
@@ -59,6 +47,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - Chart settings › Reference lines › High and low points puts a dot with ▲ or ▼ and the value at
   each series' highest and lowest value. The text for screen readers names them
   ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), [#574](https://github.com/eizedev/pivotkit/issues/574)).
+- The warning above the result names a field that a view names twice, and two fields of one name,
+  in English and German (pivotkit-core's `labelTwice` and `labelTaken`,
+  [#699](https://github.com/eizedev/pivotkit/issues/699)).
 
 ### Changed
 
@@ -91,6 +82,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   link to a report." and "This view comes from a newer version and cannot be read here. Update the
   application to open it." The notes about unused parts of a view say the same
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#neutral-texts), [#612](https://github.com/eizedev/pivotkit/issues/612)).
+- The month names of a combined month grouping and of the grouping hint come from pivotkit-core's
+  `monthName`, so the names are defined in one place. They read as before
+  ([#662](https://github.com/eizedev/pivotkit/issues/662)).
 
 ### Deprecated
 

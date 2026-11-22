@@ -6,17 +6,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
-### Fixed
-
-- Two runs that sign in at once never hold the refresh lock together. A run that read a crashed
-  run's lock as stale moved it aside to take it over, also when another run had just taken it over.
-  A third run could then get in beside that run. Now one run at a time takes a lock over, and only
-  while it is still stale ([#717](https://github.com/eizedev/pivotkit/issues/717)).
-- `pivotkit login`, `token` and `logout` send the user agent `pivotkit-cli/<version>` to the server
-  and its issuer, as the REST calls do. They sent Node's default `node`, or none to a loopback
-  address ([#628](https://github.com/eizedev/pivotkit/issues/628)).
-
-## [0.5.0] - 2026-11-21
+## [0.5.0] - 2026-11-22
 
 ### Added
 
@@ -34,6 +24,16 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), [#519](https://github.com/eizedev/pivotkit/issues/519)).
 - A network error with a proxy variable set names `NODE_USE_ENV_PROXY=1`, or `--use-env-proxy` from
   Node 24.5.0.
+
+### Fixed
+
+- Two runs that sign in at once never hold the refresh lock together. A run that read a crashed
+  run's lock as stale moved it aside to take it over, also when another run had just taken it over.
+  A third run could then get in beside that run. Now one run at a time takes a lock over, and only
+  while it is still stale ([#717](https://github.com/eizedev/pivotkit/issues/717)).
+- `pivotkit login`, `token` and `logout` send the user agent `pivotkit-cli/<version>` to the server
+  and its issuer, as the REST calls do. They sent Node's default `node`, or none to a loopback
+  address ([#628](https://github.com/eizedev/pivotkit/issues/628)).
 
 ## [0.4.0] - 2026-11-18
 

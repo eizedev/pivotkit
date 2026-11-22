@@ -6,7 +6,7 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ## [Unreleased]
 
-## [0.6.0] - 2026-11-21
+## [0.6.0] - 2026-11-22
 
 ### Changed
 

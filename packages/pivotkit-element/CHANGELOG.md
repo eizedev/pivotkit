@@ -6,7 +6,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-11-21
+## [0.9.0] - 2026-11-22
 
 ### Added
 
@@ -28,6 +28,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 - Bars and lines, and a treemap, from pivotkit-react. ECharts' treemap loads with the chart: the
   chart group's budget goes to 259.5 KiB. The first load does not grow
   ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), [#518](https://github.com/eizedev/pivotkit/issues/518)).
+- The warning above the result names a field that a view names twice, and two fields of one name.
+  See pivotkit-react's changelog ([#699](https://github.com/eizedev/pivotkit/issues/699)).
 - High and low points on a chart, from pivotkit-react. ECharts' markPoint loads with the chart,
   inside the chart group's budget of 259.5 KiB. The German menu texts' budget goes to 8.5 KiB
   ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), [#574](https://github.com/eizedev/pivotkit/issues/574)).
