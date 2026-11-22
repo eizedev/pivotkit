@@ -52,7 +52,7 @@ export const KEYS = Object.freeze({
 /**
  * Each issuer once, with a name and a type of its own (never the server's), one or two keys with
  * distinct IDs, and a lifetime of 1 to 1440 minutes; only with auth.mode "token" (or none written,
- * which a state directory makes "token").
+ * which a state directory makes "token" off loopback).
  * @param {import("../config.js").ServerOptions} options
  * @param {import("./shared.js").RangeProblem} [range]  where a value out of its range goes (validateOptions collects them)
  */

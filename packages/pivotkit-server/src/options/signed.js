@@ -33,7 +33,7 @@ export const maxLifetimeOf = (options) => (options.auth?.signedTokens?.maxDays ?
 
 /**
  * maxDays from 1 to SIGNED_TOKEN.maxDaysLimit; the setting only with auth.mode "token" (or none
- * written, which a state directory makes "token"); dir never inside output.dir, which the server
+ * written, which a state directory makes "token" off loopback); dir never inside output.dir, which the server
  * serves and prunes.
  * @param {import("../config.js").ServerOptions} options
  * @param {import("./shared.js").RangeProblem} [range]  where a value out of its range goes (validateOptions collects them)

@@ -144,8 +144,8 @@ The `User-Agent` header of each request:
 
 ## Views are untrusted input
 
-- A view holds **names only**, and in its filters the values chosen there. Those are plain values of
-  the data, and a shared view gives them away. See [Privacy](reference/view-file.md#privacy).
+- A view holds **names only**, and values chosen in it: in its filters, sort, collapsed groups, and
+  chart. Those are plain values of the data, and a shared view gives them away. See [Privacy](reference/view-file.md#privacy).
     - Field names are resolved against the data's columns.
     - Aggregators, formats, filter operators, "show as" calculations and chart types are resolved
       against fixed lists.

@@ -1357,7 +1357,8 @@ Auth: token
 
 A configuration with an unknown key, a value of the wrong type or a rule it breaks gets no report.
 `check-config` and `serve` print why and exit 2. A number out of its range does not stop the check.
-The message names every such number at once, one per line:
+The message names every such number found, one per line. Any other broken rule stops the check
+where it finds it:
 
 ```text
 pivotkit-server: 2 problems in the configuration:
@@ -1709,8 +1710,9 @@ it: the scopes and profiles of its entry.
 
 The issuer's tokens work with `auth.mode` `"token"` only. That mode needs a token of the server's own
 too: one in `auth.tokens`, as `ops` here, or `$PIVOTKIT_TOKEN`. Each profile the entry names must be
-in `policy.profiles`. With no `auth.mode` and no state directory, the server runs without auth and
-never checks the issuer's tokens. The start and `check-config` then warn.
+in `policy.profiles`. Without `auth.mode` written, the server runs without auth on loopback and
+never checks the issuer's tokens. The start and `check-config` then warn. Off loopback, a state
+directory makes the mode `"token"`.
 
 What a token gets:
 

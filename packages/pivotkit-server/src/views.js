@@ -275,8 +275,10 @@ const listOf = (obj, key) => (obj && typeof obj === "object" && Object.hasOwn(ob
  * The fields whose values a view holds: a filter's items or values, a relative range's own anchor
  * date, a custom sort order, the column a sort by a value goes by (items of the fields on columns),
  * the collapsed groups, the chart's hidden series and its colours by series name (of the fields on
- * rows and columns). A grouping counts as its source field. Every key of a view that can hold a value
- * of the data counts here; what a link or draft carries is checked against this list.
+ * rows and columns). A grouping counts as its source field. Every key of a view that holds an item, a
+ * text or a date of a field counts here; what a link or draft carries is checked against this list.
+ * Numbers an author writes (a bin's size and origin, a chart's target) and free text (titles, labels,
+ * names) are not read as values.
  * @param {Record<string, any>} view
  * @returns {string[]}
  */
@@ -298,9 +300,10 @@ export function valueFields(view) {
         if (typeof s?.field === "string" && listOf(s, "items").length) {
             out.push(fieldOf(s.field));
         }
-        // a sort by one column's values (#70): the column's items, of the fields on columns
-        if (listOf(s, "column").length) {
-            out.push(...cols);
+        // a sort by one column's values (#70): the column's items, one per field on columns from the outermost
+        const column = listOf(s, "column");
+        if (column.length) {
+            out.push(...cols.slice(0, column.length));
         }
     }
     const collapsed = view.collapsed && typeof view.collapsed === "object" ? view.collapsed : {};

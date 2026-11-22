@@ -220,9 +220,9 @@ transport prefix `1.`. The size limits and the safety rules of links apply
 
 ## Privacy
 
-A view holds field names and, in its filters, the items chosen there. Those items are values of the
-data, such as a customer's name or a country. A file, a copied view and a link give them to whoever
-gets them. The Share this view group of the Views menu says so: "A view holds the names of fields
+A view holds field names and values of the data, such as a customer's name or a country. Values are
+in its filters, a custom sort order, the column a sort goes by, collapsed groups, and the chart's
+hidden series and colours by name. A file, a copied view and a link give them to whoever gets them. The Share this view group of the Views menu says so: "A view holds the names of fields
 and, in its filters, the values chosen there: share it only where those may be seen."
 
 A link keeps the view in the URL fragment. Browsers do not send the fragment to the server. But the

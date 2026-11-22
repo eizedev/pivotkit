@@ -8,8 +8,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
-- `check-config` and `serve` name every number out of its range at once, one per line, instead of
-  the first only. A single problem reads as before.
+- `check-config` and `serve` name the numbers out of their range together, one per line, instead
+  of stopping at the first. A single problem reads as before.
 - `GET /api/v1/sources/records` and `GET /api/v1/sources/describe` answer 405 `METHOD_NOT_ALLOWED`
   with `Allow: POST`. They answered 404 `SOURCE_NOT_FOUND` for a source of that id. A caller who may
   use a source with such an id still gets it described.

@@ -232,8 +232,8 @@ What reaches other services, in short:
 - **The sign-in provider** sees a sign-in each time a person opens a [sign-in
   link](reference/delivery.md#sign-in). Its own log then has an event for that person and the
   download client (`output.downloads.signIn.clientId`), as for any application they sign in to.
-- **The sign-in provider** also gets `pivotkit-cli/<version>` as `User-Agent` when a person signs
-  in with the command line. [Network requests](security.md#network) lists every `User-Agent`.
+  When a person signs in with the command line, it also gets `pivotkit-cli/<version>` as
+  `User-Agent`. [Network requests](security.md#network) lists every `User-Agent`.
 - **An [upload store](reference/delivery.md#upload)** receives the whole report file. Its name comes
   from the report's name: a source's title, or a name the caller gave.
     - In presign mode the presign service also gets the file's size and SHA-256.

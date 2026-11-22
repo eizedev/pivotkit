@@ -437,14 +437,14 @@ test("issuers without auth.mode token check nothing: the start and check-config 
     try {
         const said = server.log.filter((l) => l.level === "warn").map((l) => l.msg);
         assert.ok(
-            said.some((t) => /auth\.externalIssuers is set, but auth\.mode is "none": its tokens are not checked.*set auth\.mode "token"/.test(t)),
+            said.some((t) => /auth\.externalIssuers is set, but auth\.mode is not set \(so "none"\): its tokens are not checked.*set auth\.mode "token"/.test(t)),
             JSON.stringify(server.log)
         );
     } finally {
         await server.close();
     }
     const { text } = await checkConfig(options, { env: {}, http: true, rest: true });
-    assert.match(factsOf(text), /WARNING \(Auth\): auth\.externalIssuers is set, but auth\.mode is "none": its tokens are not checked.*set auth\.mode "token"/);
+    assert.match(factsOf(text), /WARNING \(Auth\): auth\.externalIssuers is set, but auth\.mode is not set \(so "none"\): its tokens are not checked.*set auth\.mode "token"/);
     // with mode token, no such warning
     const fine = setup();
     assert.doesNotMatch((await checkConfig(fine.options, { env: { OPS: TOKEN }, http: true, rest: true })).text, /auth\.externalIssuers is set, but/);

@@ -278,16 +278,19 @@ test("a link or draft of a named view: values of a field at values may go; serie
         colours: { rows: ["Region"], values: [sales], display: "chart", chart: { type: "bar", colors: [{ name: "North", color: "#ff0000" }] } },
         // a sort by one column's values (#70) names that column's items: values of the fields on Columns
         column: { rows: ["Region"], cols: ["Customer"], values: [sales], sort: [{ field: "Region", by: "value", order: "desc", value: sales, column: ["Alice Example"] }] },
+        // a column of the outer field only: the inner field's values are not in it
+        outer: { rows: ["Region"], cols: ["Product", "Customer"], values: [sales], sort: [{ field: "Region", by: "value", order: "desc", value: sales, column: ["A"] }] },
         // a relative range ending on a date of the view's own holds a date of the field
         anchor: { rows: ["Region"], values: [sales], filters: [{ field: "OrderDate", type: "relative", direction: "last", unit: "month", count: 3, anchor: "2026-10-20" }] },
         latest: { rows: ["Region"], values: [sales], filters: [{ field: "OrderDate", type: "relative", direction: "last", unit: "month", count: 3, anchor: "latest" }] }
     };
     const options = (policy) => ({ ...namedServerOptions(dir), sources: { sales: { file: "data/sales.csv", link: "https://reports.example.com/sales", policy, views } } });
     for (const [policy, expected] of [
-        [{ default: "show", fields: { Customer: "values" } }, { alice: 200, colours: 200, column: 200, anchor: 200, latest: 200 }],
-        [{ default: "show", fields: { Region: "summary" } }, { alice: 200, colours: 403, column: 200, anchor: 200, latest: 200 }],
-        [{ default: "show", fields: { Customer: "summary" } }, { alice: 403, colours: 200, column: 403, anchor: 200, latest: 200 }],
-        [{ default: "show", fields: { OrderDate: "summary" } }, { alice: 200, colours: 200, column: 200, anchor: 403, latest: 200 }]
+        [{ default: "show", fields: { Customer: "values" } }, { alice: 200, colours: 200, column: 200, outer: 200, anchor: 200, latest: 200 }],
+        [{ default: "show", fields: { Region: "summary" } }, { alice: 200, colours: 403, column: 200, outer: 200, anchor: 200, latest: 200 }],
+        [{ default: "show", fields: { Customer: "summary" } }, { alice: 403, colours: 200, column: 403, outer: 200, anchor: 200, latest: 200 }],
+        [{ default: "show", fields: { Product: "summary" } }, { alice: 200, colours: 200, column: 200, outer: 403, anchor: 200, latest: 200 }],
+        [{ default: "show", fields: { OrderDate: "summary" } }, { alice: 200, colours: 200, column: 200, outer: 200, anchor: 403, latest: 200 }]
     ]) {
         const server = await restServer(options(policy), { env: { T1: TOKEN, T2: OTHER_TOKEN } });
         try {

@@ -272,6 +272,19 @@ test("check-config and serve name every value out of its range at once, each on 
             assert.ok(text.includes(`\n  ${line}`), `${command} names ${line}: ${text}`);
         }
     }
+    // a rule between keys never runs on a value out of its range: one line each
+    const only = async (options, lines) => {
+        const said = [];
+        const io = { env: {}, stdout: { write: (t) => said.push(t) }, stderr: { write: (t) => said.push(t) } };
+        assert.equal(await run(["check-config", "--config", config(options)], io), 2);
+        assert.equal(said.join(""), lines.length === 1 ? `pivotkit-server: ${lines[0]}\n` : `pivotkit-server: ${lines.length} problems in the configuration:\n${lines.map((l) => `  ${l}\n`).join("")}`);
+    };
+    await only({ compute: { timeMs: 0 }, rest: { records: { writeMs: 5000 } } }, ["compute.timeMs: must be 1 or more"]);
+    await only({ rest: { records: { writeMs: 1 } } }, ["rest.records.writeMs: from 1000 to 600000"]);
+    await only({ rest: { records: { maxRows: 0 } }, sources: { sales: { ...sales, records: { maxRows: 20 } } } }, ["rest.records.maxRows: from 1 to 10000000"]);
+    await only({ output: { dir: "out", upload: { url: "https://store.example.com/{name}", timeMs: 1 } }, rest: { records: { concurrency: 99 } } }, ["output.upload.timeMs: from 1000 to 600000 (10 minutes)", "rest.records.concurrency: from 1 to 64"]);
+    // a broken rule of another kind stops the check, with the numbers found before it
+    await only({ compute: { workers: 0 }, output: { dir: "out", baseUrl: "https://files.example.com/", downloads: { enabled: true } } }, ["compute.workers: must be 1 or more", "output.downloads.enabled: true next to output.baseUrl: choose one (the server's own links, or the web server at output.baseUrl)"]);
     // a single problem keeps its one line
     const out = [];
     const io = { env: {}, stdout: { write: (t) => out.push(t) }, stderr: { write: (t) => out.push(t) } };

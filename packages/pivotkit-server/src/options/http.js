@@ -20,7 +20,7 @@ import { issuerRulesOf } from "../issuer.js";
 import { resolvePolicy } from "../policy.js";
 import { canonicalJson } from "../sources/keys.js";
 import { compileTemplate } from "../sources/template.js";
-import { ConfigError, SECRET_REF } from "./shared.js";
+import { ConfigError, SECRET_REF, throwRange } from "./shared.js";
 
 export const NAME = "http";
 
@@ -406,6 +406,34 @@ function pagingOf(paging) {
 }
 
 /**
+ * An HTTP source's numbers out of their range (its pages, bytes and time, with its backend's), as
+ * messages: validate collects them, compileSource throws the first.
+ * @param {import("../config.js").ServerOptions} options
+ * @param {string} id
+ * @param {any} source
+ * @param {any} backend  the source's backend, if it names one
+ * @returns {string[]}
+ */
+function numberProblems(options, id, source, backend) {
+    const http = source.http;
+    const at = `sources.${id}.http`;
+    const out = [];
+    if (http.maxPages !== undefined && (http.maxPages < 1 || http.maxPages > HTTP_MAX.pages)) {
+        out.push(`${at}.maxPages: 1 to ${HTTP_MAX.pages}`);
+    }
+    const maxBytes = http.maxBytes ?? backend?.maxBytes ?? HTTP_DEFAULTS.maxBytes;
+    const fileBytes = options.limits?.fileBytes;
+    if (maxBytes < 1 || (fileBytes !== undefined && maxBytes > fileBytes)) {
+        out.push(`${at}.maxBytes: 1 to limits.fileBytes${fileBytes !== undefined ? ` (${fileBytes})` : ""}`);
+    }
+    // a backend's own timeMs is checked with the backends
+    if (source.timeMs !== undefined && source.timeMs > HTTP_MAX.timeMs) {
+        out.push(`sources.${id}.timeMs: at most ${HTTP_MAX.timeMs} (ten minutes)`);
+    }
+    return out;
+}
+
+/**
  * Compiles one HTTP source; throws ConfigError.
  * @param {import("../config.js").ServerOptions} options
  * @param {string} id
@@ -464,18 +492,12 @@ function compileSource(options, id, source, backendAuths) {
         const message = /** @type {Error} */ (e).message;
         throw new ConfigError(/^query[.:]/.test(message) ? `${at}.${message}` : `${at}.${hasBackend ? "path" : "url"}: ${message}`);
     }
-    if (http.maxPages !== undefined && (http.maxPages < 1 || http.maxPages > HTTP_MAX.pages)) {
-        throw new ConfigError(`${at}.maxPages: 1 to ${HTTP_MAX.pages}`);
+    const [outOfRange] = numberProblems(options, id, source, backend);
+    if (outOfRange) {
+        throw new ConfigError(outOfRange);
     }
     const maxBytes = http.maxBytes ?? backend?.maxBytes ?? HTTP_DEFAULTS.maxBytes;
-    const fileBytes = options.limits?.fileBytes;
-    if (maxBytes < 1 || (fileBytes !== undefined && maxBytes > fileBytes)) {
-        throw new ConfigError(`${at}.maxBytes: 1 to limits.fileBytes${fileBytes !== undefined ? ` (${fileBytes})` : ""}`);
-    }
     const timeMs = source.timeMs ?? backend?.timeMs ?? HTTP_DEFAULTS.timeMs;
-    if (timeMs > HTTP_MAX.timeMs) {
-        throw new ConfigError(`sources.${id}.timeMs: at most ${HTTP_MAX.timeMs} (ten minutes)`);
-    }
     // a backend's settings were checked with the backends; its headers merged under the source's
     const headers = { ...(backend ? headersOf(backend.headers, `httpSources.backends.${http.backend}.headers`) : {}), ...headersOf(http.headers, `${at}.headers`) };
     // the source's own sign-in, else its backend's (compiled once per backend, so its sources share a token)
@@ -512,8 +534,9 @@ function compileSource(options, id, source, backendAuths) {
 /**
  * Checks the rules between these keys and compiles every HTTP source; throws ConfigError.
  * @param {import("../config.js").ServerOptions} options
+ * @param {import("./shared.js").RangeProblem} [range]  where a value out of its range goes (validateOptions collects them)
  */
-export function validate(options) {
+export function validate(options, range = throwRange) {
     /** @type {Map<string, BackendAuth>} */
     const backendAuths = new Map();
     for (const [name, backend] of Object.entries(options.httpSources?.backends ?? {})) {
@@ -534,7 +557,7 @@ export function validate(options) {
             backendAuths.set(name, backendAuthOf(options, backend.auth, `${at}.auth`, headers));
         }
         if (backend.timeMs !== undefined && (backend.timeMs < 1 || backend.timeMs > HTTP_MAX.timeMs)) {
-            throw new ConfigError(`${at}.timeMs: 1 to ${HTTP_MAX.timeMs}`);
+            range(`${at}.timeMs: 1 to ${HTTP_MAX.timeMs}`);
         }
     }
     const profiles = Object.values(options.policy?.profiles ?? {});
@@ -550,6 +573,13 @@ export function validate(options) {
         // a field the backend adds later must not be shown without anyone deciding
         if ([undefined, ...profiles].some((profile) => resolvePolicy(options.policy, source.policy, profile).default === "show")) {
             throw new ConfigError(`sources.${id}.policy: an HTTP source needs a default that is not "show", under the server's policy and every profile: a field the backend adds later would be shown without anyone deciding; set sources.${id}.policy.default to "hide" and list the fields to show in sources.${id}.policy.fields`);
+        }
+        // its numbers out of range are said all at once; the rest of the source is checked once they fit
+        const backends = options.httpSources?.backends ?? {};
+        const numbers = numberProblems(options, id, source, Object.hasOwn(backends, source.http.backend ?? "") ? backends[source.http.backend] : undefined);
+        if (numbers.length) {
+            numbers.forEach((message) => range(message));
+            continue;
         }
         compiled.set(source, compileSource(options, id, source, backendAuths));
     }

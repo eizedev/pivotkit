@@ -475,9 +475,10 @@ async function externalCheckOf(options, { env, log }) {
 
 /**
  * Why tokens the configuration names are never checked, or null: auth.externalIssuers and
- * auth.signedTokens work in auth.mode "token" only. Without a mode written (and no state directory,
- * which makes it "token") the server runs with auth "none", so such tokens are never read. The start
- * logs it and check-config says it, in these words.
+ * auth.signedTokens work in auth.mode "token" only, and another mode written is refused. Without a
+ * mode written the server runs with auth "none" on loopback (off loopback, a state directory makes
+ * it "token"), so such tokens are never read. The start logs it and check-config says it, in these
+ * words.
  * @param {import("./config.js").ServerOptions} options  as the server starts with them
  * @returns {string | null}
  */
@@ -487,7 +488,7 @@ export function inertTokensText(options) {
         return null;
     }
     const set = [...(options.auth?.externalIssuers?.length ? ["auth.externalIssuers"] : []), ...(options.auth?.signedTokens?.dir ? ["auth.signedTokens"] : [])];
-    return set.length ? `${set.join(" and ")} ${set.length === 1 ? "is" : "are"} set, but auth.mode is "${mode}": ${set.length === 1 ? "its" : "their"} tokens are not checked and callers need no token; set auth.mode "token"` : null;
+    return set.length ? `${set.join(" and ")} ${set.length === 1 ? "is" : "are"} set, but auth.mode is not set (so "${mode}"): ${set.length === 1 ? "its" : "their"} tokens are not checked and callers need no token; set auth.mode "token"` : null;
 }
 
 /**

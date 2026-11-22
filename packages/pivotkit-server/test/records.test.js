@@ -751,7 +751,7 @@ test("a GET of the rows route or of POST /sources/describe answers 405 with Allo
             const head = await fetch(`${server.api}/sources/${path}`, { method: "HEAD", headers: { authorization: `Bearer ${TOKEN}-bot` } });
             assert.equal(head.status, 405, `HEAD ${path}`);
         }
-        // the same for a source there is none of: the answer does not tell a hidden source apart
+        // an id that is no such route stays not found
         const absent = await call(`${server.api}/sources/nothing`, { token: `${TOKEN}-bot` });
         assert.equal(absent.status, 404);
         assert.equal(absent.data.code, "SOURCE_NOT_FOUND");
@@ -762,6 +762,19 @@ test("a GET of the rows route or of POST /sources/describe answers 405 with Allo
     } finally {
         await server.close();
     }
+    // a server without a source "records" answers the bot alike: the hidden source is not told apart
+    const answerOf = async (withHidden) => {
+        const s = await restServer({ sources: withHidden ? sources : { sales: sources.sales }, auth: { mode: "token", tokens: [{ name: "admin", env: "ADMIN" }, { name: "bot", file: "bot.token", scopes: ["pivotkit:read"] }] }, baseDir: dir }, { env: { ADMIN: TOKEN } });
+        try {
+            const a = await call(`${s.api}/sources/records`, { token: `${TOKEN}-bot` });
+            // the request's own id differs from one answer to the next
+            const body = { ...a.data, requestId: undefined };
+            return { status: a.status, allow: a.headers.get("allow"), type: a.headers.get("content-type"), body };
+        } finally {
+            await s.close();
+        }
+    };
+    assert.deepEqual(await answerOf(true), await answerOf(false));
 });
 
 test("GET /sources says per source whether the caller may read its rows", async () => {
