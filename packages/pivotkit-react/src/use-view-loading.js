@@ -30,7 +30,7 @@ export function useViewLoading(props, report) {
     const { history, encoded, limits, labels, locale, announce, sourceId, empty, commit, undoAction, remember, noteLoad, viaSheet, runAfterSheet } = report;
     const { sources, onSourceSwitch } = props;
     // the report as a link meets it (use-share-link.js), as it is after each render
-    const latest = useRef(/** @type {import("./link-open.js").LinkReport} */ ({ history, encoded, limits, labels, announce, sourceId, loaded: /** @type {any} */ (null), sources, onSourceSwitch }));
+    const latest = useRef(/** @type {import("./use-share-link.js").LinkReport} */ ({ history, encoded, limits, labels, announce, sourceId, loaded: /** @type {any} */ (null), sources, onSourceSwitch }));
     /**
      * A view loaded from outside (a file, pasted JSON, a link) is shown: a step Undo takes back (a link
      * read at the start is where the report starts, `restored`).

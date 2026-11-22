@@ -24,8 +24,59 @@ function sessionStore() {
 }
 
 /**
+ * @typedef {object} LinkReport  the report as a link meets it, at the moment it is opened
+ * @property {any} history
+ * @property {import("pivotkit-core").Encoded} encoded
+ * @property {object | undefined} limits
+ * @property {any} labels
+ * @property {(text: string, extra?: object) => void} announce
+ * @property {string | undefined} sourceId
+ * @property {(loaded: import("./share.js").LoadedView, how?: { link?: boolean, restored?: boolean }) => void} loaded
+ * @property {unknown} sources
+ * @property {unknown} onSourceSwitch
+ */
+
+/**
+ * Opens the view of a link as read (link-open.js: readLink): at once, or after the check for other data.
+ * @param {ReturnType<typeof import("./link-open.js").readLink>} read
+ * @param {boolean} asStep  a step Undo takes back, else where the report starts (a new history)
+ * @param {LinkReport} report
+ * @param {(check: any) => void} setCheck
+ */
+function openWith(read, asStep, report, setCheck) {
+    const { history: h, labels: l, announce: say, loaded: done, onSourceSwitch: switchTo } = report;
+    if (read.failed) {
+        say(l.viewFailed[read.failed], { tone: "error" });
+        return;
+    }
+    const { loaded, check } = read;
+    const open = () => {
+        if (asStep) {
+            done(loaded, { link: true });
+        } else {
+            h.restore(/** @type {object} */ (loaded.view));
+            done(loaded, { link: true, restored: true });
+        }
+    };
+    if (!check) {
+        open();
+        return;
+    }
+    const target = check.switchTo;
+    setCheck({
+        lines: check.lines,
+        quiet: !asStep,
+        load: open,
+        switchTo:
+            target && typeof switchTo === "function"
+                ? { name: target.name, run: () => switchTo({ source: { id: target.id, name: target.name }, view: /** @type {Record<string, unknown>} */ (loaded.file?.view ?? loaded.view), name: loaded.file?.name || undefined }) }
+                : undefined
+    });
+}
+
+/**
  * @param {import("./index.js").PivotReportProps} props
- * @param {{ latest: React.MutableRefObject<import("./link-open.js").LinkReport>, kept: boolean, history: any, encoded: import("pivotkit-core").Encoded,
+ * @param {{ latest: React.MutableRefObject<LinkReport>, kept: boolean, history: any, encoded: import("pivotkit-core").Encoded,
  *   limits: object | undefined } & ShareParts} report  latest: the report as it is when a link opens (filled after
  *   every render); kept: the report was mounted again with its file's data (data-keep.js): its own view comes back
  */
@@ -41,14 +92,14 @@ export function useShareLink(props, report) {
         appliedLink.current = text;
         const now = linkNow();
         if (now) {
-            now.openWith(text, asStep, latest.current, setCheck);
+            openWith(now.readLink(text, latest.current), asStep, latest.current, setCheck);
             return;
         }
         setOpening(true);
         loadLink().then(
             (m) => {
                 setOpening(false);
-                m.openWith(text, asStep, latest.current, setCheck);
+                openWith(m.readLink(text, latest.current), asStep, latest.current, setCheck);
             },
             () => {
                 setOpening(false);
