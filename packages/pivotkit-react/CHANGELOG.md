@@ -25,16 +25,16 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - A click on a bar, a point, a slice or a heatmap cell opens a small menu at it: **Show the rows**,
   then **Only …** and **Without …** for its item and its series' item. A filter from it shows on the
   chip, and Undo takes it back. A double click opens the rows at once. In English and German
-  ([filter from the chart](https://pivotkit.eize.dev/use/charts/#filter-from-the-chart), #53).
+  ([filter from the chart](https://pivotkit.eize.dev/use/charts/#filter-from-the-chart), [#53](https://github.com/eizedev/pivotkit/issues/53)).
 - **Name** in the chip menu of a field in Rows, Columns or Filters: a name of the report's own for it.
   The chip, the table, the chart and the exports show it. The field list shows the field's own name
   under it and finds the field by either. In English and German
-  ([fields](https://pivotkit.eize.dev/use/fields/), #158).
+  ([fields](https://pivotkit.eize.dev/use/fields/), [#158](https://github.com/eizedev/pivotkit/issues/158)).
 - The tab **Both** shows the table and the chart side by side on a wide report, with a divider to
   drag or move with the arrow keys, and **Table settings** and **Chart settings** beside each other.
   A narrower report shows the table. In English and German
-  ([table and chart side by side](https://pivotkit.eize.dev/use/charts/#both), #51).
-- The view type is exported as `PivotView`, the name pivotkit-element uses too (#563).
+  ([table and chart side by side](https://pivotkit.eize.dev/use/charts/#both), [#51](https://github.com/eizedev/pivotkit/issues/51)).
+- The view type is exported as `PivotView`, the name pivotkit-element uses too ([#563](https://github.com/eizedev/pivotkit/issues/563)).
 - A date in Filters has **Group** in its chip's menu, as on Rows and Columns. A unit such as Year
   puts the grouping in the date's place among the Filters, with every item kept
   ([#100](https://github.com/eizedev/pivotkit/issues/100)).
@@ -51,14 +51,14 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ([#70](https://github.com/eizedev/pivotkit/issues/70)).
 - Chart settings offers **Bars and lines** and **Treemap**. Bars and lines needs two fields in
   Values and says so. A treemap's labels take the token colour that reads on each tile
-  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).
+  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), [#518](https://github.com/eizedev/pivotkit/issues/518)).
 - A pie or donut without a legend keeps a whole label on each slice: where they have no room, the
   smallest slices go into one grey slice "Other (n)". Its tooltip lists them. The token
   `--pk-chart-other` colours it
-  ([many slices](https://pivotkit.eize.dev/use/charts/#many-slices), #544).
+  ([many slices](https://pivotkit.eize.dev/use/charts/#many-slices), [#544](https://github.com/eizedev/pivotkit/issues/544)).
 - Chart settings › Reference lines › High and low points puts a dot with ▲ or ▼ and the value at
   each series' highest and lowest value. The text for screen readers names them
-  ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), #574).
+  ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), [#574](https://github.com/eizedev/pivotkit/issues/574)).
 
 ### Changed
 
@@ -66,7 +66,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   that also lists pivotkit-core updates both together, or it gets two copies.
 - `onCellClick` for a chart point comes at **Show the rows** or a double click, no longer at the
   click that opens the point's menu
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#chart-click-menu), #53).
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#chart-click-menu), [#53](https://github.com/eizedev/pivotkit/issues/53)).
 - A sheet on a phone closes at a click on its scrim only when the press started there.
 - A field's filter says "Only if the name…" with "(any name)" instead of "Text condition". While
   every value is ticked and no condition is set, its count says "All 14 selected · nothing filtered
@@ -90,12 +90,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   view.", "This is neither a view in JSON nor a link to a report.", "This link is damaged or not a
   link to a report." and "This view comes from a newer version and cannot be read here. Update the
   application to open it." The notes about unused parts of a view say the same
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#neutral-texts), #612).
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#neutral-texts), [#612](https://github.com/eizedev/pivotkit/issues/612)).
 
 ### Deprecated
 
 - PK-DEP-0001: the type `ViewInput`. Use `PivotView`, the same type. `ViewInput` goes no earlier than
-  2.0.0 ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#pivot-view-type), #563).
+  2.0.0 ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#pivot-view-type), [#563](https://github.com/eizedev/pivotkit/issues/563)).
 
 ### Fixed
 

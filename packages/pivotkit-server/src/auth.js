@@ -474,6 +474,24 @@ async function externalCheckOf(options, { env, log }) {
 }
 
 /**
+ * Why tokens the configuration names are never checked, or null: auth.externalIssuers and
+ * auth.signedTokens work in auth.mode "token" only, and another mode written is refused. Without a
+ * mode written the server runs with auth "none" on loopback (off loopback, a state directory makes
+ * it "token"), so such tokens are never read. The start logs it and check-config says it, in these
+ * words.
+ * @param {import("./config.js").ServerOptions} options  as the server starts with them
+ * @returns {string | null}
+ */
+export function inertTokensText(options) {
+    const mode = options.auth?.mode ?? "none";
+    if (mode === "token") {
+        return null;
+    }
+    const set = [...(options.auth?.externalIssuers?.length ? ["auth.externalIssuers"] : []), ...(options.auth?.signedTokens?.dir ? ["auth.signedTokens"] : [])];
+    return set.length ? `${set.join(" and ")} ${set.length === 1 ? "is" : "are"} set, but auth.mode is not set (so "${mode}"): ${set.length === 1 ? "its" : "their"} tokens are not checked and callers need no token; set auth.mode "token"` : null;
+}
+
+/**
  * Builds the authentication both front ends share (one per process: one issuer to fetch).
  * @param {import("./config.js").ServerOptions} options
  * @param {{ env: Record<string, string | undefined>, log: any, loopback: boolean, tokenEnv?: string }} runtime  tokenEnv: the variable of the one token when auth.tokens is empty (default PIVOTKIT_MCP_TOKEN)
@@ -482,6 +500,10 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
     const auth = options.auth ?? {};
     const mode = auth.mode ?? "none";
     if (mode === "none") {
+        const inert = inertTokensText(options);
+        if (inert) {
+            log.warn(inert);
+        }
         if (!loopback && !auth.allowUnauthenticated) {
             throw new ConfigError("auth: an address other than loopback needs auth token or oauth (or auth.allowUnauthenticated: true, --allow-unauthenticated, for a network you trust)");
         }

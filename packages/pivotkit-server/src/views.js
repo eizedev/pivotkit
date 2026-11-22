@@ -16,7 +16,7 @@
 
 import { readdir } from "node:fs/promises";
 import { basename } from "node:path";
-import { VIEW_ISSUES, closest, fromViewFile, normalize, viewFileFields } from "pivotkit-core";
+import { CATALOG, VIEW_ISSUES, closest, fromViewFile, normalize, viewFileFields } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
 import { readSafe } from "pivotkit-cli/files";
 import { OperationError, findingText } from "pivotkit-report/operations";
@@ -272,10 +272,13 @@ const knownUnder = (policy, view) => view.needs.every((f) => levelOf(policy, f) 
 const listOf = (obj, key) => (obj && typeof obj === "object" && Object.hasOwn(obj, key) && Array.isArray(obj[key]) ? obj[key] : []);
 
 /**
- * The fields whose values a view holds: a filter's items or values, a custom sort order, the
- * collapsed groups, the chart's hidden series and its colours by series name (of the fields on rows
- * and columns). A grouping
- * counts as its source field.
+ * The fields whose values a view holds: a filter's items or values, a relative range's own anchor
+ * date, a custom sort order, the column a sort by a value goes by (items of the fields on columns),
+ * the collapsed groups, the chart's hidden series and its colours by series name (of the fields on
+ * rows and columns). A grouping counts as its source field. Every key of a view that holds an item, a
+ * text or a date of a field counts here; what a link or draft carries is checked against this list.
+ * Numbers an author writes (a bin's size and origin, a chart's target) and free text (titles, labels,
+ * names) are not read as values.
  * @param {Record<string, any>} view
  * @returns {string[]}
  */
@@ -284,8 +287,12 @@ export function valueFields(view) {
     const fieldOf = (name) => derived.get(name.toLowerCase()) ?? name;
     const named = (list) => list.filter((n) => typeof n === "string").map(fieldOf);
     const out = [];
+    const rows = named(listOf(view, "rows"));
+    const cols = named(listOf(view, "cols"));
     for (const f of listOf(view, "filters")) {
-        if (typeof f?.field === "string" && ["items", "value", "value2"].some((k) => Object.hasOwn(f, k))) {
+        // a relative range's anchor is a keyword ("today", "latest", "first") or a date of the view's own
+        const ownAnchor = f && typeof f === "object" && Object.hasOwn(f, "anchor") && !CATALOG.relativeAnchors.includes(f.anchor);
+        if (typeof f?.field === "string" && (ownAnchor || ["items", "value", "value2"].some((k) => Object.hasOwn(f, k)))) {
             out.push(fieldOf(f.field));
         }
     }
@@ -293,10 +300,13 @@ export function valueFields(view) {
         if (typeof s?.field === "string" && listOf(s, "items").length) {
             out.push(fieldOf(s.field));
         }
+        // a sort by one column's values (#70): the column's items, one per field on columns from the outermost
+        const column = listOf(s, "column");
+        if (column.length) {
+            out.push(...cols.slice(0, column.length));
+        }
     }
     const collapsed = view.collapsed && typeof view.collapsed === "object" ? view.collapsed : {};
-    const rows = named(listOf(view, "rows"));
-    const cols = named(listOf(view, "cols"));
     if (listOf(collapsed, "rows").length) {
         out.push(...rows);
     }

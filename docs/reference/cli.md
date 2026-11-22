@@ -476,6 +476,9 @@ pivotkit render sales.pivotkit.json --source sales -o sales.xlsx
       `POST /views/suggest` first.
     - `sources`: `GET /sources` and `GET /sources/{id}`, and with `--param`, `POST /sources/describe`.
     - `describe` with a server takes a view. For a source's fields, run `pivotkit sources <id>`.
+- **Named views**: the command line does not take a server's [named view](sources.md#views) by its name.
+  `pivotkit sources` does not list a source's named views or its `linkParams`. Pass the view as a
+  local file instead. `GET /sources` over REST lists both.
 - **Parameters**: a source with parameters needs a value for each required one in every call. Such a
   source is an HTTP source with `{customer}` in its address, or a code source that declares
   `params`. `pivotkit sources` lists such a source with `(needs: customer)`. Give the values with

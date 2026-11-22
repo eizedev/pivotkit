@@ -10,7 +10,7 @@
 
 import { docsLink, docsOf } from "./branding.js";
 import { isLoopback } from "pivotkit-cli/rest";
-import { ConfigError, CREATABLE_SECRET_REF, SECRET_REF } from "./shared.js";
+import { ConfigError, CREATABLE_SECRET_REF, SECRET_REF, throwRange } from "./shared.js";
 
 export const NAME = "downloads";
 
@@ -132,9 +132,10 @@ export const insecureUrlText = (host) => `http.publicUrl is http:// on ${host} (
 /**
  * Checks the rules between these keys; throws ConfigError.
  * @param {import("../config.js").ServerOptions} options
+ * @param {import("./shared.js").RangeProblem} [range]  where a value out of its range goes (validateOptions collects them)
  */
-export function validate(options) {
-    validateKeys(options);
+export function validate(options, range = throwRange) {
+    validateKeys(options, range);
     // after the sign-in's rules, which need https:// whatever allowInsecureUrl says
     const insecure = insecurePublicHost(options);
     if (insecure && options.output?.downloads?.allowInsecureUrl !== true) {
@@ -142,14 +143,18 @@ export function validate(options) {
     }
 }
 
-/** The rules between the keys of output.downloads (validate). */
-function validateKeys(options) {
+/**
+ * The rules between the keys of output.downloads (validate).
+ * @param {import("../config.js").ServerOptions} options
+ * @param {import("./shared.js").RangeProblem} range
+ */
+function validateKeys(options, range) {
     const d = options.output?.downloads;
     if (!d) {
         return;
     }
     if (d.expiresMinutes !== undefined && (d.expiresMinutes < EXPIRES_MINUTES.min || d.expiresMinutes > EXPIRES_MINUTES.max)) {
-        throw new ConfigError(`output.downloads.expiresMinutes: from ${EXPIRES_MINUTES.min} to ${EXPIRES_MINUTES.max} (a day)`);
+        range(`output.downloads.expiresMinutes: from ${EXPIRES_MINUTES.min} to ${EXPIRES_MINUTES.max} (a day)`);
     }
     if (d.enabled === true && options.output?.baseUrl) {
         throw new ConfigError("output.downloads.enabled: true next to output.baseUrl: choose one (the server's own links, or the web server at output.baseUrl)");

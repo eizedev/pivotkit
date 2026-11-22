@@ -270,26 +270,39 @@ test("the options: a view name is letters, digits, - and _; an entry is a file o
     validateOptions(base({ "by-region_2": "a.json", inline: { rows: ["Region"] } }));
 });
 
-test("a link or draft of a named view: values of a field at values may go, a chart's series colours at summary may not", async () => {
+test("a link or draft of a named view: values of a field at values may go; series colours, a sort by a column's values or an own anchor date at summary may not", async () => {
     const dir = namedWorkspace();
+    const sales = { field: "Sales", agg: "sum" };
     const views = {
         alice: VIEWS.alice,
-        colours: { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }], display: "chart", chart: { type: "bar", colors: [{ name: "North", color: "#ff0000" }] } }
+        colours: { rows: ["Region"], values: [sales], display: "chart", chart: { type: "bar", colors: [{ name: "North", color: "#ff0000" }] } },
+        // a sort by one column's values (#70) names that column's items: values of the fields on Columns
+        column: { rows: ["Region"], cols: ["Customer"], values: [sales], sort: [{ field: "Region", by: "value", order: "desc", value: sales, column: ["Alice Example"] }] },
+        // a column of the outer field only: the inner field's values are not in it
+        outer: { rows: ["Region"], cols: ["Product", "Customer"], values: [sales], sort: [{ field: "Region", by: "value", order: "desc", value: sales, column: ["A"] }] },
+        // a relative range ending on a date of the view's own holds a date of the field
+        anchor: { rows: ["Region"], values: [sales], filters: [{ field: "OrderDate", type: "relative", direction: "last", unit: "month", count: 3, anchor: "2026-10-20" }] },
+        latest: { rows: ["Region"], values: [sales], filters: [{ field: "OrderDate", type: "relative", direction: "last", unit: "month", count: 3, anchor: "latest" }] }
     };
     const options = (policy) => ({ ...namedServerOptions(dir), sources: { sales: { file: "data/sales.csv", link: "https://reports.example.com/sales", policy, views } } });
-    for (const [policy, alice, colours] of [
-        [{ default: "show", fields: { Customer: "values" } }, 200, 200],
-        [{ default: "show", fields: { Region: "summary" } }, 200, 403],
-        [{ default: "show", fields: { Customer: "summary" } }, 403, 200]
+    for (const [policy, expected] of [
+        [{ default: "show", fields: { Customer: "values" } }, { alice: 200, colours: 200, column: 200, outer: 200, anchor: 200, latest: 200 }],
+        [{ default: "show", fields: { Region: "summary" } }, { alice: 200, colours: 403, column: 200, outer: 200, anchor: 200, latest: 200 }],
+        [{ default: "show", fields: { Customer: "summary" } }, { alice: 403, colours: 200, column: 403, outer: 200, anchor: 200, latest: 200 }],
+        [{ default: "show", fields: { Product: "summary" } }, { alice: 200, colours: 200, column: 200, outer: 403, anchor: 200, latest: 200 }],
+        [{ default: "show", fields: { OrderDate: "summary" } }, { alice: 200, colours: 200, column: 200, outer: 200, anchor: 403, latest: 200 }]
     ]) {
         const server = await restServer(options(policy), { env: { T1: TOKEN, T2: OTHER_TOKEN } });
         try {
-            const a = await call(`${server.api}/views/link`, { token: TOKEN, body: { source: "sales", view: "alice" } });
-            assert.equal(a.status, alice, `alice under ${JSON.stringify(policy)}: ${JSON.stringify(a.data)}`);
-            const c = await call(`${server.api}/views/link`, { token: TOKEN, body: { source: "sales", view: "colours" } });
-            assert.equal(c.status, colours, `colours under ${JSON.stringify(policy)}: ${JSON.stringify(c.data)}`);
-            if (colours === 403) {
-                assert.doesNotMatch(JSON.stringify(c.data), /#ff0000/);
+            for (const [view, status] of Object.entries(expected)) {
+                for (const route of ["views/link", "schedules/draft"]) {
+                    const body = route === "views/link" ? { source: "sales", view } : { source: "sales", view, name: view, ...SCHEDULE };
+                    const answer = await call(`${server.api}/${route}`, { token: TOKEN, body });
+                    assert.equal(answer.status, status, `${route} ${view} under ${JSON.stringify(policy)}: ${JSON.stringify(answer.data)}`);
+                    if (status === 403) {
+                        assert.doesNotMatch(JSON.stringify(answer.data), /#ff0000|Alice Example|2026-10-20/);
+                    }
+                }
             }
         } finally {
             await server.close();

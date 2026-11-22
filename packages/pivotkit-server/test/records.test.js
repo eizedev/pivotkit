@@ -341,7 +341,7 @@ test("LIMIT_EXCEEDED for the server's rows, with its message", async () => {
         const answer = await rows(server, await person(), { source: "sales" });
         assert.equal(answer.status, 413, answer.text);
         assert.equal(answer.data.code, "LIMIT_EXCEEDED");
-        assert.equal(answer.data.detail, "this source has too many rows to open here (5, the limit is 4); filter it with a parameter or ask the operator");
+        assert.equal(answer.data.detail, "this source has too many rows to open here (5, the limit is 4); ask the operator");
     } finally {
         await server.close();
     }
@@ -354,7 +354,7 @@ test("LIMIT_EXCEEDED for the server's cells, with its message", async () => {
         const answer = await rows(server, token, { source: "sales" });
         assert.equal(answer.status, 413, answer.text);
         assert.equal(answer.data.code, "LIMIT_EXCEEDED");
-        assert.equal(answer.data.detail, "this answer has too many values to open here (15 cells, the limit is 10); ask for fewer fields, filter with a parameter or ask the operator");
+        assert.equal(answer.data.detail, "this answer has too many values to open here (15 cells, the limit is 10); ask for fewer fields or ask the operator");
         // fewer fields fit
         assert.equal((await rows(server, token, { source: "sales", fields: ["Region", "Sales"] })).status, 200);
     } finally {
@@ -367,7 +367,39 @@ test("LIMIT_EXCEEDED for a source's own row limit, with its message", async () =
     try {
         const answer = await rows(server, await person(), { source: "sales" });
         assert.equal(answer.status, 413, answer.text);
-        assert.equal(answer.data.detail, "this source has too many rows to open here (5, the limit is 3); filter it with a parameter or ask the operator");
+        assert.equal(answer.data.detail, "this source has too many rows to open here (5, the limit is 3); ask the operator");
+    } finally {
+        await server.close();
+    }
+});
+
+test("LIMIT_EXCEEDED names a parameter only for a source that takes one the caller may send", async () => {
+    const load = async (params) => [1, 2, 3, 4, 5].map((i) => ({ Region: `${params.team ?? params.who ?? "all"}-${i}`, Sales: i }));
+    // a code source with "team", which the caller sends, and one without params
+    for (const [params, rowsHint, cellsHint] of [
+        [{ team: { type: "string", pattern: "^[a-z]+$" } }, "; filter it with a parameter or ask the operator", "; ask for fewer fields, filter with a parameter or ask the operator"],
+        [undefined, "; ask the operator", "; ask for fewer fields or ask the operator"]
+    ]) {
+        for (const [records, hint] of [[{ maxRows: 3 }, rowsHint], [{ maxCells: 4 }, cellsHint]]) {
+            const sales = { load, ...(params ? { params } : {}), policy: { default: "show" }, ...(records.maxRows ? { records } : {}) };
+            const { server, person } = await serverOf({ sources: { sales }, ...(records.maxCells ? { rest: { records } } : {}) });
+            try {
+                const answer = await rows(server, await person(), { source: "sales" });
+                assert.equal(answer.status, 413, answer.text);
+                assert.ok(answer.data.detail.endsWith(hint), `${JSON.stringify(params)} ${JSON.stringify(records)}: ${answer.data.detail}`);
+            } finally {
+                await server.close();
+            }
+        }
+    }
+    // a parameter bound to a sign-in claim is none the caller sends
+    const dir = workspace({ "sales.csv": CSV });
+    const server = await restServer({ sources: { mine: { load, params: { who: { type: "string", claim: "sub", pattern: "^[a-z]+$" } }, policy: { default: "show" }, records: { maxRows: 3 } } }, policy: { profiles: { staff: { records: ["mine"] } } }, auth: { mode: "oauth", issuer, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"], defaultProfile: "staff" }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir });
+    try {
+        await ready(server);
+        const answer = await rows(server, await oauthToken("ana"), { source: "mine" });
+        assert.equal(answer.status, 413, answer.text);
+        assert.ok(answer.data.detail.endsWith("; ask the operator"), answer.data.detail);
     } finally {
         await server.close();
     }
@@ -701,6 +733,48 @@ test("the base headers on the answer and on every error, and Vary: Origin on a C
     } finally {
         await server.close();
     }
+});
+
+test("a GET of the rows route or of POST /sources/describe answers 405 with Allow: POST; a source of that id the caller may use is described", async () => {
+    const dir = workspace({ "sales.csv": CSV });
+    writeFileSync(join(dir, "bot.token"), `${TOKEN}-bot`);
+    // "records" is a source the bot's scopes do not reach: it answers as an id that is not there
+    const sources = { sales: { file: "data/sales.csv", policy: { default: "show" } }, records: { file: "data/sales.csv", policy: { default: "show" }, scopes: ["pivotkit:hr"] } };
+    const server = await restServer({ sources, auth: { mode: "token", tokens: [{ name: "admin", env: "ADMIN" }, { name: "bot", file: "bot.token", scopes: ["pivotkit:read"] }] }, baseDir: dir }, { env: { ADMIN: TOKEN } });
+    try {
+        for (const path of ["records", "describe"]) {
+            const answer = await call(`${server.api}/sources/${path}`, { token: `${TOKEN}-bot` });
+            assert.equal(answer.status, 405, path);
+            assert.equal(answer.headers.get("allow"), "POST", path);
+            assert.equal(answer.data.code, "METHOD_NOT_ALLOWED");
+            assert.match(answer.data.detail, new RegExp(`POST /api/v1/sources/${path}`));
+            const head = await fetch(`${server.api}/sources/${path}`, { method: "HEAD", headers: { authorization: `Bearer ${TOKEN}-bot` } });
+            assert.equal(head.status, 405, `HEAD ${path}`);
+        }
+        // an id that is no such route stays not found
+        const absent = await call(`${server.api}/sources/nothing`, { token: `${TOKEN}-bot` });
+        assert.equal(absent.status, 404);
+        assert.equal(absent.data.code, "SOURCE_NOT_FOUND");
+        // a caller who may use the source "records" gets it described
+        const described = await call(`${server.api}/sources/records`, { token: TOKEN });
+        assert.equal(described.status, 200, JSON.stringify(described.data));
+        assert.ok(Array.isArray(described.data.fields));
+    } finally {
+        await server.close();
+    }
+    // a server without a source "records" answers the bot alike: the hidden source is not told apart
+    const answerOf = async (withHidden) => {
+        const s = await restServer({ sources: withHidden ? sources : { sales: sources.sales }, auth: { mode: "token", tokens: [{ name: "admin", env: "ADMIN" }, { name: "bot", file: "bot.token", scopes: ["pivotkit:read"] }] }, baseDir: dir }, { env: { ADMIN: TOKEN } });
+        try {
+            const a = await call(`${s.api}/sources/records`, { token: `${TOKEN}-bot` });
+            // the request's own id differs from one answer to the next
+            const body = { ...a.data, requestId: undefined };
+            return { status: a.status, allow: a.headers.get("allow"), type: a.headers.get("content-type"), body };
+        } finally {
+            await s.close();
+        }
+    };
+    assert.deepEqual(await answerOf(true), await answerOf(false));
 });
 
 test("GET /sources says per source whether the caller may read its rows", async () => {

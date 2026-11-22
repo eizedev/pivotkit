@@ -238,3 +238,25 @@ test("decorateOption: more than eight series keep every dot, but only the chart'
     const all = decorateOption(toEChartsOption(eight), style, { width: 1200, height: 480 }).series.flatMap((s) => s.markPoint?.data ?? []);
     assert.ok(all.filter((d) => d.label.show !== false).length > 2);
 });
+
+test("toEChartsOption's chart option sets the reference lines over the view's: a whole referenceLines, a key left out is off", () => {
+    const plain = pivot({ chart: { type: "line" } });
+    // the view has none; the option asks for the high and low points and an average
+    const asked = toEChartsOption(plain, { chart: { referenceLines: { extremes: true, average: true } } });
+    assert.deepEqual(
+        asked.series[0].markPoint.data.map((d) => d.coord),
+        [
+            [3, 40],
+            [0, 10]
+        ]
+    );
+    assert.ok(asked.series[0].markLine?.data.length, JSON.stringify(asked.series[0].markLine));
+    // the view has them; the option's referenceLines without them switches them off
+    const off = toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } }), { chart: { referenceLines: { target: 25 } } });
+    assert.equal(off.series[0].markPoint, undefined);
+    assert.equal(off.series.flatMap((s) => s.markLine?.data ?? []).length, 1, "the target alone");
+    // without the option, or with it undefined, the view's own; null switches them off
+    assert.equal(toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } })).series[0].markPoint.data.length, 2);
+    assert.equal(toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } }), { chart: { referenceLines: undefined } }).series[0].markPoint.data.length, 2);
+    assert.equal(toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } }), { chart: { referenceLines: null } }).series[0].markPoint, undefined);
+});

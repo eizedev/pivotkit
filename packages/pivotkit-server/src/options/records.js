@@ -13,7 +13,7 @@
  * second declaration).
  */
 
-import { ConfigError } from "./shared.js";
+import { ConfigError, throwRange } from "./shared.js";
 import { COMPUTE_DEFAULTS } from "../config.js";
 
 export const NAME = "records";
@@ -77,10 +77,11 @@ export function recordsOfProfile(options, profile) {
 }
 
 /**
- * Checks the rules between these keys; throws ConfigError.
+ * Checks the rules between these keys; throws ConfigError. A bound out of its range goes to `range`.
  * @param {import("../config.js").ServerOptions} options
+ * @param {import("./shared.js").RangeProblem} [range]
  */
-export function validate(options) {
+export function validate(options, range = throwRange) {
     const places = /** @type {Array<[string, any]>} */ ([["policy", options.policy], ["files.policy", options.files?.policy], ...Object.entries(options.sources ?? {}).map(([id, source]) => [`sources.${id}.policy`, source.policy])]);
     for (const [path, policy] of places) {
         if (policy?.records !== undefined) {
@@ -88,14 +89,18 @@ export function validate(options) {
         }
     }
     const bounds = options.rest?.records ?? {};
+    /** The bounds out of their range: a rule between keys skips them, so it never says more of one. */
+    const out = new Set();
     for (const key of /** @type {Array<keyof typeof RECORDS_MAX>} */ (["maxRows", "maxCells", "concurrency", "idleMs", "writeMs"])) {
         const value = bounds[key];
         const least = key === "idleMs" ? RECORDS_IDLE_MIN : key === "writeMs" ? RECORDS_WRITE_MIN : 1;
         if (value !== undefined && (value < least || value > RECORDS_MAX[key])) {
-            throw new ConfigError(`rest.records.${key}: from ${least} to ${RECORDS_MAX[key]}`);
+            out.add(key);
+            range(`rest.records.${key}: from ${least} to ${RECORDS_MAX[key]}`);
         }
     }
-    if (bounds.writeMs !== undefined && bounds.writeMs > computeTimeOf(options)) {
+    const computeTime = options.compute?.timeMs;
+    if (bounds.writeMs !== undefined && !out.has("writeMs") && (computeTime === undefined || computeTime >= 1) && bounds.writeMs > computeTimeOf(options)) {
         throw new ConfigError(`rest.records.writeMs: ${bounds.writeMs} is above compute.timeMs (${computeTimeOf(options)}), which cuts the answer first`);
     }
     const server = recordsBoundsOf(options).maxRows;
@@ -105,9 +110,10 @@ export function validate(options) {
             continue;
         }
         if (own < 1) {
-            throw new ConfigError(`sources.${id}.records.maxRows: 1 or more`);
+            range(`sources.${id}.records.maxRows: 1 or more`);
+            continue;
         }
-        if (own > server) {
+        if (!out.has("maxRows") && own > server) {
             throw new ConfigError(`sources.${id}.records.maxRows: ${own} is above the server's limit rest.records.maxRows (${server}); a source's limit can only be lower`);
         }
     }

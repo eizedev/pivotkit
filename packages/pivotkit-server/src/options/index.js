@@ -25,7 +25,7 @@ import * as branding from "./branding.js";
  * @typedef {object} Fragment
  * @property {string} name
  * @property {Readonly<Partial<Record<import("./shared.js").Slot, Record<string, any>>>>} KEYS
- * @property {(options: import("../config.js").ServerOptions) => void} validate
+ * @property {(options: import("../config.js").ServerOptions, range: import("./shared.js").RangeProblem) => void} validate  a value out of its range goes to range (the fragments that bound a number)
  */
 
 /** @type {ReadonlyArray<Fragment>} the fragments in the order their rules run */

@@ -113,6 +113,10 @@ The writer leaves out the chart keys newer than pivotkit 0.7 (`tooltip`, `zoom`,
 warning. It leaves out `extremes` in `referenceLines`, newer than 0.8, while it is `false`.
 `fromViewFile` puts them back at their defaults when it reads a file.
 
+`display` is `"table"`, `"chart"` or `"both"`. `"both"` shows the table and the chart side by side.
+It is newer than 0.8, and the writer keeps it. A 0.8 reader reports it as `unknownSetting` and shows
+the table.
+
 The suggested file name is `<slug>.pivotkit.json`. The slug is the name in lower case, with accents
 dropped and every run of other characters turned into a `-`:
 
@@ -220,9 +224,9 @@ transport prefix `1.`. The size limits and the safety rules of links apply
 
 ## Privacy
 
-A view holds field names and, in its filters, the items chosen there. Those items are values of the
-data, such as a customer's name or a country. A file, a copied view and a link give them to whoever
-gets them. The Share this view group of the Views menu says so: "A view holds the names of fields
+A view holds field names and values of the data, such as a customer's name or a country. Values are
+in its filters, a custom sort order, the column a sort goes by, collapsed groups, and the chart's
+hidden series and colours by name. A file, a copied view and a link give them to whoever gets them. The Share this view group of the Views menu says so: "A view holds the names of fields
 and, in its filters, the values chosen there: share it only where those may be seen."
 
 A link keeps the view in the URL fragment. Browsers do not send the fragment to the server. But the

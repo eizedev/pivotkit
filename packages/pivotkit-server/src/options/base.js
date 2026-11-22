@@ -9,7 +9,7 @@
  */
 
 import { declaredProblems } from "../sources/params.js";
-import { ConfigError } from "./shared.js";
+import { ConfigError, throwRange } from "./shared.js";
 
 export const NAME = "base";
 
@@ -71,8 +71,9 @@ export const todoPaths = (options) => todoEntries(options).map(([path]) => path)
 
 /**
  * @param {import("../config.js").ServerOptions} options
+ * @param {import("./shared.js").RangeProblem} [range]  where a value out of its range goes (validateOptions collects them)
  */
-export function validate(options) {
+export function validate(options, range = throwRange) {
     // The placeholder rule lives in base, not in options/http.js: base's rules run first, so the
     // operator reads "still says TODO" instead of the http fragment's "not an https:// address" for
     // the same value; and a fragment of its own would be a feature with no keys and no check section.
@@ -88,7 +89,7 @@ export function validate(options) {
             }
         }
         if (source.timeMs !== undefined && source.timeMs < 1) {
-            throw new ConfigError(`sources.${id}.timeMs: must be 1 or more`);
+            range(`sources.${id}.timeMs: must be 1 or more`);
         }
         for (const [name, field] of Object.entries(source.fields ?? {})) {
             if ((field.description?.length ?? 0) > FIELD_DESCRIPTION_MAX) {

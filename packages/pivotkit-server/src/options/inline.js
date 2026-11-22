@@ -15,7 +15,7 @@
 import { BODY_BYTES, MAX_BODY_BYTES } from "../listen.js";
 import { MCP_DATA_CAP } from "../sources/inline.js";
 import { bytesText } from "../text.js";
-import { ConfigError } from "./shared.js";
+import { ConfigError, throwRange } from "./shared.js";
 
 export const NAME = "inline";
 
@@ -29,8 +29,9 @@ export const KEYS = Object.freeze({
 /**
  * Checks the rules between these keys; throws ConfigError.
  * @param {import("../config.js").ServerOptions} options
+ * @param {import("./shared.js").RangeProblem} [range]  where a value out of its range goes (validateOptions collects them)
  */
-export function validate(options) {
+export function validate(options, range = throwRange) {
     for (const [path, policy] of /** @type {Array<[string, any]>} */ ([["files.policy", options.files?.policy], ...Object.entries(options.sources ?? {}).map(([id, source]) => [`sources.${id}.policy`, source.policy])])) {
         if (policy?.data !== undefined) {
             throw new ConfigError(`${path}.data: whether a caller may send data is set in policy.data or a profile (policy.profiles.<name>.data), not per source`);
@@ -44,15 +45,14 @@ export function validate(options) {
                 continue;
             }
             if (value < 1) {
-                throw new ConfigError(`mcp.data.${key}: must be 1 or more (mcp.data: false switches inline data off)`);
-            }
-            if (value > MCP_DATA_CAP[key]) {
-                throw new ConfigError(`mcp.data.${key}: the built-in cap can only be lowered, to at most ${MCP_DATA_CAP[key]}${key === "bytes" ? ` (${bytesText(MCP_DATA_CAP.bytes)})` : ""}; for more data, configure a source`);
+                range(`mcp.data.${key}: must be 1 or more (mcp.data: false switches inline data off)`);
+            } else if (value > MCP_DATA_CAP[key]) {
+                range(`mcp.data.${key}: the built-in cap can only be lowered, to at most ${MCP_DATA_CAP[key]}${key === "bytes" ? ` (${bytesText(MCP_DATA_CAP.bytes)})` : ""}; for more data, configure a source`);
             }
         }
     }
     const maxBytes = options.rest?.data?.maxBytes;
     if (maxBytes !== undefined && (maxBytes < BODY_BYTES || maxBytes > MAX_BODY_BYTES)) {
-        throw new ConfigError(`rest.data.maxBytes: ${BODY_BYTES} (${bytesText(BODY_BYTES)}, what every caller may send) to ${MAX_BODY_BYTES} (${bytesText(MAX_BODY_BYTES)})`);
+        range(`rest.data.maxBytes: ${BODY_BYTES} (${bytesText(BODY_BYTES)}, what every caller may send) to ${MAX_BODY_BYTES} (${bytesText(MAX_BODY_BYTES)})`);
     }
 }

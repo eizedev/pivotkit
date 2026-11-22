@@ -75,7 +75,7 @@ export const de = {
         unknownFormat: "das Zahlenformat „{value}“ ist unbekannt - das übliche Format gilt",
         badLabel: "der Name ist leer oder länger als {max} Zeichen - der übliche Name gilt",
         labelTwice: "ein Feld bekommt zweimal einen Namen, in anderer Schreibweise - der letzte Name gilt",
-        labelTaken: "zwei Felder heißen „{value}“ - ihre Überschriften sehen gleich aus",
+        labelTaken: "ein anderes Feld im Bericht heißt auch „{value}“ - die beiden Überschriften sehen gleich aus",
         unknownShowAs: "„Anzeigen als“ „{value}“ ist unbekannt - der Wert wird ohne Berechnung gezeigt",
         showAsNotAdditive: "dieses „Anzeigen als“ braucht eine Summe oder Anzahl, nicht {agg} - der Wert wird ohne Berechnung gezeigt",
         showAsNotNumber: "{agg} ergibt keine Zahl für einen Anteil - der Wert wird ohne Berechnung gezeigt",

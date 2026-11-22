@@ -97,7 +97,7 @@ function fit(values, times) {
  * Series hidden in the legend (chart.hidden) do not count. Pie, donut and heatmap: no lines, no notes.
  * The high and low points (extremes) follow the average: a stack below zero has no total to mark.
  * @param {import("./pivot.js").PivotResult} result
- * @param {{ chart?: { type: string, stacked?: boolean, stackPercent?: boolean, hidden?: string[] }, series?: { series: { name: string, data: (number | null)[], format: string }[], categoryPaths?: any[][] } }} [options]
+ * @param {{ chart?: { type: string, stacked?: boolean, stackPercent?: boolean, hidden?: string[], referenceLines?: object | null }, series?: { series: { name: string, data: (number | null)[], format: string }[], categoryPaths?: any[][] } }} [options]
  *   chart: what is drawn (chartPlan's), over the view's; series: toSeries of the same result
  * @returns {{ average: boolean, trend: boolean, target: boolean, extremes: boolean, notes: string[] }}
  */
@@ -173,6 +173,19 @@ function drawnSeries(result, { chart, series, locale }) {
 }
 
 /**
+ * The reference lines a chart draws: the caller's chart's referenceLines (toEChartsOption's `chart`
+ * option over the view's) as a whole, else the view's. Inside it, a setting left out is off; null
+ * switches every line off.
+ * @param {import("./pivot.js").PivotResult} result
+ * @param {any} chart  what is drawn, as referenceLines takes it
+ * @returns {{ average: boolean, trend: boolean, target: number | null, extremes: boolean } | null}
+ */
+function settingOf(result, chart) {
+    const own = chart && typeof chart === "object" && chart.referenceLines !== undefined ? chart.referenceLines : result.view.chart.referenceLines;
+    return own && typeof own === "object" ? { average: false, trend: false, target: null, extremes: false, ...own } : null;
+}
+
+/**
  * @typedef {object} ExtremePoint
  * @property {"max" | "min"} kind  the highest or the lowest value
  * @property {number | null} series  the series' index in the chart data; null for a stack's total
@@ -182,17 +195,18 @@ function drawnSeries(result, { chart, series, locale }) {
  */
 
 /**
- * The high and low points of a chart (chart.referenceLines.extremes): each drawn series' highest and
+ * The high and low points of a chart (chart.referenceLines.extremes, the caller's chart's, else
+ * the view's): each drawn series' highest and
  * lowest value, or a stack's total's, where the chart draws them (referenceLineChecks: where it draws
  * an average). Per series in their order, the highest first. A list whose values are all the same (or
  * one value) has no point: there is nothing to tell apart.
  * @param {import("./pivot.js").PivotResult} result
- * @param {{ chart?: { type: string, stacked?: boolean, stackPercent?: boolean, hidden?: string[] }, series?: { series: { name: string, data: (number | null)[], format: string }[], categoryPaths?: any[][] }, locale?: string }} [options]
+ * @param {{ chart?: { type: string, stacked?: boolean, stackPercent?: boolean, hidden?: string[], referenceLines?: object | null }, series?: { series: { name: string, data: (number | null)[], format: string }[], categoryPaths?: any[][] }, locale?: string }} [options]
  *   as referenceLines'
  * @returns {ExtremePoint[]}
  */
 export function extremePoints(result, { chart, series, locale } = {}) {
-    if (!result.view.chart.referenceLines?.extremes) {
+    if (!settingOf(result, chart)?.extremes) {
         return [];
     }
     const { rules, lists, formatOf } = drawnSeries(result, { chart, series, locale });
@@ -242,18 +256,18 @@ export function extremePoints(result, { chart, series, locale } = {}) {
  */
 
 /**
- * A chart's reference lines as numbers: the view's chart.referenceLines that referenceLineRules
- * allows, over the plotted categories (the chart data, toSeries). Averages first, then trends, each
+ * A chart's reference lines as numbers: chart.referenceLines (the caller's chart's, else the
+ * view's) that referenceLineRules allows, over the plotted categories (the chart data, toSeries). Averages first, then trends, each
  * per series in their order (a stack: one of its total), then the target.
  * @param {import("./pivot.js").PivotResult} result
- * @param {{ chart?: { type: string, stacked?: boolean, stackPercent?: boolean, hidden?: string[] }, series?: { series: { name: string, data: (number | null)[], format: string }[], categoryPaths?: any[][] }, words?: Partial<Record<"average" | "trend" | "target", string>>, locale?: string }} [options]
+ * @param {{ chart?: { type: string, stacked?: boolean, stackPercent?: boolean, hidden?: string[], referenceLines?: object | null }, series?: { series: { name: string, data: (number | null)[], format: string }[], categoryPaths?: any[][] }, words?: Partial<Record<"average" | "trend" | "target", string>>, locale?: string }} [options]
  *   chart: what is drawn (chartPlan's, with the series hidden in the legend), default the view's; series: toSeries of the same result
  *   (the plotted categories), default made here; words: the lines' names (Labels.referenceLines);
  *   locale: used when the view names none, default the pivot's
  * @returns {ReferenceLine[]}
  */
 export function referenceLines(result, { chart, series, words, locale } = {}) {
-    const setting = result.view.chart.referenceLines;
+    const setting = settingOf(result, chart);
     if (!setting || (!setting.average && !setting.trend && setting.target === null)) {
         return [];
     }

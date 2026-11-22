@@ -27,10 +27,10 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   ([#70](https://github.com/eizedev/pivotkit/issues/70)).
 - Bars and lines, and a treemap, from pivotkit-react. ECharts' treemap loads with the chart: the
   chart group's budget goes to 259.5 KiB. The first load does not grow
-  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).
-- High and low points on a chart, from pivotkit-react. ECharts' markPoint loads with the chart.
-  The chart group's budget goes to 246 KiB, the German menu texts' to 8.5 KiB
-  ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), #574).
+  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), [#518](https://github.com/eizedev/pivotkit/issues/518)).
+- High and low points on a chart, from pivotkit-react. ECharts' markPoint loads with the chart,
+  inside the chart group's budget of 259.5 KiB. The German menu texts' budget goes to 8.5 KiB
+  ([high and low points](https://pivotkit.eize.dev/use/charts/#high-and-low-points), [#574](https://github.com/eizedev/pivotkit/issues/574)).
 
 ### Changed
 
@@ -56,6 +56,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 - Every boolean attribute reads `"false"`, in any case and with spaces around it, as off.
   `save-templates`, `can-publish`, `allow-import` and `loading` were on with any value, `"false"`
   included ([#548](https://github.com/eizedev/pivotkit/issues/548)).
+
+### Fixed
+
+- Bundles pivotkit-react's fix of **Show the rows** in the menu at a chart point
+  ([#705](https://github.com/eizedev/pivotkit/issues/705)). The element does not change: it always
+  sends `pivot-cell-click`, so the entry always does something.
 
 ## [0.8.2] - 2026-11-19
 

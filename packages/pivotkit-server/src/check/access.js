@@ -19,7 +19,7 @@
  */
 
 import { pathOf, restResourceOf } from "../config.js";
-import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT, tokenGuessable } from "../auth.js";
+import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT, inertTokensText, tokenGuessable } from "../auth.js";
 import { connectionLimitsOf, isLoopback } from "../listen.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, secretFileWarning, secretValue, unreadable } from "../secrets.js";
 import { personBound } from "../sources/auth.js";
@@ -35,6 +35,11 @@ export async function section(options, _registry, runtime) {
     const mode = auth.mode ?? "none";
     const stop = { stops: /** @type {const} */ (true) };
     items.push(heading(`Auth: ${mode}${mode === "none" && auth.allowUnauthenticated ? " (also off loopback)" : ""}`));
+    // over HTTP only: a stdio server has no sign-in to check them in
+    const inert = runtime.http ? inertTokensText(options) : null;
+    if (inert) {
+        items.push(warning(inert));
+    }
     if (runtime.unusedToken) {
         // the start's own words (state.js unusedTokenText)
         items.push(warning(runtime.unusedToken));

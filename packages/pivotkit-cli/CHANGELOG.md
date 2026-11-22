@@ -21,7 +21,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 ### Added
 
 - `--chart-type` takes `combo` and `treemap`, and the completions list them
-  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), #518).
+  ([chart types](https://pivotkit.eize.dev/use/charts/#chart-types), [#518](https://github.com/eizedev/pivotkit/issues/518)).
 - `pivotkit render --numbers full|shown` and `--flat-header`: csv and json numbers rounded to the
   decimals the view shows, and a csv with one header row, as the services write them. They work on
   local data and with a server. Without them, the output stays as it was: full precision and a
@@ -31,7 +31,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 - Depends on `pivotkit-core` `^0.9.0`, `pivotkit-report` `^0.5.0` and `pivotkit-xlsx` `^0.6.0`.
 - **Breaking:** needs Node 24 or later. Node 22 is no longer supported
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), #519).
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), [#519](https://github.com/eizedev/pivotkit/issues/519)).
 - A network error with a proxy variable set names `NODE_USE_ENV_PROXY=1`, or `--use-env-proxy` from
   Node 24.5.0.
 

@@ -75,8 +75,10 @@ Where views appear:
       without the data. A column the file really calls `Column 3` needs a rule to list its views.
     - A link or a draft carries the view itself. A view that holds values of a field the caller sees
       at `summary` gets no link or draft (`NOT_ALLOWED`). A field at `show` or `values` is fine.
-    - Values are a filter's items, a custom sort order, collapsed groups, and hidden series or series
-      colours of the chart. `render_view` still makes its report as a file.
+    - Values are a filter's items or values, a relative range's own anchor date, a custom sort order,
+      the column a sort by a value goes by, collapsed groups, and hidden series or series colours of
+      the chart. Numbers an author writes, such as a chart's target, and free text, such as a title,
+      are not checked: keep data out of them. `render_view` still makes its report as a file.
     - A view's findings follow the policy as any view's do.
 
 ??? note "Reading, limits and check-config"
