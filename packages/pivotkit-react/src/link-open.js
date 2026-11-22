@@ -63,4 +63,3 @@ export function openWith(text, asStep, report, setCheck) {
                 : undefined
     });
 }
-

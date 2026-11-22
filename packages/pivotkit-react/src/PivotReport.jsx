@@ -11,8 +11,8 @@
  * after the first render, so a server render and its hydration match, and both pass normalize()
  * (use-share-link.js).
  *
- * The hooks Report calls, by concern (each file says what it holds; effects run in call order, and
- * Report keeps the order that refs filled after a render rely on):
+ * The hooks Report calls, by concern (each file says what it holds). Effects run in call order:
+ * useViewLoading fills the ref a link reads (use-share-link.js) before its own effects run.
  *
  * - use-host-props.js: the host's props compared by value, and the warnings about them
  * - use-report-size.js, use-drawer.js: width and height classes, Enlarge, the field list's drawer

@@ -19,10 +19,10 @@ const dataOf = (d) => (Array.isArray(d) || Array.isArray(d?.columns) ? d : []);
 /**
  * No data steps (data-history.js), and a new step of the view dropping those undone: here as well as
  * there, since data-history.js loads with the import UI and a module the first load shares with it
- * would be a file of its own in the first load.
+ * would be a file of its own in the first load. test/data-steps.test.js keeps the two the same.
  */
-const NO_DATA_STEPS = Object.freeze({ past: [], future: [] });
-const withoutFuture = (s) => (s.future.length ? { past: s.past, future: [] } : s);
+export const NO_DATA_STEPS = Object.freeze({ past: [], future: [] });
+export const withoutFuture = (s) => (s.future.length ? { past: s.past, future: [] } : s);
 
 /** @type {readonly string[]} */
 const NO_SHEETS = Object.freeze([]);
