@@ -7,7 +7,7 @@
  *   pivotkit-server check-source <id> [--param name=value ...] [flags]   load an HTTP source once and say what came back
  *   pivotkit-server source-from-openapi <file or URL> --operation <id>    propose an HTTP source from an OpenAPI document
  *   pivotkit-server mcp [flags]            pivotkit-mcp's runner (stdio by default)
- *   pivotkit-server cli <command> ...      the command line pivotkit (pivotkit-cli)
+ *   pivotkit-server cli <command> ...      the command line pivotkit (pivotkit-cli, when it is installed)
  *   pivotkit-server healthcheck [url] [--port n]   exit 0 when the server answers /healthz (the image's HEALTHCHECK)
  *   pivotkit-server token new|show|issue|list|revoke|remove, key new|remove   credentials (credentials.js, token-admin.js)
  */
@@ -30,7 +30,7 @@ const COMMANDS = Object.freeze({
     "check-source <id>": "Load an HTTP source once (--param name=value for its parameters) and print the backend's status, pages, rows and fields, never a value (1 when it fails).",
     "source-from-openapi <file|url>": "Propose an HTTP source block from one GET operation of an OpenAPI 3.0 or 3.1 document in JSON (--operation <operationId or 'GET /path'>, --id, --backend); TODO values for you to fill in.",
     mcp: "Run pivotkit-mcp (stdio by default; its own flags, pivotkit-mcp --help).",
-    cli: "Run the command line pivotkit (pivotkit-server cli --help).",
+    cli: "Run the command line pivotkit, when pivotkit-cli is installed (pivotkit-server cli --help).",
     "healthcheck [url]": `Exit 0 when the server answers GET /healthz (default http://127.0.0.1:${DEFAULT_PORT}/healthz; pivotkit-server healthcheck --help).`,
     // credentials.js (loaded only for these)
     "token new": "Make a token for auth.tokens (--file, --add to put it into --config; pivotkit-server token --help).",
@@ -53,6 +53,39 @@ const FLAG_ORDER = (({ help, ...rest }) => ({ ...rest, version: VERSION_FLAG, he
 export function helpText() {
     const commands = Object.entries(COMMANDS).map(([name, text]) => `  ${name.padEnd(34)}${text}`);
     return `pivotkit-server ${VERSION}: pivotkit's REST service, its MCP server and its command line in one.\n\nUsage: pivotkit-server <command> [options]\n       pivotkit-server --version\n\nCommands:\n${commands.join("\n")}\n\nOptions of serve, check-config and check-source:\n${flagLines(FLAG_ORDER).join("\n")}\n\nThe static token, when the configuration names none: $${TOKEN_ENV}.\nDocs: https://pivotkit.eize.dev/reference/rest/\n`;
+}
+
+/** The package of the command line: `pivotkit-server cli` loads it by name, not as a dependency. */
+const CLI_PACKAGE = "pivotkit-cli";
+
+/**
+ * pivotkit-cli's main, or null when the package is not installed beside pivotkit-server. Only
+ * pivotkit-cli itself missing is null; a pivotkit-cli whose own dependency is missing is an error.
+ * @returns {Promise<((argv: string[], io: any) => Promise<number>) | null>}
+ */
+async function loadCli() {
+    try {
+        return (await import(CLI_PACKAGE)).main;
+    } catch (e) {
+        if (e?.code === "ERR_MODULE_NOT_FOUND" && String(e.message).includes(`Cannot find package '${CLI_PACKAGE}'`)) {
+            return null;
+        }
+        throw e;
+    }
+}
+
+/**
+ * The command line pivotkit, as `pivotkit-server cli`.
+ * @param {string[]} argv
+ * @param {any} io
+ */
+async function runCli(argv, io) {
+    const main = await loadCli();
+    if (!main) {
+        io.stderr.write(`pivotkit-server: cli needs the package ${CLI_PACKAGE} beside pivotkit-server (npm install ${CLI_PACKAGE}); the container image has it\n`);
+        return 2;
+    }
+    return main(argv, { stdin: io.stdin ?? process.stdin, stdout: io.stdout, stderr: io.stderr, env: io.env, cwd: io.cwd ?? process.cwd(), program: "pivotkit-server cli" });
 }
 
 /**
@@ -211,8 +244,7 @@ export async function run(argv, io) {
             return 0;
         }
         if (command === "cli") {
-            const { main } = await import("pivotkit-cli");
-            return main(rest, { stdin: io.stdin ?? process.stdin, stdout: io.stdout, stderr: io.stderr, env: io.env, cwd: io.cwd ?? process.cwd(), program: "pivotkit-server cli" });
+            return await runCli(rest, io);
         }
         if (command === "mcp") {
             return await runMcp(rest, io);

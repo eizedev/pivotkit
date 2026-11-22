@@ -51,6 +51,17 @@ test("help, version, an unknown command; cli and mcp hand over to their packages
     assert.match(mcp.stdout, /^pivotkit-mcp /);
 });
 
+test("cli without pivotkit-cli installed says to install it; the other commands still run", () => {
+    // a file URL: --import takes a specifier, and on Windows a path with a drive letter is none
+    const hook = new URL("./fixtures/cli-missing/hook.js", import.meta.url).href;
+    const r = spawnSync(process.execPath, ["--import", hook, BIN, "cli", "--version"], { encoding: "utf8", cwd: workspace(), env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
+    assert.equal(r.status, 2, r.stderr);
+    assert.equal(r.stdout, "");
+    assert.match(r.stderr, /^pivotkit-server: cli needs the package pivotkit-cli beside pivotkit-server \(npm install pivotkit-cli\)/);
+    const version = spawnSync(process.execPath, ["--import", hook, BIN, "--version"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
+    assert.equal(version.status, 0, version.stderr);
+});
+
 test("a pivotkit-mcp of another release: serve and mcp say so with both versions, not a missing export", () => {
     // a file URL: --import takes a specifier, and on Windows a path with a drive letter is none
     const hook = new URL("./fixtures/mcp-other-release/hook.js", import.meta.url).href;

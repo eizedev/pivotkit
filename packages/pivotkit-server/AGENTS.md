@@ -180,7 +180,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Errors are RFC 9457 problems (`rest/problem.js`). `problemDocument` is the one shape of one;
   the download links' problems use it too.
 - The REST contract shared with the CLI lives in `pivotkit-node/rest`. Change it there.
-- Files are read and written through `pivotkit-node/files`. Never import pivotkit-cli; only the runner's `cli` command loads it.
+- Files are read and written through `pivotkit-node/files`. Never import pivotkit-cli.
 - The rows route (`src/records.js`) is REST only, no operation. The policy decides there, never in the worker.
 - Its worker job (`RECORDS_JOB`) posts a head, then one piece per pull (`records-writer.js`). Always write or stop it.
 
@@ -188,6 +188,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 
 - `serve` runs REST and, when pivotkit-mcp is installed, MCP on one port.
 - pivotkit-mcp is imported by name, not as a dependency.
+- So is pivotkit-cli, by `pivotkit-server cli` only. Without it the command says to install it.
+  Both are devDependencies for the tests. The image installs all three (`docker/Dockerfile`).
 - A pivotkit-mcp that needs exports this version lacks is refused with both versions.
 - `src/index.js`, `src/rest/index.js` and `src/policy-entry.js` export the public names only. Each is on `docs/reference/service-exports.md`.
 - What pivotkit-mcp shares goes into `src/internal.js` (`pivotkit-server/internal`). `test/api.test.js` checks both.

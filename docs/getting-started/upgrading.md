@@ -159,6 +159,17 @@ claude plugin update pivotkit-mcp@pivotkit
 
 Then restart Claude Code.
 
+## From 0.9.0 to 0.10.0 { #from-0-9-0 }
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| **Breaking:** [`pivotkit-server cli` needs pivotkit-cli](#server-without-cli) | you installed pivotkit-server 0.4 from npm and run `pivotkit-server cli` | install pivotkit-cli beside it, as you installed pivotkit-server. The container image needs nothing |
+
+### `pivotkit-server cli` needs pivotkit-cli { #server-without-cli }
+
+pivotkit-server no longer brings the command line. `pivotkit-server cli` loads pivotkit-cli when it is
+installed beside it, else it exits 2 and says `npm install pivotkit-cli`. The image has all three packages.
+
 ## From 0.8.2 to 0.9.0 { #from-0-8-2 }
 
 This applies to pivotkit-server and pivotkit-mcp 0.3.2 too, which move to 0.4.0 with pivotkit 0.9.

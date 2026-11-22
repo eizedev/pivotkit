@@ -8,6 +8,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- **Breaking:** pivotkit-cli is no longer a dependency. `pivotkit-server cli` loads it when it is
+  installed beside pivotkit-server, as `serve` loads pivotkit-mcp. Without it, the command exits 2
+  and says `npm install pivotkit-cli`. The container image has all three packages
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#server-without-cli)).
 - Every error class extends `CodedError` of `pivotkit-core/internal`, which holds `code` and
   `details`. A problem document has one builder, `problemDocument`, for REST and the download links.
   The network codes come from `NETWORK_FAILURES` of `pivotkit-node/net`. Errors, answers and log
@@ -17,7 +21,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   (`createRouteHandler`): request id, scope, the refused line and `X-Request-Id`. Every request
   through `serve`, pivotkit-mcp or REST gets the same answers and log lines as before.
 - Depends on `pivotkit-node` `^0.1.0` for the file handling and the REST contract, which it took from
-  `pivotkit-cli` before. pivotkit-cli stays a dependency for `pivotkit-server cli`.
+  `pivotkit-cli` before.
 - Reads IP addresses, loopback, Retry-After and the code of a failed connection through
   `pivotkit-node/net`, shared with pivotkit-cli. The answers stay the same.
 
