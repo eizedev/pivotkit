@@ -1,4 +1,6 @@
-import { test, expect } from "./fixtures.js";
+// A donut's outside labels (#151): whole at the first draw and after the value labels change to the
+// value, its share or both, in both themes, at a desktop's and a phone's width; gone once they are off.
+import { test, expect } from "../fixtures.js";
 
 for (const theme of ["light", "dark"]) for (const width of [1280, 390]) test(`outside donut labels at first draw and after value changes: ${theme}, ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });

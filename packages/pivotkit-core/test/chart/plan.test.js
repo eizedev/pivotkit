@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_THEME, chartPlan, chartThemeFrom, computePivot, encode, normalize, swapAxes, toEChartsOption } from "pivotkit-core";
 import { categoryLabelLayout, columnLabelLayout, decorateOption, heatmapCellLabels, ringLabelsFit, rowLabelInterval } from "pivotkit-core/chart";
-import { SALES } from "./fixtures.js";
+import { SALES } from "../fixtures.js";
 
 const data = encode(SALES);
 const view = (v) => normalize(v, data).view;

@@ -1,7 +1,7 @@
 // A report with a chart of revenue per region and category on the host page, and where its elements
 // are: shared by the specs that click, tap or point at a chart's bars, slices and cells. Real pointer
 // input: the positions come from the chart's own layout (getItemLayout, convertToPixel).
-import { expect } from "./fixtures.js";
+import { expect } from "../fixtures.js";
 
 /**
  * Revenue per region and category. East sells no hardware: a series without a value at a category.

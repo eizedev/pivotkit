@@ -2,8 +2,8 @@
 // that needs the room: long category names (#228), a donut's outside labels (#229), long values at the
 // end of horizontal bars (#230) and a heatmap with many rows (#231). Each test reads what ECharts drew:
 // the text's boxes inside the chart, whole (no "…"), not on top of each other.
-import { test, expect } from "./fixtures.js";
-import { ZOOM_SLIDER } from "../../packages/pivotkit-core/src/chart-zoom.js";
+import { test, expect } from "../fixtures.js";
+import { ZOOM_SLIDER } from "../../../packages/pivotkit-core/src/chart-zoom.js";
 
 /** Countries with long names and their population (2024, rounded), as the countries example has them. */
 const COUNTRIES = [

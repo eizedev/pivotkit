@@ -4,9 +4,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, toSeries } from "pivotkit-core";
 import { toEChartsOption } from "pivotkit-core/chart";
-import { tooltipContent } from "../src/chart-tooltip.js";
-import { keptWindow, shownOnly } from "../src/chart-legend.js";
-import { hiddenAfter } from "../src/view-ops.js";
+import { tooltipContent } from "../../src/chart-tooltip.js";
+import { keptWindow, shownOnly } from "../../src/chart-legend.js";
+import { hiddenAfter } from "../../src/view-ops.js";
 
 const SALES = encode([
     { Region: "North", Category: "Hardware", Revenue: 20 },
@@ -61,8 +61,8 @@ test("the zoom window is kept for the same categories only", () => {
 });
 
 test("the chart's text alternative counts the series and slices shown; a 100 % stack says it shows shares", async () => {
-    const { chartSummary } = await import("../src/chart-summary.js");
-    const { en } = await import("../src/labels.js");
+    const { chartSummary } = await import("../../src/chart-summary.js");
+    const { en } = await import("../../src/labels.js");
     const s = toSeries(computePivot(SALES, VIEW));
     const all = chartSummary(s, { type: "stacked", rows: ["Region"], valueNames: ["Sum of Revenue"], labels: en, locale: "en-US" });
     assert.match(all, /2 categories, 3 series\. Highest 30 at North \/ Software/);
@@ -97,7 +97,7 @@ test("a 100 % stack's tooltip with a part below zero and a category that adds up
 });
 
 test("the zoom window by keyboard: arrows move it, Shift with an arrow resizes it, Page keys move it by its size, Home and End", async () => {
-    const { nextWindow } = await import("../src/chart-legend.js");
+    const { nextWindow } = await import("../../src/chart-legend.js");
     const at = { start: 10, end: 19 };
     assert.deepEqual(nextWindow(at, 40, "ArrowRight", false), { start: 11, end: 20 });
     assert.deepEqual(nextWindow(at, 40, "ArrowUp", false), { start: 9, end: 18 });
