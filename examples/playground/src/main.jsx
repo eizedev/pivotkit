@@ -227,11 +227,11 @@ function App() {
                         ) : source ? (
                             <p data-testid="pg-source">
                                 Data: <a href={source.href} target="_blank" rel="noopener">{source.text}</a>, <a href={source.licenceHref} target="_blank" rel="noopener">{source.licence}</a>
-                                {fetched ? <span data-testid="pg-as-of">, as of {fetched}</span> : null}. Pick a question under Start, then change it.
+                                {fetched ? <span data-testid="pg-as-of">, as of {fetched}</span> : null}. Pick a question under Start, then change it. The ? button shows each step in the report.
                                 {source.credit ? <small className="pg-credit" data-testid="pg-credit">{source.credit}</small> : null}
                             </p>
                         ) : (
-                            <p>Generated data with a fixed seed. Drag fields, click values, export.</p>
+                            <p>Generated data with a fixed seed. Drag fields, click values, export. The ? button shows each step in the report.</p>
                         )}
                     </div>
                 </div>

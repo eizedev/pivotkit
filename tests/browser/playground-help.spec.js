@@ -32,8 +32,11 @@ const dialog = (page) => page.getByTestId("pg-help-dialog");
 
 test("the help never opens by itself", async ({ page }) => {
     await open(page);
-    await expect(page.getByTestId("pg-help")).toHaveText("How do I…?");
+    // the "?" mark is decoration: screen readers hear the question alone
+    await expect(page.getByTestId("pg-help")).toHaveAccessibleName("How do I…?");
     await expect(dialog(page)).not.toBeVisible();
+    // the intro names the button, so a first visit sees that help exists
+    await expect(page.getByTestId("pg-source")).toContainText("The ? button shows each step in the report.");
 });
 
 test("the button opens the questions with the focus on the first one", async ({ page }) => {

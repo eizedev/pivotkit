@@ -242,6 +242,7 @@ export function Help({ lang, features }) {
     return (
         <>
             <button type="button" ref={setButton} className="pg-help-button" onClick={start} aria-haspopup="dialog" data-testid="pg-help">
+                <span className="pg-help-mark" aria-hidden="true">?</span>
                 {t.button}
             </button>
             <dialog
