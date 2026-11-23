@@ -12,6 +12,20 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   cell's siblings, so a view with 20,000 row items took about 15 seconds, and more items took
   minutes: a view from outside could hold a server's CPU that long. Each group's running sums and
   sorted values are now made once.
+- Reading a file no longer changes numbers without a note:
+  - A comma-separated file turned `"1,234"` into the German 1.234. The reader takes English groups
+    of three digits now, such as `1,234.5`. When the two notations give different numbers, as for
+    `1,234` or `1.500`, the separator or locale decides. The note `DECIMAL_MARK` names the mark.
+  - A JSON number too large to hold, such as `1e999`, became empty without a word. It still does,
+    and the note `NUMBERS_TOO_LARGE` says so.
+  - A JSON whole number over 2^53 may lose digits. The note `NUMBERS_ROUNDED` counts them.
+- `normalize()` reports every setting it drops. It gave no issue for a switch that is not `true` or
+  `false`. Nor for a `chart`, `formatting`, `collapsed` or `chart.referenceLines` that is not an
+  object. Both give `unknownSetting` now.
+- `renameFields` swaps the fields' own names too when it swaps two fields, as `{ A: "B", B: "A" }`
+  does. It lost one name.
+- The name, description and source of a view file lose bidi and zero-width characters, as template
+  names do. The cleaning also removes U+061C and U+206A to U+206F.
 
 ### Changed
 

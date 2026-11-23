@@ -214,6 +214,35 @@ test("dates with slashes: the values decide the order, else the locale, with a n
     assert.deepEqual(col(de, "When"), ["2026-03-02"]);
 });
 
+test("numbers that both notations read differently: the separator or locale decides, with a note", async () => {
+    // "1,234" is 1234 in English and 1.234 in German: never read as one without saying so
+    const en = await readFile(text("a.csv", 'Sales\n"1,234"\n"5,678"\n'));
+    assert.deepEqual(col(en, "Sales"), [1234, 5678]);
+    assert.equal(en.notes.find((n) => n.code === "DECIMAL_MARK").message, 'Numbers in "Sales" were read with "." as the decimal mark; the values fit both.');
+    const de = await readFile(text("b.csv", 'Sales\n"1,234"\n"5,678"\n'), { locale: "de-DE" });
+    assert.deepEqual(col(de, "Sales"), [1.234, 5.678]);
+    assert.equal(de.notes.find((n) => n.code === "DECIMAL_MARK").params.decimal, ",");
+    // English groups of three are read; a value only one notation fits decides without a note
+    const grouped = await readFile(text("c.csv", 'Sales\n"1,234,567"\n"2.5"\n'));
+    assert.deepEqual(col(grouped, "Sales"), [1234567, 2.5]);
+    assert.ok(!codes(grouped).includes("DECIMAL_MARK"));
+    // whole numbers without a mark are the same in both: no note
+    const plain = await readFile(text("d.csv", "Count\n12\n345\n"));
+    assert.ok(!codes(plain).includes("DECIMAL_MARK"));
+});
+
+test("JSON numbers a double cannot hold are noted: too large ones are empty, long whole numbers may have lost digits", async () => {
+    const big = await readFile(text("a.json", '[{"a":1e999,"b":1},{"a":5,"b":2}]'));
+    assert.deepEqual(col(big, "a"), [null, 5]);
+    assert.equal(big.notes.find((n) => n.code === "NUMBERS_TOO_LARGE").params.count, 1);
+    const ids = await readFile(text("b.json", '[{"id":12345678901234567890},{"id":9007199254740993},{"id":1}]'));
+    assert.equal(ids.notes.find((n) => n.code === "NUMBERS_ROUNDED").params.count, 2);
+    // the same ids as strings keep every digit and need no note
+    const strings = await readFile(text("c.json", '[{"id":"12345678901234567890"}]'));
+    assert.deepEqual(col(strings, "id"), ["12345678901234567890"]);
+    assert.ok(!codes(strings).includes("NUMBERS_ROUNDED"));
+});
+
 test("retype: another type from the values as read, without reading the file again", async () => {
     const t = await readFile(fileOf("kerg2-btw25.csv"));
     const asText = retype(t, { Prozent: "string", Wahltag: "string" });

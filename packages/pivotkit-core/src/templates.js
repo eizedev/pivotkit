@@ -17,9 +17,9 @@
  */
 
 import { VIEW_FILE_LIMITS, fromViewFile } from "./view-file.js";
-import { SCHEMA_CAPS, namedSchema, plainText, pointer } from "./schema.js";
+import { SCHEMA_CAPS, namedSchema, pointer } from "./schema.js";
 import { expect } from "./errors.js";
-import { isPlainObject } from "./util.js";
+import { isPlainObject, plainText } from "./util.js";
 
 /**
  * The most a collection may hold: `count` templates (the rest is left out), `text` characters of its

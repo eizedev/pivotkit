@@ -6,6 +6,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- English and German texts for the import notes `DECIMAL_MARK`, `NUMBERS_TOO_LARGE` and
+  `NUMBERS_ROUNDED` of pivotkit-core.
+
 ### Changed
 
 - **Breaking:** the label `settingsShort` is gone: no text uses it. TypeScript code that sets it in

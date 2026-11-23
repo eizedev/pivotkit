@@ -20,7 +20,7 @@
 import { LIMITS, resolveLimits } from "./limits.js";
 import { VIEW_VERSION, emptyView } from "./view.js";
 import { PivotkitError } from "./errors.js";
-import { isPlainObject } from "./util.js";
+import { isPlainObject, plainText as cleanText } from "./util.js";
 
 /** The value of `format` that marks an envelope. */
 export const VIEW_FILE_FORMAT = "pivotkit-view";
@@ -77,14 +77,8 @@ export const FIELD_TYPES = Object.freeze(["string", "number", "date", "boolean",
  * @property {string[]} needs  every field the view uses
  */
 
-/** Plain text of at most `max` characters: control characters become spaces, ends trimmed. */
-function plainText(value, max) {
-    if (typeof value !== "string") {
-        return "";
-    }
-    // eslint-disable-next-line no-control-regex
-    return value.replace(/[\u0000-\u001F\u007F]+/g, " ").trim().slice(0, max);
-}
+/** Plain text of at most `max` characters (util.js), "" when there is none. */
+const plainText = (value, max) => cleanText(value, max) ?? "";
 
 /** An own property of a plain object, else undefined. */
 const own = (obj, key) => (isPlainObject(obj) && Object.hasOwn(obj, key) ? obj[key] : undefined);
@@ -145,12 +139,14 @@ function mapFieldRefs(view, visit, copy = false) {
     // the keys of the fields' own names (#158): a renamed field keeps its name
     const names = own(out, "fieldLabels");
     if (isPlainObject(names)) {
+        // read every label before writing one: in a swap { A: "B", B: "A" } A's label must not overwrite B's first
+        const moved = [];
         for (const key of Object.keys(names)) {
-            visit(key, kindOf(key), (next) => {
-                const text = names[key];
-                delete names[key];
-                Object.defineProperty(names, next, { value: text, enumerable: true, writable: true, configurable: true });
-            });
+            visit(key, kindOf(key), (next) => moved.push([key, next, names[key]]));
+        }
+        for (const [key] of moved) delete names[key];
+        for (const [, next, text] of moved) {
+            Object.defineProperty(names, next, { value: text, enumerable: true, writable: true, configurable: true });
         }
     }
     return out;

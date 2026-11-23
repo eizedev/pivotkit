@@ -264,6 +264,19 @@ test("a custom sort order: listed items first in their order, the rest by label,
     assert.deepEqual(validate({ rows: ["Region"], sort: [{ field: "Region", by: "custom" }] }, data).errors.map((e) => e.path), ["sort[0].items"]);
 });
 
+test("a switch that is not true or false and a section that is not an object are reported, never dropped silently", () => {
+    const bad = normalize({ totals: { grandTotalRow: "no" }, chart: { stacked: "yes", referenceLines: { trend: 1 } } }, data);
+    assert.deepEqual(bad.issues.map((i) => [i.path, i.code]), [["totals.grandTotalRow", "unknownSetting"], ["chart.stacked", "unknownSetting"], ["chart.referenceLines.trend", "unknownSetting"]]);
+    assert.equal(bad.view.totals.grandTotalRow, emptyView().totals.grandTotalRow);
+    assert.equal(bad.view.chart.stacked, false);
+    for (const key of ["chart", "formatting", "collapsed"]) {
+        const got = normalize({ [key]: "abc" }, data);
+        assert.deepEqual(got.issues.map((i) => [i.path, i.code, i.params.value]), [[key, "unknownSetting", "abc"]], key);
+        assert.deepEqual(got.view[key], emptyView()[key], key);
+    }
+    assert.deepEqual(normalize({ chart: { referenceLines: [] } }, data).issues.map((i) => i.path), ["chart.referenceLines"]);
+});
+
 test("chart display settings: value labels, legend, title and smooth lines, checked against fixed lists", () => {
     assert.deepEqual(emptyView().chart, { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null, extremes: false }, colors: [], tooltipShare: false });
     const chart = { type: "pie", valueLabels: "both", legend: "right", title: "  Units by region ", smooth: true, labelPosition: "inside", tooltip: "axis" };
@@ -273,7 +286,7 @@ test("chart display settings: value labels, legend, title and smooth lines, chec
     // unknown settings fall back to their defaults and are reported
     const bad = normalize({ chart: { valueLabels: "everything", legend: "left", title: 42, smooth: "yes", labelPosition: "above" } }, data);
     assert.deepEqual(bad.view.chart, emptyView().chart);
-    assert.deepEqual(bad.issues.map((i) => i.path), ["chart.valueLabels", "chart.legend", "chart.labelPosition", "chart.title"]);
+    assert.deepEqual(bad.issues.map((i) => i.path), ["chart.valueLabels", "chart.legend", "chart.smooth", "chart.labelPosition", "chart.title"]);
     assert.equal(norm({ chart: { title: "x".repeat(300) } }).chart.title, null);
     assert.equal(norm({ chart: { title: "   " } }).chart.title, null);
     // a view of before these settings reads with their defaults

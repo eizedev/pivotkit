@@ -64,6 +64,9 @@ test("renameFields moves a field's own name along with the field", () => {
     const { view } = renameFields({ rows: ["cn"], fieldLabels: { cn: "City" } }, { cn: "town" });
     assert.deepEqual(view.rows, ["town"]);
     assert.deepEqual(view.fieldLabels, { town: "City" });
+    // a swap swaps the names too, without one overwriting the other
+    const swapped = renameFields({ rows: ["A"], cols: ["B"], fieldLabels: { A: "la", B: "lb" } }, { A: "B", B: "A" }).view;
+    assert.deepEqual([swapped.rows, swapped.cols, swapped.fieldLabels], [["B"], ["A"], { B: "la", A: "lb" }]);
 });
 
 // #699: one field named twice in another case kept the last name without a word, and two fields of
