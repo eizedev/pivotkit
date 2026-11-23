@@ -29,7 +29,7 @@ npx -y pivotkit-cli example
 ```
 
 Start the service with one source, `sales`, on 127.0.0.1:3333. On loopback it needs no sign-in. It
-makes the folder `reports` for what it writes:
+makes the folder `reports` for what it writes, and the first start warns that it did: expected here.
 
 ```bash
 npx -y pivotkit-server serve --source sales=sales.csv --output reports
@@ -133,22 +133,24 @@ The answer names the file in `output.filename`, here `sales.xlsx`. The file is i
 folder as `sales.pivotkit-out.xlsx`. The answer's `message` says "The report is saved on the server;
 ask the operator how to open it."
 
-You get this answer with the default policy. A program does not get the server's path, and a source
-with fields that are not shown gets no link. The next steps get you the report:
+You get this answer with the default policy. A program does not get the server's path. A source with
+`summary` or `values` fields is [closed](../reference/delivery.md) and gets no plain link. The next steps get you the report:
 
 - A person takes a [download link](#download-link) (step 5).
 - A program takes the file itself through the file route ([step 6](#policy)).
 
-In a script, check `ok`. A view with errors also answers 200. That answer has `ok: false`, its
-`findings` and no file.
+In a script, check `ok`. A view with errors also answers 200 here, with `ok: false`, its
+`findings` and no file. The file route of step 6 answers such a view with 422 `VIEW_HAS_ERRORS`
+instead ([errors](../reference/rest.md#error-view-has-errors)).
 
 The answer also says `withheld`. Region and Revenue are `summary` fields, so the numbers stay in the
 file. The answer does not include them.
 
 ## 5. A download link { #download-link }
 
-When every field of a source is shown, a report over it gets a link. A person opens the link in the
-browser. Stop the service with Ctrl+C. Write a configuration file `pivotkit.json` that shows every
+A report over an open source gets a plain link: every field is `show` or `hide`, the same for
+every caller ([open and closed sources](../reference/delivery.md)). Anyone who has the link can
+open it until it expires (`bound: "none"`). Stop the service with Ctrl+C. Write a configuration file `pivotkit.json` that shows every
 field of `sales`. Then start the service again:
 
 ```json

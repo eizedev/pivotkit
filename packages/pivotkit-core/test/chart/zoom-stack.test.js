@@ -5,20 +5,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CATALOG, computePivot, emptyView, encode, normalize, validate } from "../../src/index.js";
 import { decorateOption, toEChartsOption } from "pivotkit-core/chart";
+import { REVENUE } from "./fixtures.js";
 
 const NO_TOKENS = { getPropertyValue: () => "" };
 
-/** Revenue per region and category; East sells no hardware. North adds up to 60, South to 45, East to 52. */
-const SALES = encode([
-    { Region: "North", Category: "Hardware", Revenue: 20 },
-    { Region: "North", Category: "Services", Revenue: 10 },
-    { Region: "North", Category: "Software", Revenue: 30 },
-    { Region: "South", Category: "Hardware", Revenue: 15 },
-    { Region: "South", Category: "Services", Revenue: 5 },
-    { Region: "South", Category: "Software", Revenue: 25 },
-    { Region: "East", Category: "Services", Revenue: 12 },
-    { Region: "East", Category: "Software", Revenue: 40 }
-]);
+/** REVENUE (fixtures.js): East sells no hardware. North adds up to 60, South to 45, East to 52. */
+const SALES = encode(REVENUE);
 const VIEW = { rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], formatting: { locale: "en-US" } };
 const pivot = (chart, view = VIEW, data = SALES) => computePivot(data, { ...view, chart });
 

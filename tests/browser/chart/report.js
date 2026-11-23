@@ -1,22 +1,12 @@
-// A report with a chart of revenue per region and category on the host page, and where its elements
-// are: shared by the specs that click, tap or point at a chart's bars, slices and cells. Real pointer
-// input: the positions come from the chart's own layout (getItemLayout, convertToPixel).
+// A report with a chart of revenue per region and category on the host page, and what every chart spec
+// needs to read the chart ECharts drew: when it has settled, a function run with its instance, where its
+// bars, slices and cells are, the pointer moved onto them, and the tooltip shown. Real pointer input:
+// the positions come from the chart's own layout (getItemLayout, convertToPixel).
 import { expect } from "../fixtures.js";
+import { REVENUE } from "../../../packages/pivotkit-core/test/chart/fixtures.js";
 
-/**
- * Revenue per region and category. East sells no hardware: a series without a value at a category.
- * Stacked, North is 60 (20 + 10 + 30), South 45, East 52.
- */
-export const ROWS = [
-    { Region: "North", Category: "Hardware", Revenue: 20 },
-    { Region: "North", Category: "Services", Revenue: 10 },
-    { Region: "North", Category: "Software", Revenue: 30 },
-    { Region: "South", Category: "Hardware", Revenue: 15 },
-    { Region: "South", Category: "Services", Revenue: 5 },
-    { Region: "South", Category: "Software", Revenue: 25 },
-    { Region: "East", Category: "Services", Revenue: 12 },
-    { Region: "East", Category: "Software", Revenue: 40 }
-];
+/** Revenue per region and category (pivotkit-core's chart fixtures): East sells no hardware. */
+export const ROWS = REVENUE;
 export const VIEW = { rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], display: "chart" };
 // the categories (rows in their order) and the series (columns in theirs)
 export const EAST = 0;
@@ -79,19 +69,33 @@ export async function mount(page, chart, { theme = "light", view = {}, rows = RO
     return chartEl;
 }
 
+/** Waits until the chart has a series and its animation is over. */
+export async function settled(chartEl) {
+    await expect.poll(() => chartEl.evaluate(async (el) => {
+        const { getInstanceByDom } = await import("echarts/core");
+        const chart = getInstanceByDom(el);
+        return Boolean(chart?.getOption().series?.length) && chart.getZr().animation.isFinished();
+    })).toBe(true);
+}
+
+/** Runs `at(chart, arg)` in the page with the chart's ECharts instance. */
+export const inChart = (chartEl, at, arg) =>
+    chartEl.evaluate(async (el, { at, arg }) => {
+        const { getInstanceByDom } = await import("echarts/core");
+        return new Function("chart", "arg", `return (${at})(chart, arg);`)(getInstanceByDom(el), arg);
+    }, { at: at.toString(), arg });
+
+/** A point of the chart (its own pixels) in the page. */
+export async function inPage(chartEl, [x, y]) {
+    const box = await chartEl.boundingBox();
+    return { x: box.x + x, y: box.y + y };
+}
+
 /**
  * A point of the chart in the page: `at` runs in the page with the chart's ECharts instance and returns
  * [x, y] in the chart's own pixels (relative to its element).
  */
-export async function pointOf(chartEl, at, arg) {
-    const [x, y] = await chartEl.evaluate(async (el, { at, arg }) => {
-        const { getInstanceByDom } = await import("echarts/core");
-        const chart = getInstanceByDom(el);
-        return new Function("chart", "arg", `return (${at})(chart, arg);`)(chart, arg);
-    }, { at: at.toString(), arg });
-    const box = await chartEl.boundingBox();
-    return { x: box.x + x, y: box.y + y };
-}
+export const pointOf = async (chartEl, at, arg) => inPage(chartEl, await inChart(chartEl, at, arg));
 
 /** The middle of a bar or a stacked segment, from the bar's own layout. */
 export const barMiddle = (chart, { series, index }) => {

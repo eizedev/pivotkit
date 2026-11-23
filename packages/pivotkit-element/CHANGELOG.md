@@ -6,6 +6,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Fixed
+
+- The buttons beside the tabs Table and Chart are no longer cut off: without room they take their
+  short form, then a line above the tabs. See pivotkit-react's changelog
+  ([#706](https://github.com/eizedev/pivotkit/issues/706)).
+
 ## [0.9.0] - 2026-11-22
 
 ### Added
