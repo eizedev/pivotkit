@@ -18,7 +18,7 @@
             "docs/security.md": [908],
             "docs/use/charts.md": [481]
         },
-        "totalLines": 24000
+        "totalLines": 24001
     },
     "functions": {
         "complexity": {
@@ -62,7 +62,7 @@
             "packages/pivotkit-react/src/toolbar.jsx Function 'Toolbar'": [27],
             "packages/pivotkit-report/src/operations.js Async method 'run'": [35],
             "packages/pivotkit-report/src/operations.js Function 'checkInput'": [47],
-            "packages/pivotkit-report/src/render.js Async function 'render'": [69],
+            "packages/pivotkit-report/src/render.js Async function 'render'": [68],
             "packages/pivotkit-report/src/svg.js Function 'cleanSvg'": [39],
             "packages/pivotkit-report/src/template-style.js Function 'templateTheme'": [33],
             "packages/pivotkit-report/src/template.js Function 'parseTemplate'": [48],

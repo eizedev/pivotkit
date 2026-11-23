@@ -159,6 +159,7 @@ function dataAsOfText(asOf, locale, timeZone) {
  * (with the closest one), an unknown format, a value of the wrong kind. A misspelt or mistyped option
  * is never ignored.
  * @param {RenderOptions} options
+ * @returns {keyof typeof RENDER_FORMATS}  the format, "html" when none is given
  */
 function checkOptions(options) {
     for (const key of Object.keys(options)) {
@@ -182,6 +183,7 @@ function checkOptions(options) {
         throw badOption("echarts", `${format === "svg" ? "an SVG" : "a report with chart: true"} needs ECharts: pass the echarts module (with its SVG renderer) as options.echarts`);
     }
     checkValues(options);
+    return format;
 }
 
 /**
@@ -204,15 +206,32 @@ function checkValues(options) {
             throw badOption(key, `${key} is an object of --pk-* names and their values, not ${kindOf(value)}`);
         }
     }
-    // texts: another type would throw deep inside (title.trim) or print "[object Object]"
+    checkKinds(options);
+}
+
+/**
+ * The part of checkValues for texts, objects of texts and the table's size. null is "not given", as
+ * the defaults read it.
+ * @param {RenderOptions} options
+ */
+function checkKinds(options) {
+    // another type would throw deep inside (title.trim),
+    // print "[object Object]" or give a table of headers only
     for (const key of /** @type {const} */ (["title", "description", "source"])) {
         const value = options[key];
-        if (value !== undefined && typeof value !== "string") {
+        if (value !== undefined && value !== null && typeof value !== "string") {
             throw badOption(key, `${key} is a text, not ${kindOf(value)}`);
         }
     }
-    if (options.tableCells !== undefined && !(Number.isInteger(options.tableCells) && options.tableCells > 0)) {
-        throw badOption("tableCells", `tableCells is a whole number of at least 1, not ${JSON.stringify(String(options.tableCells)).slice(0, 40)}`);
+    for (const key of /** @type {const} */ (["labels", "texts"])) {
+        const value = options[key];
+        if (value !== undefined && value !== null && (typeof value !== "object" || Array.isArray(value))) {
+            throw badOption(key, `${key} is an object of texts by name, not ${kindOf(value)}`);
+        }
+    }
+    const cells = options.tableCells;
+    if (cells !== undefined && cells !== null && !(typeof cells === "number" && cells >= 1 && (Number.isInteger(cells) || cells === Infinity))) {
+        throw badOption("tableCells", `tableCells is a whole number of at least 1 (Infinity: no limit), not ${typeof cells === "number" ? String(cells) : kindOf(cells)}`);
     }
     if (options.now !== undefined) {
         // checked here, so a wrong one is named as an option before any work
@@ -231,8 +250,7 @@ export async function render(view, data, options = {}) {
     if (options === null || typeof options !== "object" || Array.isArray(options)) {
         throw badOption("options", "options must be an object");
     }
-    checkOptions(options);
-    const format = options.format ?? "html";
+    const format = checkOptions(options);
     const kind = RENDER_FORMATS[format];
     const base = { format, mediaType: kind.mediaType, extension: kind.extension };
     // a template is checked before any work
