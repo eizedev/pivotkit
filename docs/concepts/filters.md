@@ -1,9 +1,12 @@
 ---
-title: Filters, top N and sorting
-description: Item filters, text conditions, value conditions and top N in a pivotkit view, how they interact with totals, and how rows and columns are sorted.
+title: Filters and sorting in a view
+description: How a pivotkit view stores filters, top N and sorting - item, text, comparison, relative date, value and top filters, blanks, and label, value and custom sorts - and what the report's menus write.
 ---
 
-# Filters, top N and sorting
+# Filters and sorting in a view
+
+For developers who write, read or check views in code. [Filters, top N and sorting](../use/filters.md)
+describes the same features as people use them in the report.
 
 ## Filters
 
@@ -183,14 +186,10 @@ the whole report. In the UI, that is a field in the **Filters** zone.
 
 ### Top N and value filters work within groups
 
-A value filter on a field of an axis works **within each item of the field above it**, as in Excel.
-With Region and Country on rows, "top 3 countries" keeps three countries per region. Totals then add
-up the visible items only, so a region's total is the total of its top three countries.
-
-Top N keeps exactly N items by default (`ties: "first"`). At a tie at the cut, it keeps the item that
-appears first in the data. With `ties: "all"`, every item with the value at the cut stays too, so a
-top 3 may keep four items. Excel may keep all tied items. A note above the table says what a top N
-does to totals and percentages ("Country shows the top 5 only: ...").
+`value` and `top` on a field of an axis work within each item of the field above it, and totals add
+up the items kept ([top N](../use/filters.md#top-n)). `top` keeps exactly `count` items
+(`ties: "first"`, the item first in the data wins a tie at the cut); `ties: "all"` keeps every item
+with the value at the cut.
 
 ## Sorting
 
@@ -243,18 +242,9 @@ A view or template may have the field on Rows or Columns without a sort entry fo
 same `custom` sort when the report shows it. If you then pick "A to Z" in the menu, the view keeps it
 as a sort entry of its own, so the host's order does not come back.
 
-## Filters in the UI
+## What the report's menus write
 
-[Filters, top N and sorting](../use/filters.md) under Use a report describes the filter and Top N
-as people use them:
-
-- the list of values with their row counts
-- the quick choices of a date
-- the rules and **Top items**
-- numbers typed in the report's language
-- what Clear takes away of the picks, and what Remove takes away of the rules
-
-This is what they write into the view:
+The menus of [Filters, top N and sorting](../use/filters.md) write these entries:
 
 | In the UI | In the view |
 | --- | --- |
