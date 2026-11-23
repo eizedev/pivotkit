@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { SignJWT } from "jose";
 import { BY_REGION, call, httpClient, httpServer, workspace } from "./helpers.js";
 import { localIssuer, signingKey } from "../../pivotkit-server/test/auth/local-issuer.js";
+import { until } from "../../../tests/until.js";
 
 const RESOURCE = "https://mcp.example.com/mcp";
 /** The local issuer (pivotkit-server's test/auth/local-issuer.js), its address, and a key it does not publish. */
@@ -194,11 +195,11 @@ test("the issuer's keys are read through pivotkit-server's guarded requests: a k
     const server = await oauthServer({ issuer: own });
     try {
         const good = await token({ claims: { iss: own }, signWith: padded.key.privateKey });
-        let response = await post(server.url, good);
-        for (let i = 0; i < 100 && response.status === 503; i++) {
-            await new Promise((resolve) => setTimeout(resolve, 30));
-            response = await post(server.url, good);
-        }
+        // 503 until the server has tried to read the issuer's keys
+        const response = await until(async () => {
+            const r = await post(server.url, good);
+            return r.status !== 503 && r;
+        }, { tries: 100, every: 30 });
         assert.equal(response.status, 401);
         assert.match(JSON.stringify(server.log), /the issuer's keys could not be read from .*\/jwks: TOO_LARGE/);
     } finally {

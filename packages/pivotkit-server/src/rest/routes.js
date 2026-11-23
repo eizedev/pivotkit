@@ -8,8 +8,6 @@
 
 import { OPERATIONS } from "pivotkit-report/operations";
 
-export { REST_BASE } from "../config.js";
-
 /** The rows route's path (records.js). */
 export const RECORDS_PATH = "/sources/records";
 

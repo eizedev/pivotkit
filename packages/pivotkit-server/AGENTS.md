@@ -190,6 +190,12 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - The rows route (`src/records.js`) is REST only, no operation. The policy decides there, never in the worker.
 - Its worker job (`RECORDS_JOB`) posts a head, then one piece per pull (`records-writer.js`). Always write or stop it.
 
+## Download links
+
+- `src/downloads.js` mounts `/downloads` and gives `delivery.js` its links (`linksOf`).
+- `src/downloads/` holds its parts: `tokens.js` (keys, tokens, the cookie), `markers.js`, `files.js`, `pages.js`, `links.js` and `sign-in.js`.
+- A token, a code, a state, a cookie or a path is never logged.
+
 ## Serving and releases
 
 - `serve` runs REST and, when pivotkit-mcp is installed, MCP on one port.

@@ -19,6 +19,7 @@ import { checkSource, paramFlags } from "../src/check-source.js";
 import { loadRunner } from "../src/sources/run.js";
 import { run } from "../src/runner.js";
 import { call, factsOf, loopbackCert, restServer, tempDir } from "./helpers.js";
+import { until } from "../../../tests/until.js";
 
 /** What the backend answers per path, set by each test; and what it was asked. */
 let routes = new Map();
@@ -653,14 +654,10 @@ test("a caller that goes away stops waiting, and the backend's request is cancel
     try {
         const gone = new AbortController();
         const call = present(context, "describe_source", { source: "slow" }, LOCAL, { signal: gone.signal });
-        while (!asked.length) {
-            await new Promise((r) => setTimeout(r, 10));
-        }
+        await until(() => asked.length);
         gone.abort();
         await assert.rejects(call);
-        for (let i = 0; i < 100 && !closed; i++) {
-            await new Promise((r) => setTimeout(r, 10));
-        }
+        await until(() => closed, { tries: 100, every: 10 });
         assert.ok(closed, "the backend's connection was closed");
     } finally {
         await context.close();
@@ -904,14 +901,6 @@ function slowRoute(path) {
     return state;
 }
 
-/** Waits until a condition holds (at most about a second). */
-async function until(condition) {
-    for (let i = 0; i < 100 && !condition(); i++) {
-        await new Promise((r) => setTimeout(r, 10));
-    }
-    return condition();
-}
-
 test("a REST client that closes its connection and an MCP client that closes its call's: the backend's request is cancelled", async () => {
     const s = await restServer({ ...optionsOf(), sources: { slow: { http: { backend: "platform", path: "/slow", rows: "/items" }, policy: POLICY } } }, { enable: ["rest", "mcp"] });
     const client = new Client({ name: "cancels", version: "1.0.0" });
@@ -919,19 +908,19 @@ test("a REST client that closes its connection and an MCP client that closes its
         const rest = slowRoute("/v1/slow");
         const gone = new AbortController();
         const answer = fetch(`${s.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source: "slow" }), signal: gone.signal });
-        assert.ok(await until(() => asked.length === 1), "the backend was asked");
+        await until(() => asked.length === 1, { message: "the backend was asked" });
         gone.abort();
         await assert.rejects(answer);
-        assert.ok(await until(() => rest.closed), "REST: the backend's connection was closed");
+        await until(() => rest.closed, { message: "REST: the backend's connection was closed" });
         // MCP over Streamable HTTP: a call ends when its HTTP request does (the client closes)
         await client.connect(new StreamableHTTPClientTransport(new URL(`${s.url}/mcp`)));
         const mcp = slowRoute("/v1/slow");
         const tool = client.callTool({ name: "describe_source", arguments: { source: "slow" } });
         tool.catch(() => undefined);
-        assert.ok(await until(() => asked.length === 2), "the backend was asked again");
+        await until(() => asked.length === 2, { message: "the backend was asked again" });
         await client.close();
         await assert.rejects(tool);
-        assert.ok(await until(() => mcp.closed), "MCP: the backend's connection was closed");
+        await until(() => mcp.closed, { message: "MCP: the backend's connection was closed" });
     } finally {
         await client.close();
         await s.close();
@@ -1039,7 +1028,7 @@ test("the request's signal reaches every operation over a source (suggest, valid
             const gone = new AbortController();
             const call = start(gone.signal);
             call.catch(() => undefined);
-            assert.ok(await until(() => asked.length === 1), `${name}: the backend was asked`);
+            await until(() => asked.length === 1, { message: `${name}: the backend was asked` });
             const aborted = Date.now();
             gone.abort();
             // the backend never answers: a call that ignores the abort is still waiting after 10 s
@@ -1047,7 +1036,7 @@ test("the request's signal reaches every operation over a source (suggest, valid
             assert.ok(ended instanceof Error, `${name}: the call ended at the abort (${ended})`);
             assert.notEqual(ended.name, "TimeoutError", `${name}: not by a time limit`);
             assert.ok(Date.now() - aborted < 10_000, `${name}: within 10 s of the abort`); // wall time: event latency
-            assert.ok(await until(() => state.closed), `${name}: the backend's connection was closed`);
+            await until(() => state.closed, { message: `${name}: the backend's connection was closed` });
         }
     } finally {
         await context.close();
@@ -1070,9 +1059,9 @@ test("the request's signal reaches every operation over a source (suggest, valid
         const gone = new AbortController();
         const answer = fetch(`${s.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source: "code" }), signal: gone.signal });
         answer.catch(() => undefined);
-        assert.ok(await until(() => started), "the load started");
+        await until(() => started, { message: "the load started" });
         gone.abort();
-        assert.ok(await until(() => aborted), "the code source's signal was aborted when its only caller went away");
+        await until(() => aborted, { message: "the code source's signal was aborted when its only caller went away" });
     } finally {
         await s.close();
     }

@@ -20,10 +20,11 @@
  * stages to createRouteHandler.
  */
 
-import { OPENAPI_PATH, REST_BASE, noRouteDetail, restResourceOf } from "../config.js";
+import { REST_BASE } from "pivotkit-node/rest";
+import { OPENAPI_PATH, noRouteDetail, restResourceOf } from "../config.js";
 import { resourceMetadataUrlOf } from "../auth.js";
 import { allowedHosts } from "../checks.js";
-import { BODY_BYTES, isLoopback, peekSignIn } from "../listen.js";
+import { isLoopback, peekSignIn } from "../listen.js";
 import { LARGE_BODIES, bodyTooLargeText, createLargeBodies, createLimits, restBodyBytesAt, restBodyCeilingOf } from "../limits.js";
 import { problemsFor, withRequestIdMember } from "./problem.js";
 import { brandingOfContext } from "../branding.js";
@@ -32,9 +33,6 @@ import { createRecords } from "../records.js";
 import { createRestSignIn } from "./sign-in.js";
 import { PRM_PATH, createDiscovery } from "./discovery.js";
 import { answer, precheck, release } from "./stages.js";
-
-/** The most bytes of a request body (the server's, MCP's too); larger only for a caller that may send data (limits.js restBodyBytesFor). */
-export const REST_BODY_BYTES = BODY_BYTES;
 
 /**
  * The REST service of a context.

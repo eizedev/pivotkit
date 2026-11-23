@@ -432,9 +432,12 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * at 58.0: menus goes to 58.5, CI's measure plus about 0.5 KiB.
  * The menu at a clicked point of the chart (#53) loads with the menus: about 0.6 KiB. With #695
  * merged, CI's zlib measures the menus at 58.6: menus goes to 59.1, CI's measure plus about 0.5 KiB.
+ * The fade of a menu a low window cuts off (levels.jsx useMoreBelow), the chart's tooltip held while a
+ * point's menu is open and the plainer filter and format menus (#759) take the menus a little over
+ * 59.1 on a Mac's zlib: menus goes to 59.6, about 0.5 KiB over that measure.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 181, chart: 259.5, export: 12.6, link: 7.5, menus: 59.1, texts: 8.5, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
+export const SIZE_BUDGET_KIB = { initial: 181, chart: 259.5, export: 12.6, link: 7.5, menus: 59.6, texts: 8.5, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
@@ -521,7 +524,7 @@ async function sizes(metafile) {
     return out;
 }
 
-/** The Node major of CI's size step (.github/workflows/ci.yml; tests/ci.test.js checks it). */
+/** The Node major of CI's size step (.github/workflows/ci.yml; tests/workflows.test.js checks it). */
 export const SIZE_NODE = "24";
 
 /**

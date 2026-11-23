@@ -281,9 +281,22 @@ test("a format the menu does not offer (number:1) is a checked entry of its own,
     const format = byId(valueTopics({ view, index: 0, types, labels: MENU.en, locale: "en-US" }), "format");
     assert.deepEqual([format.state, choice(format, "format-current").text, choice(format, "format-current").checked], ["Number, 1 decimal", "Number, 1 decimal", true]);
     assert.equal(formatLabel("number:3", MENU.de, "de-DE"), "Zahl, 3 Dezimalstellen");
-    assert.equal(formatLabel("currency:USD", MENU.en, "en-US"), "Currency");
+    assert.equal(formatLabel("currency:USD", MENU.en, "en-US"), "Currency (USD)");
     // an offered one has no such entry
     assert.equal(choice(byId(valueTopics({ view: norm({ rows: ["Region"], values: [units] }), index: 0, types, labels: MENU.en, locale: "en-US" }), "format"), "format-current"), undefined);
+});
+
+test("a currency of the view is listed once: the euro (pivotkit-core's default) is Currency, another one a checked entry with its example", () => {
+    const formatOf = (f) => byId(valueTopics({ view: norm({ rows: ["Region"], values: [{ ...units, format: f }] }), index: 0, types, labels: MENU.en, locale: "en-US" }), "format");
+    const euro = formatOf("currency:EUR");
+    const all = euro.groups.flatMap((g) => g.choices);
+    assert.deepEqual(all.filter((c) => c.text === "Currency").map((c) => [c.id, c.checked]), [["format-currency", true]]);
+    assert.equal(euro.state, "Currency");
+    const dollar = formatOf("currency:USD");
+    const current = choice(dollar, "format-current");
+    assert.deepEqual([current.text, current.checked, current.hint], ["Currency (USD)", true, "$1,234.50"]);
+    assert.equal(dollar.state, "Currency (USD)");
+    assert.equal(choice(dollar, "format-currency").checked, false);
 });
 
 test("a view's integer format is the menu's Number, no decimals: one entry checked, named as it is", () => {
