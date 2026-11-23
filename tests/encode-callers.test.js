@@ -1,30 +1,60 @@
-// encode() trusts its input's width: it caps rows, not columns (docs/concepts/limits.md, "Not
-// counted"). Data from outside reaches it only through a path that counts columns or cells first.
-// Each call of encode() in a package that serves data from outside is listed here with that path; a
-// new call fails until someone names what bounds its input.
+// encode() trusts the width of its input: it caps rows, not columns (docs/concepts/limits.md, "Not
+// counted"). Data from outside reaches it only through a path that counts columns and cells first.
+// Every file of a package that calls pivotkit-core's encode() is listed here with its number of calls
+// and what bounds their data; a new call, or a new file, fails until someone names its bound.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 
 const root = new URL("../", import.meta.url);
-const PACKAGES = ["pivotkit-server", "pivotkit-cli", "pivotkit-mcp"];
 
-/** file -> what bounds the width of the data it encodes */
+/** file -> its calls of encode() and what bounds the width of the data they encode */
 const BOUNDED = {
-    "packages/pivotkit-server/src/data.js": "loadedTable (code sources: limits.columns and limits.importCells before the columns are made), the HTTP reader (sources/http.js) and inline data (sources/inline.js: limits.importCells and the MCP cap)",
-    "packages/pivotkit-server/src/check/sources.js": "a table read by a file reader of pivotkit-core/import",
-    "packages/pivotkit-cli/src/cli.js": "a table read by a file reader of pivotkit-core/import",
-    "packages/pivotkit-cli/src/layout-view.js": "a table read by a file reader of pivotkit-core/import"
+    "packages/pivotkit-server/src/data.js": [2, "code sources: loadedTable counts limits.columns and limits.importCells before the columns are made; HTTP sources: sources/http.js tableBuilder; data sent with a request: sources/inline.js checkTableSize (columns, rows, cells)"],
+    "packages/pivotkit-server/src/check/sources.js": [1, "a table read by a file reader of pivotkit-core/import"],
+    "packages/pivotkit-cli/src/cli.js": [2, "a table read by a file reader of pivotkit-core/import"],
+    "packages/pivotkit-cli/src/layout-view.js": [1, "a table read by a file reader of pivotkit-core/import"],
+    "packages/pivotkit-react/src/import-ui.jsx": [1, "a table read by a file reader of pivotkit-core/import with the host's importLimits"],
+    "packages/pivotkit-react/src/use-shown-data.js": [2, "the host's own data (trusted), and an empty table"],
+    "packages/pivotkit-report/src/render.js": [1, "the caller's own data (trusted): pivotkit-server passes data it bounded as above"]
 };
 
-function filesOf(dir) {
-    return readdirSync(new URL(dir, root), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? filesOf(`${dir}${e.name}/`) : e.name.endsWith(".js") ? [`${dir}${e.name}`] : []));
+const PACKAGES = readdirSync(new URL("packages/", root)).filter((p) => p !== "pivotkit-core");
+const IMPORTS_ENCODE = /import\s*\{[^}]*\bencode\b[^}]*\}\s*from\s*"pivotkit-core"/;
+// a namespace import or a renamed encode would hide calls from this test
+const HIDDEN_IMPORT = /import\s*\*\s*as\s+\w+\s+from\s*"pivotkit-core"|\bencode\s+as\s+\w+/;
+
+function sourcesOf(dir) {
+    let entries;
+    try {
+        entries = readdirSync(new URL(dir, root), { withFileTypes: true });
+    } catch {
+        return [];
+    }
+    return entries.flatMap((e) => (e.isDirectory() ? sourcesOf(`${dir}${e.name}/`) : /\.(m?js|jsx)$/.test(e.name) ? [`${dir}${e.name}`] : []));
 }
 
-test("every encode() call in a package that serves data from outside has its bound named", () => {
-    // code lines only: a comment that names encode() is no call
-    const calls = (file) => readFileSync(new URL(file, root), "utf8").split("\n").some((line) => !/^\s*(\*|\/\/|\/\*)/.test(line) && /(^|[^.\w])encode\(/.test(line));
-    const callers = PACKAGES.flatMap((p) => filesOf(`packages/${p}/src/`)).filter(calls);
-    assert.deepEqual(callers.filter((file) => !Object.hasOwn(BOUNDED, file)), [], "name what bounds the columns or cells of this call's data in BOUNDED");
-    assert.deepEqual(Object.keys(BOUNDED).filter((file) => !callers.includes(file)), [], "a listed file no longer calls encode(): remove it from BOUNDED");
+/** Calls of encode( on code lines, with comments and the text of string literals left out. */
+function callsOf(text) {
+    return text
+        .split("\n")
+        .filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line))
+        .map((line) => line.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""'))
+        .reduce((n, line) => n + (line.match(/(^|[^\w.$])encode\s*\(/g)?.length ?? 0), 0);
+}
+
+test("every call of pivotkit-core's encode() outside pivotkit-core has its bound named", () => {
+    const found = {};
+    const hidden = [];
+    for (const file of PACKAGES.flatMap((p) => sourcesOf(`packages/${p}/src/`))) {
+        const text = readFileSync(new URL(file, root), "utf8");
+        if (HIDDEN_IMPORT.test(text)) hidden.push(file);
+        if (IMPORTS_ENCODE.test(text)) found[file] = callsOf(text);
+    }
+    assert.deepEqual(hidden, [], "import encode by its name, so this test sees its calls");
+    assert.deepEqual(
+        Object.fromEntries(Object.entries(found).map(([file, n]) => [file, n])),
+        Object.fromEntries(Object.entries(BOUNDED).map(([file, [n]]) => [file, n])),
+        "a call of encode() was added, moved or removed: name what bounds its data in BOUNDED"
+    );
 });
