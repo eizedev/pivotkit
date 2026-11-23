@@ -25,8 +25,6 @@ async function open(page, { width = 1440, height = 900, url = "?data=sales&lang=
         await fold.click();
     }
     await expect(page.locator(".pk-zone")).toHaveCount(4);
-    // the chips pop in and the field panel slides (#761): a test measures a chip or a shelf once they rest
-    await animationsSettled(page);
 }
 
 /** The add menu of a zone, opened by a click on its "+ Add". */
