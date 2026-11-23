@@ -154,6 +154,8 @@ Docs site: build and preview commands are in [CONTRIBUTING.md](CONTRIBUTING.md#d
 - A page or anchor that moves keeps its address with a redirect in `zensical.toml`.
 - Screenshots come in light and dark pairs. A UI change takes them again (`npm run docs:screenshots`).
 - The Excel screenshot `xlsx-result-*.png` is taken by hand. Its steps are in `scripts/docs-screenshots.js`.
+- Clips are short silent videos of a step a picture cannot show. `npm run docs:clips` records them,
+  light only. A page shows one as `docs/use/fields.md` does (`tests/docs-clips.test.js`).
 - Facts in `docs/compare.md` are linked and dated. Check them again when they change.
 - Docs name no version of pivotkit. `tests/ci.test.js` lists the few exceptions.
 

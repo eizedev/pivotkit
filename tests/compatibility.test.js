@@ -9,6 +9,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { assertStates } from "./docs-facts.js";
+import { currentStateDocs } from "./markdown-files.js";
 import { workflow } from "./workflow.js";
 
 const root = new URL("../", import.meta.url);
@@ -70,22 +71,6 @@ test("the compatibility page names pivotkit-react's React and ECharts ranges as 
     assertStates(page(), "docs/compatibility.md", "React", "pivotkit-react", `\`${peers.react}\``);
     assertStates(page(), "docs/compatibility.md", "ECharts", "pivotkit-react", `\`${peers.echarts}\``);
 });
-
-/** The Markdown files people read about installing pivotkit: the README files, the docs and the repository's guides. Changelogs and decision records keep history. */
-function currentStateDocs() {
-    const top = readdirSync(root).filter((name) => name.endsWith(".md"));
-    const packages = readdirSync(new URL("packages/", root)).map((name) => `packages/${name}/README.md`);
-    const docs = readdirSync(new URL("docs/", root), { recursive: true }).filter((path) => path.endsWith(".md") && path.split(/[\\/]/)[0] !== "decisions").map((path) => `docs/${path}`);
-    const agents = ["docker/AGENTS.md", ...readdirSync(new URL("packages/", root)).map((name) => `packages/${name}/AGENTS.md`)];
-    return [...top, ...packages, ...docs, ...agents].filter((path) => {
-        try {
-            read(path);
-            return true;
-        } catch {
-            return false;
-        }
-    });
-}
 
 test("every page that names the lowest Node names the one of package.json's engines", () => {
     const lowest = json("package.json").engines.node.match(/^>=(\d+)$/)[1];

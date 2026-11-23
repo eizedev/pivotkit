@@ -11,6 +11,7 @@ import * as esbuild from "esbuild";
 import { copyFile, mkdir } from "node:fs/promises";
 import { options as packageOptions } from "../../packages/pivotkit-react/build.js";
 import { fileURLToPath } from "node:url";
+import { siteUrl } from "../../scripts/site-url.js";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const serve = process.argv.includes("--serve");
@@ -35,7 +36,8 @@ const options = {
     alias,
     minify: !serve,
     sourcemap: serve ? "inline" : false,
-    define: { "process.env.NODE_ENV": JSON.stringify(serve ? "development" : "production") },
+    // the docs site's address, for the help's links when the playground is not served from the site
+    define: { "process.env.NODE_ENV": JSON.stringify(serve ? "development" : "production"), PIVOTKIT_SITE_URL: JSON.stringify(siteUrl()) },
     legalComments: "none",
     logLevel: serve ? "info" : "warning"
 };
