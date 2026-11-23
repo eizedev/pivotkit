@@ -35,8 +35,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   does. It lost one name.
 - The name, description and source of a view file lose invisible characters, direction characters
   included. Template names and imported files lose the same ones: one list serves all three. The
-  joiners U+200C and U+200D stay, and a field's name keeps its inner spaces, so it still matches
-  the data's. The reader cuts a source's id at 256 characters, without "…".
+  joiners U+200C and U+200D stay. A field's name keeps its inner spaces, so it still matches the
+  data's, and the reader cuts a source's id at 256 characters, without "…".
 
 ### Changed
 

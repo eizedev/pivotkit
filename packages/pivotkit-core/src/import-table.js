@@ -214,7 +214,7 @@ export function noteMessage(code, p) {
         case "DATE_ORDER":
             return `Dates in "${p.column}" were read as ${p.order === "mdy" ? "month/day/year" : "day/month/year"}; the values fit both.`;
         case "DECIMAL_MARK":
-            return `Numbers in "${p.column}" were read with "${p.decimal}" as the decimal mark; some of them also fit the other mark.`;
+            return `Numbers in "${p.column}" were read with "${p.decimal}" as the decimal mark; some, such as "${p.example}", also fit the other mark.`;
         case "VALUES_NOT_CONVERTED":
             return `${n(p.count)} value(s) in "${p.column}" are no ${p.type} and are empty.`;
         case "NUMBERS_TOO_LARGE":
@@ -458,7 +458,7 @@ export function convertColumn(raw, type, hints) {
  * notation the column's text fits (the hint's decimal mark first when it fits both).
  * @param {unknown[]} raw
  * @param {ImportHints} hints
- * @returns {{ type: ImportType, dateOrder?: "dmy" | "mdy", ambiguousOrder?: boolean, decimal?: "." | ",", ambiguousDecimal?: boolean }}
+ * @returns {{ type: ImportType, dateOrder?: "dmy" | "mdy", ambiguousOrder?: boolean, decimal?: "." | ",", ambiguousDecimal?: boolean, example?: string }}
  */
 export function inferColumn(raw, hints) {
     let numbers = 0;
@@ -502,7 +502,8 @@ export function inferColumn(raw, hints) {
  * a person makes a text column a number (applyTypes).
  */
 function numberNotations() {
-    const fits = { en: true, de: true, marked: false };
+    /** @type {{ en: boolean, de: boolean, example: string | null }} example: the first value both notations read, as different numbers */
+    const fits = { en: true, de: true, example: null };
     return {
         fits,
         /** @param {string} t */
@@ -512,17 +513,21 @@ function numberNotations() {
                 fits.de = false;
                 return;
             }
-            if (fits.en && textToNumber(t, ".") === null) fits.en = false;
-            if (fits.de && textToNumber(t, ",") === null) fits.de = false;
-            if (!fits.marked && fits.en && fits.de && /[.,]/.test(t)) fits.marked = true;
+            const en = textToNumber(t, ".");
+            const de = textToNumber(t, ",");
+            if (en === null) fits.en = false;
+            if (de === null) fits.de = false;
+            if (fits.example === null && en !== null && de !== null && en !== de) fits.example = t;
         },
         /** @param {ImportHints} hints */
         result(hints) {
             if (!fits.en && !fits.de) return { type: /** @type {const} */ ("string") };
             /** @type {"." | ","} */
             const decimal = fits.en && fits.de ? hints.decimal : fits.en ? "." : ",";
-            // a value the two notations read as different numbers was read in this one: say so
-            return { type: /** @type {const} */ ("number"), decimal, ...(fits.marked ? { ambiguousDecimal: true } : {}) };
+            // the column fits both and a value reads as different numbers in them: the choice needs a note.
+            // A value only one notation fits ("5,5") decides the column: "1,234" next to it is 1.234, no note.
+            const ambiguous = fits.en && fits.de && fits.example !== null;
+            return { type: /** @type {const} */ ("number"), decimal, ...(ambiguous ? { ambiguousDecimal: true, example: fits.example } : {}) };
         }
     };
 }
@@ -531,7 +536,7 @@ function numberNotations() {
  * The type of a column of text.
  * @param {Array<string | null>} raw
  * @param {ImportHints} hints
- * @returns {{ type: ImportType, dateOrder?: "dmy" | "mdy", ambiguousOrder?: boolean, decimal?: "." | ",", ambiguousDecimal?: boolean }}
+ * @returns {{ type: ImportType, dateOrder?: "dmy" | "mdy", ambiguousOrder?: boolean, decimal?: "." | ",", ambiguousDecimal?: boolean, example?: string }}
  */
 function inferText(raw, hints) {
     let bool = true;
@@ -902,7 +907,7 @@ function applyTypes(table, types, inferred) {
         // a column read in another notation than the table's hint converts in that notation first
         const hints = { ...table.hints, ...(read?.decimal ? { decimal: read.decimal } : {}), ...(read?.dateOrder ? { dateOrder: read.dateOrder } : {}) };
         if (read?.ambiguousOrder) notes.push(note("DATE_ORDER", { column: table.columns[c], order: read.dateOrder }));
-        if (read?.ambiguousDecimal) notes.push(note("DECIMAL_MARK", { column: table.columns[c], decimal: read.decimal }));
+        if (read?.ambiguousDecimal) notes.push(note("DECIMAL_MARK", { column: table.columns[c], decimal: read.decimal, example: read.example }));
         const { values, failed } = convertColumn(table.raw[c], type, hints);
         if (failed > 0) notes.push(note("VALUES_NOT_CONVERTED", { column: table.columns[c], type, count: failed }));
         outTypes.push(type);
@@ -928,7 +933,8 @@ function readingOf(raw, type, own, hints) {
     if (type !== "number") return undefined;
     const numbers = numberNotations();
     for (const v of raw) {
-        if (typeof v === "string" && (numbers.fits.en || numbers.fits.de)) numbers.add(v);
+        // a value that is no number in either notation is no evidence for one (it stays empty, noted)
+        if (typeof v === "string" && (textToNumber(v, ".") !== null || textToNumber(v, ",") !== null)) numbers.add(v);
     }
     const read = numbers.result(hints);
     return read.type === "number" ? read : undefined;

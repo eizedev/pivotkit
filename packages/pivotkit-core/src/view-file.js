@@ -80,7 +80,7 @@ export const FIELD_TYPES = Object.freeze(["string", "number", "date", "boolean",
 /** plainText (util.js), "" when there is none. */
 const textOrEmpty = (value, max) => plainText(value, max) ?? "";
 /** An identifier or a field's name as plain text: cut, never changed by an ellipsis; "" when there is none. */
-const idOrEmpty = (value, max) => plainText(value, max, { ellipsis: false }) ?? "";
+const idOrEmpty = (value, max) => plainText(value, max, { id: true }) ?? "";
 
 /** An own property of a plain object, else undefined. */
 const own = (obj, key) => (isPlainObject(obj) && Object.hasOwn(obj, key) ? obj[key] : undefined);

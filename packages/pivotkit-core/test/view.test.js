@@ -425,20 +425,22 @@ test("a key inside a part of the view that this version does not know is a warni
 });
 
 // Guard for "say in plain words what was dropped": every leaf of a full view, given a value of a
-// wrong kind, gives an issue, is taken as given, or leaves the view as it was. A new section that
-// falls back silently fails here.
+// wrong kind, gives an issue, is taken as given, or leaves the view as it was. A section added to the
+// view belongs in `full` too, or this guard does not see it. null is no wrong value: it means "not
+// given", and the default without an issue is what it asks for.
 test("a wrong value anywhere in a view gives an issue or changes nothing", () => {
     const full = {
         version: VIEW_VERSION,
-        rows: ["Region"],
+        rows: ["Region", "Month"],
         cols: ["Product"],
-        values: [{ field: "Units", agg: "sum", showAs: { type: "runningTotal", axis: "rows" }, format: "number" }],
+        derived: [{ name: "Month", field: "Date", by: "month" }],
+        values: [{ field: "Units", agg: "sum", label: "Units sold", showAs: { type: "runningTotal", axis: "rows" }, format: "number", conditional: { type: "dataBar", color: "#336699" } }],
         filters: [{ field: "Rep", type: "in", items: ["Ann"], blanks: "exclude" }],
         sort: [{ field: "Region", by: "value", order: "desc" }],
         totals: { grandTotalRow: true, grandTotalColumn: false, rowSubtotals: true, colSubtotals: false },
-        collapsed: { rows: [], cols: [] },
+        collapsed: { rows: [["North"]], cols: [] },
         display: "table",
-        chart: { type: "bar", stacked: true, horizontal: false, valueLabels: "both", legend: "right", smooth: false, referenceLines: { average: true, trend: false, target: 3, extremes: false }, tooltipShare: false },
+        chart: { type: "bar", stacked: true, horizontal: false, valueLabels: "both", legend: "right", title: "Units", smooth: false, hidden: ["A"], colors: [{ name: "North", color: "#E3000F" }], referenceLines: { average: true, trend: false, target: 3, extremes: false }, tooltipShare: false },
         formatting: { locale: "de-DE", weekStart: 1 }
     };
     const base = normalize(full, data);

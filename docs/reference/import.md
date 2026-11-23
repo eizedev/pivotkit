@@ -241,7 +241,7 @@ file had it. A field that is given must be right. This holds for `hints` too: `d
 | `TEXT_CUT` | Text longer than `limits.textLength` | `count`, `max` |
 | `CHARACTERS_REMOVED` | Control or direction characters | `count` |
 | `DATE_ORDER` | Dates with slashes that fit both orders | `column`, `order` |
-| `DECIMAL_MARK` | A number column with values the two notations read as different numbers: `1,234`, `1.500` | `column`, `decimal` |
+| `DECIMAL_MARK` | A number column with values the two notations read as different numbers: `1,234`, `1.500` | `column`, `decimal`, `example` |
 | `VALUES_NOT_CONVERTED` | Values that are not of the column's type | `column`, `type`, `count` |
 | `NUMBERS_TOO_LARGE` | Numbers too large to hold, such as JSON's `1e999`, left empty | `column`, `count` |
 | `NUMBERS_ROUNDED` | Whole numbers over 2^53 and under 1e21 from JSON or a workbook, which may have lost digits | `column`, `count` |
