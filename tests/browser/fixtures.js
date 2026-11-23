@@ -111,6 +111,15 @@ export const START_OVER = ["reset", "new-report"];
 export const SETTINGS = { "table-settings": "table", "chart-settings": "chart" };
 
 /**
+ * Waits until no animation or transition of the page runs (a drawer that slides, a fold that opens).
+ * Call it after what starts the animation has shown, so it does not pass before the animation starts.
+ * @param {import("@playwright/test").Page} page
+ */
+export async function animationsSettled(page) {
+    await expect.poll(() => page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length)).toBe(0);
+}
+
+/**
  * Waits two frames of the page. The toolbar decides again which buttons stand in "More" as the report
  * lays out (a ResizeObserver, then a render): a test that looks for a button, its own or in More,
  * looks once that has settled.

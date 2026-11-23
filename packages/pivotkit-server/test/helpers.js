@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { tempDir as sharedTempDir } from "../../../tests/temp-dir.js";
 import { serve } from "pivotkit-server";
 import { createGuardedFetch } from "../src/sources/fetch.js";
+import { until } from "../../../tests/until.js";
 
 export const BIN = fileURLToPath(new URL("../bin/pivotkit-server.js", import.meta.url));
 
@@ -140,13 +141,7 @@ export function raw(url, { method = "GET", headers = {}, body } = {}) {
  * Throws when it is not ready after `tries` polls 50 ms apart.
  */
 export async function untilReady(server, tries = 50) {
-    for (let i = 0; i < tries; i++) {
-        if ((await call(`${server.url}/readyz`)).status === 200) {
-            return;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-    throw new Error("the server did not get ready");
+    await until(async () => (await call(`${server.url}/readyz`)).status === 200, { message: "the server did not get ready", tries, every: 50 });
 }
 
 /** A guardedFetch that may use plain http to loopback (createGuardedFetch's test means). */

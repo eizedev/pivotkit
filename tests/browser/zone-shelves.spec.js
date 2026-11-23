@@ -5,7 +5,7 @@
 // elsewhere, a pick that would change nothing disabled with its reason, Values taking a field again,
 // Filters asking for the field's filter first. After a pick the focus is on the new chip and the zones'
 // status line says what happened. Real pointer and keyboard input, the sales data.
-import { chips, drag, expect, test } from "./fixtures.js";
+import { animationsSettled, chips, drag, expect, test } from "./fixtures.js";
 
 /**
  * Arial, or Liberation Sans with Arial's widths on Linux: a test whose shelves must wrap or fit at a
@@ -542,7 +542,7 @@ test.describe("drag and drop on shelves", () => {
         await open(page, { width: 390, height: 844 });
         await page.getByTestId("show-fields").click();
         // the drawer slides in: the field is measured where it comes to rest
-        await page.waitForTimeout(400);
+        await animationsSettled(page);
         const from = await page.locator('.pk-field[data-field="Channel"] .pk-handle').boundingBox();
         await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
         await page.mouse.down();
