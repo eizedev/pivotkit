@@ -9,7 +9,8 @@ import { connect } from "node:net";
 import { existsSync, mkdirSync, readdirSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { prune } from "../src/output.js";
 import { join } from "node:path";
-import { placeMarker, signToken, subkeysOf, sweepMarkers } from "../src/downloads.js";
+import { signToken, subkeysOf } from "../src/downloads/tokens.js";
+import { placeMarker, sweepMarkers } from "../src/downloads/markers.js";
 import { createAuthCore } from "../src/auth.js";
 import { TOKEN, call, factsOf, restServer, tempDir, workspace } from "./helpers.js";
 
