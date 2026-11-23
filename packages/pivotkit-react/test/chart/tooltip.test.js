@@ -6,7 +6,7 @@ import { toEChartsOption, toSeries } from "pivotkit-core";
 import { referenceLines } from "pivotkit-core/chart";
 import { decorate } from "../../src/chart-decorate.js";
 import { tooltipContent, tooltipFormatter, tooltipReferences, valueAddsUp } from "../../src/chart-tooltip.js";
-import { linePivot } from "./fixtures.js";
+import { fakeDocument, linePivot } from "./fixtures.js";
 
 test("chart tooltips: a title and a line per series or slice, values in the core's format", () => {
     const fmt = (v) => (typeof v === "number" ? `${v.toFixed(1)} u` : "");
@@ -51,9 +51,7 @@ test("chart tooltips: a title and a line per series or slice, values in the core
 });
 
 test("chart tooltips are nodes with texts and CSSOM styles, never markup", () => {
-    /** a document with just what the formatter uses */
-    const node = () => ({ style: {}, textContent: "", children: [], append(...c) { this.children.push(...c); } });
-    const doc = /** @type {any} */ ({ createElement: () => node() });
+    const doc = fakeDocument();
     const box = /** @type {any} */ (tooltipFormatter(doc, {})({ seriesName: "<img src=x onerror=alert(1)>", name: "<script>", value: 1, color: "red" }));
     assert.equal(box.children[0].textContent, "<img src=x onerror=alert(1)>");
     const [marker, name, value] = box.children[1].children;
@@ -137,17 +135,22 @@ test("a stack's total only for values that add up: sums and counts, not shown as
 
 test("decorate tells the tooltip which series add up: a stacked sum gets a total, a stacked average or a rank none", () => {
     // what the browser's chart hands decorate (chart.jsx): the view's values, one per series
-    const node = () => ({ style: {}, textContent: "", children: [], append(...c) { this.children.push(...c); } });
-    const doc = /** @type {any} */ ({ createElement: () => node() });
+    const doc = fakeDocument();
     const params = ["Software", "Hardware", "Services"].map((seriesName, seriesIndex) => ({ seriesIndex, dataIndex: 0, axisValueLabel: "North", seriesName, value: 10 * (seriesIndex + 1), color: "#000000" }));
     const option = { series: params.map(() => ({ type: "bar", stack: "total" })), tooltip: {} };
-    const rows = (value) => {
-        const drawn = decorate(option, { getPropertyValue: () => "" }, 480, doc, 800, { tooltip: { values: params.map(() => value), totalLabel: "Total" } });
-        return /** @type {any} */ (drawn.tooltip.formatter(params)).children.map((c) => c.textContent || c.children.map((x) => x.textContent).join(" ").trim());
+    /** The tooltip's lines in the gap between the bars, for every series showing `value`. */
+    const tooltipLines = (value) => {
+        const tooltip = { values: params.map(() => value), totalLabel: "Total" };
+        const drawn = decorate(option, { getPropertyValue: () => "" }, 480, doc, 800, { tooltip });
+        const box = /** @type {any} */ (drawn.tooltip.formatter(params));
+        return box.children.map((c) => c.textContent || c.children.map((x) => x.textContent).join(" ").trim());
     };
-    assert.equal(rows({ field: "Revenue", agg: "sum" }).at(-1), "Total 60");
-    assert.equal(rows({ field: "Revenue", agg: "average" }).some((r) => r.startsWith("Total")), false);
-    assert.equal(rows({ field: "Revenue", agg: "sum", showAs: { type: "rankDescending", axis: "rows" } }).some((r) => r.startsWith("Total")), false);
+    // a sum: the gap shows the stack's total
+    assert.deepEqual(tooltipLines({ field: "Revenue", agg: "sum" }), ["North", "Total 60"]);
+    // an average or a rank: no total, every series instead
+    const every = ["North", "Software 10", "Hardware 20", "Services 30"];
+    assert.deepEqual(tooltipLines({ field: "Revenue", agg: "average" }), every);
+    assert.deepEqual(tooltipLines({ field: "Revenue", agg: "sum", showAs: { type: "rankDescending", axis: "rows" } }), every);
 });
 
 test("a cut list with a total says the cut series are in the total", () => {
@@ -159,8 +162,7 @@ test("a cut list with a total says the cut series are in the total", () => {
 });
 
 test("the tooltip's total row and the hovered line: weights and the rule from the tokens, set through the CSSOM", () => {
-    const node = () => ({ style: {}, textContent: "", children: [], append(...c) { this.children.push(...c); } });
-    const doc = /** @type {any} */ ({ createElement: () => node() });
+    const doc = fakeDocument();
     const params = [
         { seriesIndex: 0, dataIndex: 0, axisValueLabel: "North", seriesName: "Software", value: 30, color: "#111111" },
         { seriesIndex: 1, dataIndex: 0, axisValueLabel: "North", seriesName: "Hardware", value: 20, color: "#222222" }
@@ -222,8 +224,7 @@ test("the tooltip names the reference lines: the hovered series' own and the lin
 });
 
 test("the tooltip's reference lines as nodes, below a rule in the tokens' colours", () => {
-    const node = () => ({ style: {}, textContent: "", children: [], append(...c) { this.children.push(...c); } });
-    const doc = /** @type {any} */ ({ createElement: () => node() });
+    const doc = fakeDocument();
     const format = tooltipFormatter(doc, { valueFormatter: String, mode: "axis", references: [{ name: "Target", color: "#abcdef", series: null, value: () => "35" }] });
     const box = /** @type {any} */ (format([{ seriesIndex: 0, dataIndex: 0, axisValueLabel: "Jan", seriesName: "A", value: 10, color: "#111111" }]));
     const [, a, target] = box.children;

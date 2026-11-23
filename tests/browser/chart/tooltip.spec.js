@@ -70,6 +70,24 @@ test.describe("the chart's tooltip follows the pointer", () => {
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["East", "Services 12", "Software 40"]);
     });
 
+    test("an average does not add up: a stacked segment shows no total, the gap every series", async ({ page }) => {
+        const chartEl = await mount(page, { type: "bar", stacked: true }, { view: { values: [{ field: "Revenue", agg: "average" }] } });
+        await hover(page, await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH }));
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Hardware 20.00"]);
+        await hover(page, await pointOf(chartEl, between, { index: NORTH, part: 0.4, value: 3 }));
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Hardware 20.00", "Services 10.00", "Software 30.00"]);
+    });
+
+    test("a sum shown as a rank does not add up: no total; shown as a share of the row total it does", async ({ page }) => {
+        const ranked = await mount(page, { type: "bar", stacked: true }, { view: { values: [{ field: "Revenue", agg: "sum", showAs: { type: "rankDescending", axis: "rows" } }] } });
+        await hover(page, await pointOf(ranked, barMiddle, { series: HARDWARE, index: NORTH }));
+        // Hardware: North 20 is the first of the regions
+        await expect.poll(() => tooltipOf(ranked)).toEqual(["North", "Hardware 1"]);
+        const shares = await mount(page, { type: "bar", stacked: true }, { view: { values: [{ field: "Revenue", agg: "sum", showAs: { type: "percentOfRowTotal" } }] } });
+        await hover(page, await pointOf(shares, barMiddle, { series: HARDWARE, index: NORTH }));
+        await expect.poll(async () => (await tooltipOf(shares)).at(-1)).toMatch(/^Total 100(\.0+)?%$/);
+    });
+
     test("lines: a point shows that point; the line between points every series, the one without a value left out", async ({ page }) => {
         const chartEl = await mount(page, { type: "line" });
         await hover(page, await pointOf(chartEl, linePoint, { index: NORTH, value: VALUES[SOFTWARE][NORTH] }));
