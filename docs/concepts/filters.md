@@ -26,7 +26,7 @@ A view's `filters` are a list. Every filter names a field and a `type`. All filt
     { "field": "Released by year", "type": "compare", "op": ">=", "value": 2022, "blanks": "exclude" },
     { "field": "Released", "type": "relative", "unit": "year", "count": 5, "blanks": "exclude" },
     { "field": "Region", "type": "value", "op": ">", "value": 1000 },
-    { "field": "Country", "type": "top", "count": 5, "bottom": false }
+    { "field": "Country", "type": "top", "count": 5, "bottom": false, "ties": "all" }
 ]
 ```
 
@@ -196,7 +196,7 @@ with the value at the cut.
 ```json
 "sort": [
     { "field": "Region", "by": "label", "order": "asc" },
-    { "field": "Country", "by": "value", "order": "desc", "value": { "field": "Sales", "agg": "sum" } },
+    { "field": "Country", "by": "value", "order": "desc", "value": { "field": "Sales", "agg": "sum" }, "column": ["2025", "Jul"] },
     { "field": "Season", "by": "custom", "items": ["Spring", "Summer", "Autumn", "Winter"] }
 ]
 ```
@@ -234,8 +234,8 @@ A click on a header of the table writes the same entries
 - A row or column field's name writes a `label` sort.
 
 The menu offers "Custom order" when the view has a custom sort for the field, or when the host gives
-the field an order: `fieldDefaults: { Season: { order: ["Spring", "Summer", "Autumn", "Winter"]
-} }`. The report sorts a field with such an order in it as soon as you place it on Rows or Columns.
+the field an order with the report's `fieldDefaults` prop ([React](../reference/react.md#prop-fielddefaults),
+[element](../reference/element.md#prop-fielddefaults)): `{ Season: { order: ["Spring", "Summer", "Autumn", "Winter"] } }`. The report sorts a field with such an order in it as soon as you place it on Rows or Columns.
 The order is a `custom` sort in the view, so a saved template keeps it.
 
 A view or template may have the field on Rows or Columns without a sort entry for it. It gets the

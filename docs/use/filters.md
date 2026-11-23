@@ -20,6 +20,15 @@ Open a field's menu and choose **Filter**. Where the field sits decides what the
 A field keeps its filter when you move it between Rows, Columns and Filters. Moved to Values, or
 taken out of the report, it leaves its filter behind.
 
+![The menu of Released in Filters: the Filter row says last 12 months with its months, then Group, Move to and Remove field](../assets/screenshots/filter-zone-light.png#only-light)
+![The menu of Released in Filters: the Filter row says last 12 months with its months, then Group, Move to and Remove field](../assets/screenshots/filter-zone-dark.png#only-dark)
+
+The field list's **Add to Filters** opens the filter first: **Apply** places the field with it,
+**Cancel** changes nothing.
+
+![The filter of Product opened from Add to Filters in the field list: its values with row counts, a search, Select all and Select none, a condition on the names, Cancel and Apply](../assets/screenshots/add-to-filters-light.png#only-light)
+![The filter of Product opened from Add to Filters in the field list: its values with row counts, a search, Select all and Select none, a condition on the names, Cancel and Apply](../assets/screenshots/add-to-filters-dark.png#only-dark)
+
 The Filter level of the menu has three parts. They work together: an item stays when it is ticked
 and meets every rule.
 
@@ -30,6 +39,9 @@ At the top, a summary says what the table shows of the field and why not the res
 "3 of 12 months shown, 9 left out by your picks". **Reset filter** there takes every pick, date range
 and rule off the field. The chip of a filtered field says the same in short: "4 of 12",
 "last 2 years", "Sum of Revenue > 1,000".
+
+![A filtered field's menu: the Filter row says 1 of 5 with its dot](../assets/screenshots/filter-state-light.png#only-light)
+![A filtered field's menu: the Filter row says 1 of 5 with its dot](../assets/screenshots/filter-state-dark.png#only-dark)
 
 ## Tick the values to keep
 
@@ -67,6 +79,9 @@ also count from the first record or a date of your own.
 Each choice shows the dates it keeps and its rows ("2022–2026 · 2,190 rows"), and names the dates
 without data: "last 2 years (2025; 2026 has no data)".
 
+![More choices of EOL date by month on the end-of-life data, open with Next 2 years set: Next and Before the last with their counts and units, Rolling, and Counted back from](../assets/screenshots/filter-more-light.png#only-light)
+![More choices of EOL date by month on the end-of-life data, open with Next 2 years set: Next and Before the last with their counts and units, Rolling, and Counted back from](../assets/screenshots/filter-more-dark.png#only-dark)
+
 ![The Filter level of Date by month on the weather data: the summary, the quick choices with the data's share of each and their rows, This year not offered, and Counted back from today or the latest record](../assets/screenshots/filter-dates-light.png#only-light)
 ![The Filter level of Date by month on the weather data: the summary, the quick choices with the data's share of each and their rows, This year not offered, and Counted back from today or the latest record](../assets/screenshots/filter-dates-dark.png#only-dark)
 
@@ -75,6 +90,9 @@ without data: "last 2 years (2025; 2026 has no data)".
 Groupings that combine the years, such as month of the year or day of the week, have no date
 range. **Years combined** shows one switch per year instead. Switch 2023 off, and the table combines
 2024 and 2025.
+
+![The Filter level of Date by month of year on the weather data: Years combined with 2023, 2024 and 2025, the summary saying 2023–2025 combined, and the months to pick](../assets/screenshots/filter-cyclic-light.png#only-light)
+![The Filter level of Date by month of year on the weather data: Years combined with 2023, 2024 and 2025, the summary saying 2023–2025 combined, and the months to pick](../assets/screenshots/filter-cyclic-dark.png#only-dark)
 
 ## Add rules { #value-filter }
 
@@ -87,6 +105,9 @@ takes up to 10 rules.
 | **Filter by** the item itself | "Released by year is from 2022", "Price is between 10 and 20", "Released is in the last 3 months" | numbers, dates and their groupings |
 | **Filter by total** | "Region items whose Sum of Revenue is greater than 2,000,000" | every field |
 | **Filter by name** | "The name does not begin with Service" | text, and numbers as the table writes them |
+
+![The Filter level of Region scrolled to its rules: Sum of Revenue is greater than 2,000,000](../assets/screenshots/value-filter-light.png#only-light)
+![The Filter level of Region scrolled to its rules: Sum of Revenue is greater than 2,000,000](../assets/screenshots/value-filter-dark.png#only-dark)
 
 ![The Filter level of Date by month of year with a rule on the total: Average of Mean °C is greater than 25, its explanation open, its line saying it keeps 0 of 12 months with the lowest and the highest total, and the red summary](../assets/screenshots/filter-rules-light.png#only-light)
 ![The Filter level of Date by month of year with a rule on the total: Average of Mean °C is greater than 25, its explanation open, its line saying it keeps 0 of 12 months with the lowest and the highest total, and the red summary](../assets/screenshots/filter-rules-dark.png#only-dark)
@@ -133,7 +154,7 @@ or by the value you pick there.
 
 ## Type numbers
 
-Type numbers as the report's language writes them: "1.000,5" in German, "1,000.5" in English. Every
+Type numbers as the report's language writes them, the language the report's texts are in: "1.000,5" in German, "1,000.5" in English. Every
 language also reads a plain "1000.5". Anything else is refused with a hint, not guessed.
 
 ## Sort { #sorting }
@@ -144,7 +165,7 @@ language also reads a plain "1000.5". Anything else is refused with a hint, not 
 | --- | --- | --- |
 | A value's name, such as "Sum of Revenue" | sorts the rows by it, largest first | smallest first, then the field's own order again |
 | A column's name, such as "Jul" | sorts the rows by that column's values, largest first; rows without a value there come last | smallest first, then the field's own order |
-| A field's name, such as "Region" | Z to A | A to Z, Z to A, … |
+| A field's name, such as "Region" | Z to A | back to A to Z, then Z to A again |
 
 An arrow beside the name shows the sort; its tooltip says what the next click does. The keyboard
 reaches every name with Tab, then Enter.
