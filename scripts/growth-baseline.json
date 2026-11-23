@@ -17,10 +17,9 @@
             "docs/reference/sources.md": [1216],
             "docs/security.md": [908],
             "docs/use/charts.md": [481],
-            "docs/use/filters.md": [500],
-            "docs/use/values.md": [326]
+            "docs/use/filters.md": [500]
         },
-        "totalLines": 24345
+        "totalLines": 24264
     },
     "functions": {
         "complexity": {
