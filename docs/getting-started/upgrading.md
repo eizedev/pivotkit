@@ -118,6 +118,7 @@ These changes are on `main` and come with the next release.
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | **Breaking:** [pivotkit-server no longer brings pivotkit-cli](#server-without-cli) | you installed pivotkit-server from npm and run `pivotkit-server cli` | install pivotkit-cli beside it |
+| **Breaking:** two inputs where the CLI read one | a script runs `pivotkit render <view> --link <url>`, or `pivotkit describe <data> --data <other>` | keep the input you mean: the view or `--link`; the data to describe, or a view with `--data` |
 | **Breaking:** reports are written with mode 0600 | another user reads the output directory without `output.baseUrl`, such as a backup job | run that reader as the server's user, or set `output.baseUrl`; `chmod 600` older reports to match |
 
 #### pivotkit-server no longer brings pivotkit-cli { #server-without-cli }
