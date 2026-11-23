@@ -4,7 +4,7 @@
 // The expected rows are computed here from the snapshot of the real data set "nobel" (Country).
 import { readFileSync } from "node:fs";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, expect, openRules, tableRows, test } from "./fixtures.js";
+import { chipMenu, expect, openRules, tableRows, test, TEXTS, textOf } from "./fixtures.js";
 import { unpack } from "../../examples/playground/data/sources.js";
 
 const nobel = unpack(JSON.parse(readFileSync(new URL("../../examples/playground/data/nobel.json", import.meta.url), "utf8")));
@@ -37,7 +37,7 @@ async function beginsWith(page) {
     const menu = page.locator(".pk-chip-menu");
     await openRules(menu);
     await menu.getByTestId("rule-add-name").click();
-    await menu.getByTestId("filter-condition-op").selectOption({ label: "begins with" });
+    await menu.getByTestId("filter-condition-op").selectOption({ label: TEXTS.labelOps.beginsWith });
     return menu;
 }
 
@@ -49,8 +49,8 @@ test.describe("a rule on the name, typed (#159)", () => {
         await page.keyboard.type("czech");
         const czech = shown((c) => c.startsWith("czech"));
         await expect.poll(() => bodyRows(page)).toEqual(czech);
-        await expect(badge(page)).toHaveText("begins with “czech”");
-        await expect(menu.getByTestId("rule-result")).toHaveText(`Keeps ${czech.length} of ${countries.size + 1} items`);
+        await expect(badge(page)).toHaveText(`${TEXTS.labelOps.beginsWith} “czech”`);
+        await expect(menu.getByTestId("rule-result")).toHaveText(textOf("ruleKeeps", { kept: czech.length, total: countries.size + 1, noun: TEXTS.nouns.item.other }));
         // what a user does to empty a field: select all, then Delete
         await page.keyboard.press("ControlOrMeta+a");
         await page.keyboard.press("Delete");
@@ -58,16 +58,16 @@ test.describe("a rule on the name, typed (#159)", () => {
         // the field looks empty, so nothing narrows the table any more
         await expect.poll(() => bodyRows(page)).toEqual(all);
         await expect(badge(page)).toHaveCount(0);
-        await expect(menu.getByTestId("filter-summary-head")).toHaveText(`All ${countries.size + 1} items shown`);
+        await expect(menu.getByTestId("filter-summary-head")).toHaveText(textOf("summaryAll", { total: countries.size + 1, noun: TEXTS.nouns.item.other }));
         // the row stays with its comparison and the focus, as a rule not yet complete
         await expect(menu.getByTestId("rule")).toHaveCount(1);
-        await expect(menu.getByTestId("rule-result")).toHaveText("Applies once it is complete.");
+        await expect(menu.getByTestId("rule-result")).toHaveText(TEXTS.ruleIncomplete);
         await expect(menu.getByTestId("filter-condition-op")).toHaveValue("beginsWith");
         await expect(text).toBeFocused();
         // a new text applies again in the same row
         await page.keyboard.type("new");
         await expect.poll(() => bodyRows(page)).toEqual(shown((c) => c.startsWith("new")));
-        await expect(badge(page)).toHaveText("begins with “new”");
+        await expect(badge(page)).toHaveText(`${TEXTS.labelOps.beginsWith} “new”`);
         // the field's × empties it the same way
         await menu.getByTestId("filter-condition-text").locator("xpath=..").getByRole("button").click();
         await expect(text).toHaveValue("");
@@ -83,13 +83,13 @@ test.describe("a rule on the name, typed (#159)", () => {
 
     test("the first of two rules emptied: only the second applies, Undo gives the text back, a new text keeps the first row's place", async ({ page }) => {
         const menu = await beginsWith(page);
-        await menu.getByTestId("filter-condition-op").selectOption({ label: "does not begin with" });
+        await menu.getByTestId("filter-condition-op").selectOption({ label: TEXTS.labelOps.notBeginsWith });
         const texts = menu.getByTestId("filter-condition-text");
         await texts.click();
         await page.keyboard.type("south");
         await expect.poll(() => bodyRows(page)).toEqual(shown((c) => !c.startsWith("south")));
         await menu.getByTestId("rule-add-name").click();
-        await menu.getByTestId("filter-condition-op").last().selectOption({ label: "does not end with" });
+        await menu.getByTestId("filter-condition-op").last().selectOption({ label: TEXTS.labelOps.notEndsWith });
         await texts.last().click();
         await page.keyboard.type("land");
         await expect.poll(() => bodyRows(page)).toEqual(shown((c) => !c.startsWith("south") && !c.endsWith("land")));
@@ -98,9 +98,9 @@ test.describe("a rule on the name, typed (#159)", () => {
         await page.keyboard.press("ControlOrMeta+a");
         await page.keyboard.press("Backspace");
         await expect.poll(() => bodyRows(page)).toEqual(shown((c) => !c.endsWith("land")));
-        await expect(badge(page)).toHaveText("does not end with “land”");
+        await expect(badge(page)).toHaveText(`${TEXTS.labelOps.notEndsWith} “land”`);
         await expect(menu.getByTestId("rule")).toHaveCount(2);
-        await expect(menu.getByTestId("rule-result").first()).toHaveText("Applies once it is complete.");
+        await expect(menu.getByTestId("rule-result").first()).toHaveText(TEXTS.ruleIncomplete);
         await expect.poll(() => values(texts)).toEqual(["", "land"]);
         await expect(menu.getByTestId("section-rules")).toHaveAttribute("aria-expanded", "true");
         // Undo: the rule is back, with its text in its row
@@ -143,7 +143,7 @@ test.describe("a rule on the name, typed (#159)", () => {
         await page.keyboard.type("   ");
         await expect.poll(() => bodyRows(page)).toEqual(all);
         await expect(badge(page)).toHaveCount(0);
-        await expect(menu.getByTestId("rule-result")).toHaveText("Applies once it is complete.");
+        await expect(menu.getByTestId("rule-result")).toHaveText(TEXTS.ruleIncomplete);
         // the row's ×: no rule is left, so the rules fold and Pick items opens, as after the last rule's ×
         await menu.getByTestId("rule-remove").click();
         await expect(menu.getByTestId("rule")).toHaveCount(0);
@@ -159,7 +159,7 @@ test.describe("a rule on the name, typed (#159)", () => {
         await page.keyboard.type("s");
         await expect.poll(() => bodyRows(page)).toEqual(shown((c) => c.startsWith("s")));
         await menu.getByTestId("rule-add-name").click();
-        await menu.getByTestId("filter-condition-op").last().selectOption({ label: "ends with" });
+        await menu.getByTestId("filter-condition-op").last().selectOption({ label: TEXTS.labelOps.endsWith });
         await texts.last().click();
         await page.keyboard.type("a");
         await expect.poll(() => bodyRows(page)).toEqual(shown((c) => c.startsWith("s") && c.endsWith("a")));
@@ -170,7 +170,7 @@ test.describe("a rule on the name, typed (#159)", () => {
         }
         await expect.poll(() => bodyRows(page)).toEqual(all);
         await expect(menu.getByTestId("rule")).toHaveCount(2);
-        await expect(menu.getByTestId("rule-result")).toHaveText(["Applies once it is complete.", "Applies once it is complete."]);
+        await expect(menu.getByTestId("rule-result")).toHaveText([TEXTS.ruleIncomplete, TEXTS.ruleIncomplete]);
         await expect(texts.first()).toBeFocused();
         await page.keyboard.type("b");
         await texts.last().click();
@@ -189,7 +189,7 @@ test.describe("a rule on the name, typed (#159)", () => {
         await menu.getByTestId("rule-add-name").click();
         await expect(menu.getByTestId("rule")).toHaveCount(2);
         await expect(menu.getByTestId("filter-condition-op").last()).toBeFocused();
-        await menu.getByTestId("filter-condition-op").last().selectOption({ label: "ends with" });
+        await menu.getByTestId("filter-condition-op").last().selectOption({ label: TEXTS.labelOps.endsWith });
         await texts.last().click();
         await page.keyboard.type("a");
         await expect.poll(() => bodyRows(page)).toEqual(shown((c) => c.startsWith("s") && c.endsWith("a")));
@@ -204,7 +204,7 @@ test.describe("a rule on the name, typed (#159)", () => {
         await page.keyboard.type("south ");
         const south = shown((c) => c.startsWith("south "));
         await expect.poll(() => bodyRows(page)).toEqual(south);
-        await expect(menu.getByTestId("rule-result")).toHaveText(`Keeps ${south.length} of ${countries.size + 1} items`);
+        await expect(menu.getByTestId("rule-result")).toHaveText(textOf("ruleKeeps", { kept: south.length, total: countries.size + 1, noun: TEXTS.nouns.item.other }));
         // the next word narrows further
         await page.keyboard.type("k");
         await expect.poll(() => bodyRows(page)).toEqual(shown((c) => c.startsWith("south k")));

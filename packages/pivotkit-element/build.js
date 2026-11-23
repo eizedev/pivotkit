@@ -524,7 +524,7 @@ async function sizes(metafile) {
     return out;
 }
 
-/** The Node major of CI's size step (.github/workflows/ci.yml; tests/ci.test.js checks it). */
+/** The Node major of CI's size step (.github/workflows/ci.yml; tests/workflows.test.js checks it). */
 export const SIZE_NODE = "24";
 
 /**
