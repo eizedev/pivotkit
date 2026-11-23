@@ -15,10 +15,10 @@ import { discover, ISSUER_LIMITS, issuerFetch, issuerHint, jwksUriOf, remoteKeyS
 import { requestId, requestScope } from "../request-id.js";
 import { createLimits } from "../limits.js";
 import { readSecret } from "../secrets.js";
-import { NONCE_SYNTAX, sameText, subjectDigest } from "./tokens.js";
+import { NONCE_SYNTAX, SIGN_IN_SECONDS, sameText, subjectDigest } from "./tokens.js";
 import { placeMarker } from "./markers.js";
 import { fileAnswer } from "./files.js";
-import { ANSWERS, BASE_HEADERS, SIGN_IN_SECONDS } from "./pages.js";
+import { ANSWERS, BASE_HEADERS } from "./pages.js";
 
 /**
  * Sign-in callbacks per client address: a person signs in a few times a minute at most, and each
@@ -109,7 +109,7 @@ export function signInIssuer(signIn, rules, jwksUri, log) {
 
 /**
  * What the sign-in flow needs of its links (downloads.js makes it).
- * @typedef {import("./links.js").LinkRoute & { issuer: ReturnType<typeof signInIssuer> | null, signInRules: import("../issuer.js").IssuerRules, env: Record<string, string | undefined>, loopback: boolean, callbackUrl: () => string }} SignInRoute
+ * @typedef {import("./links.js").LinkRoute & { settings: any, issuer: ReturnType<typeof signInIssuer> | null, signInRules: import("../issuer.js").IssuerRules, env: Record<string, string | undefined>, loopback: boolean, callbackUrl: () => string }} SignInRoute
  *   issuer: null unless links bind to a sign-in; callbackUrl: where the issuer sends the person back
  */
 

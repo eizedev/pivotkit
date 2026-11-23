@@ -2,6 +2,13 @@
  * The download links' secrets: the HKDF subkeys of output.downloads.key, the signed token of a link,
  * the digest of the person it is for, and the signed cookie of the sign-ins and repeats under way.
  * Signatures are compared in constant time.
+ *
+ * - The token is `base64url(payload) "." base64url(HMAC-SHA256(tokenKey, base64url(payload)))`, the
+ *   payload `{ v: 1, n, e, b, s? }`: n 16 random bytes (the stored file's name prefix), e the expiry
+ *   in seconds, b the binding, s HMAC-SHA256(subjectKey, [n, issuer, subject]) for "signIn" (the
+ *   nonce in it: two links of one person cannot be tied together). The keys are HKDF
+ *   subkeys of output.downloads.key (a random key per process without one). The signature is checked
+ *   first, in constant time: a forged token, an unknown one and one of another key get the same 404.
  */
 
 import { createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";
@@ -11,6 +18,10 @@ import { readSecret } from "../secrets.js";
 
 /** The least length of output.downloads.key, in bytes. */
 export const KEY_MIN_BYTES = 32;
+
+/** How long the same browser may repeat a one-time download, and how long a sign-in may take, in seconds. */
+export const REPEAT_SECONDS = 120;
+export const SIGN_IN_SECONDS = 600;
 
 /** The most entries the cookie holds (parallel sign-ins and repeats); the oldest go first. */
 const COOKIE_ENTRIES = 8;

@@ -7,10 +7,7 @@
 import { createHash } from "node:crypto";
 import { newRequestId, requestId } from "../request-id.js";
 import { problemDocument } from "../rest/problem.js";
-
-/** How long the same browser may repeat a one-time download, and how long a sign-in may take, in seconds. */
-export const REPEAT_SECONDS = 120;
-export const SIGN_IN_SECONDS = 600;
+import { REPEAT_SECONDS, SIGN_IN_SECONDS } from "./tokens.js";
 
 /** The headers every answer of the route carries. */
 export const BASE_HEADERS = Object.freeze({ "cache-control": "no-store", "referrer-policy": "no-referrer", "x-robots-tag": "noindex", "x-content-type-options": "nosniff", "cross-origin-resource-policy": "same-origin" });
@@ -53,9 +50,6 @@ export const ANSWERS = Object.freeze({
     BODY_TOO_LARGE: { status: 413, heading: "Request too large", text: "The request is larger than a download takes." },
     INTERNAL: { status: 500, heading: "Download failed", text: "The download failed. Try again; if it keeps failing, tell the operator and give them the request id." }
 });
-
-/** What a page calls a report's file, by extension. */
-export const FILE_KINDS = Object.freeze({ xlsx: "Excel workbook", html: "HTML report", csv: "CSV file", json: "JSON file", svg: "SVG image" });
 
 /** A file's size as a page writes it: bytes, KB or MB (of 1024), one decimal below 10. */
 export function sizeText(bytes) {

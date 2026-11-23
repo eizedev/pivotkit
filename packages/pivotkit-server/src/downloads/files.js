@@ -7,12 +7,16 @@ import { constants } from "node:fs";
 import { open, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { OUTPUT_MARK } from "../output.js";
-import { BASE_HEADERS, FILE_KINDS } from "./pages.js";
+import { BASE_HEADERS } from "./pages.js";
 
 const FILE_CSP = "sandbox; default-src 'none'";
 
 /** The media types of the files pivotkit writes, by extension. */
 const MEDIA_TYPES = Object.freeze({ xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", html: "text/html; charset=utf-8", csv: "text/csv; charset=utf-8", json: "application/json", svg: "image/svg+xml" });
+
+
+/** What a page calls a report's file, by extension. */
+const FILE_KINDS = Object.freeze({ xlsx: "Excel workbook", html: "HTML report", csv: "CSV file", json: "JSON file", svg: "SVG image" });
 
 /** A stored name of pivotkit's (a report or a draft) with a link's prefix. */
 const LINKED_NAME = new RegExp(`^([A-Za-z0-9_-]{22})-(.+)\\.${OUTPUT_MARK}\\.((?:report\\.)?(xlsx|html|csv|json|svg))$`);
@@ -37,12 +41,12 @@ export function dispositionOf(name) {
     return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
-export /**
+/**
  * The stored file of a nonce, opened without following a link, or null when it is gone.
  * @param {string | null} dir  the output directory (null: none)
  * @param {string} n  the link's nonce
  */
-async function openReport(dir, n) {
+export async function openReport(dir, n) {
     if (!dir) {
         return null;
     }

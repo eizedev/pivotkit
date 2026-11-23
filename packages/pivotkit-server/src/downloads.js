@@ -4,12 +4,7 @@
  * the sign-in issuer), shared by every front end that mounts the route (serve.js, pivotkit-mcp's
  * http.js), so a link minted by one is opened by the other.
  *
- * - The token is `base64url(payload) "." base64url(HMAC-SHA256(tokenKey, base64url(payload)))`, the
- *   payload `{ v: 1, n, e, b, s? }`: n 16 random bytes (the stored file's name prefix), e the expiry
- *   in seconds, b the binding, s HMAC-SHA256(subjectKey, [n, issuer, subject]) for "signIn" (the
- *   nonce in it: two links of one person cannot be tied together). The keys are HKDF
- *   subkeys of output.downloads.key (a random key per process without one). The signature is checked
- *   first, in constant time: a forged token, an unknown one and one of another key get the same 404.
+ * - A link is a signed token of its nonce, expiry, binding and person (downloads/tokens.js).
  * - "none": GET and HEAD send the file. "once": GET and HEAD answer a page with a button; its POST
  *   sends the file once (an exclusive marker in the output directory, so replicas on a shared
  *   directory agree); the same browser may repeat it for two minutes. "signIn": GET signs the person
@@ -207,13 +202,13 @@ export function createDownloadHandler(context, runtime = {}) {
         : null;
     sweeping?.unref?.();
 
-
     /** Logs a download request: never its token, path, code, state or cookie; its status is the answer's (the line's level follows it). */
     const log = (entry) => context.log.download({ via: "link", requestId: requestId() ?? newRequestId(), ...entry, status: entry.ok ? 200 : (ANSWERS[/** @type {keyof typeof ANSWERS} */ (entry.code)]?.status ?? 500) });
 
-    /** @type {import("./downloads/links.js").LinkRoute & Parameters<typeof createSignInFlow>[0]} */
-    const linkRoute = { context, settings, state, keys, jar, log, answer, page, markersDir, sweep, issuer, signInRules, env, loopback, callbackUrl: () => `${state.base}${CALLBACK_PATH}`, startSignIn: (request, token) => signIn.start(request, token) };
-    const links = createLinkAnswers(linkRoute);
+    /** @type {import("./downloads/sign-in.js").SignInRoute} */
+    const linkRoute = { context, settings, state, keys, jar, log, answer, page, markersDir, sweep, issuer, signInRules, env, loopback, callbackUrl: () => `${state.base}${CALLBACK_PATH}` };
+    // the link answers start a sign-in; the sign-in answers through the links' token and report checks
+    const links = createLinkAnswers(linkRoute, (request, token) => signIn.start(request, token));
     const signIn = createSignInFlow(linkRoute, links);
 
     /** A request of the route after its precheck, inside its request's scope. */

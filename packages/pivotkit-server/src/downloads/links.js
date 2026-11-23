@@ -8,16 +8,15 @@ import { access, mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { outputDir } from "../output.js";
 import { requestId } from "../request-id.js";
-import { readToken } from "./tokens.js";
 import { placeMarker } from "./markers.js";
 import { fileAnswer, openReport } from "./files.js";
-import { REPEAT_SECONDS, escapeHtml, sizeText, timeHtml } from "./pages.js";
+import { REPEAT_SECONDS, readToken } from "./tokens.js";
+import { escapeHtml, sizeText, timeHtml } from "./pages.js";
 
 /**
  * What the link answers and the sign-in flow share (downloads.js createDownloadHandler makes it).
  * @typedef {object} LinkRoute
  * @property {any} context
- * @property {any} settings  output.downloads' (options/downloads.js settingsOf)
  * @property {{ base: string | null }} state  the links' base address
  * @property {() => Promise<any>} keys  tokens.js keySource's
  * @property {ReturnType<typeof import("./tokens.js").cookieJar>} jar
@@ -26,7 +25,6 @@ import { REPEAT_SECONDS, escapeHtml, sizeText, timeHtml } from "./pages.js";
  * @property {(heading: string, body: string, how?: { status?: number, form?: boolean, headers?: Record<string, string> }) => Response} page
  * @property {() => string} markersDir
  * @property {() => Promise<void>} sweep  the throttled sweep of expired markers
- * @property {(request: Request, token: string) => Promise<Response>} startSignIn  sign-in.js's start
  */
 
 /**
@@ -48,8 +46,9 @@ function sameOriginPost(request, base) {
 /**
  * The answers of links.
  * @param {LinkRoute} route
+ * @param {(request: Request, token: string) => Promise<Response>} startSignIn  the sign-in flow's start (sign-in.js)
  */
-export function createLinkAnswers(route) {
+export function createLinkAnswers(route, startSignIn) {
     const { context, state, keys, jar, log, answer, page, markersDir, sweep } = route;
 
     /** A token's payload for a request, or the answer: 404 for one that does not hold, 410 for an expired one. */
@@ -147,7 +146,7 @@ export function createLinkAnswers(route) {
         if (method === "HEAD") {
             return page("Sign in to download the report", "<p>Open this link in your browser and sign in to download the report.</p>");
         }
-        return route.startSignIn(request, token);
+        return startSignIn(request, token);
     }
 
     /** The POST of a one-time link: the file once, or again to the browser that took it within REPEAT_SECONDS. */
