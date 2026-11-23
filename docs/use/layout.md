@@ -76,6 +76,8 @@ The report adapts to its own width, not the window's.
 - **Icons**: next to the tabs, the settings button reads **Settings**. **Enlarge**, **Full screen**
   and **Swap rows and columns** show their icon only. Each keeps its whole name as a tooltip and for
   a screen reader. When the buttons have no room beside the tabs, they move to a line above them.
+- **Notes above the result**: on a narrow report one note shows at a time; a notice, such as the
+  one about a top N, takes a tip's place.
 - **More** is always at the end of the toolbar. Its first entry, **Help and keyboard shortcuts**,
   opens the level **Help**. Toolbar buttons that do not fit move into **More**, below it.
     - They move in a fixed order: Data first, then Start over and Views last. Start over holds New,
