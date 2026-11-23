@@ -99,8 +99,8 @@ attribute becomes `"false"` instead.
 The element parses `view` and `default-view` as JSON objects. It ignores a text that is not one and
 writes a console warning. Setting the property does not write the attribute.
 
-These are properties only: data, templates, sources, labels, field defaults, limits, import limits,
-plugins and dismissed tips.
+These are properties only: `data`, `dataKey`, `templates`, `sources`, `labels`, `fieldDefaults`,
+`limits`, `importLimits`, `plugins`, `dismissedTips`, `chartOptions`, `colorMap` and `importWorkerUrl`.
 
 A view is user input either way. pivotkit-core normalizes it against the data, and it cannot run code.
 

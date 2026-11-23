@@ -58,9 +58,8 @@ The zone is in `data.timeZone`, `result.timeZone` and `grid.timeZone`. A view ca
 ## Limits
 
 A view is user input and cannot run code. It can still ask for a lot of work: two fields with many
-distinct values each on rows and columns would make a table of billions of cells. pivotkit counts
-the size of everything dense (rows x columns) **before** it allocates it. Over a limit, it stops
-with an error instead.
+distinct values on rows and columns make a table of billions of cells. pivotkit counts the size of
+everything dense (rows x columns) **before** it allocates it, and stops with an error over a limit.
 
 `LIMITS` holds the defaults. Every function that takes `options.limits` merges your values over
 them, and so does the `limits` prop or property of the UI. A file people load in the UI has limits
@@ -414,6 +413,7 @@ A million rows is the default `rows` limit and the largest size measured. For mo
 | `INVALID_VIEW` | `computePivot` with `strict: true` and a view with an error issue. `error.details.issues` holds them. |
 | `LIMIT_EXCEEDED` | A limit. `error.details` is `{ limit, value, max }`, with `file` for a file being loaded. |
 | `INVALID_FILE` | A file that cannot be read ([Loading files](../reference/import.md#errors)). `error.details` is `{ reason, file }`. |
+| `INVALID_TEMPLATE` | A print template that pivotkit-report refuses ([Print templates](../reference/print-template.md)). `error.details` holds the `reason` and the placeholder. |
 
 ```js
 import { PivotkitError } from "pivotkit-core";
