@@ -18,11 +18,11 @@
             "docs/security.md": [908],
             "docs/use/charts.md": [481]
         },
-        "totalLines": 23994
+        "totalLines": 24000
     },
     "functions": {
         "complexity": {
-            "packages/pivotkit-cli/src/cli.js Async function 'describeCommand'": [58],
+            "packages/pivotkit-cli/src/cli.js Async function 'describeCommand'": [55],
             "packages/pivotkit-cli/src/cli.js Async function 'main'": [74],
             "packages/pivotkit-cli/src/cli.js Async function 'readData'": [35],
             "packages/pivotkit-cli/src/cli.js Async function 'renderCommand'": [66],

@@ -17,6 +17,7 @@ import { CliError, asCliError, shortName, writeSafe } from "pivotkit-node/files"
 import { RemoteError } from "./errors.js";
 import { fromFields, filtersOf, hasLayoutFlags, mapOf } from "./layout-view.js";
 import { layoutOf } from "./layout-flags.js";
+import { nothingWritten } from "./nothing-written.js";
 import { checkTls, createClient, readToken, serverOf, sourceId, timeoutOf } from "./remote.js";
 import { SOURCE_ID } from "pivotkit-node/rest";
 import { USER_AGENT } from "./user-agent.js";
@@ -270,12 +271,12 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
     /** @type {any} */
     const extra = { summary: null, sheet: null, source: values.source };
     if (failing(findings, values) || (!what.view && !what.layout)) {
-        return { findings, extra: { ...extra, output: null }, note: "nothing written: the view has errors.", noteIsError: true };
+        return { findings, extra: { ...extra, output: null }, note: nothingWritten(findings), noteIsError: true };
     }
     const answer = await client.file({ ...sourceOf(values), ...what, format, ...helpers.renderInputs(values) });
     if ("viewErrors" in answer) {
         findings.push(...answer.viewErrors);
-        return { findings, extra: { ...extra, output: null }, note: "nothing written: the view has errors.", noteIsError: true };
+        return { findings, extra: { ...extra, output: null }, note: nothingWritten(findings), noteIsError: true };
     }
     if (values.output) {
         await writeFile(values.output, answer.bytes, ctx);

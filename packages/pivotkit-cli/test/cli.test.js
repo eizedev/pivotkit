@@ -21,6 +21,7 @@ test("help: pivotkit, a command's help and help <command>; an unknown command is
     assert.equal(top.code, 0);
     for (const c of ["render", "validate", "describe", "completion", "help"]) assert.ok(top.stdout.includes(`  ${c} `), c);
     assert.match(top.stdout, /Exit codes: 0 done, 1 findings/);
+    assert.match(top.stdout, /3 the sign-in has ended/);
     const render = await run(["render", "--help"]);
     assert.equal(render.code, 0);
     assert.match(render.stdout, /-o, --output <file>/);
@@ -177,6 +178,23 @@ test("exit 1: an error in the view writes nothing; --lenient writes it and still
     assert.equal(JSON.parse(loose.stdout).findings.find((f) => f.severity === "warning").code, "unknownKey");
     const strict = await run(["validate", warn, "--data", "sales.csv", "--strict"], { cwd: dir });
     assert.equal(strict.code, 1);
+    // render with --strict and a warning only: the note names --strict, not errors the view does not have
+    const strictRender = await run(["render", warn, "--data", "sales.csv", "-o", "out2.csv", "--strict"], { cwd: dir });
+    assert.equal(strictRender.code, 1);
+    assert.match(strictRender.stderr, /nothing written: --strict counts the view's warnings as errors\./);
+    assert.doesNotMatch(strictRender.stderr, /the view has errors/);
+});
+
+test("exit 2 for two inputs where one would be left out: a view next to --link, data next to --data in describe", async () => {
+    const dir = fixtureDir();
+    const link = `https://example.test/report#pivot=${encodeViewLink(BY_REGION)}`;
+    const both = await run(["render", "view.json", "--link", link, "--data", "sales.csv", "-o", "x.csv", "--json"], { cwd: dir });
+    assert.equal(both.code, 2);
+    assert.equal(JSON.parse(both.stdout).error.code, "VIEW_AND_LINK");
+    writeFileSync(join(dir, "other.csv"), "Region,Units\nNorth,1\n");
+    const twice = await run(["describe", "sales.csv", "--data", "other.csv", "--json"], { cwd: dir });
+    assert.equal(twice.code, 2);
+    assert.equal(JSON.parse(twice.stdout).error.code, "DATA_TWICE");
 });
 
 test("exit 2 with the kind in --json: usage, a missing file, a limit, a bad template", async () => {
