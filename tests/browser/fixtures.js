@@ -1,5 +1,7 @@
 // Shared setup: every test fails when the page logs an error or a warning, or throws.
 import { test as base, expect } from "@playwright/test";
+import { LABELS, fill } from "../../packages/pivotkit-react/src/labels.js";
+import { en as menuEn } from "../../packages/pivotkit-react/src/menu-labels.js";
 
 /**
  * Playwright's trace recording (trace: "retain-on-failure") injects its snapshot script into every
@@ -27,6 +29,13 @@ export const test = base.extend({
 });
 
 export { expect };
+
+/**
+ * The report's English texts, the first load's and the menus', by key: a test expects the text a key
+ * gives, not a copy of its words, so a change of wording changes no test. `textOf` fills its values.
+ */
+export const TEXTS = { ...LABELS.en, ...menuEn };
+export const textOf = (key, values = {}) => fill(TEXTS[key], values);
 
 /** The chip texts of a zone, in order. */
 export async function chips(page, zone) {
