@@ -16,7 +16,7 @@ export function withToast(list, toast) {
     const all = [...list, toast];
     while (all.length > MAX_SHOWN) {
         const note = all.findIndex((t) => t.tone !== "error");
-        all.splice(note === -1 || note === all.length - 1 ? 0 : note, 1);
+        all.splice(note < 0 || note === all.length - 1 ? 0 : note, 1);
     }
     return all;
 }
