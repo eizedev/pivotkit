@@ -182,7 +182,7 @@ Type numbers the way the report's own language writes them: "1.000,5" in a Germa
 | A field's name, such as "Region" | Z to A | back to A to Z, then Z to A again |
 
 The **Grand Total** column's name sorts by the whole row. A value's name does nothing while Rows is
-empty. An arrow beside the name shows the sort; its tooltip says what the next click does. The keyboard
+empty. An arrow before the name shows the sort; its tooltip says what the next click does. The keyboard
 reaches every name with Tab, then Enter.
 
 ### In the field's menu
