@@ -254,6 +254,30 @@ function strictOf(options) {
     return strict;
 }
 
+/** A number, or null for anything else (a cell without rows). */
+const num = (v) => (typeof v === "number" ? v : null);
+
+/**
+ * The value of a cell as shown: the raw aggregate, or "show values as" computed from it. One per
+ * pivot result: it keeps the running sums and sorted values of the sibling groups (show-as.js).
+ * @param {any} view  the normalized view
+ * @param {PivotNode} rowRoot
+ * @param {PivotNode} colRoot
+ * @param {(rowNode: PivotNode, colNode: PivotNode, vi: number) => any} value  the raw aggregate
+ * @returns {(rowNode: PivotNode, colNode: PivotNode, vi: number) => any}
+ */
+function displayOf(view, rowRoot, colRoot, value) {
+    const memo = new Map();
+    return (rowNode, colNode, vi) => {
+        const spec = view.values[vi];
+        const v = value(rowNode, colNode, vi);
+        if (!spec.showAs) {
+            return v;
+        }
+        return SHOW_AS[spec.showAs.type].compute(num(v), { rowNode, colNode, rowRoot, colRoot, raw: (r, c) => num(value(r, c, vi)), axis: spec.showAs.axis, memo, key: vi });
+    };
+}
+
 /**
  * Pivots encoded data with a view.
  *
@@ -347,7 +371,6 @@ export function computePivot(data, viewInput, options) {
     const colTree = { ...buildTree(colColumns, rows, { max: limits.groups, used: rowTree.nodes.length }), depth: colColumns.length };
 
     const { value: measureValue, has: hasRows } = aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree, limits.pivotCells);
-    const num = (v) => (typeof v === "number" ? v : null);
 
     const sortOf = new Map(view.sort.map((s) => [s.field, s]));
     // a row field sorted by a value in one column (its items, outermost first): that column's node,
@@ -377,21 +400,7 @@ export function computePivot(data, viewInput, options) {
     const value = (rowNode, colNode, vi) => measureValue(rowNode, colNode, valueMeasure[vi]);
 
     /** The value as shown: after "show values as". */
-    const display = (rowNode, colNode, vi) => {
-        const spec = view.values[vi];
-        const v = value(rowNode, colNode, vi);
-        if (!spec.showAs) {
-            return v;
-        }
-        return SHOW_AS[spec.showAs.type].compute(num(v), {
-            rowNode,
-            colNode,
-            rowRoot: rowTree.root,
-            colRoot: colTree.root,
-            raw: (r, c) => num(value(r, c, vi)),
-            axis: spec.showAs.axis
-        });
-    };
+    const display = displayOf(view, rowTree.root, colTree.root, value);
 
     return {
         view,

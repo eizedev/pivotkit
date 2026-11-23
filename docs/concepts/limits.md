@@ -151,8 +151,8 @@ Not counted:
 
 - The data itself: the host's rows and the encoded columns, rows x columns. `rows` caps the rows.
   The number of columns of the host's data is not limited. A loaded file's columns are.
-- "Show values as" and sorting after the aggregation. They grow with the cells, which `pivotCells`
-  bounds.
+- "Show values as" and sorting after the aggregation. They grow with the cells (a rank sorts each
+  group once), which `pivotCells` bounds.
 - The time a pivot within the limits takes.
 
 ### Limits of a loaded file
