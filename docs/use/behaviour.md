@@ -21,7 +21,8 @@ over and More work the same way.
 | Start over, **Reset** | the report differs from the start view ("Already at the start view."), and the start view is not the empty report ("The start view is empty: use New, empty report.") |
 | Start over, **New, empty report** | a field is placed ("The report is empty already.") |
 | **Start over** itself | one of its two entries is available. Otherwise it is greyed out with "The report is empty already." |
-| Export, every entry | a field is placed ("Add a field first.") |
+| Export, every entry but **Source data** | a field is placed ("Add a field first.") |
+| Export, **Source data** | the data has rows |
 | Export, **Chart image (.png)** | the chart is shown and drawn ("Switch to Chart first.") |
 | More, Help, **Show dismissed tips again** | you dismissed a tip |
 | Table settings, **Expand all**, **Collapse all**<br>Chart settings, Layout, **Show each …**, **Show … only** | it changes something. Otherwise the line under it says why not: "Nothing is collapsed.", "Needs two or more fields in Rows." or "Every group is collapsed already." |

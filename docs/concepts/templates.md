@@ -13,8 +13,8 @@ report's **Views** menu lists them in two groups:
 - **My views** are the user's own. The user saves them with **Save current view**. Your application
   or the browser keeps them.
 
-![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-light.png#only-light)
-![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-dark.png#only-dark)
+![The Views menu with Shared views, My views with a saved view, Save and Save as, and the note where views are kept](../assets/screenshots/views-menu-light.png#only-light)
+![The Views menu with Shared views, My views with a saved view, Save and Save as, and the note where views are kept](../assets/screenshots/views-menu-dark.png#only-dark)
 
 Each entry loads its view with one click.
 

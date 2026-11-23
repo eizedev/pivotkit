@@ -55,7 +55,7 @@ later.
     collapsed: { rows: [["North"]], cols: [] },
     display: "table",                          // or "chart", or "both" side by side
     chart: {
-        type: "auto", stacked: false, horizontal: false,       // auto (the default: the data decides) bar line area pie donut heatmap
+        type: "auto", stacked: false, horizontal: false,       // auto (the default: the data decides) bar line area pie donut heatmap combo treemap
         valueLabels: "auto", legend: "auto", title: null,      // how it is drawn, see Charts
         smooth: false, axisLabels: "auto", groupLabels: "auto",
         labelPosition: "outside",                              // pie and donut: "outside" or "inside"

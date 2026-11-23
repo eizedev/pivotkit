@@ -69,6 +69,7 @@ pivotkit refuses everything else with `PivotkitError` `INVALID_TEMPLATE`. The er
 | `attributeName`, `tagName` | `<p {{title}}>`, `<{{title}}>` |
 | `rawText` | inside `<script>`, `<style>`, `<noscript>`, `<template>`, `<iframe>`, `<xmp>`, `<noembed>`, `<noframes>`, `<plaintext>` |
 | `comment`, `markup` | inside `<!-- -->` or `<!doctype>` |
+| `scriptComment` | any placeholder after a `<script>` that holds `<!--`, which can hide where the script ends |
 | `markupInText` | `{{table}}` in an attribute or in `<title>` |
 | `unknownPlaceholder` | `{{titel}}`, with "did you mean `{{title}}`?" (`details.suggestion`) |
 | `unclosed`, `nul` | `{{title` without `}}`; a NUL character |

@@ -18,6 +18,7 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
 
 [I build reports](use/index.md){ .md-button .md-button--primary title="For the people who build reports in an application: load data, fields, filters, charts, export" }
 [I embed or automate pivotkit](embed/index.md){ .md-button .md-button--primary title="For developers: React, web component, engine, reports, the command line, REST and MCP" }
+[I run the services](getting-started/server-in-5-minutes.md){ .md-button .md-button--primary title="For operators: the REST service and the MCP server in a container, with tokens and sources" }
 [Try the live demo](demo.md){ .md-button }
 
 </div>
