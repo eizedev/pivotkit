@@ -8,6 +8,7 @@ import { request as httpRequest } from "node:http";
 import { fileURLToPath } from "node:url";
 import { tempDir as sharedTempDir } from "../../../tests/temp-dir.js";
 import { serve } from "pivotkit-server";
+import { createGuardedFetch } from "../src/sources/fetch.js";
 
 export const BIN = fileURLToPath(new URL("../bin/pivotkit-server.js", import.meta.url));
 
@@ -147,6 +148,12 @@ export async function untilReady(server, tries = 50) {
     }
     throw new Error("the server did not get ready");
 }
+
+/** A guardedFetch that may use plain http to loopback (createGuardedFetch's test means). */
+export const plainLoopbackFetch = createGuardedFetch({ allowHttpLoopback: true });
+
+/** plainLoopbackFetch to a test's server on 127.0.0.1, by its IP address: a private address, so allowed here. */
+export const loopbackFetch = (url, request = {}) => plainLoopbackFetch(url, { allowIpLiterals: true, allowPrivate: true, ...request });
 
 /** A view of the sales data. */
 export const BY_REGION = Object.freeze({ rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] });
