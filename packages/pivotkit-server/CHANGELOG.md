@@ -40,6 +40,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `pivotkit-cli` before.
 - Reads IP addresses, loopback, Retry-After and the code of a failed connection through
   `pivotkit-node/net`, shared with pivotkit-cli. The answers stay the same.
+- The REST handler is split into smaller files by stage: sign-in, documents, route, input, file
+  answer. Answers and log lines stay the same.
 
 ## [0.4.0] - 2026-11-22
 
