@@ -30,11 +30,24 @@ export const test = base.extend({
 
 export { expect };
 
+/** An object whose unknown key throws, at every level: a mistyped key fails at once, by its name. */
+const strict = (object, path = "TEXTS") =>
+    new Proxy(object, {
+        get(target, key) {
+            if (typeof key !== "string") return target[key];
+            if (!Object.hasOwn(target, key)) throw new Error(`${path} has no text ${key}`);
+            const value = target[key];
+            return value && typeof value === "object" ? strict(value, `${path}.${key}`) : value;
+        }
+    });
+
 /**
  * The report's English texts, the first load's and the menus', by key: a test expects the text a key
  * gives, not a copy of its words, so a change of wording changes no test. `textOf` fills its values.
+ * The browser tests run the report in English; that every language has every key is
+ * pivotkit-react's labels.test.js and menu-texts.test.js.
  */
-export const TEXTS = { ...LABELS.en, ...menuEn };
+export const TEXTS = strict({ ...LABELS.en, ...menuEn });
 export const textOf = (key, values = {}) => fill(TEXTS[key], values);
 
 /** The chip texts of a zone, in order. */

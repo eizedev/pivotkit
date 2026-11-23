@@ -51,7 +51,8 @@ test("weather", () => {
     says("Dubai", "hottest", `${one(cells[0][1])} °C`, "August");
 
     const sun = ranked(by(w, "City"), (l) => avg(l.map((x) => x["Sunshine h"])));
-    says(sun[0][0], one(sun[0][1]), "hours a day", sun[1][0], one(sun[1][1]), sun[2][0], one(sun[2][1]));
+    // each city bound to its number: "Name (11.1"
+    says(`${sun[0][0]} (${one(sun[0][1])}`, "hours a day", `${sun[1][0]} (${one(sun[1][1])})`, `${sun[2][0]} (${one(sun[2][1])})`);
     says(sun[3][0], sun[4][0], "follow");
 
     const y25 = w.filter((x) => x.Date.startsWith("2025"));

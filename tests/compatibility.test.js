@@ -8,8 +8,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { parse } from "yaml";
 import { assertStates } from "./docs-facts.js";
+import { workflow } from "./workflow.js";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -40,9 +40,9 @@ test("the compatibility page names the lowest Node version of every package's en
 });
 
 test("the compatibility page names the Node versions CI tests", () => {
-    const versions = parse(read(".github/workflows/ci.yml")).jobs.test.strategy.matrix.node;
+    const versions = workflow("ci.yml").jobs.test.strategy.matrix.node;
     assert.ok(versions?.length, "ci.yml's test job has no node matrix");
-    assertStates(page(), "docs/compatibility.md", "Linux", `Node ${versions.join(" and ")}`, "CI");
+    assertStates(page(), "docs/compatibility.md", "Linux", `Node ${versions.join(" and ")}`, "Tested in CI");
 });
 
 test("the compatibility page lists the browsers of browser-support.md from the same versions", () => {

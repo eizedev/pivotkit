@@ -4,14 +4,11 @@
 // text, and the checks of commands read it line by line.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
-import { parse } from "yaml";
+import { readFileSync } from "node:fs";
+import { commandsOf, stringsOf, workflow, workflowFiles } from "./workflow.js";
 
 const root = new URL("../", import.meta.url);
 const OWN = new Set(JSON.parse(readFileSync(new URL("package.json", root), "utf8")).workspaces.map((w) => w.split("/").pop()));
-
-/** A workflow of .github/workflows, parsed. */
-const workflow = (file) => parse(readFileSync(new URL(`.github/workflows/${file}`, root), "utf8"));
 
 /** A job of a workflow; fails when the workflow has none of that name. */
 function jobOf(file, name) {
@@ -20,17 +17,12 @@ function jobOf(file, name) {
     return job;
 }
 
-/** The commands of a step's `run`, one per line, without comments and blank lines. */
-const commandsOf = (step) => String(step?.run ?? "").split("\n").map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
-
 /** The index of the first step whose `run` has a command that starts with `command`. */
 const stepRunning = (steps, command) => steps.findIndex((step) => commandsOf(step).some((line) => line.startsWith(command)));
 
 /** Every step of every job of every workflow, with its file and job. */
 function allSteps() {
-    const dir = new URL(".github/workflows/", root);
-    return readdirSync(dir)
-        .filter((name) => /\.ya?ml$/.test(name))
+    return workflowFiles()
         .flatMap((file) => Object.entries(workflow(file).jobs ?? {}).flatMap(([job, { steps = [] }]) => steps.map((step) => ({ file, job, step }))));
 }
 
@@ -39,8 +31,9 @@ function allSteps() {
 test("the Playwright container image matches @playwright/test in package-lock.json", () => {
     const lock = JSON.parse(readFileSync(new URL("package-lock.json", root), "utf8"));
     const locked = lock.packages["node_modules/@playwright/test"].version;
-    const images = Object.values(workflow("ci.yml").jobs).map((job) => job.container?.image).filter((image) => String(image).startsWith("mcr.microsoft.com/playwright:"));
-    assert.ok(images.length > 0, "no job of ci.yml runs in the Playwright image");
+    // every mention in any value: a job's container (as an object or a string), a service, a docker run
+    const images = workflowFiles().flatMap((file) => stringsOf(workflow(file)).flatMap((text) => text.match(/mcr\.microsoft\.com\/playwright:\S+/g) ?? []));
+    assert.ok(images.length > 0, "no job runs in the Playwright image");
     for (const image of images) {
         const m = /^mcr\.microsoft\.com\/playwright:v([0-9][^-@\s]*)[^@\s]*@sha256:[0-9a-f]{64}$/.exec(image);
         assert.ok(m, `${image}: pin the image by tag and digest`);
@@ -214,8 +207,11 @@ test("the installed Playwright still reads PWTEST_SHARD_WEIGHTS", () => {
     assert.match(cli, /process\.env\.PWTEST_SHARD_WEIGHTS/, "Playwright no longer reads PWTEST_SHARD_WEIGHTS: balance the WebKit shards in ci.yml another way (#672)");
 });
 
-/** The command lines of every step of release.yml. */
-const releaseCommands = () => Object.values(workflow("release.yml").jobs).flatMap((job) => job.steps.flatMap(commandsOf));
+/**
+ * The lines of every value of release.yml, without comments: the steps' `run` and also what an action
+ * gets in `with` (a script), so a command cannot hide from the checks below in another key.
+ */
+const releaseCommands = () => stringsOf(workflow("release.yml")).flatMap((text) => text.split("\n")).map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
 
 // npm reads "dir/file.tgz" as the GitHub repository <owner>/<repo>; a local tarball needs ./ or /
 test("the release workflow publishes the tarball by a path npm reads as a file", () => {
