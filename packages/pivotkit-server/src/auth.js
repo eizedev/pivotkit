@@ -30,7 +30,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import { OperationError } from "pivotkit-report/operations";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
 import { auditText, noteAudit } from "./log.js";
-import { TOKEN_DISTINCT_MIN, TOKEN_MIN, TOKEN_SYNTAX, keyProblem, tokenFault } from "./secret-rules.js";
+import { AUDIT_KEY_MIN, TOKEN_DISTINCT_MIN, TOKEN_MIN, TOKEN_SYNTAX, keyProblem, tokenFault } from "./secret-rules.js";
 import { UTF16_TEXT, readSecret, readSecretFile, secretValue, unreadable } from "./secrets.js";
 import { discover, issuerRulesOf, jwksUriOf, remoteKeySet } from "./issuer.js";
 import { guardedFetch, isGuardedFetch } from "./sources/fetch.js";
@@ -137,7 +137,7 @@ async function staticTokens(auth, env, options, tokenEnv) {
 }
 
 /**
- * A token file's read with whether its token can be used (TOKEN_MIN, tokenGuessable), judged once
+ * A token file's read with whether its token can be used (secret-rules.js tokenFault), judged once
  * per value the file gives, not on every request that compares it. A variable's token is judged at
  * start.
  * @param {() => Promise<string>} read
@@ -157,7 +157,7 @@ function judged(read) {
 /** Why a static token's file read after the start cannot be used, in words for the log (never the value). */
 function fileTokenCause(v) {
     const fault = tokenFault(v);
-    return v === "" ? "its file is empty" : fault?.kind === "short" ? `its file has ${v.length} characters` : `its file holds a token ${fault?.kind === "guessable" ? fault.text : "that cannot be used"}`;
+    return v === "" ? "its file is empty" : fault?.kind === "short" ? `its file has ${v.length} characters` : fault ? `its file holds a token ${fault.kind === "syntax" ? `that ${fault.text}` : fault.text}` : "its file holds a token that cannot be used";
 }
 
 /** How often a static token's file that cannot be used is said on the log, at most: once a minute. */
@@ -294,9 +294,8 @@ export async function auditOf(options, { env, log }) {
     } catch (e) {
         throw new ConfigError(`audit.key: ${String(e?.message ?? e)}`);
     }
-    const why = keyProblem("audit")(key);
-    if (why) {
-        throw new ConfigError(`audit.key: ${why} (a short key lets anyone with the log try names); make one with: ${makeKey("audit")}`);
+    if (keyProblem("audit")(key)) {
+        throw new ConfigError(`audit.key: at least ${AUDIT_KEY_MIN} characters (a short key lets anyone with the log try names); make one with: ${makeKey("audit")}`);
     }
     return { subject, key: Buffer.from(key, "utf8") };
 }

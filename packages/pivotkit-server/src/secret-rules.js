@@ -53,7 +53,7 @@ export { TOKEN_SYNTAX };
 const KEY_MIN_BYTES = 32;
 
 /** The least characters of audit.key. */
-const AUDIT_KEY_MIN = 16;
+export const AUDIT_KEY_MIN = 16;
 
 /**
  * What keeps a static token from being used, or null: "short" (fewer than TOKEN_MIN characters),
@@ -90,5 +90,5 @@ export const keyProblem = (use) => (value) => {
     if (use === "downloads" && Buffer.byteLength(value) < KEY_MIN_BYTES) {
         return `shorter than ${KEY_MIN_BYTES} bytes`;
     }
-    return use === "audit" && value.length < AUDIT_KEY_MIN ? `at least ${AUDIT_KEY_MIN} characters` : null;
+    return use === "audit" && value.length < AUDIT_KEY_MIN ? `shorter than ${AUDIT_KEY_MIN} characters` : null;
 };

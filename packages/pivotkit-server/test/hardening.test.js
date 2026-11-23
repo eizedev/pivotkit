@@ -235,7 +235,7 @@ test("auth token: a token file emptied or removed after the start refuses with 4
     assert.match(await again("short-token-12345"), /\(its file has 17 characters\)/);
     assert.match(await again(null), /\(its file is missing\)/);
     // a character no bearer token holds: the same rule as at the start (secret-rules.js tokenFault)
-    assert.match(await again("a token with spaces that is long enough 0123456789"), /\(its file holds a token that cannot be used\)/);
+    assert.match(await again("a token with spaces that is long enough 0123456789"), /\(its file holds a token that has characters a bearer token cannot carry/);
     // rotated to a token too easy to guess: refused like a short one, even when a request sends it
     const weak = "x".repeat(40);
     const seen = [];

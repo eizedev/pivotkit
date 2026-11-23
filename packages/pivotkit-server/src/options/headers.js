@@ -1,8 +1,10 @@
 /*
  * The rules for a header in the configuration, shared by the HTTP sources (options/http.js), the
- * operator's upload store (options/upload.js) and the OpenAPI importer (source-from-openapi): which
+ * operator's upload store (options/upload.js) and the `source-from-openapi` command: which
  * names are headers, which values they may hold, which the connection sets and which carry a
  * credential. Each feature decides what it allows besides; the rules themselves live here once.
+ * Headers checked while a request runs (upload.js, sources/auth.js, sources/fetch.js) keep their own
+ * value lengths and refused names: they guard what a backend or a caller sends, not the configuration.
  */
 
 import { ConfigError } from "./shared.js";

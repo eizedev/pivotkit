@@ -36,7 +36,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - `--json` follows pivotkit-cli's contract. `configuredToken` is the one lookup of `token show`.
 - The messages name the commands through `MAKE_TOKEN` and `makeKey` in `auth.js`.
 - `src/secret-rules.js` has `tokenProblem` and `keyProblem`: whether the server can use a value.
-- `tokenGuessable` in `auth.js` refuses a token with few different characters or one piece repeated.
+- `tokenFault` there says why a static token cannot be used: too short, a character a bearer token
+  cannot hold, or too easy to guess (few different characters, one piece repeated).
 - `newSecret` draws again until its `usable` check passes.
 - Code that creates a missing secret uses `placeSecret` in `src/secret-file.js`.
 - It writes with mode 0600 through a temporary file and `link()`. It never replaces a file without `replace`.
