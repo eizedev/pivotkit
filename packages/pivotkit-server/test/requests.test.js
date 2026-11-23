@@ -14,6 +14,7 @@ import { REQUEST_ID, errorDetails, requestId, withRequestId } from "../src/reque
 import { offeredScopes } from "../src/scopes.js";
 import { problem, problemOf, serverTextOf } from "../src/rest/problem.js";
 import { BY_REGION, TOKEN, call, raw, restServer, workspace } from "./helpers.js";
+import { until } from "../../../tests/until.js";
 
 test("request ids: every REST request's log line has its own id; the file route's download line has its request's", async () => {
     const dir = workspace();
@@ -59,13 +60,9 @@ test("request ids: a code source's load runs inside its request's id, on REST an
     try {
         const view = { rows: ["Team"], values: [{ field: "Sales", agg: "sum" }] };
         const first = call(`${server.api}/views/validate`, { body: { source: "tickets", params: { team: "a" }, view } });
-        while (!seen.length) {
-            await new Promise((r) => setTimeout(r, 5));
-        }
+        await until(() => seen.length > 0);
         const second = call(`${server.api}/views/validate`, { body: { source: "tickets", params: { team: "b" }, view } });
-        while (seen.length < 2) {
-            await new Promise((r) => setTimeout(r, 5));
-        }
+        await until(() => seen.length >= 2);
         release();
         assert.equal((await first).status, 200);
         assert.equal((await second).status, 502);

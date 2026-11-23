@@ -2,6 +2,6 @@
     "path": ["packages"],
     "pattern": "*/src/**/*.{js,jsx}",
     "format": ["javascript", "jsx"],
-    "threshold": 0.35,
+    "threshold": 0.3,
     "reporters": ["console", "threshold"]
 }

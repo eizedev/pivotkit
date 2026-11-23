@@ -4,8 +4,8 @@
  * scopes on offer and the CLI's public client.
  */
 
-import { SIGN_IN_CLIENT_FIELD } from "pivotkit-node/rest";
-import { REST_BASE, publicOriginOf } from "../config.js";
+import { REST_BASE, SIGN_IN_CLIENT_FIELD } from "pivotkit-node/rest";
+import { publicOriginOf } from "../config.js";
 import { docsLink } from "../branding.js";
 import { offeredScopes } from "../scopes.js";
 import { openApiDocument } from "./openapi.js";
