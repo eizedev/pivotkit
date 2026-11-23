@@ -33,7 +33,7 @@ function disposition(name) {
  * @param {any} context  createContext's
  * @param {Record<string, any>} input  the checked input
  * @param {import("../registry.js").Caller} caller
- * @param {{ signal: AbortSignal, upload: any, entry: Record<string, unknown>, operation: string, problem: (code: string, detail: string, more?: any) => Response }} how  upload: a file sent in a multipart body, or null; entry: the request's log line; problem: the handler's (bound to its docs)
+ * @param {{ signal: AbortSignal, upload: any | null, entry: Record<string, unknown>, operation: string, problem: import("./problem.js").Problem }} how  upload: a file sent in a multipart body, or null; entry: the request's log line; problem: the handler's (bound to its docs)
  * @returns {Promise<Response>}
  */
 export async function answerFile(context, input, caller, { signal, upload, entry, operation, problem }) {

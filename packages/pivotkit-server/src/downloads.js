@@ -397,8 +397,8 @@ function keySource(settings, options, env) {
  * What the download links' sign-in issuer or its token endpoint gave that the sign-in cannot use: for
  * the operator's log (a warning while the issuer loads, a debug line when a sign-in fails). The person
  * gets SIGN_IN_NOT_READY or SIGN_IN_FAILED, never the message.
+ * @extends {CodedError<undefined, undefined>}
  */
-/** @extends {CodedError<undefined, undefined>} */
 class SignInError extends CodedError {
     /** @param {string} message */
     constructor(message) {

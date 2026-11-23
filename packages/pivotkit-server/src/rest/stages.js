@@ -9,31 +9,32 @@
  * - runOperation: the operation's scopes, the input (readInput: JSON, or a file with it), the checks
  *   of the input, then the answer: present(), the file (answer-file.js) or the rows (records.js).
  * - failureAnswer: an error of runOperation as the problem it answers.
+ * - answer: serve with the CORS headers of an allowed origin; an error no stage caught is INTERNAL.
+ * - release: gives back the place for a large body that precheck took.
  */
 
-import { OperationError, checkInput } from "pivotkit-report/operations";
+import { OperationError } from "pivotkit-report/operations";
 import { OPENAPI_PATH, REST_BASE } from "../config.js";
 import { clientAddress, hostRefusal } from "../checks.js";
 import { BODY_BYTES, SIGNED_IN, takeSignIn } from "../listen.js";
-import { present, presentedInput, saveLogFields } from "../present.js";
-import { bodyTooLargeText, isRestPost, limitKeyOf, restBodyBytesAt, restBodyBytesFor } from "../limits.js";
-import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData, restDataOffered } from "../sources/inline.js";
-import { checkParamsOffered } from "../sources/input.js";
+import { present, saveLogFields } from "../present.js";
+import { bodyTooLargeText, isRestPost, limitKeyOf, restBodyBytesAt } from "../limits.js";
+import { inlineLogFields } from "../sources/inline.js";
 import { callerFields, refusalReason } from "../log.js";
 import { requestId } from "../request-id.js";
-import { BodyError, readBytes, readJson } from "./body.js";
-import { readMultipart } from "./multipart.js";
+import { BodyError } from "./body.js";
+import { checkOperationInput, readInput, withDescribeHint } from "./input.js";
+import { matchRoute, methodsOf } from "./match.js";
 import { answerFile } from "./answer-file.js";
 import { PRM_PATH } from "./discovery.js";
 import { json } from "./problem.js";
-import { REST_ROUTES } from "./routes.js";
 
 /**
  * What the stages share: made once per handler (handler.js createRestHandler).
  * @typedef {object} RestService
  * @property {any} context  createContext's
  * @property {Record<string, any>} rest  options.rest
- * @property {(code: string, detail: string, more?: any) => Response} problem  bound to the operator's docs
+ * @property {import("./problem.js").Problem} problem  bound to the operator's docs
  * @property {(error: unknown, more?: any) => Response} problemOf
  * @property {(log: any, request: Request, refused: string) => Response} hostProblem
  * @property {string[]} hosts  the allowed Host headers
@@ -46,25 +47,19 @@ import { REST_ROUTES } from "./routes.js";
  * @property {ReturnType<typeof import("./sign-in.js").createRestSignIn>} signIn
  * @property {ReturnType<typeof import("./discovery.js").createDiscovery>} discovery
  * @property {{ answer(input: any, caller: any, how: any): Promise<Response> }} records  the rows route's (records.js)
- * @property {"none" | "token" | "oauth"} mode  auth.mode
- * @property {string[]} requiredScopes
  */
 
 /** Where a request keeps its place for a large body (precheck): the function that gives it back. */
-export const LARGE_PLACE = Symbol("large body place");
+const LARGE_PLACE = Symbol("large body place");
 
 /** The headers a browser may read from an answer (CORS). */
 const EXPOSED = "content-disposition, retry-after, www-authenticate, x-request-id";
-
-/** A route's path as a pattern: "{id}" is one path segment. */
-const patternOf = (path) => new RegExp(`^${path.replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\{(\w+)\}/g, "(?<$1>[^/]+)")}$`);
-const MATCHERS = REST_ROUTES.map((route) => ({ route, pattern: patternOf(route.path) }));
 
 /** CORS headers for an allowed origin. */
 const corsOf = (origin) => (origin ? { "access-control-allow-origin": origin, vary: "Origin", "access-control-expose-headers": EXPOSED } : {});
 
 /** A copy of a response with the CORS headers of the request's origin. */
-export function withCors(response, origin) {
+function withCors(response, origin) {
     if (!origin) {
         return response;
     }
@@ -156,27 +151,12 @@ export async function precheck(service, request, info) {
 }
 
 /**
- * The routes a path under /api/v1 matches, and the one of the request's method.
- * @param {string} path  without a trailing slash
- * @param {string} method  the request's (HEAD is GET without the body: node:http leaves it out)
- */
-function matchRoute(path, method) {
-    const sub = path.startsWith(REST_BASE) ? path.slice(REST_BASE.length) : null;
-    const candidates = sub === null ? [] : MATCHERS.map(({ route, pattern }) => ({ route, params: pattern.exec(sub)?.groups ?? (pattern.test(sub) ? {} : null) })).filter((m) => m.params !== null);
-    const wanted = method === "HEAD" ? "GET" : method;
-    return { sub, candidates, match: candidates.find((m) => m.route.method === wanted) ?? null };
-}
-
-/** The methods of a set of routes, once each. */
-const methodsOf = (candidates) => [...new Set(candidates.map((m) => m.route.method))];
-
-/**
  * The answer to a request.
  * @param {RestService} service
  * @param {Request} request
  * @param {Record<string | symbol, any>} info
  */
-export async function serve(service, request, info) {
+async function serve(service, request, info) {
     const { context, rest, problem, signIn, discovery } = service;
     const refused = refuseHostOrOrigin(service, request);
     if (refused) {
@@ -195,7 +175,8 @@ export async function serve(service, request, info) {
     if (path === OPENAPI_PATH) {
         return serveOpenApi(service, request, address);
     }
-    const { sub, candidates, match } = matchRoute(path, request.method);
+    const routing = matchRoute(path, request.method);
+    const { candidates, match } = routing;
     if (!candidates.length) {
         return problem("NOT_FOUND", service.noRoute);
     }
@@ -209,9 +190,9 @@ export async function serve(service, request, info) {
         return signIn.refuse(who, REST_BASE);
     }
     const { caller } = who;
-    const leave = enterLimits(service, caller);
-    if (leave instanceof Response) {
-        return leave;
+    const entered = enterLimits(service, caller);
+    if ("refused" in entered) {
+        return entered.refused;
     }
     const started = Date.now();
     const id = /** @type {string} */ (requestId());
@@ -221,9 +202,9 @@ export async function serve(service, request, info) {
     try {
         response = await runOperation(service, match, request, caller, entry);
     } catch (e) {
-        response = failureAnswer(service, e, { match, candidates, sub, id });
+        response = failureAnswer(service, e, routing, id);
     } finally {
-        leave();
+        entered.leave();
     }
     const body = response.headers.get("content-type")?.includes("problem") ? await response.clone().json().catch(() => null) : null;
     context.log.request({ ...entry, status: response.status, ...(body?.code ? { code: body.code } : {}), ms: Date.now() - started });
@@ -255,37 +236,37 @@ async function serveOpenApi({ rest, problem, signIn, discovery }, request, addre
  * bucket) with the client's own cap beside it: the function that leaves again, or the refusal.
  * @param {RestService} service
  * @param {import("../registry.js").Caller} caller
- * @returns {(() => void) | Response}
+ * @returns {{ leave: () => void } | { refused: Response }}
  */
 function enterLimits({ context, limits, problem }, caller) {
     const limitKey = limitKeyOf(caller);
     const wait = limits.take(limitKey, caller.client);
     if (wait) {
         context.log.refused({ status: 429, path: REST_BASE, reason: refusalReason("RATE_LIMITED"), limit: limits.rateBy(limitKey, caller.client), ...callerFields(caller) });
-        return problem("RATE_LIMITED", "too many requests; wait before the next", { headers: { "retry-after": String(wait) } });
+        return { refused: problem("RATE_LIMITED", "too many requests; wait before the next", { headers: { "retry-after": String(wait) } }) };
     }
     if (!limits.enter(limitKey, caller.client)) {
         context.log.refused({ status: 429, path: REST_BASE, reason: refusalReason("RATE_LIMITED"), limit: limits.fullBy(limitKey, caller.client), ...callerFields(caller) });
-        return problem("RATE_LIMITED", "too many requests at once; wait for one to finish", { headers: { "retry-after": "1" } });
+        return { refused: problem("RATE_LIMITED", "too many requests at once; wait for one to finish", { headers: { "retry-after": "1" } }) };
     }
-    return () => limits.leave(limitKey, caller.client);
+    return { leave: () => limits.leave(limitKey, caller.client) };
 }
 
 /**
  * Runs a route's operation for a caller.
  * @param {RestService} service
- * @param {{ route: any, params: Record<string, string> }} match
+ * @param {import("./match.js").RouteMatch} match
  * @param {Request} request
  * @param {import("../registry.js").Caller} caller
  * @param {Record<string, unknown>} entry  the request's log line
  */
 async function runOperation(service, match, request, caller, entry) {
-    const { context, rest, problem, signIn, records, mode, requiredScopes } = service;
+    const { context, rest, problem, signIn, records } = service;
     const options = context.options;
     const { route } = match;
     const scopes = options.auth?.toolScopes?.[route.operation] ?? [];
     if (caller.scopes !== null && !scopes.every((s) => caller.scopes?.has(s))) {
-        return problem("INSUFFICIENT_SCOPE", `${route.operation} needs the scopes ${scopes.join(" ")}`, mode === "oauth" ? { headers: { "www-authenticate": signIn.challenge("insufficient_scope", `${route.operation} needs more scopes`, [...requiredScopes, ...scopes]) } } : {});
+        return signIn.insufficientScope(route.operation, scopes);
     }
     const { input, upload } = await readInput(context, match, request, caller);
     // the log names a configured source or data sent in the request (how much, never a value);
@@ -308,114 +289,58 @@ async function runOperation(service, match, request, caller, entry) {
 }
 
 /**
- * A request's input: a POST's body (JSON, or for a route that takes a source and a caller that may
- * send data, multipart/form-data with a file), a GET's source id from the path, else none.
- * @param {any} context
- * @param {{ route: any, params: Record<string, string> }} match
- * @param {Request} request
- * @param {import("../registry.js").Caller} caller
- * @returns {Promise<{ input: Record<string, any>, upload: Awaited<ReturnType<typeof readMultipart>>["upload"] | null }>}  upload: a file sent in a multipart body
- */
-async function readInput(context, { route, params }, request, caller) {
-    const options = context.options;
-    /** @type {any} */
-    let input = {};
-    let upload = null;
-    if (route.method === "POST") {
-        const type = (request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-        const cap = route.takesSource ? restBodyBytesFor(options, caller) : BODY_BYTES;
-        const detail = bodyTooLargeText(options, cap);
-        if (type === "multipart/form-data" && route.takesSource) {
-            if (!maySendData(options, caller, "rest")) {
-                throw dataRefusal("rest", { offered: restDataOffered(options) });
-            }
-            ({ input, upload } = await readMultipart(await readBytes(request, cap, detail), request.headers.get("content-type") ?? "", route.operation, context.offers?.rest, route.answer === "file"));
-        } else if (type !== "application/json") {
-            throw new BodyError("UNSUPPORTED_MEDIA_TYPE", `send the input as JSON (Content-Type: application/json)${route.takesSource && maySendData(options, caller, "rest") ? ", or a file with it as multipart/form-data" : ""}`);
-        } else {
-            input = await readJson(request, cap, detail);
-        }
-    } else if (params?.id !== undefined) {
-        try {
-            input = { source: decodeURIComponent(params.id) };
-        } catch {
-            throw new OperationError("INVALID_INPUT", "the source id is not a valid address part");
-        }
-    }
-    if (input === null || typeof input !== "object" || Array.isArray(input)) {
-        throw new OperationError("INVALID_INPUT", "the body must be a JSON object");
-    }
-    return { input, upload };
-}
-
-/**
- * The checks of an operation's input, in the order whose refusal says most: no file path, data only
- * from a caller that may send it, a table's size before its cells, the params on offer, the schema.
- * A multipart body's input was checked against its own schema (multipart.js).
- * @param {any} context
- * @param {any} route
- * @param {Record<string, any>} input
- * @param {import("../registry.js").Caller} caller
- * @param {unknown} upload
- */
-function checkOperationInput(context, route, input, caller, upload) {
-    const options = context.options;
-    // before the schema's pattern says the same in fewer words
-    if (typeof input.source === "string" && input.source.startsWith("file:")) {
-        throw new OperationError("FILES_NOT_ALLOWED", "this service reads no files by path: use a source id from GET /sources");
-    }
-    // a caller that may not send data is refused as such, before the schema (which offers no
-    // data on a server that offers it to nobody) answers with a key it does not know
-    if (input.source === INLINE_ID && !maySendData(options, caller, "rest")) {
-        throw dataRefusal("rest", { offered: restDataOffered(options) });
-    }
-    if (upload) {
-        return;
-    }
-    // a table too large is refused by its size, before the schema goes through its cells
-    if (input.source === INLINE_ID) {
-        checkTableSize(input.data, { limits: context.registry.limits });
-    }
-    checkParamsOffered(route.operation, input, context.offers?.rest);
-    checkInput(presentedInput(route.operation, { files: false, offers: context.offers?.rest, fileRoute: route.answer === "file" }), input);
-}
-
-/**
- * GET /sources/{id} of a source whose params are missing: the route takes none, so the refusal
- * names the one that does.
- * @param {unknown} e
- * @param {string} id
- */
-function withDescribeHint(e, id) {
-    if (!(e instanceof OperationError) || e.code !== "INVALID_INPUT" || !/ needs params\./.test(e.message)) {
-        return e;
-    }
-    return new OperationError("INVALID_INPUT", `${e.message}. GET /sources/{id} takes no params: send them with POST /sources/describe, {"source": ${JSON.stringify(id)}, "params": {...}}`, e.details);
-}
-
-/**
  * An error of runOperation as its answer: a BodyError's problem, an operation's problem (an
  * unexpected error logged, answered INTERNAL), or a route's own path read as an id.
  * @param {RestService} service
  * @param {unknown} e
- * @param {{ match: any, candidates: any[], sub: string | null, id: string }} where
+ * @param {import("./match.js").Routing} routing  the request's, with its match
+ * @param {string} id  the request's id
  */
-function failureAnswer({ context, problem, problemOf }, e, { match, candidates, sub, id }) {
+function failureAnswer({ context, problem, problemOf }, e, { match, candidates, sub }, id) {
     if (e instanceof BodyError) {
         return problem(e.code, e.message);
     }
     const error = e instanceof OperationError ? e : null;
     if (!error || (error.code === "INTERNAL" && error.cause)) {
-        context.log.error(error?.cause ?? e, { where: "rest", operation: match.route.operation, requestId: id });
+        context.log.error(error?.cause ?? e, { where: "rest", operation: match?.route.operation, requestId: id });
     }
     // GET /sources/records or /sources/describe: the id is a POST route's own path. A source of that
     // id the caller cannot use answers as that route's wrong method, alike for one there is none of
     // and one hidden from the caller.
-    if (error?.code === "SOURCE_NOT_FOUND" && match.route.id === "getSource") {
+    if (error?.code === "SOURCE_NOT_FOUND" && match?.route.id === "getSource") {
         const allow = methodsOf(candidates.filter((m) => !m.route.path.includes("{")));
         if (allow.length) {
             return problem("METHOD_NOT_ALLOWED", `use ${allow.join(" or ")} ${REST_BASE}${sub}`, { headers: { allow: allow.join(", ") } });
         }
     }
     return problemOf(error ?? e);
+}
+
+/**
+ * The answer to a request (createRouteHandler's answer): serve's, with the CORS headers of an allowed
+ * origin. An error no stage caught is logged and answered INTERNAL.
+ * @param {RestService} service
+ * @param {Request} request
+ * @param {Record<string | symbol, any>} info
+ */
+export async function answer(service, request, info) {
+    const origin = request.headers.get("origin");
+    try {
+        const response = await serve(service, request, info);
+        return origin && service.origins.has(origin) ? withCors(response, origin) : response;
+    } catch (e) {
+        service.context.log.error(e, { where: "rest" });
+        return service.problem("INTERNAL", "internal error");
+    }
+}
+
+/**
+ * Gives back a place for a large body precheck took for a request, once (fetch when the request
+ * ran, problem when its body could not be read, serveFetch when the handler threw).
+ * @param {Record<string | symbol, any>} info
+ */
+export function release(info) {
+    const give = info[LARGE_PLACE];
+    delete info[LARGE_PLACE];
+    give?.();
 }

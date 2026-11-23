@@ -17,9 +17,9 @@ export const PRM_PATH = `/.well-known/oauth-protected-resource${REST_BASE}`;
 /**
  * The service's documents.
  * @param {any} context  createContext's
- * @param {{ core: any, resource: URL, requiredScopes: string[], branding: ReturnType<typeof import("../branding.js").brandingOfContext>, problem: (code: string, detail: string, more?: any) => Response }} how  core: context.auth's
+ * @param {{ core: any, mode: "none" | "token" | "oauth", resource: URL, requiredScopes: string[], branding: ReturnType<typeof import("../branding.js").brandingOfContext>, problem: import("./problem.js").Problem }} how  core: context.auth's; mode: auth.mode
  */
-export function createDiscovery(context, { core, resource, requiredScopes, branding, problem }) {
+export function createDiscovery(context, { core, mode, resource, requiredScopes, branding, problem }) {
     const options = context.options;
     const authOptions = options.auth ?? {};
     let document = null;
@@ -29,7 +29,7 @@ export function createDiscovery(context, { core, resource, requiredScopes, brand
 
     /** The Protected Resource Metadata: not found without OAuth, AUTH_NOT_READY until the issuer is loaded. */
     function resourceMetadata() {
-        if ((authOptions.mode ?? "none") !== "oauth") {
+        if (mode !== "oauth") {
             return problem("NOT_FOUND", "no such route");
         }
         const metadata = core.metadata();

@@ -17,12 +17,11 @@ import { refusalReason } from "../log.js";
 /**
  * The REST service's sign-in.
  * @param {any} context  createContext's
- * @param {{ core: any, audience: string[], resource: URL, requiredScopes: string[], metadataUrl: string | null, limits: ReturnType<typeof import("../limits.js").createLimits>, slug: string, problem: (code: string, detail: string, more?: any) => Response }} how
- *   core: context.auth's; metadataUrl: the Protected Resource Metadata's address under OAuth; slug: the realm of a static token's challenge (branding)
+ * @param {{ core: any, mode: "none" | "token" | "oauth", audience: string[], resource: URL, requiredScopes: string[], metadataUrl: string | null, limits: ReturnType<typeof import("../limits.js").createLimits>, slug: string, problem: import("./problem.js").Problem }} how
+ *   core: context.auth's; mode: auth.mode; metadataUrl: the Protected Resource Metadata's address under OAuth; slug: the realm of a static token's challenge (branding)
  */
-export function createRestSignIn(context, { core, audience, resource, requiredScopes, metadataUrl, limits, slug, problem }) {
+export function createRestSignIn(context, { core, mode, audience, resource, requiredScopes, metadataUrl, limits, slug, problem }) {
     const authOptions = context.options.auth ?? {};
-    const mode = authOptions.mode ?? "none";
     let warnedAddress = false;
 
     /** The WWW-Authenticate challenge of a refusal. */
@@ -104,5 +103,15 @@ export function createRestSignIn(context, { core, audience, resource, requiredSc
         return who.refused;
     }
 
-    return { authenticate, challenge, refuse };
+    /**
+     * The refusal of a caller whose token lacks an operation's scopes (auth.toolScopes); under OAuth
+     * its challenge names every scope needed.
+     * @param {string} operation
+     * @param {string[]} scopes  the operation's
+     */
+    function insufficientScope(operation, scopes) {
+        return problem("INSUFFICIENT_SCOPE", `${operation} needs the scopes ${scopes.join(" ")}`, mode === "oauth" ? { headers: { "www-authenticate": challenge("insufficient_scope", `${operation} needs more scopes`, [...requiredScopes, ...scopes]) } } : {});
+    }
+
+    return { authenticate, refuse, insufficientScope };
 }

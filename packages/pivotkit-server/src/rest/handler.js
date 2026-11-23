@@ -31,7 +31,7 @@ import { createRouteHandler } from "../route-handler.js";
 import { createRecords } from "../records.js";
 import { createRestSignIn } from "./sign-in.js";
 import { PRM_PATH, createDiscovery } from "./discovery.js";
-import { LARGE_PLACE, precheck, serve, withCors } from "./stages.js";
+import { answer, precheck, release } from "./stages.js";
 
 /** The most bytes of a request body (the server's, MCP's too); larger only for a caller that may send data (limits.js restBodyBytesFor). */
 export const REST_BODY_BYTES = BODY_BYTES;
@@ -79,42 +79,21 @@ export async function createRestHandler(context, runtime = {}) {
             audience: rest.audience?.length ? rest.audience : [resource.href.replace(/\/$/, ""), resource.href],
             resource,
             requiredScopes,
+            mode,
             metadataUrl: mode === "oauth" ? resourceMetadataUrlOf(resource) : null,
             limits,
             slug: branding.slug,
             problem
         }),
-        discovery: createDiscovery(context, { core, resource, requiredScopes, branding, problem }),
+        discovery: createDiscovery(context, { core, mode, resource, requiredScopes, branding, problem }),
         // the rows route's places (rest.records.concurrency, one per person)
-        records: createRecords(context),
-        mode,
-        requiredScopes
+        records: createRecords(context)
     };
-
-    /**
-     * Gives back a place for a large body the precheck took for a request, once (fetch when the
-     * request ran, problem when its body could not be read, serveFetch when the handler threw).
-     * @param {Record<string | symbol, any>} info
-     */
-    function release(info) {
-        const give = info[LARGE_PLACE];
-        delete info[LARGE_PLACE];
-        give?.();
-    }
 
     // the scope, the refused line of an unlogged error, the id in the answer's header and problem body
     const routes = createRouteHandler(context, {
         check: (request, info) => precheck(service, request, info),
-        answer: async (request, info) => {
-            const origin = request.headers.get("origin");
-            try {
-                const response = await serve(service, request, info);
-                return origin && service.origins.has(origin) ? withCors(response, origin) : response;
-            } catch (e) {
-                context.log.error(e, { where: "rest" });
-                return problem("INTERNAL", "internal error");
-            }
-        },
+        answer: (request, info) => answer(service, request, info),
         familyOf: routeFamily,
         finish: withRequestIdMember,
         // a place for a large body, held since the precheck: given back once the request ran or its body could not be read
