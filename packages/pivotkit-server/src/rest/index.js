@@ -10,7 +10,9 @@
  *   const response = await rest.fetch(new Request("http://localhost/api/v1/sources"));
  */
 
-export { createRestHandler, REST_BODY_BYTES } from "./handler.js";
+export { createRestHandler } from "./handler.js";
+/** The most bytes of a request body (the server's, MCP's too); larger only for a caller that may send data. */
+export { BODY_BYTES as REST_BODY_BYTES } from "../listen.js";
 export { openApiDocument } from "./openapi.js";
 
 /**
@@ -18,6 +20,7 @@ export { openApiDocument } from "./openapi.js";
  * @typedef {import("./routes.js").RestRoute} RestRoute
  * @typedef {Awaited<ReturnType<typeof import("./handler.js").createRestHandler>>} RestHandler
  */
-export { REST_ROUTES, REST_BASE } from "./routes.js";
+export { REST_ROUTES } from "./routes.js";
+export { REST_BASE } from "pivotkit-node/rest";
 export { REST_ERRORS, PROBLEM_CODES } from "./problem.js";
 export { REQUEST_LIMITS as REST_LIMITS } from "../limits.js";

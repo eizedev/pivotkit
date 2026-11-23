@@ -3,7 +3,7 @@
  * segment), then its method. A path that some route matches with another method is a 405.
  */
 
-import { REST_BASE } from "../config.js";
+import { REST_BASE } from "pivotkit-node/rest";
 import { REST_ROUTES } from "./routes.js";
 
 /** A route's path as a pattern: "{id}" is one path segment. */
