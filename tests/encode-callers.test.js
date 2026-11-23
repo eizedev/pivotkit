@@ -10,7 +10,7 @@ const root = new URL("../", import.meta.url);
 
 /** file -> its calls of encode() and what bounds the width of the data they encode */
 const BOUNDED = {
-    "packages/pivotkit-server/src/data.js": [2, "code sources: loadedTable counts limits.columns and limits.importCells before the columns are made; HTTP sources: sources/http.js tableBuilder; data sent with a request: sources/inline.js checkTableSize (columns, rows, cells)"],
+    "packages/pivotkit-server/src/data.js": [2, "code sources: loadedTable counts limits.columns and limits.importCells before the columns are made; HTTP sources: sources/http.js tableBuilder; data sent with a request: the input schema (1,000 columns) and sources/inline.js checkTableSize (limits.columns, rows, cells)"],
     "packages/pivotkit-server/src/check/sources.js": [1, "a table read by a file reader of pivotkit-core/import"],
     "packages/pivotkit-cli/src/cli.js": [2, "a table read by a file reader of pivotkit-core/import"],
     "packages/pivotkit-cli/src/layout-view.js": [1, "a table read by a file reader of pivotkit-core/import"],
