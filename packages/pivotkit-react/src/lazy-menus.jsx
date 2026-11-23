@@ -10,12 +10,11 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { activeIn } from "./dom.js";
+import { lazy } from "./lazy.js";
 import { MENU_TEXTS_OF } from "./menu-texts.js";
 
-/** @type {Promise<typeof import("./menus.js")> | null} */
-let pending = null;
-/** @type {typeof import("./menus.js") | null} */
-let loaded = null;
+/** The menus' panels (menus.js), imported once (lazy.js). */
+const panels = lazy(() => import("./menus.js"));
 
 /** @type {Map<string, Promise<void>>} */
 const textsPending = new Map();
@@ -31,7 +30,7 @@ export function onMenuTexts(listener) {
 }
 
 /** Whether a menu of `lang` waits for (or should try once more) its language's texts. */
-const wantsTexts = (lang) => Object.hasOwn(MENU_TEXTS_OF, lang) && !loaded?.hasMenuTexts(lang);
+const wantsTexts = (lang) => Object.hasOwn(MENU_TEXTS_OF, lang) && !panels.now()?.hasMenuTexts(lang);
 
 /**
  * The menus' panels, imported once, with the menus' texts of `lang` (added to menus.js's). A failed
@@ -41,17 +40,7 @@ const wantsTexts = (lang) => Object.hasOwn(MENU_TEXTS_OF, lang) && !loaded?.hasM
  * @returns {Promise<typeof import("./menus.js")>}
  */
 export function loadMenus(lang = "en") {
-    pending ??= import("./menus.js").then(
-        (m) => {
-            loaded = m;
-            return m;
-        },
-        (error) => {
-            pending = null;
-            throw error;
-        }
-    );
-    const menus = pending;
+    const menus = panels.load();
     if (!wantsTexts(lang)) {
         return menus;
     }
@@ -80,7 +69,10 @@ export function loadMenus(lang = "en") {
  * stands in), else null; without `lang` the module as soon as it is loaded.
  * @param {string} [lang]
  */
-export const menusNow = (lang = "en") => (loaded && (!wantsTexts(lang) || textsFailed.has(lang)) ? loaded : null);
+export const menusNow = (lang = "en") => {
+    const loaded = panels.now();
+    return loaded && (!wantsTexts(lang) || textsFailed.has(lang)) ? loaded : null;
+};
 
 /** The loading line: a live region that is there empty first and then says it, so it is announced. */
 function Loading({ text }) {

@@ -14,6 +14,7 @@ import { chartThemeFrom, toGrid } from "pivotkit-core";
 import { dataExportFor } from "./export-scope.js";
 import { copyImage, copyText, dataUrlToBlob, safeFileName, saveBlob } from "./files.js";
 import { dropPrintFrame, preparePrintFrame, printHtml, releasePrintFrame, takePrintFrame } from "./print-frame.js";
+import { lazy } from "./lazy.js";
 import { themeTokens } from "./theme-tokens.js";
 import { fill, messageOf } from "./labels.js";
 import { menuLabels } from "./menu-labels.js";
@@ -22,29 +23,12 @@ export const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsh
 
 /** @typedef {import("./index.js").ExportFile} ExportFile */
 
-/** @type {typeof import("pivotkit-core/export") | null} */
-let exporters = null;
-/** @type {Promise<typeof import("pivotkit-core/export")> | null} */
-let pending = null;
-
 /**
- * pivotkit-core/export, imported once; a failed import is forgotten, so the next call tries again. A
- * menu that copies calls it when it opens: a copy right in the click (no import to wait for) is
- * allowed in every browser.
+ * pivotkit-core/export, imported once (lazy.js). A menu that copies calls it when it opens: a copy
+ * right in the click (no import to wait for) is allowed in every browser.
  */
-export function loadExporters() {
-    pending ??= import("pivotkit-core/export").then(
-        (m) => {
-            exporters = m;
-            return m;
-        },
-        (error) => {
-            pending = null;
-            throw error;
-        }
-    );
-    return pending;
-}
+const exportModule = lazy(() => import("pivotkit-core/export"));
+export const loadExporters = exportModule.load;
 
 /** @type {Promise<[typeof import("./report-run.js"), any]> | null} */
 let reportPending = null;
@@ -68,7 +52,7 @@ function loadReport(loadECharts) {
 }
 
 /** The export module, at once when it is loaded. */
-export const exportersNow = () => exporters;
+export const exportersNow = exportModule.now;
 
 /** Starts loading the export module (a menu that copies, when it opens); a failure waits for the click. */
 export const prepareExporters = () => void loadExporters().catch(() => undefined);
@@ -288,7 +272,7 @@ export async function runExport(kind, { fileName, result, encoded, exportData, l
             if (!scope.source) {
                 return;
             }
-            const m = exporters ?? (await loadExporters());
+            const m = exportModule.now() ?? (await loadExporters());
             const csv = kind === "data-csv";
             const file = `${base}-data.${csv ? "csv" : "json"}`;
             const options = { ...(limits ? { limits } : {}), ...(scope.columns ? { columns: scope.columns } : {}) };
@@ -354,7 +338,7 @@ export async function runExport(kind, { fileName, result, encoded, exportData, l
                 }
             }
         }
-        const m = exporters ?? (await loadExporters());
+        const m = exportModule.now() ?? (await loadExporters());
         const grid = toGrid(result, { locale, labels: labels.core, limits });
         if (kind === "copy-table" || kind === "copy-json") {
             const json = kind === "copy-json";

@@ -28,6 +28,7 @@ import { RemoteError } from "./errors.js";
 import { examples, templateLine, tryLine, writeExample } from "./examples.js";
 import { completionScript, helpText } from "./help.js";
 import { fromFields, hasLayoutFlags, layoutView, mapOf, normalized, pickLines, quoteArg, viewFileFor } from "./layout-view.js";
+import { nothingWritten } from "./nothing-written.js";
 import { remoteCommand } from "./remote-commands.js";
 import { loginCommand, logoutCommand, tokenCommand } from "./sign-in.js";
 import { CLI_VERSION } from "./user-agent.js";
@@ -415,6 +416,9 @@ const textOf = (bytes) => new TextDecoder("utf-8", { fatal: false }).decode(byte
 /** The view of a command: from --link, a file, stdin or JSON text. */
 async function readView(positionals, values, ctx) {
     if (values.link !== undefined) {
+        if (positionals[0] !== undefined) {
+            throw new CliError("usage", "VIEW_AND_LINK", `give a view or --link, not both: "${positionals[0]}" would be left out`);
+        }
         const url = String(values.link);
         const hash = url.includes("#") ? url.slice(url.indexOf("#")) : url;
         // the link's source.params.sheet is the one parameter the CLI uses: the sheet of a workbook
@@ -939,7 +943,7 @@ async function renderCommand(positionals, values, ctx) {
         extra.output = null;
     }
     if (extra.output === null) {
-        return { findings, extra, note: "nothing written: the view has errors.", noteIsError: true };
+        return { findings, extra, note: nothingWritten(findings), noteIsError: true };
     }
     if (!extra.output) {
         const lines = [...(made?.lines ?? []), ...(saved ? [`wrote ${saved.file}: the view, to render again with pivotkit render ${quoteArg(saved.file)} --data ${quoteArg(data.name)}`] : [])];
@@ -1246,6 +1250,24 @@ function listedFields(view) {
     return read.failed ? [] : read.source?.fields?.length ? read.source.fields : null;
 }
 
+/**
+ * describe takes one thing to describe: a view (with its data in --data), or data. Data given twice,
+ * or a view given as --data, would leave one input out: a usage error says which.
+ * @param {string} input  the argument, or --data alone
+ * @param {string} kind  "view" or "data", as read
+ * @param {boolean} dataAlone  --data without an argument
+ * @param {Record<string, any>} values
+ */
+function refuseMixedInputs(input, kind, dataAlone, values) {
+    if (kind === "data" && !dataAlone && values.data !== undefined) {
+        throw new CliError("usage", "DATA_TWICE", `${shortName(input)} is data, and so is --data ${shortName(values.data)}: describe one of them (pivotkit describe <data>), or give a view with --data`);
+    }
+    if (dataAlone && kind === "view") {
+        const name = quoteArg(input === "-" ? "-" : shortName(input));
+        throw new CliError("usage", "VIEW_NOT_DATA", `--data ${shortName(input)} is a view, not data: describe it with pivotkit describe ${name} (and its data with --data <data>)`);
+    }
+}
+
 async function describeCommand(positionals, values, ctx) {
     if (values.suggest) {
         return suggestCommand(positionals, values, ctx);
@@ -1282,10 +1304,7 @@ async function describeCommand(positionals, values, ctx) {
             kind = "data";
         }
     }
-    if (dataAlone && kind === "view") {
-        const name = quoteArg(input === "-" ? "-" : shortName(input));
-        throw new CliError("usage", "VIEW_NOT_DATA", `--data ${shortName(input)} is a view, not data: describe it with pivotkit describe ${name} (and its data with --data <data>)`);
-    }
+    refuseMixedInputs(input, kind, dataAlone, values);
     if (kind === "view") {
         const view = text ?? (input.trimStart().startsWith("{") ? input : textOf(await ctx.readInput(input, "the view", VIEW_BYTES, "json")));
         // the sheet the view was made on (source.params.sheet), read from its view file
@@ -1357,7 +1376,7 @@ async function suggestCommand(positionals, values, ctx) {
     const extra = { kind: "data", draft: true, picks: built.picks, sheet: data.sheet, ...(sheets ? { sheets } : {}) };
     const input = shortName(positionals[0] ?? values.data);
     if (failed && !values.lenient) {
-        return { findings, extra: { ...extra, output: null }, note: "nothing written: the draft has errors.", noteIsError: true };
+        return { findings, extra: { ...extra, output: null }, note: nothingWritten(findings, "draft"), noteIsError: true };
     }
     if (values.output !== undefined) {
         const bytes = new TextEncoder().encode(text);

@@ -15,6 +15,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- A chart or a link whose part failed to load (offline, a deploy in between) loads again on the next
+  try. Before, the failed import was kept for the life of the page. Every part that loads on demand
+  now follows one rule (`lazy.js`).
+- An error note stays until it is closed, also when two newer notes come.
+- The help of the chart's zoom says that the arrow keys move the slider. It said the slider could
+  not be moved by keyboard yet.
 - On a phone, the settings button beside the tabs shows its icon only, as Enlarge and Full screen
   do. Its whole name stays its tooltip and its name for a screen reader. The tabs and the buttons
   now share one line on a 390 px phone in German too; before, the buttons moved to a line above the

@@ -6,8 +6,16 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Fixed
+
+- With `--strict` and warnings only, the note says that `--strict` counts the warnings as errors. It
+  said "the view has errors", which the view did not have.
+- The help lists exit code 3, the sign-in has ended.
+
 ### Changed
 
+- **Breaking:** `render <view> --link <url>` and `describe <data> --data <other data>` are usage
+  errors (exit 2). One of the two inputs was left out without a word.
 - pivotkit-server no longer brings pivotkit-cli. To run `pivotkit-server cli` from an npm install,
   install pivotkit-cli beside pivotkit-server (`npm install --global pivotkit-cli` for a global
   install). The container image has it.
