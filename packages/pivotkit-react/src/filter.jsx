@@ -27,14 +27,15 @@ export const keyOf = (v) => JSON.stringify(v);
  * The values of a field to pick from: a search, Select all and Select none (of what the search
  * shows), and, in a part that scrolls (`children` after them), each value with its row count and
  * "Only". `selected` holds the keys (keyOf) of the values picked; `onChange` gets the next set. The
- * filter popover keeps it as a draft until Apply, the Filter level of a chip menu applies it at once.
+ * filter popover keeps it as a draft until Apply, the Filter level of a chip menu applies it at once
+ * and says so in `note`, beside Select all and Select none.
  * With `tail`, the items a rule leaves out (`isOut`) are taken out of the list and handed to `render`
  * with the row function, for a folded group at the end of the list (the Filter level; `searching`
  * says whether a search is on, which shows them); the group's markup is the caller's.
  * @param {{ items: Array<{ value: unknown, label: string, count: number, kept?: boolean }>, selected: Set<string>, onChange: (next: Set<string>) => void,
- *   labels: any, locale: string, autoFocus?: boolean, tail?: { isOut: (item: any) => boolean, render: (out: any[], row: (item: any) => React.ReactNode, searching: boolean) => React.ReactNode }, children?: React.ReactNode }} props
+ *   labels: any, locale: string, autoFocus?: boolean, note?: string, tail?: { isOut: (item: any) => boolean, render: (out: any[], row: (item: any) => React.ReactNode, searching: boolean) => React.ReactNode }, children?: React.ReactNode }} props
  */
-export function ValueList({ items, selected, onChange, labels, locale, autoFocus = false, tail, children }) {
+export function ValueList({ items, selected, onChange, labels, locale, autoFocus = false, note, tail, children }) {
     const [query, setQuery] = useState("");
     // one name for the list's checkboxes, as a form's list of choices has
     const name = useFormName();
@@ -92,6 +93,11 @@ export function ValueList({ items, selected, onChange, labels, locale, autoFocus
                 <button type="button" className="pk-action" onClick={() => setAll(false)} data-testid="select-none">
                     {labels.selectNone}
                 </button>
+                {note ? (
+                    <span className="pk-values-note" data-testid="values-note">
+                        {note}
+                    </span>
+                ) : null}
             </div>
             {/* the middle scrolls when the window is low; what is above and below it stays in view */}
             <div className="pk-filter-body">

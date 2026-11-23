@@ -112,8 +112,12 @@ test("a value's first level: Summarize by, Show as and Number format as levels, 
     const format = byId(topics, "format");
     // pivotkit-core's currency is the euro unless the view says another
     assert.equal(choice(format, "format-currency").hint, "€1,234.50");
-    assert.equal(choice(format, "format-percent").hint, "25.6%");
+    // Percent reads the value as a share: its example says so
+    assert.equal(choice(format, "format-percent").hint, "0.25 → 25%");
     assert.deepEqual(format.groups.map((g) => g.title), [undefined, "More formats"]);
+    // no two entries look the same: each example is its own
+    const hints = format.groups.flatMap((g) => g.choices).filter((c) => c.hint).map((c) => c.hint);
+    assert.deepEqual(hints, [...new Set(hints)]);
     // a choice applies at once and the menu stays open
     const scaled = choice(byId(topics, "highlight"), "cond-colorScale");
     assert.equal(scaled.closes, undefined);
@@ -203,7 +207,7 @@ test("search: every choice of every level with its path, and the panels; all wor
     assert.deepEqual(hit("currency"), ["Currency | Number format"]);
     assert.deepEqual(hit("compact"), ["Compact (1.2K) | Number format › More formats"]);
     // the path counts: "format" finds the formats, the words in any order
-    assert.ok(hit("format whole").includes("Whole number | Number format › More formats"));
+    assert.ok(hit("format whole").includes("Number, no decimals | Number format"));
     assert.deepEqual(hit("name"), ["Name | "]);
     assert.deepEqual(hit("   "), []);
     assert.deepEqual(hit("nothing like this"), []);
@@ -280,6 +284,15 @@ test("a format the menu does not offer (number:1) is a checked entry of its own,
     assert.equal(formatLabel("currency:USD", MENU.en, "en-US"), "Currency");
     // an offered one has no such entry
     assert.equal(choice(byId(valueTopics({ view: norm({ rows: ["Region"], values: [units] }), index: 0, types, labels: MENU.en, locale: "en-US" }), "format"), "format-current"), undefined);
+});
+
+test("a view's integer format is the menu's Number, no decimals: one entry checked, named as it is", () => {
+    const view = norm({ rows: ["Region"], values: [{ ...units, format: "integer" }] });
+    const format = byId(valueTopics({ view, index: 0, types, labels: MENU.en, locale: "en-US" }), "format");
+    const checked = format.groups.flatMap((g) => g.choices).filter((c) => c.checked);
+    assert.deepEqual(checked.map((c) => c.id), ["format-number:0"]);
+    assert.equal(format.state, "Number, no decimals");
+    assert.equal(choice(format, "format-current"), undefined);
 });
 
 test("Highlight: the checked choice changes nothing; None or Data bars and back bring the value's own colours back", () => {

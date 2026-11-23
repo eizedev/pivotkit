@@ -57,11 +57,13 @@ import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind
 
 /** The formats the value menu offers first, and those under "More formats"; any other format of a view still works. */
 export const FORMAT_CHOICES = Object.freeze(["number", "number:0", "number:2", "currency", "percent"].filter(isFormat));
-export const MORE_FORMATS = Object.freeze(["integer", "compact", "bytes", "duration:h", "duration:s"].filter(isFormat));
+export const MORE_FORMATS = Object.freeze(["compact", "bytes", "duration:h", "duration:s"].filter(isFormat));
+/** A format of a view that writes a number as an offered one does, checked as that one: "integer" is "number:0". */
+const SAME_FORMAT = Object.freeze({ integer: "number:0" });
 /** The calculations offered first; the others are under "More calculations". */
 const COMMON_SHOW_AS = CATALOG.showAs.filter((s) => ["percentOfGrandTotal", "percentOfRowTotal", "percentOfColumnTotal"].includes(s));
 /** The number a format's example shows, by the kind of number the format is for. */
-const EXAMPLE = Object.freeze({ percent: 0.256, bytes: 1536000, "duration:h": 1.5, "duration:s": 3725 });
+const EXAMPLE = Object.freeze({ percent: 0.25, bytes: 1536000, "duration:h": 1.5, "duration:s": 3725 });
 
 /** The quick choices of Top items, besides Off and a count of one's own. */
 export const TOP_COUNTS = Object.freeze([3, 5, 10]);
@@ -407,10 +409,13 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf, ea
             ]
         });
         const example = (f) => formatter(f, { locale })(Object.hasOwn(EXAMPLE, f) ? EXAMPLE[f] : 1234.5);
-        const format = (f) => ({ id: `format-${f}`, text: labels.formats[f] ?? f, hint: example(f), checked: spec.format === f, change: set({ format: f }) });
-        const formatName = spec.format ? formatLabel(spec.format, labels, locale) : labels.formatAuto;
+        // Percent reads the value as a share (0.25 is 25%): its example shows both
+        const hint = (f) => (f === "percent" ? `${formatter("number", { locale })(EXAMPLE.percent)} → ${example(f)}` : example(f));
+        const own = spec.format && Object.hasOwn(SAME_FORMAT, spec.format) ? SAME_FORMAT[spec.format] : spec.format;
+        const format = (f) => ({ id: `format-${f}`, text: labels.formats[f] ?? f, hint: hint(f), keywords: labels.formatKeywords[f], checked: own === f, change: set({ format: f }) });
+        const formatName = own ? formatLabel(own, labels, locale) : labels.formatAuto;
         // a format of the view that is not offered (number:1 from a host's defaults): checked, first
-        const offered = !spec.format || FORMAT_CHOICES.includes(spec.format) || MORE_FORMATS.includes(spec.format);
+        const offered = !own || FORMAT_CHOICES.includes(own) || MORE_FORMATS.includes(own);
         topics.push({
             id: "format",
             title: labels.format,
