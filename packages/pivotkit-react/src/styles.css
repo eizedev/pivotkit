@@ -832,13 +832,6 @@
     display: none;
 }
 
-.pk-sep {
-    width: 1px;
-    height: 1.6em;
-    margin: 0 4px;
-    background: var(--pk-border);
-}
-
 .pk-grow {
     flex: 1;
 }
@@ -3132,10 +3125,6 @@
     border: 0;
 }
 
-.pk-fresh :is(td, th) {
-    animation: pk-fade-in calc(var(--pk-duration) * 1.4) ease-out;
-}
-
 /* chart */
 
 /* the table and the chart side by side (#51): the table's share is --pk-split, the divider between */
@@ -4091,7 +4080,6 @@
     }
 }
 
-.pk-toolbar.pk-wrap .pk-sep,
 .pk-toolbar.pk-wrap .pk-grow {
     display: none;
 }

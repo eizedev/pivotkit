@@ -8,24 +8,16 @@
 
 import { VIEW_FILE_LIMITS, fromViewFile, linkFragment, normalize, outsideLimits, withLinkFragment } from "pivotkit-core";
 import { fill } from "./labels.js";
+import { lazy } from "./lazy.js";
 
-/** @type {Promise<typeof import("./link-open.js")> | null} */
-let linkModule = null;
-/** The link module once loaded: a click can then encode without waiting (a browser may allow a copy only within the click). */
-/** @type {typeof import("./link-open.js") | null} */
-let linkLoaded = null;
+/** pivotkit-core/link (fflate) with opening a link's view (link-open.js), loaded on first use. */
+const link = lazy(() => import("./link-open.js"));
 
-/** pivotkit-core/link (fflate) with opening a link's view (link-open.js), loaded once, on first use. */
-export function loadLink() {
-    linkModule ??= import("./link-open.js").then((m) => {
-        linkLoaded = m;
-        return m;
-    });
-    return linkModule;
-}
+/** Loads the link module; a failed import is tried again on the next call (lazy.js). */
+export const loadLink = link.load;
 
-/** The link module when it is loaded already, else null (see loadLink). */
-export const linkNow = () => linkLoaded;
+/** The link module once loaded, else null: a click can then encode without waiting (a browser may allow a copy only within the click). */
+export const linkNow = link.now;
 
 /**
  * The link text of a report's entry in a fragment ("#pivot=1.abc&pivot-sales=1.def"), or null:

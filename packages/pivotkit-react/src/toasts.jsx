@@ -8,11 +8,10 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./icons.jsx";
+import { withToast } from "./toast-list.js";
 
 /** How long a note stays, in milliseconds. */
 export const SHOWN_MS = 6000;
-/** Notes shown at once; older ones would only push the status line apart. */
-const MAX_SHOWN = 2;
 
 /** @typedef {{ id: number, text: string, action?: { label: string, run: () => void }, tone?: "error" }} Toast */
 
@@ -36,7 +35,7 @@ export function useToasts() {
     const push = useCallback(
         (/** @type {Omit<Toast, "id">} */ toast) => {
             const id = next.current++;
-            setToasts((list) => [...list.slice(-(MAX_SHOWN - 1)), { ...toast, id }]);
+            setToasts((list) => withToast(list, { ...toast, id }));
             if (toast.tone !== "error" && !paused.current) {
                 arm(id);
             }
