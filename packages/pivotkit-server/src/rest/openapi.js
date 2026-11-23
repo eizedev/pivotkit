@@ -10,7 +10,7 @@
 import { createRequire } from "node:module";
 import { OPERATIONS } from "pivotkit-report/operations";
 import { RENDER_FORMATS } from "pivotkit-report";
-import { REST_BASE } from "../config.js";
+import { REST_BASE } from "pivotkit-node/rest";
 import { VERSION } from "../context.js";
 import { presentedInput, presentedOutput } from "../present.js";
 import { PROBLEM_CODES } from "./problem.js";

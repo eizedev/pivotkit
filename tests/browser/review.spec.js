@@ -273,9 +273,10 @@ test.describe("touch", () => {
             els.filter((e) => e.getClientRects().length && !e.closest(".pk-field")).map((e) => [e.className, Math.round(e.getBoundingClientRect().width), Math.round(e.getBoundingClientRect().height)]).filter(([, w, h]) => w < 44 || h < 44)
         );
         await expect.poll(small).toEqual([]);
-        // on a phone the tip's x stays in the line of its text
+        // on a phone the tip's x stays in the line of its text (a view without a notice, which would
+        // take the tip's place on a phone)
         await page.setViewportSize({ width: 390, height: 844 });
-        await page.goto("?data=countries");
+        await page.goto("?data=sales");
         await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", "narrow");
         const tip = page.locator(".pk-tip:not(.pk-notice)").first();
         await expect(tip).toBeVisible();

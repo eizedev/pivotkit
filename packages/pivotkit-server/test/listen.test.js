@@ -14,6 +14,7 @@ import { CONNECTION_LIMITS, connectionGate, connectionLimitsOf, refusedText } fr
 import { checkConfig, serveFetch } from "pivotkit-server";
 import { BIN, call, factsOf, restServer, TOKEN, untilReady, workspace } from "./helpers.js";
 import { localIssuer, signingKey } from "./auth/local-issuer.js";
+import { until } from "../../../tests/until.js";
 
 /** Sends raw bytes and gives back what the server answers (until it closes or `ms` pass). */
 function rawExchange(port, text, ms = 3000) {
@@ -340,12 +341,7 @@ test("a body that fails while the socket is full ends the connection at once, al
     socket.pause();
     try {
         const open = () => new Promise((resolve) => listening.server.getConnections((_e, n) => resolve(n)));
-        let count = 1;
-        for (let i = 0; i < 100 && count > 0; i++) {
-            await new Promise((resolve) => setTimeout(resolve, 20));
-            count = /** @type {number} */ (await open());
-        }
-        assert.equal(count, 0, "the server closed the connection after the body failed");
+        await until(async () => (await open()) === 0, { message: "the server closed the connection after the body failed", every: 20 });
     } finally {
         socket.destroy();
         await listening.close();
@@ -429,9 +425,7 @@ test("serveFetch: a client that leaves while the answer streams cancels it", asy
             });
             req.end();
         });
-        for (let i = 0; i < 50 && !cancelled; i++) {
-            await new Promise((resolve) => setTimeout(resolve, 20));
-        }
+        await until(() => cancelled, { tries: 50, every: 20 });
         assert.equal(cancelled, 1);
     } finally {
         await listening.close();

@@ -9,6 +9,7 @@ import { createRequire } from "node:module";
 import { serve } from "pivotkit-server";
 import { fitsRange } from "../src/version-range.js";
 import { BIN, BY_REGION, call, factsOf, runBin, TOKEN, workspace } from "./helpers.js";
+import { until } from "../../../tests/until.js";
 
 const { version: VERSION } = createRequire(import.meta.url)("../package.json");
 
@@ -268,13 +269,15 @@ test("stopOnSignals: SIGTERM or SIGINT closes the server once and exits 0; a clo
 test("close() lets a running report finish before the server stops", async () => {
     const dir = workspace();
     let release;
+    let started = false;
     const gate = new Promise((resolve) => (release = resolve));
     const server = await serve(
-        { sources: { slow: { load: async () => (await gate, [{ Region: "North", Sales: 1 }]) } }, http: { port: 0, enable: ["rest"] }, baseDir: dir, log: "off" },
+        { sources: { slow: { load: async () => ((started = true), await gate, [{ Region: "North", Sales: 1 }]) } }, http: { port: 0, enable: ["rest"] }, baseDir: dir, log: "off" },
         { env: {}, stderr: { write() {} } }
     );
     const running = call(`${server.url}/api/v1/views/validate`, { body: { source: "slow", view: BY_REGION } });
-    await new Promise((r) => setTimeout(r, 100));
+    // the report runs: its load has started
+    await until(() => started);
     const closing = server.close();
     setTimeout(() => release(), 200);
     const res = await running;

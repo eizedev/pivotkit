@@ -176,6 +176,10 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 ## REST
 
 - `src/rest/` is `pivotkit-server/rest`.
+- `rest/handler.js` makes what a request needs. `rest/stages.js` runs its steps in order, from `precheck` to `release`.
+- The stages use `sign-in.js`, `discovery.js` (OpenAPI, resource metadata), `match.js`, `input.js` and `answer-file.js`.
+- `signIn.refuse` writes a refused sign-in's line.
+- A body the service does not take is a `BodyError` (`rest/body.js`). Never an error with a `problem` field.
 - `REST_ROUTES` in `routes.js` has one route per operation of pivotkit-report's table.
 - A new operation gets its words and an example in `routes.js`.
 - Then run `node scripts/openapi.js`. `test/openapi.test.js` fails until you do.
@@ -185,6 +189,12 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Files are read and written through `pivotkit-node/files`. Never import pivotkit-cli.
 - The rows route (`src/records.js`) is REST only, no operation. The policy decides there, never in the worker.
 - Its worker job (`RECORDS_JOB`) posts a head, then one piece per pull (`records-writer.js`). Always write or stop it.
+
+## Download links
+
+- `src/downloads.js` mounts `/downloads` and gives `delivery.js` its links (`linksOf`).
+- `src/downloads/` holds its parts: `tokens.js` (keys, tokens, the cookie), `markers.js`, `files.js`, `pages.js`, `links.js` and `sign-in.js`.
+- A token, a code, a state, a cookie or a path is never logged.
 
 ## Serving and releases
 

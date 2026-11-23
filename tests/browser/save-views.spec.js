@@ -431,6 +431,22 @@ test("web component: Publish and Save over a shared view hand over the view in t
     expect(saved.detail.source).toEqual({ id: "sales", name: "Sales" });
 });
 
+test("web component: a view's Publish button names its action and does not look like Open view file", async ({ page }) => {
+    await page.goto("pages/element-views.html");
+    const report = page.locator("#views");
+    await report.locator('[data-testid="pivot-table"]').waitFor();
+    await page.evaluate(() => {
+        const el = document.getElementById("views");
+        el.templates = [...el.templates, { name: "Plain", view: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }, scope: "user" }];
+    });
+    await elementViews(report);
+    const publish = report.getByTestId("publish-view-Plain");
+    await expect(publish).toHaveAccessibleName("Publish Plain as a shared view");
+    await expect(publish).toHaveAttribute("title", "Publish Plain as a shared view");
+    const drawn = (el) => el.locator("svg path").first().getAttribute("d");
+    expect(await drawn(publish)).not.toBe(await drawn(report.getByTestId("load-view")));
+});
+
 test("web component: Publish of a host's view file made for other data hands over the data the file names", async ({ page }) => {
     await page.goto("pages/element-views.html");
     const report = page.locator("#views");

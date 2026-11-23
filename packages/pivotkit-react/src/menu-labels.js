@@ -146,8 +146,8 @@ export const en = {
     pickItems: "Pick items",
     picksState: "{picked} of {total} picked",
     picksAll: "all {total} picked",
-    clear: "Clear",
-    clearPicks: "Clear picks",
+    clear: "Pick all again",
+    clearPicks: "Pick all again",
     rulesState: { one: "{count} rule", other: "{count} rules" },
     rulesNoneState: "No rules",
     removeAll: "Remove",
@@ -283,6 +283,8 @@ export const en = {
         "duration:h": "Duration from hours",
         "duration:s": "Duration from seconds"
     },
+    // more words the search finds a format by
+    formatKeywords: { "number:0": "whole integer" },
     conditional: "Highlight",
     conditionalNone: "None",
     // Highlight › Colour scale: its colours, low to high
@@ -331,6 +333,8 @@ export const en = {
     searchValues: "Search values",
     selectAll: "Select all",
     selectNone: "Select none",
+    // beside Select all and Select none in a field's Filter level, whose every tick applies at once
+    appliesAtOnce: "Applies at once",
     onlyThis: "Only",
     valuesShown: "{shown} of {total} values; search to find more",
     conditionNumber: "Only if the name…",

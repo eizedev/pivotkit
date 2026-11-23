@@ -118,12 +118,14 @@ These changes are on `main` and come with the next release.
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | **Breaking:** [pivotkit-server no longer brings pivotkit-cli](#server-without-cli) | you installed pivotkit-server from npm and run `pivotkit-server cli` | install pivotkit-cli beside it |
+| **Breaking:** reports are written with mode 0600 | another user reads the output directory without `output.baseUrl`, such as a backup job | run that reader as the server's user, or set `output.baseUrl`; `chmod 600` older reports to match |
 
 #### pivotkit-server no longer brings pivotkit-cli { #server-without-cli }
 
 `pivotkit-server cli` runs the pivotkit-cli installed beside pivotkit-server. Install it the way you
 installed pivotkit-server, for example `npm install --global pivotkit-cli@<version>`. Without it, the
-command exits with code 2 and says `npm install pivotkit-cli`. The container image has all three
+command exits with code 2 and names `npm install pivotkit-cli`, and `npm install --global pivotkit-cli` for a
+global install. The container image has all three
 packages.
 
 ### From 0.8 to 0.9 { #from-0-8-2 }

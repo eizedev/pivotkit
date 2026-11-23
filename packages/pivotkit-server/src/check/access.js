@@ -72,7 +72,7 @@ export async function section(options, _registry, runtime) {
     }
     if (mode === "oauth") {
         items.push(plain(`issuer ${auth.issuer}`), plain(`resource ${auth.resource}`));
-        // each endpoint checks its own audience (rest/handler.js): both, where REST is served too
+        // each endpoint checks its own audience (REST: rest/sign-in.js): both, where REST is served too
         const audience = (auth.audience ?? [auth.resource]).join(" ");
         const restAudience = runtime.rest ? (options.rest?.audience?.length ? options.rest.audience : [restResourceOf(options)]).join(" ") : null;
         if (restAudience !== null && restAudience !== audience) {

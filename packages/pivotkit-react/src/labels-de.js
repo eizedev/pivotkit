@@ -222,7 +222,7 @@ export const de = {
         values: "Eine Zahl in Werte ziehen, um neben den Beschriftungen Summen oder Anzahlen zu sehen.",
         afterDrag: "Rückgängig nimmt den letzten Schritt zurück. Jedes Feld und jeder Chip hat auch ein Menü mit denselben Schritten.",
         saveTemplate: "Diese Ansicht speichern, um sie später wieder zu öffnen?",
-        menus: "Jedes Feld hat auch ein Menü, und die Werkzeugleiste hat Rückgängig.",
+        menus: "Ziehen ist nicht nötig: Nimm + Hinzufügen oder das Menü (⋮) eines Felds.",
         cells: "Auf einen Wert klicken oder darauf Eingabe drücken, um die Zeilen dahinter zu sehen; auf eine Überschrift klicken, um zu sortieren. Die Pfeiltasten wechseln zwischen den Werten."
     },
     tipActions: {

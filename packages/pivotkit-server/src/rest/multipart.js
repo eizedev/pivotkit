@@ -15,6 +15,7 @@ import { OperationError, checkInput } from "pivotkit-report/operations";
 import { INPUT_DEPTH, jsonDepth, presentedInput } from "../present.js";
 import { INLINE_ID, UPLOAD_FORMATS } from "../sources/inline.js";
 import { checkParamsOffered } from "../sources/input.js";
+import { BodyError } from "./body.js";
 
 /** The parts a multipart body may have. */
 const PARTS = Object.freeze(["data", "input"]);
@@ -64,9 +65,6 @@ export function multipartParts(bytes, contentType) {
     }
     return Math.max(0, found - 1);
 }
-
-/** A REST problem other than an operation's error (handler.js answers it). */
-const problemError = (code, detail) => Object.assign(new Error(detail), { problem: code, detail });
 
 /** The format of the file of a `data` part: by its name's extension, else by its content type; null when neither is read. */
 export function uploadFormatOf(file) {
@@ -124,7 +122,7 @@ export async function readMultipart(bytes, contentType, operation, offers, fileR
     }
     const format = uploadFormatOf(file);
     if (!format) {
-        throw problemError("UNSUPPORTED_MEDIA_TYPE", "the part data is read as csv, tsv, json or xlsx: give its file name that extension, or the part that content type");
+        throw new BodyError("UNSUPPORTED_MEDIA_TYPE", "the part data is read as csv, tsv, json or xlsx: give its file name that extension, or the part that content type");
     }
     const part = form.get("input");
     /** @type {any} */

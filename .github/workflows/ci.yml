@@ -124,7 +124,7 @@ jobs:
     # The Angular example (examples/angular): a standalone component with <pivot-report>, built by
     # Angular's CLI from its own lock file against this repository's pivotkit-element (linked from
     # packages/), then one Playwright test in Chromium, Firefox and WebKit. The same Playwright image
-    # as the browser jobs (tests/ci.test.js checks every image in this file).
+    # as the browser jobs (tests/workflows.test.js checks every image of the workflows).
     name: angular
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -171,10 +171,10 @@ jobs:
     # fourth quarter, so its shards take other shares of the tests: PWTEST_SHARD_WEIGHTS in the test
     # step (#672). The weights come from the "Browser tests" step times of a green main run, taken as
     # even within each quarter of the test list; check them again after larger test changes. The
-    # variable is Playwright's own but not in its docs, so this is a workaround; tests/ci.test.js checks
+    # variable is Playwright's own but not in its docs, so this is a workaround; tests/workflows.test.js checks
     # that the installed Playwright still reads it. Other engines pass an empty value, which it ignores.
     # Playwright's own image carries the browsers and their system libraries, so nothing is installed
-    # with apt. Its version must be the one of @playwright/test in package-lock.json; tests/ci.test.js
+    # with apt. Its version must be the one of @playwright/test in package-lock.json; tests/workflows.test.js
     # checks that and this matrix.
     name: browser (${{ matrix.target.browser }} ${{ matrix.target.shard }}/${{ matrix.target.of }}, React ${{ matrix.react }})
     runs-on: ubuntu-latest

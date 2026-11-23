@@ -821,13 +821,14 @@
 }
 
 /* a narrow report: tighter still, and no caret (the button says it opens a menu), so Undo, Redo,
-   Export and More share one line on a phone, and the settings stay on the tabs' line */
+   Export and More share one line on a phone, and the settings take less room beside the tabs */
 .pk-root[data-pk-size="narrow"] .pk-toolbar .pk-btn {
     gap: 0.35em;
     padding-inline: 0.55em;
 }
 
-.pk-root[data-pk-size="narrow"] :is(.pk-toolbar, .pk-result-head) .pk-caret {
+.pk-root[data-pk-size="narrow"] .pk-toolbar .pk-caret,
+.pk-result-head[data-pk-short] .pk-caret {
     display: none;
 }
 
@@ -1716,6 +1717,13 @@
     overscroll-behavior: contain;
 }
 
+/* more of the list below its edge (levels.jsx useMoreBelow): its last line fades out, so it shows
+   that the list goes on (the mask's colour counts only for its opacity) */
+.pk-level-first[data-pk-more],
+.pk-level-body[data-pk-more] {
+    mask-image: linear-gradient(to bottom, currentColor calc(100% - 3.5em), transparent calc(100% - 0.5em));
+}
+
 .pk-level-search {
     flex: none;
     margin: 0 2px;
@@ -1875,6 +1883,7 @@
 .pk-fsection-toggle {
     display: flex;
     flex: 1;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.35em;
     min-width: 0;
@@ -1896,15 +1905,13 @@
     font-weight: var(--pk-weight-strong);
 }
 
+/* the state of a section: right of its title, or on a line of its own when the room beside the
+   title and the section's action is too narrow; never cut off */
 .pk-fsection-state {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
+    flex: 1 0 auto;
     color: var(--pk-muted);
     font-size: var(--pk-small);
     text-align: right;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .pk-fsection-body {
@@ -2451,6 +2458,8 @@
 
 .pk-filter-actions {
     display: flex;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     font-size: var(--pk-small);
 }
@@ -2511,14 +2520,27 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* "Only": out of sight until its row is pointed at or has the focus, yet in the Tab order (opacity,
+   not visibility); a touch screen has no pointer to show it, so there it always shows */
 .pk-only {
-    visibility: hidden;
+    opacity: 0;
     font-size: var(--pk-small);
 }
 
-.pk-value:hover .pk-only,
-.pk-only:focus-visible {
-    visibility: visible;
+.pk-value:is(:hover, :focus-within) .pk-only {
+    opacity: 1;
+}
+
+@media (pointer: coarse) {
+    .pk-only {
+        opacity: 1;
+    }
+}
+
+/* beside Select all and Select none: whether a tick applies at once */
+.pk-values-note {
+    margin-left: auto;
+    color: var(--pk-muted);
 }
 
 .pk-condition {
@@ -2603,17 +2625,35 @@
 }
 
 /* on top of the result: the tabs Table and Chart, then the settings of the view shown, Enlarge and
-   Full screen; a rule under the row, the tab shown stands on it */
+   Full screen; a rule under the row, the tab shown stands on it. Without room for their whole names
+   the buttons take their short form (data-pk-short); without room even for that beside the tabs,
+   they move together to a line above them (wrap-reverse), at the right, and wrap among themselves
+   when even that line is too short; no button is cut (#706). The Tab order stays tabs
+   first, then the buttons, as on one line */
 .pk-result-head {
     display: flex;
-    align-items: flex-end;
+    flex-wrap: wrap-reverse;
+    /* wrap-reverse swaps the cross axis: flex-start is the foot of the line, on the rule */
+    align-items: flex-start;
     gap: 6px;
     min-width: 0;
     margin-bottom: -4px;
     border-bottom: 1px solid var(--pk-border);
 }
 
-.pk-result-head > .pk-btn {
+.pk-result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: flex-end;
+    gap: inherit;
+    margin-inline-start: auto;
+}
+
+/* a button never shrinks below its text: on a touch screen its min-width (44 px) would otherwise be
+   all a squeezed row leaves it, and its text would be cut */
+.pk-result-actions > .pk-btn {
+    flex: none;
     margin-bottom: 5px;
 }
 
@@ -2664,7 +2704,7 @@
     content: "";
 }
 
-/* a phone: the tabs, Settings and the two icons share one line */
+/* a phone: the tabs, Settings and the two icons share one line where they fit */
 .pk-root[data-pk-size="narrow"] .pk-tab {
     gap: 0.35em;
     padding: 0 0.6em;
@@ -2674,7 +2714,9 @@
     gap: 4px;
 }
 
-.pk-root[data-pk-size="narrow"] .pk-result-head > .pk-btn {
+/* the short form of the buttons (view-tabs.jsx): a narrow report, or a row without room for their
+   whole names */
+.pk-result-head[data-pk-short] .pk-result-actions > .pk-btn {
     gap: 0.35em;
     padding-inline: 0.5em;
 }
@@ -2879,13 +2921,13 @@
 }
 
 /* a narrow report: a little less room around each cell, for the labels' least width below, and a
-   value's name wraps beyond 22 % (a word such as "Population" still fits) */
+   value's name wraps beyond 22 % (a word such as "Population" still fits, as a row label's does) */
 .pk-root[data-pk-size="narrow"] .pk-table :is(th, td) {
     padding-inline: 0.6em;
 }
 
 .pk-root[data-pk-size="narrow"] .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
-    max-width: var(--pk-label-max, max(5em, 22cqi));
+    max-width: var(--pk-label-max, max(5.5em, 22cqi));
 }
 
 /* --pk-label-w and --pk-label-max are internal switches that fitLabels sets through data-pk-labels,
@@ -2951,10 +2993,12 @@
 
 /* the text of a header that sorts (table.jsx): a button as large as the text, so the cell's edges stay
    free; its arrow shows the order in use, or on hover and focus the one a click gives */
+/* its arrow sits in the cell's padding before the text: a row of months keeps its width (#70), and a
+   word that fits its header does not break for the arrow's room ("Categor" over "y" on a phone) */
 .pk-th-sort {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 0.2em;
     min-width: 0;
     min-height: var(--pk-target);
     padding: 0;
@@ -2969,32 +3013,19 @@
 
 /* a faint arrow at rest says the name sorts, on a desktop too (#70); pointed at or focused, stronger */
 .pk-th-arrow {
-    flex: none;
+    position: absolute;
+    top: 50%;
+    right: 100%;
+    width: 0.8em;
+    height: 0.8em;
+    margin-right: 0.05em;
     opacity: 0.35;
+    translate: 0 -50%;
     transition: opacity var(--pk-duration);
 }
 
 .pk-th-sort:is(:hover, :focus) .pk-th-arrow {
     opacity: 0.6;
-}
-
-/* a column's label and a column field's name: the arrow sits in the cell's padding, beside the text,
-   so a row of months keeps its width and the corner does not wrap (table.jsx: aside) */
-.pk-th-sort-aside {
-    position: relative;
-}
-
-.pk-th-sort-aside .pk-th-arrow {
-    position: absolute;
-    top: 50%;
-    width: 0.8em;
-    height: 0.8em;
-    translate: 0 -50%;
-}
-
-.pk-colHeader .pk-th-sort-aside .pk-th-arrow {
-    right: 100%;
-    margin-right: 0.05em;
 }
 
 .pk-th-sort.pk-sorted .pk-th-arrow {
