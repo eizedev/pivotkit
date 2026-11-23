@@ -137,8 +137,8 @@ able to write to it:
   say so when the folder is not writable.
 - When `output.dir` names a directory below `/out`, the server makes it at start, with mode 0700.
   When `output.baseUrl` is set, the mode is 0755 narrowed by the umask.
-- With mode 0700, only the user 10001 reads the directory. A second reader, such as a web server or
-  a backup, needs `output.baseUrl` or a directory you make yourself.
+- With mode 0700, only the user 10001 reads the directory, and reports are 0600. A second reader,
+  such as a web server or a backup, needs `output.baseUrl` or must run as the user 10001.
 - The server's own [download links](delivery.md) record which one-time links were used in
   `.pivotkit-downloads/` there.
 

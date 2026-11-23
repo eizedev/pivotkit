@@ -896,13 +896,13 @@ latest release, from the reader's browser. pivotkit in your app makes no such re
 - pivotkit-core has one runtime dependency: [fflate](https://github.com/101arrowz/fflate) for the XLSX
   zip.
 - pivotkit-xlsx depends on pivotkit-core, fflate and [read-excel-file](https://www.npmjs.com/package/read-excel-file)
-  (MIT). read-excel-file brings saxen, which `dist/` bundles. It also brings worker-f and
-  unzipper-esm, which its browser, web worker and Node entries use. pivotkit-xlsx reads with its
-  universal entry and does not use them. pivotkit-xlsx's `dist/` bundles read-excel-file, saxen and
-  fflate, with their licenses in `dist/THIRD_PARTY_LICENSES.txt`.
+  (MIT); `dist/` bundles read-excel-file, saxen and fflate, licenses in `dist/THIRD_PARTY_LICENSES.txt`.
+  It reads with read-excel-file's universal entry, not the ones that bring worker-f and unzipper-esm.
 - pivotkit-react depends on pivotkit-core and @dnd-kit. React, ReactDOM and ECharts come from your
   app, so their security updates stay with you.
 - pivotkit-element bundles everything it needs and has no runtime dependency. The licenses of the
   bundled packages are in its `dist/THIRD_PARTY_LICENSES.txt`.
+- Beside pivotkit's own packages, pivotkit-cli and pivotkit-server bring ECharts, pivotkit-server [jose](https://github.com/panva/jose)
+  (signed tokens, OAuth), and pivotkit-mcp the MCP SDK `@modelcontextprotocol/server`.
 - Every third-party package is pinned to an exact version in the repository, and CI installs without
   install scripts.
