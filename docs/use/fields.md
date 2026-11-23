@@ -24,19 +24,20 @@ A field in a zone is a **chip**. Its menu changes how the report shows the field
 
 ## Adding fields
 
-<figure markdown>
-<video controls muted playsinline preload="none" width="800" height="600" poster="../../assets/clips/drag-field.png" aria-label="Video: drag a field into Rows" aria-describedby="clip-drag-field">
-<source src="../assets/clips/drag-field.webm" type="video/webm">
-</video>
-<figcaption id="clip-drag-field">Video, about 6 seconds, no sound: the pointer drags Region from the field list into Rows. Rows takes the drop, and the table lists the regions.</figcaption>
-</figure>
-
 | To put a field into a zone | How |
 | --- | --- |
 | Drag | Drag the field into a zone. While you drag, each zone's frame turns into a dashed outline. The lists and the page scroll while you drag, and the field you drag stays above everything. |
 | Click | Click the field, or press Enter on it. Numbers go to Values, everything else to Rows. |
 | Menu | Open the field's menu and choose **Add to Rows**, **Columns**, **Values** or **Filters**. To open the menu, click the three dots, or the grip left of the field, which says "Drag into a zone". |
 | **+ Add** | Click **+ Add** next to a zone's title. Its menu lists every field with its type and a search. Pick a field. |
+
+<figure markdown>
+<video controls muted playsinline preload="none" width="800" height="600" poster="../../assets/clips/drag-field.png" aria-label="Video: drag a field into Rows" aria-describedby="clip-drag-field">
+<source src="../assets/clips/drag-field.webm" type="video/webm">
+Your browser cannot play this video. The caption below says what it shows.
+</video>
+<figcaption id="clip-drag-field">Video without sound: the pointer drags Region from the field list into Rows. Rows takes the drop, and the table lists the regions.</figcaption>
+</figure>
 
 All four give the same result. Details:
 

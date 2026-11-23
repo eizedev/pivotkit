@@ -29,7 +29,9 @@ const SIZE = { width: 800, height: 600 };
 /** Frames per second: the pointer and the drag stay smooth, the file stays small. */
 const FPS = 12;
 /** How long Playwright shows each pointer action, in milliseconds. */
-const POINTER_MS = 60;
+const POINTER_MS = 45;
+/** The size a clip should stay under: a reader on a slow line waits for it after pressing play. */
+const BUDGET_KB = 500;
 /**
  * The report alone: the playground's header and footer hidden, the report over the whole window. The
  * tips above the result are hidden too: they take the room the result needs in a small window.
@@ -94,7 +96,7 @@ async function dragOnto(page, from, to) {
 async function pickItem(page, button, label) {
     await clickOn(page, button);
     await page.getByTestId("picker-search").fill(label);
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(250);
     await page.getByTestId("picker-search").press("Enter");
 }
 
@@ -132,7 +134,7 @@ const CLIPS = [
         play: (page) => dragOnto(page, page.locator('.pk-field[data-field="Region"]'), page.locator('[data-zone="rows"]'))
     },
     {
-        // docs/use/filters.md: the months kept to a range with a rule, "is between" Jun 2024 and Aug 2024
+        // for docs/use/filters.md: the months kept to a range with a rule, "is between" Jun 2024 and Aug 2024
         name: "filter-dates",
         query: "data=weather&empty",
         hash: MONTHS,
@@ -147,16 +149,16 @@ const CLIPS = [
             // a native select's list is not part of the page's picture: the choice shows in the field
             await glide(page, await middle(menu.getByTestId("rule-item-op")));
             await menu.getByTestId("rule-item-op").selectOption("between");
-            await page.waitForTimeout(400);
+            await page.waitForTimeout(250);
             await pickItem(page, menu.getByTestId("rule-item-value"), "Jun 2024");
             await pickItem(page, menu.getByTestId("rule-item-value2"), "Aug 2024");
-            await page.waitForTimeout(500);
+            await page.waitForTimeout(300);
             await page.keyboard.press("Escape");
             await page.keyboard.press("Escape");
         }
     },
     {
-        // docs/use/charts.md: a click on a bar opens its menu, Show the rows lists the rows behind it
+        // for docs/use/charts.md: a click on a bar opens its menu, Show the rows lists the rows behind it
         name: "chart-rows",
         query: "data=sales&empty",
         hash: BARS,
@@ -172,14 +174,11 @@ const CLIPS = [
     }
 ];
 
-const playground = startPlayground(4175);
-try {
-    await mkdir(out, { recursive: true });
-    const browser = await chromium.launch();
-    const only = process.env.CLIPS?.split(",");
-    for (const clip of CLIPS.filter((c) => !only || only.includes(c.name))) {
-        const page = await browser.newPage({ viewport: SIZE, deviceScaleFactor: 1, reducedMotion: "reduce", colorScheme: "light" });
-        await openPlayground(page, playground.base, { query: `${clip.query}&height=${SIZE.height}`, hash: clip.hash, theme: "light" });
+/** Records one clip and its poster; the page closes even when a step fails. */
+async function record(browser, base, clip) {
+    const page = await browser.newPage({ viewport: SIZE, deviceScaleFactor: 1, reducedMotion: "reduce", colorScheme: "light" });
+    try {
+        await openPlayground(page, base, { query: `${clip.query}&height=${SIZE.height}`, hash: clip.hash, theme: "light" });
         await page.addStyleTag({ content: REPORT_ONLY });
         await hideToasts(page);
         if (clip.chart) await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
@@ -194,14 +193,29 @@ try {
         await page.waitForTimeout(600);
         await clip.play(page, ready);
         // the result stays a moment, and is the poster
-        await page.waitForTimeout(1500);
+        await page.waitForTimeout(1200);
         await page.screencast.hideActions();
         await page.screenshot({ path: `${out}${clip.name}.png` });
         await page.screencast.stop();
+        const kb = Math.round((await stat(video)).size / 1024);
+        console.log(`${clip.name}.webm ${kb} KB${kb > BUDGET_KB ? `, over ${BUDGET_KB} KB: shorten its steps` : ""}`);
+    } finally {
         await page.close();
-        console.log(`${clip.name}.webm ${Math.round((await stat(video)).size / 1024)} KB`);
     }
-    await browser.close();
+}
+
+const only = process.env.CLIPS?.split(",");
+const unknown = only?.filter((name) => !CLIPS.some((c) => c.name === name));
+if (unknown?.length) throw new Error(`docs-clips: no clip named ${unknown.join(", ")}`);
+const playground = startPlayground(4175);
+try {
+    await mkdir(out, { recursive: true });
+    const browser = await chromium.launch();
+    try {
+        for (const clip of CLIPS.filter((c) => !only || only.includes(c.name))) await record(browser, playground.base, clip);
+    } finally {
+        await browser.close();
+    }
 } finally {
     playground.stop();
 }
