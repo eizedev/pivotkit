@@ -74,7 +74,7 @@ Click the tab **Chart** on top of the table. The report draws the same data as b
 - **Undo** takes back any step. **Start over** has **Reset**, which goes back to the start, and
   **New, empty report**.
 - **Views**, **Save current view** keeps the report under a name, for you. Once you work on a saved
-  view, **Save** writes your changes into it with one click. **Share this view** copies a link or
+  view, a dot beside its name marks changes, and **Views**, **Save “name”** writes them into it. **Share this view** copies a link or
   downloads the view as a file. See [Views, saving and sharing](views.md).
 - **Export** downloads the table as Excel or CSV, or the chart as a picture. It also copies the table
   into a spreadsheet. See [Export and copy](export.md).
