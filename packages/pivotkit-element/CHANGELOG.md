@@ -8,6 +8,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- Headers that wrap between words only, one note above the result at a time on a phone and a
+  clearer tip on an empty report. See pivotkit-react's changelog.
 - The chart's point menu without a tooltip over it, the fade of a cut-off menu and the euro listed
   once in Number format. See pivotkit-react's changelog.
 - The buttons beside the tabs Table and Chart are no longer cut off: without room they take their

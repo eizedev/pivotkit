@@ -30,12 +30,13 @@ test("one tip at a time; x dismisses it by keyboard, the next one takes its plac
     await expect(page.getByTestId("tip-textValue")).toHaveCount(0);
 });
 
-test("a notice that the result is cut stays: no x, with tips off, and next to a tip on a phone", async ({ page }) => {
+test("a notice that the result is cut stays: no x, with tips off; next to a tip on a desktop, in its place on a phone", async ({ page }) => {
     await page.goto("?data=countries&preset=0");
     const top = page.getByTestId("tip-top");
     await expect(top).toContainText("Country shows the top 3 only");
     await expect(top).toHaveAttribute("data-kind", "notice");
     await expect(top.getByRole("button", { name: "Dismiss tip" })).toHaveCount(0);
+    await expect(page.getByTestId("tip-cells")).toBeVisible();
     await toolbar(page, "help");
     const sw = page.getByTestId("show-tips");
     await sw.focus();
@@ -47,6 +48,18 @@ test("a notice that the result is cut stays: no x, with tips off, and next to a 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("?data=countries&preset=0");
     await expect(top).toBeVisible();
+});
+
+test("on a phone one note shows above the result: a notice takes the tip's place, the tip shows once it is gone", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("?data=countries&preset=0");
+    await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", "narrow");
+    await expect(page.getByTestId("tip-top")).toBeVisible();
+    await expect(page.locator('[data-testid="tips"] [data-kind]')).toHaveCount(1);
+    // the top 3 off: the notice goes, the tip comes
+    await page.goto("?data=countries&preset=1");
+    await expect(page.getByTestId("tip-top")).toHaveCount(0);
+    await expect(page.locator('[data-testid="tips"] [data-kind="tip"]')).toHaveCount(1);
 });
 
 test("More, Help: Show tips off hides every tip, Show dismissed tips again brings them back", async ({ page }) => {
@@ -125,7 +138,8 @@ test("after several changes the tip offers to save the view as a template", asyn
 
 test("after the first drag: Undo and the menus", async ({ page }) => {
     await page.goto("?data=sales&empty");
-    await expect(page.getByTestId("tip-menus")).toBeVisible();
+    // the empty report's tip says what to do without dragging
+    await expect(page.getByTestId("tip-menus")).toContainText("use + Add in Rows, Columns or Values, or a field's menu (⋮)");
     await drag(page, page.locator('.pk-field[data-field="Region"] .pk-handle'), page.locator('[data-zone="rows"]'));
     await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
     await expect(page.getByTestId("tip-afterDrag")).toContainText("Undo takes the last step back");

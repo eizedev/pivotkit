@@ -2921,13 +2921,13 @@
 }
 
 /* a narrow report: a little less room around each cell, for the labels' least width below, and a
-   value's name wraps beyond 22 % (a word such as "Population" still fits) */
+   value's name wraps beyond 22 % (a word such as "Population" still fits, as a row label's does) */
 .pk-root[data-pk-size="narrow"] .pk-table :is(th, td) {
     padding-inline: 0.6em;
 }
 
 .pk-root[data-pk-size="narrow"] .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
-    max-width: var(--pk-label-max, max(5em, 22cqi));
+    max-width: var(--pk-label-max, max(5.5em, 22cqi));
 }
 
 /* --pk-label-w and --pk-label-max are internal switches that fitLabels sets through data-pk-labels,
@@ -3020,8 +3020,8 @@
     opacity: 0.6;
 }
 
-/* a column's label and a column field's name: the arrow sits in the cell's padding, beside the text,
-   so a row of months keeps its width and the corner does not wrap (table.jsx: aside) */
+/* every header's arrow sits in the cell's padding before the text (table.jsx sortButton): a row of
+   months keeps its width, and a word that fits its header does not break for the arrow's room */
 .pk-th-sort-aside {
     position: relative;
 }
@@ -3029,14 +3029,11 @@
 .pk-th-sort-aside .pk-th-arrow {
     position: absolute;
     top: 50%;
+    right: 100%;
     width: 0.8em;
     height: 0.8em;
-    translate: 0 -50%;
-}
-
-.pk-colHeader .pk-th-sort-aside .pk-th-arrow {
-    right: 100%;
     margin-right: 0.05em;
+    translate: 0 -50%;
 }
 
 .pk-th-sort.pk-sorted .pk-th-arrow {

@@ -250,7 +250,7 @@ function Report(props) {
         }
     });
     const tipsTable = useTipsTable();
-    const tips = tipsShown({ table: tipsTable, view, display: shown, pivot, encoded, empty, typeOf: fields.typeOf, showTable: pivot.tableOnScreen, activity, canSave: saved.canSave, dismissed, labels, locale, commit, nameOf: fields.nameOf, openViews: saved.openViews });
+    const tips = tipsShown({ table: tipsTable, view, display: shown, pivot, encoded, empty, typeOf: fields.typeOf, showTable: pivot.tableOnScreen, activity, canSave: saved.canSave, dismissed, labels, locale, commit, nameOf: fields.nameOf, openViews: saved.openViews, narrow: size === "narrow" });
     const results = resultSteps({ view, commit, announce, labels, locale, result: pivot.result, outer: pivot.outer, folding: pivot.folding });
     const layerValue = useMemo(() => ({ layer, size }), [layer, size]);
     const focusReport = () => root.current?.focus({ preventScroll: true });

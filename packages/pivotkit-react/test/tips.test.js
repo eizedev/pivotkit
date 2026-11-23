@@ -246,6 +246,9 @@ test("tips: at most TIP_LIMIT, the most important first; allowed, dismissed and 
     assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: ["showAs", "textValue"] }).map((t) => t.id), ["top", "cells"]);
     assert.deepEqual(activeTips(ctx, { allowed: ["cells", "textValue"], dismissed: [] }).map((t) => t.id), ["top", "textValue"]);
     assert.deepEqual(activeTips({ ...ctx, failed: true }, { allowed: "on", dismissed: [] }), [], "an error shows nothing");
+    // a narrow report (a phone) shows one note: the notice takes the tip's place
+    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: [], noticesCount: true }).map((t) => t.id), ["top"]);
+    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: [], limit: 2, noticesCount: true }).map((t) => t.id), ["top", "showAs"]);
 });
 
 test("notices (the result is cut or empty) stay: with tips off, all dismissed, at the narrow limit", () => {

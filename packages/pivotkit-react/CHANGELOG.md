@@ -13,6 +13,14 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- The table's headers wrap between words only. On a phone, "Category" or "Population" broke inside
+  the word. Every header's sort arrow now sits before its text, in the cell's padding, as a column's
+  arrow already did.
+- On a phone, one note shows above the result at a time. A notice that the result is cut ("Region
+  shows the top 3 only") takes the place of a tip; the tip shows once the notice is gone. A wider
+  report still shows both.
+- The empty report's tip says what to do without dragging: **+ Add** in Rows, Columns or Values, or
+  a field's menu (⋮).
 - No tooltip shows over the menu of a clicked bar or point while it is open. Before, the tooltip of
   the bar under the pointer covered part of the menu.
 - A menu that a low window cuts off shows that it goes on: its last line fades out until the list is

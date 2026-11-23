@@ -278,7 +278,7 @@ export const en = {
         values: "Add a number to Values to see sums or counts next to the labels.",
         afterDrag: "Undo takes the last step back. Every field and chip also has a menu with the same moves.",
         saveTemplate: "Save this view to open it again later?",
-        menus: "Every field also has a menu, and the toolbar has Undo.",
+        menus: "No need to drag: use + Add in Rows, Columns or Values, or a field's menu (⋮). Undo takes any step back.",
         cells: "Click a value, or press Enter on it, to see the rows behind it; click a header to sort. The arrow keys move between values."
     },
     tipActions: {
