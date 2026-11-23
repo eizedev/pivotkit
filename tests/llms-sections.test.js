@@ -2,12 +2,10 @@
 // section names: a new page that no section matches would be missing from both without a warning.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
-import { join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { sitePages } from "./markdown-files.js";
 
 const root = new URL("../", import.meta.url);
-const docs = fileURLToPath(new URL("docs/", root));
 
 /** The patterns of the llmstxt sections, in the order they are written. */
 function sectionPatterns() {
@@ -23,22 +21,13 @@ function sectionPatterns() {
     });
 }
 
-/** The Markdown pages of the site; docs/playground/ is the built demo, not pages. */
-function pages(dir = docs) {
-    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-        const path = join(dir, entry.name);
-        if (entry.isDirectory()) return entry.name === "playground" ? [] : pages(path);
-        return entry.name.endsWith(".md") ? [relative(docs, path)] : [];
-    });
-}
-
 // fnmatch as the plugin uses it: "*" matches any characters, "/" included
 const matcher = (pattern) => new RegExp(`^${pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`);
 
 test("every page of the site is in exactly one llms.txt section", () => {
     const patterns = sectionPatterns().map((p) => ({ p, re: matcher(p) }));
     assert.ok(patterns.length > 0, "no section patterns found");
-    const all = pages();
+    const all = sitePages();
     assert.ok(all.includes("index.md") && all.includes("compare.md"), "the page list misses known pages");
     for (const page of all) {
         const hits = patterns.filter(({ re }) => re.test(page)).map(({ p }) => p);

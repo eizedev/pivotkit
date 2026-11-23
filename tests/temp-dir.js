@@ -3,7 +3,7 @@
 // the process ends (a test file under node --test, a probe, a Playwright worker), also after a
 // failure. Every name starts with "pivotkit-" and, when PIVOTKIT_TEST_RUN is set
 // (scripts/test-run.js sets it), the run's id: the run checks afterwards that it left none behind,
-// without counting another run's directories on the same machine. tests/temp-dirs.test.js fails on
+// without counting another run's directories on the same machine. tests/temp-dir-check.test.js fails on
 // a temporary directory made any other way. A process that ends without its exit event (SIGKILL, a
 // crash) cannot remove its directories. Each name holds its host's mark and its process id. The
 // first tempDir() of any later process on the same host removes the directories of processes that
