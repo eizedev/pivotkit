@@ -9,7 +9,8 @@ pivotkit-server and pivotkit-mcp write one line per event to stderr and keep no 
 stdout is the MCP protocol. What happens to the lines is up to your container runtime or service
 manager: `docker logs`, journald, a log driver or a cluster's log agent. This page says what a line
 holds and how to get the lines where you search them. Whether a server is up and can take work is
-for `/healthz` and `/readyz`, not the log ([health checks](rest.md#running)).
+for `/healthz` and `/readyz`, not the log ([health checks](rest.md#running)). There is no metrics
+endpoint: count events from the log lines below.
 
 ## Settings { #settings }
 
