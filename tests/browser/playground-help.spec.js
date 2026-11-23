@@ -141,7 +141,7 @@ test("Show me hands the step to the visitor, Escape ends it", async ({ page }) =
 test("the help speaks the playground's language", async ({ page }) => {
     await open(page);
     await page.getByTestId("pg-lang").selectOption("de");
-    await expect(page.getByTestId("pg-help")).toHaveText("Wie geht …?");
+    await expect(page.getByTestId("pg-help")).toHaveAccessibleName("Wie geht …?");
     await page.getByTestId("pg-help").click();
     await page.getByTestId("pg-help-filter").click();
     await expect(dialog(page).getByRole("heading", { name: "Wie filtere ich?" })).toBeVisible();
