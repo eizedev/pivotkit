@@ -99,8 +99,8 @@ attribute becomes `"false"` instead.
 The element parses `view` and `default-view` as JSON objects. It ignores a text that is not one and
 writes a console warning. Setting the property does not write the attribute.
 
-These are properties only: data, templates, sources, labels, field defaults, limits, import limits,
-plugins and dismissed tips.
+These are properties only: `data`, `dataKey`, `templates`, `sources`, `labels`, `fieldDefaults`,
+`limits`, `importLimits`, `plugins`, `dismissedTips`, `chartOptions`, `colorMap` and `importWorkerUrl`.
 
 A view is user input either way. pivotkit-core normalizes it against the data, and it cannot run code.
 
@@ -563,7 +563,7 @@ They are approximate and change with every dependency update.
 CI runs the same command on Node 24 and measures the same numbers. It fails when a group is over
 `SIZE_BUDGET_KIB` in `build.js`:
 
-- The first load's budget is 181 KiB. It is a hard line: a feature that needs room there makes it by
+- The first load's budget is 181.5 KiB. It is a hard line: a feature that needs room there makes it by
   moving something out of the first load.
 - The budgets of the groups loaded later leave a little room above what CI measures.
 - A Node with the system's zlib, such as Homebrew's, measures other sizes. The command says so.

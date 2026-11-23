@@ -5,14 +5,14 @@ description: Every public function, constant and type of pivotkit-core and its e
 
 # pivotkit-core reference
 
-pivotkit-core has five entry points:
+pivotkit-core has six entry points:
 
 - `pivotkit-core`: the engine.
 - `pivotkit-core/export`: XLSX and CSV.
 - `pivotkit-core/link`: a view in a link.
 - `pivotkit-core/templates`: a list of templates.
-- `pivotkit-core/import`: reads CSV, JSON and, with plugins, other files into a table
-  ([Loading files](import.md)).
+- `pivotkit-core/import`: reads CSV, JSON and, with plugins, other files ([Loading files](import.md)).
+- `pivotkit-core/chart`: the chart's ECharts option and marks ([The chart's marks](#chart-marks)).
 
 Only `pivotkit-core/export` and `pivotkit-core/link` import fflate. Every function takes its required
 inputs first and all optional settings in one options object last. Modules not listed here are
@@ -642,7 +642,7 @@ files contain and where Excel's number formats cannot follow the grid.
 | `LIMITS` | The [limits](../concepts/limits.md#limits). |
 | `ISSUE_CAP` | `{ perCode: 100, total: 1000 }`: the most issues of one code, and in all, that `normalize` and `validate` list for one view. The warning `tooManyIssues` counts the rest ([Views from outside](../concepts/limits.md#views-from-outside)). |
 | `OUTSIDE_LIMITS`, `outsideLimits(limits)` | `OUTSIDE_LIMITS`: the tighter limits of a view from outside (a link, pasted JSON, an API, an LLM), `{ filters: 50, json: 1000000 }`. `outsideLimits(limits)`: the host's limits with each of these at most its preset value, to pass as `normalize`'s `limits` ([Views from outside](../concepts/limits.md#views-from-outside)). |
-| `PivotkitError` | The error class. `code` is `INVALID_ARGUMENT`, `INVALID_OPTION`, `INVALID_VIEW` (`computePivot` with `strict`, `details.issues`), `LIMIT_EXCEEDED` or `INVALID_FILE`, a file that cannot be read ([Loading files](import.md#errors)). `details` holds `{ limit, value, max }` for a limit, plus `file` and `what` (what was counted) for a file's limit. It holds `{ reason, file }` for a file that cannot be read. |
+| `PivotkitError` | The error class. `code` is `INVALID_ARGUMENT`, `INVALID_OPTION`, `INVALID_VIEW` (`computePivot` with `strict`, `details.issues`), `LIMIT_EXCEEDED`, `INVALID_FILE`, a file that cannot be read ([Loading files](import.md#errors)), or `INVALID_TEMPLATE`, a print template pivotkit-report refuses ([Print templates](print-template.md)). `details` holds `{ limit, value, max }` for a limit, plus `file` and `what` (what was counted) for a file's limit. It holds `{ reason, file }` for a file that cannot be read. |
 
 ## Types
 

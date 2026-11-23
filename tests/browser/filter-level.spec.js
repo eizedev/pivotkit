@@ -5,7 +5,7 @@
 // result without its reason, items ticked yet "left out", a native select over the menu.
 import { readFileSync } from "node:fs";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, expect, tableRows, test } from "./fixtures.js";
+import { SNAPSHOT_DAY, chipMenu, expect, tableRows, test } from "./fixtures.js";
 import { unpack } from "../../examples/playground/data/sources.js";
 
 const load = (name) => unpack(JSON.parse(readFileSync(new URL(`../../examples/playground/data/${name}.json`, import.meta.url), "utf8")));
@@ -14,7 +14,10 @@ const eol = load("endoflife");
 const dates = weather.map((r) => r.Date).sort();
 const [firstDay, lastDay] = [dates[0], dates[dates.length - 1]];
 const lastYear = Number(lastDay.slice(0, 4));
-const thisYear = new Date().getUTCFullYear();
+const thisYear = SNAPSHOT_DAY.getUTCFullYear();
+
+// "today" is the snapshot's day, so This year and Last N months mean the same in any year
+test.beforeEach(({ page }) => page.clock.setFixedTime(SNAPSHOT_DAY));
 const day = (iso) => new Date(`${iso}T00:00Z`).toLocaleDateString("en-US", { dateStyle: "medium", timeZone: "UTC" });
 const n = (x) => x.toLocaleString("en-US");
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -97,7 +100,7 @@ test.describe("the Filter level on data that end before today (weather, to Dec 3
         await expect(menu.getByTestId("quick-hidden")).toHaveText(`This year (${thisYear}) is not offered: the data end ${day(lastDay)}.`);
         const yearsN = thisYear - lastYear + 1;
         // the months from December of the data's last year to this one
-        const monthsN = Math.max(2, (thisYear - lastYear) * 12 + new Date().getUTCMonth() - 10);
+        const monthsN = Math.max(2, (thisYear - lastYear) * 12 + SNAPSHOT_DAY.getUTCMonth() - 10);
         // by month: months first (no unit finer than the grouping), the count the smallest that reaches December 2025
         const unit = menu.getByTestId("quick-last-unit");
         await expect(unit.locator("option")).toHaveText(["months", "quarters", "years"]);

@@ -73,9 +73,10 @@ The report adapts to its own width, not the window's.
     - when a drag starts
 - **Sheets**: on a phone, **More** and every menu are a sheet at the bottom of the window. A sheet
   takes at most 82 % of the window's height and scrolls inside, so every entry is reachable.
-- **Icons**: next to the tabs, the settings button reads **Settings**. **Enlarge**, **Full screen**
+- **Icons**: next to the tabs, **Table settings** or **Chart settings**, **Enlarge**, **Full screen**
   and **Swap rows and columns** show their icon only. Each keeps its whole name as a tooltip and for
-  a screen reader. When the buttons have no room beside the tabs, they move to a line above them.
+  a screen reader. On the smallest phones the buttons have no room beside the tabs and move to a
+  line above them.
 - **Notes above the result**: on a narrow report one note shows at a time; a notice, such as the
   one about a top N, takes a tip's place.
 - **More** is always at the end of the toolbar. Its first entry, **Help and keyboard shortcuts**,

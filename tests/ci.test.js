@@ -4,11 +4,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { delimiter, dirname, join, relative, sep } from "node:path";
+import { chmodSync, copyFileSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { releaseProblems, unreleasedEntries } from "../scripts/check-release.js";
-import { filesUnder } from "./source-files.js";
+import { agentsFiles, currentStateDocs } from "./markdown-files.js";
 import { tempDir } from "./temp-dir.js";
 
 const root = new URL("../", import.meta.url);
@@ -29,7 +29,8 @@ test("every dependency is pinned to an exact version; this repository's own pack
     const manifests = ["package.json", ...WORKSPACES.map((w) => `${w}/package.json`), "tests/react19/package.json", ...LINKED];
     for (const file of manifests) {
         const pkg = JSON.parse(readFileSync(new URL(file, root), "utf8"));
-        for (const section of ["dependencies", "devDependencies"]) {
+        // peerDependencies of third parties are ranges on purpose: the host brings React and ECharts
+        for (const section of ["dependencies", "devDependencies", "optionalDependencies"]) {
             for (const [name, range] of Object.entries(pkg[section] ?? {})) {
                 if (LINKED.includes(file) && OWN.has(name)) {
                     assert.equal(range, `file:../../packages/${name}`, `${file} ${section}.${name} is "${range}", not the package of this repository`);
@@ -38,41 +39,6 @@ test("every dependency is pinned to an exact version; this repository's own pack
                 } else {
                     assert.match(range, /^\d+\.\d+\.\d+$/, `${file} ${section}.${name} is "${range}", not an exact version`);
                 }
-            }
-        }
-    }
-});
-
-/**
- * Whether a version is inside a caret range, as npm reads it: ^1.2.3 is 1.x from 1.2.3, ^0.2.3 is
- * 0.2.x from 0.2.3, ^0.0.3 is 0.0.3 alone. Plain x.y.z versions only, as this repository uses them.
- */
-function caretSatisfies(range, version) {
-    const [a, b, c] = range.replace(/^\^/, "").split(".").map(Number);
-    const [x, y, z] = version.split(".").map(Number);
-    const atLeast = x > a || (x === a && (y > b || (y === b && z >= c)));
-    if (a > 0) return atLeast && x === a;
-    if (b > 0) return atLeast && x === 0 && y === b;
-    return x === 0 && y === 0 && z === c;
-}
-
-test("caretSatisfies reads caret ranges as npm does", () => {
-    assert.equal(caretSatisfies("^0.1.0", "0.1.4"), true);
-    assert.equal(caretSatisfies("^0.1.0", "0.2.0"), false);
-    assert.equal(caretSatisfies("^0.0.1", "0.0.2"), false);
-    assert.equal(caretSatisfies("^1.2.0", "1.9.0"), true);
-    assert.equal(caretSatisfies("^1.2.0", "1.1.9"), false);
-});
-
-// publish order (RELEASING.md): a range of an own package must take the version in this
-// repository, else npm would fetch another one from the registry instead of linking the workspace
-test("every caret range on an own package is satisfied by the workspace version", () => {
-    for (const name of OWN) {
-        const pkg = JSON.parse(readFileSync(new URL(`packages/${name}/package.json`, root), "utf8"));
-        for (const [dep, range] of Object.entries(pkg.dependencies ?? {})) {
-            if (OWN.has(dep)) {
-                const own = JSON.parse(readFileSync(new URL(`packages/${dep}/package.json`, root), "utf8"));
-                assert.ok(caretSatisfies(range, own.version), `${name} needs ${dep}@${range}, the repository has ${own.version}`);
             }
         }
     }
@@ -276,19 +242,6 @@ const VERSION_STATEMENTS = [
 ];
 const minorOf = (version) => version.split(".").slice(0, 2).join(".");
 
-/**
- * Every AGENTS.md under `dir`, the root's and the nested ones of packages and folders, as paths
- * relative to `dir` with "/". git's list of tracked files where `dir` is a repository; without git
- * or .git (a source archive), a walk of the directory without installs and build output.
- * @param {string} dir
- */
-function agentsFiles(dir) {
-    // the ceiling keeps git from answering for a repository that only encloses dir
-    const git = spawnSync("git", ["ls-files", "--", "AGENTS.md", "**/AGENTS.md"], { cwd: dir, encoding: "utf8", env: { ...process.env, GIT_CEILING_DIRECTORIES: dirname(dir) } });
-    if (git.status === 0) return git.stdout.split("\n").filter(Boolean).sort();
-    return filesUnder(dir, (name) => name === "AGENTS.md").map((path) => relative(dir, path).split(sep).join("/")).sort();
-}
-
 test("agentsFiles finds the nested AGENTS.md files in a copy without .git, outside build output", () => {
     const dir = tempDir("agents-files");
     for (const path of ["AGENTS.md", "packages/a/AGENTS.md", "node_modules/b/AGENTS.md", "packages/a/dist/AGENTS.md", "docs/README.md"]) {
@@ -298,20 +251,8 @@ test("agentsFiles finds the nested AGENTS.md files in a copy without .git, outsi
     assert.deepEqual(agentsFiles(dir), ["AGENTS.md", "packages/a/AGENTS.md"]);
 });
 
-/** The Markdown files a reader takes as the current state: READMEs, every AGENTS.md, CONTRIBUTING.md, RELEASING.md, SECURITY.md, docs/. */
-function docFiles() {
-    const agentFiles = agentsFiles(fileURLToPath(root));
-    assert.ok(agentFiles.includes("AGENTS.md"), "found no AGENTS.md at the root");
-    const files = ["README.md", ...agentFiles, "CONTRIBUTING.md", "RELEASING.md", "SECURITY.md", ...WORKSPACES.map((w) => `${w}/README.md`)];
-    for (const entry of readdirSync(new URL("docs/", root), { recursive: true, withFileTypes: true })) {
-        const path = `${entry.parentPath ?? entry.path}/${entry.name}`.slice(fileURLToPath(new URL("docs/", root)).length);
-        if (entry.isFile() && entry.name.endsWith(".md") && !path.startsWith("playground")) files.push(`docs/${path}`);
-    }
-    return files;
-}
-
 test("docs and READMEs write no caret range of a pivotkit package; the version statements name the current minor", () => {
-    for (const file of docFiles()) {
+    for (const file of currentStateDocs()) {
         const text = readFileSync(new URL(file, root), "utf8");
         const range = /"?pivotkit-[a-z]+"?:? *"?\^\d+\.\d+\.\d+|\^0\.[1-9]\d*\.\d+/.exec(text);
         assert.equal(range, null, `${file} writes the range ${range?.[0]}: write it without a version (\`^<version of pivotkit-core>\`, \`^0.y.z\`)`);

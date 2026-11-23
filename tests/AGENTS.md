@@ -33,7 +33,9 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - `scripts/test-run.js` fails a run that leaves one of its directories behind, or whose directories a sweep removed.
 - CI's Linux test job also fails when any `pivotkit-*` directory is new after the tests.
   So it does when a sweep removed one meanwhile (`scripts/temp-dirs.js`).
-- `tests/temp-dirs.test.js` fails on `mkdtemp`, `tmpdir()`, `TMPDIR` or `"/tmp/"` elsewhere.
+- `tests/temp-dir-check.test.js` fails on `mkdtemp`, `tmpdir()`, `TMPDIR` or `"/tmp/"` elsewhere.
+- `tests/temp-dir.test.js` covers the removal at a process's end, `tests/temp-dir-sweep.test.js` the sweep,
+  `tests/test-run.test.js` the run's check. Their child processes are in `tests/temp-dir-children.js`.
 - `tests/source-files.js` lists the files such checks scan.
 
 ## Time bounds
@@ -92,7 +94,8 @@ npm run bench:browser                                     # benchmark, 100k to 1
 
 ## Repository checks
 
-- `tests/ci.test.js` checks pins, caret ranges, check-release and version statements in the docs.
+- `tests/ci.test.js` checks pins, caret ranges, lock files, check-release and version statements in the docs.
+- `tests/markdown-files.js` defines the docs pages and the current-state Markdown that these checks read.
 - `tests/workflows.test.js` checks the workflows as parsed YAML: jobs, steps and their order, events, permissions.
   It also checks that the Playwright image matches the locked `@playwright/test`.
 - A check of a docs page names the facts, not the words: `assertStates` in `tests/docs-facts.js`.
@@ -107,3 +110,8 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - `tests/compatibility.test.js` checks the lowest versions in `docs/compatibility.md` against `package.json`,
   `docs/browser-support.md` and the CI matrix.
 - `tests/learn.test.js` checks every number `docs/learn.md` states against the playground's data.
+- `tests/docs-facts.test.js` checks where `assertStates` finds a fact in Markdown, and what does not count.
+- `tests/view-file-schema.test.js` checks the view-file JSON Schemas against pivotkit-core's writer.
+- `tests/npm-pack.test.js` checks how `scripts/npm-pack.js` reads the output of `npm pack`.
+- `tests/reader-plugin.test.js` checks the docs' example reader plugin against pivotkit-core's contract.
+- `tests/serve.test.js` checks the playground's static server; `tests/playground-server.js` starts it for tests.

@@ -12,8 +12,9 @@ With **Export** in the toolbar you can:
 - print the report, or save it as PDF
 - copy the table, so you can paste it into a spreadsheet
 
-The Excel file keeps every number with all its decimals, and the formats. The CSV, the HTML report
-and the copy hold the numbers as the table shows them. Where the application offers it,
+The Excel file keeps every number with all its decimals, and the formats. The HTML report and the
+copy hold the numbers as the table shows them. The CSV keeps all decimals, except percentages and
+"show as" values, which it writes as the table shows them. Where the application offers it,
 **Source data** downloads all the rows behind the report instead of the table.
 
 ![The Export menu: Excel workbook, Table as CSV, HTML report and the chart images under Download; Print or save as PDF under Print; Copy table, Copy data as JSON and Copy chart image under Copy; All rows as CSV and as JSON under Source data](../assets/screenshots/export-menu-light.png#only-light)
