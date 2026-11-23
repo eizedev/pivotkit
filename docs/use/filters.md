@@ -24,7 +24,11 @@ taken out of the report, it leaves its filter behind.
 ![The menu of Released in Filters: the Filter row says last 12 months with its months, then Group, Move to and Remove field](../assets/screenshots/filter-zone-dark.png#only-dark)
 
 The field list's **Add to Filters** opens the filter first: **Apply** places the field with it,
-**Cancel** changes nothing.
+**Cancel** changes nothing. A field you drag into Filters keeps every item until you filter it.
+
+A date in Filters is grouped by the span of its dates, as on Rows. **Group** in its chip's menu
+changes the unit, for example to **Year**, to filter whole years. The new grouping starts with every
+item; Undo brings the earlier filter back.
 
 ![The filter of Product opened from Add to Filters in the field list: its values with row counts, a search, Select all and Select none, a condition on the names, Cancel and Apply](../assets/screenshots/add-to-filters-light.png#only-light)
 ![The filter of Product opened from Add to Filters in the field list: its values with row counts, a search, Select all and Select none, a condition on the names, Cancel and Apply](../assets/screenshots/add-to-filters-dark.png#only-dark)
@@ -36,8 +40,8 @@ and meets every rule.
 ![The Filter level of the Region field: the summary card, the values with row counts under Pick items, a search, select all or none, and the folded Rules](../assets/screenshots/filter-dark.png#only-dark)
 
 At the top, a summary says what the table shows of the field and why not the rest, such as
-"3 of 12 months shown, 9 left out by your picks". **Reset filter** there takes every pick, date range
-and rule off the field. The chip of a filtered field says the same in short: "4 of 12",
+"3 of 12 months shown, 9 left out by your picks". Its small line counts the rows, as the line under the result does
+("1,104 of 4,386 rows"). **Reset filter** there takes every pick, date range and rule off the field. The chip of a filtered field says the same in short: "4 of 12",
 "last 2 years", "Sum of Revenue > 1,000".
 
 ![A filtered field's menu: the Filter row says 1 of 5 with its dot](../assets/screenshots/filter-state-light.png#only-light)
@@ -74,7 +78,11 @@ Today is the day in the data's time zone. That is UTC unless the application set
 **Data that end.** For an archive or a closed year, set **Counted back from** to **the latest
 record**. Then "Last 12 months" are the last twelve months of the data, and the chip says "last 12
 months to Dec 2025". The level offers this when the data end before the current period. You can
-also count from the first record or a date of your own.
+also count from the first record or a date of your own. The view keeps this choice, and every range of
+the field counts from it, a rule's range too.
+
+On a grouping, the range goes by the dates themselves: "Last 18 months" on a grouping by year keeps
+only the months of the oldest year that are in the range.
 
 Each choice shows the dates it keeps and its rows ("2022–2026 · 2,190 rows"), and names the dates
 without data: "last 2 years (2025; 2026 has no data)".
@@ -89,7 +97,8 @@ without data: "last 2 years (2025; 2026 has no data)".
 
 Groupings that combine the years, such as month of the year or day of the week, have no date
 range. **Years combined** shows one switch per year instead. Switch 2023 off, and the table combines
-2024 and 2025.
+2024 and 2025. It shows for two to twelve years in the data; the last year that is on stays on. A rule
+of your own on the grouping ("is from Jun") stays when you switch a year.
 
 ![The Filter level of Date by month of year on the weather data: Years combined with 2023, 2024 and 2025, the summary saying 2023–2025 combined, and the months to pick](../assets/screenshots/filter-cyclic-light.png#only-light)
 ![The Filter level of Date by month of year on the weather data: Years combined with 2023, 2024 and 2025, the summary saying 2023–2025 combined, and the months to pick](../assets/screenshots/filter-cyclic-dark.png#only-dark)
@@ -117,6 +126,8 @@ Good to know:
 - **A date compares its day.** "is before Mar 1, 2022" keeps every row of 28 February, whatever its
   time.
 - **Names ignore case and extra spaces.** "SERVER" matches "Server".
+- **A total names its value.** With several values in the report you pick one; with no value, the
+  rule counts rows ("Count of rows"). A rule whose value has left the report keeps it.
 - **A total compares the computed value**, the sum or the average, not a "show as" percentage. For
   "Revenue as % of grand total", type the revenue, not 25 %.
 - **A total works within groups.** With a field above it on the same axis, a rule on the total
@@ -127,8 +138,10 @@ Good to know:
 
 ### Items without a value { #items-without-a-value }
 
-An item without a value shows as "(blank)". A rule keeps the items that meet it, and "(blank)" meets
-none, so rules leave it out. Tick **Also keep items without a value** under the rules to keep it.
+An item without a value shows as "(blank)". A rule on the item or its name keeps the items that
+meet it, and "(blank)" meets none, so such rules leave it out. Tick **Also keep items without a
+value** under the rules to keep it. A rule on the total compares the blank item's total like any
+other.
 
 ![The rules of Country on the Nobel data: the name does not begin with united, and Also keep items without a value ticked with its 7 rows](../assets/screenshots/filter-blanks-light.png#only-light)
 ![The rules of Country on the Nobel data: the name does not begin with united, and Also keep items without a value ticked with its 7 rows](../assets/screenshots/filter-blanks-dark.png#only-dark)
@@ -145,8 +158,8 @@ or by the value you pick there.
 ![The Top items level of Country: Off, Top 3 (checked, the template's), Top 5, Top 10 and Top N…, by Sum of Population, Also show items with the same value as the last one, and the items shown](../assets/screenshots/top-items-dark.png#only-dark)
 
 - **Per group.** With Region and Country on Rows, "top 3 countries" keeps three countries per
-  region, as in Excel. A region's total is then the total of its three countries. A note above the
-  table says so.
+  region, as in Excel. A region's total is then the total of its three countries, and percentages
+  count only the items shown. A note above the table says so.
 - **Ties.** Top N keeps exactly N items. At a tie at the cut, the item that comes first in the data
   stays. Tick **Also show items with the same value as the last one** to keep every tied item, so
   "Top 6" may show 7.
@@ -154,8 +167,8 @@ or by the value you pick there.
 
 ## Type numbers { #numbers-in-the-menus }
 
-Type numbers as the report's language writes them, the language the report's texts are in: "1.000,5" in German, "1,000.5" in English. Every
-language also reads a plain "1000.5". Anything else is refused with a hint, not guessed.
+Type numbers the way the report's own language writes them: "1.000,5" in a German report,
+"1,000.5" in an English one. Every language also reads a plain "1000.5". Anything else is refused with a hint, not guessed.
 
 ## Sort { #sorting }
 
@@ -163,11 +176,12 @@ language also reads a plain "1000.5". Anything else is refused with a hint, not 
 
 | Click on | First click | Then |
 | --- | --- | --- |
-| A value's name, such as "Sum of Revenue" | sorts the rows by it, largest first | smallest first, then the field's own order again |
+| A value's name, such as "Sum of Revenue" | sorts the innermost field in Rows by it, largest first | smallest first, then the field's own order again |
 | A column's name, such as "Jul" | sorts the rows by that column's values, largest first; rows without a value there come last | smallest first, then the field's own order |
 | A field's name, such as "Region" | Z to A | back to A to Z, then Z to A again |
 
-An arrow beside the name shows the sort; its tooltip says what the next click does. The keyboard
+The **Grand Total** column's name sorts by the whole row. A value's name does nothing while Rows is
+empty. An arrow beside the name shows the sort; its tooltip says what the next click does. The keyboard
 reaches every name with Tab, then Enter.
 
 ### In the field's menu
