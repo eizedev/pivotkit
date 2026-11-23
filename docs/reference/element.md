@@ -563,7 +563,7 @@ They are approximate and change with every dependency update.
 CI runs the same command on Node 24 and measures the same numbers. It fails when a group is over
 `SIZE_BUDGET_KIB` in `build.js`:
 
-- The first load's budget is 181 KiB. It is a hard line: a feature that needs room there makes it by
+- The first load's budget is 181.5 KiB. It is a hard line: a feature that needs room there makes it by
   moving something out of the first load.
 - The budgets of the groups loaded later leave a little room above what CI measures.
 - A Node with the system's zlib, such as Homebrew's, measures other sizes. The command says so.

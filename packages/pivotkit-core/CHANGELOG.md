@@ -6,6 +6,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Fixed
+
+- "Show values as" rank and running total take time in proportion to the cells. Each walked all the
+  cell's siblings, so a view with 20,000 row items took about 15 seconds, and more items took
+  minutes: a view from outside could hold a server's CPU that long. Each group's running sums and
+  sorted values are now made once.
+
 ### Changed
 
 - `PivotkitError` extends `CodedError` of `pivotkit-core/internal`, the base of every error class

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { computePivot, encode, findNode, numberRepeats, toGrid, validate } from "../src/index.js";
 import { toEChartsOption } from "../src/chart.js";
 import { SALES } from "./fixtures.js";
+import * as SHOW_AS_MODULE from "../src/show-as.js";
 
 const data = encode(SALES);
 // Sum of Units by Region x Product:
@@ -129,4 +130,32 @@ test("numberRepeats skips a number another name has already", () => {
     assert.deepEqual(numberRepeats(["X (2)", "X", "X"]), ["X (2)", "X", "X (3)"]);
     const names = numberRepeats(["A", "A", "A (2)", "A (3)", "A"]);
     assert.equal(new Set(names.map((n) => n.toLowerCase())).size, names.length);
+});
+
+test("rank and running total read each sibling group once: the work grows with the cells, not with cells x siblings", () => {
+    const { SHOW_AS } = SHOW_AS_MODULE;
+    // a group of n siblings under one parent, with values n-1 .. 0 and one gap
+    const n = 2000;
+    const parent = { parent: null, children: [] };
+    for (let i = 0; i < n; i++) parent.children.push({ parent, index: i });
+    const col = { parent: null };
+    const values = parent.children.map((node) => (node.index === 7 ? null : n - 1 - node.index));
+    for (const type of ["rankDescending", "rankAscending", "runningTotal"]) {
+        let reads = 0;
+        const memo = new Map();
+        const raw = (r) => {
+            reads++;
+            return r === parent ? null : values[r.index];
+        };
+        const results = parent.children.map((node) => SHOW_AS[type].compute(values[node.index], { rowNode: node, colNode: col, rowRoot: parent, colRoot: col, raw, axis: "rows", memo, key: 0 }));
+        // one pass over the group, plus the parent for a percent: not n per cell
+        assert.ok(reads <= 2 * n, `${type}: ${reads} reads of ${n} siblings`);
+        if (type === "rankDescending") {
+            assert.equal(results[0], 1);
+            assert.equal(results[1], 2);
+            assert.equal(results[7], null);
+        }
+        if (type === "rankAscending") assert.equal(results[n - 1], 1);
+        if (type === "runningTotal") assert.equal(results[1], 2 * n - 3);
+    }
 });
