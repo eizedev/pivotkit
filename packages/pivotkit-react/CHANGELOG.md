@@ -11,6 +11,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - `<PivotReport>` is built from hooks and small components, one per concern, instead of one large
   component. Its props, events, markup and behaviour stay the same.
 
+### Fixed
+
+- The buttons beside the tabs Table and Chart were cut off at the report's right edge, on phones and
+  on reports whose field list takes room beside the result. When their whole names have no room,
+  they now show their short form, as on a phone. When even that has no room, they move to a line
+  above the tabs ([#706](https://github.com/eizedev/pivotkit/issues/706)).
+
 ## [0.9.0] - 2026-11-22
 
 ### Added
