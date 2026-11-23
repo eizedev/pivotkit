@@ -25,7 +25,7 @@ import { httpSettingsOf } from "./options/http.js";
 import { sourceCacheOf } from "./options/code.js";
 import { loadRunner } from "./sources/run.js";
 import { warnUnreadableSecrets } from "./sources/auth.js";
-import { prune } from "./output.js";
+import { outputModes, prune } from "./output.js";
 import { autoValuesFields, noteAutoValues } from "./present.js";
 import { resolvePolicy, withStats } from "./policy.js";
 
@@ -144,14 +144,12 @@ export async function createContext(options, runtime = {}) {
             if (why) {
                 throw new ConfigError(`output.dir: cannot be created: ${whyNot(why)}`);
             }
-            // reports may hold what a model may not see: only the server's user reads them (0700),
-            // unless a web server serves the directory (output.baseUrl): 0755, which the umask can
-            // only narrow, never widen to others' writing. The log names no path (it never does): the
-            // operator knows output.dir
-            await mkdir(wanted, { recursive: true, mode: options.output.baseUrl ? 0o755 : 0o700 }).catch((e) => {
+            // outputModes: only the server's user reads it, unless output.baseUrl serves it. The log
+            // names no path (it never does): the operator knows output.dir
+            await mkdir(wanted, { recursive: true, mode: outputModes(options.output).dir }).catch((e) => {
                 throw new ConfigError(`output.dir: cannot be created: ${whyNot(e?.code)}`);
             });
-            log.warn(`the output directory did not exist and was created (${options.output.baseUrl ? "mode 0755 narrowed by the umask: output.baseUrl is served" : "mode 0700"}); check output.dir if that was not meant`);
+            log.warn(`the output directory did not exist and was created (mode 0${outputModes(options.output).dir.toString(8)}${options.output.baseUrl ? " narrowed by the umask: output.baseUrl is served" : ""}); check output.dir if that was not meant`);
         }
         // a link changed between mkdir and here leaves no real path: refused with its reason
         const dir = await realpath(wanted).catch((e) => {

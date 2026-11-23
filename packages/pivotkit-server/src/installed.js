@@ -19,3 +19,14 @@ export async function importInstalled(name) {
         throw e;
     }
 }
+
+/**
+ * What to say when a command needs a package that is not installed beside pivotkit-server: both npm
+ * commands, since a global pivotkit-server finds only a global package (node_modules beside it) and a
+ * project's finds the project's. Which of the two this process is cannot be told reliably (a prefix,
+ * nvm, Volta and Windows each place global packages elsewhere).
+ * @param {string} what  the command or setting that needs it
+ * @param {string} name  the package
+ */
+export const missingPackageText = (what, name) =>
+    `${what} needs the package ${name} beside pivotkit-server (npm install ${name}; for a global pivotkit-server: npm install --global ${name})`;
