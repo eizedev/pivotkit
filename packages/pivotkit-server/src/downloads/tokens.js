@@ -16,8 +16,7 @@ import { ConfigError } from "../options/shared.js";
 import { makeKey } from "../auth.js";
 import { readSecret } from "../secrets.js";
 
-/** The least length of output.downloads.key, in bytes. */
-export const KEY_MIN_BYTES = 32;
+import { keyProblem } from "../secret-rules.js";
 
 /** How long the same browser may repeat a one-time download, and how long a sign-in may take, in seconds. */
 export const REPEAT_SECONDS = 120;
@@ -133,8 +132,9 @@ export function keySource(settings, options, env) {
     const ref = settings.key;
     const read = async () => {
         const value = await readSecret(ref, options, env);
-        if (Buffer.byteLength(value) < KEY_MIN_BYTES) {
-            throw new ConfigError(`output.downloads.key (${ref.env ? `$${ref.env}` : `the file ${ref.file}`}) is shorter than ${KEY_MIN_BYTES} bytes; make one with: ${makeKey("downloads")}`);
+        const why = keyProblem("downloads")(value);
+        if (why) {
+            throw new ConfigError(`output.downloads.key (${ref.env ? `$${ref.env}` : `the file ${ref.file}`}) is ${why}; make one with: ${makeKey("downloads")}`);
         }
         if (value !== last.value) {
             last = { value, keys: subkeysOf(Buffer.from(value, "utf8")) };

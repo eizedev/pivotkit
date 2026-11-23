@@ -12,7 +12,8 @@
 
 import { createHash } from "node:crypto";
 import { OperationError, checkInput } from "pivotkit-report/operations";
-import { INPUT_DEPTH, jsonDepth, presentedInput } from "../present.js";
+import { presentedInput } from "../present.js";
+import { INPUT_DEPTH, jsonDepth } from "../input-depth.js";
 import { INLINE_ID, UPLOAD_FORMATS } from "../sources/inline.js";
 import { checkParamsOffered } from "../sources/input.js";
 import { BodyError } from "./body.js";

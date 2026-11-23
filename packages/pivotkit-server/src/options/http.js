@@ -15,6 +15,7 @@
  * second declaration).
  */
 
+import { CREDENTIAL_HEADERS, HEADER_NAME, HEADER_VALUE, SECRET_NAME, checkHeaderName, connectionHeader } from "./headers.js";
 import { createHash } from "node:crypto";
 import { issuerRulesOf } from "../issuer.js";
 import { resolvePolicy } from "../policy.js";
@@ -77,20 +78,9 @@ export const HTTP_DEFAULTS = Object.freeze({ ttl: 60, maxStale: 3600, timeMs: 15
 /** The most pages and the longest load an HTTP source may have. */
 export const HTTP_MAX = Object.freeze({ pages: 100, timeMs: 600_000 });
 
-/** The headers no configuration sets: the connection's own (and what a proxy adds). */
-const CONNECTION_HEADERS = /^(host|content-length|transfer-encoding|connection|te|trailer|upgrade|keep-alive|accept-encoding|proxy-.*|x-forwarded-.*|forwarded)$/i;
+/** The header rules (options/headers.js); the names stay exported here for this file's importers. */
+export { HEADER_NAME, HEADER_VALUE, SECRET_NAME } from "./headers.js";
 
-/** The sign-in headers, which go to http.auth (a secret reference), never to http.headers (a literal). */
-const SIGN_IN_HEADERS = /^(authorization|cookie)$/i;
-
-/** A header's name (RFC 9110 token). */
-export const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/;
-
-/** A header's value: printable Latin-1 and tab, no line break, no NUL. */
-export const HEADER_VALUE = /^[\t\x20-\x7e\x80-\xff]{0,1000}$/;
-
-/** The words in a header's or query parameter's name that look like a secret's. */
-export const SECRET_NAME = /key|token|secret|auth|pass/i;
 
 /** What a paging setting is. */
 const PAGING = { custom: pagingProblems };
@@ -282,7 +272,7 @@ export function backendAuthOf(options, auth, at, headers) {
     if (kind === "header") {
         const h = /** @type {NonNullable<BackendAuthOptions["header"]>} */ (auth.header);
         const name = (h.name ?? AUTH_DEFAULTS.headerName).toLowerCase();
-        if (!HEADER_NAME.test(name) || CONNECTION_HEADERS.test(name)) {
+        if (!HEADER_NAME.test(name) || connectionHeader(name)) {
             throw new ConfigError(`${at}.header.name: a header's name that the connection does not set itself (such as authorization or x-api-key)`);
         }
         if (Object.hasOwn(headers, name)) {
@@ -370,13 +360,8 @@ function headersOf(headers, path) {
     /** @type {Record<string, string>} */
     const out = {};
     for (const [name, value] of Object.entries(headers ?? {})) {
-        if (!HEADER_NAME.test(name)) {
-            throw new ConfigError(`${path}.${name.slice(0, 60)}: not a header name`);
-        }
-        if (CONNECTION_HEADERS.test(name)) {
-            throw new ConfigError(`${path}.${name}: this header is set by the connection, not by the configuration`);
-        }
-        if (SIGN_IN_HEADERS.test(name)) {
+        checkHeaderName(name, path, { why: ", not by the configuration" });
+        if (CREDENTIAL_HEADERS.test(name)) {
             throw new ConfigError(`${path}.${name}: a sign-in header holds a secret, which is never written in the configuration; set the backend's sign-in in http.auth (a header from a secret reference, client credentials or token exchange)`);
         }
         if (!HEADER_VALUE.test(value)) {

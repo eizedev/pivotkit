@@ -14,6 +14,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - A source whose policy hides row counts (`rows: false`) gives no `noRowsKept` finding: it told whether
   the source has rows.
 - A file source that does not say `hardLinks` refuses hard links, as `files.hardLinks` defaults to.
+- A static token's file rewritten after the start with a character no bearer token holds (such as a
+  space) counts as unusable and is said on the log, as at the start. Before, only its length and how
+  guessable it was counted.
 
 ### Security
 

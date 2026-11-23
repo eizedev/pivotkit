@@ -543,7 +543,7 @@ test("pivotkit-server check-config refuses a cap above the built-in one and a bo
 });
 
 test("a body nested deeply is refused before it is parsed, in a fixed time; brackets inside texts do not count", async () => {
-    const { jsonDepth } = await import("../src/present.js");
+    const { jsonDepth } = await import("../src/input-depth.js");
     assert.equal(jsonDepth('{"a":"[[[[\\"[[[{{","b":[1,[2]]}', 64), 3);
     assert.equal(jsonDepth(new TextEncoder().encode('[[["]]]\\\\"]]]'), 64), 3, "a text, an escaped backslash before its end");
     assert.equal(jsonDepth("[".repeat(1000), 64), 65, "stops at the first level over the maximum");

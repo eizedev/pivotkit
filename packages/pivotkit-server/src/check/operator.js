@@ -9,7 +9,7 @@
 
 import { GROUPS_REFUSED, NOT_IN_GROUP, makeKey } from "../auth.js";
 import { POLICY_LEVELS, levelOf, resolvePolicy } from "../policy.js";
-import { AUDIT_KEY_MIN } from "../log.js";
+import { keyProblem } from "../secret-rules.js";
 import { offeredScopes } from "../scopes.js";
 import { madeAtStart, readSecret, secretFileWarning } from "../secrets.js";
 import { heading, plain, problem, secretText, warning } from "./format.js";
@@ -167,7 +167,10 @@ async function auditItems(options, runtime, namesPerson) {
             // cannot be read stops the start; one made at start is said under Credentials
             const unreadable = namesPerson && !(await madeAtStart(audit.key, options))
                 ? await readSecret(audit.key, options, runtime.env).then(
-                      (key) => (key.length < AUDIT_KEY_MIN ? `at least ${AUDIT_KEY_MIN} characters; make one with: ${makeKey("audit")}` : null),
+                      (key) => {
+                          const why = keyProblem("audit")(key);
+                          return why ? `${why}; make one with: ${makeKey("audit")}` : null;
+                      },
                       (e) => String(e?.message ?? e)
                   )
                 : null;

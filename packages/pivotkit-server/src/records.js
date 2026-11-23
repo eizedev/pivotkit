@@ -34,7 +34,7 @@ import { createPlaces } from "./limits.js";
 import { callerFields, refusalReason } from "./log.js";
 import { recordsBoundsOf, recordsOfProfile, sourceMaxRowsOf } from "./options/records.js";
 import { levelOf } from "./policy.js";
-import { checkDepth } from "./present.js";
+import { checkDepth } from "./input-depth.js";
 import { PIECE_CHARS } from "./records-writer.js";
 import { requestId } from "./request-id.js";
 import { SAFE_HEADERS, problemOf as plainProblemOf, problemsFor } from "./rest/problem.js";
