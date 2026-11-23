@@ -435,9 +435,12 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * The fade of a menu a low window cuts off (levels.jsx useMoreBelow), the chart's tooltip held while a
  * point's menu is open and the plainer filter and format menus (#759) take the menus a little over
  * 59.1 on a Mac's zlib: menus goes to 59.6, about 0.5 KiB over that measure.
+ * pivotkit-core's rank and running total per group (#782) take the first load to about 181.2 on CI's
+ * zlib. Moving the unused-parts warning out made it larger (more files, 181.3), so the maintainer took
+ * the budget to 181.5; #772 makes room again.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 181, chart: 259.5, export: 12.6, link: 7.5, menus: 59.6, texts: 8.5, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
+export const SIZE_BUDGET_KIB = { initial: 181.5, chart: 259.5, export: 12.6, link: 7.5, menus: 59.6, texts: 8.5, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

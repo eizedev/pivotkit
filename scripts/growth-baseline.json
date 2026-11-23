@@ -130,7 +130,6 @@
             "packages/pivotkit-cli/src/remote.js Function 'createClient'": [161],
             "packages/pivotkit-core/src/chart-style.js Function 'decorateOption'": [155],
             "packages/pivotkit-core/src/chart.js Function 'toEChartsOption'": [199],
-            "packages/pivotkit-core/src/pivot.js Function 'computePivot'": [133],
             "packages/pivotkit-mcp/src/http.js Async function 'createHttpHandler'": [160],
             "packages/pivotkit-react/src/chart.jsx Function 'PivotChart'": [195],
             "packages/pivotkit-react/src/chip-menus.jsx Function 'TopLevel'": [124],
