@@ -139,7 +139,7 @@ test("after several changes the tip offers to save the view as a template", asyn
 test("after the first drag: Undo and the menus", async ({ page }) => {
     await page.goto("?data=sales&empty");
     // the empty report's tip says what to do without dragging
-    await expect(page.getByTestId("tip-menus")).toContainText("use + Add in Rows, Columns or Values, or a field's menu (⋮)");
+    await expect(page.getByTestId("tip-menus")).toHaveText(/No need to drag: use \+ Add, or a field's menu \(⋮\)\./);
     await drag(page, page.locator('.pk-field[data-field="Region"] .pk-handle'), page.locator('[data-zone="rows"]'));
     await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
     await expect(page.getByTestId("tip-afterDrag")).toContainText("Undo takes the last step back");

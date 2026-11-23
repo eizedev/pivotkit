@@ -65,9 +65,9 @@ function tipStep(action, view, params, { nameOf, labels }) {
  *   the notices alone); display: what the result shows; showTable: the table is shown; dismissed: useDismissed's;
  *   openViews: a tip's "Save view" opens the Views menu; narrow: a phone's report, where a notice takes a tip's place
  */
-export function tipsShown({ table, view, display, pivot, encoded, empty, typeOf, showTable, activity, canSave, dismissed, labels, locale, commit, nameOf, openViews, narrow = false }) {
+export function tipsShown({ table, view, display, pivot, encoded, empty, typeOf, showTable, activity, canSave, dismissed, labels, locale, commit, nameOf, openViews, narrow }) {
     const context = tipContext({ view, display, result: pivot.result, encoded, failed: Boolean(pivot.error), empty, typeOf, fields: labels.core.fields, series: pivot.series, tableShown: showTable, drilled: activity.drilled, changes: activity.changes, dragAt: activity.dragAt, canSave, savedAt: activity.savedAt, chartPlan: pivot.plan });
-    const tips = activeEntries(table?.TIPS ?? NOTICES, context, { allowed: dismissed.allowed, dismissed: dismissed.dismissed, noticesCount: narrow }).map((t) => ({
+    const tips = activeEntries(table?.TIPS ?? NOTICES, context, { allowed: dismissed.allowed, dismissed: dismissed.dismissed, narrow }).map((t) => ({
         id: t.id,
         params: t.params,
         icon: t.entry.icon ?? "info",
