@@ -4,7 +4,7 @@
 // chart.tooltip "axis") shows every series wherever the pointer is. Real pointer input: the positions
 // come from the chart's own layout (getItemLayout, convertToPixel), not from fixed fractions.
 import { test, expect } from "../fixtures.js";
-import { ROWS, VIEW, EAST, NORTH, HARDWARE, SERVICES, SOFTWARE, VALUES, mount, pointOf, barMiddle, between, linePoint, sliceMiddle, cellMiddle, hover, tooltipOf } from "./report.js";
+import { ROWS, VIEW, EAST, NORTH, HARDWARE, SERVICES, SOFTWARE, VALUES, mount, pointOf, barMiddle, between, linePoint, sliceMiddle, cellMiddle, hover, settled, tooltipOf } from "./report.js";
 
 /** The visual states of a bar (ECharts' "emphasis" when it lights up, "blur" when it fades). */
 const statesOf = (chartEl, series, index) =>
@@ -273,7 +273,7 @@ test("a host that renders again every 200 ms keeps the segment's tooltip under a
     await report.getByTestId("chart-stacked").click();
     const chartEl = report.getByTestId("pivot-chart");
     await expect(chartEl.locator("canvas").first()).toBeVisible();
-    await page.waitForTimeout(600);
+    await settled(chartEl);
     await hover(page, await pointOf(chartEl, barMiddle, { series: 0, index: 0 }));
     await expect.poll(async () => (await tooltipOf(chartEl)).length).toBe(3);
     const shown = await tooltipOf(chartEl);

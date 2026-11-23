@@ -25,6 +25,7 @@ import { createDownloadHandler, subkeysOf } from "../src/downloads.js";
 import { createContext } from "../src/context.js";
 import { withRequestId } from "../src/request-id.js";
 import { BY_REGION, call, factsOf, loopbackCert, restServer, SALES_CSV, workspace } from "./helpers.js";
+import { until } from "../../../tests/until.js";
 
 /** The store's credential: an environment variable, as an operator gives it. */
 const STORE_TOKEN = "STORE-TOKEN-must-never-leave-the-presign-request";
@@ -487,11 +488,6 @@ test("at most two uploads at once: the third waits for a slot", async () => {
     const { context } = await contextOf(presignOptions());
     try {
         const three = [1, 2, 3].map(() => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }));
-        const until = async (check) => {
-            for (let i = 0; i < 200 && !check(); i++) {
-                await new Promise((resolve) => setTimeout(resolve, 10));
-            }
-        };
         await until(() => held.length === 2);
         await new Promise((resolve) => setTimeout(resolve, 150));
         assert.equal(held.length, 2, "two uploads in the bucket");
@@ -702,9 +698,7 @@ test("the slot queue is capped: an upload beyond 32 waiting ones fails at once, 
     const { context, log } = await contextOf(presignOptions());
     try {
         const waiting = Array.from({ length: 34 }, () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }));
-        for (let i = 0; i < 200 && held.length < 2; i++) {
-            await new Promise((resolve) => setTimeout(resolve, 10));
-        }
+        await until(() => held.length >= 2, { tries: 200, every: 10 });
         const started = Date.now();
         const refused = await failureOf(withRequestId("Queue_Full0", () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false })));
         // far below the upload's timeMs (30 s) that a queued call would wait

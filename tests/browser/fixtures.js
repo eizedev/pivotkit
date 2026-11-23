@@ -116,6 +116,11 @@ export const SETTINGS = { "table-settings": "table", "chart-settings": "chart" }
  * looks once that has settled.
  * @param {import("@playwright/test").Page} page
  */
+/** Waits until no animation or transition of the page runs (a drawer that slides, a fold that opens). */
+export async function animationsSettled(page) {
+    await expect.poll(() => page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length)).toBe(0);
+}
+
 export const twoFrames = (page) => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
 
 /**

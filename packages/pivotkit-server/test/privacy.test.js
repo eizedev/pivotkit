@@ -17,6 +17,7 @@ import { createDownloadHandler } from "../src/downloads.js";
 import { createLimits } from "../src/limits.js";
 import { NO_LINK_NOTE } from "../src/delivery.js";
 import { BY_REGION, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
+import { until } from "../../../tests/until.js";
 
 const OAUTH = Object.freeze({ mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" });
 const ROWS = [
@@ -277,9 +278,7 @@ test("downloads: the markers of expired one-time links are swept on a timer, wit
     writeFileSync(live, `${Math.floor(Date.now() / 1000) + 600}\n`);
     const handler = createDownloadHandler(context, { env: {}, loopback: true, sweepEveryMs: 30 });
     try {
-        for (let i = 0; i < 100 && existsSync(old); i++) {
-            await new Promise((r) => setTimeout(r, 20));
-        }
+        await until(() => !existsSync(old), { tries: 100, every: 20 });
         assert.equal(existsSync(old), false, "the expired marker is gone");
         assert.equal(existsSync(live), true, "a live link's marker stays");
     } finally {
