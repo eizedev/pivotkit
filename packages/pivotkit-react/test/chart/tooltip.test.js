@@ -135,6 +135,21 @@ test("a stack's total only for values that add up: sums and counts, not shown as
     assert.equal(valueAddsUp(undefined), false);
 });
 
+test("decorate tells the tooltip which series add up: a stacked sum gets a total, a stacked average or a rank none", () => {
+    // what the browser's chart hands decorate (chart.jsx): the view's values, one per series
+    const node = () => ({ style: {}, textContent: "", children: [], append(...c) { this.children.push(...c); } });
+    const doc = /** @type {any} */ ({ createElement: () => node() });
+    const params = ["Software", "Hardware", "Services"].map((seriesName, seriesIndex) => ({ seriesIndex, dataIndex: 0, axisValueLabel: "North", seriesName, value: 10 * (seriesIndex + 1), color: "#000000" }));
+    const option = { series: params.map(() => ({ type: "bar", stack: "total" })), tooltip: {} };
+    const rows = (value) => {
+        const drawn = decorate(option, { getPropertyValue: () => "" }, 480, doc, 800, { tooltip: { values: params.map(() => value), totalLabel: "Total" } });
+        return /** @type {any} */ (drawn.tooltip.formatter(params)).children.map((c) => c.textContent || c.children.map((x) => x.textContent).join(" ").trim());
+    };
+    assert.equal(rows({ field: "Revenue", agg: "sum" }).at(-1), "Total 60");
+    assert.equal(rows({ field: "Revenue", agg: "average" }).some((r) => r.startsWith("Total")), false);
+    assert.equal(rows({ field: "Revenue", agg: "sum", showAs: { type: "rankDescending", axis: "rows" } }).some((r) => r.startsWith("Total")), false);
+});
+
 test("a cut list with a total says the cut series are in the total", () => {
     const many = Array.from({ length: 15 }, (_, i) => ({ seriesIndex: i, dataIndex: 0, axisValueLabel: "North", seriesName: `S${i}`, value: 1, color: "#000000" }));
     const series = many.map(() => ({ type: "line", stack: "total" }));

@@ -9,7 +9,7 @@ import { linesSummary, pointsSummary } from "../../src/chart-tooltip.js";
 import { LABELS } from "../../src/labels.js";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../../src/deferred.js";
-import { LINE_ROWS, linePivot } from "./fixtures.js";
+import { MONTH, MONTHLY, linePivot } from "./fixtures.js";
 
 const en = LABELS.en;
 
@@ -52,7 +52,7 @@ test("the chart's text alternative names each series' high and low points (#574)
     const ds = toSeries(de);
     assert.match(pointsSummary(extremePoints(de, { series: ds }), ds, LABELS.de), /^Höchster Wert 40 bei .* \/ A; niedrigster 10 bei .* \/ A\./);
     // one series: the summary's own highest and lowest already say it
-    const one = computePivot(encode(LINE_ROWS), { derived: [{ name: "Month", field: "Date", by: "yearMonth" }], rows: ["Month"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line", referenceLines: ON } });
+    const one = computePivot(encode(MONTHLY), { derived: [MONTH], rows: ["Month"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line", referenceLines: ON } });
     const os = toSeries(one);
     assert.equal(pointsSummary(extremePoints(one, { series: os }), os, en), "");
     assert.equal(pointsSummary([], s, en), "");

@@ -2,19 +2,7 @@
 // series or slice (the host's colorMap and the view's colours from Display), and the share of the total
 // in the tooltip. Positions come from the chart's own layout.
 import { test, expect } from "../fixtures.js";
-
-/** Revenue per region and category. North adds up to 60 (20 + 10 + 30). */
-const ROWS = [
-    { Region: "North", Category: "Hardware", Revenue: 20 },
-    { Region: "North", Category: "Services", Revenue: 10 },
-    { Region: "North", Category: "Software", Revenue: 30 },
-    { Region: "South", Category: "Hardware", Revenue: 15 },
-    { Region: "South", Category: "Services", Revenue: 5 },
-    { Region: "South", Category: "Software", Revenue: 25 },
-    { Region: "East", Category: "Services", Revenue: 12 },
-    { Region: "East", Category: "Software", Revenue: 40 }
-];
-const VIEW = { rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], display: "chart" };
+import { barMiddle, hover, inChart, pointOf, ROWS, settled, sliceMiddle, tooltipOf, VIEW } from "./report.js";
 
 /** navigator.clipboard.write that keeps the types and the first bytes of what it was given (every engine, no permission). */
 async function captureImageClipboard(page) {
@@ -61,21 +49,6 @@ async function mount(page, chart, { theme = "light", colorMap, view = VIEW } = {
     return chartEl;
 }
 
-async function settled(chartEl) {
-    await expect.poll(() => chartEl.evaluate(async (el) => {
-        const { getInstanceByDom } = await import("echarts/core");
-        const chart = getInstanceByDom(el);
-        return Boolean(chart?.getOption().series?.length) && chart.getZr().animation.isFinished();
-    })).toBe(true);
-}
-
-/** Runs `at(chart, arg)` in the page with the chart's ECharts instance. */
-const inChart = (chartEl, at, arg) =>
-    chartEl.evaluate(async (el, { at, arg }) => {
-        const { getInstanceByDom } = await import("echarts/core");
-        return new Function("chart", "arg", `return (${at})(chart, arg);`)(getInstanceByDom(el), arg);
-    }, { at: at.toString(), arg });
-
 /** The colour ECharts draws each series with (bars), or each slice with (a pie). */
 const drawnColors = (chart) => {
     const model = chart.getModel();
@@ -86,31 +59,6 @@ const drawnColors = (chart) => {
     }
     return Object.fromEntries(model.getSeries().map((s) => [s.name, s.getData().getVisual("style").fill]));
 };
-const barMiddle = (chart, { series, index }) => {
-    const l = chart.getModel().getSeriesByIndex(series).getData().getItemLayout(index);
-    return [l.x + l.width / 2, l.y + l.height / 2];
-};
-const sliceMiddle = (chart, { index }) => {
-    const l = chart.getModel().getSeriesByIndex(0).getData().getItemLayout(index);
-    const angle = (l.startAngle + l.endAngle) / 2;
-    const r = (l.r0 + l.r) / 2;
-    return [l.cx + r * Math.cos(angle), l.cy + r * Math.sin(angle)];
-};
-async function hover(page, chartEl, [x, y]) {
-    const box = await chartEl.boundingBox();
-    await page.mouse.move(box.x + x - 6, box.y + y + 5);
-    await page.mouse.move(box.x + x, box.y + y, { steps: 3 });
-}
-const tooltipOf = (chartEl) =>
-    chartEl.evaluate((el) => {
-        const tip = [...el.children].find((c) => c.tagName === "DIV" && !c.querySelector("canvas"));
-        if (!tip || getComputedStyle(tip).visibility === "hidden" || getComputedStyle(tip).display === "none" || Number(getComputedStyle(tip).opacity) === 0) {
-            return [];
-        }
-        const box = tip.firstElementChild;
-        return box ? [...box.children].map((row) => [...(row.children.length ? row.children : [row])].map((c) => c.textContent.trim()).filter(Boolean).join(" ")) : [];
-    });
-
 /** Opens a menu of the report: its button (the toolbar's, or "view-settings" beside the tabs), or its entry in "More" on a narrow report. */
 async function menu(report, testId) {
     const own = report.getByTestId(testId);
@@ -251,7 +199,7 @@ test.describe("chart extras (#54)", () => {
     test("Display › Tooltip › Share in the tooltip: a bar's share of its category, a slice's share of the pie", async ({ page }) => {
         let chartEl = await mount(page, { type: "bar" });
         const report = page.locator("#color-report");
-        await hover(page, chartEl, await inChart(chartEl, barMiddle, { series: 2, index: 1 }));
+        await hover(page, await pointOf(chartEl, barMiddle, { series: 2, index: 1 }));
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30"]);
         await menu(report, "view-settings");
         await report.getByTestId("topic-tooltip").click();
@@ -265,11 +213,11 @@ test.describe("chart extras (#54)", () => {
         await settled(chartEl);
         await page.mouse.move(5, 5);
         // North's software: 30 of 60
-        await hover(page, chartEl, await inChart(chartEl, barMiddle, { series: 2, index: 1 }));
+        await hover(page, await pointOf(chartEl, barMiddle, { series: 2, index: 1 }));
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30 50.0%"]);
         // a pie: North is 60 of 157
         chartEl = await mount(page, { type: "pie", tooltipShare: true });
-        await hover(page, chartEl, await inChart(chartEl, sliceMiddle, { index: 1 }));
+        await hover(page, await pointOf(chartEl, sliceMiddle, { index: 1 }));
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["Sum of Revenue", "North 60 38.2%"]);
     });
 });
