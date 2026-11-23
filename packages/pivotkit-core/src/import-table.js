@@ -14,6 +14,7 @@
 import { PivotkitError } from "./errors.js";
 import { resolveLimits } from "./limits.js";
 import { isDateMs, parseIso } from "./time.js";
+import { CONTROLS, HIDDEN } from "./util.js";
 
 /** The column types a loaded table can have (`encode`'s, without "null"). */
 export const IMPORT_TYPES = Object.freeze(["string", "number", "date", "boolean"]);
@@ -93,13 +94,8 @@ const HEADER_SAMPLE = 50;
 /** Rows between two progress reports and abort checks. */
 export const ROW_STEP = 16_384;
 
-// C0 controls except tab, line feed and carriage return (made spaces), DEL, C1 controls, invisible
-// format characters (soft hyphen, zero width space, word joiner, byte order mark, tag characters; the
-// joiners U+200C and U+200D stay, scripts and emoji need them), lone surrogates, and the
-// characters that change the direction of text (U+061C, U+200E, U+200F, U+202A-U+202E, U+2066-U+2069):
-// a name like "invoice" + U+202E + "txt.exe" shows reversed.
-// eslint-disable-next-line no-control-regex
-const REMOVED = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b\u200e-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u206f\ufeff\u{E0000}-\u{E007F}]|[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/gu;
+// controls and invisible characters (util.js); tab, line feed and carriage return become spaces
+const REMOVED = new RegExp(`${CONTROLS.source}|${HIDDEN.source}`, "gu");
 const REMOVED_ANY = new RegExp(REMOVED.source, "u");
 const BREAKS = /[\t\r\n\u2028\u2029]+/g;
 
@@ -218,13 +214,13 @@ export function noteMessage(code, p) {
         case "DATE_ORDER":
             return `Dates in "${p.column}" were read as ${p.order === "mdy" ? "month/day/year" : "day/month/year"}; the values fit both.`;
         case "DECIMAL_MARK":
-            return `Numbers in "${p.column}" were read with "${p.decimal}" as the decimal mark; the values fit both.`;
+            return `Numbers in "${p.column}" were read with "${p.decimal}" as the decimal mark; some of them also fit the other mark.`;
         case "VALUES_NOT_CONVERTED":
             return `${n(p.count)} value(s) in "${p.column}" are no ${p.type} and are empty.`;
         case "NUMBERS_TOO_LARGE":
-            return `Numbers too large to hold are empty: ${n(p.count)}.`;
+            return `Numbers in "${p.column}" too large to hold are empty: ${n(p.count)}.`;
         case "NUMBERS_ROUNDED":
-            return `Long whole numbers that may have lost digits: ${n(p.count)}. IDs belong in text.`;
+            return `Long whole numbers in "${p.column}" may have lost digits: ${n(p.count)}. IDs belong in text.`;
         case "JSON_PROPERTY":
             return `The rows were read from "${p.property}".`;
         case "JSON_FLATTENED":
@@ -260,8 +256,11 @@ export function cleanText(text) {
 // Reading values from text
 
 // English: "," only between groups of three digits ("1,234.5"), so "1,5" is never 15
-const EN_NUMBER = /^[+-]?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?$/;
-const DE_NUMBER = /^[+-]?(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d+)?$/;
+// a first group of digits never starts with 0: "0,125" and "0.500" are decimals, not 125 and 500
+const EN_NUMBER = /^[+-]?(?:(?:[1-9]\d{0,2}(?:,\d{3})+|\d+)(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+const DE_NUMBER = /^[+-]?(?:[1-9]\d{0,2}(?:\.\d{3})+|\d+)(?:,\d+)?$/;
+// only groups of three: "1,234,567" or "1.234.567", a whole number in either notation
+const GROUPED = /^[+-]?[1-9]\d{0,2}(?:([.,])\d{3})(?:\1\d{3})*$/;
 // a leading zero before another digit: a postcode or an identifier ("01067", "007"), kept as text
 const LEADING_ZERO = /^[+-]?0\d/;
 // more significant digits than a double holds exactly: an identifier, kept as text
@@ -346,8 +345,9 @@ function keepsText(t) {
     if (LEADING_ZERO.test(t)) {
         return true;
     }
-    // a whole number of more digits than a double holds exactly is an identifier (a long fraction is not)
-    return /^[+-]?\d+$/.test(t) && digitCount(t) > MAX_DIGITS;
+    // a whole number of more digits than a double holds exactly is an identifier (a long fraction is
+    // not), also when its digits are grouped
+    return (/^[+-]?\d+$/.test(t) || GROUPED.test(t)) && digitCount(t) > MAX_DIGITS;
 }
 
 function textToBoolean(t) {
@@ -498,7 +498,8 @@ export function inferColumn(raw, hints) {
 
 /**
  * Which number notations a column of text fits, value by value: English, German, and whether a value
- * reads as a different number in each ("1,234", "1.500"), so the choice needs a note.
+ * reads as a different number in each ("1,234", "1.500"), so the choice needs a note. Also used when
+ * a person makes a text column a number (applyTypes).
  */
 function numberNotations() {
     const fits = { en: true, de: true, marked: false };
@@ -517,10 +518,11 @@ function numberNotations() {
         },
         /** @param {ImportHints} hints */
         result(hints) {
-            if (fits.en && fits.de) return { type: /** @type {const} */ ("number"), decimal: hints.decimal, ...(fits.marked ? { ambiguousDecimal: true } : {}) };
-            if (fits.en) return { type: /** @type {const} */ ("number"), decimal: /** @type {const} */ (".") };
-            if (fits.de) return { type: /** @type {const} */ ("number"), decimal: /** @type {const} */ (",") };
-            return { type: /** @type {const} */ ("string") };
+            if (!fits.en && !fits.de) return { type: /** @type {const} */ ("string") };
+            /** @type {"." | ","} */
+            const decimal = fits.en && fits.de ? hints.decimal : fits.en ? "." : ",";
+            // a value the two notations read as different numbers was read in this one: say so
+            return { type: /** @type {const} */ ("number"), decimal, ...(fits.marked ? { ambiguousDecimal: true } : {}) };
         }
     };
 }
@@ -574,10 +576,25 @@ function inferText(raw, hints) {
 // ---------------------------------------------------------------------------------------------------
 // The table builder
 
+// whole numbers from here on hold no more than 15 to 17 exact digits; from 1e21 on JSON writes them
+// with an exponent, as measurements, not as identifiers
+const ROUNDED_BELOW = 1e21;
+
+/**
+ * Counts a number a double changed before the reader saw it (JSON's 1e999 is Infinity, its
+ * 9007199254740993 is 9007199254740992): it can only be noted, by column.
+ */
+function countNumber(v, column, counts) {
+    if (typeof v !== "number" || Number.isNaN(v)) return;
+    const add = (map) => map.set(column, (map.get(column) ?? 0) + 1);
+    if (!Number.isFinite(v)) add(counts.tooLarge);
+    else if (Number.isInteger(v) && !Number.isSafeInteger(v) && Math.abs(v) < ROUNDED_BELOW) add(counts.rounded);
+}
+
 /**
  * A cleaned value as read: text without control and direction characters, line breaks as spaces,
  * trimmed and cut to `max`; a non-finite number (JSON's 1e999), an invalid date and empty text are
- * null; a nested value is its JSON text. `counts` counts what changed for the notes.
+ * null; a nested value is its JSON text. `counts` counts the text changed for the notes.
  */
 function cleanValue(v, max, counts) {
     if (v === null || v === undefined) return null;
@@ -585,13 +602,7 @@ function cleanValue(v, max, counts) {
         case "string":
             return cleanString(v, max, counts);
         case "number":
-            if (!Number.isFinite(v)) {
-                if (!Number.isNaN(v)) counts.tooLarge = (counts.tooLarge ?? 0) + 1;
-                return null;
-            }
-            // JSON's 9007199254740993 is already 9007199254740992 here: it can only be noted
-            if (Number.isInteger(v) && !Number.isSafeInteger(v)) counts.rounded = (counts.rounded ?? 0) + 1;
-            return v;
+            return Number.isFinite(v) ? v : null;
         case "boolean":
             return v;
         case "bigint":
@@ -654,7 +665,8 @@ export function createTable(options) {
     const hints = tableHints(options.hints, options.locale);
     /** @type {ImportNote[]} */
     const notes = [];
-    const counts = { removed: 0, cut: 0, empty: 0, extraRows: 0, tooLarge: 0, rounded: 0 };
+    /** numbers a double changed, by column: too large to hold, and whole numbers that may have lost digits */
+    const counts = { removed: 0, cut: 0, empty: 0, extraRows: 0, tooLarge: new Map(), rounded: new Map() };
     /** @type {number[]} the rows with more cells than the named header (longRowsOf decides) */
     const wideRows = [];
     /** what longRowsOf needs to tell a separator that ends every line: the rows' least and most width, and whether a cell beyond the named header has a value */
@@ -678,6 +690,7 @@ export function createTable(options) {
         let filled = 0;
         const row = new Array(cells.length);
         for (let i = 0; i < cells.length; i++) {
+            countNumber(cells[i], i, counts);
             const v = cleanValue(cells[i], limits.textLength, counts);
             row[i] = v;
             if (v !== null) filled = i + 1;
@@ -841,8 +854,10 @@ function finishTable({ header, columns, rowCount, notes, counts, hints, limits, 
     if (counts.empty > 0) notes.push(note("ROWS_EMPTY", { count: counts.empty }));
     if (counts.cut > 0) notes.push(note("TEXT_CUT", { count: counts.cut, max: limits.textLength }));
     if (counts.removed > 0) notes.push(note("CHARACTERS_REMOVED", { count: counts.removed }));
-    if (counts.tooLarge > 0) notes.push(note("NUMBERS_TOO_LARGE", { count: counts.tooLarge }));
-    if (counts.rounded > 0) notes.push(note("NUMBERS_ROUNDED", { count: counts.rounded }));
+    keep.forEach((c, k) => {
+        if (counts.tooLarge?.has(c)) notes.push(note("NUMBERS_TOO_LARGE", { column: names[k], count: counts.tooLarge.get(c) }));
+        if (counts.rounded?.has(c)) notes.push(note("NUMBERS_ROUNDED", { column: names[k], count: counts.rounded.get(c) }));
+    });
     /** @type {ImportTable} */
     const table = {
         columns: names,
@@ -858,10 +873,6 @@ function finishTable({ header, columns, rowCount, notes, counts, hints, limits, 
     };
     const inferred = raw.map((values) => inferColumn(values, hints));
     table.detected = inferred.map((x) => x.type);
-    inferred.forEach((x, c) => {
-        if (x.ambiguousOrder) notes.push(note("DATE_ORDER", { column: names[c], order: x.dateOrder }));
-        if (x.ambiguousDecimal) notes.push(note("DECIMAL_MARK", { column: names[c], decimal: x.decimal }));
-    });
     return applyTypes(table, types, inferred);
 }
 
@@ -875,28 +886,51 @@ function finishTable({ header, columns, rowCount, notes, counts, hints, limits, 
  */
 function applyTypes(table, types, inferred) {
     const wanted = typesByPosition(table.columns, types);
-    const notes = table.notes.filter((x) => x.code !== "VALUES_NOT_CONVERTED");
+    const notes = table.notes.filter((x) => !COLUMN_NOTES.has(x.code));
     const outTypes = [];
     const data = [];
     for (let c = 0; c < table.columns.length; c++) {
-        const own = inferred?.[c];
         const type = wanted[c] ?? table.detected[c];
-        // a column read in another notation than the table's hint converts in that notation first
-        const hints = own && own.type === type ? { ...table.hints, ...(own.decimal ? { decimal: own.decimal } : {}), ...(own.dateOrder ? { dateOrder: own.dateOrder } : {}) } : table.hints;
         if (table.types[c] === type && table.data[c] !== undefined) {
-            // the column keeps its type: its values and its note stay as they are
+            // the column keeps its type: its values and its notes stay as they are
             outTypes.push(type);
             data.push(table.data[c]);
-            const kept = table.notes.find((x) => x.code === "VALUES_NOT_CONVERTED" && x.params.column === table.columns[c]);
-            if (kept) notes.push(kept);
+            notes.push(...table.notes.filter((x) => COLUMN_NOTES.has(x.code) && x.params.column === table.columns[c]));
             continue;
         }
+        const read = readingOf(table.raw[c], type, inferred?.[c], table.hints);
+        // a column read in another notation than the table's hint converts in that notation first
+        const hints = { ...table.hints, ...(read?.decimal ? { decimal: read.decimal } : {}), ...(read?.dateOrder ? { dateOrder: read.dateOrder } : {}) };
+        if (read?.ambiguousOrder) notes.push(note("DATE_ORDER", { column: table.columns[c], order: read.dateOrder }));
+        if (read?.ambiguousDecimal) notes.push(note("DECIMAL_MARK", { column: table.columns[c], decimal: read.decimal }));
         const { values, failed } = convertColumn(table.raw[c], type, hints);
         if (failed > 0) notes.push(note("VALUES_NOT_CONVERTED", { column: table.columns[c], type, count: failed }));
         outTypes.push(type);
         data.push(values);
     }
     return { ...table, types: outTypes, data, notes };
+}
+
+/** The notes about one column's reading; applyTypes makes them again when the column's type changes. */
+const COLUMN_NOTES = new Set(["VALUES_NOT_CONVERTED", "DATE_ORDER", "DECIMAL_MARK"]);
+
+/**
+ * How a column's text is read as `type`: as inferred when that is its type; a column of text made a
+ * number reads in the notation its values fit (the decimal mark is a column's, never a value's).
+ * @param {unknown[]} raw
+ * @param {ImportType} type
+ * @param {ReturnType<typeof inferColumn> | undefined} own
+ * @param {ImportHints} hints
+ */
+function readingOf(raw, type, own, hints) {
+    if (own && own.type === type) return own;
+    if (type !== "number") return undefined;
+    const numbers = numberNotations();
+    for (const v of raw) {
+        if (typeof v === "string" && (numbers.fits.en || numbers.fits.de)) numbers.add(v);
+    }
+    const read = numbers.result(hints);
+    return read.type === "number" ? read : undefined;
 }
 
 /** `types` (an array by position or an object by name) as one entry per column; invalid entries are ignored. */

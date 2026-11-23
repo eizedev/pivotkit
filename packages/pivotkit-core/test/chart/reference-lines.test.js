@@ -27,7 +27,7 @@ test("chart.referenceLines: off by default; average, trend and a target as a num
         bad.issues.map((i) => [i.path, i.code]),
         [
             ["chart.referenceLines.color", "unknownKey"],
-            ["chart.referenceLines.average", "unknownSetting"],
+            ["chart.referenceLines.average", "notSwitch"],
             ["chart.referenceLines.target", "unknownSetting"]
         ]
     );

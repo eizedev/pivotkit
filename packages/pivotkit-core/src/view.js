@@ -55,7 +55,7 @@ export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
     filterCompareValue: "error",
     filterRelativeDirection: "error schema", filterRelativeUnit: "error schema", filterRelativeCount: "error schema", filterRelativeAnchor: "error schema",
     sortNoItems: "error schema", sortedTwice: "error", sortColumn: "warning",
-    badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", badTitle: "error schema",
+    badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", notSwitch: "error schema", notSection: "error schema", badTitle: "error schema",
     unknownLocale: "error", unknownTimeZone: "error", timeZoneMismatch: "error", tooManyIssues: "warning",
     labelTwice: "warning", labelTaken: "warning"
 });
@@ -284,13 +284,22 @@ function oneOf(value, allowed, fallback) {
     return typeof value === "string" && allowed.includes(value) ? value : fallback;
 }
 
-/** A switch: true or false; anything else given is reported and the fallback used. */
+/** oneOf, and a value given but not allowed is reported (null counts as not given). */
+function choice(value, allowed, fallback, ctx, path) {
+    const out = oneOf(value, allowed, fallback);
+    if (value !== undefined && value !== null && out !== value) {
+        ctx.issue(path, `not one of ${allowed.join(", ")}`, "unknownSetting", { value: shown(value) });
+    }
+    return out;
+}
+
+/** A switch: true or false; anything else given is reported and the fallback used (null counts as not given). */
 function bool(value, fallback, ctx, path) {
     if (typeof value === "boolean") {
         return value;
     }
-    if (value !== undefined) {
-        ctx.issue(path, "not true or false", "unknownSetting", { value: shown(value) });
+    if (value !== undefined && value !== null) {
+        ctx.issue(path, "not true or false", "notSwitch", { value: shown(value) });
     }
     return fallback;
 }
@@ -301,7 +310,7 @@ function sectionObject(value, path, ctx) {
         return false;
     }
     if (!isPlainObject(value)) {
-        ctx.issue(path, "not an object", "unknownSetting", { value: shown(value) });
+        ctx.issue(path, "not an object", "notSection", { value: shown(value) });
         return false;
     }
     return true;
@@ -456,7 +465,7 @@ function showAsOf(showAs, ref, path, ctx) {
         ctx.issue(path, `${type} needs an aggregator that adds up (sum or count), not ${ref.agg}`, "showAsNotAdditive", { value: type, agg: ref.agg });
         return null;
     }
-    return { type, axis: oneOf(get(s, "axis"), ["rows", "cols"], "rows") };
+    return { type, axis: choice(get(s, "axis"), ["rows", "cols"], "rows", ctx, `${path}.axis`) };
 }
 
 function valuesSection(raw, view, ctx) {
@@ -582,8 +591,8 @@ function sortSection(raw, view, ctx) {
         if (!f || seen.has(f.name)) {
             return f ? ctx.issue(path, `"${f.name}" is sorted twice`, "sortedTwice", { field: f.name }) : ctx.unknownField(path, get(s, "field"));
         }
-        const by = oneOf(get(s, "by"), SORT_BY, "label");
-        const spec = { field: f.name, by, order: oneOf(get(s, "order"), ["asc", "desc"], "asc") };
+        const by = choice(get(s, "by"), SORT_BY, "label", ctx, `${path}.by`);
+        const spec = { field: f.name, by, order: choice(get(s, "order"), ["asc", "desc"], "asc", ctx, `${path}.order`) };
         if (by === "custom") {
             const items = customItems(get(s, "items"), f, `${path}.items`, ctx);
             if (!items) {

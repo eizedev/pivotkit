@@ -18,7 +18,7 @@
             "docs/security.md": [908],
             "docs/use/charts.md": [481]
         },
-        "totalLines": 24010
+        "totalLines": 24000
     },
     "functions": {
         "complexity": {

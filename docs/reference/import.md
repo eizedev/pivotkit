@@ -176,9 +176,9 @@ it with `types`, by position or by column name.
 | `10.11.2026`, `1.2.2026 08:30` | date | Day, month, year. Read before numbers: `10.11.2026` is not the number 10112026. |
 | `02/03/2026` | date | The values decide the order (a 13 in the first place is a day); if every value fits both, the `locale` option decides (`en-US`: month first, others day first), with a note. |
 | `1234.5`, `1,234.5`, `-0.25`, `1e3` | number | English. A comma only separates groups of three digits, so `1,5` is never 15. |
-| `1.234,5`, `1234,5` | number | German. A column that fits both notations takes the one of the separator: German with semicolons, English otherwise. When the two notations give different numbers, as for `1,234` or `1.500`, a note names the decimal mark. |
+| `1.234,5`, `1234,5` | number | German. A column that fits both notations takes the one of the separator: German with semicolons. Otherwise the `locale` decides: German for a locale that writes `1,5`, else English. When the two notations give different numbers, as for `1,234` or `1.500`, a note names the decimal mark. |
 | `01067`, `007` | string | A leading zero keeps the column as text: postcodes and identifiers. |
-| A whole number of more than 15 digits | string | An identifier; a number would lose digits. |
+| A whole number of more than 15 digits, grouped or not | string | An identifier; a number would lose digits. |
 | Anything else, or a mix | string | |
 
 Values with a type of their own keep it, such as a spreadsheet's cells or JSON's numbers and
@@ -241,10 +241,10 @@ file had it. A field that is given must be right. This holds for `hints` too: `d
 | `TEXT_CUT` | Text longer than `limits.textLength` | `count`, `max` |
 | `CHARACTERS_REMOVED` | Control or direction characters | `count` |
 | `DATE_ORDER` | Dates with slashes that fit both orders | `column`, `order` |
-| `DECIMAL_MARK` | Numbers that both notations read, as different numbers: `1,234`, `1.500` | `column`, `decimal` |
+| `DECIMAL_MARK` | A number column with values the two notations read as different numbers: `1,234`, `1.500` | `column`, `decimal` |
 | `VALUES_NOT_CONVERTED` | Values that are not of the column's type | `column`, `type`, `count` |
-| `NUMBERS_TOO_LARGE` | JSON numbers too large to hold, such as `1e999`, left empty | `count` |
-| `NUMBERS_ROUNDED` | JSON whole numbers over 2^53, which may have lost digits | `count` |
+| `NUMBERS_TOO_LARGE` | Numbers too large to hold, such as JSON's `1e999`, left empty | `column`, `count` |
+| `NUMBERS_ROUNDED` | Whole numbers over 2^53 and under 1e21 (JSON, a workbook), which may have lost digits | `column`, `count` |
 | `JSON_PROPERTY` | The rows were under a property | `property` |
 | `JSON_FLATTENED` | Nested objects became `a.b` columns | `example` |
 | `SHEET` | A workbook: the sheet read | `sheet`, `count`, `visible` |

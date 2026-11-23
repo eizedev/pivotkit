@@ -171,6 +171,10 @@ test("names, descriptions and the source are plain text, capped; a broken envelo
     // direction and zero-width characters go, as in templates: "inv\u202etxt.exe" cannot read as another name
     const hidden = fromViewFile({ format: VIEW_FILE_FORMAT, formatVersion: 1, name: "inv\u202etxt.exe\u200b", source: { id: "x\u2066y\u061c" }, view });
     assert.deepEqual([hidden.name, hidden.source?.id], ["invtxt.exe", "xy"]);
+    // a field's name keeps its inner spaces and joiners, so it still matches the data's; an id is cut, never given "…"
+    const names = fromViewFile({ format: VIEW_FILE_FORMAT, formatVersion: 1, source: { id: "i".repeat(300), fields: [{ name: "Net  Sales", type: "number" }, { name: "ab\u200cc", type: "string" }] }, view });
+    assert.deepEqual(names.source?.fields?.map((f) => f.name), ["Net  Sales", "ab\u200cc"]);
+    assert.equal(names.source?.id, "i".repeat(VIEW_FILE_LIMITS.name));
 });
 
 test("with the data it says whether the view fits: same source, every field there with its type", () => {

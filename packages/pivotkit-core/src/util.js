@@ -47,7 +47,9 @@ export function shown(value) {
     } catch {
         text = String(value);
     }
-    return text.length > 100 ? `${text.slice(0, 99)}…` : text;
+    // the value goes into an issue a UI shows: no controls, invisible or direction characters
+    const clean = text.slice(0, 400).replace(SPACED, " ").replace(HIDDEN_ALL, "");
+    return clean.length > 100 ? `${clean.slice(0, 99)}…` : clean;
 }
 
 /** "#abc" or "#aabbcc" -> "aabbcc" */
@@ -190,27 +192,39 @@ export function resolveLocale(viewLocale, optionLocale) {
     return canonical;
 }
 
+// The one list of characters a text from outside loses (file names and values, view files,
+// templates, issue texts). CONTROLS: C0 controls except tab, line feed and carriage return, DEL and
+// C1 controls. HIDDEN: invisible format characters (soft hyphen, U+180E, zero width space, word
+// joiner, byte order mark, tag characters; the joiners U+200C and U+200D stay, scripts and emoji need
+// them), lone surrogates, and the characters that change the direction of text (U+061C, U+200E,
+// U+200F, U+202A-U+202E, U+2066-U+206F): a name like "invoice" + U+202E + "txt.exe" shows reversed.
+// eslint-disable-next-line no-control-regex
+export const CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u;
+export const HIDDEN = /[\u00ad\u061c\u180e\u200b\u200e\u200f\u202a-\u202e\u2060-\u2064\u2066-\u206f\ufeff\u{E0000}-\u{E007F}]|[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/u;
+const HIDDEN_ALL = new RegExp(HIDDEN.source, "gu");
+// controls, tabs and line breaks: one space for a run of them
+const SPACED = new RegExp(`(?:${CONTROLS.source}|[\\t\\r\\n\\u2028\\u2029])+`, "gu");
+
 /**
- * Plain text of at most `max` characters: control characters become spaces, bidi controls and
- * zero-width characters go, runs of spaces one space, the ends trimmed; a longer text is cut and ends with "…". Undefined for anything else.
+ * Plain text of at most `max` characters: controls and line breaks become a space, invisible and
+ * direction characters (HIDDEN) go, the ends are trimmed; inner spaces stay as given, so a field's
+ * name keeps matching the data's. A longer text is cut and ends with "…", or only cut with
+ * `{ ellipsis: false }` (an identifier). Undefined for anything else and for empty text.
  * @param {unknown} value
  * @param {number} max
+ * @param {{ ellipsis?: boolean }} [options]
  * @returns {string | undefined}
  */
-export function plainText(value, max) {
+export function plainText(value, max, { ellipsis = true } = {}) {
     if (typeof value !== "string") {
         return undefined;
     }
-    const text = value
-        .slice(0, max * 4)
-        // eslint-disable-next-line no-control-regex
-        .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ")
-        // bidi controls and zero-width characters: they can make a text read as another one
-        .replace(/[\u061c\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u206f\ufeff]/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
+    const text = value.slice(0, max * 4).replace(SPACED, " ").replace(HIDDEN_ALL, "").trim();
     if (!text) {
         return undefined;
     }
-    return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+    if (text.length <= max) {
+        return text;
+    }
+    return ellipsis ? `${text.slice(0, max - 1).trimEnd()}…` : text.slice(0, max);
 }
