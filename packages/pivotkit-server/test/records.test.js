@@ -857,10 +857,14 @@ test("the writer gives every value as pivotkit-core's data export does, dates as
     const exported = dataToJson(data).trim().split("\n").filter((l) => l.startsWith("{")).map((l) => JSON.parse(l.replace(/,$/, "")));
     data.columns.forEach((column, c) => assert.deepEqual(columns[c], exported.map((row) => row[column.name] ?? null), column.name));
     // and encode() reads them back to the same values in another time zone
+    // a column without any value is answered without a type; the engine infers "null" again
+    assert.equal(data.column("Empty")?.type, "null");
+    assert.equal(answeredType(/** @type {any} */ (data.column("Empty"))), null);
     const again = encode({ columns: data.columns.map((c) => c.name), types: data.columns.map(answeredType), data: columns }, { timeZone: "America/New_York" });
     for (const column of data.columns) {
         const back = again.column(column.name);
-        assert.equal(back?.type, column.type === "null" ? "null" : column.type, column.name);
+        assert.equal(back?.type, column.type, column.name);
         assert.deepEqual(Array.from(back.codes, (k) => (k < 0 ? null : back.dict[k])), Array.from(column.codes, (k) => (k < 0 ? null : column.dict[k])), column.name);
     }
+    assert.equal(again.column("Empty")?.type, "null", "the column without a value is null again");
 });
