@@ -50,11 +50,12 @@ At the top, a summary says what the table shows of the field and why not the res
 ## Tick the values to keep { #filter-by-values }
 
 Under **Pick items**, untick the values to leave out, or click **Only** beside a value to keep it
-alone. Each value shows its row count. Search finds a value in a long list. The list shows at most
+alone (it shows when you point at a value or reach it with the keyboard, and always on a touch
+screen). Each change applies at once. Each value shows its row count. Search finds a value in a long list. The list shows at most
 300 values at a time.
 
 The report remembers the values you left out, not the ones you kept, as Excel does. So a value that
-is new in later data shows up. **Clear** ticks every value again.
+is new in later data shows up. **Pick all again** ticks every value again.
 
 ## Pick a date range { #quick-choices-for-dates }
 
