@@ -2,7 +2,7 @@
 // then "Only …" and "Without …" for its category and its series. A filter is one step: the chip shows
 // it and Undo takes it back. A double click opens the rows at once. The keys work in the menu.
 import { test, expect } from "../fixtures.js";
-import { HARDWARE, NORTH, SOFTWARE, barMiddle, cellMiddle, mount, pointOf, sliceMiddle } from "./report.js";
+import { HARDWARE, NORTH, SOFTWARE, barMiddle, cellMiddle, hover, mount, pointOf, sliceMiddle, tooltipOf } from "./report.js";
 
 const menu = (page) => page.getByRole("menu");
 const lastView = (page) => page.evaluate(() => window.__tooltipViews.at(-1));
@@ -37,6 +37,24 @@ test.describe("the menu at a clicked point of the chart", () => {
         await page.keyboard.press("Escape");
         await expect(menu(page)).toHaveCount(0);
         await expect(page.getByTestId("drill-panel")).toHaveCount(0);
+    });
+
+    test("while a point's menu is open no tooltip shows over it, also when the pointer moves on to another bar", async ({ page }) => {
+        const chartEl = await mount(page, { type: "bar" });
+        const at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
+        await page.mouse.click(at.x, at.y);
+        await expect(menu(page)).toBeVisible();
+        // the tooltip of the click goes (ECharts hides it after a short delay)
+        await expect.poll(() => tooltipOf(chartEl)).toEqual([]);
+        await hover(page, await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH }));
+        // a tooltip would show after the pointer rests; give it the time it takes
+        await page.waitForTimeout(400);
+        expect(await tooltipOf(chartEl)).toEqual([]);
+        // closed: the tooltip works again
+        await page.keyboard.press("Escape");
+        await expect(menu(page)).toHaveCount(0);
+        await hover(page, await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH }));
+        await expect.poll(() => tooltipOf(chartEl)).not.toEqual([]);
     });
 
     test("Only keeps the one region as a filter, and Undo takes it back", async ({ page }) => {

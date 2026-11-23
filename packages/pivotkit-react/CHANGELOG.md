@@ -13,6 +13,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- No tooltip shows over the menu of a clicked bar or point while it is open. Before, the tooltip of
+  the bar under the pointer covered part of the menu.
+- A menu that a low window cuts off shows that it goes on: its last line fades out until the list is
+  scrolled to its end.
+- **Number format** lists the euro once. A view's `currency:EUR` was a checked entry of its own above
+  **Currency**, with the same name. Another currency is named with its code and shows its example:
+  **Currency (USD)**, `$1,234.50`.
 - The buttons beside the tabs Table and Chart were cut off at the report's right edge, on phones and
   on reports whose field list takes room beside the result. When their whole names have no room,
   they now show their short form, as on a phone. When even that has no room, they move to a line
