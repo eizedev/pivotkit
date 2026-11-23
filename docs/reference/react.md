@@ -981,8 +981,8 @@ for the table on a phone. Give it more height there.
 ### Table and Chart { #table-and-chart }
 
 On top of the result stand the tabs Table and Chart, then the settings button, Enlarge and Full
-screen. Without room for their whole names the buttons take their short form; without room for that,
-a line above the tabs. The Tab order stays tabs first.
+screen. Without room for their whole names the buttons take their short form, their icons only; without
+room for that, a line above the tabs. The Tab order stays tabs first.
 
 - The tabs are ARIA tabs: `role="tablist"` named "View", two `role="tab"` with `aria-selected`. The
   result is their `tabpanel`, labelled by the tab shown. Test ids: `show-table`, `show-chart`.
@@ -991,8 +991,7 @@ a line above the tabs. The Tab order stays tabs first.
 - The settings button reads "Table settings" (`tableSettings`) or "Chart settings"
   (`chartSettings`). Its test id is `view-settings`. Table settings holds the totals, Expand all and
   Collapse all. Chart settings holds the chart types and the Display topics.
-- In the narrow layout the settings button reads "Settings" (`settingsShort`), Enlarge and Full
-  screen show their icon only. Each keeps its whole name in `aria-label` and `title`. Left and Right
+- In the narrow layout Settings, Enlarge and Full screen show their icon only. Each keeps its whole name in `aria-label` and `title`. Left and Right
   do not mirror: the report has no right-to-left layout.
 - A tab changes the view's `display`, so showing the other tab is one step for Undo, as the switch
   Table | Chart was before. The tab shown, clicked again, adds no step.
