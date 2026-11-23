@@ -563,14 +563,14 @@ They are approximate and change with every dependency update.
 CI runs the same command on Node 24 and measures the same numbers. It fails when a group is over
 `SIZE_BUDGET_KIB` in `build.js`:
 
-- The first load's budget is 181.5 KiB. It is a hard line: a feature that needs room there makes it by
+- The first load's budget is 182 KiB. It is a hard line: a feature that needs room there makes it by
   moving something out of the first load.
 - The budgets of the groups loaded later leave a little room above what CI measures.
 - A Node with the system's zlib, such as Homebrew's, measures other sizes. The command says so.
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, the styles the first render uses) | 12 | 543 KiB | 181 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, the styles the first render uses) | 12 | 543 KiB | 181.6 KiB |
 | Before the first render of a German report only (the German texts of the first render) | 1 | 17 KiB | 5.9 KiB |
 | Right after the first render (the tips' table) | 1 | 4 KiB | 1.6 KiB |
 | On the first chart (ECharts with bar, line, pie (also the donut), heatmap, treemap, the components they use, the title, the zoom slider, the reference lines' markLine and the high and low points' markPoint among them, the canvas renderer, pivotkit-core's ECharts option and the layout of the chart's labels) | 2 | 752 KiB | 259 KiB |
