@@ -8,6 +8,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
+import { parse } from "yaml";
+import { assertStates } from "./docs-facts.js";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -34,14 +36,13 @@ test("the compatibility page names the lowest Node version of every package's en
     assert.equal(ranges.size, 1, `one Node floor for every package, not ${[...ranges].join(", ")}`);
     const lowest = [...ranges][0].match(/^>=(\d+)$/)?.[1];
     assert.ok(lowest, `engines.node is ">=<major>", not ${[...ranges][0]}`);
-    assert.match(page(), new RegExp(`\\*\\*Node ${lowest} or later\\*\\*`));
+    assertStates(page(), "docs/compatibility.md", `Node ${lowest} or later`);
 });
 
 test("the compatibility page names the Node versions CI tests", () => {
-    const matrix = read(".github/workflows/ci.yml").match(/^\s+node: \[(.+)\]$/m);
-    assert.ok(matrix, "ci.yml has no node matrix");
-    const versions = [...matrix[1].matchAll(/"(\d+)"/g)].map((m) => m[1]);
-    assert.match(page(), new RegExp(`^\\| Linux, Node ${versions.join(" and ")} \\| Tested in CI \\|`, "m"));
+    const versions = parse(read(".github/workflows/ci.yml")).jobs.test.strategy.matrix.node;
+    assert.ok(versions?.length, "ci.yml's test job has no node matrix");
+    assertStates(page(), "docs/compatibility.md", "Linux", `Node ${versions.join(" and ")}`, "CI");
 });
 
 test("the compatibility page lists the browsers of browser-support.md from the same versions", () => {
@@ -66,8 +67,8 @@ test("the browser builds target the lowest browsers the compatibility page names
 
 test("the compatibility page names pivotkit-react's React and ECharts ranges as package.json has them", () => {
     const peers = json("packages/pivotkit-react/package.json").peerDependencies;
-    assert.match(page(), new RegExp(`^\\| React for pivotkit-react: \`${peers.react}\` \\|`, "m"));
-    assert.match(page(), new RegExp(`^\\| Apache ECharts for pivotkit-react: \`${peers.echarts}\` \\|`, "m"));
+    assertStates(page(), "docs/compatibility.md", "React", "pivotkit-react", `\`${peers.react}\``);
+    assertStates(page(), "docs/compatibility.md", "ECharts", "pivotkit-react", `\`${peers.echarts}\``);
 });
 
 /** The Markdown files people read about installing pivotkit: the README files, the docs and the repository's guides. Changelogs and decision records keep history. */
