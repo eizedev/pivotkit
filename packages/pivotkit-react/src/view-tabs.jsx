@@ -104,7 +104,7 @@ export function ViewTabs(props) {
 /**
  * The settings of the table or of the chart: a button with its panel. With both shown, each part has
  * its own (#51), with the test id `table-settings` or `chart-settings`; else `view-settings`. In the
- * short form it says "Settings".
+ * short form it shows its icon only, with its whole name as its name and tooltip.
  * @param {any} props  ViewTabs' props, and `kind`: "table" or "chart"; `narrow`: the short form
  */
 function SettingsButton(props) {
@@ -112,7 +112,7 @@ function SettingsButton(props) {
     const chart = kind === "chart";
     const settings = chart ? labels.chartSettings : labels.tableSettings;
     return (
-        <MenuButton label={settings} icon="sliders" text={narrow ? labels.settingsShort : settings} name={narrow ? settings : undefined} title={narrow ? settings : undefined} className="pk-btn pk-small-btn" role="dialog" align="end" testId={props.shown === "both" ? `${kind}-settings` : "view-settings"} popoverClass={chart ? "pk-chart-menu" : undefined}>
+        <MenuButton label={settings} icon="sliders" text={settings} showText={!narrow} className="pk-btn pk-small-btn" role="dialog" align="end" testId={props.shown === "both" ? `${kind}-settings` : "view-settings"} popoverClass={chart ? "pk-chart-menu" : undefined}>
             {(close) =>
                 chart ? (
                     <MenuPanel

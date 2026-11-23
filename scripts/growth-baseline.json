@@ -12,13 +12,13 @@
             "docs/reference/core.md": [674],
             "docs/reference/element.md": [604],
             "docs/reference/mcp.md": [1005],
-            "docs/reference/react.md": [1204],
+            "docs/reference/react.md": [1203],
             "docs/reference/rest.md": [2036],
             "docs/reference/sources.md": [1216],
             "docs/security.md": [908],
             "docs/use/charts.md": [481]
         },
-        "totalLines": 23977
+        "totalLines": 23994
     },
     "functions": {
         "complexity": {

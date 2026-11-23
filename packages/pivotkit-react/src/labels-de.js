@@ -82,7 +82,6 @@ export const de = {
     exportLabel: "Export",
     tableSettings: "Tabelleneinstellungen",
     chartSettings: "Diagrammeinstellungen",
-    settingsShort: "Einstellungen",
     expand: "{label} aufklappen",
     collapse: "{label} zuklappen",
     showAs: "Anzeigen als",
