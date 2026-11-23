@@ -8,7 +8,8 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { gzipSync } from "node:zlib";
 import { AnswerShapeError, rowsReader } from "../src/sources/json-rows.js";
-import { GuardedFetchError, createGuardedFetch } from "../src/sources/fetch.js";
+import { GuardedFetchError } from "../src/sources/fetch.js";
+import { loopbackFetch as local } from "./helpers.js";
 import { MAX_DEPTH, jsonDepth, pointerValue } from "../src/sources/http.js";
 
 /** The sizes of the pieces an answer is read in (0: the whole body at once). */
@@ -246,9 +247,6 @@ before(async () => {
     base = `http://127.0.0.1:${server.address().port}`;
 });
 after(() => new Promise((resolve) => server.close(resolve)));
-
-const plainLocal = createGuardedFetch({ allowHttpLoopback: true });
-const local = (url, request = {}) => plainLocal(url, { allowIpLiterals: true, ...request });
 
 test("guardedFetch's consume: the body's pieces go to the consumer, decoded, counted as size; none is kept; other answers are kept as before", async () => {
     const pieces = [];

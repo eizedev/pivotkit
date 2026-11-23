@@ -2,9 +2,9 @@
 // the clipboard (#54).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { tooltipContent } from "../src/chart-tooltip.js";
-import { colorMapFor } from "../src/chart-colors.js";
-import { copyImage } from "../src/files.js";
+import { tooltipContent } from "../../src/chart-tooltip.js";
+import { colorMapFor } from "../../src/chart-colors.js";
+import { copyImage } from "../../src/files.js";
 
 const fmt = (v) => String(v);
 const share = (v) => `${v.toFixed(1)}%`;

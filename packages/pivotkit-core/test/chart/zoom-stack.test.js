@@ -3,7 +3,7 @@
 // draw it) and in decorateOption's slider.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CATALOG, computePivot, emptyView, encode, normalize, validate } from "../src/index.js";
+import { CATALOG, computePivot, emptyView, encode, normalize, validate } from "../../src/index.js";
 import { decorateOption, toEChartsOption } from "pivotkit-core/chart";
 
 const NO_TOKENS = { getPropertyValue: () => "" };
@@ -192,7 +192,7 @@ test("zoom with group labels drives both category axes", () => {
 });
 
 test("a view file leaves out the chart keys newer than 0.7 at their defaults, so 0.7 readers take it without a warning", async () => {
-    const { toViewFile, fromViewFile } = await import("../src/index.js");
+    const { toViewFile, fromViewFile } = await import("../../src/index.js");
     const view = normalize({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar" } }, SALES).view;
     const file = toViewFile(view, { name: "Revenue" });
     assert.deepEqual(Object.keys(file.view.chart), ["type", "stacked", "horizontal", "valueLabels", "legend", "title", "smooth", "axisLabels", "groupLabels", "labelPosition"]);

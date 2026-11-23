@@ -76,7 +76,8 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - It allows https only and no redirects. It checks the address on the connection's own lookup.
 - It counts bodies after decompression and has one time limit.
 - HTTP sources, uploads and the OAuth issuer all go through it.
-- Private addresses need the operator's `intranet` setting.
+- Private addresses need the operator's `intranet` setting. guardedFetch refuses them unless a caller passes `allowPrivate: true`.
+- The exception is `source-from-openapi`: it may read its document from a private address, as the operator runs it on their own machine.
 - A source's URL template keeps its origin and shape (`sources/template.js`).
 - HTTP sources page only on the same host and path. JSON nesting is capped at `MAX_DEPTH`.
 - A JSON answer is read while it streams: `consume` of `guardedFetch` feeds `rowsReader` (`sources/json-rows.js`).
@@ -116,6 +117,7 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 - Below `show`, a text file with a quoted value over several lines is refused (`checkedRead`).
 - REST callers never get `file:` paths (`files: false` in the registry).
 - Delivery decides a report's link before the file is written (`linkFor` in `delivery.js`).
+- Reports are 0600 in a 0700 output directory; 0644 and 0755 where `output.baseUrl` serves them (`outputModes` in `output.js`).
 - `isClosedForDelivery` is the one rule for which reports get only bound links. `closedReason` says why.
 
 ### Caches, inline data and memory

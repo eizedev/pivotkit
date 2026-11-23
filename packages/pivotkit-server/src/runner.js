@@ -18,8 +18,8 @@ import { VERSION } from "./context.js";
 import { CONFIG_ENV, SERVER_FLAGS, flagLines, helpPointer, optionsFrom, startFormatOf } from "./flags.js";
 import { startErrorLine } from "./log.js";
 import { stopOnSignals } from "./stop.js";
-import { DEFAULT_PORT, TOKEN_ENV, loadMcp } from "./serve.js";
-import { importInstalled } from "./installed.js";
+import { DEFAULT_PORT, MCP_PACKAGE, TOKEN_ENV, loadMcp } from "./serve.js";
+import { importInstalled, missingPackageText } from "./installed.js";
 
 /** The variable that names the configuration file (flags.js's). */
 export { CONFIG_ENV };
@@ -67,7 +67,7 @@ const CLI_PACKAGE = "pivotkit-cli";
 async function runCli(argv, io) {
     const main = (await importInstalled(CLI_PACKAGE))?.main;
     if (!main) {
-        io.stderr.write(`pivotkit-server: cli needs the package ${CLI_PACKAGE} beside pivotkit-server (npm install ${CLI_PACKAGE}); the container image has it\n`);
+        io.stderr.write(`pivotkit-server: ${missingPackageText("cli", CLI_PACKAGE)}; the container image has it\n`);
         return 2;
     }
     return main(argv, { stdin: io.stdin ?? process.stdin, stdout: io.stdout, stderr: io.stderr, env: io.env, cwd: io.cwd ?? process.cwd(), program: "pivotkit-server cli" });
@@ -81,7 +81,7 @@ async function runCli(argv, io) {
 async function runMcp(argv, io) {
     const mcp = await loadMcp();
     if (!mcp) {
-        io.stderr.write("pivotkit-server: mcp needs the package pivotkit-mcp beside pivotkit-server (npm install pivotkit-mcp)\n");
+        io.stderr.write(`pivotkit-server: ${missingPackageText("mcp", MCP_PACKAGE)}\n`);
         return 2;
     }
     const env = io.env.PIVOTKIT_MCP_CONFIG || !io.env[CONFIG_ENV] ? io.env : { ...io.env, PIVOTKIT_MCP_CONFIG: io.env[CONFIG_ENV] };

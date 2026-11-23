@@ -6,12 +6,27 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Security
+
+- **Breaking:** the server writes new reports with mode 0600, so only its own user reads them. Before,
+  they were 0644. With `output.baseUrl`, a web server must read them, so they stay 0644.
+  - Who is affected: another user who reads the output directory without `output.baseUrl`, such as a
+    backup job or a container mount read by another user ID.
+  - What to do: run that reader as the server's user, or set `output.baseUrl`. No setting brings back
+    0644 without `output.baseUrl`.
+  - Reports written before keep their mode. Run `chmod 600` on them, or let the server prune them.
+- Requests to other servers refuse loopback and private addresses unless the `intranet` setting allows
+  them. No configuration changes behaviour.
+
 ### Changed
 
+- `http.enable: ["mcp"]` and `pivotkit-server mcp` without pivotkit-mcp name both install commands,
+  for a project and a global install.
 - **Breaking:** pivotkit-cli is no longer a dependency. If you installed pivotkit-server from npm and
   run `pivotkit-server cli`, install pivotkit-cli beside it from this release on, the way you
   installed pivotkit-server (`npm install --global pivotkit-cli` for a global install). Without it,
-  the command exits 2 and says `npm install pivotkit-cli`. The container image has all three
+  the command exits 2 and names both commands: `npm install pivotkit-cli`, and
+  `npm install --global pivotkit-cli` for a global pivotkit-server. The container image has all three
   packages and needs nothing ([running it](https://pivotkit.eize.dev/reference/rest/#running)).
 - Every error class extends `CodedError` of `pivotkit-core/internal`, which holds `code` and
   `details`. A problem document has one builder, `problemDocument`, for REST and the download links.
