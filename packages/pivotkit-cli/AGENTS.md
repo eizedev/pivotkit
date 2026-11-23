@@ -35,6 +35,7 @@ npx pivotkit-cli render view.json --data data.csv -o out.html
 
 - Read and write every file through `pivotkit-node/files`. Its rules: [pivotkit-node](../pivotkit-node/AGENTS.md).
 - `pivotkit-cli/files` and `pivotkit-cli/rest` re-export pivotkit-node's names. Add none of their own.
+- Nothing in this repository imports them, or `src/files.js` and `src/rest-contract.js`. ESLint refuses it (`eslint.config.js`).
 - `pivotkit example` never writes over an existing file.
 
 ## Errors
