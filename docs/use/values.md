@@ -48,7 +48,8 @@ The first five are on the level; the others are under **More statistics**.
   average, median, minimum, maximum or variance. Excel shows `#DIV/0!` or 0 there.
 - **The name follows** ("Sum of Revenue") until you give the value a name of your own.
 - **Show as is dropped** when you pick another way. The number format stays while the result keeps
-  the field's unit: an average changed to a median is still in hours.
+  the field's unit: an average changed to a median is still in hours. A count, a distinct count or a
+  list starts with its own format.
 - The application may choose the first way for a field, such as an average for a duration.
 
 ## Show a share, difference or rank { #show-as }
@@ -108,7 +109,8 @@ With a colour scale, **Colours** offers other colours, each shown as a strip:
 | Low red, high green | bad to good; some people cannot tell red and green apart |
 
 Every choice keeps the text readable in the standard light and dark themes. Totals get no colour.
-The **Excel export** keeps colour scales and data bars as Excel's own conditional formats.
+The **Excel export** keeps colour scales and data bars as Excel's own conditional formats, in the
+colours the report shows.
 
 ## Give a value a name { #name }
 
@@ -141,8 +143,8 @@ example from your data.
   year · 2023–2025 combined". [Filter the years](filters.md#years-combined) to combine fewer.
 - **No grouping** shows every date and time.
 
-**Which years does the data cover?** The footer gives the first and the last date, next to the row
-count: "Data before filters: Jan 1, 2023 – Dec 31, 2025". The date's **i** in the field list says
+**Which years does the data cover?** While a date is in Rows, Columns or Filters, the footer gives
+its first and last date next to the row count: "Data before filters: Jan 1, 2023 – Dec 31, 2025". The date's **i** in the field list says
 the same.
 
 ![The footer with the rows and the data's date range, the column title "Date by month of year · 2023–2025 combined"](../assets/screenshots/date-context-light.png#only-light)
@@ -156,9 +158,14 @@ the same.
       files hold the plain name and items, as the command line and the server write them. A chart
       image shows what the screen shows.
     - The title lists up to 32 years; gaps stay gaps ("2019, 2021–2023"). Years before 1 AD carry
-      their era ("5 BC").
+      their era ("5 BC"), and the years 0–99 keep their own periods.
+    - Weekdays run Monday to Sunday.
     - In a language with another calendar, the items of one year name their months in that calendar;
       combined months keep the Gregorian names.
+
+**One year only.** To keep, say, 2025 of a grouping such as Quarter of year, add the date to
+Filters, set its **Group** to **Year** and keep 2025 there ([filters](filters.md#filter-by-values)).
+A date in Filters is grouped by the span of its dates, as on Rows.
 
 **Compare one year with another.** Put the date on Rows and group it by **Year**. Add the date a
 second time to Columns (**Add to Columns** in the field list's menu) and group that one by **Quarter
