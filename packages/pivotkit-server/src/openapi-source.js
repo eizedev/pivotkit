@@ -1185,7 +1185,8 @@ export async function loadDocumentText(target, means = {}) {
         const where = cleanText(`${url.protocol}//${url.host}${url.pathname}`, 300);
         let response;
         try {
-            response = await (means.fetch ?? guardedFetch)(url, { method: "GET", headers: { accept: "application/json" }, maxBytes: OPENAPI_LIMITS.bytes, timeMs: OPENAPI_LIMITS.timeMs });
+            // the operator's own command on the operator's machine: an intranet document may be read
+            response = await (means.fetch ?? guardedFetch)(url, { method: "GET", headers: { accept: "application/json" }, maxBytes: OPENAPI_LIMITS.bytes, timeMs: OPENAPI_LIMITS.timeMs, allowPrivate: true });
         } catch (e) {
             if (e instanceof GuardedFetchError) {
                 throw new OpenApiError(`${where}: ${e.code === "TOO_LARGE" ? `the document is larger than ${OPENAPI_LIMITS.bytes} bytes (5 MiB)` : cleanText(e.message, 200)}${e.code === "NOT_HTTPS" || e.code === "REFUSED_ADDRESS" || e.code === "IP_LITERAL" ? "; download the document and pass the file instead" : ""}`);
