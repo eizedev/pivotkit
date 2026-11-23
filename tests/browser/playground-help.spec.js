@@ -54,6 +54,9 @@ for (const [size, viewport] of [["desktop", null], ["phone", PHONE]]) {
         for (const topic of HELP_TOPICS) {
             test(topic.question.en, async ({ page }) => {
                 await open(page);
+                // a phone report first draws its field list, then folds it behind the Fields button
+                // once it has measured its width: pick only after that, as a visitor's tap comes
+                if (viewport) await expect(page.getByTestId("field-list")).toBeHidden();
                 await page.getByTestId("pg-help").click();
                 await page.getByTestId(`pg-help-${topic.id}`).click();
                 await expect(dialog(page).getByRole("heading", { name: topic.question.en })).toBeFocused();
