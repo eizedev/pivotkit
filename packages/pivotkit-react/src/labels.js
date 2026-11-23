@@ -112,8 +112,6 @@ export const en = {
     // the button beside the tabs Table and Chart: the settings of the view shown
     tableSettings: "Table settings",
     chartSettings: "Chart settings",
-    // the same button's text on a phone; its name stays the whole one
-    settingsShort: "Settings",
     expand: "Expand {label}",
     collapse: "Collapse {label}",
     showAs: "Show as",

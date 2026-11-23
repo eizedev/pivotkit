@@ -33,7 +33,7 @@ source, they live in `src/labels.js`, `src/labels-de.js`, `src/menu-labels.js`,
 `src/menu-labels-de.js`, `src/unused-texts.js`, `src/unused-texts-de.js` and `src/import-labels.js`.
 
 The texts of the tabs and the zones' section are `table`, `chart`, `tableSettings`, `chartSettings`,
-`settingsShort` (the settings button on a phone), `zonesTitle`, `zonesHint` and `more`. "+ Add" in
+`zonesTitle`, `zonesHint` and `more`. "+ Add" in
 each zone is `addField`, named by `addFieldTo`; its menu adds `addAlready`, `addMoves` and
 `addSecond`. After a pick, the zones' status line says `steps.added` ("{field} added to {zone}") or
 `movedFrom` ("{field} moved from {from} to {zone}"). `steps.added` is a key inside `steps`, the

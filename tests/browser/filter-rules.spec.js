@@ -4,12 +4,15 @@
 // snapshot with plain JavaScript, relative to today as the browser sees it (the data is in UTC).
 import { readFileSync } from "node:fs";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, expect, openLevel, openRules, pickItem, tableRows, test } from "./fixtures.js";
+import { SNAPSHOT_DAY, chipMenu, expect, openLevel, openRules, pickItem, tableRows, test } from "./fixtures.js";
 import { unpack } from "../../examples/playground/data/sources.js";
 
 const eol = unpack(JSON.parse(readFileSync(new URL("../../examples/playground/data/endoflife.json", import.meta.url), "utf8")));
 const yearOf = (x) => Number(x.Released.slice(0, 4));
-const thisYear = new Date().getUTCFullYear();
+const thisYear = SNAPSHOT_DAY.getUTCFullYear();
+
+// "today" is the snapshot's day, so This year and Last N months mean the same in any year
+test.beforeEach(({ page }) => page.clock.setFixedTime(SNAPSHOT_DAY));
 const YEAR = "Released by year";
 /** Release cycles per year of release, as the table writes the counts. */
 const perYear = Object.entries(Object.groupBy(eol.filter((x) => x.Released), (x) => yearOf(x))).map(([y, list]) => [Number(y), list.length]);

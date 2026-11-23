@@ -124,8 +124,9 @@ Such a value keeps Summarize by, Name and Move.
 
 - The six calculations that walk along an axis (differences, running totals, ranks) add an **Along**
   switch, **Rows** or **Columns**. It sets the view's `axis`.
-- **Number format** offers Automatic (no `format`) and ten formats: `number`, `number:0`, `number:2`,
-  `integer`, `currency`, `percent`, `compact`, `bytes`, `duration:h` and `duration:s`.
+- **Number format** offers Automatic (no `format`) and nine formats: `number`, `number:0`, `number:2`,
+  `currency`, `percent`, `compact`, `bytes`, `duration:h` and `duration:s`. `integer` works in a view
+  and shows as `number:0`.
 - Every other format of the table above works in a view (a template, a link, `fieldDefaults`) and the
   report keeps it. The menu does not offer it: `percent100`, `date`, `datetime`, `time`, `text`, a
   currency with its code (`currency:USD`), other decimals (`number:3`, `percent:0`) or other duration

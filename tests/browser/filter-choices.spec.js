@@ -7,13 +7,16 @@
 // snapshots with plain JavaScript, relative to today as the browser sees it (the data are in UTC).
 import { readFileSync } from "node:fs";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, expect, openRules, openZones, tableRows, test } from "./fixtures.js";
+import { SNAPSHOT_DAY, chipMenu, expect, openRules, openZones, tableRows, test } from "./fixtures.js";
 import { unpack } from "../../examples/playground/data/sources.js";
 
 const load = (name) => unpack(JSON.parse(readFileSync(new URL(`../../examples/playground/data/${name}.json`, import.meta.url), "utf8")));
 const nobel = load("nobel");
 const eol = load("endoflife");
 const n = (x) => x.toLocaleString("en-US");
+
+// "today" is the snapshot's day, so This year and Last N months mean the same in any year
+test.beforeEach(({ page }) => page.clock.setFixedTime(SNAPSHOT_DAY));
 
 async function openView(page, data, view, lang = "en") {
     await page.goto(`?data=${data}&empty&lang=${lang}#pivot-playground=${encodeViewLink(view)}`);
@@ -112,7 +115,7 @@ test.describe("a date's quick choices on dates past today (endoflife, EOL date b
     const dates = eol.map((r) => r["EOL date"]);
     const dated = dates.filter(Boolean);
     const blanks = dates.length - dated.length;
-    const now = new Date();
+    const now = SNAPSHOT_DAY;
     const [Y, M] = [now.getUTCFullYear(), now.getUTCMonth()];
     /** "2026-11" of the month `k` months after this one. */
     const monthAt = (k) => new Date(Date.UTC(Y, M + k, 1)).toISOString().slice(0, 7);
@@ -395,7 +398,7 @@ test.describe("the review's findings on the quick choices (endoflife, EOL date b
     test("on data that end before today: one click counts Last back from the latest record; the note of the choices not offered sits under them", async ({ page }) => {
         const weather = load("weather");
         const last = weather.map((r) => r.Date).sort().at(-1);
-        const now = new Date();
+        const now = SNAPSHOT_DAY;
         expect(last.slice(0, 4) < String(now.getUTCFullYear()), "the weather snapshot ends before this year").toBe(true);
         const MONTH = "Date by month";
         await openView(page, "weather", { derived: [{ name: MONTH, field: "Date", by: "yearMonth" }], rows: [MONTH], values: [{ agg: "count" }] });

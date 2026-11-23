@@ -179,17 +179,13 @@ test("Help: a level with the tips' switches and the keyboard shortcuts; keys in 
     await expect(more).toBeFocused();
 });
 
-test("a narrow report: Start over and Views below Help in More; the settings say so in short; Enlarge, Full screen and Swap show their icon with their name", async ({ page }) => {
+test("a narrow report: Start over and Views below Help in More; Settings, Enlarge, Full screen and Swap show their icon with their name", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("?data=sales&lang=en");
     await page.locator('[data-testid="pivot-table"]').waitFor();
-    // a short visible text, the whole name for a screen reader and as a tooltip (#580 review)
-    const settings = page.getByTestId("view-settings");
-    await expect(settings).toHaveText("Settings");
-    await expect(settings).toHaveAccessibleName("Table settings");
-    await expect(settings).toHaveAttribute("title", "Table settings");
-    // where it stands beside the tabs or above them: the tests of #706 below
-    for (const [id, name] of [["enlarge", "Enlarge"], ["swap", "Swap rows and columns"]]) {
+    // the icon only, the whole name for a screen reader and as a tooltip (#580 review); where the
+    // buttons stand beside the tabs or above them: the tests of #706 below
+    for (const [id, name] of [["view-settings", "Table settings"], ["enlarge", "Enlarge"], ["swap", "Swap rows and columns"]]) {
         await expect(page.getByTestId(id)).toHaveAccessibleName(name);
         await expect(page.getByTestId(id)).toHaveAttribute("title", name);
         // the icon only: no text takes room
@@ -248,12 +244,9 @@ const openRow = async (page, lang, width) => {
     await twoFrames(page);
 };
 
-// Reports too small for the tabs and every button on one line, even in the short form: a phone in
-// German and English, and a medium report whose field list takes room beside the result (#706)
+// Reports too small for the tabs and every button on one line, even in the short form: a small phone
+// in German, and a medium report whose field list takes room beside the result (#706)
 const SMALL = [
-    ["de", 390],
-    ["en", 360],
-    ["en", 320],
     ["de", 320],
     ["de", 700]
 ];
@@ -287,15 +280,18 @@ for (const [lang, width, size] of [["de", 1000, "medium"], ["de", 1100, "wide"]]
         await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", size);
         expect(await rowFaults(page)).toEqual([]);
         const settings = page.getByTestId("view-settings");
-        await expect(settings).toHaveText("Einstellungen");
+        // the short form: the icon only, the whole name kept for a screen reader and as a tooltip
+        await expect(settings).toHaveText("");
         await expect(settings).toHaveAccessibleName("Tabelleneinstellungen");
+        await expect(settings).toHaveAttribute("title", "Tabelleneinstellungen");
         await expect(page.getByTestId("enlarge")).toHaveAttribute("title", "Vergrößern");
         const [tab, box] = await Promise.all([page.getByTestId("show-table").boundingBox(), settings.boundingBox()]);
         expect(box.y + box.height).toBeGreaterThan(tab.y + 1);
         expect(box.x).toBeGreaterThan(tab.x + tab.width);
         // another tab changes what the row holds: measured anew, still whole and short
         await page.getByTestId("show-chart").click();
-        await expect(settings).toHaveText("Einstellungen");
+        await expect(settings).toHaveAccessibleName("Diagrammeinstellungen");
+        await expect(settings).toHaveText("");
         await twoFrames(page);
         expect(await rowFaults(page)).toEqual([]);
         await page.getByTestId("show-table").click();
@@ -322,10 +318,17 @@ test.describe("a touch screen, where every button takes 44 px", () => {
             expect(await rowFaults(page)).toEqual([]);
         });
     }
+    // an iPhone in German, the language with the longest tab names: still one line
+    test("390 px, de: the tabs and the buttons share one line", async ({ page }) => {
+        await openRow(page, "de", 390);
+        const [tab, settings] = await Promise.all([page.getByTestId("show-table").boundingBox(), page.getByTestId("view-settings").boundingBox()]);
+        expect(settings.y + settings.height).toBeGreaterThan(tab.y + 1);
+    });
 });
 
 // with room, narrow or wide, the buttons stay beside the tabs: a narrow report in English, a wide one in German
-for (const [lang, width, size] of [["en", 600, "narrow"], ["de", 1440, "wide"]]) {
+// phones in both languages too: the short form fits beside the tabs
+for (const [lang, width, size] of [["en", 320, "narrow"], ["de", 360, "narrow"], ["de", 390, "narrow"], ["en", 600, "narrow"], ["de", 1440, "wide"]]) {
     test(`a ${size} report with room (${lang}, ${width} px): the tabs and the buttons share one line, the buttons at the right, at its foot (#706)`, async ({ page }) => {
         await openRow(page, lang, width);
         await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", size);
