@@ -359,6 +359,8 @@ function columnsOfRows(rows, wanted, limits, report) {
                 if (wanted && !wanted.has(key)) {
                     continue;
                 }
+                // each new column takes an array of n values: counted before it is made
+                checkLimit("columns", found.size + 1, limits.columns, "columns");
                 col = { name: k, raw: new Array(n).fill(null), spellings: new Set([k]) };
                 found.set(key, col);
             } else if (!col.spellings.has(k)) {
@@ -390,6 +392,7 @@ function columnsOf(input, wanted, limits, report) {
         expect(data[c].length === n, `encode(data): every column must have the same length; data[0] has ${n} values, data[${c}] ${data[c].length}`);
     }
     checkLimit("rows", n, limits.rows, "rows");
+    checkLimit("columns", columns.length, limits.columns, "columns");
     /** @type {FoundColumns} */
     const found = new Map();
     for (let c = 0; c < columns.length; c++) {

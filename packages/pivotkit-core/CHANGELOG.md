@@ -8,6 +8,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
+- **Breaking:** `encode` counts the columns of its input against `limits.columns` (1,000), as the
+  file readers do. Rows with many distinct keys made one array of all rows per key: 20,000 keys took
+  27 seconds and about 8.5 GB. A host with wider data raises `limits.columns`.
 - `PivotkitError` extends `CodedError` of `pivotkit-core/internal`, the base of every error class
   of pivotkit's packages. Its members stay the same.
 

@@ -80,7 +80,7 @@ There are two kinds of limits:
 | `cells` | 2,000,000 | Cells of a grid (`toGrid`: header and body rows x columns). Data points of a chart (`toSeries`). The values of a source rows file: `rowsToCsv`, the drill-down's, and `dataToCsv` and `dataToJson`, Export → Source data (rows x fields). | Before the grid, the series or the file is built. |
 | `cacheEntries` | 16 | Derived columns and sort orders kept per data set. | On each new entry. The least recently used go first. |
 | `fileBytes` | 104,857,600 (100 MiB) | Bytes of a file [loaded](../reference/import.md#limits). | Before a byte is read. |
-| `columns` | 1,000 | Columns of a loaded table. | As they appear. |
+| `columns` | 1,000 | Columns of a loaded table, and of the data `encode` takes. | As they appear. |
 | `importCells` | 10,000,000 | Rows x columns of a loaded table. For a workbook also its shared strings and its cell and number formats, with 1,000 rows more for a title block above the header. | As the rows are read. A workbook's before it is parsed, while its parts are unpacked. |
 | `textLength` | 32,767 | Characters of one value of a loaded table (Excel's cell limit). | As the value is read. Longer text is cut, with a note. |
 | `archiveEntries` | 10,000 | Parts of an archive file (an `.xlsx` is a ZIP). | From its directory, before anything is unpacked. |

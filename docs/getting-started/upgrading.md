@@ -118,6 +118,7 @@ These changes are on `main` and come with the next release.
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | **Breaking:** [pivotkit-server no longer brings pivotkit-cli](#server-without-cli) | you installed pivotkit-server from npm and run `pivotkit-server cli` | install pivotkit-cli beside it |
+| **Breaking:** `encode` takes at most 1,000 columns | your data has more than 1,000 columns, or rows with more distinct keys | set `limits.columns` higher where you call `encode` or pass `limits` to the report |
 | **Breaking:** reports are written with mode 0600 | another user reads the output directory without `output.baseUrl`, such as a backup job | run that reader as the server's user, or set `output.baseUrl`; `chmod 600` older reports to match |
 
 #### pivotkit-server no longer brings pivotkit-cli { #server-without-cli }

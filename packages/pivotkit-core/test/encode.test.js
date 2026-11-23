@@ -154,3 +154,16 @@ test("a case collision has a code: one column, a value of a row left out, a colu
     assert.deepEqual([...columnar.column("a").values], [1]);
     assert.deepEqual(columnar.issues.map((i) => [i.code, i.params]), [["columnCaseLeftOut", { column: "A", spelling: "a" }]]);
 });
+
+test("encode counts columns against limits.columns before it makes them: row objects and columnar data", () => {
+    // 1,001 distinct keys in row objects: stopped at the new column, before its array is made
+    const wide = [Object.fromEntries(Array.from({ length: 1001 }, (_, i) => [`c${i}`, i]))];
+    assert.throws(() => encode(wide), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "columns" && e.details.max === 1000);
+    // the keys spread over many rows count the same
+    const spread = Array.from({ length: 1001 }, (_, i) => ({ [`c${i}`]: i }));
+    assert.throws(() => encode(spread), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "columns");
+    const columnar = { columns: Array.from({ length: 1001 }, (_, i) => `c${i}`), data: Array.from({ length: 1001 }, () => [1]) };
+    assert.throws(() => encode(columnar), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "columns");
+    // a host that needs more raises the limit
+    assert.equal(encode(wide, { limits: { columns: 2000 } }).columns.length, 1001);
+});
