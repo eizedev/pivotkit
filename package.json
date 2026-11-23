@@ -32,6 +32,7 @@
     "bench:browser": "node bench/browser/run.js",
     "docs:demo": "npm run build:playground && node scripts/docs-demo.js",
     "docs:screenshots": "npm run build:playground && node scripts/docs-screenshots.js",
+    "docs:clips": "npm run build:playground && node scripts/docs-clips.js",
     "docs:data": "node scripts/docs-data.js"
   },
   "devDependencies": {

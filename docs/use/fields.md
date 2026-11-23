@@ -24,6 +24,13 @@ A field in a zone is a **chip**. Its menu changes how the report shows the field
 
 ## Adding fields
 
+<figure markdown>
+<video controls muted playsinline preload="none" width="800" height="600" poster="../../assets/clips/drag-field.png" aria-label="Video: drag a field into Rows" aria-describedby="clip-drag-field">
+<source src="../assets/clips/drag-field.webm" type="video/webm">
+</video>
+<figcaption id="clip-drag-field">Video, about 6 seconds, no sound: the pointer drags Region from the field list into Rows. Rows takes the drop, and the table lists the regions.</figcaption>
+</figure>
+
 | To put a field into a zone | How |
 | --- | --- |
 | Drag | Drag the field into a zone. While you drag, each zone's frame turns into a dashed outline. The lists and the page scroll while you drag, and the field you drag stays above everything. |
