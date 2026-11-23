@@ -29,7 +29,7 @@ npx -y pivotkit-cli example
 ```
 
 Start the service with one source, `sales`, on 127.0.0.1:3333. On loopback it needs no sign-in. It
-makes the folder `reports` for what it writes:
+makes the folder `reports` for what it writes, and the first start warns that it did: expected here.
 
 ```bash
 npx -y pivotkit-server serve --source sales=sales.csv --output reports
