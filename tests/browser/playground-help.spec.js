@@ -57,6 +57,13 @@ for (const [size, viewport] of [["desktop", null], ["phone", PHONE]]) {
                 await expect(page.getByTestId("pg-help-text")).toHaveText(topic.text.en);
                 const box = await firstVisibleBox(page, topic.targets);
                 expect(box, `a visible place for ${topic.targets.join(" or ")}`).not.toBeNull();
+                // on a desktop the place itself shows, not a fallback for a narrow report: a primary
+                // selector that no longer finds anything fails here, even while a fallback would
+                if (!viewport) expect(box.selector).toBe(topic.targets[0]);
+                await expect(page.getByTestId("pg-help-note")).toHaveCount(box.selector === topic.targets[0] ? 0 : 1);
+                // the card is above the ring's shade: the point in its middle is the card's own
+                const card_ = await page.getByTestId("pg-help-card").boundingBox();
+                expect(await page.evaluate(({ x, y }) => Boolean(document.elementFromPoint(x, y)?.closest('[data-testid="pg-help-card"]')), { x: card_.x + card_.width / 2, y: card_.y + 8 })).toBe(true);
                 // the ring sits around that place (4 px outside it)
                 const ring = await page.getByTestId("pg-help-ring").boundingBox();
                 expect(Math.abs(ring.x + 4 - box.left)).toBeLessThan(2);
@@ -136,4 +143,14 @@ test("the help speaks the playground's language", async ({ page }) => {
     await page.getByTestId("pg-help-filter").click();
     await expect(dialog(page).getByRole("heading", { name: "Wie filtere ich?" })).toBeVisible();
     await expect(page.getByTestId("pg-help-text")).toHaveText(HELP_TOPICS.find((t) => t.id === "filter").text.de);
+});
+
+test("a feature the page switched off rings nothing and says so", async ({ page }) => {
+    await open(page, "&import=off");
+    await page.getByTestId("pg-help").click();
+    await page.getByTestId("pg-help-load-data").click();
+    await expect(page.getByTestId("pg-help-ring")).toHaveCount(0);
+    await expect(page.getByTestId("pg-help-show")).toHaveCount(0);
+    await expect(page.getByTestId("pg-help-note")).toHaveText("This page has switched it off.");
+    await expect(page.getByTestId("pg-help-docs")).toBeVisible();
 });

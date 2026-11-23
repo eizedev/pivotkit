@@ -7,13 +7,15 @@
 //   tests/playground-help.test.js fails on a class, and tests/browser/playground-help.spec.js on a
 //   topic whose targets find nothing in the docs embed (?data=weather) at desktop and phone width.
 //   Later selectors are the fallbacks of a narrow report: the toolbar moves buttons into More, and
-//   the zones fold under "Fields in the report".
+//   the zones fold under "Fields in the report". The dialog then says the place is folded away.
+// - `needs`: a feature the page can switch off (`import`: loading files). Without it the topic
+//   rings nothing and says so, instead of ringing More for an entry that is not there.
 // - `docs`: the page under docs/ and its heading anchor. tests/playground-help.test.js fails when
 //   the page or the heading is gone. The playground turns it into a link to the docs site.
 // - Texts name the report's controls as its labels do in that language (pivotkit-react's labels).
 
 /** @typedef {{ en: string, de: string }} Text */
-/** @typedef {{ id: string, question: Text, text: Text, targets: string[], docs: string }} HelpTopic */
+/** @typedef {{ id: string, question: Text, text: Text, targets: string[], needs?: "import", docs: string }} HelpTopic */
 
 /** The dialog's own words. */
 export const HELP_LABELS = {
@@ -26,6 +28,8 @@ export const HELP_LABELS = {
         showMe: "Show me",
         readMore: "Read more in the docs",
         notShown: "This part of the report is not shown right now.",
+        folded: "It is not on screen at this width or in this view: open the ringed control first.",
+        off: "This page has switched it off.",
         newTab: "(opens in a new tab)"
     },
     de: {
@@ -37,6 +41,8 @@ export const HELP_LABELS = {
         showMe: "Zeig es mir",
         readMore: "Mehr in der Doku (Englisch)",
         notShown: "Dieser Teil des Berichts ist gerade nicht zu sehen.",
+        folded: "Bei dieser Breite oder in dieser Ansicht ist es nicht zu sehen: Öffne zuerst das markierte Element.",
+        off: "Diese Seite hat das abgeschaltet.",
         newTab: "(öffnet in einem neuen Tab)"
     }
 };
@@ -72,8 +78,8 @@ export const HELP_TOPICS = [
         id: "filter",
         question: { en: "How do I filter?", de: "Wie filtere ich?" },
         text: {
-            en: "Open the menu of a field in Rows or Columns and choose Filter. Untick the values to leave out; each change applies at once. On a small screen, open Fields in the report first.",
-            de: "Öffne das Menü eines Felds in Zeilen oder Spalten und wähle Filter. Entferne die Haken bei den Werten, die wegfallen sollen; jede Änderung gilt sofort. Auf einem kleinen Bildschirm öffne zuerst Felder im Bericht."
+            en: "Open the menu of a field in Rows or Columns and choose Filter. Untick the values to leave out; each change applies at once, and Undo takes it back.",
+            de: "Öffne das Menü eines Felds in Zeilen oder Spalten und wähle Filter. Entferne die Haken bei den Werten, die wegfallen sollen. Jede Änderung gilt sofort, Rückgängig nimmt sie zurück."
         },
         targets: CHIP_MENU,
         docs: "use/filters.md#filter-by-values"
@@ -92,8 +98,8 @@ export const HELP_TOPICS = [
         id: "top-n",
         question: { en: "How do I show only the top 10?", de: "Wie zeige ich nur die obersten 10?" },
         text: {
-            en: "Open the menu of a field in Rows and choose Top items. Pick Top 10 or your own count. On a small screen, open Fields in the report first.",
-            de: "Öffne das Menü eines Felds in Zeilen und wähle Oberste Einträge. Wähle Top 10 oder eine eigene Anzahl. Auf einem kleinen Bildschirm öffne zuerst Felder im Bericht."
+            en: "Open the menu of a field in Rows and choose Top items. Pick Top 10, or your own count, and the value it goes by.",
+            de: "Öffne das Menü eines Felds in Zeilen und wähle Oberste Einträge. Wähle Top 10 oder eine eigene Anzahl und den Wert, nach dem sortiert wird."
         },
         targets: CHIP_MENU,
         docs: "use/filters.md#top-n"
@@ -146,6 +152,7 @@ export const HELP_TOPICS = [
             de: "Ziehe eine CSV-, JSON- oder Excel-Datei auf den Bericht, oder wähle Daten → Daten laden…. Die Datei wird in diesem Browser gelesen, nichts wird hochgeladen."
         },
         targets: ['[data-testid="data"]', '[data-testid="more"]'],
+        needs: "import",
         docs: "use/load-data.md#load-a-file"
     }
 ];

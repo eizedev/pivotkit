@@ -25,12 +25,16 @@ const MIN_ROOM = 180;
 const LIST_HEIGHT = 560;
 const FOCUSABLE = "button, a[href], input, select, textarea, [tabindex]";
 
-/** The first visible element one of `selectors` finds, in their order. */
+/**
+ * The first visible element one of `selectors` finds, in their order, and whether it is a fallback
+ * (a later selector: the place itself is folded away at this width).
+ * @returns {{ el: Element, folded: boolean } | null}
+ */
 function findTarget(selectors) {
-    for (const selector of selectors) {
+    for (const [i, selector] of selectors.entries()) {
         for (const el of document.querySelectorAll(selector)) {
             const r = el.getBoundingClientRect();
-            if (r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden") return el;
+            if (r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden") return { el, folded: i > 0 };
         }
     }
     return null;
@@ -138,7 +142,7 @@ function StayingRing({ el, onEnd }) {
 }
 
 /** One topic: its question, its text, "Show me" when its place is on screen, and the docs link. */
-function Answer({ topic, target, t, lang, ids, onShow, onBack }) {
+function Answer({ topic, target, folded, off, t, lang, ids, onShow, onBack }) {
     const heading = useRef(null);
     useEffect(() => heading.current?.focus(), [topic]);
     const href = docsHref(topic.docs, new URL(location.href), PIVOTKIT_SITE_URL);
@@ -146,7 +150,8 @@ function Answer({ topic, target, t, lang, ids, onShow, onBack }) {
         <>
             <h2 id={ids.title} ref={heading} tabIndex={-1}>{topic.question[lang]}</h2>
             <p id={ids.text} data-testid="pg-help-text">{topic.text[lang]}</p>
-            {target ? null : <p className="pg-help-note">{t.notShown}</p>}
+            {off ? <p className="pg-help-note" data-testid="pg-help-note">{t.off}</p> : target ? null : <p className="pg-help-note" data-testid="pg-help-note">{t.notShown}</p>}
+            {target && folded ? <p className="pg-help-note" data-testid="pg-help-note">{t.folded}</p> : null}
             <div className="pg-help-actions">
                 {target ? <button type="button" className="pg-help-primary" onClick={onShow} data-testid="pg-help-show">{t.showMe}</button> : null}
                 <a href={href} target="_blank" rel="noopener" data-testid="pg-help-docs">
@@ -181,7 +186,7 @@ function Questions({ t, lang, ids, onPick }) {
 }
 
 /** The header's "How do I…?" button with its dialog. */
-export function Help({ lang }) {
+export function Help({ lang, features }) {
     const t = HELP_LABELS[lang];
     const dialog = useRef(null);
     // the button as state, not a ref: the list's place is measured from it while rendering
@@ -192,6 +197,7 @@ export function Help({ lang }) {
     const [topic, setTopic] = useState(null);
     const [target, setTarget] = useState(null);
     const [staying, setStaying] = useState(null);
+    const [folded, setFolded] = useState(false);
     const targetBox = useTracked(open ? target : null);
     const buttonBox = useTracked(open && !topic ? button : null);
     const base = useId();
@@ -206,14 +212,19 @@ export function Help({ lang }) {
         dialog.current.showModal();
     };
     const pick = (next) => {
-        const el = findTarget(next.targets);
-        el?.scrollIntoView({ block: "nearest", inline: "nearest" });
-        setTarget(el);
+        const off = Boolean(next.needs && !features[next.needs]);
+        const found = off ? null : findTarget(next.targets);
+        found?.el.scrollIntoView({ block: "nearest", inline: "nearest" });
+        setTarget(found?.el ?? null);
+        setFolded(Boolean(found?.folded));
         setTopic(next);
     };
     const show = () => {
-        focusAfter.current = focusPoint(target);
-        setStaying(target);
+        // found again: a re-render of the report may have replaced the element since it was picked
+        const el = target.isConnected ? target : findTarget(topic.targets)?.el;
+        if (!el) return;
+        focusAfter.current = focusPoint(el);
+        setStaying(el);
         dialog.current.close();
     };
     // every way out (Escape, the close button, a click beside the card, "Show me") ends here
@@ -250,7 +261,7 @@ export function Help({ lang }) {
                     <div className="pg-help-card" style={place} lang={lang} data-testid="pg-help-card">
                         <button type="button" className="pg-help-close" onClick={() => dialog.current.close()} aria-label={t.close} data-testid="pg-help-close">×</button>
                         {topic ? (
-                            <Answer topic={topic} target={target} t={t} lang={lang} ids={ids} onShow={show} onBack={() => { setTopic(null); setTarget(null); }} />
+                            <Answer topic={topic} target={target} folded={folded} off={Boolean(topic.needs && !features[topic.needs])} t={t} lang={lang} ids={ids} onShow={show} onBack={() => { setTopic(null); setTarget(null); }} />
                         ) : (
                             <Questions t={t} lang={lang} ids={ids} onPick={pick} />
                         )}

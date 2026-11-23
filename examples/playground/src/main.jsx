@@ -278,7 +278,7 @@ function App() {
                             <option value="dark">Dark</option>
                         </select>
                     </label>
-                    <Help lang={lang} />
+                    <Help lang={lang} features={{ import: Boolean(IMPORT.allowImport) }} />
                 </div>
             </header>
             {/* while a real data set's snapshot loads, the report shows its skeleton (loading) */}
