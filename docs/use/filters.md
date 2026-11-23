@@ -110,6 +110,14 @@ of your own on the grouping ("is from Jun") stays when you switch a year.
 Its **×** takes it away. A line under each rule says what it keeps: "Keeps 7 of 12 months". A field
 takes up to 10 rules.
 
+<figure markdown>
+<video controls muted playsinline preload="none" width="800" height="600" poster="../../assets/clips/filter-dates.png" aria-label="Video: keep the months from Jun to Aug 2024 with a rule" aria-describedby="clip-filter-dates">
+<source src="../assets/clips/filter-dates.webm" type="video/webm">
+Your browser cannot play this video. The caption below says what it shows.
+</video>
+<figcaption id="clip-filter-dates">Video without sound: in the menu of Date by month, Filter, then a rule "is between" Jun 2024 and Aug 2024. The table keeps those three months.</figcaption>
+</figure>
+
 | Rule | Example | For |
 | --- | --- | --- |
 | **Filter by** the item itself | "Released by year is from 2022", "Price is between 10 and 20", "Released is in the last 3 months" | numbers, dates and their groupings |
