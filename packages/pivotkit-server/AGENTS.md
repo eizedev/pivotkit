@@ -174,6 +174,9 @@ node scripts/openapi.js        # write docs/openapi.json after a route or operat
 ## REST
 
 - `src/rest/` is `pivotkit-server/rest`.
+- `rest/handler.js` makes what a request needs. `rest/stages.js` runs its steps in order: precheck, serve, runOperation.
+- `rest/sign-in.js` signs a caller in. Its `refuse` writes a refused sign-in's line.
+- A body the service does not take is a `BodyError` (`rest/body.js`). Never an error with a `problem` field.
 - `REST_ROUTES` in `routes.js` has one route per operation of pivotkit-report's table.
 - A new operation gets its words and an example in `routes.js`.
 - Then run `node scripts/openapi.js`. `test/openapi.test.js` fails until you do.

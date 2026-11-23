@@ -23,6 +23,7 @@ import { createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from "
 import { constants } from "node:fs";
 import { access, link as hardLink, mkdir, open, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { CodedError } from "pivotkit-core/internal";
 import { ConfigError } from "./options/shared.js";
 import { DEFAULT_ALGORITHMS, publicOriginOf } from "./config.js";
 import { insecurePublicHost, insecureUrlText, settingsOf } from "./options/downloads.js";
@@ -393,9 +394,24 @@ function keySource(settings, options, env) {
 }
 
 /**
+ * What the download links' sign-in issuer or its token endpoint gave that the sign-in cannot use: for
+ * the operator's log (a warning while the issuer loads, a debug line when a sign-in fails). The person
+ * gets SIGN_IN_NOT_READY or SIGN_IN_FAILED, never the message.
+ */
+/** @extends {CodedError<undefined, undefined>} */
+class SignInError extends CodedError {
+    /** @param {string} message */
+    constructor(message) {
+        // no code: the log line is the message
+        super(undefined, message);
+        this.name = "SignInError";
+    }
+}
+
+/**
  * The sign-in's token endpoint: output.downloads.signIn.tokenUrl, else the metadata's
  * token_endpoint, which must be on the issuer's origin (the client secret goes there), as for a
- * token exchange (sources/auth.js). Throws Error.
+ * token exchange (sources/auth.js). Throws SignInError.
  * @param {any} metadata
  * @param {{ issuer: string, tokenUrl: string | null }} signIn
  */
@@ -405,10 +421,10 @@ function tokenUrlOf(metadata, signIn) {
     }
     const given = metadata?.token_endpoint;
     if (typeof given !== "string" || !URL.canParse(given)) {
-        throw new Error("the issuer's metadata names no token_endpoint (set output.downloads.signIn.tokenUrl)");
+        throw new SignInError("the issuer's metadata names no token_endpoint (set output.downloads.signIn.tokenUrl)");
     }
     if (new URL(given).origin !== new URL(signIn.issuer).origin) {
-        throw new Error(`the issuer's token_endpoint is on another origin (${new URL(given).origin}); set output.downloads.signIn.tokenUrl to accept it`);
+        throw new SignInError(`the issuer's token_endpoint is on another origin (${new URL(given).origin}); set output.downloads.signIn.tokenUrl to accept it`);
     }
     return given;
 }
@@ -431,7 +447,7 @@ function signInIssuer(signIn, rules, jwksUri, log) {
         try {
             const metadata = await discover(signIn.issuer, rules);
             if (typeof metadata.authorization_endpoint !== "string") {
-                throw new Error("the issuer's metadata names no authorization_endpoint");
+                throw new SignInError("the issuer's metadata names no authorization_endpoint");
             }
             loaded = { metadata, tokenUrl: tokenUrlOf(metadata, signIn), jwks: await remoteKeySet(jwksUriOf(metadata, signIn.issuer, jwksUri), rules, log) };
             log.info("download links: the sign-in issuer's metadata loaded", { issuer: signIn.issuer });
@@ -914,11 +930,11 @@ export function createDownloadHandler(context, runtime = {}) {
             throw e;
         }
         if (response.status < 200 || response.status > 299) {
-            throw new Error(`the token endpoint answered ${response.status}`);
+            throw new SignInError(`the token endpoint answered ${response.status}`);
         }
         const doc = JSON.parse(new TextDecoder().decode(response.body));
         if (typeof doc?.id_token !== "string") {
-            throw new Error("the token endpoint's answer has no id_token");
+            throw new SignInError("the token endpoint's answer has no id_token");
         }
         return doc.id_token;
     }

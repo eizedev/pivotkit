@@ -8,6 +8,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- The REST handler is split by stage: sign-in, the service's documents, the body, the file answer
+  and the stages of a request (`rest/stages.js`). A body the service does not take is a `BodyError`,
+  and the download links' sign-in fails with a `SignInError`. Answers and log lines stay the same.
 - **Breaking:** pivotkit-cli is no longer a dependency. If you installed pivotkit-server from npm and
   run `pivotkit-server cli`, install pivotkit-cli beside it from this release on, the way you
   installed pivotkit-server (`npm install --global pivotkit-cli` for a global install). Without it,
