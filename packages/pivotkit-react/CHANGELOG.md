@@ -11,6 +11,22 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - `<PivotReport>` is built from hooks and small components, one per concern, instead of one large
   component. Its props, events, markup and behaviour stay the same.
 
+### Fixed
+
+- **Only** beside a value in a field's filter is reached with Tab and shows while its row has the
+  focus. A touch screen always shows it. Before, a tap at the end of a row hit the hidden button and
+  kept only that value.
+- The **Filter** level of a field's menu says **Applies at once** beside Select all and Select none.
+  The button of **Pick items** that picks every item again reads **Pick all again**, not Clear,
+  which read like Select none. Its state ("4 of 5 picked") takes a line of its own on a narrow
+  menu instead of being cut off.
+- **Number format** offers one entry for whole numbers. **Whole number** looked the same as
+  **Number, no decimals** and has left the menu. A view with the `integer` format shows
+  Number, no decimals checked, and a search for "whole" finds it. **Percent** shows that it reads the
+  value as a share: 0.25 → 25%.
+- **Publish** of a view in **Views › My views** has an icon of its own. It looked like
+  **Open view file…**.
+
 ## [0.9.0] - 2026-11-22
 
 ### Added

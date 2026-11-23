@@ -6,6 +6,11 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Fixed
+
+- The filter's **Only**, the Filter level's wording, the number formats and the Publish icon of
+  My views. See pivotkit-react's changelog.
+
 ## [0.9.0] - 2026-11-22
 
 ### Added
