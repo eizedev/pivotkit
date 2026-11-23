@@ -13,22 +13,36 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   minutes: a view from outside could hold a server's CPU that long. Each group's running sums and
   sorted values are now made once.
 - Reading a file no longer changes numbers without a note:
-  - A comma-separated file turned `"1,234"` into the German 1.234. The reader takes English groups
-    of three digits now, such as `1,234.5`. When the two notations give different numbers, as for
-    `1,234` or `1.500`, the separator or locale decides. The note `DECIMAL_MARK` names the mark.
-  - A JSON number too large to hold, such as `1e999`, became empty without a word. It still does,
-    and the note `NUMBERS_TOO_LARGE` says so.
-  - A JSON whole number over 2^53 may lose digits. The note `NUMBERS_ROUNDED` counts them.
-- `normalize()` reports every setting it drops. It gave no issue for a switch that is not `true` or
-  `false`. Nor for a `chart`, `formatting`, `collapsed` or `chart.referenceLines` that is not an
-  object. Both give `unknownSetting` now.
+  - A number column with values the two notations read as different numbers, such as `1,234` or
+    `1.500`, gets the note `DECIMAL_MARK` with the mark used. Before, a comma-separated file turned
+    `"1,234"` into the German 1.234 without a word.
+  - A semicolon file read `0.500` as 500. A first group of digits never starts with 0 now.
+  - A number too large to hold, such as JSON's `1e999`, became empty without a word. It still does,
+    and the note `NUMBERS_TOO_LARGE` names the column.
+  - A whole number over 2^53 may lose digits. The note `NUMBERS_ROUNDED` counts them per column.
+  - A grouped whole number of more than 15 digits stays text, as an ungrouped one does.
+  - A column a person makes a number with `retype` reads in the notation its values fit. The notes
+    `DECIMAL_MARK` and `DATE_ORDER` belong to a column's type and go when the type changes.
+- `normalize()` reports the settings it dropped without an issue:
+  - A switch that is not `true` or `false` gives the new code `notSwitch`.
+  - A `chart`, `formatting`, `collapsed` or `chart.referenceLines` that is not an object gives the
+    new code `notSection`.
+  - A sort's `by` or `order` and a "show values as" `axis` of an unknown kind give `unknownSetting`.
+
+  `null` counts as not given, for a switch as for a section. The value an issue quotes loses
+  controls and invisible characters, direction characters included.
 - `renameFields` swaps the fields' own names too when it swaps two fields, as `{ A: "B", B: "A" }`
   does. It lost one name.
-- The name, description and source of a view file lose bidi and zero-width characters, as template
-  names do. The cleaning also removes U+061C and U+206A to U+206F.
+- The name, description and source of a view file lose invisible characters, direction characters
+  included. Template names and imported files lose the same ones: one list serves all three. The
+  joiners U+200C and U+200D stay, and a field's name keeps its inner spaces, so it still matches
+  the data's. The reader cuts a source's id at 256 characters, without "…".
 
 ### Changed
 
+- English groups of three digits are numbers: a file's `1,234.5` reads as 1234.5. Existing
+  comma-separated files with `"1,234"` read as 1234 where they read as 1.234, with the note
+  `DECIMAL_MARK`. A German locale or a semicolon file still reads 1.234.
 - `PivotkitError` extends `CodedError` of `pivotkit-core/internal`, the base of every error class
   of pivotkit's packages. Its members stay the same.
 

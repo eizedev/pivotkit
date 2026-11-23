@@ -921,6 +921,7 @@ const COLUMN_NOTES = new Set(["VALUES_NOT_CONVERTED", "DATE_ORDER", "DECIMAL_MAR
  * @param {ImportType} type
  * @param {ReturnType<typeof inferColumn> | undefined} own
  * @param {ImportHints} hints
+ * @returns {ReturnType<typeof inferColumn> | undefined}
  */
 function readingOf(raw, type, own, hints) {
     if (own && own.type === type) return own;

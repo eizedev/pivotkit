@@ -438,9 +438,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * pivotkit-core's rank and running total per group (#782) take the first load to about 181.2 on CI's
  * zlib. Moving the unused-parts warning out made it larger (more files, 181.3), so the maintainer took
  * the budget to 181.5; #772 makes room again.
+ * The import notes on numbers a file changed (DECIMAL_MARK, NUMBERS_TOO_LARGE, NUMBERS_ROUNDED) with
+ * their English and German texts take import to 22.5 on a Mac's zlib: import goes to 22.6 until CI's
+ * measure is known. Their unused-part texts (notSwitch, notSection, the names of the switches) take
+ * unused to 6.1: unused goes to 6.5.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 181.5, chart: 259.5, export: 12.6, link: 7.5, menus: 59.6, texts: 8.5, unused: 6, import: 22.6, report: 24, template: 3, lang: 6.2, tips: 1.8 };
+export const SIZE_BUDGET_KIB = { initial: 181.5, chart: 259.5, export: 12.6, link: 7.5, menus: 59.6, texts: 8.5, unused: 6.5, import: 22.6, report: 24, template: 3, lang: 6.2, tips: 1.8 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

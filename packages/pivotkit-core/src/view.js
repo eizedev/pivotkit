@@ -288,7 +288,7 @@ function oneOf(value, allowed, fallback) {
 function choice(value, allowed, fallback, ctx, path) {
     const out = oneOf(value, allowed, fallback);
     if (value !== undefined && value !== null && out !== value) {
-        ctx.issue(path, `not one of ${allowed.join(", ")}`, "unknownSetting", { value: shown(value) });
+        ctx.issue(path, `unknown ${path.split(".").pop()} ${JSON.stringify(value)}`, "unknownSetting", { value: shown(value) });
     }
     return out;
 }
@@ -684,22 +684,12 @@ const nameOf = (/** @type {unknown} */ name) => (typeof name === "string" && nam
 
 function displaySection(raw, view, ctx) {
     const display = get(raw, "display");
-    view.display = oneOf(display, DISPLAY_MODES, view.display);
-    if (display !== undefined && view.display !== display) {
-        ctx.issue("display", `unknown display ${JSON.stringify(display)}`, "unknownSetting", { value: shown(display) });
-    }
+    view.display = choice(display, DISPLAY_MODES, view.display, ctx, "display");
     const chart = get(raw, "chart");
     if (sectionObject(chart, "chart", ctx)) {
         ctx.keys(chart, VIEW_KEYS.chart, "chart");
         const flag = (key) => bool(get(chart, key), false, ctx, `chart.${key}`);
-        const own = (key, allowed, fallback) => {
-            const value = get(chart, key);
-            const out = oneOf(value, allowed, fallback);
-            if (value !== undefined && out !== value) {
-                ctx.issue(`chart.${key}`, `unknown ${key} ${JSON.stringify(value)}`, "unknownSetting", { value: shown(value) });
-            }
-            return out;
-        };
+        const own = (key, allowed, fallback) => choice(get(chart, key), allowed, fallback, ctx, `chart.${key}`);
         const title = get(chart, "title");
         view.chart = {
             type: own("type", CHART_TYPES, view.chart.type),
