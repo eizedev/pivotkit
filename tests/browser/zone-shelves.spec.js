@@ -25,6 +25,8 @@ async function open(page, { width = 1440, height = 900, url = "?data=sales&lang=
         await fold.click();
     }
     await expect(page.locator(".pk-zone")).toHaveCount(4);
+    // the zones open with a transition: a test measures the shelves where they come to rest
+    await animationsSettled(page);
 }
 
 /** The add menu of a zone, opened by a click on its "+ Add". */

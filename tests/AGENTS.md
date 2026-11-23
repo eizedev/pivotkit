@@ -58,6 +58,7 @@ npm run bench:browser                                     # benchmark, 100k to 1
 
 - They run in Chromium, Firefox and WebKit, on React 18 and 19. CI has one job per engine and React.
 - A test fails on any console error or warning (`tests/browser/fixtures.js`).
+- A test expects the report's English texts by key: `TEXTS` and `textOf` in `fixtures.js`.
 - The chart specs are in `chart/`. A topic the unit tests of pivotkit-core or pivotkit-react also test has the same filename.
 - `chart/report.js` mounts a chart report and finds where ECharts drew its marks. `point-menu` and `tooltip` use it.
 - A test that measures layout waits until the layout has settled.
@@ -91,8 +92,11 @@ npm run bench:browser                                     # benchmark, 100k to 1
 
 ## Repository checks
 
-- `tests/ci.test.js` checks pins, caret ranges, workflows and version statements in the docs.
-- It also checks that the Playwright image matches the locked `@playwright/test`.
+- `tests/ci.test.js` checks pins, caret ranges, check-release and version statements in the docs.
+- `tests/workflows.test.js` checks the workflows as parsed YAML: jobs, steps and their order, events, permissions.
+  It also checks that the Playwright image matches the locked `@playwright/test`.
+- A check of a docs page names the facts, not the words: `assertStates` in `tests/docs-facts.js`.
+  The page passes when one sentence or table row holds every part.
 - `tests/examples.test.js` fails until `node scripts/examples.js` has run.
 - `tests/schemas.test.js` fails until `node scripts/schemas.js` has run.
 - `tests/decisions.test.js` checks the decision records, and the index `node scripts/decisions.js` writes.
@@ -102,3 +106,4 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - `tests/docs-lists.test.js` checks that every list in the docs starts after a blank line.
 - `tests/compatibility.test.js` checks the lowest versions in `docs/compatibility.md` against `package.json`,
   `docs/browser-support.md` and the CI matrix.
+- `tests/learn.test.js` checks every number `docs/learn.md` states against the playground's data.
