@@ -675,7 +675,7 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
             run: () => onLoad(t),
             info: t.scope === "shared" && sharedChange && !(onDelete && t.deletable) ? "sharedView" : undefined,
             actions: [
-                ...(onPublish && t.scope === "user" ? [{ id: `publish:${id}`, testId: `publish-view-${t.name}`, text: t.name, label: fill(labels.publishView, { name: t.name }), icon: "upload", open: "confirm", backTo: `item:${id}`, run: ask("publish", `item:${id}`) }] : []),
+                ...(onPublish && t.scope === "user" ? [{ id: `publish:${id}`, testId: `publish-view-${t.name}`, text: t.name, label: fill(labels.publishView, { name: t.name }), icon: "share", open: "confirm", backTo: `item:${id}`, run: ask("publish", `item:${id}`) }] : []),
                 ...(onDelete && t.deletable ? [{ id: `delete:${id}`, testId: `delete-view-${t.name}`, text: t.name, label: fill(labels.deleteView, { name: t.name }), icon: "trash", open: "confirm", backTo: `item:${id}`, run: ask("delete", next === undefined ? undefined : `item:${ids[next]}`) }] : [])
             ]
         };

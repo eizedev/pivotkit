@@ -238,7 +238,7 @@ test.describe("the Filter level on data that end before today (weather, to Dec 3
         }
     });
 
-    test("Reset filter, Clear and Remove are disabled, and look so, exactly while they would change nothing; change it above goes to the choice", async ({ page }) => {
+    test("Reset filter, Pick all again and Remove are disabled, and look so, exactly while they would change nothing; change it above goes to the choice", async ({ page }) => {
         await openView(page, "weather", monthly());
         await chipMenu(page, MONTH, "filter");
         const menu = page.locator(".pk-chip-menu");
@@ -256,7 +256,7 @@ test.describe("the Filter level on data that end before today (weather, to Dec 3
             expect(l.cursor).not.toBe("pointer");
             expect(l.underline).toBe("none");
         }
-        // one month only: Clear and Reset can act, Remove not (no rule)
+        // one month only: Pick all again and Reset filter can act, Remove not (no rule)
         const jan = menu.locator(".pk-value", { hasText: "Jan 2023" });
         await jan.hover();
         await jan.locator(".pk-only").click();
@@ -550,17 +550,17 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
         await expect(value).toBeFocused();
     });
 
-    test("the focus stays on a control of the level after Clear and after the last rule goes", async ({ page }) => {
+    test("the focus stays on a control of the level after Pick all again and after the last rule goes", async ({ page }) => {
         await openView(page, "weather", monthly());
         await chipMenu(page, MONTH, "filter");
         const menu = menuOf(page);
-        // Clear by mouse
+        // Pick all again by mouse
         await menu.getByTestId("select-none").click();
         await expect(menu.getByTestId("filter-clear-picks")).toBeEnabled();
         await menu.getByTestId("filter-clear-picks").click();
         await expect(menu.getByTestId("filter-clear-picks")).toBeDisabled();
         await expect.poll(() => focusedId(page)).toBe("section-picks");
-        // Clear by keyboard
+        // Pick all again by keyboard
         await menu.getByTestId("select-none").focus();
         await page.keyboard.press("Enter");
         await menu.getByTestId("filter-clear-picks").focus();

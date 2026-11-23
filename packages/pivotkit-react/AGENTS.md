@@ -137,7 +137,7 @@ Visual values come from `--pk-*` tokens. A host can then match its design withou
 
 - A tip is one row of `TIPS`: a pure condition, a text in every language, an optional action.
 - At most `TIP_LIMIT` (one) shows at a time, above the result, never over it.
-- A row that says the result is cut or empty is `kind: "notice"`. It always shows.
+- A row that says the result is cut or empty is `kind: "notice"`. It always shows. On a narrow report it takes a tip's place.
 - Read browser storage after the first render (`useSyncExternalStore` with a server snapshot).
 
 ## Adding a language

@@ -61,13 +61,13 @@ function tipStep(action, view, params, { nameOf, labels }) {
  *   pivot: ReturnType<typeof import("./use-pivot-result.js").usePivotResult>, encoded: import("pivotkit-core").Encoded, empty: boolean,
  *   typeOf: (field: string) => string, showTable: boolean, activity: ReturnType<typeof useActivity>, canSave: boolean,
  *   dismissed: { allowed: any, dismissed: string[] }, labels: any, locale: string, commit: import("./use-steps.js").Commit,
- *   nameOf: (field: string) => string, openViews: () => void }} report  table: the tips' table once loaded (until then
+ *   nameOf: (field: string) => string, openViews: () => void, narrow?: boolean }} report  table: the tips' table once loaded (until then
  *   the notices alone); display: what the result shows; showTable: the table is shown; dismissed: useDismissed's;
- *   openViews: a tip's "Save view" opens the Views menu
+ *   openViews: a tip's "Save view" opens the Views menu; narrow: a phone's report, where a notice takes a tip's place
  */
-export function tipsShown({ table, view, display, pivot, encoded, empty, typeOf, showTable, activity, canSave, dismissed, labels, locale, commit, nameOf, openViews }) {
+export function tipsShown({ table, view, display, pivot, encoded, empty, typeOf, showTable, activity, canSave, dismissed, labels, locale, commit, nameOf, openViews, narrow }) {
     const context = tipContext({ view, display, result: pivot.result, encoded, failed: Boolean(pivot.error), empty, typeOf, fields: labels.core.fields, series: pivot.series, tableShown: showTable, drilled: activity.drilled, changes: activity.changes, dragAt: activity.dragAt, canSave, savedAt: activity.savedAt, chartPlan: pivot.plan });
-    const tips = activeEntries(table?.TIPS ?? NOTICES, context, { allowed: dismissed.allowed, dismissed: dismissed.dismissed }).map((t) => ({
+    const tips = activeEntries(table?.TIPS ?? NOTICES, context, { allowed: dismissed.allowed, dismissed: dismissed.dismissed, narrow }).map((t) => ({
         id: t.id,
         params: t.params,
         icon: t.entry.icon ?? "info",

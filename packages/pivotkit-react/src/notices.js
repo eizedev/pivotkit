@@ -143,13 +143,15 @@ export function tipContext({ view, display = view.display, result, encoded, fail
 
 /**
  * What to show now, the most important first: every notice whose condition holds, then the tips
- * whose condition holds, allowed by the host and not dismissed, at most `limit` of them.
+ * whose condition holds, allowed by the host and not dismissed, at most `limit` of them. With
+ * `narrow` (a narrow report, where height is short) a notice takes a tip's place too, so a
+ * phone shows one note above the result, not two.
  * @param {readonly TipEntry[]} table  NOTICES, or every row (tips.js TIPS)
  * @param {TipContext} ctx
- * @param {{ allowed: "on" | "off" | readonly string[], dismissed: ReadonlySet<string> | readonly string[], limit?: number }} options
+ * @param {{ allowed: "on" | "off" | readonly string[], dismissed: ReadonlySet<string> | readonly string[], limit?: number, narrow?: boolean }} options
  * @returns {Array<{ id: string, params: Record<string, any>, entry: TipEntry }>}
  */
-export function activeEntries(table, ctx, { allowed, dismissed, limit = TIP_LIMIT }) {
+export function activeEntries(table, ctx, { allowed, dismissed, limit = TIP_LIMIT, narrow }) {
     const gone = new Set(dismissed);
     const tipsOff = allowed === "off" || gone.has(ALL_TIPS);
     const out = [];
@@ -162,7 +164,7 @@ export function activeEntries(table, ctx, { allowed, dismissed, limit = TIP_LIMI
         const params = entry.when(ctx);
         if (params) {
             out.push({ id: entry.id, params, entry });
-            tips += notice ? 0 : 1;
+            tips += notice && !narrow ? 0 : 1;
         }
     }
     return out;

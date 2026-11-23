@@ -27,7 +27,7 @@
  */
 
 import { OperationError, checkInput, findingText } from "pivotkit-report/operations";
-import { REST_BASE } from "./config.js";
+import { REST_BASE } from "pivotkit-node/rest";
 import { identityBasisOf, identityKey } from "./auth.js";
 import { RECORDS_JOB } from "./data.js";
 import { createPlaces } from "./limits.js";

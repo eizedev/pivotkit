@@ -57,11 +57,30 @@ import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind
 
 /** The formats the value menu offers first, and those under "More formats"; any other format of a view still works. */
 export const FORMAT_CHOICES = Object.freeze(["number", "number:0", "number:2", "currency", "percent"].filter(isFormat));
-export const MORE_FORMATS = Object.freeze(["integer", "compact", "bytes", "duration:h", "duration:s"].filter(isFormat));
+export const MORE_FORMATS = Object.freeze(["compact", "bytes", "duration:h", "duration:s"].filter(isFormat));
+/** A format of a view that writes a number as an offered one does, checked as that one: "integer" is "number:0". */
+const SAME_FORMAT = Object.freeze({ integer: "number:0" });
+
+/**
+ * The offered format a view's format is (SAME_FORMAT; a currency that writes the example as the
+ * offered Currency does is that one: pivotkit-core's own currency named by its code), else the
+ * format itself.
+ * @param {string | null | undefined} format
+ * @param {(f: string) => string} example  a format's example in the report's locale
+ */
+function offeredAs(format, example) {
+    if (!format) {
+        return format;
+    }
+    if (Object.hasOwn(SAME_FORMAT, format)) {
+        return SAME_FORMAT[format];
+    }
+    return /^currency:/i.test(format) && example(format) === example("currency") ? "currency" : format;
+}
 /** The calculations offered first; the others are under "More calculations". */
 const COMMON_SHOW_AS = CATALOG.showAs.filter((s) => ["percentOfGrandTotal", "percentOfRowTotal", "percentOfColumnTotal"].includes(s));
 /** The number a format's example shows, by the kind of number the format is for. */
-const EXAMPLE = Object.freeze({ percent: 0.256, bytes: 1536000, "duration:h": 1.5, "duration:s": 3725 });
+const EXAMPLE = Object.freeze({ percent: 0.25, bytes: 1536000, "duration:h": 1.5, "duration:s": 3725 });
 
 /** The quick choices of Top items, besides Off and a count of one's own. */
 export const TOP_COUNTS = Object.freeze([3, 5, 10]);
@@ -316,8 +335,8 @@ export function topText(view, top, labels, locale) {
 }
 
 /**
- * A format in words: its own label, a number with other decimals ("Number, 1 decimal"), else the
- * label of its kind ("Currency" for currency:USD), else its name.
+ * A format in words: its own label, a number with other decimals ("Number, 1 decimal"), a currency
+ * with its code ("Currency (USD)"), else the label of its kind, else its name.
  * @param {string} format
  */
 export function formatLabel(format, labels, locale) {
@@ -328,7 +347,11 @@ export function formatLabel(format, labels, locale) {
     if (decimals) {
         return plural(labels.formatDecimals, Number(decimals[1]), { lang: labels.lang, locale });
     }
-    const kind = format.split(":")[0];
+    const [kind, code] = format.split(":");
+    if (kind === "currency" && code && Object.hasOwn(labels.formats, kind)) {
+        // the code tells it from the offered Currency (pivotkit-core's own, the euro)
+        return `${labels.formats.currency} (${code.toUpperCase()})`;
+    }
     return Object.hasOwn(labels.formats, kind) ? labels.formats[kind] : format;
 }
 
@@ -407,10 +430,13 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf, ea
             ]
         });
         const example = (f) => formatter(f, { locale })(Object.hasOwn(EXAMPLE, f) ? EXAMPLE[f] : 1234.5);
-        const format = (f) => ({ id: `format-${f}`, text: labels.formats[f] ?? f, hint: example(f), checked: spec.format === f, change: set({ format: f }) });
-        const formatName = spec.format ? formatLabel(spec.format, labels, locale) : labels.formatAuto;
+        // Percent reads the value as a share (0.25 is 25%): its example shows both
+        const hint = (f) => (f === "percent" ? `${formatter("number", { locale })(EXAMPLE.percent)} → ${example(f)}` : example(f));
+        const own = offeredAs(spec.format, example);
+        const format = (f) => ({ id: `format-${f}`, text: labels.formats[f] ?? f, hint: hint(f), keywords: labels.formatKeywords[f], checked: own === f, change: set({ format: f }) });
+        const formatName = own ? formatLabel(own, labels, locale) : labels.formatAuto;
         // a format of the view that is not offered (number:1 from a host's defaults): checked, first
-        const offered = !spec.format || FORMAT_CHOICES.includes(spec.format) || MORE_FORMATS.includes(spec.format);
+        const offered = !own || FORMAT_CHOICES.includes(own) || MORE_FORMATS.includes(own);
         topics.push({
             id: "format",
             title: labels.format,
@@ -421,7 +447,7 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf, ea
             groups: [
                 {
                     choices: [
-                        ...(offered ? [] : [{ id: "format-current", text: formatName, checked: true, change: set({ format: spec.format }) }]),
+                        ...(offered ? [] : [{ id: "format-current", text: formatName, hint: example(spec.format), checked: true, change: set({ format: spec.format }) }]),
                         { id: "format-auto", text: labels.formatAuto, checked: !spec.format, change: set({ format: null }) },
                         ...FORMAT_CHOICES.map(format)
                     ]

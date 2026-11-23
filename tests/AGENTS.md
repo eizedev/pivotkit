@@ -45,6 +45,9 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - So do a timestamp the code wrote, a polling deadline and a ratio of two measurements.
 - Such a line ends in the comment `// wall time: <why>`, for example `// wall time: event latency`.
 - `tests/time-bounds.test.js` fails on a wall-clock reading in a comparison without that comment.
+- A unit test waits for a condition with `until()` from `tests/until.js`. Its header gives the options and defaults.
+- A test that goes on when the condition never comes keeps a deadline loop of its own, marked `// wall time: a polling deadline`.
+- A fixed sleep checks that nothing happens for a while. A new one says so in a comment.
 
 ## Scripts
 
@@ -55,9 +58,11 @@ npm run bench:browser                                     # benchmark, 100k to 1
 
 - They run in Chromium, Firefox and WebKit, on React 18 and 19. CI has one job per engine and React.
 - A test fails on any console error or warning (`tests/browser/fixtures.js`).
+- A test expects the report's English texts by key: `TEXTS` and `textOf` in `fixtures.js`.
 - The chart specs are in `chart/`. A topic the unit tests of pivotkit-core or pivotkit-react also test has the same filename.
 - `chart/report.js` mounts a chart report and finds where ECharts drew its marks. `point-menu` and `tooltip` use it.
 - A test that measures layout waits until the layout has settled.
+  `animationsSettled(page)` in `fixtures.js` waits until no animation runs.
 - A test waits for a file chooser with `nextFileChooser(page)` from `import-helpers.js`, not `page.waitForEvent`.
   It keeps Firefox from opening the native picker on the second pick.
 - A mouse drag waits until its target shows it takes the drop, then releases. `drag()` in `fixtures.js` does this.
@@ -87,8 +92,11 @@ npm run bench:browser                                     # benchmark, 100k to 1
 
 ## Repository checks
 
-- `tests/ci.test.js` checks pins, caret ranges, workflows and version statements in the docs.
-- It also checks that the Playwright image matches the locked `@playwright/test`.
+- `tests/ci.test.js` checks pins, caret ranges, check-release and version statements in the docs.
+- `tests/workflows.test.js` checks the workflows as parsed YAML: jobs, steps and their order, events, permissions.
+  It also checks that the Playwright image matches the locked `@playwright/test`.
+- A check of a docs page names the facts, not the words: `assertStates` in `tests/docs-facts.js`.
+  The page passes when one sentence or table row holds every part.
 - `tests/examples.test.js` fails until `node scripts/examples.js` has run.
 - `tests/schemas.test.js` fails until `node scripts/schemas.js` has run.
 - `tests/decisions.test.js` checks the decision records, and the index `node scripts/decisions.js` writes.
@@ -98,3 +106,4 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - `tests/docs-lists.test.js` checks that every list in the docs starts after a blank line.
 - `tests/compatibility.test.js` checks the lowest versions in `docs/compatibility.md` against `package.json`,
   `docs/browser-support.md` and the CI matrix.
+- `tests/learn.test.js` checks every number `docs/learn.md` states against the playground's data.

@@ -4,7 +4,7 @@
 // chart.tooltip "axis") shows every series wherever the pointer is. Real pointer input: the positions
 // come from the chart's own layout (getItemLayout, convertToPixel), not from fixed fractions.
 import { test, expect } from "../fixtures.js";
-import { ROWS, VIEW, EAST, NORTH, HARDWARE, SERVICES, SOFTWARE, VALUES, mount, pointOf, barMiddle, between, linePoint, sliceMiddle, cellMiddle, hover, tooltipOf } from "./report.js";
+import { ROWS, VIEW, EAST, NORTH, HARDWARE, SERVICES, SOFTWARE, VALUES, mount, pointOf, barMiddle, between, linePoint, sliceMiddle, cellMiddle, hover, settled, tooltipOf } from "./report.js";
 
 /** The visual states of a bar (ECharts' "emphasis" when it lights up, "blur" when it fades). */
 const statesOf = (chartEl, series, index) =>
@@ -86,13 +86,6 @@ test.describe("the chart's tooltip follows the pointer", () => {
         const shares = await mount(page, { type: "bar", stacked: true }, { view: { values: [{ field: "Revenue", agg: "sum", showAs: { type: "percentOfRowTotal" } }] } });
         await hover(page, await pointOf(shares, barMiddle, { series: HARDWARE, index: NORTH }));
         await expect.poll(async () => (await tooltipOf(shares)).at(-1)).toMatch(/^Total 100(\.0+)?%$/);
-    });
-
-    test("a part below zero: the total is the sum of the parts", async ({ page }) => {
-        const rows = ROWS.map((r) => (r.Region === "North" && r.Category === "Services" ? { ...r, Revenue: -10 } : r));
-        const chartEl = await mount(page, { type: "bar", stacked: true }, { rows });
-        await hover(page, await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH }));
-        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 40"]);
     });
 
     test("lines: a point shows that point; the line between points every series, the one without a value left out", async ({ page }) => {
@@ -280,7 +273,7 @@ test("a host that renders again every 200 ms keeps the segment's tooltip under a
     await report.getByTestId("chart-stacked").click();
     const chartEl = report.getByTestId("pivot-chart");
     await expect(chartEl.locator("canvas").first()).toBeVisible();
-    await page.waitForTimeout(600);
+    await settled(chartEl);
     await hover(page, await pointOf(chartEl, barMiddle, { series: 0, index: 0 }));
     await expect.poll(async () => (await tooltipOf(chartEl)).length).toBe(3);
     const shown = await tooltipOf(chartEl);

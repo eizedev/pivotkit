@@ -443,8 +443,8 @@ Who can read the output directory:
 - The directory the server creates is mode 0700: only the server's user can read it. With
   `output.baseUrl` it is 0755 (less the umask), so your web server can read it. A directory that
   exists keeps its mode.
-- The server writes reports with mode 0644 (less the umask). Other local users can read them wherever
-  the directory lets them in, so restrict the directory where that matters.
+- Reports are mode 0600, only for the server's user; with `output.baseUrl` 0644 (less the umask), so
+  your web server can read them. Reports written before keep their mode.
 - The markers of used one-time links in `.pivotkit-downloads/` hold a link's random nonce and its
   expiry, no personal data.
 

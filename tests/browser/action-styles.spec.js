@@ -152,18 +152,18 @@ for (const theme of ["light", "dark"]) {
             expect((await look(menu.getByTestId("level-back"))).textDecoration).toBe("underline");
         });
 
-        test("Clear, Remove, Select all, Select none and Only are accent text actions", async ({ page }) => {
+        test("Pick all again, Remove, Select all, Select none and Only are accent text actions", async ({ page }) => {
             await openView(page, "sales", VALUE_RULE, theme);
             await chipMenu(page, "Region", "filter");
             const menu = page.locator(".pk-chip-menu");
             await openRules(menu);
             await expectTextAction(menu.getByTestId("filter-remove-rules"), "Remove");
-            // a region left out by its checkbox: Clear has picks to clear
+            // a region left out by its checkbox: Pick all again has picks to undo
             const picks = menu.getByTestId("section-picks");
             if ((await picks.getAttribute("aria-expanded")) !== "true") await picks.click();
             await menu.locator(".pk-value input[type=checkbox]").first().click();
             await away(page);
-            await expectTextAction(menu.getByTestId("filter-clear-picks"), "Clear");
+            await expectTextAction(menu.getByTestId("filter-clear-picks"), "Pick all again");
             await expectTextAction(menu.getByTestId("select-all"), "Select all");
             await expectTextAction(menu.getByTestId("select-none"), "Select none");
             // Only shows on the item under the pointer
