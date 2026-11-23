@@ -35,6 +35,19 @@ const missed = (page) =>
                     el.closest(".pk-table-wrap")?.scrollBy({ left: left - edge - 22 });
                 }
             }
+            // likewise a control in a row the table's sticky header covers: a table too low to centre
+            // the row below its header scrolls it out below it, as a person does. The header's cells
+            // stick, not the header, so its foot is their lowest edge
+            const head = el.closest("tbody") ? [...el.closest("table").querySelectorAll("thead :is(th, td)")] : [];
+            if (head.length) {
+                const foot = Math.max(...head.map((c) => c.getBoundingClientRect().bottom));
+                // the highest point the tap tries: the row's top, or 21 px above the control's middle
+                const own = el.getBoundingClientRect();
+                const top = Math.min(el.closest("tr").getBoundingClientRect().top, own.top + own.height / 2 - 21);
+                if (top < foot + 2) {
+                    el.closest(".pk-table-wrap")?.scrollBy({ top: top - foot - 2 });
+                }
+            }
             const box = el.getBoundingClientRect();
             const x = box.left + box.width / 2;
             const y = box.top + box.height / 2;

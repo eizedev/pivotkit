@@ -5,8 +5,9 @@
  * move the focus, Enter or Space shows the tab, since the chart loads on demand. The result below
  * is their tab panel. In the narrow layout the settings button says "Settings" only, Enlarge and
  * Full screen show their icon only; their whole names stay for assistive technology and as a
- * tooltip. Left and right do not mirror: the report has no right-to-left layout. The settings load
- * with the menus (menus.js).
+ * tooltip. Where the buttons have no room beside the tabs, they move together to a line above them,
+ * at the right; the Tab order stays tabs first. Left and right do not mirror: the report has no
+ * right-to-left layout. The settings load with the menus (menus.js).
  */
 
 import React, { useRef } from "react";
@@ -71,21 +72,23 @@ export function ViewTabs(props) {
                     </button>
                 ))}
             </div>
-            <span className="pk-grow" />
-            {shown !== "chart" ? <SettingsButton kind="table" {...props} /> : null}
-            {shown !== "table" ? <SettingsButton kind="chart" {...props} /> : null}
-            <button type="button" className="pk-btn pk-pressable pk-small-btn" data-pk-on={big.enlarged ? "" : undefined} onClick={big.toggleEnlarged} data-testid="enlarge" {...enlargeTitle} {...iconOnly(big.enlarged ? labels.reduce : labels.enlarge)}>
-                <Icon name="enlarge" size={14} />
-                {/* says what a click does: Enlarge, or Reduce while enlarged; a changing name is no
-                    toggle (no aria-pressed), the highlight shows the state (data-pk-on) */}
-                {narrow ? null : <span className="pk-btn-text">{big.enlarged ? labels.reduce : labels.enlarge}</span>}
-            </button>
-            {big.fullOk ? (
-                <button type="button" className="pk-btn pk-pressable pk-small-btn" aria-pressed={big.full} onClick={big.toggleFull} data-testid="full-screen" {...iconOnly(labels.fullScreen)}>
-                    <Icon name="fullScreen" size={14} />
-                    {narrow ? null : <span className="pk-btn-text">{labels.fullScreen}</span>}
+            {/* the buttons move together: without room beside the tabs, to a line above them (#706) */}
+            <div className="pk-result-actions">
+                {shown !== "chart" ? <SettingsButton kind="table" {...props} /> : null}
+                {shown !== "table" ? <SettingsButton kind="chart" {...props} /> : null}
+                <button type="button" className="pk-btn pk-pressable pk-small-btn" data-pk-on={big.enlarged ? "" : undefined} onClick={big.toggleEnlarged} data-testid="enlarge" {...enlargeTitle} {...iconOnly(big.enlarged ? labels.reduce : labels.enlarge)}>
+                    <Icon name="enlarge" size={14} />
+                    {/* says what a click does: Enlarge, or Reduce while enlarged; a changing name is no
+                        toggle (no aria-pressed), the highlight shows the state (data-pk-on) */}
+                    {narrow ? null : <span className="pk-btn-text">{big.enlarged ? labels.reduce : labels.enlarge}</span>}
                 </button>
-            ) : null}
+                {big.fullOk ? (
+                    <button type="button" className="pk-btn pk-pressable pk-small-btn" aria-pressed={big.full} onClick={big.toggleFull} data-testid="full-screen" {...iconOnly(labels.fullScreen)}>
+                        <Icon name="fullScreen" size={14} />
+                        {narrow ? null : <span className="pk-btn-text">{labels.fullScreen}</span>}
+                    </button>
+                ) : null}
+            </div>
         </div>
     );
 }

@@ -3,7 +3,7 @@
 // Real pointer clicks and keys; both sizes the design was made for.
 import { test as plain } from "@playwright/test";
 import { encodeViewLink } from "pivotkit-core/link";
-import { expect, test, toolbar } from "./fixtures.js";
+import { expect, test, toolbar, twoFrames } from "./fixtures.js";
 
 /** The test id of the element with the focus, through shadow roots. */
 const focused = (page) =>
@@ -188,9 +188,7 @@ test("a narrow report: Start over and Views below Help in More; the settings say
     await expect(settings).toHaveText("Settings");
     await expect(settings).toHaveAccessibleName("Table settings");
     await expect(settings).toHaveAttribute("title", "Table settings");
-    // it stays on the tabs' line
-    const [tab, button] = await Promise.all([page.getByTestId("show-table").boundingBox(), settings.boundingBox()]);
-    expect(Math.abs(tab.y + tab.height - (button.y + button.height))).toBeLessThan(12);
+    // where it stands beside the tabs or above them: the tests of #706 below
     for (const [id, name] of [["enlarge", "Enlarge"], ["swap", "Swap rows and columns"]]) {
         await expect(page.getByTestId(id)).toHaveAccessibleName(name);
         await expect(page.getByTestId(id)).toHaveAttribute("title", name);
@@ -205,6 +203,109 @@ test("a narrow report: Start over and Views below Help in More; the settings say
     await page.getByTestId("more-views").click();
     await expect(page.locator(".pk-popover").getByTestId("save-as")).toBeVisible();
 });
+
+/**
+ * What is wrong with the row beside the tabs: a tab or button outside the row, its text cut, two that
+ * overlap, or the tab shown off the row's rule. Empty when every one is whole and in its place (#706).
+ */
+const rowFaults = (page) =>
+    page.getByTestId("view-tabs-row").evaluate((row) => {
+        const edge = row.getBoundingClientRect();
+        const items = [...row.querySelectorAll('[role="tab"], button[data-testid]')].map((el) => ({ id: el.getAttribute("data-testid"), el, box: el.getBoundingClientRect() }));
+        const faults = [];
+        for (const { id, el, box } of items) {
+            // a pixel more: the tab shown's mark reaches over its border
+            if (box.left < edge.left - 0.5 || box.right > edge.right + 0.5) {
+                faults.push(`${id} outside the row`);
+            }
+            const text = el.querySelector("span");
+            if (el.scrollWidth > el.clientWidth + 1 || (text && text.scrollWidth > text.clientWidth + 1)) {
+                faults.push(`${id} cut`);
+            }
+        }
+        items.forEach((a, i) => {
+            for (const b of items.slice(i + 1)) {
+                const across = Math.min(a.box.right, b.box.right) - Math.max(a.box.left, b.box.left);
+                const down = Math.min(a.box.bottom, b.box.bottom) - Math.max(a.box.top, b.box.top);
+                if (across > 0.5 && down > 0.5) {
+                    faults.push(`${a.id} overlaps ${b.id}`);
+                }
+            }
+        });
+        const shown = row.querySelector('[role="tab"][aria-selected="true"]').getBoundingClientRect();
+        if (Math.abs(shown.bottom - edge.bottom) > 2) {
+            faults.push("the tab shown is off the rule");
+        }
+        return faults;
+    });
+
+/** Opens the sales report in `lang` at `width` and waits until the row beside the tabs has settled. */
+const openRow = async (page, lang, width) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`?data=sales&lang=${lang}`);
+    await page.locator('[data-testid="pivot-table"]').waitFor();
+    // the toolbar and the row lay out over a few frames
+    await twoFrames(page);
+};
+
+// Reports too small for the tabs and every button on one line: a phone in German and English, and
+// reports whose field list takes room beside the result (#706)
+const SMALL = [
+    ["de", 390],
+    ["en", 360],
+    ["en", 320],
+    ["de", 320],
+    ["de", 800],
+    ["de", 1100]
+];
+for (const [lang, width] of SMALL) {
+    test(`a report too small for one line (${lang}, ${width} px): every tab and button whole, in the row and apart; the tab shown on the rule; Tab goes tabs, then the buttons (#706)`, async ({ page, browserName }) => {
+        await openRow(page, lang, width);
+        expect(await rowFaults(page)).toEqual([]);
+        // the buttons stand together on a line above the tabs, at the right
+        const row = page.getByTestId("view-tabs-row");
+        const [tab, edge, settings, last] = await Promise.all([page.getByTestId("show-table").boundingBox(), row.boundingBox(), page.getByTestId("view-settings").boundingBox(), page.getByTestId("full-screen").boundingBox()]);
+        expect(settings.y + settings.height).toBeLessThanOrEqual(tab.y + 1);
+        expect(Math.abs(last.x + last.width - (edge.x + edge.width))).toBeLessThanOrEqual(1);
+        // the Tab order stays the one of a single line; Safari's Tab skips buttons unless the user turns that on
+        if (browserName !== "webkit") {
+            await page.getByTestId("show-table").focus();
+            const order = [];
+            for (let i = 0; i < 3; i++) {
+                await page.keyboard.press("Tab");
+                order.push(await focused(page));
+            }
+            expect(order).toEqual(["view-settings", "enlarge", "full-screen"]);
+        }
+    });
+}
+
+test.describe("a touch screen, where every button takes 44 px", () => {
+    test.use({ hasTouch: true });
+    for (const lang of ["en", "de"]) {
+        test(`390 px, ${lang}: every tab and button whole, in the row and apart (#706)`, async ({ page }) => {
+            await openRow(page, lang, 390);
+            expect(await rowFaults(page)).toEqual([]);
+        });
+    }
+});
+
+// with room, narrow or wide, the buttons stay beside the tabs: a narrow report in English, a wide one in German
+for (const [lang, width, size] of [["en", 600, "narrow"], ["de", 1440, "wide"]]) {
+    test(`a ${size} report with room (${lang}, ${width} px): the tabs and the buttons share one line, the buttons at the right, at its foot (#706)`, async ({ page }) => {
+        await openRow(page, lang, width);
+        await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", size);
+        expect(await rowFaults(page)).toEqual([]);
+        const row = page.getByTestId("view-tabs-row");
+        const [tab, edge, settings, last] = await Promise.all([page.getByTestId("show-table").boundingBox(), row.boundingBox(), page.getByTestId("view-settings").boundingBox(), page.getByTestId("full-screen").boundingBox()]);
+        // one line: Settings beside the tabs, not above them
+        expect(settings.y + settings.height).toBeGreaterThan(tab.y + 1);
+        expect(settings.x).toBeGreaterThan(tab.x + tab.width);
+        expect(Math.abs(last.x + last.width - (edge.x + edge.width))).toBeLessThanOrEqual(1);
+        // at the foot of the line: the buttons' margin (5 px) and the rule (1 px) below them
+        expect(edge.y + edge.height - (settings.y + settings.height)).toBeLessThanOrEqual(6.5);
+    });
+}
 
 test("the section: one row; the fold button names the section and, folded, says what is placed; its i holds the hint; Swap works folded; the keys go fold, i, Swap, the zones", async ({ page, browserName }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
