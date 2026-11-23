@@ -74,13 +74,13 @@ The header says it: "% of grand total of Revenue".
 | Number format | Example |
 | --- | --- |
 | Automatic | the same decimals in every cell of the column (below) |
-| Number, Number with no decimals, Number with 2 decimals | 1,234.5 · 1,235 · 1,234.50 |
+| Number; Number, no decimals; Number, 2 decimals | 1,234.5 · 1,235 · 1,234.50 |
 | Currency | €1,234.50 |
 | Percent | 25% |
 | Whole number (More formats) | 1,235 |
-| Compact (More formats) | 1.2K |
-| Bytes (More formats) | 1.5 MB |
-| Duration from hours or seconds (More formats) | 2 h 5 min |
+| Compact (1.2K) (More formats) | 1.2K |
+| Bytes (KB, MB) (More formats) | 1.5 MB |
+| Duration from hours, Duration from seconds (More formats) | 2 h 5 min |
 
 **Automatic** keeps a column aligned: a sum, minimum, maximum, first or last keeps the data's
 decimals (at most 2), an average, median or spread has 2, a count none, a percentage one. So a sum of
