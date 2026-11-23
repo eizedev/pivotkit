@@ -5,23 +5,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, emptyView, encode, normalize, referenceLineRules, toEChartsOption } from "pivotkit-core";
 import { decorateOption, extremePoints, referenceLineChecks } from "pivotkit-core/chart";
+import { MONTH, MONTHLY } from "./fixtures.js";
 
-/**
- * Revenue per month and product. A climbs by 10 a month (10, 20, 30, 40), B stays near 5 (5, 5, 7, 3).
- * Stacked, the months are 15, 25, 37, 43.
- */
-const ROWS = [
-    { Date: "2026-01-15", Region: "North", Product: "A", Revenue: 10 },
-    { Date: "2026-01-15", Region: "South", Product: "B", Revenue: 5 },
-    { Date: "2026-02-15", Region: "North", Product: "A", Revenue: 20 },
-    { Date: "2026-02-15", Region: "South", Product: "B", Revenue: 5 },
-    { Date: "2026-03-15", Region: "South", Product: "A", Revenue: 30 },
-    { Date: "2026-03-15", Region: "North", Product: "B", Revenue: 7 },
-    { Date: "2026-04-15", Region: "South", Product: "A", Revenue: 40 },
-    { Date: "2026-04-15", Region: "North", Product: "B", Revenue: 3 }
-];
-const data = encode(ROWS);
-const MONTH = { name: "Month", field: "Date", by: "yearMonth" };
+const data = encode(MONTHLY);
 const ON = { average: false, trend: false, target: null, extremes: true };
 const pivot = (view, rows = data) => computePivot(rows, { derived: [MONTH], rows: ["Month"], cols: ["Product"], values: [{ field: "Revenue", agg: "sum" }], formatting: { locale: "en-US" }, ...view });
 /** The points as [kind, series, category, value]. */
@@ -92,7 +78,7 @@ test("a stack marks its total; a series hidden in the legend is left out of it a
 });
 
 test("a stack with a part below zero has no single total: no points, and the checks say so", () => {
-    const rows = encode([...ROWS, { Date: "2026-02-15", Region: "North", Product: "B", Revenue: -20 }]);
+    const rows = encode([...MONTHLY, { Date: "2026-02-15", Region: "North", Product: "B", Revenue: -20 }]);
     const r = pivot({ chart: { type: "bar", stacked: true, referenceLines: ON } }, rows);
     assert.deepEqual(extremePoints(r), []);
     const checks = referenceLineChecks(r);

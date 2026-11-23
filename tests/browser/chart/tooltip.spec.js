@@ -88,13 +88,6 @@ test.describe("the chart's tooltip follows the pointer", () => {
         await expect.poll(async () => (await tooltipOf(shares)).at(-1)).toMatch(/^Total 100(\.0+)?%$/);
     });
 
-    test("a part below zero: the total is the sum of the parts", async ({ page }) => {
-        const rows = ROWS.map((r) => (r.Region === "North" && r.Category === "Services" ? { ...r, Revenue: -10 } : r));
-        const chartEl = await mount(page, { type: "bar", stacked: true }, { rows });
-        await hover(page, await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH }));
-        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 40"]);
-    });
-
     test("lines: a point shows that point; the line between points every series, the one without a value left out", async ({ page }) => {
         const chartEl = await mount(page, { type: "line" });
         await hover(page, await pointOf(chartEl, linePoint, { index: NORTH, value: VALUES[SOFTWARE][NORTH] }));

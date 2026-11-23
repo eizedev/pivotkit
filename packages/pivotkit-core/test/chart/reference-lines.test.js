@@ -4,24 +4,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chartThemeFrom, computePivot, emptyView, encode, normalize, referenceLineRules, toEChartsOption, toSeries, valueAddsUp } from "pivotkit-core";
 import { referenceLineChecks, referenceLines } from "pivotkit-core/chart";
+import { MONTH, MONTHLY } from "./fixtures.js";
 
-/**
- * Revenue per month and product. A climbs by 10 a month (10, 20, 30, 40: average 25), B stays near 5
- * (5, 5, 7, 3: average 5, trend from 5.6 to 4.4). Stacked, the months are 15, 25, 37, 43: average 30,
- * trend from 15.6 to 44.4.
- */
-const ROWS = [
-    { Date: "2026-01-15", Region: "North", Product: "A", Revenue: 10 },
-    { Date: "2026-01-15", Region: "South", Product: "B", Revenue: 5 },
-    { Date: "2026-02-15", Region: "North", Product: "A", Revenue: 20 },
-    { Date: "2026-02-15", Region: "South", Product: "B", Revenue: 5 },
-    { Date: "2026-03-15", Region: "South", Product: "A", Revenue: 30 },
-    { Date: "2026-03-15", Region: "North", Product: "B", Revenue: 7 },
-    { Date: "2026-04-15", Region: "South", Product: "A", Revenue: 40 },
-    { Date: "2026-04-15", Region: "North", Product: "B", Revenue: 3 }
-];
-const data = encode(ROWS);
-const MONTH = { name: "Month", field: "Date", by: "yearMonth" };
+const data = encode(MONTHLY);
 const pivot = (view) => computePivot(data, { derived: [MONTH], rows: ["Month"], cols: ["Product"], values: [{ field: "Revenue", agg: "sum" }], formatting: { locale: "en-US" }, ...view });
 const close = (a, b) => Math.abs(a - b) < 1e-9;
 /** The lines as [kind, series, numbers...], rounded to 9 places. */
@@ -226,7 +211,7 @@ test("a category without a date (blank) puts the trend on the categories' order,
 
 test("a stack with parts below zero has no total: no average and no trend of it, the target stays", () => {
     // B loses money in March: the stack is 15, 25, 25, 43
-    const rows = ROWS.map((r) => (r.Product === "B" && r.Date === "2026-03-15" ? { ...r, Revenue: -5 } : r));
+    const rows = MONTHLY.map((r) => (r.Product === "B" && r.Date === "2026-03-15" ? { ...r, Revenue: -5 } : r));
     const d = encode(rows);
     const r = computePivot(d, { derived: [MONTH], rows: ["Month"], cols: ["Product"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar", stacked: true, referenceLines: { average: true, trend: true, target: 30 } } });
     const series = toSeries(r);
@@ -244,7 +229,7 @@ test("a stack with parts below zero has no total: no average and no trend of it,
 
 test("a null in the middle: the average leaves it out, the trend keeps the real time", () => {
     // A has no revenue in February: 10, -, 30, 40
-    const rows = ROWS.filter((r) => !(r.Product === "A" && r.Date === "2026-02-15"));
+    const rows = MONTHLY.filter((r) => !(r.Product === "A" && r.Date === "2026-02-15"));
     const r = computePivot(encode(rows), { derived: [MONTH], rows: ["Month"], cols: ["Product"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line", referenceLines: on } });
     const [a] = referenceLines(r);
     assert.ok(close(a.value, 80 / 3));
