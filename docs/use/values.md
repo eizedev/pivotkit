@@ -77,8 +77,7 @@ The header says it: "% of grand total of Revenue".
 | Automatic | the same decimals in every cell of the column (below) |
 | Number; Number, no decimals; Number, 2 decimals | 1,234.5 · 1,235 · 1,234.50 |
 | Currency | €1,234.50 |
-| Percent | 25% |
-| Whole number (More formats) | 1,235 |
+| Percent | 0.25 → 25% |
 | Compact (1.2K) (More formats) | 1.2K |
 | Bytes (KB, MB) (More formats) | 1.5 MB |
 | Duration from hours, Duration from seconds (More formats) | 2 h 5 min |
