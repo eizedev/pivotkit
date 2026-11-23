@@ -171,14 +171,19 @@ test("token: a signed token reads back; a changed payload or signature, another 
     for (const bad of ["", ".", token.replace(".", ""), `${token}.x`, `${body}.${sig}=`, `${body}%2E${sig}`, `${"A".repeat(700)}.${sig}`, `${body} .${sig}`, null, 42]) {
         assert.equal(readToken(KEYS, /** @type {any} */ (bad)), null, String(bad));
     }
-    // a person is an HMAC of issuer and subject under its own key: not the subject, not a plain hash
-    // of it, and the same subject of another issuer is another person
-    const s = subjectDigest(KEYS, "https://auth.example.com/", "alice");
+    // a person is an HMAC of nonce, issuer and subject under its own key: not the subject, not a plain
+    // hash of it, the same subject of another issuer is another person, and two links of one person
+    // carry different digests
+    const s = subjectDigest(KEYS, n, "https://auth.example.com/", "alice");
+    assert.equal(s, subjectDigest(KEYS, n, "https://auth.example.com/", "alice"));
     assert.notEqual(s, createHash("sha256").update("alice").digest("base64url"));
     assert.notEqual(s, createHmacB64(KEYS.token, "alice"));
-    assert.notEqual(s, subjectDigest(KEYS, "https://other.example.com/", "alice"));
-    // issuer and subject cannot be cut differently to the same person: "a" + "b\0c" is not "a\0b" + "c"
-    assert.notEqual(subjectDigest(KEYS, "a", "b\u0000c"), subjectDigest(KEYS, "a\u0000b", "c"));
+    assert.notEqual(s, subjectDigest(KEYS, n, "https://other.example.com/", "alice"));
+    assert.notEqual(s, subjectDigest(KEYS, n, "https://auth.example.com/", "bob"));
+    assert.notEqual(s, subjectDigest(KEYS, randomBytes(16).toString("base64url"), "https://auth.example.com/", "alice"));
+    // nonce, issuer and subject cannot be cut differently to the same person: "a" + "b\0c" is not "a\0b" + "c"
+    assert.notEqual(subjectDigest(KEYS, n, "a", "b\u0000c"), subjectDigest(KEYS, n, "a\u0000b", "c"));
+    assert.notEqual(subjectDigest(KEYS, "a", "b\u0000c", "d"), subjectDigest(KEYS, "a\u0000b", "c", "d"));
 });
 
 /** HMAC-SHA256 in base64url (a signature under a key the test holds). */
