@@ -1,10 +1,11 @@
 /*
  * Whether the buttons beside the tabs Table and Chart take their short form on a report that is not
  * narrow (view-tabs.jsx, #706): "Settings" and the icons of Enlarge and Full screen, as in the narrow
- * layout, when the row has no room for their whole names. The width the whole names need is measured
- * while they show, kept, and compared with the row's width on every resize; a change of what the row
- * holds (a text, a tab, a button) shows the whole names again to measure them anew. Only when even
- * the short form has no room do the buttons move to a line above the tabs (styles.css).
+ * layout, when the row has no room for their whole names. While the whole names show, the hook
+ * measures the width they need and keeps it. On every resize of the row, the tabs or the buttons (a
+ * font that loads, a zoom) it compares that width with the row's. A change of what the row holds (a
+ * text, a tab, a button) shows the whole names again, so they are measured anew. Only when even the
+ * short form has no room do the buttons move to a line above the tabs (styles.css).
  */
 
 import { useRef, useState } from "react";
@@ -53,12 +54,16 @@ export function useTabsFit(row, measure, contents) {
                 need.current = oneLine(el);
                 measured.current = contents;
             }
-            // half a pixel: widths are fractions, the row's is rounded
-            setShort(need.current > el.clientWidth + 0.5);
+            // the row's border box, as the parts are measured: both scale alike under a host's transform
+            setShort(need.current > el.getBoundingClientRect().width + 0.5);
         };
         check();
         const ro = new ResizeObserver(check);
-        ro.observe(el);
+        for (const part of [el, el.querySelector(".pk-tabs"), el.querySelector(".pk-result-actions")]) {
+            if (part) {
+                ro.observe(part);
+            }
+        }
         return () => ro.disconnect();
     }, [row, measure, contents, short]);
     return measure && short;

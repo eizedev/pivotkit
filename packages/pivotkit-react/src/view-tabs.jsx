@@ -31,7 +31,8 @@ export const tabId = (panelId, display) => `${panelId}-${display}`;
 
 /**
  * @param {any} props  see PivotReport for what each one does. `panelId`: the result's id (the tab
- *   panel); `narrow`: a narrow report, the short form always; `shown`: what the result shows ("both" only on a wide report);
+ *   panel); `narrow`: a narrow report, the short form always; `shown`: what the result shows
+ *   ("both" only on a wide report);
  *   `both`: whether the tab Both is offered; `big`: use-big-result.js's Enlarge and Full screen
  */
 export function ViewTabs(props) {

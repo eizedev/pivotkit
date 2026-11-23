@@ -255,7 +255,7 @@ const SMALL = [
     ["en", 360],
     ["en", 320],
     ["de", 320],
-    ["de", 800]
+    ["de", 700]
 ];
 for (const [lang, width] of SMALL) {
     test(`a report too small for one line (${lang}, ${width} px): every tab and button whole, in the row and apart; the tab shown on the rule; Tab goes tabs, then the buttons (#706)`, async ({ page, browserName }) => {
@@ -293,6 +293,12 @@ for (const [lang, width, size] of [["de", 1000, "medium"], ["de", 1100, "wide"]]
         const [tab, box] = await Promise.all([page.getByTestId("show-table").boundingBox(), settings.boundingBox()]);
         expect(box.y + box.height).toBeGreaterThan(tab.y + 1);
         expect(box.x).toBeGreaterThan(tab.x + tab.width);
+        // another tab changes what the row holds: measured anew, still whole and short
+        await page.getByTestId("show-chart").click();
+        await expect(settings).toHaveText("Einstellungen");
+        await twoFrames(page);
+        expect(await rowFaults(page)).toEqual([]);
+        await page.getByTestId("show-table").click();
         // the field list folded gives the room back: the whole names again
         await page.getByTestId("collapse-fields").click();
         await expect(settings).toHaveText(/Tabelleneinstellungen/);
