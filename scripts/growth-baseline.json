@@ -138,7 +138,7 @@
             "packages/pivotkit-react/src/chart.jsx Function 'PivotChart'": [215],
             "packages/pivotkit-react/src/chip-menus.jsx Function 'TopLevel'": [124],
             "packages/pivotkit-react/src/fields.jsx Function 'FieldPanel'": [142],
-            "packages/pivotkit-react/src/filter-level.jsx Function 'FilterLevel'": [263],
+            "packages/pivotkit-react/src/filter-level.jsx Function 'FilterLevel'": [256],
             "packages/pivotkit-react/src/filter-level.jsx Function 'ItemRule'": [136],
             "packages/pivotkit-react/src/filter-level.jsx Function 'RuleEditor'": [209],
             "packages/pivotkit-react/src/import-ui.jsx Function 'ImportDialog'": [273],

@@ -21,6 +21,7 @@ import { BY_REGION, call, factsOf, raw, restServer, SALES_CSV, tempDir, TOKEN, u
 import { localIssuer, signingKey } from "./auth/local-issuer.js";
 import { createContext } from "../src/context.js";
 import { deliver } from "../src/delivery.js";
+import { until } from "../../../tests/until.js";
 
 const PUBLIC = "https://reports.example.com";
 const MCP_RESOURCE = `${PUBLIC}/mcp`;
@@ -708,16 +709,11 @@ async function signInServer({ signIn = {}, downloads = {}, more = {} } = {}) {
         return r.data.output;
     };
     /** Opens a link: the redirect to the provider, its cookie. */
-    const open = async (url) => {
-        for (let i = 0; i < 100; i++) {
+    const open = (url) =>
+        until(async () => {
             const r = await fetch(local(url), { redirect: "manual" });
-            if (r.status !== 503) {
-                return r;
-            }
-            await new Promise((resolve) => setTimeout(resolve, 30));
-        }
-        throw new Error("the sign-in issuer did not load");
-    };
+            return r.status !== 503 && r;
+        }, { message: "the sign-in issuer did not load", tries: 100, every: 30 });
     const callback = (code, state, cookie) => fetch(`${server.url}/downloads/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`, { headers: { cookie, accept: "text/html" } });
     return { dir, server, local, render, open, callback };
 }
@@ -1081,9 +1077,7 @@ test("a key that cannot be read: a warning at start, and reports get no link, th
     const dir = workspace();
     const server = await restServer({ sources: SOURCES, output: { dir: "out", downloads: { key: { env: "DL_KEY" } } }, baseDir: dir }, { env: { DL_KEY: "too-short" } });
     try {
-        for (let i = 0; i < 50 && !server.log.some((l) => /key cannot be read/.test(l.message ?? "")); i++) {
-            await new Promise((r) => setTimeout(r, 20));
-        }
+        await until(() => server.log.some((l) => /key cannot be read/.test(l.message ?? "")), { tries: 50, every: 20 });
         assert.ok(server.log.some((l) => l.event === "warning" && /download links: the key cannot be read, so reports get no links/.test(l.message)), JSON.stringify(server.log));
         const r = await call(`${server.api}/views/render`, { body: { source: "open", view: BY_REGION, format: "csv", name: "Keyless" } });
         assert.equal(r.status, 200, JSON.stringify(r.data));
@@ -1126,9 +1120,7 @@ test("once: a POST sweeps the markers of expired links from the output directory
         const old = join(markers, `${randomBytes(16).toString("base64url")}.used`);
         writeFileSync(old, `${Math.floor(Date.now() / 1000) - 60}\n`);
         assert.equal((await fetch(local(output.url), { method: "POST", headers: { origin: PUBLIC } })).status, 200);
-        for (let i = 0; i < 50 && existsSync(old); i++) {
-            await new Promise((r) => setTimeout(r, 20));
-        }
+        await until(() => !existsSync(old), { tries: 50, every: 20 });
         assert.equal(existsSync(old), false, "the expired marker is gone");
         assert.equal(readdirSync(markers).filter((n) => n.endsWith(".used")).length, 1, "the new link's marker stays");
     } finally {
@@ -1169,9 +1161,7 @@ test("signIn: the issuer's metadata cannot send the key request elsewhere; with 
         const dir = workspace({ "sales.csv": SALES_CSV });
         const server2 = await restServer({ sources: SOURCES, output: { dir: "out", downloads: { key: { env: "DL_KEY" }, signIn: { clientId: CLIENT_ID } } }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true }, http: { publicUrl: PUBLIC }, baseDir: dir }, { env: { DL_KEY }, enable: ["rest", "mcp"] });
         try {
-            for (let i = 0; i < 100 && !/download links: the sign-in issuer's metadata could not be loaded/.test(logText(server2)); i++) {
-                await new Promise((r) => setTimeout(r, 30));
-            }
+            await until(() => /download links: the sign-in issuer's metadata could not be loaded/.test(logText(server2)), { tries: 100, every: 30 });
             assert.match(logText(server2), /download links: the sign-in issuer's metadata could not be loaded.*jwks_uri is on another origin \(http:\/\/169\.254\.169\.254\)/);
         } finally {
             await server2.close();
@@ -1189,9 +1179,7 @@ test("signIn: the metadata's token endpoint must be on the issuer's origin; outp
         const dir = workspace({ "sales.csv": SALES_CSV });
         const refused = await restServer({ sources: SOURCES, output: { dir: "out", downloads: { key: { env: "DL_KEY" }, signIn: { clientId: CLIENT_ID } } }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true }, http: { publicUrl: PUBLIC }, baseDir: dir }, { env: { DL_KEY }, enable: ["rest", "mcp"] });
         try {
-            for (let i = 0; i < 100 && !/the sign-in issuer's metadata could not be loaded/.test(logText(refused)); i++) {
-                await new Promise((r) => setTimeout(r, 30));
-            }
+            await until(() => /the sign-in issuer's metadata could not be loaded/.test(logText(refused)), { tries: 100, every: 30 });
             assert.match(logText(refused), /token_endpoint is on another origin \(http:\/\/localhost:\d+\); set output\.downloads\.signIn\.tokenUrl to accept it/);
         } finally {
             await refused.close();

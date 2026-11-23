@@ -12,8 +12,9 @@
  * (remote-commands.js); which options act where is the option table's `where` (commands.js).
  */
 
+import { stat } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { basename, extname } from "node:path";
+import { basename, extname, resolve as resolvePath } from "node:path";
 import { parseArgs } from "node:util";
 import { DEFAULT_LABELS, LIMITS, OUTSIDE_LIMITS, PivotkitError, REPORT_LABELS, VIEW_FILE_FORMAT, VIEW_FILE_VERSION, closest, encode, fromViewFile, outsideLimits, renameFields, validate, viewFileFields, viewFileText } from "pivotkit-core";
 import { IMPORT_TYPES, readFile, retype } from "pivotkit-core/import";
@@ -30,8 +31,6 @@ import { fromFields, hasLayoutFlags, layoutView, mapOf, normalized, pickLines, q
 import { remoteCommand } from "./remote-commands.js";
 import { loginCommand, logoutCommand, tokenCommand } from "./sign-in.js";
 import { CLI_VERSION } from "./user-agent.js";
-import { resolve as resolvePath } from "node:path";
-import { stat } from "node:fs/promises";
 
 /**
  * @typedef {object} Io

@@ -1,4 +1,4 @@
-// What the menus say and do: a filter in words with Clear picks, the clear × of text fields,
+// What the menus say and do: a filter in words with Pick all again, the clear × of text fields,
 // the field list's Add to Filters, which opens the field's filter, the sentence on filtering in the Values menu, Expand and
 // Collapse all only when they change something, the grip of a field, sort, top N and value conditions by a
 // chosen value. Every test fails without its feature.
@@ -61,7 +61,7 @@ test.describe("filters say what they keep", () => {
         expect(title).not.toBe(state);
     });
 
-    test("Clear picks in the Filter level shows every item again", async ({ page }) => {
+    test("Pick all again in the Filter level shows every item again", async ({ page }) => {
         const menu = await regionMenu(page);
         await openLevel(menu, "filter");
         await pickOnly(menu, "West");
@@ -468,7 +468,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await expect(badge).toHaveText(`Sum of Revenue between 0 and ${shown}`);
     });
 
-    test("Remove the rules and Clear picks each take only their own", async ({ page }) => {
+    test("Remove the rules and Pick all again each take only their own", async ({ page }) => {
         const { menu, badge, least } = await revenueRule(page, { between: true });
         await menu.getByTestId("level-back").click();
         await openLevel(menu, "filter");
@@ -607,7 +607,8 @@ test.describe("menus in levels", () => {
         const menu = page.locator(".pk-chip-menu");
         await openLevel(menu, "format");
         await expect(menu.getByTestId("level-title")).toHaveText("Sum of Revenue › Number format");
-        await expect(menu.getByTestId("format-percent")).toContainText("25.6%");
+        // Percent says that it reads the value as a share
+        await expect(menu.getByTestId("format-percent")).toContainText("0.25 → 25%");
         // the rare formats under their heading, not behind a fold
         await expect(menu.getByText("More formats")).toBeVisible();
         await expect(menu.getByTestId("format-bytes")).toBeVisible();

@@ -526,9 +526,6 @@ export async function loadConfig(file) {
     return { ...options, baseDir: options.baseDir ? resolve(dirname(resolve(file)), options.baseDir) : dirname(resolve(file)) };
 }
 
-/** The REST service's path (pivotkit-node/rest's, the CLI's remote mode names it). */
-export { REST_BASE } from "pivotkit-node/rest";
-
 /** The OpenAPI document's path. It sits at the server's root, not under REST_BASE. */
 export const OPENAPI_PATH = "/openapi.json";
 

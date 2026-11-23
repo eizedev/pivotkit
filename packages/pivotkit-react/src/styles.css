@@ -1876,6 +1876,7 @@
 .pk-fsection-toggle {
     display: flex;
     flex: 1;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.35em;
     min-width: 0;
@@ -1897,15 +1898,13 @@
     font-weight: var(--pk-weight-strong);
 }
 
+/* the state of a section: right of its title, or on a line of its own when the room beside the
+   title and the section's action is too narrow; never cut off */
 .pk-fsection-state {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
+    flex: 1 0 auto;
     color: var(--pk-muted);
     font-size: var(--pk-small);
     text-align: right;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .pk-fsection-body {
@@ -2452,6 +2451,8 @@
 
 .pk-filter-actions {
     display: flex;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     font-size: var(--pk-small);
 }
@@ -2512,14 +2513,27 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* "Only": out of sight until its row is pointed at or has the focus, yet in the Tab order (opacity,
+   not visibility); a touch screen has no pointer to show it, so there it always shows */
 .pk-only {
-    visibility: hidden;
+    opacity: 0;
     font-size: var(--pk-small);
 }
 
-.pk-value:hover .pk-only,
-.pk-only:focus-visible {
-    visibility: visible;
+.pk-value:is(:hover, :focus-within) .pk-only {
+    opacity: 1;
+}
+
+@media (pointer: coarse) {
+    .pk-only {
+        opacity: 1;
+    }
+}
+
+/* beside Select all and Select none: whether a tick applies at once */
+.pk-values-note {
+    margin-left: auto;
+    color: var(--pk-muted);
 }
 
 .pk-condition {

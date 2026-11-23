@@ -844,8 +844,7 @@ The report adapts to its own width, not the window's:
   sheets: at the bottom of the window, at most 82 % of its height, scrolling inside.
 
 The toolbar holds what applies to the whole report: Undo, Redo, Start over, Data (with
-`allowImport`), Views, Export and "More". Table and Chart are tabs on top of the result
-([below](#table-and-chart)).
+`allowImport`), Views, Export and "More". The [tabs Table and Chart](#table-and-chart) sit on the result.
 
 "More" is always the toolbar's last button. Help is its first entry. Toolbar buttons move into
 "More", below Help, by a fixed priority (`OVERFLOW_ORDER`): Data, then Start over, and Views last.
@@ -982,7 +981,8 @@ for the table on a phone. Give it more height there.
 ### Table and Chart { #table-and-chart }
 
 On top of the result stand the tabs Table and Chart, then the settings button, Enlarge and Full
-screen.
+screen. Without room for their whole names the buttons take their short form; without room for that,
+a line above the tabs. The Tab order stays tabs first.
 
 - The tabs are ARIA tabs: `role="tablist"` named "View", two `role="tab"` with `aria-selected`. The
   result is their `tabpanel`, labelled by the tab shown. Test ids: `show-table`, `show-chart`.

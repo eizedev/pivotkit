@@ -187,6 +187,19 @@ function Section({ id, title, state, open, onToggle, action, children }) {
 }
 
 /**
+ * The action in a section's header (Pick all again, the rules' Remove): a short word, said in full
+ * (`label`) to a screen reader and on hover.
+ * @param {{ text: string, label: string, disabled: boolean, onClick: () => void, testId: string }} props
+ */
+function SectionAction({ text, label, disabled, onClick, testId }) {
+    return (
+        <button type="button" className="pk-action" disabled={disabled} aria-label={label} title={label} onClick={onClick} data-testid={testId}>
+            {text}
+        </button>
+    );
+}
+
+/**
  * The summary card: the first line in bold (all shown, some shown, nothing shown), the reasons with
  * their counts (or, with nothing shown, the one reason and the nearest value), the rows and the data's
  * dates, Reset filter at the right.
@@ -1116,7 +1129,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
         setGoQuick((n) => n + 1);
     };
     /**
-     * A change from a button that disables itself (Clear, Remove, Reset filter): the focus goes to the
+     * A change from a button that disables itself (Pick all again, Remove, Reset filter): the focus goes to the
      * header of its section instead of being lost, whatever the sections do.
      */
     const act = (next, header) => {
@@ -1181,11 +1194,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
                 state={unpicked ? fill(labels.picksState, { picked: number(picked.length), total: number(all.length) }) : fill(labels.picksAll, { total: number(all.length) })}
                 open={picksOpen}
                 onToggle={togglePicks}
-                action={
-                    <button type="button" className="pk-action" disabled={!unpicked} aria-label={labels.clearPicks} onClick={() => act(setItemFilter(view, field, all, all), "section-picks")} data-testid="filter-clear-picks">
-                        {labels.clear}
-                    </button>
-                }
+                action={<SectionAction text={labels.clear} label={labels.clearPicks} disabled={!unpicked} onClick={() => act(setItemFilter(view, field, all, all), "section-picks")} testId="filter-clear-picks" />}
             >
                 <ValueList
                     items={info.items}
@@ -1194,6 +1203,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
                     labels={labels}
                     locale={locale}
                     autoFocus={!anyRule && !fk.quick && hint !== "conditions"}
+                    note={labels.appliesAtOnce}
                     tail={anyRule ? { isOut: outOf, render: (out, row, searching) => <LeftOut out={out} row={row} searching={searching} labels={labels} locale={locale} /> } : undefined}
                 />
             </Section>
@@ -1211,11 +1221,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
                 }
                 open={rulesOpen}
                 onToggle={toggleRules}
-                action={
-                    <button type="button" className="pk-action" disabled={!rules.length} aria-label={labels.removeRules} onClick={() => act(removeRules(view, field, quick.filters), "section-rules")} data-testid="filter-remove-rules">
-                        {labels.removeAll}
-                    </button>
-                }
+                action={<SectionAction text={labels.removeAll} label={labels.removeRules} disabled={!rules.length} onClick={() => act(removeRules(view, field, quick.filters), "section-rules")} testId="filter-remove-rules" />}
             >
                 <RuleEditor ctx={ctx} rules={rules} focusFirst={hint === "conditions"} quickLine={quickWords} results={results} blanks={blanks} />
             </Section>

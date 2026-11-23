@@ -10,6 +10,9 @@ import globals from "globals";
 // `cli` command loads it by name with import(), when it is installed; this rule does not see that.
 const NO_CLI_IN_SERVER = { regex: "^pivotkit-cli(/|$)", message: "shared code goes into pivotkit-node; pivotkit-server does not import its command line" };
 
+// pivotkit-cli's compatibility entries: published names that re-export pivotkit-node
+const COMPAT_ENTRIES = { regex: "^pivotkit-cli/(files|rest)$", message: "pivotkit-cli/files and pivotkit-cli/rest stay for compatibility: import pivotkit-node/files or pivotkit-node/rest" };
+
 export default [
     { ignores: ["**/node_modules/", "**/dist/", "**/coverage/", "packages/*/types/", "test-results/", "playwright-report/", "site/", "docs/playground/"] },
     js.configs.recommended,
@@ -45,9 +48,23 @@ export default [
         languageOptions: { globals: { ...globals.node } }
     },
     {
+        // pivotkit-cli/files and pivotkit-cli/rest stay for their published names only: code here
+        // imports pivotkit-node, where they live. A later block for the same files replaces this
+        // rule, so every block below repeats COMPAT_ENTRIES; the test of the published entries
+        // imports them on purpose.
+        files: ["**/*.js", "**/*.jsx"],
+        ignores: ["packages/pivotkit-cli/test/inprocess.test.js"],
+        rules: { "no-restricted-imports": ["error", { patterns: [COMPAT_ENTRIES] }] }
+    },
+    {
+        files: ["packages/pivotkit-cli/src/**/*.js", "packages/pivotkit-cli/bin/**/*.js", "packages/pivotkit-cli/test/**/*.js"],
+        ignores: ["packages/pivotkit-cli/test/inprocess.test.js"],
+        rules: { "no-restricted-imports": ["error", { patterns: [COMPAT_ENTRIES, { regex: "(^|/)src/(files|rest-contract)\\.js$|^\\./(files|rest-contract)\\.js$", message: "files.js and rest-contract.js only re-export pivotkit-node for published names: import pivotkit-node/files or pivotkit-node/rest" }] }] }
+    },
+    {
         // the layering: pivotkit-node is shared by the command line and the server and imports neither
         files: ["packages/pivotkit-node/src/**/*.js"],
-        rules: { "no-restricted-imports": ["error", { patterns: [{ regex: "^pivotkit-(cli|server|mcp)(/|$)", message: "pivotkit-node is below the command line and the services; it imports neither" }] }] }
+        rules: { "no-restricted-imports": ["error", { patterns: [COMPAT_ENTRIES, { regex: "^pivotkit-(cli|server|mcp)(/|$)", message: "pivotkit-node is below the command line and the services; it imports neither" }] }] }
     },
     {
         // a caller's access token leaves auth.js only through exchangeTokenFor, and only the token
@@ -55,13 +72,13 @@ export default [
         files: ["packages/pivotkit-server/src/**/*.js"],
         ignores: ["packages/pivotkit-server/src/auth.js", "packages/pivotkit-server/src/sources/auth.js"],
         rules: {
-            "no-restricted-imports": ["error", { patterns: [{ regex: "(^|/)auth\\.js$", importNames: ["exchangeTokenFor"], message: "only sources/auth.js may use exchangeTokenFor (the caller's token goes to a token endpoint and nowhere else)" }, NO_CLI_IN_SERVER] }]
+            "no-restricted-imports": ["error", { patterns: [{ regex: "(^|/)auth\\.js$", importNames: ["exchangeTokenFor"], message: "only sources/auth.js may use exchangeTokenFor (the caller's token goes to a token endpoint and nowhere else)" }, COMPAT_ENTRIES, NO_CLI_IN_SERVER] }]
         }
     },
     {
         // auth.js and sources/auth.js may use exchangeTokenFor, but they do not import the command line either
         files: ["packages/pivotkit-server/src/auth.js", "packages/pivotkit-server/src/sources/auth.js"],
-        rules: { "no-restricted-imports": ["error", { patterns: [NO_CLI_IN_SERVER] }] }
+        rules: { "no-restricted-imports": ["error", { patterns: [COMPAT_ENTRIES, NO_CLI_IN_SERVER] }] }
     },
     {
         // the UI, the web component, the playground and the element example run in browsers
