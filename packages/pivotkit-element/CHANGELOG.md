@@ -8,6 +8,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- The chart's point menu without a tooltip over it, the fade of a cut-off menu and the euro listed
+  once in Number format. See pivotkit-react's changelog.
 - The buttons beside the tabs Table and Chart are no longer cut off: without room they take their
   short form, then a line above the tabs. See pivotkit-react's changelog
   ([#706](https://github.com/eizedev/pivotkit/issues/706)).

@@ -21,6 +21,49 @@ import { Group } from "./popover.jsx";
 import { SettingInfo } from "./section.jsx";
 import { rowName, searchEntries, searchHits, stepIndex, typeAheadIndex } from "./menu-topics.js";
 
+/**
+ * A scrolling part of a menu (the first level's list, a topic's level), marked while more of it lies
+ * below its edge (useMoreBelow).
+ * @param {{ className: string, testId?: string, children: React.ReactNode }} props
+ */
+function Scroller({ className, testId, children }) {
+    const moreBelow = useMoreBelow();
+    return (
+        <div ref={moreBelow} className={className} data-testid={testId}>
+            {children}
+        </div>
+    );
+}
+
+/**
+ * A callback ref for a scrolling part of a menu: marks it with `data-pk-more` while more of it lies
+ * below its edge, so a fade at its bottom says the list goes on (styles.css); a low window cuts a
+ * long menu, and a person would not know it scrolls. Checked on scroll and when it or its content
+ * changes size.
+ * @returns {(node: HTMLElement | null) => void}
+ */
+function useMoreBelow() {
+    const [node, setNode] = useState(/** @type {HTMLElement | null} */ (null));
+    useEffect(() => {
+        if (!node) {
+            return undefined;
+        }
+        const check = () => node.toggleAttribute("data-pk-more", node.scrollTop + node.clientHeight < node.scrollHeight - 1);
+        check();
+        node.addEventListener("scroll", check, { passive: true });
+        const ro = typeof ResizeObserver === "function" ? new ResizeObserver(check) : null;
+        ro?.observe(node);
+        for (const child of node.children) {
+            ro?.observe(child);
+        }
+        return () => {
+            node.removeEventListener("scroll", check);
+            ro?.disconnect();
+        };
+    }, [node]);
+    return setNode;
+}
+
 /** The items of a menu: its own, not those of a menu inside it. */
 const ITEM = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]';
 
@@ -562,7 +605,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                         />
                     </label>
                 ) : null}
-                <div className="pk-level-first">
+                <Scroller className="pk-level-first">
                     {hits || none ? (
                         <SearchHits hits={hits ?? []} labels={labels} onPick={pick} onOpen={open} close={close} />
                     ) : (
@@ -578,7 +621,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                             ) : null}
                         </MenuList>
                     )}
-                </div>
+                </Scroller>
             </>
         );
     };
@@ -596,7 +639,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                         </h3>
                         {topic.info ? <SettingInfo id={topic.info} name={topic.title} /> : null}
                     </div>
-                    <div className="pk-level-body" data-testid={`level-${topic.id}`}>
+                    <Scroller className="pk-level-body" testId={`level-${topic.id}`}>
                         {topic.kind === "menu" ? (
                             <>
                                 {topic.intro ? <p id={`${titleId}-intro`} className="pk-hint pk-menu-hint">{topic.intro}</p> : null}
@@ -609,7 +652,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                                 {panel(topic.id, back, nav.stack[nav.stack.length - 1]?.hint)}
                             </div>
                         )}
-                    </div>
+                    </Scroller>
                 </>
             ) : (
                 first()
