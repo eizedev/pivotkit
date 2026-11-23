@@ -13,11 +13,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
-- The buttons beside the tabs Table and Chart move together to a line above the tabs when they have
-  no room beside them, at the right. They were cut off at the report's right edge: on a phone, in
-  German at 390 px or English at 360 px, and with a touch screen's larger buttons; on a medium or
-  wide report whose field list takes room beside the result
-  ([#706](https://github.com/eizedev/pivotkit/issues/706)).
+- The buttons beside the tabs Table and Chart were cut off at the report's right edge, on phones and
+  on reports whose field list takes room beside the result. When their whole names have no room,
+  they now show their short form, as on a phone. When even that has no room, they move to a line
+  above the tabs ([#706](https://github.com/eizedev/pivotkit/issues/706)).
 
 ## [0.9.0] - 2026-11-22
 

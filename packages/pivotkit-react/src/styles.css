@@ -827,7 +827,8 @@
     padding-inline: 0.55em;
 }
 
-.pk-root[data-pk-size="narrow"] :is(.pk-toolbar, .pk-result-head) .pk-caret {
+.pk-root[data-pk-size="narrow"] .pk-toolbar .pk-caret,
+.pk-result-head[data-pk-short] .pk-caret {
     display: none;
 }
 
@@ -2603,9 +2604,10 @@
 }
 
 /* on top of the result: the tabs Table and Chart, then the settings of the view shown, Enlarge and
-   Full screen; a rule under the row, the tab shown stands on it. Without room beside the tabs, the
-   buttons move together to a line above them (wrap-reverse), at the right, and wrap among
-   themselves when even that line is too short; no button is cut (#706). The Tab order stays tabs
+   Full screen; a rule under the row, the tab shown stands on it. Without room for their whole names
+   the buttons take their short form (data-pk-short); without room even for that beside the tabs,
+   they move together to a line above them (wrap-reverse), at the right, and wrap among themselves
+   when even that line is too short; no button is cut (#706). The Tab order stays tabs
    first, then the buttons, as on one line */
 .pk-result-head {
     display: flex;
@@ -2627,7 +2629,8 @@
     margin-inline-start: auto;
 }
 
-/* a button keeps its whole text: a touch screen's min-width would let it shrink below it */
+/* a button never shrinks below its text: on a touch screen its min-width (44 px) would otherwise be
+   all a squeezed row leaves it, and its text would be cut */
 .pk-result-actions > .pk-btn {
     flex: none;
     margin-bottom: 5px;
@@ -2690,7 +2693,9 @@
     gap: 4px;
 }
 
-.pk-root[data-pk-size="narrow"] .pk-result-actions > .pk-btn {
+/* the short form of the buttons (view-tabs.jsx): a narrow report, or a row without room for their
+   whole names */
+.pk-result-head[data-pk-short] .pk-result-actions > .pk-btn {
     gap: 0.35em;
     padding-inline: 0.5em;
 }

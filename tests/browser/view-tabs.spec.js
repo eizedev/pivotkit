@@ -248,15 +248,14 @@ const openRow = async (page, lang, width) => {
     await twoFrames(page);
 };
 
-// Reports too small for the tabs and every button on one line: a phone in German and English, and
-// reports whose field list takes room beside the result (#706)
+// Reports too small for the tabs and every button on one line, even in the short form: a phone in
+// German and English, and a medium report whose field list takes room beside the result (#706)
 const SMALL = [
     ["de", 390],
     ["en", 360],
     ["en", 320],
     ["de", 320],
-    ["de", 800],
-    ["de", 1100]
+    ["de", 800]
 ];
 for (const [lang, width] of SMALL) {
     test(`a report too small for one line (${lang}, ${width} px): every tab and button whole, in the row and apart; the tab shown on the rule; Tab goes tabs, then the buttons (#706)`, async ({ page, browserName }) => {
@@ -280,11 +279,40 @@ for (const [lang, width] of SMALL) {
     });
 }
 
+// Wider reports whose field list leaves no room for the buttons' whole names, but enough for their
+// short form: the row stays one line, the table keeps its height (#706)
+for (const [lang, width, size] of [["de", 1000, "medium"], ["de", 1100, "wide"]]) {
+    test(`a ${size} report without room for the whole names (${lang}, ${width} px): the buttons in their short form beside the tabs, their names kept (#706)`, async ({ page }) => {
+        await openRow(page, lang, width);
+        await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", size);
+        expect(await rowFaults(page)).toEqual([]);
+        const settings = page.getByTestId("view-settings");
+        await expect(settings).toHaveText("Einstellungen");
+        await expect(settings).toHaveAccessibleName("Tabelleneinstellungen");
+        await expect(page.getByTestId("enlarge")).toHaveAttribute("title", "Vergrößern");
+        const [tab, box] = await Promise.all([page.getByTestId("show-table").boundingBox(), settings.boundingBox()]);
+        expect(box.y + box.height).toBeGreaterThan(tab.y + 1);
+        expect(box.x).toBeGreaterThan(tab.x + tab.width);
+        // the field list folded gives the room back: the whole names again
+        await page.getByTestId("collapse-fields").click();
+        await expect(settings).toHaveText(/Tabelleneinstellungen/);
+        expect(await rowFaults(page)).toEqual([]);
+    });
+}
+
+test("the tab Both on a wide report with the field list: both settings buttons whole, in the row and apart (#706)", async ({ page }) => {
+    await openRow(page, "de", 1100);
+    await page.getByTestId("show-both").click();
+    await expect(page.getByTestId("chart-settings")).toBeVisible();
+    await twoFrames(page);
+    expect(await rowFaults(page)).toEqual([]);
+});
+
 test.describe("a touch screen, where every button takes 44 px", () => {
     test.use({ hasTouch: true });
-    for (const lang of ["en", "de"]) {
-        test(`390 px, ${lang}: every tab and button whole, in the row and apart (#706)`, async ({ page }) => {
-            await openRow(page, lang, 390);
+    for (const [lang, width] of [["en", 390], ["de", 390], ["en", 360], ["de", 360]]) {
+        test(`${width} px, ${lang}: every tab and button whole, in the row and apart (#706)`, async ({ page }) => {
+            await openRow(page, lang, width);
             expect(await rowFaults(page)).toEqual([]);
         });
     }

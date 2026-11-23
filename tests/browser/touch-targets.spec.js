@@ -36,7 +36,8 @@ const missed = (page) =>
                 }
             }
             // likewise a control in a row the table's sticky header covers: a table too low to centre
-            // the row below its header scrolls it out below it, as a person does. The header's cells
+            // the row below its header (on a phone the buttons beside the tabs can take a line of its
+            // height, #706) scrolls it out below it, as a person does. The header's cells
             // stick, not the header, so its foot is their lowest edge
             const head = el.closest("tbody") ? [...el.closest("table").querySelectorAll("thead :is(th, td)")] : [];
             if (head.length) {
