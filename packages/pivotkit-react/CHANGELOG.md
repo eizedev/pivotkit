@@ -13,6 +13,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- A chart or a link whose part failed to load (offline, a deploy in between) loads again on the next
+  try. Before, the failed import was kept for the life of the page. Every part that loads on demand
+  now follows one rule (`lazy.js`).
+- An error note stays until it is closed, also when two newer notes come.
+- The help of the chart's zoom says that the arrow keys move the slider. It said the slider could
+  not be moved by keyboard yet.
 - The table's headers wrap between words only. On a phone, "Category" or "Population" broke inside
   the word. Every header's sort arrow now sits before its text, in the cell's padding, as a column's
   arrow already did.

@@ -28,7 +28,7 @@ export const de = {
         chartColors: "Ein Schalter blendet jede Reihe oder jedes Segment ein oder aus. Die Farbe daneben legt seine Farbe nach dem Namen fest, in der Ansicht und in jedem Diagramm mit diesem Namen.",
         tooltip: "Automatisch: Ein Balken, Segment oder Punkt zeigt nur seinen Wert. Dazwischen erscheinen alle Reihen. Gestapelte Summen und Anzahlen zeigen auch den Gesamtwert. Alle Reihen: immer alle Reihen dieser Kategorie.",
         stackPercent: "Jeder Stapel füllt die Achse; jeder Teil zeigt seinen Anteil. Auch die Wertbeschriftungen zeigen den Anteil. Nur für Summen und Anzahlen. Ein Stapel mit Teilen unter null füllt die Achse nicht, einer mit der Summe null fehlt.",
-        zoom: "Ein Schieber unter der Achse zeigt einen Teil der Kategorien. Automatisch: bei mehr als 20 Kategorien, oder wenn die Achse 3 Namen oder mehr zwischen zweien auslassen müsste. Per Tastatur lässt er sich noch nicht bewegen: Aus zeigt alle Kategorien. Dateien und Drucke zeigen alle Kategorien.",
+        zoom: "Ein Schieber unter der Achse zeigt einen Teil der Kategorien. Automatisch: bei mehr als 20 Kategorien, oder wenn die Achse 3 Namen oder mehr zwischen zweien auslassen müsste. Mit dem Fokus darauf bewegen ihn die Pfeiltasten. Aus zeigt alle Kategorien. Dateien und Drucke zeigen alle Kategorien.",
         labelPosition: "Außen: Name und Zahl jedes Segments daneben. Innen: die Zahl auf dem Segment, die Namen in der Legende; außen, wenn der Ring eines Donuts dafür zu schmal ist.",
         sharedView: "Nur Admins können gemeinsame Ansichten ändern.",
         valuesFilter: "Werte werden hier nicht gefiltert: Ein Feld in Zeilen oder Spalten über sein Menü filtern oder ein Feld in Filter ziehen."

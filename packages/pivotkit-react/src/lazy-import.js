@@ -4,23 +4,12 @@
  * data…"; importNow() gives it at once when it is there. A failed import is not kept, so the next use
  * tries again.
  */
+import { lazy } from "./lazy.js";
 
-/** @type {Promise<typeof import("./import-module.js")> | null} */
-let pending = null;
-/** @type {typeof import("./import-module.js") | null} */
-let loaded = null;
+const ui = lazy(() => import("./import-module.js"));
 
-/** The import UI, imported once; a failed import is forgotten, so the next call tries again. */
-export function loadImport() {
-    pending ??= import("./import-module.js").then(
-        (m) => (loaded = m),
-        (error) => {
-            pending = null;
-            throw error;
-        }
-    );
-    return pending;
-}
+/** The import UI, imported once (lazy.js). */
+export const loadImport = ui.load;
 
 /** The import UI when it is loaded, else null. */
-export const importNow = () => loaded;
+export const importNow = ui.now;
