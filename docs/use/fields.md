@@ -31,6 +31,14 @@ A field in a zone is a **chip**. Its menu changes how the report shows the field
 | Menu | Open the field's menu and choose **Add to Rows**, **Columns**, **Values** or **Filters**. To open the menu, click the three dots, or the grip left of the field, which says "Drag into a zone". |
 | **+ Add** | Click **+ Add** next to a zone's title. Its menu lists every field with its type and a search. Pick a field. |
 
+<figure markdown>
+<video controls muted playsinline preload="none" width="800" height="600" poster="../../assets/clips/drag-field.png" aria-label="Video: drag a field into Rows" aria-describedby="clip-drag-field">
+<source src="../assets/clips/drag-field.webm" type="video/webm">
+Your browser cannot play this video. The caption below says what it shows.
+</video>
+<figcaption id="clip-drag-field">Video without sound: the pointer drags Region from the field list into Rows. Rows takes the drop, and the table lists the regions.</figcaption>
+</figure>
+
 All four give the same result. Details:
 
 - A click on a field in Columns or Filters moves it to Rows. A field that is in that zone already

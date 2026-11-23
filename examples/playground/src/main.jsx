@@ -21,6 +21,7 @@ import "./playground.css";
 import { DATASETS, REAL } from "./data.js";
 import { withDescriptions } from "./descriptions.js";
 import { sharedViews } from "./shared-views.js";
+import { Help } from "./help.jsx";
 
 const SIZES = [2000, 4000, 100000];
 // every data set as a source the report can switch to (a view made for one names it)
@@ -226,11 +227,11 @@ function App() {
                         ) : source ? (
                             <p data-testid="pg-source">
                                 Data: <a href={source.href} target="_blank" rel="noopener">{source.text}</a>, <a href={source.licenceHref} target="_blank" rel="noopener">{source.licence}</a>
-                                {fetched ? <span data-testid="pg-as-of">, as of {fetched}</span> : null}. Pick a question under Start, then change it.
+                                {fetched ? <span data-testid="pg-as-of">, as of {fetched}</span> : null}. Pick a question under Start, then change it. The ? button shows each step in the report.
                                 {source.credit ? <small className="pg-credit" data-testid="pg-credit">{source.credit}</small> : null}
                             </p>
                         ) : (
-                            <p>Generated data with a fixed seed. Drag fields, click values, export.</p>
+                            <p>Generated data with a fixed seed. Drag fields, click values, export. The ? button shows each step in the report.</p>
                         )}
                     </div>
                 </div>
@@ -277,6 +278,7 @@ function App() {
                             <option value="dark">Dark</option>
                         </select>
                     </label>
+                    <Help lang={lang} features={{ import: Boolean(IMPORT.allowImport) }} />
                 </div>
             </header>
             {/* while a real data set's snapshot loads, the report shows its skeleton (loading) */}

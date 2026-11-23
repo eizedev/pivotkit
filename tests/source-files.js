@@ -1,5 +1,6 @@
-// The JavaScript and TypeScript files of this repository (.js, .mjs, .cjs, .jsx, .ts, .tsx and the like), for the tests that check a rule over all of them
-// (tests/is-main.test.js, tests/temp-dirs.test.js), and the walk that tests/ci.test.js uses without git.
+// The repository's root, a walk of its files outside installs and build output, and its JavaScript
+// and TypeScript files (.js, .mjs, .cjs, .jsx, .ts, .tsx and the like), for the checks that apply a
+// rule to all of them.
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

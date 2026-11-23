@@ -7,9 +7,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { filesUnder, root } from "./source-files.js";
+import { DOCS, sitePages } from "./markdown-files.js";
+import { root } from "./source-files.js";
 
-const docs = join(root, "docs");
 
 const LIST_ITEM = /^\s*(?:[-*+]|\d+\.)\s+\S/;
 const FENCE = /^\s*(`{3,}|~{3,})/;
@@ -91,10 +91,7 @@ for (const { name, lines, found } of CASES) {
 }
 
 test("every list in the docs starts after a blank line", () => {
-    // docs/playground/ is the built live demo, not pages.
-    const pages = filesUnder(docs, (name) => name.endsWith(".md")).filter(
-        (path) => !relative(docs, path).startsWith("playground"),
-    );
+    const pages = sitePages().map((page) => join(DOCS, page));
     assert.ok(pages.length > 10, "no docs pages found");
     const problems = pages.flatMap((path) =>
         swallowedListItems(readFileSync(path, "utf8")).map((line) => `${relative(root, path)}:${line}`),

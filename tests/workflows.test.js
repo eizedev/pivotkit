@@ -5,6 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { GUARD_NAMES } from "../scripts/growth.js";
 import { commandsOf, stringsOf, workflow, workflowFiles } from "./workflow.js";
 
 const root = new URL("../", import.meta.url);
@@ -37,7 +38,7 @@ test("the Playwright container image matches @playwright/test in package-lock.js
     for (const image of images) {
         const m = /^mcr\.microsoft\.com\/playwright:v([0-9][^-@\s]*)[^@\s]*@sha256:[0-9a-f]{64}$/.exec(image);
         assert.ok(m, `${image}: pin the image by tag and digest`);
-        assert.equal(m[1], locked, `ci.yml uses the Playwright image v${m[1]}, package-lock.json has @playwright/test ${locked}: raise both together`);
+        assert.equal(m[1], locked, `a workflow uses the Playwright image v${m[1]}, package-lock.json has @playwright/test ${locked}: raise both together`);
     }
 });
 
@@ -52,6 +53,14 @@ test("CI's test job fails when the tests leave any pivotkit-* directory in the t
     const check = stepRunning(steps, "node scripts/temp-dirs.js check ");
     assert.ok(save !== -1 && tests !== -1 && save < tests, "the names are saved before the tests");
     assert.ok(repository !== -1 && check > repository, "they are compared after the repository checks");
+});
+
+// one step per growth guard, so a failing guard names itself in the run's step list
+test("CI's test job runs every growth guard in a step of its own", () => {
+    const commands = jobOf("ci.yml", "test").steps.map((step) => commandsOf(step));
+    for (const name of GUARD_NAMES) {
+        assert.ok(commands.some((lines) => lines.length === 1 && lines[0] === `node scripts/growth.js ${name}`), `ci.yml runs no step "node scripts/growth.js ${name}"`);
+    }
 });
 
 // npm audit signatures checks the registry signatures of what npm ci installed: the step right after

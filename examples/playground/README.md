@@ -47,6 +47,17 @@ share format, read back by the report's `shareLink`), so a reload keeps the repo
 Views copies `data`, `start`, `rows` (generated data) and the view: the playground passes that URL
 as `shareLink`, so the viewer's language, theme and height stay out of it.
 
+The header's **How do I…?** button opens the playground's help, never by itself: ten questions
+(filter, a date range, top N, a chart, the rows behind a number, save and share, export, your own
+file, adding a field, an example). Picking one rings the place in the live report, says in a few
+sentences what to do there, and links to the docs page that owns the topic; **Show me** puts the
+focus there for the visitor to try it. The questions, their places (test hooks, never classes), the
+texts in English and German and the docs links are in [src/help-topics.js](src/help-topics.js);
+`tests/playground-help.test.js` fails when a docs page or heading it names is gone, and
+`tests/browser/playground-help.spec.js` when a place is not found. On the docs site the links are
+relative; served on its own, the playground links to the published site (`site_url` of
+`zensical.toml`).
+
 The report is controlled (`view` + `onViewChange`) and the page renders again on every engine timing,
 as a host does; the tickets data set gives "Lead hours" an average through `fieldDefaults`, the
 assets data set shows its "Inventory number" as it is in the drill-down (`drillFormat: "text"`),
