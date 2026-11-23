@@ -2,7 +2,7 @@
 // platform) and the helpers behind pivotkit-node/files that no entry exports.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { linkSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { linkSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tempDir } from "./helpers.js";
 
@@ -51,6 +51,18 @@ test("writeNew never replaces a file: a taken name gets -2, -3; the name is clea
     assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith(".tmp")), []);
     await assert.rejects(writeNew(dir, "Sales", "csv", new Uint8Array(), { tries: 3 }), (e) => e.code === "EXISTS");
     assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith(".tmp")), []);
+});
+
+test("writeNew writes the mode it is given, whatever the umask; 0644 without one", { skip: process.platform === "win32" && "Windows has no file modes" }, async () => {
+    const { writeNew } = await import("pivotkit-node/files");
+    const dir = tempDir();
+    const before = process.umask(0);
+    try {
+        assert.equal(statSync(join(dir, await writeNew(dir, "closed", "csv", new Uint8Array(), { mode: 0o600 }))).mode & 0o777, 0o600);
+        assert.equal(statSync(join(dir, await writeNew(dir, "open", "csv", new Uint8Array()))).mode & 0o777, 0o644);
+    } finally {
+        process.umask(before);
+    }
 });
 
 // pivotkit-server removes the temporary files of writes that were killed by TEMP_FILE_NAME: it must

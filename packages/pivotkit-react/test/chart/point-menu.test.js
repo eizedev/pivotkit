@@ -3,12 +3,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { encode, normalize } from "pivotkit-core";
-import { LABELS } from "../src/labels.js";
-import "../src/deferred.js";
-import { de as menuDe } from "../src/menu-labels-de.js";
-import { en as menuEn } from "../src/menu-labels.js";
-import { pointActions } from "../src/menu-ops.js";
-import { filtersOf, selectedItems } from "../src/view-ops.js";
+import { LABELS } from "../../src/labels.js";
+import "../../src/deferred.js";
+import { de as menuDe } from "../../src/menu-labels-de.js";
+import { en as menuEn } from "../../src/menu-labels.js";
+import { pointActions } from "../../src/menu-ops.js";
+import { filtersOf, selectedItems } from "../../src/view-ops.js";
 
 const data = encode([
     { Region: "East", Category: "Hardware", Revenue: 3 },

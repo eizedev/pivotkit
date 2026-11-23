@@ -50,15 +50,27 @@ test("help, version, an unknown command; cli and mcp hand over to their packages
     assert.match(mcp.stdout, /^pivotkit-mcp /);
 });
 
-test("cli without pivotkit-cli installed says to install it; --version still runs", () => {
+test("cli without pivotkit-cli installed says to install it, for a project and a global install; --version still runs", () => {
     // a file URL: --import takes a specifier, and on Windows a path with a drive letter is none
-    const hook = new URL("./fixtures/cli-missing/hook.js", import.meta.url).href;
+    const hook = new URL("./fixtures/package-missing/hook.js", import.meta.url).href;
     const r = spawnSync(process.execPath, ["--import", hook, BIN, "cli", "--version"], { encoding: "utf8", cwd: workspace(), env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
     assert.equal(r.status, 2, r.stderr);
     assert.equal(r.stdout, "");
-    assert.match(r.stderr, /^pivotkit-server: cli needs the package pivotkit-cli beside pivotkit-server \(npm install pivotkit-cli\)/);
+    assert.equal(r.stderr.split("\n")[0], "pivotkit-server: cli needs the package pivotkit-cli beside pivotkit-server (npm install pivotkit-cli; for a global pivotkit-server: npm install --global pivotkit-cli); the container image has it");
     const version = spawnSync(process.execPath, ["--import", hook, BIN, "--version"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
     assert.equal(version.status, 0, version.stderr);
+});
+
+test("mcp, and serve --enable mcp, without pivotkit-mcp installed say to install it, for a project and a global install", () => {
+    const hook = new URL("./fixtures/package-missing/hook.js", import.meta.url).href;
+    const env = { PATH: process.env.PATH ?? "", MISSING_PACKAGE: "pivotkit-mcp" };
+    const install = "needs the package pivotkit-mcp beside pivotkit-server (npm install pivotkit-mcp; for a global pivotkit-server: npm install --global pivotkit-mcp)";
+    const mcp = spawnSync(process.execPath, ["--import", hook, BIN, "mcp", "--version"], { encoding: "utf8", cwd: workspace(), env, timeout: 30_000 });
+    assert.equal(mcp.status, 2, mcp.stderr);
+    assert.equal(mcp.stderr.split("\n")[0], `pivotkit-server: mcp ${install}`);
+    const serving = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0", "--enable", "mcp"], { encoding: "utf8", cwd: workspace(), env, timeout: 30_000 });
+    assert.equal(serving.status, 2, serving.stderr);
+    assert.ok(startError(serving.stderr).includes(`http.enable: "mcp" ${install}`), serving.stderr);
 });
 
 test("a pivotkit-mcp of another release: serve and mcp say so with both versions, not a missing export", () => {

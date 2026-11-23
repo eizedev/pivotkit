@@ -1,7 +1,7 @@
 // Two chart types (#518) picked in Chart settings by real clicks: bars and lines (the first value as
 // bars, the others as lines on an axis of their own) and a treemap (a tile per category, its label in
 // the token colour that reads on it). The drawn marks come from the chart's own model.
-import { test, expect } from "./fixtures.js";
+import { test, expect } from "../fixtures.js";
 
 /** Revenue and units of five regions: two values of very different sizes. */
 const ROWS = [

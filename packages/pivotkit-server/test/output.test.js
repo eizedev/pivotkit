@@ -361,6 +361,28 @@ test("check-config prints a source's rules in its own spelling, never in another
     assert.match(said, /\n {4}policy: summary by default; amount show, CUSTOMER hide\n/, said);
 });
 
+test("a report is written 0600, or 0644 where a web server serves the directory (output.baseUrl), whatever the umask", { skip: process.platform === "win32" && "Windows has no file modes" }, async () => {
+    const dir = workspace();
+    // umask 000: only the mode the server asks for keeps others out
+    const before = process.umask(0);
+    try {
+        for (const [out, baseUrl, mode] of /** @type {const} */ ([["closed", undefined, 0o600], ["served", "https://files.example.com/r/", 0o644]])) {
+            const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: out, ...(baseUrl ? { baseUrl } : {}) }, baseDir: dir });
+            try {
+                const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
+                assert.equal(res.status, 200, JSON.stringify(res.data));
+            } finally {
+                await server.close();
+            }
+            const written = reports(join(dir, out));
+            assert.equal(written.length, 1, out);
+            assert.equal(statSync(join(dir, out, written[0])).mode & 0o777, mode, out);
+        }
+    } finally {
+        process.umask(before);
+    }
+});
+
 test("a missing output directory is created at start (0700, or 0755 narrowed by the umask where a web server serves it) and said once in the log", async () => {
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "reports/new" }, baseDir: dir });

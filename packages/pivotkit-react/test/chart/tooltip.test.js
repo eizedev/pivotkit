@@ -4,9 +4,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { toEChartsOption, toSeries } from "pivotkit-core";
 import { referenceLines } from "pivotkit-core/chart";
-import { decorate } from "../src/chart-decorate.js";
-import { tooltipContent, tooltipFormatter, tooltipReferences, valueAddsUp } from "../src/chart-tooltip.js";
-import { linePivot } from "./chart-fixtures.js";
+import { decorate } from "../../src/chart-decorate.js";
+import { tooltipContent, tooltipFormatter, tooltipReferences, valueAddsUp } from "../../src/chart-tooltip.js";
+import { linePivot } from "./fixtures.js";
 
 test("chart tooltips: a title and a line per series or slice, values in the core's format", () => {
     const fmt = (v) => (typeof v === "number" ? `${v.toFixed(1)} u` : "");
