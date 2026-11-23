@@ -68,6 +68,11 @@ export const SAFE_HEADERS = Object.freeze({ "x-content-type-options": "nosniff",
 export const problemDocument = (code, detail, { status = statusOf(code), docs = undefined, extra = {} } = {}) => ({ type: typeOf(code, docs), title: titleOf(code), status, code, detail, ...extra });
 
 /**
+ * A problem's builder bound to a handler's docs (problemsFor's problem).
+ * @typedef {(code: string, detail: string, more?: { headers?: Record<string, string>, extra?: Record<string, unknown>, reason?: string }) => Response} Problem
+ */
+
+/**
  * A problem document as a Response.
  * @param {string} code
  * @param {string} detail

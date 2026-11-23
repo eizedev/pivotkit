@@ -162,7 +162,7 @@ test("exchangeTokenFor sends the caller's token as the subject_token to the toke
         const url = `https://localhost:${endpoint.address().port}/token`;
         const script = `const { callerOf, exchangeTokenFor } = await import(${JSON.stringify(auth)});
 const caller = callerOf("oauth", { token: "the-callers-own-token", clientId: "bot", scopes: ["pivotkit"], expiresAt: 1900000000, extra: { subject: "ana", issuer: "https://issuer.example" } });
-const answer = await exchangeTokenFor(caller, { url: ${JSON.stringify(url)}, clientId: "pivotkit backend", clientSecret: "s3cret:x", audience: "platform-api", scope: "platform:read" });
+const answer = await exchangeTokenFor(caller, { url: ${JSON.stringify(url)}, clientId: "pivotkit backend", clientSecret: "s3cret:x", audience: "platform-api", scope: "platform:read", allowPrivate: true });
 console.log(JSON.stringify({ status: answer.status, body: new TextDecoder().decode(answer.body), subjectExpiresAt: answer.subjectExpiresAt, callerKeys: Object.keys(caller) }));`;
         const { stdout } = await promisify(execFile)(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, NODE_EXTRA_CA_CERTS: tls.certFile }, encoding: "utf8" });
         const out = JSON.parse(stdout);

@@ -16,7 +16,8 @@
  *   168.63.129.16 and 192.0.0.192, also where an IPv6 address carries an IPv4 one (mapped ::ffff:0:0/96, SIIT
  *   ::ffff:0:0:0/96, compatible ::/96, NAT64 64:ff9b::/96 and 64:ff9b:1::/48, 6to4 2002::/16,
  *   Teredo 2001::/32): the IPv4 address is taken out and its rule applies. Loopback, private and
- *   shared ranges are refused only with allowPrivate: false. An IP address written in the URL is
+ *   shared ranges are refused unless allowPrivate is true: each caller passes the operator's
+ *   setting (intranet) or says why it may reach them, so a caller that forgets it fails closed. An IP address written in the URL is
  *   refused unless allowIpLiterals is set (a backend is configured by name).
  * - Every request has its own connection (agent: false): no socket is shared between requests with
  *   different rules, and the proxy of the environment (NODE_USE_ENV_PROXY with HTTP(S)_PROXY, which
@@ -104,7 +105,8 @@ function v4Rule(bytes) {
 
 /**
  * Why an address is refused under the rules of a request ("always" or "private"), or null when it
- * may be connected to. A text that is no IP address is refused.
+ * may be connected to. A text that is no IP address is refused. A private address is refused
+ * unless `allowPrivate` is true.
  * @param {string} address
  * @param {{ allowPrivate?: boolean }} [how]
  * @returns {string | null}
@@ -142,7 +144,7 @@ export function addressRefusal(address, how = {}) {
             rule = null;
         }
     }
-    if (rule === "private" && how.allowPrivate !== false) {
+    if (rule === "private" && how.allowPrivate === true) {
         return null;
     }
     return rule;
@@ -257,7 +259,7 @@ function decoderOf(encoding) {
  * @property {AbortSignal} [signal]
  * @property {number} [maxBytes]  the most bytes of the body, decoded (default 20 MiB)
  * @property {number} [timeMs]  the whole request's time (default 15 s)
- * @property {boolean} [allowPrivate]  loopback and private addresses may be reached (default true)
+ * @property {boolean} [allowPrivate]  loopback and private addresses may be reached (default false)
  * @property {boolean} [allowIpLiterals]  an IP address may be the URL's host (default false)
  * @property {(status: number, headers: Record<string, string>) => ((piece: Uint8Array) => void) | null | undefined} [consume]
  *   called once the answer's status and headers are in: a function it returns gets each piece of the
@@ -299,7 +301,7 @@ export function createGuardedFetch(means = {}) {
         if (url.username || url.password) {
             throw new GuardedFetchError("USERINFO", "an address with a user name or password is refused");
         }
-        const rules = { allowPrivate: request.allowPrivate !== false, plainHttp };
+        const rules = { allowPrivate: request.allowPrivate === true, plainHttp };
         const host = url.hostname.replace(/^\[|\]$/g, "");
         if (isIP(host) && !request.allowIpLiterals) {
             throw new GuardedFetchError("IP_LITERAL", "an IP address as the host is refused; name the server");

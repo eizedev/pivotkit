@@ -12,7 +12,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ConfigError, noRouteDetail } from "./config.js";
 import { fitsRange } from "./version-range.js";
-import { importInstalled } from "./installed.js";
+import { importInstalled, missingPackageText } from "./installed.js";
 import { TOKEN_ENV, VERSION, createContext } from "./context.js";
 
 export { TOKEN_ENV };
@@ -145,7 +145,7 @@ export async function createServerHandler(options, runtime) {
     const asked = options.http?.enable;
     const mcpModule = !asked || asked.includes("mcp") ? await loadMcp(docsOf(options)) : null;
     if (asked?.includes("mcp") && !mcpModule) {
-        throw new ConfigError('http.enable: "mcp" needs the package pivotkit-mcp beside pivotkit-server (npm install pivotkit-mcp)');
+        throw new ConfigError(missingPackageText('http.enable: "mcp"', MCP_PACKAGE));
     }
     const enable = asked ?? ["rest", ...(mcpModule ? ["mcp"] : [])];
     /** @type {any} */
