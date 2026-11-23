@@ -1,15 +1,16 @@
-// npm audit signatures, tried again when the registry's answer cannot be read (FETCH_ERROR). The
-// registry at times answers a GitHub runner's attestation request with the text "OK"
-// instead of JSON, which fails the step without a word about the packages. A signature that does
-// not verify fails every try, so the check stays as strict as one run of npm audit signatures.
+// npm audit signatures, tried again when npm cannot read the registry's answer (FETCH_ERROR): the
+// registry sometimes answers an attestation request with text that is no JSON. Any other failure,
+// a signature that does not verify above all, fails at once, so the check is as strict as one run.
+// PIVOTKIT_AUDIT_PAUSE_MS shortens the pause between tries (tests/audit-signatures.test.js).
 import { spawnSync } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const TRIES = 3;
-const PAUSE_MS = 20_000;
+const PAUSE_MS = Number(process.env.PIVOTKIT_AUDIT_PAUSE_MS) || 20_000;
 
 for (let attempt = 1; ; attempt++) {
     const run = spawnSync("npm", ["audit", "signatures"], { encoding: "utf8", shell: process.platform === "win32" });
+    if (run.error) console.error(`npm audit signatures could not start: ${run.error.message}`);
     process.stdout.write(run.stdout ?? "");
     process.stderr.write(run.stderr ?? "");
     const unread = /\bFETCH_ERROR\b/.test(`${run.stdout}${run.stderr}`);
