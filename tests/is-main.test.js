@@ -5,10 +5,11 @@
 // directory with a space.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { root, sourceFiles } from "./source-files.js";
+import { startPlayground } from "./playground-server.js";
 import { tempDir } from "./temp-dir.js";
 
 test("no script compares process.argv[1] itself to tell whether it was run: it uses isMain", () => {
@@ -54,17 +55,8 @@ test("the playground's server serves its files from a directory whose real path 
     copyFileSync(join(root, "examples", "playground", "serve.js"), join(dir, "serve.js"));
     writeFileSync(join(dir, "package.json"), JSON.stringify({ type: "module" }));
     writeFileSync(join(dir, "dist", "index.html"), "<!doctype html><title>spaced</title>");
-    const child = spawn(process.execPath, [join(dir, "serve.js"), "0"], { stdio: ["ignore", "pipe", "inherit"] });
+    const { base, child } = await startPlayground({ script: join(dir, "serve.js") });
     t.after(() => child.kill());
-    let base = null;
-    let out = "";
-    child.stdout.setEncoding("utf8");
-    for await (const chunk of child.stdout) {
-        out += chunk;
-        base = /http:\/\/127\.0\.0\.1:\d+\//.exec(out)?.[0] ?? null;
-        if (base) break;
-    }
-    assert.ok(base, `the server did not start: ${out}`);
     const res = await fetch(base);
     assert.equal(res.status, 200);
     assert.match(await res.text(), /spaced/);

@@ -16,5 +16,5 @@ let text;
  */
 export function undocumentedExports(entries) {
     text ??= readdirSync(REFERENCE).filter((f) => f.endsWith(".md")).map((f) => readFileSync(new URL(f, REFERENCE), "utf8")).join("\n");
-    return Object.entries(entries).flatMap(([entry, mod]) => Object.keys(mod).filter((name) => !new RegExp(`\`${name}[\`(.,]`).test(text)).map((name) => `${entry}: ${name}`));
+    return Object.entries(entries).flatMap(([entry, mod]) => Object.keys(mod).filter((name) => !new RegExp(`\`${name.replace(/[$]/g, "\\$&")}[\`(.,]`).test(text)).map((name) => `${entry}: ${name}`));
 }

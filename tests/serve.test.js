@@ -1,33 +1,23 @@
+// The playground's static server: a malformed path gets 400, a path that climbs out of its folder
+// stays inside it, and the server keeps serving.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { fileURLToPath } from "node:url";
+import { startPlayground } from "./playground-server.js";
 
-/** Starts the playground's static server on a free port; resolves with its base URL and the process. */
-async function startServer() {
-    const child = spawn(process.execPath, [fileURLToPath(new URL("../examples/playground/serve.js", import.meta.url)), "0"], { stdio: ["ignore", "pipe", "inherit"] });
-    let out = "";
-    child.stdout.setEncoding("utf8");
-    for await (const chunk of child.stdout) {
-        out += chunk;
-        const match = out.match(/http:\/\/127\.0\.0\.1:(\d+)\//);
-        if (match) {
-            return { base: match[0], child };
-        }
-    }
-    throw new Error(`the server did not start: ${out}`);
-}
-
-test("the playground server answers 400 to a malformed path and keeps running", async () => {
-    const { base, child } = await startServer();
+test("the playground server answers 400 to a malformed path, reads a path that climbs out of its folder inside it, and keeps running", async () => {
+    const { base, child } = await startPlayground();
     try {
         const bad = await fetch(`${base}%E0%A4%A`);
         assert.equal(bad.status, 400);
         const next = await fetch(`${base}no-such-file.js`);
         assert.equal(next.status, 404);
+        // "../../package.json" loses its "../" and names dist/package.json, which does not exist
         const outside = await fetch(`${base}..%2F..%2Fpackage.json`);
-        assert.notEqual(outside.status, 200);
+        assert.equal(outside.status, 404);
+        // still answering after each refusal; without a build the playground has no files to serve
+        const again = await fetch(`${base}no-such-file.js`);
+        assert.equal(again.status, 404);
     } finally {
         child.kill();
         await once(child, "exit");

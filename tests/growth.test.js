@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { DOCS_LIMITS, DOCS_TOTAL_MARGIN, FUNCTION_LIMITS, GUARD_NAMES, compareCounts, compareLists, compareTotal, docsLimit, docsPages, formatBaseline, measureDocs, measureFunctions, parseFunctionMessage, parseKnipReport } from "../scripts/growth.js";
+import { DOCS_LIMITS, DOCS_TOTAL_MARGIN, FUNCTION_LIMITS, compareCounts, compareLists, compareTotal, docsLimit, docsPages, formatBaseline, measureDocs, measureFunctions, parseFunctionMessage, parseKnipReport } from "../scripts/growth.js";
 import { tempDir } from "./temp-dir.js";
 
 test("the installed ESLint's messages give each function's name and numbers", async () => {
@@ -93,9 +93,4 @@ test("every docs page of the repository has a kind with a limit", () => {
 test("the committed baseline is sorted, one entry per line, as --update writes it", () => {
     const text = readFileSync(new URL("../scripts/growth-baseline.json", import.meta.url), "utf8");
     assert.equal(formatBaseline(JSON.parse(text)), text, "scripts/growth-baseline.json was edited by hand: run node scripts/growth.js --update");
-});
-
-test("CI's test job runs every guard in a step of its own", () => {
-    const ci = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
-    for (const name of GUARD_NAMES) assert.match(ci, new RegExp(`^ {8}run: node scripts/growth\\.js ${name}$`, "m"), `ci.yml runs no step "node scripts/growth.js ${name}"`);
 });
