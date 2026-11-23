@@ -66,8 +66,8 @@ A date field, and a grouping of a date such as "Date by month", has **Quick choi
 
 A range moves with the calendar, so "Last 12 months" in a saved report stays right next month.
 "Last 3 months" in November keeps September to November. Untick **Include the current month** to
-keep August to October instead. **Rolling** under More choices counts from today's date instead of
-whole months: Aug 12 to Nov 12.
+keep August to October instead. **Rolling instead of whole calendar periods** under More choices counts from today's
+date instead of whole months: Aug 12 to Nov 12.
 
 Today is the day in the data's time zone. That is UTC unless the application sets another one.
 
