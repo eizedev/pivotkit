@@ -22,6 +22,9 @@ pivotkit is one product. Judge code, tests, docs and these rules as a whole.
   A deviation names its reason.
 - **Say what does not fit.** Duplication, a growing function or a page nobody can read: name it in the
   pull request and propose the fix.
+- **A setting keeps its job.** Before a setting, a limit or an option takes a second job, read its docs
+  and who sets it. A host that set it for the first job must not get the second without a word: give
+  the second job a setting of its own.
 
 ## Packages
 
