@@ -11,7 +11,11 @@ import { mkdirSync, readFileSync, readdirSync, unlinkSync, utimesSync, writeFile
 import { join } from "node:path";
 import { SignJWT } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
-import { KEY_READ_MS, SIGN_IN_CALLBACKS, dispositionOf, filenameOf, placeMarker, readToken, signToken, sizeText, subjectDigest, subkeysOf, sweepMarkers } from "../src/downloads.js";
+import { KEY_READ_MS, readToken, signToken, subjectDigest, subkeysOf } from "../src/downloads/tokens.js";
+import { placeMarker, sweepMarkers } from "../src/downloads/markers.js";
+import { dispositionOf, filenameOf } from "../src/downloads/files.js";
+import { sizeText } from "../src/downloads/pages.js";
+import { SIGN_IN_CALLBACKS } from "../src/downloads/sign-in.js";
 import { NO_LINK_NOTE, linkFor, resourceLinkOf } from "../src/delivery.js";
 import { BY_REGION, call, factsOf, raw, restServer, SALES_CSV, tempDir, TOKEN, untilReady, workspace } from "./helpers.js";
 import { localIssuer, signingKey } from "./auth/local-issuer.js";

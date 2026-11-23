@@ -63,7 +63,7 @@ export function ResultArea({ id, hintId, view, labels, locale, size, themeName, 
     // the whole label of the row in use while the table is virtual (table.jsx: onRowLabel)
     const [rowLabel, setRowLabel] = useState(/** @type {string | null} */ (null));
     const chartEl = pivot.chartResult ? (
-        <PivotChart result={pivot.chartResult} plan={pivot.plan} series={pivot.series} labels={pivot.context.labels} locale={locale} themeName={themeName} root={root} valueNames={valueLabels(view.values, labels)} chartOptions={chartHost.chartOptions} colorMap={chartHost.colorMap} {...chart.events} onPoint={drill.onChartPoint} />
+        <PivotChart result={pivot.chartResult} plan={pivot.plan} series={pivot.series} labels={pivot.context.labels} locale={locale} themeName={themeName} root={root} valueNames={valueLabels(view.values, labels)} chartOptions={chartHost.chartOptions} colorMap={chartHost.colorMap} {...chart.events} onPoint={drill.onChartPoint} menuOpen={Boolean(drill.point)} />
     ) : null;
     const tableEl = pivot.grid ? (
         <PivotTable grid={pivot.grid} view={view} labels={pivot.context.labels} version={viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} infoOf={fields.infoOf} showInfo={showInfo} typeOf={fields.typeOf} hostOrdered={fields.hostOrdered} onSort={onSort} onToggle={steps.onToggle} onCell={(cell) => drill.openCell(cell)} />

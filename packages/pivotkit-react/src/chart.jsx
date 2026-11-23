@@ -26,6 +26,63 @@ const TAP_WAIT = 10_000;
  */
 const DOUBLE_WAIT = 300;
 
+/**
+ * The tooltip follows the bar, segment or line point under the pointer (`hover` keeps it), not only
+ * the category: ECharts draws the tooltip before it reports the element under the pointer, so the
+ * element is kept and the tooltip drawn again at the pointer. hideTip first: at the same category
+ * ECharts keeps what it drew and would not call the formatter again. An area's fill and a line
+ * between its points have no dataIndex: no element. Every move counts, not only mouseover: ECharts
+ * reports mouseover only for an element other than the one it last saw under the pointer, and it
+ * keeps that one when the pointer leaves in one move (a tap elsewhere) and across a redraw. While
+ * `held()` (a point's menu is open) no tooltip is drawn.
+ * @param {any} instance  the ECharts instance
+ * @param {React.MutableRefObject<{ seriesIndex: number, dataIndex: number } | null>} hover
+ * @param {() => boolean} held
+ */
+function followPointer(instance, hover, held) {
+    const redraw = (/** @type {any} */ e) => {
+        const at = e?.event;
+        if (at && typeof at.offsetX === "number") {
+            instance.dispatchAction({ type: "hideTip" });
+            if (!held()) instance.dispatchAction({ type: "showTip", x: at.offsetX, y: at.offsetY });
+        }
+    };
+    instance.on("mousemove", (/** @type {any} */ e) => {
+        if (e.componentType === "series" && (e.seriesType === "bar" || e.seriesType === "line") && typeof e.dataIndex === "number") {
+            const last = hover.current;
+            if (last?.seriesIndex !== e.seriesIndex || last?.dataIndex !== e.dataIndex) {
+                hover.current = { seriesIndex: e.seriesIndex, dataIndex: e.dataIndex };
+                redraw(e);
+            }
+        }
+    });
+    instance.on("mouseout", (/** @type {any} */ e) => {
+        if (hover.current) {
+            hover.current = null;
+            redraw(e);
+        }
+    });
+}
+
+/**
+ * While a point's menu is open (`menuOpen`) the chart shows no tooltip: it would cover the menu.
+ * Called after the draw's effect, so it runs after a draw that sets the options anew.
+ * @param {React.MutableRefObject<any>} chart  the ECharts instance, once `ready`
+ */
+function useTooltipHeld(chart, ready, menuOpen) {
+    const held = useRef(false);
+    // after every render: a draw (setOption) puts the tooltip's own trigger back
+    useEffect(() => {
+        const instance = chart.current;
+        if (!ready || !instance || (!menuOpen && !held.current)) {
+            return;
+        }
+        held.current = menuOpen;
+        instance.dispatchAction({ type: "hideTip" });
+        instance.setOption({ tooltip: { triggerOn: menuOpen ? "none" : "mousemove|click" } });
+    });
+}
+
 /** ECharts with the parts the chart draws with (echarts.js), loaded once on the first chart. */
 export function loadECharts() {
     // a file of its own in dist/ (build.js), so the host's bundler splits it off
@@ -43,16 +100,17 @@ export function loadECharts() {
  *   onLines?: (checks: { average: boolean, trend: boolean, target: boolean, extremes: boolean, notes: string[], format?: string } | null) => void,
  *   onLegend?: (change: { name: string, shown: boolean }) => void,
  *   valueNames: string[], chartOptions?: Record<string, unknown> | null, colorMap?: unknown,
- *   plan?: { name: string, chart: { type: string, stacked: boolean, horizontal: boolean } } }} props
+ *   plan?: { name: string, chart: { type: string, stacked: boolean, horizontal: boolean } }, menuOpen?: boolean }} props
  *   `series`: pivotkit-core's toSeries with MAX_CATEGORIES, null when there is nothing to draw;
  *   `chartOptions`: the host's plain JSON (chart-options.js, checked), merged over everything else;
  *   `colorMap`: the host's colour per series or slice name, one or one per theme (chart-colors.js);
  *   `plan`: what to draw (chart-types.js chartPlan), the view's type resolved when it is "auto";
  *   `onLines`: which reference lines the drawn chart can draw (pivotkit-core's referenceLineChecks,
  *   with the first series' format), null when none is drawn;
- *   `onLegend`: a legend entry was clicked, and is shown or hidden now
+ *   `onLegend`: a legend entry was clicked, and is shown or hidden now;
+ *   `menuOpen`: a point's menu is open: no tooltip shows, it would cover the menu
  */
-export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, onLines, onLegend, valueNames, chartOptions, colorMap, plan }) {
+export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, onLines, onLegend, valueNames, chartOptions, colorMap, plan, menuOpen = false }) {
     const el = useRef(/** @type {HTMLDivElement | null} */ (null));
     const chart = useRef(/** @type {any} */ (null));
     const [ready, setReady] = useState(false);
@@ -70,7 +128,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     // a click's menu, waiting for a second click (DOUBLE_WAIT)
     const waiting = useRef(/** @type {ReturnType<typeof setTimeout> | undefined} */ (undefined));
     const anchor = useRef(/** @type {HTMLSpanElement | null} */ (null));
-    const latest = useRef({ series, onPoint, onInstance, onLines, onLegend, type });
+    const latest = useRef({ series, onPoint, onInstance, onLines, onLegend, type, menuOpen });
     // the legend and the zoom slider between draws (chart-legend.js); a new window size draws again
     const keeper = useRef(/** @type {any} */ (null));
     const [zoomed, setZoomed] = useState(0);
@@ -90,7 +148,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     // so the click itself does not say
     const touched = useRef(false);
     useEffect(() => {
-        latest.current = { series, onPoint, onInstance, onLines, onLegend, type };
+        latest.current = { series, onPoint, onInstance, onLines, onLegend, type, menuOpen };
     });
 
     useEffect(() => {
@@ -178,35 +236,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                     }
                 });
                 keeper.current = echarts.chartKeeper(instance, { categories: () => latest.current.series?.categories, onLegend: (/** @type {any} */ change) => latest.current.onLegend?.(change), redraw: () => setZoomed((n) => n + 1), onWindow: (/** @type {any} */ control) => setZoomKeys(control ? { ...control, props: echarts.zoomKeyProps } : null) });
-                // ECharts draws the tooltip before it reports the element under the pointer: the
-                // element is kept, and the tooltip drawn again at the pointer. hideTip first: at the
-                // same category ECharts keeps what it drew and would not call the formatter again.
-                // An area's fill and a line between its points have no dataIndex: no element.
-                const redraw = (/** @type {any} */ e) => {
-                    const at = e?.event;
-                    if (at && typeof at.offsetX === "number") {
-                        instance.dispatchAction({ type: "hideTip" });
-                        instance.dispatchAction({ type: "showTip", x: at.offsetX, y: at.offsetY });
-                    }
-                };
-                // every move, not only mouseover: ECharts reports mouseover only for an element other
-                // than the one it last saw under the pointer, and it keeps that one when the pointer
-                // leaves in one move (a tap elsewhere) and across a redraw, while hover is forgotten
-                instance.on("mousemove", (/** @type {any} */ e) => {
-                    if (e.componentType === "series" && (e.seriesType === "bar" || e.seriesType === "line") && typeof e.dataIndex === "number") {
-                        const last = hover.current;
-                        if (last?.seriesIndex !== e.seriesIndex || last?.dataIndex !== e.dataIndex) {
-                            hover.current = { seriesIndex: e.seriesIndex, dataIndex: e.dataIndex };
-                            redraw(e);
-                        }
-                    }
-                });
-                instance.on("mouseout", (/** @type {any} */ e) => {
-                    if (hover.current) {
-                        hover.current = null;
-                        redraw(e);
-                    }
-                });
+                followPointer(instance, hover, () => latest.current.menuOpen);
                 instance.on("globalout", () => {
                     hover.current = null;
                     tapped.current = null;
@@ -295,6 +325,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         // box: the axis labels, a pie and a heatmap are laid out again when the size changes
     }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, colorMap, drawAs, zoomed, type]);
 
+    // after the draw: a draw while the menu is open keeps the tooltip away too
+    useTooltipHeld(chart, ready, menuOpen);
     const empty = result.view.values.length === 0;
     const summary = series && !empty ? chartSummary(shown?.series ?? series, { type, rows: result.view.rows.map((f) => fieldLabel(f, labels.core)), valueNames, labels, locale, shares: shown?.shares, linesText }) : labels.noChartData;
     return (

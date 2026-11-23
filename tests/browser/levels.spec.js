@@ -365,7 +365,8 @@ test.describe("what the usability review found", () => {
         await page.goto("?data=endoflife&preset=3");
         await chipMenu(page, "Average of Support years", "format");
         const menu = page.locator(".pk-chip-menu");
-        await expect(menu.getByTestId("format-current")).toHaveText("Number, 1 decimal");
+        // named, with its example as every format has
+        await expect(menu.getByTestId("format-current")).toHaveText("Number, 1 decimal1,234.5");
         await expect(menu.getByTestId("format-current")).toHaveAttribute("aria-checked", "true");
         await expect(menu.getByTestId("format-current")).toBeFocused();
         const xs = await menu.locator('[role="menuitemradio"]').evaluateAll((els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().left)))]);
