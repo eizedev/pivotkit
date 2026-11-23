@@ -42,6 +42,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `pivotkit-node/net`, shared with pivotkit-cli. The answers stay the same.
 - The REST handler is split into smaller files by stage: sign-in, documents, route, input, file
   answer. Answers and log lines stay the same.
+- The download links are split into smaller files: tokens, markers, files, pages, links and the
+  sign-in. Answers and log lines stay the same.
 
 ## [0.4.0] - 2026-11-22
 
