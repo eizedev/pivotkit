@@ -6,6 +6,15 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- `render` refuses a `title`, `description` or `source` that is no text, and a `tableCells` that is no
+  whole number of at least 1, with `INVALID_OPTION`. Before, a number as title threw a bare
+  `TypeError`, and `tableCells: 0` or `NaN` gave a table of headers only.
+- A view that holds itself gives the issue `viewFile` instead of a `TypeError`.
+- Cells of an HTML table with the same data bar or colour share one CSS rule. A table of 40,000 rows
+  with four data bars wrote 160,000 rules and 18.6 MB; it now writes about 1,000 rules and 10.6 MB.
+
 ### Changed
 
 - `OperationError` extends `CodedError` of `pivotkit-core/internal`. Its members and their types stay

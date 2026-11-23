@@ -40,7 +40,17 @@ export function htmlTable(grid, { maxCells, caption, colorScale = [...DEFAULT_TH
     // the header always; then whole body rows while the cells fit
     const fit = Math.max(0, Math.min(bodyCount, Math.floor(maxCells / width) - grid.headerRows));
     const rules = [];
-    let ruleId = 0;
+    /** @type {Map<string, string>} a declaration's class: cells of the same bar or colour share one rule */
+    const named = new Map();
+    const classOf = (declaration) => {
+        let name = named.get(declaration);
+        if (name === undefined) {
+            name = `pk-c${named.size}`;
+            named.set(declaration, name);
+            rules.push(`.${name}{${declaration}}`);
+        }
+        return name;
+    };
     const colorRule = (style) => {
         if (!style) {
             return "";
@@ -48,25 +58,20 @@ export function htmlTable(grid, { maxCells, caption, colorScale = [...DEFAULT_TH
         if (style.bar !== undefined) {
             const color = style.color && HEX.test(style.color) ? style.color : dataBar;
             const bar = Math.round(Math.max(0, Math.min(1, style.bar)) * 1000) / 10;
-            const name = `pk-c${ruleId++}`;
-            rules.push(`.${name}{--pk-bar:${bar}%;--pk-bar-color:${HEX.test(color) ? color : DEFAULT_THEME.dataBar}}`);
-            return ` pk-has-bar ${name}`;
+            return ` pk-has-bar ${classOf(`--pk-bar:${bar}%;--pk-bar-color:${HEX.test(color) ? color : DEFAULT_THEME.dataBar}`)}`;
         }
         if (style.scale !== undefined) {
             const t = Math.max(0, Math.min(1, style.scale));
             const own = Boolean(style.color && HEX.test(style.color));
             const color = own ? style.color : scaleColor(colorScale.filter((c) => HEX.test(c)).length >= 2 ? colorScale.filter((c) => HEX.test(c)) : [...DEFAULT_THEME.colorScale], t);
-            const name = `pk-c${ruleId++}`;
             // the light colour (paper, a light screen, the workbook's); a scale of the theme also its
             // place between the page's tokens, for a dark screen (report-css.js mixes it there once:
             // a light colour would turn into a bright grey under the light text)
             if (own) {
-                rules.push(`.${name}{--pk-cell-bg:${color}}`);
-                return ` pk-has-scale ${name}`;
+                return ` pk-has-scale ${classOf(`--pk-cell-bg:${color}`)}`;
             }
             const half = t < 0.5 ? "lo" : "hi";
-            rules.push(`.${name}{--pk-cell-bg:${color};--pk-p:${Math.round((t < 0.5 ? t * 2 : (t - 0.5) * 2) * 100)}%}`);
-            return ` pk-has-scale pk-scale-${half} ${name}`;
+            return ` pk-has-scale pk-scale-${half} ${classOf(`--pk-cell-bg:${color};--pk-p:${Math.round((t < 0.5 ? t * 2 : (t - 0.5) * 2) * 100)}%`)}`;
         }
         return "";
     };
