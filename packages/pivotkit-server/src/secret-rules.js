@@ -7,7 +7,7 @@
  */
 
 import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT, tokenGuessable } from "./auth.js";
-import { KEY_MIN_BYTES } from "./downloads.js";
+import { KEY_MIN_BYTES } from "./downloads/tokens.js";
 import { AUDIT_KEY_MIN } from "./log.js";
 
 /**

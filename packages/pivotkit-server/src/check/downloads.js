@@ -8,7 +8,8 @@
  * says nothing about links (there are none); the retention warning holds there too.
  */
 
-import { CALLBACK_PATH, DOWNLOADS_PATH, KEY_MIN_BYTES } from "../downloads.js";
+import { CALLBACK_PATH, DOWNLOADS_PATH } from "../downloads.js";
+import { KEY_MIN_BYTES } from "../downloads/tokens.js";
 import { makeKey } from "../auth.js";
 import { EXPIRES_MINUTES, insecurePublicHost, insecureUrlText, settingsOf } from "../options/downloads.js";
 import { uploadSettingsOf } from "../options/upload.js";
