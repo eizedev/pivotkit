@@ -1,7 +1,7 @@
 // Chart extras (#54) with real pointer input: the chart image on the clipboard, a fixed colour per
 // series or slice (the host's colorMap and the view's colours from Display), and the share of the total
 // in the tooltip. Positions come from the chart's own layout.
-import { test, expect } from "./fixtures.js";
+import { test, expect } from "../fixtures.js";
 
 /** Revenue per region and category. North adds up to 60 (20 + 10 + 30). */
 const ROWS = [

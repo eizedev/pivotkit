@@ -313,6 +313,14 @@ export const draftCap = (maxFiles) => Math.floor(maxFiles / 2);
 export const draftBytesCap = (maxMb) => Math.floor((maxMb * 1_048_576) / 2);
 
 /**
+ * The modes of the output directory the server makes and of each file it writes there. Reports may
+ * hold what a model may not see: only the server's user reads them (0700, 0600), unless a web server
+ * serves the directory (output.baseUrl): 0755 and 0644, which the umask can only narrow.
+ * @param {{ baseUrl?: string | null }} output  the options' output
+ */
+export const outputModes = (output) => (output.baseUrl ? { dir: 0o755, file: 0o644 } : { dir: 0o700, file: 0o600 });
+
+/**
  * Writes a file an operation made into the output directory; its name, path and address.
  * @param {boolean} [draft]  a schedule draft (draftCap holds), not a report
  * @param {{ prefix?: string }} [how]  prefix: the start of the stored name (delivery.js: a link's nonce); default 22 random characters under output.baseUrl, else none
@@ -330,7 +338,7 @@ export async function writeOutput(context, file, draft = false, how = {}) {
         if (deleted) {
             context.log.info("output directory full: the oldest reports deleted", { deleted });
         }
-        return writeNew(dir, fileSlug(file.name), `${OUTPUT_MARK}.${file.extension}`, file.bytes, { prefix }).catch((e) => Promise.reject(outputErrorOf(e)));
+        return writeNew(dir, fileSlug(file.name), `${OUTPUT_MARK}.${file.extension}`, file.bytes, { prefix, mode: outputModes(context.output).file }).catch((e) => Promise.reject(outputErrorOf(e)));
     });
     return {
         name,

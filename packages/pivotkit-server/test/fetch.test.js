@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 import { createServer } from "node:http";
 import { createServer as createTlsServer } from "node:https";
 import { gzipSync } from "node:zlib";
-import { loopbackCert } from "./helpers.js";
+import { loopbackCert, loopbackFetch as local, plainLoopbackFetch as plainLocal } from "./helpers.js";
 import { GuardedFetchError, addressRefusal, createGuardedFetch, guardedFetch } from "../src/sources/fetch.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
 
@@ -68,9 +68,6 @@ before(async () => {
 });
 after(() => new Promise((resolve) => server.close(resolve)));
 
-/** A guardedFetch that may use plain http to loopback, by its IP address (this test's server). */
-const plainLocal = createGuardedFetch({ allowHttpLoopback: true });
-const local = (url, request = {}) => plainLocal(url, { allowIpLiterals: true, ...request });
 
 /** A lookup that answers what `answers` says, counting its calls. */
 function stubLookup(answers) {
@@ -113,7 +110,7 @@ test("only https: plain http is refused unless allowed, and then only to a loopb
     assert.equal(await codeOf(guardedFetch("not a url")), "BAD_URL");
     // allowed for loopback only: a private address by name or as a literal is not loopback
     const lookup = stubLookup([{ address: "10.0.0.7", family: 4 }]);
-    assert.equal(await codeOf(createGuardedFetch({ allowHttpLoopback: true, lookup })("http://internal.test/x")), "NOT_HTTPS");
+    assert.equal(await codeOf(createGuardedFetch({ allowHttpLoopback: true, lookup })("http://internal.test/x", { allowPrivate: true })), "NOT_HTTPS");
     assert.equal(await codeOf(local("http://10.0.0.7/x")), "NOT_HTTPS");
 });
 
@@ -166,16 +163,19 @@ test("a name that resolves to a metadata address, a mapped one or a mix with a p
     }
 });
 
-test("allowPrivate: false refuses loopback and private addresses, by name (the system's resolver) and as literals", async () => {
+test("loopback and private addresses are refused unless allowPrivate is true, by name (the system's resolver) and as literals", async () => {
     const before = connections;
+    // refused when the caller says nothing: a caller that forgets the operator's intranet setting fails closed
+    assert.equal(await codeOf(plainLocal(`http://localhost:${server.address().port}/ok`)), "REFUSED_ADDRESS");
+    assert.equal(await codeOf(plainLocal(`${base}/ok`, { allowIpLiterals: true })), "REFUSED_ADDRESS");
+    assert.equal(await codeOf(guardedFetch("https://10.1.2.3/", { allowIpLiterals: true })), "REFUSED_ADDRESS");
     assert.equal(await codeOf(local(`http://localhost:${server.address().port}/ok`, { allowPrivate: false })), "REFUSED_ADDRESS");
     assert.equal(await codeOf(local(`${base}/ok`, { allowPrivate: false })), "REFUSED_ADDRESS");
     assert.equal(await codeOf(guardedFetch("https://10.1.2.3/", { allowPrivate: false, allowIpLiterals: true })), "REFUSED_ADDRESS");
     assert.equal(await codeOf(guardedFetch("https://[::ffff:192.168.1.1]/", { allowPrivate: false, allowIpLiterals: true })), "REFUSED_ADDRESS");
     assert.equal(await codeOf(guardedFetch("https://[fd12::1]/", { allowPrivate: false, allowIpLiterals: true })), "REFUSED_ADDRESS");
     assert.equal(connections, before, "nothing reached the server");
-    // allowed by default (internal APIs)
-    assert.equal((await local(`http://localhost:${server.address().port}/ok`)).status, 200);
+    assert.equal((await local(`http://localhost:${server.address().port}/ok`)).status, 200, "allowPrivate: true reaches it");
 });
 
 test("the address is checked where the socket connects: one lookup, and a later answer is never used", async () => {
@@ -245,11 +245,12 @@ test("addressRefusal: the rules by range", () => {
         assert.equal(addressRefusal(a, { allowPrivate: false }), "always", a);
     }
     for (const a of privateOnes) {
-        assert.equal(addressRefusal(a), null, a);
+        assert.equal(addressRefusal(a), "private", a);
         assert.equal(addressRefusal(a, { allowPrivate: false }), "private", a);
+        assert.equal(addressRefusal(a, { allowPrivate: true }), null, a);
     }
     for (const a of open) {
-        assert.equal(addressRefusal(a, { allowPrivate: false }), null, a);
+        assert.equal(addressRefusal(a), null, a);
     }
 });
 
@@ -268,12 +269,12 @@ test("https: a server whose certificate is trusted answers; a redirect over http
     const port = tls.address().port;
     try {
         const trusted = createGuardedFetch({ ca: cert });
-        const answer = await trusted(`https://localhost:${port}/`);
+        const answer = await trusted(`https://localhost:${port}/`, { allowPrivate: true });
         assert.equal(new TextDecoder().decode(answer.body), "secure");
-        assert.equal(await codeOf(trusted(`https://localhost:${port}/moved`)), "REDIRECT");
-        assert.equal(await codeOf(trusted(`https://localhost:${port}/`, { allowPrivate: false })), "REFUSED_ADDRESS");
+        assert.equal(await codeOf(trusted(`https://localhost:${port}/moved`, { allowPrivate: true })), "REDIRECT");
+        assert.equal(await codeOf(trusted(`https://localhost:${port}/`)), "REFUSED_ADDRESS");
         // the system's authorities do not know this certificate
-        assert.equal(await codeOf(guardedFetch(`https://localhost:${port}/`)), "NETWORK");
+        assert.equal(await codeOf(guardedFetch(`https://localhost:${port}/`, { allowPrivate: true })), "NETWORK");
     } finally {
         await new Promise((resolve) => tls.close(resolve));
     }
@@ -292,7 +293,7 @@ test("the environment's proxy is not used: a request goes straight to the addres
     await new Promise((resolve) => proxy.listen(0, "127.0.0.1", resolve));
     try {
         const module = new URL("../src/sources/fetch.js", import.meta.url).href;
-        const script = `const { createGuardedFetch } = await import(${JSON.stringify(module)}); const answer = await createGuardedFetch({ allowHttpLoopback: true })(${JSON.stringify(`${base}/ok`)}, { allowIpLiterals: true }); console.log(new TextDecoder().decode(answer.body));`;
+        const script = `const { createGuardedFetch } = await import(${JSON.stringify(module)}); const answer = await createGuardedFetch({ allowHttpLoopback: true })(${JSON.stringify(`${base}/ok`)}, { allowIpLiterals: true, allowPrivate: true }); console.log(new TextDecoder().decode(answer.body));`;
         const proxyUrl = `http://127.0.0.1:${proxy.address().port}`;
         const { stdout } = await promisify(execFile)(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, NODE_USE_ENV_PROXY: "1", HTTP_PROXY: proxyUrl, HTTPS_PROXY: proxyUrl, NO_PROXY: "" }, encoding: "utf8" });
         assert.deepEqual(JSON.parse(stdout), { ok: true });
@@ -359,7 +360,7 @@ test("a header name or value node:http cannot send, or another method, is a Guar
 
 test("an IP address as the host needs allowIpLiterals; a name does not; 304 is an answer, not a redirect", async () => {
     assert.equal(await codeOf(plainLocal(`${base}/ok`)), "IP_LITERAL");
-    assert.equal((await plainLocal(`http://localhost:${server.address().port}/ok`)).status, 200);
+    assert.equal((await plainLocal(`http://localhost:${server.address().port}/ok`, { allowPrivate: true })).status, 200);
     const notModified = createServer((_req, res) => {
         res.writeHead(304);
         res.end();

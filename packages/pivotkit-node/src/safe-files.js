@@ -271,15 +271,16 @@ export function cleanFileName(name, max = 80) {
  * @param {string} name  the file's name without extension (cleaned with cleanFileName)
  * @param {string} extension  without the dot
  * @param {Uint8Array} bytes
- * @param {{ prefix?: string, tries?: number }} [options]  `prefix`: put before the name (a random part)
+ * @param {{ prefix?: string, tries?: number, mode?: number }} [options]  `prefix`: put before the name (a random part);
+ *   `mode`: the new file's permissions (writeSafe's, default 0o644)
  * @returns {Promise<string>}  the file's base name
  */
-export async function writeNew(dir, name, extension, bytes, { prefix = "", tries = 100 } = {}) {
+export async function writeNew(dir, name, extension, bytes, { prefix = "", tries = 100, mode } = {}) {
     const stem = `${prefix}${cleanFileName(name)}`;
     for (let n = 1; n <= tries; n++) {
         const base = `${stem}${n === 1 ? "" : `-${n}`}.${extension}`;
         try {
-            await writeSafe(base, bytes, { cwd: dir, allow: [dir], exclusive: true });
+            await writeSafe(base, bytes, { cwd: dir, allow: [dir], exclusive: true, mode });
             return base;
         } catch (e) {
             // a device's name (Windows' NUL, CON ...) is taken as well: the next name

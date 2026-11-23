@@ -3,8 +3,8 @@
 // only); pie, donut and heatmap keep their item tooltip. The Display setting "All series" (#106,
 // chart.tooltip "axis") shows every series wherever the pointer is. Real pointer input: the positions
 // come from the chart's own layout (getItemLayout, convertToPixel), not from fixed fractions.
-import { test, expect } from "./fixtures.js";
-import { ROWS, VIEW, EAST, NORTH, HARDWARE, SERVICES, SOFTWARE, VALUES, mount, pointOf, barMiddle, between, linePoint, sliceMiddle, cellMiddle, hover, tooltipOf } from "./chart-report.js";
+import { test, expect } from "../fixtures.js";
+import { ROWS, VIEW, EAST, NORTH, HARDWARE, SERVICES, SOFTWARE, VALUES, mount, pointOf, barMiddle, between, linePoint, sliceMiddle, cellMiddle, hover, tooltipOf } from "./report.js";
 
 /** The visual states of a bar (ECharts' "emphasis" when it lights up, "blur" when it fades). */
 const statesOf = (chartEl, series, index) =>
