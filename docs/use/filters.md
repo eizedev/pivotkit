@@ -43,7 +43,7 @@ and rule off the field. The chip of a filtered field says the same in short: "4 
 ![A filtered field's menu: the Filter row says 1 of 5 with its dot](../assets/screenshots/filter-state-light.png#only-light)
 ![A filtered field's menu: the Filter row says 1 of 5 with its dot](../assets/screenshots/filter-state-dark.png#only-dark)
 
-## Tick the values to keep
+## Tick the values to keep { #filter-by-values }
 
 Under **Pick items**, untick the values to leave out, or click **Only** beside a value to keep it
 alone. Each value shows its row count. Search finds a value in a long list. The list shows at most
@@ -152,7 +152,7 @@ or by the value you pick there.
   "Top 6" may show 7.
 - **Reset filter** leaves top N as it is. **Off** takes it away.
 
-## Type numbers
+## Type numbers { #numbers-in-the-menus }
 
 Type numbers as the report's language writes them, the language the report's texts are in: "1.000,5" in German, "1,000.5" in English. Every
 language also reads a plain "1000.5". Anything else is refused with a hint, not guessed.

@@ -242,7 +242,7 @@ A view or template may have the field on Rows or Columns without a sort entry fo
 same `custom` sort when the report shows it. If you then pick "A to Z" in the menu, the view keeps it
 as a sort entry of its own, so the host's order does not come back.
 
-## What the report's menus write
+## What the report's menus write { #filters-in-the-ui }
 
 The menus of [Filters, top N and sorting](../use/filters.md) write these entries:
 
