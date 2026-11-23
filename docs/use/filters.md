@@ -186,6 +186,10 @@ text, and the average, median, minimum or maximum of dates.
 
 Undo takes back every filter and sort step.
 
-!!! note "For developers"
-    [Filters and sorting in a view](../concepts/filters.md) describes how a view stores filters,
-    top N and sorting, and what each choice on this page writes.
+## See also
+
+- [Fields, zones and the table](fields.md): where a field goes, and its menu
+- [Values and formats](values.md): what a total is, and date groupings such as month of the year
+- [The rows behind a number](drill-down.md): which rows a filtered cell holds
+- For developers: [Filters and sorting in a view](../concepts/filters.md), how a view stores what
+  this page sets
