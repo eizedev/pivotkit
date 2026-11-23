@@ -297,6 +297,7 @@ test("downloads: after close() the sweep timer no longer runs", async () => {
     const old = join(markers, `${randomBytes(16).toString("base64url")}.used`);
     writeFileSync(old, `${Math.floor(Date.now() / 1000) - 60}\n`);
     try {
+        // nothing happens: seven sweep intervals (20 ms) pass without a sweep
         await new Promise((r) => setTimeout(r, 150));
         assert.equal(existsSync(old), true, "no sweep after close()");
     } finally {

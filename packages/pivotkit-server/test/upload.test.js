@@ -489,6 +489,7 @@ test("at most two uploads at once: the third waits for a slot", async () => {
     try {
         const three = [1, 2, 3].map(() => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }));
         await until(() => held.length === 2);
+        // nothing more happens: the third waits for a free place, it does not even presign
         await new Promise((resolve) => setTimeout(resolve, 150));
         assert.equal(held.length, 2, "two uploads in the bucket");
         assert.equal(asked.filter((a) => a.method === "POST").length, 2, "the third has not even presigned");

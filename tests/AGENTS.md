@@ -45,8 +45,9 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - So do a timestamp the code wrote, a polling deadline and a ratio of two measurements.
 - Such a line ends in the comment `// wall time: <why>`, for example `// wall time: event latency`.
 - `tests/time-bounds.test.js` fails on a wall-clock reading in a comparison without that comment.
-- A unit test waits for a condition with `until()` from `tests/until.js`, never with a loop of its own.
-- A fixed sleep stays only where a test checks that nothing happens for a while. Say so in a comment.
+- A unit test waits for a condition with `until()` from `tests/until.js`. Its header gives the options and defaults.
+- A test that goes on when the condition never comes keeps a deadline loop of its own, marked `// wall time: a polling deadline`.
+- A fixed sleep checks that nothing happens for a while. A new one says so in a comment.
 
 ## Scripts
 

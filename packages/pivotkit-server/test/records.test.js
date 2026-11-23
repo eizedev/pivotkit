@@ -789,7 +789,6 @@ test("the log line of a rows request: source, counts, profile and the person as 
     }
 });
 
-
 // ---------------------------------------------------------------------------------------------
 // check-config
 
