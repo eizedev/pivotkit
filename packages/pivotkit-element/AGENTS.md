@@ -59,10 +59,12 @@ The first load holds only the first render and what a click outside a menu does 
 - The only exception is the `--pk-*` tokens set on the element.
 - `host-css.js` declares them on `:host`, never on `.pk-root` inside the element.
 - Events are `pivot-*` CustomEvents that bubble and are composed (`src/events.js`).
-- An attribute or property lives in three places: its row in `src/props.js` (the table the element
-  reads), its accessor with JSDoc in `src/element.js` (the public type), and its name in
-  `src/jsx.d.ts`. The element's props for the report read it in `#props()`.
-  `test/props-places.test.js` fails when one place is missing.
+- A new attribute or property needs five places. `test/props-places.test.js` checks each:
+  1. a row in `ATTRIBUTES` or a name in `OBJECT_PROPS` (`src/props.js`);
+  2. a getter and a setter with JSDoc in `src/element.js` (the public type);
+  3. a line in `#props()` that passes it to the report;
+  4. its name in the `Settable` union (`src/jsx.d.ts`);
+  5. a row in `docs/reference/element.md`.
 - Data and other objects stay properties. JSON attributes are only for views.
 - The element sets no global and touches no DOM when imported without `customElements`.
 
