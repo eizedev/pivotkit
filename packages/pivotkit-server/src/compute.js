@@ -310,8 +310,8 @@ export function createComputer(options = {}, internal = {}) {
      * @param {any} slot
      * @param {string | null} key  the data's key; null: never kept
      * @param {Record<string, unknown>} message  op, input and the job's data, without the id
-     * @param {{ what: string, timeText: string, signal?: AbortSignal, onMessage: (msg: any, job: { id: number, end: () => boolean }) => void, fail: (e: unknown) => void, onEnd?: () => void }} how  what: "the rows" or "the report", for the memory message; timeText: the timeout's message
-     * @returns {{ id: number, end: () => boolean }}  end(): ends the job, false when it had ended
+     * @param {{ memoryText: string, timeText: string, signal?: AbortSignal, onMessage: (msg: any, job: { id: number, end: () => void }) => void, fail: (e: unknown) => void, onEnd?: () => void }} how  memoryText: the start of the out-of-memory message ("the rows need"); timeText: the timeout's message
+     * @returns {{ id: number, end: () => void }}  end(): ends the job; once ended, a no-op
      */
     function attach(slot, key, message, how) {
         const { worker } = slot;
@@ -322,7 +322,7 @@ export function createComputer(options = {}, internal = {}) {
         let timer;
         const end = () => {
             if (ended) {
-                return false;
+                return;
             }
             ended = true;
             clearTimeout(timer);
@@ -331,7 +331,6 @@ export function createComputer(options = {}, internal = {}) {
             worker.off("error", onError);
             worker.off("exit", onExit);
             how.onEnd?.();
-            return true;
         };
         const job = { id, end };
         /** The worker is stopped and replaced: over its time, or its callers went away. */
@@ -384,7 +383,7 @@ export function createComputer(options = {}, internal = {}) {
             end();
             replace(slot);
             const memory = /memory|heap/i.test(String(e?.message)) || e?.code === "ERR_WORKER_OUT_OF_MEMORY";
-            how.fail(new OperationError(memory ? "LIMIT_EXCEEDED" : "INTERNAL", memory ? `${how.what} ${how.what === "the rows" ? "need" : "needs"} more than the ${memoryMb} MB of memory a run may use (compute.memoryMb)` : "internal error"));
+            how.fail(new OperationError(memory ? "LIMIT_EXCEEDED" : "INTERNAL", memory ? `${how.memoryText} more than the ${memoryMb} MB of memory a run may use (compute.memoryMb)` : "internal error"));
         };
         const onExit = () => {
             end();
@@ -465,7 +464,7 @@ export function createComputer(options = {}, internal = {}) {
                 }
             };
             const running = attach(slot, key, { op: RECORDS_JOB, input, ...job }, {
-                what: "the rows",
+                memoryText: "the rows need",
                 // the whole job, its reading and writing, within compute.timeMs: a writer nobody drains ends too
                 timeText: `the rows took longer than ${timeMs / 1000} s (compute.timeMs) to read and send`,
                 fail,
@@ -526,7 +525,7 @@ export function createComputer(options = {}, internal = {}) {
         }
         return new Promise((resolve, reject) => {
             attach(slot, key, { op, input, ...job }, {
-                what: "the report",
+                memoryText: "the report needs",
                 timeText: `the report took longer than ${timeMs / 1000} s (compute.timeMs); make the view smaller or filter more`,
                 // the callers went away: the worker is stopped and replaced, as one over its time is
                 signal,
