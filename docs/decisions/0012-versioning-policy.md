@@ -28,7 +28,8 @@ The sources name no other options.
 - One exception: a security fix may close an unsafe default in a minor or patch release. It
   carries the mark "Security" in the release notes, with a way to detect it and a way back.
 - 0.x stays as it is. A minor release can break, and the upgrading page lists every break. pivotkit
-  still breaks as little as possible.
+  still breaks as little as possible. [0018](0018-upgrading-page-for-the-newest-release.md) changes
+  where breaks are listed.
 - All packages start 1.0.0 together. Reason not recorded.
 - Each deprecation gets an id `PK-DEP-NNNN`, a runtime warning, a `check-config` line, an entry on
   the upgrading page and an entry in the register.
