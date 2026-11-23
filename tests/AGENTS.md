@@ -45,6 +45,8 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - So do a timestamp the code wrote, a polling deadline and a ratio of two measurements.
 - Such a line ends in the comment `// wall time: <why>`, for example `// wall time: event latency`.
 - `tests/time-bounds.test.js` fails on a wall-clock reading in a comparison without that comment.
+- A unit test waits for a condition with `until()` from `tests/until.js`, never with a loop of its own.
+- A fixed sleep stays only where a test checks that nothing happens for a while. Say so in a comment.
 
 ## Scripts
 
@@ -58,6 +60,7 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - The chart specs are in `chart/`. A topic the unit tests of pivotkit-core or pivotkit-react also test has the same filename.
 - `chart/report.js` mounts a chart report and finds where ECharts drew its marks. `point-menu` and `tooltip` use it.
 - A test that measures layout waits until the layout has settled.
+  `animationsSettled(page)` in `fixtures.js` waits until no animation runs.
 - A test waits for a file chooser with `nextFileChooser(page)` from `import-helpers.js`, not `page.waitForEvent`.
   It keeps Firefox from opening the native picker on the second pick.
 - A mouse drag waits until its target shows it takes the drop, then releases. `drag()` in `fixtures.js` does this.
