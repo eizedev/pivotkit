@@ -2,6 +2,7 @@
 // areas (ECharts' markLine), named in the tooltip and the text alternative, set in Display -> Reference
 // lines. And the high and low points (#574, ECharts' markPoint), set in the same level. Real pointer input; the positions come from the chart's own layout (convertToPixel).
 import { test, expect } from "../fixtures.js";
+import { barMiddle, hover, pointOf, tooltipOf } from "./report.js";
 
 /**
  * Revenue per month and product. A climbs by 10 a month (10, 20, 30, 40: average 25, trend 10 to 40),
@@ -129,37 +130,8 @@ const valueAt = (chartEl, value, horizontal = false) =>
         return getInstanceByDom(el).convertToPixel(horizontal ? { xAxisIndex: 0 } : { yAxisIndex: 0 }, value);
     }, { value, horizontal });
 
-/** A point of the chart in the page, from the chart's own layout (run in the page with its instance). */
-async function pointOf(chartEl, at, arg) {
-    const [x, y] = await chartEl.evaluate(async (el, { at, arg }) => {
-        const { getInstanceByDom } = await import("echarts/core");
-        return new Function("chart", "arg", `return (${at})(chart, arg);`)(getInstanceByDom(el), arg);
-    }, { at: at.toString(), arg });
-    const box = await chartEl.boundingBox();
-    return { x: box.x + x, y: box.y + y };
-}
-const barMiddle = (chart, { series, index }) => {
-    const l = chart.getModel().getSeriesByIndex(series).getData().getItemLayout(index);
-    return [l.x + l.width / 2, l.y + l.height / 2];
-};
 /** A category's middle at a value of the value axis. */
 const atValue = (chart, { index, value }) => chart.convertToPixel({ gridIndex: 0 }, [index, value]);
-
-async function hover(page, { x, y }) {
-    await page.mouse.move(x - 6, y + 5);
-    await page.mouse.move(x, y, { steps: 3 });
-}
-
-/** The visible tooltip, one entry per row ("Average (A) 25"); [] when none shows. */
-const tooltipOf = (chartEl) =>
-    chartEl.evaluate((el) => {
-        const tip = [...el.children].find((c) => c.tagName === "DIV" && !c.querySelector("canvas"));
-        if (!tip || getComputedStyle(tip).visibility === "hidden" || getComputedStyle(tip).display === "none" || Number(getComputedStyle(tip).opacity) === 0) {
-            return [];
-        }
-        const box = tip.firstElementChild;
-        return box ? [...box.children].map((row) => [...(row.children.length ? row.children : [row])].map((c) => c.textContent.trim()).filter(Boolean).join(" ")) : [];
-    });
 
 /** A token of the report as the browser resolves it to a colour (rgb()). */
 const tokenColor = (page, name) =>

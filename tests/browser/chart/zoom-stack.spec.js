@@ -2,19 +2,8 @@
 // come from the chart's own layout (getItemLayout, the legend's and the slider's elements), not from
 // fixed fractions.
 import { test, expect } from "../fixtures.js";
+import { barMiddle, inChart, inPage, ROWS, settled, tooltipOf, VIEW } from "./report.js";
 
-/** Revenue per region and category. North adds up to 60 (20 + 10 + 30). */
-const ROWS = [
-    { Region: "North", Category: "Hardware", Revenue: 20 },
-    { Region: "North", Category: "Services", Revenue: 10 },
-    { Region: "North", Category: "Software", Revenue: 30 },
-    { Region: "South", Category: "Hardware", Revenue: 15 },
-    { Region: "South", Category: "Services", Revenue: 5 },
-    { Region: "South", Category: "Software", Revenue: 25 },
-    { Region: "East", Category: "Services", Revenue: 12 },
-    { Region: "East", Category: "Software", Revenue: 40 }
-];
-const VIEW = { rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], display: "chart" };
 /** 40 countries with long names: a phone's chart cannot write each one. */
 const COUNTRIES = Array.from({ length: 40 }, (_, i) => ({ Country: `Country number ${String(i + 1).padStart(2, "0")}`, Units: 10 + ((i * 7) % 13) }));
 const COUNTRY_VIEW = { rows: ["Country"], cols: [], values: [{ field: "Units", agg: "sum" }], display: "chart" };
@@ -45,28 +34,6 @@ async function mount(page, chart, { view = VIEW, rows = ROWS, theme = "light" } 
     return chartEl;
 }
 
-/** Waits until ECharts has drawn and its animation is over. */
-async function settled(chartEl) {
-    await expect.poll(() => chartEl.evaluate(async (el) => {
-        const { getInstanceByDom } = await import("echarts/core");
-        const chart = getInstanceByDom(el);
-        return Boolean(chart?.getOption().series?.length) && chart.getZr().animation.isFinished();
-    })).toBe(true);
-}
-
-/** Runs `at(chart, arg)` in the page with the chart's ECharts instance. */
-const inChart = (chartEl, at, arg) =>
-    chartEl.evaluate(async (el, { at, arg }) => {
-        const { getInstanceByDom } = await import("echarts/core");
-        return new Function("chart", "arg", `return (${at})(chart, arg);`)(getInstanceByDom(el), arg);
-    }, { at: at.toString(), arg });
-
-/** A point of the chart (its own pixels) in the page. */
-async function inPage(chartEl, [x, y]) {
-    const box = await chartEl.boundingBox();
-    return { x: box.x + x, y: box.y + y };
-}
-
 /** The middle of a legend entry's text, from the legend's own drawing. */
 const legendEntry = (chart, name) => {
     const view = chart.getViewOfComponentModel(chart.getModel().getComponent("legend"));
@@ -79,11 +46,6 @@ const legendEntry = (chart, name) => {
         }
     });
     return found;
-};
-/** The middle of a bar or a stacked segment. */
-const barMiddle = (chart, { series, index }) => {
-    const l = chart.getModel().getSeriesByIndex(series).getData().getItemLayout(index);
-    return [l.x + l.width / 2, l.y + l.height / 2];
 };
 /** The height of a bar or segment, px. */
 const barHeight = (chart, { series, index }) => Math.abs(chart.getModel().getSeriesByIndex(series).getData().getItemLayout(index).height);
@@ -109,17 +71,6 @@ const sliderHandle = (chart, which) => {
     const [x, y] = handle.transformCoordToGlobal(r.x + r.width / 2, r.y + r.height / 2);
     return { at: [x, y], size: zoom.option.height };
 };
-
-/** The tooltip shown, one entry per line ([] when none shows). */
-const tooltipOf = (chartEl) =>
-    chartEl.evaluate((el) => {
-        const tip = [...el.children].find((c) => c.tagName === "DIV" && !c.querySelector("canvas"));
-        if (!tip || getComputedStyle(tip).visibility === "hidden" || getComputedStyle(tip).display === "none" || Number(getComputedStyle(tip).opacity) === 0) {
-            return [];
-        }
-        const box = tip.firstElementChild;
-        return box ? [...box.children].map((row) => [...(row.children.length ? row.children : [row])].map((c) => c.textContent.trim()).filter(Boolean).join(" ")) : [];
-    });
 
 /** Opens Chart settings: the button beside the tabs, also on a narrow report (its icon there). */
 async function chartMenu(report) {
