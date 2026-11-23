@@ -156,14 +156,22 @@ body {
 @media (max-width: 640px) {
     :root,
     .pg-has-credit {
-        --pg-head-h: 236px;
+        --pg-head-h: 226px;
     }
 
     .pg {
         padding: 12px 10px;
     }
 
-    .pg-controls label {
-        flex: 1 1 40%;
+    /* the choices in three columns: two rows, not three, so the report starts higher on a phone */
+    .pg-controls {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        width: 100%;
+    }
+
+    .pg-controls select {
+        width: 100%;
     }
 }

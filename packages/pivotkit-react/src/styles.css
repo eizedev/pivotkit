@@ -2921,13 +2921,13 @@
 }
 
 /* a narrow report: a little less room around each cell, for the labels' least width below, and a
-   value's name wraps beyond 22 % (a word such as "Population" still fits) */
+   value's name wraps beyond 22 % (a word such as "Population" still fits, as a row label's does) */
 .pk-root[data-pk-size="narrow"] .pk-table :is(th, td) {
     padding-inline: 0.6em;
 }
 
 .pk-root[data-pk-size="narrow"] .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
-    max-width: var(--pk-label-max, max(5em, 22cqi));
+    max-width: var(--pk-label-max, max(5.5em, 22cqi));
 }
 
 /* --pk-label-w and --pk-label-max are internal switches that fitLabels sets through data-pk-labels,
@@ -2993,10 +2993,12 @@
 
 /* the text of a header that sorts (table.jsx): a button as large as the text, so the cell's edges stay
    free; its arrow shows the order in use, or on hover and focus the one a click gives */
+/* its arrow sits in the cell's padding before the text: a row of months keeps its width (#70), and a
+   word that fits its header does not break for the arrow's room ("Categor" over "y" on a phone) */
 .pk-th-sort {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 0.2em;
     min-width: 0;
     min-height: var(--pk-target);
     padding: 0;
@@ -3011,32 +3013,19 @@
 
 /* a faint arrow at rest says the name sorts, on a desktop too (#70); pointed at or focused, stronger */
 .pk-th-arrow {
-    flex: none;
+    position: absolute;
+    top: 50%;
+    right: 100%;
+    width: 0.8em;
+    height: 0.8em;
+    margin-right: 0.05em;
     opacity: 0.35;
+    translate: 0 -50%;
     transition: opacity var(--pk-duration);
 }
 
 .pk-th-sort:is(:hover, :focus) .pk-th-arrow {
     opacity: 0.6;
-}
-
-/* a column's label and a column field's name: the arrow sits in the cell's padding, beside the text,
-   so a row of months keeps its width and the corner does not wrap (table.jsx: aside) */
-.pk-th-sort-aside {
-    position: relative;
-}
-
-.pk-th-sort-aside .pk-th-arrow {
-    position: absolute;
-    top: 50%;
-    width: 0.8em;
-    height: 0.8em;
-    translate: 0 -50%;
-}
-
-.pk-colHeader .pk-th-sort-aside .pk-th-arrow {
-    right: 100%;
-    margin-right: 0.05em;
 }
 
 .pk-th-sort.pk-sorted .pk-th-arrow {
