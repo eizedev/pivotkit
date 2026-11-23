@@ -2700,7 +2700,7 @@
 /* a phone: the tabs, Settings and the two icons share one line where they fit */
 .pk-root[data-pk-size="narrow"] .pk-tab {
     gap: 0.35em;
-    padding: 0 0.6em;
+    padding: 0 0.5em;
 }
 
 .pk-root[data-pk-size="narrow"] .pk-result-head {

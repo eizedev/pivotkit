@@ -8,6 +8,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- **Breaking:** the label `settingsShort` is gone: no text uses it. TypeScript code that sets it in
+  `labels` no longer compiles; remove it.
 - `<PivotReport>` is built from hooks and small components, one per concern, instead of one large
   component. Its props, events, markup and behaviour stay the same.
 
@@ -19,6 +21,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - An error note stays until it is closed, also when two newer notes come.
 - The help of the chart's zoom says that the arrow keys move the slider. It said the slider could
   not be moved by keyboard yet.
+- On a phone, the settings button beside the tabs shows its icon only, as Enlarge and Full screen
+  do. Its whole name stays its tooltip and its name for a screen reader. The tabs and the buttons
+  now share one line on a 390 px phone in German too; before, the buttons moved to a line above the
+  tabs.
 - The table's headers wrap between words only. On a phone, "Category" or "Population" broke inside
   the word. Every header's sort arrow now sits before its text, in the cell's padding, as a column's
   arrow already did.
