@@ -148,8 +148,8 @@ node id, and they stay exact in a double only up to there. A larger value is `IN
 
 Not counted:
 
-- The data itself: the host's rows and the encoded columns, rows x columns. `rows` caps the rows.
-  The number of columns of the host's data is not limited. A loaded file's columns are.
+- The data itself. `rows` caps the rows. `encode()` trusts the width a host's own code gives it. A file,
+  a server source and data sent with a request count `columns` or `importCells` before it.
 - "Show values as" and sorting after the aggregation. They grow with the cells (a rank sorts each
   group once), which `pivotCells` bounds.
 - The time a pivot within the limits takes.
