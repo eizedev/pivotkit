@@ -322,10 +322,14 @@ test("#473: a declared body over rest.data.maxBytes from a caller that may send 
         const got = await sendThenRead(`${server.api}/views/render`, TOKEN, 11 * 1_048_576);
         assert.equal(got.status, 413, JSON.stringify(got));
         assert.ok(got.requestId, JSON.stringify(got));
-        // a caller without a valid token keeps the small bound (four times 2 MiB): never more than that is read
-        const stranger = await sendThenRead(`${server.api}/views/render`, "a-token-nobody-has-0123456789012345678", 11 * 1_048_576);
-        assert.notEqual(stranger.status, 200);
-        assert.ok(server.log.some((l) => l.event === "refused" && l.status === 413 && l.size === 11 * 1_048_576));
+        // a caller without a valid token keeps the small bound: its body is drained up to four times
+        // 2 MiB, then the connection is cut. 30 MiB is under four times the signed-in caller's 10 MiB,
+        // so only that small bound cuts it, long before the client has sent it all and reads
+        const stranger = await sendThenRead(`${server.api}/views/render`, "a-token-nobody-has-0123456789012345678", 30 * 1_048_576);
+        assert.equal(stranger.status, 0, JSON.stringify(stranger));
+        assert.ok(stranger.error, JSON.stringify(stranger));
+        const refused = server.log.filter((l) => l.event === "refused" && l.status === 413);
+        assert.deepEqual(refused.map((l) => l.size), [11 * 1_048_576, 30 * 1_048_576], "each refused by its declared size");
     } finally {
         await server.close();
     }
