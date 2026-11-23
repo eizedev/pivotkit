@@ -10,6 +10,9 @@ import globals from "globals";
 // `cli` command loads it by name with import(), when it is installed; this rule does not see that.
 const NO_CLI_IN_SERVER = { regex: "^pivotkit-cli(/|$)", message: "shared code goes into pivotkit-node; pivotkit-server does not import its command line" };
 
+// pivotkit-cli's compatibility entries: published names that re-export pivotkit-node
+const COMPAT_ENTRIES = { regex: "^pivotkit-cli/(files|rest)$", message: "pivotkit-cli/files and pivotkit-cli/rest stay for compatibility: import pivotkit-node/files or pivotkit-node/rest" };
+
 export default [
     { ignores: ["**/node_modules/", "**/dist/", "**/coverage/", "packages/*/types/", "test-results/", "playwright-report/", "site/", "docs/playground/"] },
     js.configs.recommended,
@@ -43,6 +46,18 @@ export default [
         // the command line, the REST service, the MCP server and what they share run in Node only
         files: ["packages/pivotkit-node/src/**/*.js", "packages/pivotkit-cli/src/**/*.js", "packages/pivotkit-cli/bin/**/*.js", "packages/pivotkit-server/src/**/*.js", "packages/pivotkit-server/bin/**/*.js", "packages/pivotkit-mcp/src/**/*.js", "packages/pivotkit-mcp/bin/**/*.js"],
         languageOptions: { globals: { ...globals.node } }
+    },
+    {
+        // pivotkit-cli/files and pivotkit-cli/rest stay for their published names only: code here
+        // imports pivotkit-node, where they live. The server and pivotkit-node refuse pivotkit-cli
+        // altogether (below); the test of the published entries imports them on purpose.
+        files: ["**/*.js", "**/*.jsx"],
+        ignores: ["packages/pivotkit-cli/test/inprocess.test.js"],
+        rules: { "no-restricted-imports": ["error", { patterns: [COMPAT_ENTRIES] }] }
+    },
+    {
+        files: ["packages/pivotkit-cli/src/**/*.js", "packages/pivotkit-cli/bin/**/*.js"],
+        rules: { "no-restricted-imports": ["error", { patterns: [COMPAT_ENTRIES, { regex: "^\\./(files|rest-contract)\\.js$", message: "files.js and rest-contract.js only re-export pivotkit-node for published names: import pivotkit-node/files or pivotkit-node/rest" }] }] }
     },
     {
         // the layering: pivotkit-node is shared by the command line and the server and imports neither
