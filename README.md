@@ -8,92 +8,69 @@
 pivotkit is Excel's PivotTable for web applications and the command line. People load their data,
 build a report by dragging fields and take it to Excel. The same report renders again in CI.
 
-Table and Chart are tabs with their own settings, and "+ Add" places a field without dragging. Charts zoom, hide series, stack to 100 % and draw reference lines.
+<a href="https://pivotkit.eize.dev/demo/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/report-dark.png"><img src="docs/assets/screenshots/report-light.png" alt="The pivot report: average temperature of 14 cities by month as a colour scale" width="100%"></picture></a>
 
-| Who you are | What you want | Quickest start |
-| --- | --- | --- |
-| A user | a report from your data, by clicking | Try the [live demo](https://pivotkit.eize.dev/demo/), then build a first report in six steps with the [quick start](https://pivotkit.eize.dev/use/quick-start/). |
-| An operator | the REST service and the MCP server in your environment | Start the container with one `docker run`: [server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/). |
-| A user of a running server | a report with curl, PowerShell or an AI client | [REST service](https://pivotkit.eize.dev/getting-started/rest/) for curl and PowerShell, [MCP server](https://pivotkit.eize.dev/getting-started/mcp/) for an AI client. |
-| A developer | the report in your application, or reports from your code | Pick the package that fits and build a first report with it: [Embed pivotkit](https://pivotkit.eize.dev/embed/). |
+**[Try the live demo](https://pivotkit.eize.dev/demo/)** · [Documentation](https://pivotkit.eize.dev/) · [Comparison](https://pivotkit.eize.dev/compare/) · [Releases](#releases-and-changelogs)
 
-![The pivot report: average temperature of 14 cities by month as a colour scale](docs/assets/screenshots/report-light.png)
+[![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/pivotkit-react?label=pivotkit-react)](https://www.npmjs.com/package/pivotkit-react)
+[![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-<sub>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data ([sources](examples/playground/data/SOURCES.md)).</sub>
+## Start here
 
-[Live demo](https://pivotkit.eize.dev/demo/) · [Documentation](https://pivotkit.eize.dev/) · [Features](https://pivotkit.eize.dev/features/) · [Comparison](https://pivotkit.eize.dev/compare/) · [Security](docs/security.md) · [Security policy](SECURITY.md) · [Releases and changelogs](#releases-and-changelogs)
-
-| | |
-| --- | --- |
-| Build | [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) [![Docs site](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml) |
-| Documentation | [pivotkit.eize.dev](https://pivotkit.eize.dev/). [Use a report](https://pivotkit.eize.dev/use/) is for the people who build reports. [Embed pivotkit](https://pivotkit.eize.dev/embed/) and the API reference are for developers. To try it, open the [live demo](https://pivotkit.eize.dev/demo/). [Learn with real data](https://pivotkit.eize.dev/learn/) walks through weather, countries, earthquakes, Nobel laureates and software end of life. |
-| npm | [![pivotkit-core](https://img.shields.io/npm/v/pivotkit-core?label=pivotkit-core)](https://www.npmjs.com/package/pivotkit-core) [![pivotkit-react](https://img.shields.io/npm/v/pivotkit-react?label=pivotkit-react)](https://www.npmjs.com/package/pivotkit-react) [![pivotkit-element](https://img.shields.io/npm/v/pivotkit-element?label=pivotkit-element)](https://www.npmjs.com/package/pivotkit-element) [![pivotkit-xlsx](https://img.shields.io/npm/v/pivotkit-xlsx?label=pivotkit-xlsx)](https://www.npmjs.com/package/pivotkit-xlsx) [![pivotkit-report](https://img.shields.io/npm/v/pivotkit-report?label=pivotkit-report)](https://www.npmjs.com/package/pivotkit-report) [![pivotkit-cli](https://img.shields.io/npm/v/pivotkit-cli?label=pivotkit-cli)](https://www.npmjs.com/package/pivotkit-cli) [![pivotkit-server](https://img.shields.io/npm/v/pivotkit-server?label=pivotkit-server)](https://www.npmjs.com/package/pivotkit-server) [![pivotkit-mcp](https://img.shields.io/npm/v/pivotkit-mcp?label=pivotkit-mcp)](https://www.npmjs.com/package/pivotkit-mcp) |
-| License | [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE) |
+- **You build reports:** try the [live demo](https://pivotkit.eize.dev/demo/), then the six-step
+  [quick start](https://pivotkit.eize.dev/use/quick-start/).
+- **You run the services:** one `docker run` starts the REST service and the MCP server:
+  [server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/).
+- **You use a running server:** the [REST service](https://pivotkit.eize.dev/getting-started/rest/)
+  from curl or PowerShell, the [MCP server](https://pivotkit.eize.dev/getting-started/mcp/) from an AI client.
+- **You develop:** put the report in your application or make reports from code:
+  [Embed pivotkit](https://pivotkit.eize.dev/embed/).
 
 ## What pivotkit does
 
-- Where the application allows it, people drop their own CSV, JSON or Excel file onto the report.
-  A preview shows a type for each column. Nothing is uploaded.
-  More: [load your own data](https://pivotkit.eize.dev/use/load-data/).
-- Dates say what they cover. The footer gives the data's first and last date. A grouping such as
-  "Month of year" says which years it combines.
-  More: [dates](https://pivotkit.eize.dev/use/values/#dates-and-number-ranges).
-- The [export](https://pivotkit.eize.dev/use/export/) to Excel keeps the layout. The rows behind
-  the report download as CSV or JSON.
-- A view is safe JSON: it cannot run code. Reports also come without a browser.
-  `pivotkit render` makes the same report from the downloaded view and data.
-  `pivotkit describe sales.xlsx --suggest` makes a first view from a file's fields.
-  More: [command line](https://pivotkit.eize.dev/getting-started/cli/).
-- Other programs get reports from a [REST service](https://pivotkit.eize.dev/getting-started/rest/),
-  with an OpenAPI document and a container image. AI clients get them from an
-  [MCP server](https://pivotkit.eize.dev/getting-started/mcp/). It hands the model only what the
-  policy shows. A client that can read files or open links can
-  [reach more](https://pivotkit.eize.dev/model-data/#beyond-policy). One `docker run` starts
-  both, with a token of their own:
-  [server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/).
-- The REST service and the MCP server read live data. They read a file, call an HTTP API or run
-  your own code with the caller's parameters: [sources](https://pivotkit.eize.dev/reference/sources/).
-  A model gets rows only where the policy shows them:
-  [what reaches an AI model](https://pivotkit.eize.dev/model-data/).
-- The services deliver a report in three ways. It comes back in the answer, where the policy
-  allows it. It reaches people as a download link that expires. The link is bound to the person's
-  sign-in where the data is not open. Or it goes to a store you run, as an upload.
-  More: [download links](https://pivotkit.eize.dev/reference/delivery/).
+- Table and Chart are tabs with their own settings. Charts zoom, stack to 100 % and draw reference lines.
+- People drop their own CSV, JSON or Excel file onto the report. pivotkit uploads nothing:
+  [load your own data](https://pivotkit.eize.dev/use/load-data/).
+- The [export](https://pivotkit.eize.dev/use/export/) to Excel keeps the layout. The rows behind the
+  report download as CSV or JSON.
+- A view is safe JSON that cannot run code. The [command line](https://pivotkit.eize.dev/getting-started/cli/)
+  renders the same report from it, also in CI.
+- A [REST service](https://pivotkit.eize.dev/getting-started/rest/) and an
+  [MCP server](https://pivotkit.eize.dev/getting-started/mcp/) make reports from live data. A model
+  gets rows only where the policy shows them: [what reaches an AI model](https://pivotkit.eize.dev/model-data/).
 
-pivotkit is for the people who build reports in an application, and for the developers who put it
-there. It is MIT licensed and comes as:
+Every feature: [feature list](https://pivotkit.eize.dev/features/).
 
-- a React 18/19 component
-- a web component, also in PowerShell Universal apps
-- a JavaScript engine for the browser and Node
-- a command line
-- a REST service and an MCP server
-
-The report in the browser computes on the rows the host passes. It fetches no data. The REST service
-and the MCP server fetch data from the sources you configure. pivotkit sends nothing home.
-[Network requests](https://pivotkit.eize.dev/security/#network) lists every request it can make.
+The report in the browser computes on the rows the host passes and fetches no data. The services fetch
+data from the sources you configure. pivotkit sends nothing home:
+[network requests](https://pivotkit.eize.dev/security/#network). [Security](docs/security.md) ·
+[Security policy](SECURITY.md) · [Measured performance](docs/concepts/limits.md#measured-in-the-browser)
 
 The report runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4:
-[browser support](docs/browser-support.md). The engine, the reports, the CLI, the REST service and
-the MCP server run in Node 24 or later.
-[What works with pivotkit](https://pivotkit.eize.dev/compatibility/) lists the sign-in providers, MCP
-clients, data sources and platforms, and how each one was tested.
-
-[Measured performance](docs/concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml)
+[browser support](docs/browser-support.md). The engine, the command line and the services run in Node 24 or later.
+[What works with pivotkit](https://pivotkit.eize.dev/compatibility/) lists sign-in providers, MCP clients,
+data sources and platforms, and how each was tested.
 
 ## Packages
 
-| Package | What | Install |
-| --- | --- | --- |
-| [pivotkit-core](packages/pivotkit-core/) | The engine in plain JavaScript, with no UI and no framework. | `npm install pivotkit-core` |
-| [pivotkit-react](packages/pivotkit-react/) | The React 18/19 report builder: field list, table and chart, filters, saved and shared views, export. The host provides React and ECharts. | `npm install pivotkit-react react react-dom echarts` |
-| [pivotkit-element](packages/pivotkit-element/) | The report builder as the web component `<pivot-report>`, with its own React. For Angular, PHP and plain HTML. | `npm install pivotkit-element` |
-| [pivotkit-xlsx](packages/pivotkit-xlsx/) | A [plugin](https://pivotkit.eize.dev/reference/plugins/) that reads Excel workbooks in the browser. pivotkit-core reads CSV and JSON itself. | `npm install pivotkit-xlsx` |
-| [pivotkit-report](packages/pivotkit-report/) | [Reports without a browser](https://pivotkit.eize.dev/reference/report/): JSON, CSV, XLSX, an SVG chart or printable HTML. | `npm install pivotkit-report echarts` |
-| [pivotkit-node](packages/pivotkit-node/) | Internal: the file handling, REST contract and network readings that pivotkit-cli and pivotkit-server share. Not for direct use. | comes with pivotkit-cli and pivotkit-server |
-| [pivotkit-cli](packages/pivotkit-cli/) | The [command line](https://pivotkit.eize.dev/reference/cli/) `pivotkit`: render, validate and describe views, also in CI. | `npm install --global pivotkit-cli` |
-| [pivotkit-server](packages/pivotkit-server/) | A [REST service](https://pivotkit.eize.dev/reference/rest/) with sign-in by token or OAuth and policy profiles, over files or an operator's API ([HTTP sources](https://pivotkit.eize.dev/reference/sources/#http)). With pivotkit-mcp beside it, it serves MCP too. The [container image](https://pivotkit.eize.dev/reference/container/) holds both. | `npm install --global pivotkit-server pivotkit-mcp` |
-| [pivotkit-mcp](packages/pivotkit-mcp/) | An [MCP server](https://pivotkit.eize.dev/reference/mcp/): an AI client builds reports and reads only what the policy shows. Over stdio or HTTP. | `npx -y pivotkit-mcp` |
+- [pivotkit-react](packages/pivotkit-react/): the React 18/19 report builder. The host provides React and ECharts.
+  `npm install pivotkit-react react react-dom echarts`
+- [pivotkit-element](packages/pivotkit-element/): the report builder as the web component `<pivot-report>`,
+  for Angular, PHP, plain HTML and PowerShell Universal. `npm install pivotkit-element`
+- [pivotkit-core](packages/pivotkit-core/): the engine in plain JavaScript, without UI. `npm install pivotkit-core`
+- [pivotkit-xlsx](packages/pivotkit-xlsx/): a [plugin](https://pivotkit.eize.dev/reference/plugins/) that
+  reads Excel workbooks in the browser. `npm install pivotkit-xlsx`
+- [pivotkit-report](packages/pivotkit-report/): [reports without a browser](https://pivotkit.eize.dev/reference/report/)
+  as JSON, CSV, XLSX, SVG or HTML. `npm install pivotkit-report echarts`
+- [pivotkit-cli](packages/pivotkit-cli/): the [command line](https://pivotkit.eize.dev/reference/cli/) `pivotkit`.
+  `npm install --global pivotkit-cli`
+- [pivotkit-server](packages/pivotkit-server/): the [REST service](https://pivotkit.eize.dev/reference/rest/),
+  also as a [container image](https://pivotkit.eize.dev/reference/container/). `npm install --global pivotkit-server pivotkit-mcp`
+- [pivotkit-mcp](packages/pivotkit-mcp/): the [MCP server](https://pivotkit.eize.dev/reference/mcp/),
+  over stdio or HTTP. `npx -y pivotkit-mcp`
+
+[pivotkit-node](packages/pivotkit-node/) is internal: the command line and the server share it.
 
 ## Example
 
@@ -106,34 +83,7 @@ import "pivotkit-react/styles.css";
 <PivotReport data={rows} defaultView={{ rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] }} onViewChange={save} />
 ```
 
-The same as a web component, on a page without React. Try it on the
-[example page](https://pivotkit.eize.dev/playground/examples/element/):
-
-```html
-<script type="module" src="/assets/pivotkit-element/dist/index.js"></script>
-<pivot-report locale="de-DE" default-view='{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]}'></pivot-report>
-<script type="module">
-    const report = document.querySelector("pivot-report");
-    report.data = rows;
-    report.addEventListener("pivot-view-change", (e) => save(e.detail.view));
-</script>
-```
-
-The engine without UI:
-
-```js
-import { encode, computePivot, toGrid } from "pivotkit-core";
-import { toXlsx } from "pivotkit-core/export";
-
-const data = encode(rows);                       // an array of objects
-const result = computePivot(data, {
-    rows: ["Region"],
-    cols: ["Product"],
-    values: [{ field: "Sales", agg: "sum", format: "currency:EUR" }]
-});
-const grid = toGrid(result);                     // cells with merges, totals and formatted text
-const xlsx = toXlsx(grid);                       // Uint8Array
-```
+The web component and the engine without UI: [Embed pivotkit](https://pivotkit.eize.dev/embed/).
 
 The command line, on example files it writes itself:
 
@@ -152,23 +102,7 @@ docker run -d --name pivotkit -p 127.0.0.1:3333:3333 -v pivotkit:/var/lib/pivotk
 curl -H "Authorization: Bearer $(docker exec pivotkit pivotkit-server token show admin)" http://127.0.0.1:3333/api/v1/sources
 ```
 
-The view passed to `computePivot` is plain JSON. The same object is the saved template, the undo
-step and what the UI edits. pivotkit treats it as user input: it cannot run code, and the limits in
-`LIMITS` keep its memory use bounded.
-
-The [documentation site](https://pivotkit.eize.dev/) has the details for users and developers:
-
-- the [engine's API](https://pivotkit.eize.dev/reference/core/)
-- the [view](https://pivotkit.eize.dev/concepts/views/) and its
-  [limits](https://pivotkit.eize.dev/concepts/limits/)
-- the [component's props](https://pivotkit.eize.dev/reference/react/)
-- the [element's properties and events](https://pivotkit.eize.dev/reference/element/)
-- [theming](https://pivotkit.eize.dev/reference/theming/)
-- [security](https://pivotkit.eize.dev/security/)
-- the [feature list](https://pivotkit.eize.dev/features/): every feature at a glance, with links to
-  the details
-
-The package READMEs are short npm pages that link there.
+The package READMEs are short npm pages that link to the [documentation](https://pivotkit.eize.dev/).
 
 ## Development
 
@@ -207,5 +141,7 @@ The icon, header and social preview in `assets/` and `docs/assets/icon.svg` come
 [eizedev/brand](https://github.com/eizedev/brand). Their licence is
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
+The screenshot shows weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).
+It contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data.
 The playground's real data sets keep the licences of their sources.
 [examples/playground/data/SOURCES.md](examples/playground/data/SOURCES.md) lists them.
