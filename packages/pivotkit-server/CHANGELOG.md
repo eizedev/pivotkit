@@ -6,6 +6,15 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- With two or more `files.allowDirs` and `files.list`, list_sources named the files of the second and
+  later directories by their absolute path, so every caller with the files scope saw the server's
+  directory layout. Every file is listed by its name now; a name an earlier directory has comes once.
+- A source whose policy hides row counts (`rows: false`) gives no `noRowsKept` finding: it told whether
+  the source has rows.
+- A file source that does not say `hardLinks` refuses hard links, as `files.hardLinks` defaults to.
+
 ### Security
 
 - **Breaking:** the server writes new reports with mode 0600, so only its own user reads them. Before,

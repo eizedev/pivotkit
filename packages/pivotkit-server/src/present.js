@@ -389,10 +389,12 @@ async function runOver(context, name, input, caller, how) {
  * @param {any[]} findings
  * @param {any} result  render_view's result
  * @param {boolean} closed
+ * @param {any} [policy]  the caller's policy: with `rows: false` the finding stays out too
  */
-function withEmptyFilter(findings, result, closed) {
+function withEmptyFilter(findings, result, closed, policy) {
     const s = result.summary;
-    if (closed || !s || !(s.sourceRows > 0) || s.keptRows !== 0 || findings.some((f) => f.severity === "error")) {
+    // the operator hides row counts (policy.rows false): "the source has rows" would tell one
+    if (closed || policy?.rows === false || !s || !(s.sourceRows > 0) || s.keptRows !== 0 || findings.some((f) => f.severity === "error")) {
         return findings;
     }
     return [...findings, { severity: "warning", code: "noRowsKept", path: "", message: "the filters keep none of the source's rows: check their items against the values the source describes" }];
@@ -525,7 +527,7 @@ const STEPS = {
         const { result, file, inline } = ran.outcome;
         const asOf = asOfMembers(ran);
         const closed = touchesClosed(policy, result.uses);
-        const findings = withEmptyFilter(exposeFindings(result.findings, policy, result.uses), result, closed);
+        const findings = withEmptyFilter(exposeFindings(result.findings, policy, result.uses), result, closed, policy);
         /** @type {Record<string, unknown>} */
         const out = { ok: result.ok, findings, uses: result.uses, ...(result.view ? { view: result.view } : {}), format: result.format, mediaType: result.mediaType, ...asOf };
         if (closed) {
@@ -644,6 +646,6 @@ export async function renderFile(context, input, caller, how = {}) {
     const ran = await compute(context, "render_view", renderInput(input, format), resolved, caller, { signal: how.signal, surface: "rest" });
     const { result, file } = ran.outcome;
     const policy = ran.policy;
-    const findings = withEmptyFilter(exposeFindings(result.findings, policy, result.uses), result, touchesClosed(policy, result.uses));
+    const findings = withEmptyFilter(exposeFindings(result.findings, policy, result.uses), result, touchesClosed(policy, result.uses), policy);
     return { result: { ok: result.ok, findings, uses: result.uses, format: result.format, mediaType: result.mediaType, ...asOfMembers(ran) }, file: file ?? null };
 }

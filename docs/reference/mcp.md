@@ -354,7 +354,7 @@ one probably meant.
 | `sources.<id>.perPerson` | - | false | A code source whose data differs per caller. Its reports get only links the person who asked can open ([code sources](sources.md#code-options)) |
 | `httpSources.enabled`, `.allowIpLiterals`, `.backends` | - | true, false, none | HTTP sources on or off, an IP address as a host, backends many sources share (with `intranet` for loopback and private addresses) ([HTTP sources](sources.md#http-options)) |
 | `files.allowDirs` | `--allow-dir dir` | none | Directories the model may name files in (`file:`) |
-| `files.list` | `--list-files` | false | list_sources lists the data files of the allowed directories (not their subdirectories) |
+| `files.list` | `--list-files` | false | list_sources lists the data files of the allowed directories (not their subdirectories) by name, never by path; a name an earlier directory has is listed once |
 | `files.hardLinks` | - | false | Read files that have a second name |
 | `files.scopes`, `files.policy` | - | none, the server's | Scopes and policy of `file:` sources |
 | `output.dir` | `--output dir` | none | Where reports and drafts are written. Made at start when missing, with its parents and mode 0700, since reports may hold what a model may not see. With `output.baseUrl` set, the mode is 0755 narrowed by the umask, so the web server can read it. The start logs a warning. With `output.create: false`, a missing directory is an error |

@@ -15,6 +15,7 @@ import { POLICY_LEVELS } from "./policy.js";
 import { STATS_DISTINCT } from "./stats.js";
 import { expiryOf } from "./signed-tokens.js";
 import { FRAGMENTS, composeSlots } from "./options/index.js";
+import { SERVER_LIMITS } from "./server-limits.js";
 import { PAGE } from "./options/branding.js";
 import { CREATE_NEEDS_FILE, ConfigError, configErrorOf } from "./options/shared.js";
 import { linkParamsProblem } from "./link-params.js";
@@ -139,8 +140,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {boolean} [offerSourceScopes]  offer the sources' scopes in the OAuth metadata (default false)
  */
 
-/** The import limits a server uses unless the operator sets them: lower than a command line's. */
-export const SERVER_LIMITS = Object.freeze({ fileBytes: 52_428_800, unpackedBytes: 52_428_800 });
+export { SERVER_LIMITS };
 
 /**
  * The limits a server's sources are read with: SERVER_LIMITS under the operator's `limits` (the

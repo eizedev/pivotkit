@@ -18,7 +18,7 @@
             "docs/security.md": [908],
             "docs/use/charts.md": [481]
         },
-        "totalLines": 23994
+        "totalLines": 23999
     },
     "functions": {
         "complexity": {
@@ -158,7 +158,7 @@
             "packages/pivotkit-server/src/listen.js Async arrow function": [126],
             "packages/pivotkit-server/src/listen.js Async function 'serveFetch'": [217],
             "packages/pivotkit-server/src/openapi-source.js Function 'parametersOf'": [145],
-            "packages/pivotkit-server/src/registry.js Async function 'createRegistry'": [170],
+            "packages/pivotkit-server/src/registry.js Async function 'createRegistry'": [164],
             "packages/pivotkit-server/src/signed-tokens.js Function 'signedStore'": [154],
             "packages/pivotkit-server/src/sources/fetch.js Async function 'guarded'": [179],
             "packages/pivotkit-server/src/sources/fetch.js Function 'createGuardedFetch'": [184],
