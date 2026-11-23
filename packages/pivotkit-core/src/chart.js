@@ -351,7 +351,7 @@ export function toEChartsOption(result, options) {
     const points = markPoints(extremePoints(result, { chart, series: s, locale: options.locale }), s, { type, horizontal: Boolean(chart.horizontal), theme, colorOf, raised: showValues && !stacked, hidden: Array.isArray(chart.hidden) ? chart.hidden : [] });
     // the value axis reaches every line: a target past the tallest bar is drawn, not cut off.
     // dataMin and dataMax are ECharts' own (ECharts 6, scaleRawExtentInfo: they widen the data's
-    // extent before the nice ticks), little documented: tests/browser/chart-lines.spec.js checks that a
+    // extent before the nice ticks), little documented: tests/browser/chart/reference-lines.spec.js checks that a
     // target above every bar is inside the plot, so an ECharts update that drops them fails there
     if (marks.extent) {
         valueAxis.dataMin = marks.extent[0];

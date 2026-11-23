@@ -1,8 +1,8 @@
 // A click on a bar, slice or cell of the chart opens a small menu at it (#53): "Show the rows" first,
 // then "Only …" and "Without …" for its category and its series. A filter is one step: the chip shows
 // it and Undo takes it back. A double click opens the rows at once. The keys work in the menu.
-import { test, expect } from "./fixtures.js";
-import { HARDWARE, NORTH, SOFTWARE, barMiddle, cellMiddle, mount, pointOf, sliceMiddle } from "./chart-report.js";
+import { test, expect } from "../fixtures.js";
+import { HARDWARE, NORTH, SOFTWARE, barMiddle, cellMiddle, mount, pointOf, sliceMiddle } from "./report.js";
 
 const menu = (page) => page.getByRole("menu");
 const lastView = (page) => page.evaluate(() => window.__tooltipViews.at(-1));

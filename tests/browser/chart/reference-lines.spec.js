@@ -1,7 +1,7 @@
 // A chart's reference lines (#48): an average and a trend per series, a target, drawn on bars, lines and
 // areas (ECharts' markLine), named in the tooltip and the text alternative, set in Display -> Reference
 // lines. And the high and low points (#574, ECharts' markPoint), set in the same level. Real pointer input; the positions come from the chart's own layout (convertToPixel).
-import { test, expect } from "./fixtures.js";
+import { test, expect } from "../fixtures.js";
 
 /**
  * Revenue per month and product. A climbs by 10 a month (10, 20, 30, 40: average 25, trend 10 to 40),
