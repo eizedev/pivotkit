@@ -480,6 +480,26 @@ test("every operation that takes a source works over inline data: a draft, a lay
     }
 });
 
+test("an operator's lower limits.columns holds for a table sent with a request, on MCP and REST, also without rows", async () => {
+    const narrow = { columns: ["a", "b", "c"], rows: [], rowCount: 0 };
+    const context = await contextOf({ limits: { columns: 2 } });
+    try {
+        const error = await errorOf(present(context, "describe_source", { source: "inline:", data: narrow }, LOCAL));
+        assert.equal(error.code, "LIMIT_EXCEEDED");
+        assert.equal(error.message, "you sent 3 columns: more than the server reads (limits.columns 2)");
+    } finally {
+        await context.close();
+    }
+    const server = await restServer(restOptions(workspace(), { limits: { columns: 2 } }), restEnv);
+    try {
+        const answer = await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: narrow } });
+        assert.equal(answer.data.code, "LIMIT_EXCEEDED", JSON.stringify(answer.data));
+        assert.equal((await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: tableOf(3, 2) } })).data.rows, 3);
+    } finally {
+        await server.close();
+    }
+});
+
 test("REST multipart on the other routes; hostile files: garbage, a sheet that is not there, over the file limit", async () => {
     const server = await restServer(restOptions(workspace(), { limits: { fileBytes: 20_000 } }), restEnv);
     const csv = "Region,Sales\nNorth,10\nSouth,20\nNorth,5\nSouth,7\n";

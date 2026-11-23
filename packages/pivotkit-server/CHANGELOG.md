@@ -17,6 +17,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - A static token's file rewritten after the start with a character no bearer token holds (such as a
   space) counts as unusable and is said on the log, as at the start. Before, only its length and how
   guessable it was counted.
+- A table sent with a request (`inline:`) counts its columns against `limits.columns`. Before, only
+  rows and cells counted, so an operator's lower `limits.columns` did not hold for it; the input
+  schema's 1,000 columns did.
 
 ### Security
 

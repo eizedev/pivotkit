@@ -408,8 +408,8 @@ A caller without `data: true` that sends `inline:` gets 403 `NOT_ALLOWED`:
 
 As JSON, the table goes into `data`:
 
-- `columns`, the column names
-- `rows`, the rows as lists in the columns' order
+- `columns`, the column names, at most 1000 and at most `limits.columns`
+- `rows`, the rows as lists in the columns' order, at most `limits.rows` and `limits.importCells` cells
 - `rowCount`, the number of rows of the whole table
 
 `rowCount` must match the rows sent, else the answer is 422 `DATA_MISMATCH`. This way the server

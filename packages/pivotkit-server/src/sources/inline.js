@@ -106,8 +106,9 @@ export const capText = (cap) => `${cap.rows} rows / ${cap.cells} cells / ${bytes
 
 /**
  * The checks of a table sent as JSON that need no cell's value, so a large table is refused before
- * anything goes through its cells: rows and cells against the server's import limits and, on MCP,
- * the cap. Throws OperationError.
+ * anything goes through its cells: columns, rows and cells against the server's import limits and,
+ * on MCP, the cap. The columns count on their own: a table of no rows has no cells, but encode()
+ * still makes every column. Throws OperationError.
  * @param {any} data
  * @param {{ limits?: Partial<import("pivotkit-core").Limits>, cap?: false | { rows: number, cells: number, bytes: number } }} [how]
  */
@@ -122,6 +123,9 @@ export function checkTableSize(data, how = {}) {
         throw new OperationError("LIMIT_EXCEEDED", `you sent ${rows} rows (${cells} cells): the limit is ${capText(cap)}; send fewer, or ask the operator to configure a source for this data`);
     }
     const limits = { ...LIMITS, ...(how.limits ?? {}) };
+    if (data.columns.length > limits.columns) {
+        throw new OperationError("LIMIT_EXCEEDED", `you sent ${data.columns.length} columns: more than the server reads (limits.columns ${limits.columns})`);
+    }
     if (rows > limits.rows || cells > limits.importCells) {
         throw new OperationError("LIMIT_EXCEEDED", `you sent ${rows} rows (${cells} cells): more than the server reads (limits.rows ${limits.rows}, limits.importCells ${limits.importCells})`);
     }
