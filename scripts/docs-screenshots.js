@@ -18,19 +18,12 @@
 //      writes a decimal point (en_US): Excel formats numbers by its region (AppleLocale).
 //   3. Capture Excel's window only (screencapture -o -l <window id>) and crop it to cells A1:N16.
 import { chromium } from "@playwright/test";
-import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
-import { toViewFile } from "pivotkit-core";
-import { encodeViewLink as encodeLink } from "pivotkit-core/link";
 import { fileURLToPath } from "node:url";
+import { toViewFile } from "pivotkit-core";
+import { encodeViewLink, hideToasts, openPlayground, openZones, startPlayground } from "./docs-playground.js";
 
-/** A view as the playground's links carry it: the link profile of a view file. */
-const encodeViewLink = (view) => encodeLink(toViewFile(view, {}, { link: true }));
-
-const root = new URL("../", import.meta.url);
-const out = fileURLToPath(new URL("docs/assets/screenshots/", root));
-const port = Number(process.env.PLAYGROUND_PORT ?? 4174);
-const base = `http://127.0.0.1:${port}/`;
+const out = fileURLToPath(new URL("../docs/assets/screenshots/", import.meta.url));
 
 const WIDE = { width: 1440, height: 900 };
 const THEMES = ["light", "dark"];
@@ -149,14 +142,7 @@ const QUICK_STEPS = [
 /** Clicks the first `count` steps of the quick start; status notes the clicks leave are hidden. */
 async function quick(page, count) {
     for (const step of QUICK_STEPS.slice(0, count)) await step(page);
-    await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
-}
-
-/** Opens the zones when the report folded them (a note above the result can leave them no room). */
-async function openZones(page) {
-    const fold = page.getByTestId("layout-summary");
-    await fold.waitFor();
-    if ((await fold.getAttribute("aria-expanded")) === "false") await fold.click();
+    await hideToasts(page);
 }
 
 /** Clicks a toolbar button, or its entry in "More" when the report is too narrow for it. */
@@ -274,7 +260,7 @@ const SHOTS = [
             await page.getByTestId("field-menu-Month").click();
             await page.getByRole("menuitem", { name: "Add to Rows" }).click();
             await page.locator('.pk-field[data-field="Revenue"] .pk-field-name').click();
-            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await hideToasts(page);
             await page.locator('[data-zone="rows"] .pk-chip-label').click();
             await page.getByTestId("topic-group").click();
         }
@@ -345,7 +331,7 @@ const SHOTS = [
         size: PHONE,
         chart: true,
         open: async (page) => {
-            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await hideToasts(page);
             await page.getByTestId("pivot-chart").evaluate((el) => el.scrollIntoView({ block: "end" }));
         }
     },
@@ -359,7 +345,7 @@ const SHOTS = [
         size: WIDE,
         chart: true,
         open: async (page) => {
-            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await hideToasts(page);
         }
     },
     {
@@ -370,7 +356,7 @@ const SHOTS = [
         size: WIDE,
         chart: true,
         open: async (page) => {
-            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await hideToasts(page);
             await page.getByTestId("view-settings").click();
             await page.getByTestId("topic-lines").click();
         }
@@ -383,7 +369,7 @@ const SHOTS = [
         size: WIDE,
         chart: true,
         open: async (page) => {
-            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await hideToasts(page);
             const chart = page.getByTestId("pivot-chart");
             const box = await chart.boundingBox();
             // along a line through the middle of the bars until the pointer is on a segment: the
@@ -423,7 +409,7 @@ const SHOTS = [
             await page.getByTestId("saved-view-name").press("Enter");
             await page.locator(".pk-toast").first().waitFor();
             // a save closes the menu: open it again, with the saved view marked as the one loaded
-            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await hideToasts(page);
             await toolbar(page, "views");
         }
     },
@@ -436,7 +422,7 @@ const SHOTS = [
             await toolbar(page, "views");
             await page.getByTestId("saved-view-Median lead time by month").click();
             await page.getByTestId("show-chart").click();
-            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await hideToasts(page);
         }
     },
     {
@@ -451,7 +437,7 @@ const SHOTS = [
             await page.getByTestId("saved-view-name").press("Enter");
             await page.locator(".pk-toast").first().waitFor();
             await page.getByTestId("show-chart").click();
-            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await hideToasts(page);
             await toolbar(page, "views");
         }
     },
@@ -632,7 +618,7 @@ const SHOTS = [
         size: WIDE,
         chart: true,
         open: async (page) => {
-            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await hideToasts(page);
         }
     },
     {
@@ -650,7 +636,7 @@ const SHOTS = [
         size: WIDE,
         chart: true,
         open: async (page) => {
-            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await hideToasts(page);
         }
     },
     {
@@ -715,7 +701,7 @@ const SHOTS = [
         size: WIDE,
         open: async (page) => {
             await page.getByTestId("unused-item").first().locator("strong").waitFor();
-            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await hideToasts(page);
         }
     },
     { name: "german", query: "data=sales&lang=de", size: WIDE },
@@ -736,7 +722,7 @@ const SHOTS = [
                 await page.getByTestId(`field-menu-${field}`).click();
                 await page.getByRole("menuitem", { name: zone }).click();
             }
-            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await hideToasts(page);
         }
     },
     { name: "import-empty", query: "data=sales&empty&import", size: WIDE },
@@ -765,7 +751,7 @@ const SHOTS = [
         hash: COLUMN_SUBTOTALS,
         size: WIDE,
         // the note that the view came from the link would cover the last column
-        open: (page) => page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" })
+        open: (page) => hideToasts(page)
     },
     // "Learn with real data": one template of each real data set
     { name: "learn-weather", query: "data=weather&preset=0", size: WIDE },
@@ -826,7 +812,7 @@ async function reportShots(browser, only) {
     }
 }
 
-const server = spawn(process.execPath, [fileURLToPath(new URL("examples/playground/serve.js", root)), String(port)], { stdio: "ignore" });
+const playground = startPlayground(4174);
 try {
     await mkdir(out, { recursive: true });
     const browser = await chromium.launch();
@@ -834,25 +820,7 @@ try {
     for (const shot of SHOTS.filter((s) => !only || only.includes(s.name))) {
         for (const theme of THEMES) {
             const page = await browser.newPage({ viewport: shot.size, deviceScaleFactor: 1, reducedMotion: "reduce", colorScheme: theme });
-            // the report as a host gets it by default: without the Data button (allowImport), which the
-            // playground shows unless ?import=off, except in the shots of loading data
-            const query = /(^|&)import(=|&|$)/.test(shot.query) ? shot.query : `${shot.query}&import=off`;
-            const url = `${base}?${query}&theme=${theme}${shot.hash ? `#pivot-playground=${shot.hash}` : ""}`;
-            // the server needs a moment on the first request
-            for (let i = 0; ; i++) {
-                try {
-                    await page.goto(url);
-                    break;
-                } catch (error) {
-                    if (i > 20) throw error;
-                    await page.waitForTimeout(250);
-                }
-            }
-            await page.locator(".pk-root").waitFor();
-            // a real data set loads first: the skeleton goes when the report has its data
-            await page.getByTestId("skeleton").waitFor({ state: "detached" });
-            // the playground's footer shows timings that differ on every run
-            await page.addStyleTag({ content: ".pg-foot { visibility: hidden; }" });
+            await openPlayground(page, playground.base, { query: shot.query, hash: shot.hash, theme });
             if (shot.chart) await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
             if (shot.open) await shot.open(page);
             // fonts, the chart's first frame, the popover's position
@@ -866,5 +834,5 @@ try {
     await reportShots(browser, only);
     await browser.close();
 } finally {
-    server.kill();
+    playground.stop();
 }
