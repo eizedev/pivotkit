@@ -13,6 +13,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- The buttons beside the tabs Table and Chart were cut off at the report's right edge, on phones and
+  on reports whose field list takes room beside the result. When their whole names have no room,
+  they now show their short form, as on a phone. When even that has no room, they move to a line
+  above the tabs ([#706](https://github.com/eizedev/pivotkit/issues/706)).
 - **Only** beside a value in a field's filter is reached with Tab and shows while its row has the
   focus. A touch screen always shows it. Before, a tap at the end of a row hit the hidden button and
   kept only that value.

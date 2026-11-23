@@ -110,12 +110,12 @@ like this:
 | `values` | category fields | It sees their values as a complete list. So it filters on the exact name of a channel or a team, but gets no result over them. |
 | `hide` | fields the model must not know about | Nothing. The server drops them when it reads the data. |
 
-`"policy": { "autoValues": true }` gives `values` to text fields that look like categories by
-itself. [The rule](../reference/mcp.md#auto-values) says which ones. `--check-config` lists them.
+- `"policy": { "autoValues": true }` gives `values` to text fields that look like categories ([rule](../reference/mcp.md#auto-values)).
+- The levels do not cover [data the model sends itself](../reference/mcp.md#data) (`inline:`, up to
+  500 rows). `"mcp": { "data": false }` switches it off.
 
-Give each source a `description`. Explain short or coded field names in
-`fields.<name>.description`. A model chooses and reads sources by these words. See
-[configuration](../reference/mcp.md#configuration). In a configuration file:
+Give each source a `description`, and explain short or coded field names in
+`fields.<name>.description`: a model chooses and reads sources by these words. In a configuration file:
 
 ```json
 {
