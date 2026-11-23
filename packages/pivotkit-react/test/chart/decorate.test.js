@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, toEChartsOption } from "pivotkit-core";
 import { BOTTOM_LEGEND_ROOM, pieLabelRoom } from "pivotkit-core/chart";
-import { decorate, screenColor } from "../src/chart-decorate.js";
+import { decorate, screenColor } from "../../src/chart-decorate.js";
 
 test("a donut on a phone: a right legend moves to the bottom, numbers that do not fit the ring go outside", () => {
     const rows = ["Central", "East", "North", "South", "West"].map((R, i) => ({ R, V: [32, 11, 17, 18, 22][i] }));

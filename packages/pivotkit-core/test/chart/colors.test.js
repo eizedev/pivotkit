@@ -2,7 +2,7 @@
 // and a host's colorMap in the ECharts option (the screen, the SVG and the printed report draw it).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CATALOG, computePivot, emptyView, encode, normalize, validate } from "../src/index.js";
+import { CATALOG, computePivot, emptyView, encode, normalize, validate } from "../../src/index.js";
 import { decorateOption, toEChartsOption } from "pivotkit-core/chart";
 
 const NO_TOKENS = { getPropertyValue: () => "" };
@@ -71,7 +71,7 @@ test("the tooltip's share: a formatter of the locale's percent on every chart bu
 });
 
 test("a host's colour: hex of 3, 4, 6 or 8 digits, rgb(), hsl() or a colour name; others are left out (#54 review)", async () => {
-    const { PLAIN_COLOR } = await import("../src/chart-colors.js");
+    const { PLAIN_COLOR } = await import("../../src/chart-colors.js");
     for (const ok of ["#abc", "#abcd", "#aabbcc", "#aabbccdd", "rgb(1, 2, 3)", "hsla(10, 20%, 30%, 0.5)", "rebeccapurple"]) assert.ok(PLAIN_COLOR.test(ok), ok);
     for (const bad of ["#abcde", "#aabbccd", "#ab", "url(#x)", "red; x", "expression(1)"]) assert.ok(!PLAIN_COLOR.test(bad), bad);
     // where the runtime knows CSS, a name must be a colour it reads
@@ -87,7 +87,7 @@ test("a host's colour: hex of 3, 4, 6 or 8 digits, rgb(), hsl() or a colour name
 });
 
 test("a view file leaves out colors and tooltipShare at their defaults and keeps them when set; reading puts them back", async () => {
-    const { toViewFile, fromViewFile } = await import("../src/index.js");
+    const { toViewFile, fromViewFile } = await import("../../src/index.js");
     const plain = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }] });
     const file = toViewFile(plain, { name: "Revenue" });
     assert.equal("colors" in file.view.chart, false);

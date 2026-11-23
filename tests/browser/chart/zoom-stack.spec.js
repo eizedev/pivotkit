@@ -1,7 +1,7 @@
 // The chart's zoom slider, legend toggle and 100 % stacks (#36), with real pointer input. The positions
 // come from the chart's own layout (getItemLayout, the legend's and the slider's elements), not from
 // fixed fractions.
-import { test, expect } from "./fixtures.js";
+import { test, expect } from "../fixtures.js";
 
 /** Revenue per region and category. North adds up to 60 (20 + 10 + 30). */
 const ROWS = [
