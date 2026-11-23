@@ -60,7 +60,7 @@
     "test": "node build.js && node --test \"test/*.test.js\"",
     "types": "tsc -p . && node types.js",
     "test:types": "tsc -p test/types",
-    "prepack": "node build.js && npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\"",
+    "prepack": "node build.js && npm run types -w pivotkit-core -w pivotkit-react && npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\"",
     "coverage": "node build.js && node --test --experimental-test-coverage --test-coverage-include=\"src/**/*.js\" \"test/*.test.js\""
   },
   "devDependencies": {

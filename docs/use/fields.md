@@ -53,7 +53,7 @@ All four give the same result. Details:
       [field settings](../concepts/fields.md#identifier-fields).
 - **Add to Filters** opens the field's filter first. **Apply** puts the field into Filters with what
   you chose. **Cancel** places nothing. See
-  [Filters](filters.md#add-a-field-to-filters-from-the-field-list).
+  [Filters](filters.md#where-a-filter-works).
 - **+ Add** works on a phone too, where the field list is a drawer. Its menu:
     - is titled for its zone, for example **Add to Rows**
     - finds a field as the field list's search does

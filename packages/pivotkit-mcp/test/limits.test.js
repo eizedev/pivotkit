@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { request as httpRequest } from "node:http";
 import { httpServer, workspace } from "./helpers.js";
+import { until } from "../../../tests/until.js";
 
 /** A raw request, its status, headers and body. */
 function raw(url, { method = "GET", headers = {}, body } = {}) {
@@ -80,10 +81,11 @@ test("mcp.concurrency: a finished request gives its slot back, also when the ans
 /** A code source whose load waits until `release()`: a call over it holds its caller's slot. */
 function slowSource() {
     let release;
+    let loads = 0;
     const gate = new Promise((resolve) => {
         release = resolve;
     });
-    return { source: { load: async () => (await gate, [{ Region: "North", Sales: 1 }]) }, release: () => release() };
+    return { source: { load: async () => (loads++, await gate, [{ Region: "North", Sales: 1 }]) }, release: () => release(), loads: () => loads };
 }
 
 const DESCRIBE = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "describe_source", arguments: { source: "slow" } } });
@@ -108,7 +110,8 @@ for (const accept of ["application/json, text/event-stream", "text/event-stream,
         const server = await httpServer({ sources: { slow: slow.source }, ...TOKENS, mcp: { concurrency: 1, rateLimit: { perMinute: 600, burst: 50 } } }, ENV);
         try {
             const running = raw(server.url, { method: "POST", headers: { ...as(TOKEN), accept }, body: DESCRIBE });
-            await new Promise((r) => setTimeout(r, 200));
+            // the call runs: its load has started and holds the slot
+            await until(() => slow.loads() > 0);
             const second = await raw(server.url, { method: "POST", headers: as(TOKEN), body: LIST });
             assert.equal(second.status, 429, second.body);
             assert.match(JSON.parse(second.body).error.message, /too many requests at once/);

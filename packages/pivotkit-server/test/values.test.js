@@ -13,6 +13,7 @@ import { ConfigError, checkConfig, validateOptions } from "pivotkit-server";
 import { LOOKS_LIKE, sourceStats } from "../src/stats.js";
 import { OTHER_TOKEN, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
+import { until } from "../../../tests/until.js";
 
 /**
  * Tickets of a made-up help desk, `n` rows: Status (3 values) and Team (12) qualify for the
@@ -335,9 +336,7 @@ test("a reload that changes the data changes the level, and the log says so; the
     try {
         const level = async () => (await call(`${server.api}/sources/tickets`)).data.fields.find((f) => f.name === "Status").level;
         assert.equal(await level(), "values");
-        for (let i = 0; i < 100 && !server.log.some((l) => /the automatic rule puts 2 fields of 1 source at values/.test(l.message ?? "")); i++) {
-            await new Promise((resolve) => setTimeout(resolve, 50));
-        }
+        await until(() => server.log.some((l) => /the automatic rule puts 2 fields of 1 source at values/.test(l.message ?? "")), { tries: 100, every: 50 });
         assert.ok(server.log.some((l) => /the automatic rule puts 2 fields of 1 source at values.*policy.autoValues false turns it off/.test(l.message ?? "")), JSON.stringify(server.log));
         // Status gets 20 distinct values: over 12
         writeFileSync(join(dir, "data", "tickets.csv"), tickets().replace(/^(Open|Closed|Waiting),/gm, (_m, s, offset) => `${s}${offset % 20},`));

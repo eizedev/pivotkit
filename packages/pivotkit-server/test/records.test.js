@@ -19,6 +19,7 @@ import { answeredType, columnPieces } from "../src/records-writer.js";
 import { recordsBoundsOf } from "../src/options/records.js";
 import { BIN, call, factsOf, restServer, TOKEN, untilReady, workspace } from "./helpers.js";
 import { localIssuer } from "./auth/local-issuer.js";
+import { until } from "../../../tests/until.js";
 
 /** Orders with one field per level: Region, Sales and OrderDate show, Product values, Team summary, Customer hide. */
 const CSV = ["Region,Product,Team,Customer,Sales,OrderDate", "North,VALUESMARKA,SUMMARYMARKA,HIDDENMARKA,10,2025-11-05", "South,VALUESMARKB,SUMMARYMARKB,HIDDENMARKB,20.5,2026-09-01", "North,VALUESMARKA,SUMMARYMARKC,HIDDENMARKC,5,2026-10-01", "West,VALUESMARKB,SUMMARYMARKA,HIDDENMARKD,7,2026-10-20", ",VALUESMARKA,SUMMARYMARKB,HIDDENMARKE,,2024-12-31"].join("\n") + "\n";
@@ -424,9 +425,7 @@ test("503 BUSY with Retry-After beyond the server's cap", async () => {
     const { server, person } = await serverOf({ sources: { slow: { load: slow.load, policy: { default: "show" } } }, profiles: { staff: { ...PROFILES.staff, records: ["sales", "slow"] } }, rest: { records: { concurrency: 1 } } });
     try {
         const first = rows(server, await person({ sub: "ana" }), { source: "slow" });
-        while (slow.started() === 0) {
-            await new Promise((r) => setTimeout(r, 10));
-        }
+        await until(() => slow.started() > 0);
         const second = await rows(server, await person({ sub: "ben" }), { source: "sales" });
         assert.equal(second.status, 503, second.text);
         assert.equal(second.data.code, "BUSY");
@@ -445,9 +444,7 @@ test("503 BUSY with Retry-After for a second request of the same person", async 
     const { server, person } = await serverOf({ sources: { slow: { load: slow.load, policy: { default: "show" } } }, profiles: { staff: { ...PROFILES.staff, records: ["sales", "slow"] } }, rest: { records: { concurrency: 4 } } });
     try {
         const first = rows(server, await person({ sub: "ana" }), { source: "slow" });
-        while (slow.started() === 0) {
-            await new Promise((r) => setTimeout(r, 10));
-        }
+        await until(() => slow.started() > 0);
         const again = await rows(server, await person({ sub: "ana" }), { source: "sales" });
         assert.equal(again.status, 503, again.text);
         assert.ok(Number(again.headers.get("retry-after")) >= 1);
@@ -776,7 +773,7 @@ test("the log line of a rows request: source, counts, profile and the person as 
     const { server, person } = await serverOf({ top: { audit: { subject: "plain" } } });
     try {
         assert.equal((await rows(server, await person({ sub: "ana@example.com" }), { source: "sales" })).status, 200);
-        const line = await waitFor(() => server.log.find((l) => l.event === "records"));
+        const line = await until(() => server.log.find((l) => l.event === "records"));
         assert.equal(line.source, "sales");
         assert.equal(line.rows, 5);
         assert.equal(line.columns, 3);
@@ -791,18 +788,6 @@ test("the log line of a rows request: source, counts, profile and the person as 
         await server.close();
     }
 });
-
-/** What `find` gives once it gives something (a line written when the answer's body ended). */
-async function waitFor(find) {
-    for (let i = 0; i < 100; i++) {
-        const found = find();
-        if (found) {
-            return found;
-        }
-        await new Promise((r) => setTimeout(r, 20));
-    }
-    throw new Error("never came");
-}
 
 // ---------------------------------------------------------------------------------------------
 // check-config
