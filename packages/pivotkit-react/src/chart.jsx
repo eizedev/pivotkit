@@ -12,10 +12,11 @@ import { fieldLabel } from "pivotkit-core";
 import { chartSummary } from "./chart-summary.js";
 import { ITEM_TYPES, MAX_CATEGORIES, chartTypeOf } from "./chart-types.js";
 import { fill } from "./labels.js";
+import { lazy } from "./lazy.js";
 import { chartThemeFrom } from "./theme.js";
 
-/** @type {Promise<any> | null} */
-let loading = null;
+/** ECharts with the parts the chart draws with (echarts.js), a file of its own in dist/ (build.js). */
+const echarts = lazy(() => import("./echarts.js"));
 
 /** How long a tap's tooltip waits for the second tap that opens its menu, in ms. */
 const TAP_WAIT = 10_000;
@@ -83,12 +84,8 @@ function useTooltipHeld(chart, ready, menuOpen) {
     });
 }
 
-/** ECharts with the parts the chart draws with (echarts.js), loaded once on the first chart. */
-export function loadECharts() {
-    // a file of its own in dist/ (build.js), so the host's bundler splits it off
-    loading ??= import("./echarts.js");
-    return loading;
-}
+/** ECharts, loaded on the first chart (lazy.js: a failed import is tried again on the next chart). */
+export const loadECharts = echarts.load;
 
 
 /**
