@@ -14,7 +14,8 @@
  */
 
 import { OperationError } from "pivotkit-report/operations";
-import { OPENAPI_PATH, REST_BASE } from "../config.js";
+import { REST_BASE } from "pivotkit-node/rest";
+import { OPENAPI_PATH } from "../config.js";
 import { clientAddress, hostRefusal } from "../checks.js";
 import { BODY_BYTES, SIGNED_IN, takeSignIn } from "../listen.js";
 import { present, saveLogFields } from "../present.js";

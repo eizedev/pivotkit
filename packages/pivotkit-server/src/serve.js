@@ -17,10 +17,10 @@ import { TOKEN_ENV, VERSION, createContext } from "./context.js";
 
 export { TOKEN_ENV };
 import { allowedHosts, hostRefusal } from "./checks.js";
-import { connectionLimitsOf, isLoopback, refusedText, serveFetch } from "./listen.js";
+import { BODY_BYTES, connectionLimitsOf, isLoopback, refusedText, serveFetch } from "./listen.js";
 import { bodyBytesOf } from "./limits.js";
 import { DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
-import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
+import { createRestHandler } from "./rest/handler.js";
 import { bytesText } from "./text.js";
 import { problemsFor } from "./rest/problem.js";
 import { brandingAnswer, docsOf } from "./branding.js";
@@ -31,8 +31,8 @@ import { logNotes, openAddressRefusal, prepareHttpServe } from "./state.js";
 /** The default port. */
 export const DEFAULT_PORT = 3333;
 
-/** The answer to a body over REST_BODY_BYTES that no front end answers itself. */
-const BODY_TOO_LARGE_TEXT = `the body is larger than ${bytesText(REST_BODY_BYTES)}, the most this service takes`;
+/** The answer to a body over BODY_BYTES that no front end answers itself. */
+const BODY_TOO_LARGE_TEXT = `the body is larger than ${bytesText(BODY_BYTES)}, the most this service takes`;
 
 
 /** The MCP server's package: imported by name at run time, so pivotkit-server does not depend on it. */
@@ -218,8 +218,8 @@ export async function createServerHandler(options, runtime) {
                         return hostProblem(context.log, request, refused);
                     }
                     const declared = Number(request.headers.get("content-length") ?? 0);
-                    if (declared > REST_BODY_BYTES) {
-                        context.log.refused({ status: 413, reason: refusalReason("BODY_TOO_LARGE"), limit: REST_BODY_BYTES, size: declared });
+                    if (declared > BODY_BYTES) {
+                        context.log.refused({ status: 413, reason: refusalReason("BODY_TOO_LARGE"), limit: BODY_BYTES, size: declared });
                         return problem("BODY_TOO_LARGE", BODY_TOO_LARGE_TEXT);
                     }
                     return null;

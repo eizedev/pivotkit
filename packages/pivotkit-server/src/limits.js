@@ -14,7 +14,7 @@
  */
 
 import { identityKey } from "./auth.js";
-import { REST_BASE } from "./config.js";
+import { REST_BASE } from "pivotkit-node/rest";
 import { BODY_BYTES, peekSignIn } from "./listen.js";
 import { REST_ROUTES } from "./rest/routes.js";
 import { maySendData, restDataBytesOf, restDataOffered } from "./sources/inline.js";
