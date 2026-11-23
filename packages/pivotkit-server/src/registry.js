@@ -6,7 +6,7 @@
  */
 
 import { readdir, realpath, stat } from "node:fs/promises";
-import { extname, resolve } from "node:path";
+import { extname } from "node:path";
 import { allowedDirs } from "pivotkit-node/files";
 import { closest } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
@@ -138,6 +138,28 @@ export function isClosedForDelivery(options, ref) {
         return true;
     }
     return closedUnder(options, source.policy) || personBound(options, source) || /** @type {any} */ (source).perPerson === true;
+}
+
+/**
+ * The data files of the allowed directories for list_sources (not their subdirectories), each by its
+ * name, never by the server's path: "file:<name>" reads the first allowed directory that has it
+ * (sources/file.js), so a name an earlier directory has is listed once.
+ * @param {string[]} allow
+ */
+async function listedFiles(allow) {
+    const listed = new Set();
+    const out = [];
+    for (const dir of allow) {
+        const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+        const data = entries.filter((e) => e.isFile() && DATA_EXTENSIONS.has(extname(e.name).toLowerCase()) && !e.name.startsWith(".")).slice(0, LISTED_FILES);
+        for (const e of data) {
+            if (!listed.has(e.name)) {
+                listed.add(e.name);
+                out.push({ id: `${FILE_PREFIX}${e.name}`, title: e.name.slice(0, 120), kind: /** @type {const} */ ("file"), link: false, schedulable: false });
+            }
+        }
+    }
+    return out;
 }
 
 /**
@@ -311,14 +333,7 @@ export async function createRegistry(options, { log = null } = {}) {
                 .map(([id, s]) => ({ id, title: s.title ?? id, ...(s.description ? { description: s.description } : {}), kind: /** @type {const} */ ("source"), link: Boolean(s.link), ...(linkParamsOf(s) ? { linkParams: linkParamsOf(s) } : {}), schedulable: !bound.has(id), ...(s.params && paramsList(s.params).length ? { params: paramsList(s.params) } : {}) }))
                 .map((entry) => ({ ...entry, ...lastReadFor(entry.id, sources.get(entry.id), profile) }));
             if (files.list && allow.length && holds(caller, files.scopes) && how.files !== false) {
-                for (const dir of allow) {
-                    const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-                    const data = entries.filter((e) => e.isFile() && DATA_EXTENSIONS.has(extname(e.name).toLowerCase()) && !e.name.startsWith(".")).slice(0, LISTED_FILES);
-                    for (const e of data) {
-                        // a file of the first directory by its name, of another by its full path
-                        out.push({ id: `${FILE_PREFIX}${dir === allow[0] ? e.name : resolve(dir, e.name)}`, title: e.name.slice(0, 120), kind: /** @type {const} */ ("file"), link: false, schedulable: false });
-                    }
-                }
+                out.push(...(await listedFiles(allow)));
             }
             return out;
         },

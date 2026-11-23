@@ -20,6 +20,7 @@ import { sourceStats } from "./stats.js";
 import { isPacked, packTable, unpackTable } from "./packed.js";
 import { asOfText } from "./sources/as-of.js";
 import { encodedBytes } from "./sources/cache.js";
+import { SERVER_LIMITS } from "./server-limits.js";
 import { uploadError } from "./sources/inline.js";
 import { ownError } from "./sources/run.js";
 
@@ -428,14 +429,14 @@ export async function fileData(spec) {
     }
     try {
         const info = await stat(/** @type {string} */ (spec.path));
-        const key = JSON.stringify([spec.path, info.dev, info.ino, info.size, info.mtimeMs, spec.sheet ?? null, spec.levels, spec.timeZone ?? null, spec.limits, spec.hardLinks ?? true]);
+        const key = JSON.stringify([spec.path, info.dev, info.ino, info.size, info.mtimeMs, spec.sheet ?? null, spec.levels, spec.timeZone ?? null, spec.limits, spec.hardLinks ?? false]);
         // the cache keeps what the file gives; what the source says about it (its name, whether it may be
         // scheduled) is added on every call, since one file can be a source and a file: at once
         const of = (read) => ({ ...read, name: spec.name, schedulable: spec.schedulable });
         if (cache.has(key)) {
             return of(remember(key, cache.get(key)));
         }
-        const bytes = await readSafe(/** @type {string} */ (spec.path), { cwd: "/", allow: spec.allow ?? [], maxBytes: spec.limits.fileBytes ?? 52_428_800, hardLinks: spec.hardLinks ?? true });
+        const bytes = await readSafe(/** @type {string} */ (spec.path), { cwd: "/", allow: spec.allow ?? [], maxBytes: spec.limits.fileBytes ?? SERVER_LIMITS.fileBytes, hardLinks: spec.hardLinks ?? false });
         const { table, notes } = checkedRead(spec.levels, bytes, format, await readTable(bytes, label, { format, ...(spec.sheet ? { sheet: spec.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits }), label);
         const hide = hiddenOf(spec.levels, table.columns, table.unnamed);
         const data = encode(withoutHidden(table, hide), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
@@ -690,7 +691,7 @@ async function readUpload(spec, upload) {
     if (!FORMATS.has(format)) {
         throw new OperationError("UNSUPPORTED_FORMAT", `${spec.name}: the server reads csv, tsv, txt, json and xlsx files`);
     }
-    if (upload.bytes.length > (spec.limits.fileBytes ?? 52_428_800)) {
+    if (upload.bytes.length > (spec.limits.fileBytes ?? SERVER_LIMITS.fileBytes)) {
         throw new OperationError("LIMIT_EXCEEDED", `${spec.name}: the file is larger than the server reads (limits.fileBytes)`);
     }
     try {
