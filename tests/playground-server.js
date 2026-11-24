@@ -15,18 +15,31 @@ const SERVE = fileURLToPath(new URL("../examples/playground/serve.js", import.me
  */
 export async function startPlayground({ script = SERVE, port = 0, ms = 10_000 } = {}) {
     const child = spawn(process.execPath, [script, String(port)], { stdio: ["ignore", "pipe", "inherit"] });
-    // wall time: a server that hangs before it prints its address fails the test instead of the run
-    const timer = setTimeout(() => child.kill(), ms);
     let out = "";
-    try {
-        child.stdout.setEncoding("utf8");
-        for await (const chunk of child.stdout) {
+    child.stdout.setEncoding("utf8");
+    // a listener, not a for await loop: leaving such a loop destroys the pipe, and a line the server
+    // prints later would end it. The pipe stays read for as long as the server runs.
+    const base = await new Promise((resolve) => {
+        // wall time: a server that hangs before it prints its address fails the test instead of the run
+        const timer = setTimeout(() => resolve(null), ms);
+        const done = (value) => {
+            clearTimeout(timer);
+            child.stdout.off("data", read);
+            child.off("exit", ended);
+            resolve(value);
+        };
+        const read = (chunk) => {
             out += chunk;
-            const base = /http:\/\/127\.0\.0\.1:\d+\//.exec(out)?.[0];
-            if (base) return { base, child };
-        }
-    } finally {
-        clearTimeout(timer);
+            const found = /http:\/\/127\.0\.0\.1:\d+\//.exec(out)?.[0];
+            if (found) done(found);
+        };
+        const ended = () => done(null);
+        child.stdout.on("data", read);
+        child.once("exit", ended);
+    });
+    if (base) {
+        child.stdout.resume();
+        return { base, child };
     }
     child.kill();
     throw new Error(`the server did not start: ${out}`);

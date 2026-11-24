@@ -53,7 +53,6 @@ export async function labelsOnTop(page, popover) {
     return out;
 }
 
-
 /** Every form field of a report: its name, id and whether it has a label. */
 export const formFields = (report) =>
     report.locator("input, select, textarea").evaluateAll((els) =>

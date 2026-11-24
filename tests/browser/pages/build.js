@@ -67,10 +67,27 @@ const reactShims = {
 /**
  * The strict Content-Security-Policy of the pages that test one:
  * no 'unsafe-inline', no 'unsafe-eval', no blob: workers. A page writes STRICT_CSP where it goes, and
- * adds its own tokens after it (element/import-noworker.html: worker-src 'none').
+ * adds its own tokens after it (element/import-noworker.html: worker-src 'none'). Every page gets the
+ * same policy, which element.spec.js proves is enforced (an inline style is refused).
  */
 const STRICT_CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
-const withStrictCsp = (html) => html.replace("STRICT_CSP", STRICT_CSP);
+
+/**
+ * A page's HTML with the strict policy in place of STRICT_CSP. A page with a policy of its own, a
+ * mistyped placeholder or one left over stops the build: a policy the browser cannot read is ignored,
+ * and the page would run without one while its tests pass.
+ * @param {string} html
+ * @param {string} name  the page, for the message
+ */
+function withStrictCsp(html, name) {
+    const policies = [...html.matchAll(/http-equiv="Content-Security-Policy" content="([^"]*)"/g)].map((m) => m[1]);
+    if (policies.some((policy) => policy !== "STRICT_CSP" && !policy.startsWith("STRICT_CSP; "))) {
+        throw new Error(`${name}: its Content-Security-Policy must start with the placeholder STRICT_CSP`);
+    }
+    const out = html.replaceAll("STRICT_CSP", STRICT_CSP);
+    if (policies.length === 0 && out !== html) throw new Error(`${name}: STRICT_CSP outside a Content-Security-Policy meta tag`);
+    return out;
+}
 
 /** Bare import -> file of the import map, shared by the vendor build and host.html. */
 const VENDOR = {
@@ -143,7 +160,7 @@ for (const file of ["index.html", "app.js", "example.css"]) {
 }
 // pivotkit-xlsx as it ships (dist/: the descriptor and its chunks) and its page under a strict CSP
 await cp(`${root}packages/pivotkit-xlsx/dist/`, `${playground}packages/pivotkit-xlsx/dist/`, { recursive: true });
-await writeFile(`${out}xlsx.html`, withStrictCsp(await readFile(`${here}xlsx.html`, "utf8")));
+await writeFile(`${out}xlsx.html`, withStrictCsp(await readFile(`${here}xlsx.html`, "utf8"), "xlsx.html"));
 await copyFile(`${here}xlsx.js`, `${out}xlsx.js`);
 const elementDir = `${here}element/`;
 const sources = await readdir(elementDir);
@@ -157,6 +174,6 @@ for (const file of CLASSIC) {
     await copyFile(`${elementDir}${file}`, `${out}element-${file}`);
 }
 for (const html of sources.filter((f) => f.endsWith(".html"))) {
-    const text = withStrictCsp((await readFile(`${elementDir}${html}`, "utf8")).replace("IMPORT_MAP", JSON.stringify({ imports: importMap.imports })));
+    const text = withStrictCsp((await readFile(`${elementDir}${html}`, "utf8")).replace("IMPORT_MAP", JSON.stringify({ imports: importMap.imports })), html);
     await writeFile(`${out}element-${html}`, text);
 }
