@@ -72,6 +72,7 @@ node scripts/examples.js                                # the CLI's example file
 node scripts/openapi.js                                 # docs/openapi.json
 node scripts/decisions.js                               # docs/decisions/index.md
 PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-report    # golden files; review the diff
+PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-server    # the options table and check-config; review the diff
 ```
 
 Docs site: build and preview commands are in [CONTRIBUTING.md](CONTRIBUTING.md#docs).
@@ -153,6 +154,7 @@ Docs site: build and preview commands are in [CONTRIBUTING.md](CONTRIBUTING.md#d
 - A list needs a blank line before it, or the item joins the paragraph (`tests/docs-lists.test.js`).
 - A page or anchor that moves keeps its address with a redirect in `zensical.toml`.
 - Screenshots come in light and dark pairs. A UI change takes them again (`npm run docs:screenshots`).
+  Each is shown on a page with alt text and `#only-light` or `#only-dark` (`tests/screenshots.test.js`).
 - The Excel screenshot `xlsx-result-*.png` is taken by hand. Its steps are in `scripts/docs-screenshots.js`.
 - Clips are short silent videos of a step a picture cannot show. `npm run docs:clips` records them,
   light only. A page shows one as `docs/use/fields.md` does (`tests/docs-clips.test.js`).

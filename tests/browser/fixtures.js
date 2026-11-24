@@ -1,5 +1,4 @@
 // Shared setup: every test fails when the page logs an error or a warning, or throws.
-import { readFileSync } from "node:fs";
 import { test as base, expect } from "@playwright/test";
 import { LABELS, fill } from "../../packages/pivotkit-react/src/labels.js";
 import { en as menuEn } from "../../packages/pivotkit-react/src/menu-labels.js";
@@ -31,12 +30,8 @@ export const test = base.extend({
 
 export { expect };
 
-/**
- * The day the playground's data snapshots were fetched, at noon UTC. Specs that compare the data with
- * "today" (This year, Last N months) set the browser's clock to it, so they give the same answer in
- * any year; every snapshot of examples/playground/data/ names the same day.
- */
-export const SNAPSHOT_DAY = new Date(`${JSON.parse(readFileSync(new URL("../../examples/playground/data/endoflife.json", import.meta.url), "utf8")).fetched}T12:00:00Z`);
+/** The day the playground's data snapshots were fetched (tests/snapshot-day.js). */
+export { SNAPSHOT_DAY } from "../snapshot-day.js";
 
 /** An object whose unknown key throws, at every level: a mistyped key fails at once, by its name. */
 const strict = (object, path = "TEXTS") =>

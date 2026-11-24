@@ -9,10 +9,9 @@ import { createPrivateKey, generateKeyPairSync } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT } from "jose";
-import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { checkConfig, loadConfig, validateOptions } from "pivotkit-server";
 import { callerOf, createAuthCore, identityKey } from "../../src/auth.js";
-import { BY_REGION, TOKEN, call, factsOf, restServer, runBin, workspace } from "../helpers.js";
+import { BY_REGION, TOKEN, call, factsOf, restServer, runBin, workspace, mcpToolWorks } from "../helpers.js";
 
 const PSU = Object.freeze({ issuer: "psu", typ: "psu+jwt", kid: "psu-2026-11" });
 
@@ -154,23 +153,9 @@ test("a key that is no Ed25519 public key stops the start, and check-config says
 test("the MCP endpoint shares the check: it accepts the same token and refuses one of another key", async () => {
     const { privateKey, options } = setup();
     const server = await restServer(options, { env: { OPS: TOKEN }, enable: ["rest", "mcp"] });
-    const works = async (token) => {
-        const client = new Client({ name: "external", version: "1.0.0" });
-        try {
-            await client.connect(new StreamableHTTPClientTransport(new URL(`${server.url}/mcp`), { requestInit: { headers: { authorization: `Bearer ${token}` } } }));
-            return !(await client.callTool({ name: "describe_source", arguments: { source: "sales" } })).isError;
-        } catch (e) {
-            if (/401|invalid_token|Unauthorized/i.test(String(e?.message ?? e))) {
-                return false;
-            }
-            throw e;
-        } finally {
-            await client.close().catch(() => undefined);
-        }
-    };
     try {
-        assert.equal(await works(await mint(privateKey)), true);
-        assert.equal(await works(await mint(pair().privateKey)), false);
+        assert.equal(await mcpToolWorks(server, await mint(privateKey)), true);
+        assert.equal(await mcpToolWorks(server, await mint(pair().privateKey)), false);
     } finally {
         await server.close();
     }
