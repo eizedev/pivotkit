@@ -197,21 +197,22 @@ test.describe("+ Add in each zone", () => {
         await expect(menu.getByTestId("add-pick-Region-reason")).toHaveText("Bereits in Zeilen.");
     });
 
-    test("a finger: + Add has a 44 px target", async ({ browser }) => {
-        const context = await browser.newContext({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
-        const page = await context.newPage();
-        await page.goto("?data=sales&lang=en");
-        await page.locator('[data-testid="pivot-table"]').waitFor();
-        const fold = page.getByTestId("layout-summary");
-        if ((await fold.getAttribute("aria-expanded")) !== "true") {
-            await fold.tap();
-        }
-        const box = await page.getByTestId("add-field-values").boundingBox();
-        expect(box.height).toBeGreaterThanOrEqual(44);
-        expect(box.width).toBeGreaterThanOrEqual(44);
-        await page.getByTestId("add-field-values").tap();
-        await expect(page.locator(".pk-add-menu")).toBeVisible();
-        await context.close();
+    test.describe("a touch screen", () => {
+        test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+        test("a finger: + Add has a 44 px target", async ({ page }) => {
+            await page.goto("?data=sales&lang=en");
+            await page.locator('[data-testid="pivot-table"]').waitFor();
+            const fold = page.getByTestId("layout-summary");
+            if ((await fold.getAttribute("aria-expanded")) !== "true") {
+                await fold.tap();
+            }
+            const box = await page.getByTestId("add-field-values").boundingBox();
+            expect(box.height).toBeGreaterThanOrEqual(44);
+            expect(box.width).toBeGreaterThanOrEqual(44);
+            await page.getByTestId("add-field-values").tap();
+            await expect(page.locator(".pk-add-menu")).toBeVisible();
+        });
     });
 });
 

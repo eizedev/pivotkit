@@ -3,7 +3,7 @@
 // Real pointer clicks and keys; both sizes the design was made for.
 import { test as plain } from "@playwright/test";
 import { encodeViewLink } from "pivotkit-core/link";
-import { expect, test, toolbar, twoFrames } from "./fixtures.js";
+import { expect, test, toolbar, twoFrames, watchConsole } from "./fixtures.js";
 
 /** The test id of the element with the focus, through shadow roots. */
 const focused = (page) =>
@@ -447,11 +447,14 @@ test("the host's zones start state: folded or open over the report's height; the
 plain("a zones value the report does not know is ignored with one console warning", async ({ page }) => {
     const warnings = [];
     page.on("console", (m) => m.type() === "warning" && warnings.push(m.text()));
+    // nothing else: no error, no other warning
+    const problems = watchConsole(page, { ignore: [/zones "sideways" is neither "open" nor "folded"/] });
     await page.goto("pages/element-two.html");
     await page.locator("#tickets").getByTestId("layout-summary").waitFor();
     await page.evaluate(() => document.getElementById("tickets").setAttribute("zones", "sideways"));
     await expect.poll(() => warnings.join("\n")).toContain('zones "sideways" is neither "open" nor "folded"');
     expect(warnings.length).toBe(1);
+    expect(problems).toEqual([]);
 });
 
 test("the open zones with their heading need room: a desktop report a little lower than they need starts folded, one a little higher open", async ({ page }) => {
@@ -484,6 +487,8 @@ test("the open zones with their heading need room: a desktop report a little low
 plain("labels the report no longer shows are ignored, with one warning that names what replaces them", async ({ page }) => {
     const warnings = [];
     page.on("console", (m) => m.type() === "warning" && warnings.push(m.text()));
+    // nothing else: no error, no other warning
+    const problems = watchConsole(page, { ignore: [/labels\.(layout|options) is no longer shown and is ignored/] });
     await page.goto("pages/element-two.html");
     const report = page.locator("#sales");
     await report.getByTestId("layout-summary").waitFor();
@@ -500,6 +505,7 @@ plain("labels the report no longer shows are ignored, with one warning that name
     });
     await page.waitForTimeout(300);
     expect(warnings.filter((w) => w.includes("labels.layout"))).toHaveLength(1);
+    expect(problems).toEqual([]);
 });
 
 test("Chart settings at 1440 x 900: Layout is reached by End and shows in the window, also when the menu scrolls", async ({ page }) => {

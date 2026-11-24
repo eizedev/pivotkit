@@ -15,15 +15,34 @@ import { en as menuEn } from "../../packages/pivotkit-react/src/menu-labels.js";
  */
 export const TRACE_IN_PRINT_FRAME = /^Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set\.$/;
 
+/**
+ * Playwright's Firefox driver (Juggler) logs this from its own script when it opens a page in a mobile
+ * context (isMobile): the file is chrome://juggler, not the page. Every spec ignores it.
+ */
+export const JUGGLER_FORCED_LAYOUT = /^\[JavaScript Warning: "Layout was forced before the page was fully loaded\. If stylesheets are not yet loaded this may cause a flash of unstyled content\." \{file: "chrome:\/\/juggler\/content\/content\/main\.js" line: \d+\}\]$/;
+
+/**
+ * Collects what a page logs as an error or a warning, and what it throws, except the harness's
+ * TRACE_IN_PRINT_FRAME and JUGGLER_FORCED_LAYOUT and the messages of `ignore` (each a whole message). A test expects the list
+ * empty at its end. The `page` fixture does this for every test; a page of a context of its own calls it.
+ * @param {import("@playwright/test").Page} page
+ * @param {{ ignore?: RegExp[] }} [options]
+ * @returns {string[]}
+ */
+export function watchConsole(page, { ignore = [] } = {}) {
+    const problems = [];
+    page.on("console", (m) => {
+        if ((m.type() === "error" || m.type() === "warning") && ![TRACE_IN_PRINT_FRAME, JUGGLER_FORCED_LAYOUT, ...ignore].some((re) => re.test(m.text()))) problems.push(`${m.type()}: ${m.text()}`);
+    });
+    page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
+    return problems;
+}
+
 export const test = base.extend({
     /** Console messages a spec expects from the harness, not the page (none by default): each one a whole message. */
     ignoreConsole: [[], { option: true }],
     page: async ({ page, ignoreConsole }, use) => {
-        const problems = [];
-        page.on("console", (m) => {
-            if ((m.type() === "error" || m.type() === "warning") && ![TRACE_IN_PRINT_FRAME, ...ignoreConsole].some((re) => re.test(m.text()))) problems.push(`${m.type()}: ${m.text()}`);
-        });
-        page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
+        const problems = watchConsole(page, { ignore: ignoreConsole });
         await use(page);
         expect(problems, "console errors and warnings").toEqual([]);
     }

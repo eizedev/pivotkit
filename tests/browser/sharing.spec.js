@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { test as plain } from "@playwright/test";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chips, expect, openZones, test, toolbar } from "./fixtures.js";
+import { chips, expect, openZones, test, toolbar, watchConsole } from "./fixtures.js";
 
 /** A switch of a menu (its checkbox is drawn as a track): by keyboard, as a person reaches it. */
 async function flip(locator) {
@@ -94,12 +94,14 @@ test.describe("sharing a view", () => {
         // data, start and rows of the playground; the page's own query (theme, language) stays out
         expect(link).toMatch(/\?data=sales&start=revenue-by-region-and-category&rows=4000#pivot-playground=1\.[A-Za-z0-9_-]+$/);
         const other = await context.newPage();
+        const problems = watchConsole(other);
         await other.goto(link);
         await expect.poll(() => chips(other, "rows")).toEqual(["Region"]);
         await expect(other.locator(".pk-toasts")).toContainText("Opened the view from the link");
         // the link's view is where the report starts; Reset still goes to the start template
         await toolbar(other, "reset");
         await expect.poll(() => chips(other, "rows")).toEqual(["Region", "Country"]);
+        expect(problems).toEqual([]);
     });
 
     test("the playground keeps the view in its address: a reload shows it again", async ({ page }) => {

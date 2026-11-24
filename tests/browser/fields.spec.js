@@ -66,15 +66,16 @@ test.describe("descriptions of the real data", () => {
         await expect(page.locator(`[id="${described}"]`)).toContainText("de facto definition");
     });
 
-    test("a tap opens the description", async ({ browser }) => {
-        const context = await browser.newContext({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
-        const page = await context.newPage();
-        await page.goto("?data=countries&preset=0");
-        await page.getByTestId("show-fields").tap();
-        await page.locator('.pk-field[data-field="GDP (US$)"] .pk-info').tap();
-        await expect(page.locator(".pk-info-pop")).toContainText("current prices");
-        await expect(page.locator(".pk-info-pop a")).toBeVisible();
-        await context.close();
+    test.describe("a touch screen", () => {
+        test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+        test("a tap opens the description", async ({ page }) => {
+            await page.goto("?data=countries&preset=0");
+            await page.getByTestId("show-fields").tap();
+            await page.locator('.pk-field[data-field="GDP (US$)"] .pk-info').tap();
+            await expect(page.locator(".pk-info-pop")).toContainText("current prices");
+            await expect(page.locator(".pk-info-pop a")).toBeVisible();
+        });
     });
 
     test("chips, their menus, the table headers and the drill-down carry the description", async ({ page }) => {

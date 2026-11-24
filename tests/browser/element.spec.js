@@ -4,7 +4,7 @@
 // strict Content-Security-Policy. Playwright's CSS locators reach into open shadow roots.
 import { readFile } from "node:fs/promises";
 import { test as plain } from "@playwright/test";
-import { TRACE_IN_PRINT_FRAME, capturePrint, expect, openSaveAs, test, toolbar } from "./fixtures.js";
+import { capturePrint, expect, openSaveAs, test, toolbar, watchConsole } from "./fixtures.js";
 
 const wanted = process.env.PIVOTKIT_REACT === "19" ? /^19\./ : /^18\./;
 
@@ -384,9 +384,7 @@ test.describe("lifecycle", () => {
 
     // not the shared fixture: the second copy warns on purpose, and the test checks the warnings
     plain("loading the package twice defines once, throws nothing and warns with both versions; define() takes other names", async ({ page }) => {
-        const messages = [];
-        page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && messages.push(`${m.type()}: ${m.text()}`));
-        page.on("pageerror", (e) => messages.push(`pageerror: ${e.message}`));
+        const messages = watchConsole(page);
         await page.goto("pages/element-twice.html");
         await expect(page.locator("my-pivot .pk-root")).toBeVisible();
         expect(await page.evaluate(() => window.__twice)).toEqual({ differentModules: true, sameDefinition: true, again: true, custom: true, customFirst: true });
@@ -646,9 +644,7 @@ test.describe("keyboard and focus inside the shadow root", () => {
 // Not the shared fixture: this test provokes one violation on purpose, to show that the policy is
 // enforced, and checks the console itself.
 plain("a strict Content-Security-Policy: styles, chart and export work without 'unsafe-inline' or 'unsafe-eval'", async ({ page }) => {
-    const problems = [];
-    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && !TRACE_IN_PRINT_FRAME.test(m.text()) && problems.push(m.text()));
-    page.on("pageerror", (e) => problems.push(e.message));
+    const problems = watchConsole(page);
     await page.goto("pages/element-csp.html");
     await capturePrint(page);
     const el = page.locator("#strict");

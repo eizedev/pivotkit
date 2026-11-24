@@ -284,118 +284,104 @@ test("a host that renders again every 200 ms keeps the segment's tooltip under a
     expect(await tooltipOf(chartEl)).toEqual(shown);
 });
 
-test("on a phone, a tap on a stacked segment shows that segment and the total, inside the chart", async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: false });
-    const page = await context.newPage();
-    const problems = [];
-    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && problems.push(m.text()));
-    await page.goto("pages/host.html");
-    const chartEl = await mount(page, { type: "bar", stacked: true });
-    const at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
-    await page.touchscreen.tap(at.x, at.y);
-    await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
-    const [box, tip] = await chartEl.evaluate((el) => {
-        const t = [...el.children].find((c) => c.tagName === "DIV" && !c.querySelector("canvas"));
-        const r = (e) => e.getBoundingClientRect();
-        return [r(el), r(t)].map(({ left, right, top, bottom }) => ({ left, right, top, bottom }));
+test.describe("a touch screen", () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: false });
+
+    test("on a phone, a tap on a stacked segment shows that segment and the total, inside the chart", async ({ page }) => {
+        await page.goto("pages/host.html");
+        const chartEl = await mount(page, { type: "bar", stacked: true });
+        const at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
+        await page.touchscreen.tap(at.x, at.y);
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+        const [box, tip] = await chartEl.evaluate((el) => {
+            const t = [...el.children].find((c) => c.tagName === "DIV" && !c.querySelector("canvas"));
+            const r = (e) => e.getBoundingClientRect();
+            return [r(el), r(t)].map(({ left, right, top, bottom }) => ({ left, right, top, bottom }));
+        });
+        expect(tip.left).toBeGreaterThanOrEqual(box.left - 1);
+        expect(tip.right).toBeLessThanOrEqual(box.right + 1);
     });
-    expect(tip.left).toBeGreaterThanOrEqual(box.left - 1);
-    expect(tip.right).toBeLessThanOrEqual(box.right + 1);
-    expect(problems).toEqual([]);
-    await context.close();
-});
 
-for (const type of ["bar", "heatmap"]) test(`on a phone, the first tap on a ${type === "bar" ? "stacked segment" : "heatmap cell"} shows its tooltip, a second tap opens its menu, Show the rows its rows, and the tooltip goes (#538, #53)`, async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: false });
-    const page = await context.newPage();
-    const problems = [];
-    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && problems.push(m.text()));
-    await page.goto("pages/host.html");
-    const chartEl = await mount(page, type === "bar" ? { type: "bar", stacked: true } : { type: "heatmap" });
-    const at = type === "bar" ? await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH }) : await pointOf(chartEl, cellMiddle, { x: SOFTWARE, y: NORTH });
-    const tip = type === "bar" ? ["North", "Software 30", "Total 60"] : ["Sum of Revenue", "North, Software 30"];
-    const panel = page.getByTestId("drill-panel");
-    await page.touchscreen.tap(at.x, at.y);
-    await expect.poll(() => tooltipOf(chartEl)).toEqual(tip);
-    // the first tap only shows the tooltip: no panel, also a moment later
-    await page.waitForTimeout(400);
-    await expect(panel).toHaveCount(0);
-    // a tap beside every element (the chart's top left corner), then on the same element: its tooltip again, no panel
-    const box = await chartEl.boundingBox();
-    await page.touchscreen.tap(box.x + 6, box.y + 6);
-    await page.touchscreen.tap(at.x, at.y);
-    await expect.poll(() => tooltipOf(chartEl)).toEqual(tip);
-    await page.waitForTimeout(400);
-    await expect(panel).toHaveCount(0);
-    // another element first: its tooltip; then a second tap on it opens its rows
-    const other = type === "bar" ? await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH }) : await pointOf(chartEl, cellMiddle, { x: HARDWARE, y: NORTH });
-    await page.touchscreen.tap(other.x, other.y);
-    await expect.poll(async () => (await tooltipOf(chartEl)).join(" ")).toContain("Hardware 20");
-    await page.waitForTimeout(400);
-    await expect(panel).toHaveCount(0);
-    await page.touchscreen.tap(other.x, other.y);
-    // the second tap opens the element's menu; the click a phone sends after the tap does not close it
-    await page.waitForTimeout(400);
-    await expect(page.getByTestId("point-rows")).toBeVisible();
-    await page.getByTestId("point-rows").tap();
-    await expect(panel).toBeVisible();
-    // the click a phone sends after the tap lands on the panel's scrim: the panel stays, the tooltip is gone
-    await page.waitForTimeout(400);
-    await expect(panel).toBeVisible();
-    await expect(panel).toContainText("Hardware");
-    await expect.poll(() => tooltipOf(chartEl)).toEqual([]);
-    expect(problems).toEqual([]);
-    await context.close();
-});
+    for (const type of ["bar", "heatmap"]) test(`on a phone, the first tap on a ${type === "bar" ? "stacked segment" : "heatmap cell"} shows its tooltip, a second tap opens its menu, Show the rows its rows, and the tooltip goes (#538, #53)`, async ({ page }) => {
+        await page.goto("pages/host.html");
+        const chartEl = await mount(page, type === "bar" ? { type: "bar", stacked: true } : { type: "heatmap" });
+        const at = type === "bar" ? await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH }) : await pointOf(chartEl, cellMiddle, { x: SOFTWARE, y: NORTH });
+        const tip = type === "bar" ? ["North", "Software 30", "Total 60"] : ["Sum of Revenue", "North, Software 30"];
+        const panel = page.getByTestId("drill-panel");
+        await page.touchscreen.tap(at.x, at.y);
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(tip);
+        // the first tap only shows the tooltip: no panel, also a moment later
+        await page.waitForTimeout(400);
+        await expect(panel).toHaveCount(0);
+        // a tap beside every element (the chart's top left corner), then on the same element: its tooltip again, no panel
+        const box = await chartEl.boundingBox();
+        await page.touchscreen.tap(box.x + 6, box.y + 6);
+        await page.touchscreen.tap(at.x, at.y);
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(tip);
+        await page.waitForTimeout(400);
+        await expect(panel).toHaveCount(0);
+        // another element first: its tooltip; then a second tap on it opens its rows
+        const other = type === "bar" ? await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH }) : await pointOf(chartEl, cellMiddle, { x: HARDWARE, y: NORTH });
+        await page.touchscreen.tap(other.x, other.y);
+        await expect.poll(async () => (await tooltipOf(chartEl)).join(" ")).toContain("Hardware 20");
+        await page.waitForTimeout(400);
+        await expect(panel).toHaveCount(0);
+        await page.touchscreen.tap(other.x, other.y);
+        // the second tap opens the element's menu; the click a phone sends after the tap does not close it
+        await page.waitForTimeout(400);
+        await expect(page.getByTestId("point-rows")).toBeVisible();
+        await page.getByTestId("point-rows").tap();
+        await expect(panel).toBeVisible();
+        // the click a phone sends after the tap lands on the panel's scrim: the panel stays, the tooltip is gone
+        await page.waitForTimeout(400);
+        await expect(panel).toBeVisible();
+        await expect(panel).toContainText("Hardware");
+        await expect.poll(() => tooltipOf(chartEl)).toEqual([]);
+    });
 
-test("on a phone: the menu on the second tap only, onCellClick on Show the rows; a tap outside the chart starts over; a mouse's double click opens at once (#538, #53)", async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: false });
-    const page = await context.newPage();
-    const problems = [];
-    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && problems.push(m.text()));
-    await page.goto("pages/host.html");
-    const chartEl = await mount(page, { type: "bar", stacked: true }, { cellClicks: true });
-    const at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
-    const panel = page.getByTestId("drill-panel");
-    const clicks = () => page.evaluate(() => window.__cellClicks.length);
-    await page.touchscreen.tap(at.x, at.y);
-    await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
-    await page.waitForTimeout(400);
-    expect(await clicks()).toBe(0);
-    // a tap outside the chart (the page below it), then on the same segment: its tooltip, no rows
-    const box = await chartEl.boundingBox();
-    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height + 60);
-    await page.touchscreen.tap(at.x, at.y);
-    await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
-    await page.waitForTimeout(400);
-    await expect(panel).toHaveCount(0);
-    expect(await clicks()).toBe(0);
-    // the second tap: the segment's menu, and no call yet; Show the rows: one call, with its rows
-    await page.touchscreen.tap(at.x, at.y);
-    await expect(page.getByTestId("point-rows")).toBeVisible();
-    expect(await clicks()).toBe(0);
-    await page.getByTestId("point-rows").tap();
-    await expect(panel).toBeVisible();
-    await page.waitForTimeout(400);
-    expect(await page.evaluate(() => window.__cellClicks)).toEqual([{ row: ["North"], col: ["Software"], count: 1 }]);
-    // a press that starts on the panel and ends on the scrim keeps the panel open
-    const p = await panel.boundingBox();
-    const scrim = await page.locator(".pk-drill-scrim").boundingBox();
-    await page.mouse.move(p.x + p.width / 2, p.y + p.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(scrim.x + 4, scrim.y + 4, { steps: 4 });
-    await page.mouse.up();
-    await page.waitForTimeout(300);
-    await expect(panel).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(panel).toHaveCount(0);
-    // the same device with a mouse: a double click opens the rows at once
-    const hw = await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH });
-    await page.mouse.dblclick(hw.x, hw.y);
-    await expect(panel).toBeVisible();
-    await expect.poll(() => page.evaluate(() => window.__cellClicks.length)).toBe(2);
-    expect(problems).toEqual([]);
-    await context.close();
+    test("on a phone: the menu on the second tap only, onCellClick on Show the rows; a tap outside the chart starts over; a mouse's double click opens at once (#538, #53)", async ({ page }) => {
+        await page.goto("pages/host.html");
+        const chartEl = await mount(page, { type: "bar", stacked: true }, { cellClicks: true });
+        const at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
+        const panel = page.getByTestId("drill-panel");
+        const clicks = () => page.evaluate(() => window.__cellClicks.length);
+        await page.touchscreen.tap(at.x, at.y);
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+        await page.waitForTimeout(400);
+        expect(await clicks()).toBe(0);
+        // a tap outside the chart (the page below it), then on the same segment: its tooltip, no rows
+        const box = await chartEl.boundingBox();
+        await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height + 60);
+        await page.touchscreen.tap(at.x, at.y);
+        await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+        await page.waitForTimeout(400);
+        await expect(panel).toHaveCount(0);
+        expect(await clicks()).toBe(0);
+        // the second tap: the segment's menu, and no call yet; Show the rows: one call, with its rows
+        await page.touchscreen.tap(at.x, at.y);
+        await expect(page.getByTestId("point-rows")).toBeVisible();
+        expect(await clicks()).toBe(0);
+        await page.getByTestId("point-rows").tap();
+        await expect(panel).toBeVisible();
+        await page.waitForTimeout(400);
+        expect(await page.evaluate(() => window.__cellClicks)).toEqual([{ row: ["North"], col: ["Software"], count: 1 }]);
+        // a press that starts on the panel and ends on the scrim keeps the panel open
+        const p = await panel.boundingBox();
+        const scrim = await page.locator(".pk-drill-scrim").boundingBox();
+        await page.mouse.move(p.x + p.width / 2, p.y + p.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(scrim.x + 4, scrim.y + 4, { steps: 4 });
+        await page.mouse.up();
+        await page.waitForTimeout(300);
+        await expect(panel).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(panel).toHaveCount(0);
+        // the same device with a mouse: a double click opens the rows at once
+        const hw = await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH });
+        await page.mouse.dblclick(hw.x, hw.y);
+        await expect(panel).toBeVisible();
+        await expect.poll(() => page.evaluate(() => window.__cellClicks.length)).toBe(2);
+    });
 });
 
 /**
