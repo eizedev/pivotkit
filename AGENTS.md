@@ -15,6 +15,9 @@ pivotkit is one product. Judge code, tests, docs and these rules as a whole.
   as the people who use, run, and build on pivotkit. A change is done when the product is better.
 - **Shape what exists.** Edit, merge, move or delete until the result reads as if written today.
   Adding is the last option.
+- **Smallest fix first, judged as a user.** For a defect, start from the smallest change that fixes
+  it, and name a larger rework as an option with its cost. When users see the problem, in the report UI,
+  in messages or in exports, judge the fix as they would: switching something off is not the smallest fix.
 - **One place per fact.** A rule, a fact or a piece of logic lives in one place. Others link or import it.
 - **Small units.** A file holds one concept, a function one job. When a second place needs
   something, build the shared piece first.
