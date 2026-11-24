@@ -10,7 +10,6 @@
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, writeFileSync } from "node:fs";
-import { createServer } from "node:https";
 import { join } from "node:path";
 import { callerOf, checkConfig, createContext, present, validateOptions } from "pivotkit-server";
 import { serverTextOf } from "pivotkit-server/internal";
@@ -18,11 +17,10 @@ import { createAuthCore, exchangeTokenFor } from "../../src/auth.js";
 import { checkSource } from "../../src/check-source.js";
 import { authMeans, backendHeaders, tokenCache, TOKEN_LIMITS } from "../../src/sources/auth.js";
 import { httpSettingsOf } from "../../src/options/http.js";
-import { createGuardedFetch } from "../../src/sources/fetch.js";
 import { httpMeans } from "../../src/sources/http.js";
 import { withRequestId } from "../../src/request-id.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { call, factsOf, loopbackCert, restServer, tempDir } from "../helpers.js";
+import { call, factsOf, restServer, tempDir, json, loopbackHttps } from "../helpers.js";
 import { localIssuer } from "./local-issuer.js";
 import { until } from "../../../../tests/until.js";
 
@@ -41,8 +39,7 @@ let port = 0;
 let issued = 0;
 
 before(async () => {
-    const { key, cert } = loopbackCert("api.example.test", "auth.example.test");
-    server = createServer({ key, cert }, (req, res) => {
+    const backend = await loopbackHttps(["api.example.test", "auth.example.test"], (req, res) => {
         const url = new URL(req.url ?? "/", "https://x");
         let body = "";
         req.on("data", (c) => (body += c));
@@ -58,9 +55,8 @@ before(async () => {
             route(req, res, form);
         });
     });
-    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-    port = server.address().port;
-    httpMeans.fetch = createGuardedFetch({ ca: cert, lookup: (_host, options, callback) => callback(null, options?.all ? [{ address: "127.0.0.1", family: 4 }] : "127.0.0.1", 4) });
+    ({ server, port } = backend);
+    httpMeans.fetch = backend.fetch;
 });
 
 after(() => server.close());
@@ -72,11 +68,6 @@ beforeEach(() => {
     delete process.env.PIVOTKIT_TEST_API_KEY;
 });
 
-/** A JSON answer. */
-const json = (body, status = 200) => (_req, res) => {
-    res.writeHead(status, { "content-type": "application/json" });
-    res.end(typeof body === "string" ? body : JSON.stringify(body));
-};
 
 /** A token endpoint that issues a new token on every request ("issued-<n>"), with these members. */
 const tokenEndpoint = (more = {}) => (_req, res) => {

@@ -5,6 +5,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { request as httpRequest } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
 import { fileURLToPath } from "node:url";
 import { tempDir as sharedTempDir } from "../../../tests/temp-dir.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
@@ -176,6 +177,44 @@ export async function mcpToolWorks(server, token, source = "sales") {
         await client.close().catch(() => undefined);
     }
 }
+
+/**
+ * A DNS lookup for createGuardedFetch: a name resolves to `addressOf(name)`, else to 127.0.0.1.
+ * @param {(host: string) => string | undefined} [addressOf]
+ */
+export const fakeLookup =
+    (addressOf = () => undefined) =>
+    (host, options, callback) => {
+        const address = addressOf(host) ?? "127.0.0.1";
+        callback(null, options?.all ? [{ address, family: 4 }] : address, 4);
+    };
+
+/**
+ * An https server on 127.0.0.1 that answers for `names` (loopbackCert), and a guardedFetch that
+ * trusts its certificate and resolves names through fakeLookup(addressOf): a test's backend, store
+ * or token endpoint.
+ * @param {string[]} names
+ * @param {import("node:http").RequestListener} handler
+ * @param {(host: string) => string | undefined} [addressOf]
+ */
+export async function loopbackHttps(names, handler, addressOf) {
+    const { key, cert } = loopbackCert(...names);
+    const server = createHttpsServer({ key, cert }, handler);
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(undefined)));
+    const port = /** @type {import("node:net").AddressInfo} */ (server.address()).port;
+    return { server, port, fetch: createGuardedFetch({ ca: cert, lookup: fakeLookup(addressOf) }) };
+}
+
+/**
+ * A route of such a server that answers JSON.
+ * @param {unknown} body  a text as it is, anything else as JSON
+ */
+export const json =
+    (body, status = 200, headers = {}) =>
+    (_request, res) => {
+        res.writeHead(status, { "content-type": "application/json", ...headers });
+        res.end(typeof body === "string" ? body : JSON.stringify(body));
+    };
 
 /** A guardedFetch that may use plain http to loopback (createGuardedFetch's test means). */
 export const plainLoopbackFetch = createGuardedFetch({ allowHttpLoopback: true });

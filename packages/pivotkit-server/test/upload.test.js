@@ -12,20 +12,18 @@ import assert from "node:assert/strict";
 import { createHash, createHmac, hkdfSync } from "node:crypto";
 import { existsSync, readdirSync } from "node:fs";
 import { platform } from "node:process";
-import { createServer } from "node:https";
 import { join } from "node:path";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { OperationError } from "pivotkit-report/operations";
 import { callerOf, checkConfig, present, validateOptions } from "pivotkit-server";
 import { serverTextOf } from "pivotkit-server/internal";
-import { createGuardedFetch } from "../src/sources/fetch.js";
 import { checkedAddress, expiryOf, fillTemplate, nameSlug, uploadMeans } from "../src/upload.js";
 import { deliver, NO_LINK_NOTE, storeFor } from "../src/delivery.js";
 import { createDownloadHandler } from "../src/downloads.js";
 import { subkeysOf } from "../src/downloads/tokens.js";
 import { createContext } from "../src/context.js";
 import { withRequestId } from "../src/request-id.js";
-import { BY_REGION, call, factsOf, loopbackCert, restServer, SALES_CSV, workspace } from "./helpers.js";
+import { BY_REGION, call, factsOf, restServer, SALES_CSV, workspace, json, loopbackHttps } from "./helpers.js";
 import { until } from "../../../tests/until.js";
 
 /** The store's credential: an environment variable, as an operator gives it. */
@@ -49,12 +47,9 @@ let server;
 let port = 0;
 /** Names that resolve elsewhere than loopback: a cloud metadata address, a private one. */
 const ADDRESSES = { "meta.example.test": "169.254.169.254", "private.example.test": "10.0.0.1" };
-let cert;
 
 before(async () => {
-    const tls = loopbackCert("store.example.test", "bucket.example.test", "files.example.test", "evil.example.test");
-    cert = tls.cert;
-    server = createServer({ key: tls.key, cert }, (req, res) => {
+    const store = await loopbackHttps(["store.example.test", "bucket.example.test", "files.example.test", "evil.example.test"], (req, res) => {
         const url = new URL(req.url ?? "/", "https://x");
         const chunks = [];
         open++;
@@ -75,16 +70,9 @@ before(async () => {
             }
             route(entry, res);
         });
-    });
-    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-    port = server.address().port;
-    uploadMeans.fetch = createGuardedFetch({
-        ca: cert,
-        lookup: (host, options, callback) => {
-            const address = ADDRESSES[host] ?? "127.0.0.1";
-            callback(null, options?.all ? [{ address, family: 4 }] : address, 4);
-        }
-    });
+    }, (host) => ADDRESSES[host]);
+    ({ server, port } = store);
+    uploadMeans.fetch = store.fetch;
 });
 
 after(() => server.close());
@@ -98,11 +86,6 @@ beforeEach(() => {
 
 const origin = (host) => `https://${host}.example.test:${port}`;
 
-/** A JSON answer. */
-const json = (body, status = 200, headers = {}) => (_entry, res) => {
-    res.writeHead(status, { "content-type": "application/json", ...headers });
-    res.end(typeof body === "string" ? body : JSON.stringify(body));
-};
 
 /** The presign service as a store's is: it names an address in the bucket, a header for it and the link. */
 function presignRoute(more = {}) {

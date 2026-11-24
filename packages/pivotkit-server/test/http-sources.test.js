@@ -6,7 +6,6 @@
 // check-source.
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { createServer } from "node:https";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
@@ -18,7 +17,7 @@ import { compileTemplate, expandUrl } from "../src/sources/template.js";
 import { checkSource, paramFlags } from "../src/check-source.js";
 import { loadRunner } from "../src/sources/run.js";
 import { run } from "../src/runner.js";
-import { call, factsOf, loopbackCert, restServer, tempDir } from "./helpers.js";
+import { call, factsOf, restServer, tempDir, json, loopbackHttps, fakeLookup } from "./helpers.js";
 import { until } from "../../../tests/until.js";
 
 /** What the backend answers per path, set by each test; and what it was asked. */
@@ -27,14 +26,11 @@ let routes = new Map();
 let asked = [];
 let server;
 let port = 0;
-let cert;
 /** The addresses names resolve to (default 127.0.0.1). */
 const ADDRESSES = new Map();
 
 before(async () => {
-    const tls = loopbackCert("api.example.test", "other.example.test", "localhost");
-    cert = tls.cert;
-    server = createServer({ key: tls.key, cert }, (req, res) => {
+    const backend = await loopbackHttps(["api.example.test", "other.example.test", "localhost"], (req, res) => {
         const url = new URL(req.url ?? "/", "https://x");
         asked.push({ path: url.pathname, query: url.search, headers: req.headers });
         const route = routes.get(url.pathname);
@@ -44,16 +40,9 @@ before(async () => {
             return;
         }
         route(req, res, url);
-    });
-    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-    port = server.address().port;
-    httpMeans.fetch = createGuardedFetch({
-        ca: cert,
-        lookup: (host, options, callback) => {
-            const address = ADDRESSES.get(host) ?? "127.0.0.1";
-            callback(null, options?.all ? [{ address, family: 4 }] : address, 4);
-        }
-    });
+    }, (host) => ADDRESSES.get(host));
+    ({ server, port } = backend);
+    httpMeans.fetch = backend.fetch;
 });
 
 after(() => server.close());
@@ -64,11 +53,6 @@ beforeEach(() => {
     ADDRESSES.clear();
 });
 
-/** A JSON answer. */
-const json = (body, status = 200, headers = {}) => (_req, res) => {
-    res.writeHead(status, { "content-type": "application/json", ...headers });
-    res.end(typeof body === "string" ? body : JSON.stringify(body));
-};
 
 const VMS = [
     { name: "web-1", cpu: 4, state: "running", owner: "alice@example.com", tags: { env: "prod" } },
@@ -818,7 +802,7 @@ test("check-source for the operator: options in any order, exit 2 for an id that
     // a certificate the server does not trust: with NODE_EXTRA_CA_CERTS set, that its file does not cover it
     routes.set("/v1/all", json({ items: VMS }));
     const open = { httpSources: { backends: { platform: { url: `https://api.example.test:${port}/v1`, intranet: true } } }, sources: { all: { http: { backend: "platform", path: "/all", rows: "/items" }, policy: POLICY } } };
-    const noCa = createGuardedFetch({ lookup: (_h, o, cb) => cb(null, o?.all ? [{ address: "127.0.0.1", family: 4 }] : "127.0.0.1", 4) });
+    const noCa = createGuardedFetch({ lookup: fakeLookup() });
     const set = (await checkSource(open, "all", {}, { fetch: noCa, env: { NODE_EXTRA_CA_CERTS: join(dir, "ca.pem") } })).text;
     assert.match(set, /a certificate error: NODE_EXTRA_CA_CERTS is set, but no certificate in that file signed this server's certificate; add the certificate authority that did and start the server again/);
     assert.doesNotMatch(set, /ca\.pem/, "the file's path is the operator's own; the hint does not repeat it");
@@ -1076,7 +1060,7 @@ test("operator hints: intranet for a private address, NODE_EXTRA_CA_CERTS for a 
     const closed = { httpSources: { backends: { platform: { url: `https://api.example.test:${port}/v1` } } }, sources };
     assert.match((await checkSource(closed, "all", {})).text, /REFUSED_ADDRESS.*set intranet: true on the backend \(httpSources\.backends\.platform\.intranet\)/);
     const open = { httpSources: { backends: { platform: { url: `https://api.example.test:${port}/v1`, intranet: true } } }, sources };
-    const noCa = createGuardedFetch({ lookup: (_h, o, cb) => cb(null, o?.all ? [{ address: "127.0.0.1", family: 4 }] : "127.0.0.1", 4) });
+    const noCa = createGuardedFetch({ lookup: fakeLookup() });
     assert.match((await checkSource(open, "all", {}, { fetch: noCa })).text, /a certificate error: for an internal certificate authority start the server with NODE_EXTRA_CA_CERTS/);
     assert.match((await checkSource(open, "meta", {})).text, /pointer \/meta points to an object, not a list of rows; its keys: total/);
     const none = await checkSource(open, "none", {});
