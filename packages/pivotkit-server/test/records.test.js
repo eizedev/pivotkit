@@ -479,7 +479,7 @@ test("a stalled reader loses its slot after idleMs", async () => {
         assert.equal((await h.ask(token, { source: "sales" })).status, 503);
         // the stream ends with an error once the reader was idle too long, and the slot is free
         const reader = /** @type {ReadableStream} */ (stalled.body).getReader();
-        await until(() => h.lines.some((l) => l.event === "records" && l.reason === "idle"), { message: "the idle reader was not cut" });
+        await until(() => h.lines.some((l) => l.event === "records" && l.reason === "idle"), { message: "no idle line: the idle reader is still open" });
         await assert.rejects(async () => {
             for (;;) {
                 const { done } = await reader.read();

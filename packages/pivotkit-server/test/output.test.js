@@ -13,7 +13,6 @@ import { makeRoom } from "../src/output.js";
 import { checkConfig } from "pivotkit-server";
 import { BY_REGION, call, factsOf, restServer, workspace, runBin, tempDir } from "./helpers.js";
 
-
 /** The reports and drafts pivotkit wrote into a directory (by the mark in their names). */
 const reports = (dir) => readdirSync(dir).filter((n) => /\.pivotkit-out\.(xlsx|html|csv|json|svg|report\.json)$/i.test(n));
 

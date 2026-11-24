@@ -68,7 +68,6 @@ beforeEach(() => {
     delete process.env.PIVOTKIT_TEST_API_KEY;
 });
 
-
 /** A token endpoint that issues a new token on every request ("issued-<n>"), with these members. */
 const tokenEndpoint = (more = {}) => (_req, res) => {
     res.writeHead(200, { "content-type": "application/json" });

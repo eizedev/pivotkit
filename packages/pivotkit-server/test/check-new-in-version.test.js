@@ -41,6 +41,10 @@ test("New in this version: every note a real section gives links a section of th
         } }));
         const text = await textOf(options, { ...runtime, sections });
         assert.match(text, /^Output: out$/m, "the output section ran");
+        // no section gives a note in this version: none may appear by accident. A release that brings
+        // one replaces this line by its expected notes; the loop below then checks their links
+        assert.deepEqual(notes, [], "no section gives a note in this version");
+        assert.doesNotMatch(text, /New in this version/);
         for (const note of notes) {
             assert.ok(UPGRADING_ANCHORS.has(note.anchor), `${note.text}: no heading #${note.anchor} on docs/getting-started/upgrading.md`);
             assert.ok(text.includes(`#${note.anchor}`), `${note.text}: printed with its link`);

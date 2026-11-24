@@ -1072,8 +1072,9 @@ test("where it runs: a code source's operation is computed in a worker, bounded 
     const table = largeTable(400_000);
     const context = await contextOf({ compute: { workers: 1, timeMs: 1 }, sources: { t: { load: async () => (loads++, table), ttl: 60 } } });
     try {
-        // a timer of this thread runs while the worker computes: it was set first, so it fires before
-        // the time limit's own timer, unless the thread is blocked
+        // a timer of this thread runs while the call is open: the call does not finish in one synchronous
+        // run of this thread (it shows no more than that: set first, the interval fires before the
+        // limit's own timer even after a block)
         let ticks = 0;
         const timer = setInterval(() => ticks++, 1);
         const started = Date.now();
@@ -1085,7 +1086,7 @@ test("where it runs: a code source's operation is computed in a worker, bounded 
         assert.ok(error, "the call answers TIMEOUT, not a result");
         assert.equal(error.code, "TIMEOUT", "the computation over a code source's data is bounded by compute.timeMs");
         assert.match(error.message, /compute\.timeMs/);
-        assert.ok(ticks > 0, `the thread was not blocked (${ticks} ticks in ${Date.now() - started} ms)`);
+        assert.ok(ticks > 0, `the call ran past one turn of this thread (${ticks} ticks in ${Date.now() - started} ms)`);
         assert.equal(loads, 1);
         // the load is kept (ttl): the next call computes again, but does not load again
         assert.equal((await failure(describe(context))).code, "TIMEOUT");
