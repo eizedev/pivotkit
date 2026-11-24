@@ -12,8 +12,9 @@
  * opens the folded zones while it lasts, so a field can still be dropped.
  */
 
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { fieldItems, fieldLabel } from "pivotkit-core";
+import React, { useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
+import { fieldLabel } from "pivotkit-core";
+import { LimitsContext, itemsOf } from "./limits-context.js";
 import { MenuPanel } from "./lazy-menus.jsx";
 import { columnText, itemRuleText, layoutSummary, sortText, valueConditionText, valueLabels } from "./names.js";
 import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
@@ -34,11 +35,11 @@ import { ZONES, dateSpan, filterZoneFields, filtersOf, isEmptyPick, numberRange,
  * @param {import("./labels.js").UiLabels} labels
  * @param {string} sourceType  the type of the field's source (a grouped date is a date)
  */
-function fieldState(view, field, encoded, locale, labels, sourceType) {
+function fieldState(view, field, encoded, locale, labels, sourceType, limits) {
     const items = filtersOf(view, field, ["in"]).filter((f) => !isEmptyPick(f));
     const compared = filtersOf(view, field, ["compare"]);
     // the items' labels: for "3 of 12", and a grouping's key in words ("from Mar 2025")
-    const info = items.length || compared.length ? fieldItems(encoded, field, { view, locale }) : null;
+    const info = items.length || compared.length ? itemsOf(encoded, field, { view, locale, limits }) : null;
     /** @type {{ shown: number, total: number } | null} */
     let summary = null;
     if (items.length && info) {
@@ -54,7 +55,7 @@ function fieldState(view, field, encoded, locale, labels, sourceType) {
     const condition = filtersOf(view, field, ["value"])[0] ?? null;
     const sort = sortOf(view, field);
     // a sort by one column says which, as the table names it (#70)
-    const sortColumn = sort?.column ? columnText(view, sort.column, encoded, labels, locale) : undefined;
+    const sortColumn = sort?.column ? columnText(view, sort.column, encoded, labels, locale, limits) : undefined;
     return { summary, rules, top, condition, sort, sortColumn };
 }
 
@@ -364,6 +365,7 @@ function SectionHead({ entries, labels, id, open, onFold, onSwap, canSwap, butto
  *   needs (the fields, where each is placed, how a pick is placed); without it there is no "+ Add"
  */
 export function Zones({ view, types, labels, commit, earlier, encoded, locale, onSwap, id, folded, onFold, defaultsOf, infoOf, titleOf, explain = false, showInfo = true, adding }) {
+    const limits = useContext(LimitsContext);
     const entries = useMemo(() => zoneEntries(view, types, labels), [view, types, labels]);
     // while something is dragged the zones are open, so it can be dropped into one
     const dragging = Boolean(useActiveDrag());
@@ -375,11 +377,11 @@ export function Zones({ view, types, labels, commit, earlier, encoded, locale, o
         const map = new Map();
         for (const zone of ["filters", "cols", "rows"]) {
             for (const e of entries[zone]) {
-                map.set(e.field, fieldState(view, e.field, encoded, locale, labels, e.type));
+                map.set(e.field, fieldState(view, e.field, encoded, locale, labels, e.type, limits));
             }
         }
         return map;
-    }, [entries, view, encoded, locale, labels]);
+    }, [entries, view, encoded, locale, labels, limits]);
     // the numbers of a field, for the range form of its menu
     const rangeOf = useCallback((field) => numberRange(encoded, field), [encoded]);
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
