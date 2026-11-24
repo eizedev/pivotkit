@@ -8,6 +8,9 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Changed
 
+- The skill no longer names the caps of inline data. It points to `list_sources`, which names the
+  caps the server has, also when `mcp.data` lowers them.
+
 - The HTTP handler runs its requests through pivotkit-server's route handler (`createRouteHandler`
   of `pivotkit-server/internal`), so it needs the pivotkit-server of the same release. The answers and
   log lines stay the same.
@@ -173,26 +176,22 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   for the per-caller 429s and a body over the cap. The HTTP server ends with a `stopped` line; a
   configuration error at start is a JSON line with `--log-format json` or `PIVOTKIT_LOG_FORMAT=json`.
   Lines name `service` `pivotkit-mcp` when it runs on its own.
-
 - Reports can go to the operator's store (pivotkit-server's `output.upload`,
   [#332](https://github.com/eizedev/pivotkit/issues/332)): render_view then carries the store's link
   in its text and as a `resource_link`; a failed upload is the tool error `UPLOAD_FAILED` with a
   fixed text and the request id. Needs pivotkit-server 0.2.0.
-
 - pivotkit-server's operator controls ([#331](https://github.com/eizedev/pivotkit/issues/331)):
   groups to profiles (`auth.groupProfiles`), `auth.defaultProfile`, the person on `call` lines
   (`audit.subject`), the sources' scopes in the Protected Resource Metadata with
   `auth.offerSourceScopes: true` (off by default), the hint of an empty `list_sources`. A token whose groups are unknown, with
   `auth.groupProfiles` and no default profile, gets 403 `access_denied` without a scope challenge.
   Needs pivotkit-server's `groupRefusal`.
-
 - HTTP sources of pivotkit-server ([#328](https://github.com/eizedev/pivotkit/issues/328)) in
   `sources.<id>.http`, with their parameters in `list_sources`. A `SOURCE_UNAVAILABLE` tool error says
   the fixed text its reason picks (not available right now, the backend refused pivotkit's access,
   the source is not set up correctly). A call over HTTP whose connection closed stops waiting for a source's load,
   and the load is aborted when no other call waits for it. Needs pivotkit-server
   0.2.0 (`serverTextOf` with a reason).
-
 - Data in the request ([#326](https://github.com/eizedev/pivotkit/issues/326)): the tools that take
   a source offer `data`, a small table of the model's own with `source` `inline:` (at most 500 rows,
   5,000 cells and 256 KiB; `mcp.data` lowers the cap or switches it off). Its description says that
@@ -205,7 +204,6 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   ([#327](https://github.com/eizedev/pivotkit/issues/327)). The HTTP transport serves `/downloads/`
   before its Origin check and body cap (a browser's form, not an MCP client). Release pivotkit-server
   first: this version needs its new exports (`createDownloadHandler`, `DOWNLOAD_BODY_BYTES`).
-
 - The exposure policy's level `values` and the opt-in automatic rule (`policy.autoValues`) of
   pivotkit-server ([#362](https://github.com/eizedev/pivotkit/issues/362)); `--check-config` prints
   each field's level and why.

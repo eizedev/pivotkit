@@ -126,7 +126,7 @@ test("rowCount: false leaves the row count out of {{rows}} and the details, with
         assert.doesNotMatch(r.text, /<dt>Rows<\/dt>|\d rows/);
         assert.match(r.text, /<dt>Source<\/dt><dd>sales\.csv<\/dd>/, "the other details stay");
     }
-    await assert.rejects(render(filtered, SALES, { format: "html", rowCount: /** @type {any} */ ("no") }), (e) => e.code === "INVALID_OPTION" || /rowCount/.test(e.message));
+    await assert.rejects(render(filtered, SALES, { format: "html", rowCount: /** @type {any} */ ("no") }), (e) => e.code === "INVALID_OPTION" && e.details.option === "rowCount");
 });
 
 test("the row count takes the plural form of the report's language: \"1 row\", \"1 Zeile\"; a host's text is one text for every count, or forms of its own", async () => {
@@ -142,7 +142,7 @@ test("the row count takes the plural form of the report's language: \"1 row\", \
     const two = [SALES[0], SALES[3]];
     const north = { ...view, filters: [{ field: "Region", type: "include", items: ["North"] }] };
     assert.ok((await render(north, two, { format: "html", template, ...FIXED })).text.startsWith("<p>1 of 2 rows</p>"));
-    // a host's string: one text for every count, as before
+    // a host's string: one text for every count
     assert.ok((await render(view, one, { format: "html", template, ...FIXED, texts: { rowsCount: "{count} records" } })).text.startsWith("<p>1 records</p>"));
     // a host's forms
     const forms = { one: "{count} record", other: "{count} records" };

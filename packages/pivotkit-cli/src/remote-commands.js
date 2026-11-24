@@ -15,7 +15,7 @@ import { viewFileText } from "pivotkit-core";
 import { RENDER_FORMATS } from "pivotkit-report";
 import { CliError, asCliError, shortName, writeSafe } from "pivotkit-node/files";
 import { RemoteError } from "./errors.js";
-import { fromFields, filtersOf, hasLayoutFlags, mapOf } from "./layout-view.js";
+import { fromFields, filtersOf, hasLayoutFlags, mapOf, quoteArg } from "./layout-view.js";
 import { layoutOf } from "./layout-flags.js";
 import { checkNotInput } from "./inputs.js";
 import { nothingWritten } from "./nothing-written.js";
@@ -208,14 +208,14 @@ async function suggestRemote(positionals, values, ctx, client) {
         const out = shortName(values.output);
         extra.output = { file: out, bytes: bytes.length };
         const report = out.replace(/(\.pivotkit)?\.json$/i, "") + ".html";
-        return { findings, extra, note: [...lines, `wrote ${out}: a draft view of the server's source ${values.source}`, `next: pivotkit render ${out} --source ${values.source} -o ${report} (with the same server)`].join("\n") };
+        return { findings, extra, note: [...lines, `wrote ${out}: a draft view of the server's source ${values.source}`, `next: pivotkit render ${quoteArg(out)} --source ${quoteArg(values.source)} -o ${quoteArg(report)} (with the same server)`].join("\n") };
     }
     if (values.json) {
         extra.view = view;
     } else {
         ctx.io.stdout.write(text);
     }
-    return { findings, extra, note: [...lines, `next: pivotkit describe --source ${values.source} --suggest -o ${values.source}.pivotkit.json`].join("\n") };
+    return { findings, extra, note: [...lines, `next: pivotkit describe --source ${quoteArg(values.source)} --suggest -o ${quoteArg(`${values.source}.pivotkit.json`)}`].join("\n") };
 }
 
 async function renderRemote(positionals, values, ctx, client) {

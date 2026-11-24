@@ -54,7 +54,7 @@ test("sheets with the same columns: the view's sheet decides the values; --sheet
     assert.doesNotMatch(feb.stdout, /East/);
 });
 
-test("a view without a sheet reads the first visible sheet, as before", async () => {
+test("a view without a sheet reads the first visible sheet", async () => {
     const dir = books();
     const r = await run(["render", "nosheet.pivotkit.json", "--data", "months.xlsx", "-f", "csv"], { cwd: dir });
     assert.equal(r.code, 0, r.stderr);

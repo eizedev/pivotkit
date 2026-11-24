@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, statSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { encodeViewLink } from "pivotkit-core/link";
 import { BY_REGION, SALES_CSV, run, tempDir } from "./helpers.js";
@@ -41,6 +41,10 @@ test("help: pivotkit, a command's help and help <command>; an unknown command is
     assert.equal(envelope.command, "sources");
     assert.equal(envelope.error.message, '"--json" comes after the command: pivotkit sources --json; run "pivotkit --help"');
     assert.equal((await run(["--bogus"])).stderr, 'pivotkit: unknown option "--bogus"; run "pivotkit --help"\n');
+    // Node's own parse error ends with a full stop: it goes before the "; run"
+    const parseError = JSON.parse((await run(["render", "x.csv", "--title", "--json"])).stdout).error.message;
+    assert.match(parseError, /--title/);
+    assert.match(parseError, /[^.]; run "pivotkit render --help"$/);
     // run as "pivotkit-server cli", the pointers name that
     const { main } = await import("../src/cli.js");
     const err = [];
@@ -150,7 +154,7 @@ test("-o: the format from the extension, a file replaced whole, --json with the 
     const html = readFileSync(join(dir, "out.html"), "utf8");
     assert.ok(html.startsWith("<!doctype html>") && html.includes("<h1>By region</h1>") && !html.includes("old content"));
     // no temporary file is left next to it
-    assert.deepEqual(execFileSync("ls", ["-A", dir], { encoding: "utf8" }).trim().split("\n").sort(), ["out.html", "sales.csv", "view.json"]);
+    assert.deepEqual(readdirSync(dir).sort(), ["out.html", "sales.csv", "view.json"]);
     const noFile = await run(["render", "view.json", "--data", "sales.csv", "--json"], { cwd: dir });
     assert.equal(noFile.code, 2);
     assert.equal(JSON.parse(noFile.stdout).error.code, "JSON_NEEDS_OUTPUT");
@@ -419,7 +423,7 @@ test("render --numbers shown|full and --flat-header: csv and json as a server wr
     const dir = tempDir();
     writeFileSync(join(dir, "t.csv"), "Region,Channel,Sales\nNorth,Web,0.1\nNorth,Web,0.2\nNorth,Shop,1.23456\nSouth,Web,2.5\n");
     const layout = ["render", "t.csv", "--rows", "Region", "--cols", "Channel", "--values", "sum:Sales"];
-    // without the flags: full precision and a header row per column field, as before
+    // without the flags: full precision and a header row per column field
     const full = await run([...layout, "-f", "csv"], { cwd: dir });
     assert.equal(full.code, 0, full.stderr);
     const lines = (text) => text.replace(/\r\n/g, "\n");

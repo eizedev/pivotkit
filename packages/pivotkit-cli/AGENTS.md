@@ -6,7 +6,7 @@ The command line `pivotkit`. Node only. The root [AGENTS.md](../../AGENTS.md) ap
 
 ```bash
 npm test -w pivotkit-cli      # spawns the CLI as a user runs it; CI runs it on Windows and macOS too
-npm run build -w pivotkit-cli # the gzipped example data
+npm run build -w pivotkit-cli # the example files
 npx pivotkit-cli render view.json --data data.csv -o out.html
 ```
 
@@ -70,6 +70,8 @@ npx pivotkit-cli render view.json --data data.csv -o out.html
 - A secret reaches a keychain tool on stdin only, never as an argument.
 - Tests replace the tools through `storeMeans` and the waits through `signInMeans`.
 - Tests never touch the real keychain: spawned runs use `--store file`.
+- One exception: on CI's Windows runners, `test/sign-in/store.test.js` writes a token of its own to the
+  real Credential Manager and removes it again.
 - `token` refreshes under a lock file (`locked`). It reads the refresh token again inside the lock.
 - The lock holds a random id and a heartbeat. A stale lock is renamed aside before it is taken over.
 - An error that needs `pivotkit login` again carries `exitCode: 3` (`SIGN_IN_AGAIN`).
@@ -86,3 +88,6 @@ npx pivotkit-cli render view.json --data data.csv -o out.html
 - `test/` spawns the CLI as a user runs it.
 - `test/remote.test.js` runs remote mode against a fake server and a fake proxy on loopback.
 - `test/sign-in/` runs login, token and logout against the fake server and issuer of `test/sign-in/fake-issuer.js`.
+- Some tests import from other packages' source. A rename there breaks them:
+  - pivotkit-xlsx's `test/make-xlsx.js` makes the workbooks of `cli.test.js`, `sheet.test.js`, and `suggest.test.js`.
+  - `suggest.test.js` checks with pivotkit-react's `src/sheet-views.js` that the browser opens a draft of a sheet.

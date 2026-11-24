@@ -9,6 +9,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 ### Fixed
 
 - A view that holds itself gives the issue `viewFile` instead of a `TypeError`.
+- `cleanSvg` takes an SVG with two `<style>` elements. It refused it as "a <style> element that is
+  not closed".
 - Cells of an HTML table with the same data bar or colour share one CSS rule. A table of 40,000 rows
   with four data bars wrote 160,000 rules and 18.6 MB; it now writes about 1,000 rules and 10.6 MB.
 
@@ -83,7 +85,7 @@ All notable changes to `pivotkit-report` are documented in this file. The format
   "1 Zeile". `REPORT_TEXTS.<lang>.rowsCount` and `rowsFiltered` are objects of plural forms, no
   longer texts, and so is their type in `ReportTexts`. The `texts` option takes a count as one text
   or as forms ([#547](https://github.com/eizedev/pivotkit/issues/547)).
-- The chart's SVG takes `toEChartsOption` from `pivotkit-core/chart` (#546).
+- The chart's SVG takes `toEChartsOption` from `pivotkit-core/chart` ([#546](https://github.com/eizedev/pivotkit/issues/546)).
 - The chart's SVG keeps a heatmap's colours ECharts can mix through pivotkit-core's
   `decorateOption` (`readColor`). The output is the same ([#386](https://github.com/eizedev/pivotkit/issues/386)).
 - The HTML report says how many of the data's rows the filters keep, as pivotkit-react's row count

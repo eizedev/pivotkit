@@ -24,10 +24,20 @@ import { writeFile } from "node:fs/promises";
 import * as echarts from "echarts";
 import { render } from "pivotkit-report";
 
-const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], display: "chart" };
-const result = await render(view, rows, { format: "html", echarts, now: "2026-11-13" });
-if (!result.ok) console.warn(result.issues);   // a bad view never throws: its issues come back
-await writeFile("report.html", result.body);  // Uint8Array; result.text for the text formats
+const view = {
+  rows: ["Region"],
+  values: [{ field: "Units", agg: "sum" }],
+  display: "chart"
+};
+const result = await render(view, rows, {
+  format: "html",
+  echarts,
+  now: "2026-11-13"
+});
+// a bad view never throws: its issues come back
+if (!result.ok) console.warn(result.issues);
+// result.body is a Uint8Array; result.text is the same body as text (not for xlsx)
+await writeFile("report.html", result.body);
 ```
 
 ## How it works

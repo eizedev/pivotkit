@@ -76,6 +76,7 @@ export async function createMcpContext(options, runtime = {}) {
          * @param {{ authInfo?: import("@modelcontextprotocol/server").AuthInfo }} [requestContext]
          */
         server(requestContext = {}) {
+            // maxToolInputElements: room for a table of inline data at its cap, about 5,500 elements as the SDK counts them (test/inline.test.js)
             const server = new McpServer({ ...serverInfo, version: VERSION }, { instructions: instructionsOf(context.offers?.mcp), maxToolInputElements: 10_000 });
             registerTools(server, context, callerOf(context.authMode, requestContext.authInfo, options.auth));
             server.registerPrompt(

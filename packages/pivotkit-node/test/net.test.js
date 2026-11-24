@@ -1,5 +1,5 @@
 // pivotkit-node/net: the readings pivotkit-cli and pivotkit-server share. The tables pin what each
-// front end got from its own copy before the copies became one.
+// front end reads, with the options that tell the two apart.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { NETWORK_FAILURES, isLoopback, networkCodeOf, networkFailureOf, retryAfterSeconds } from "pivotkit-node/net";
@@ -38,11 +38,11 @@ test("retryAfterSeconds reads seconds or an HTTP date, a past date as 0; nothing
     assert.equal(retryAfterSeconds("-5"), 0);
 });
 
-test("retryAfterSeconds with maxDigits reads a longer number as a date, as pivotkit-server always did", () => {
+test("retryAfterSeconds with maxDigits (pivotkit-server's reading) reads a longer number as a date", () => {
     assert.equal(retryAfterSeconds("9999999999", { maxDigits: 10 }), 9_999_999_999);
     assert.equal(retryAfterSeconds("99999999999", { maxDigits: 10 }), null);
     assert.equal(retryAfterSeconds("99999999999"), 99_999_999_999);
-    // Date.parse reads eleven digits with leading zeros as a date of the past: 0, not 1
+    // V8's Date.parse reads eleven digits with leading zeros as a date of the past: 0, not 1
     assert.equal(retryAfterSeconds("00000000001", { maxDigits: 10 }), 0);
     assert.equal(retryAfterSeconds("00000000001"), 1);
 });

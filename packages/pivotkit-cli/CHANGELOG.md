@@ -11,6 +11,10 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 - With `--strict` and warnings only, the note says that `--strict` counts the warnings as errors. It
   said "the view has errors", which the view did not have.
 - The help lists exit code 3, the sign-in has ended.
+- After `pivotkit help`, the completions for fish and PowerShell offer the command names too.
+- A usage error from Node's option parser has no full stop in front of the way to the help.
+- In remote mode, the `next:` line of `describe --suggest` quotes a filename with a space. Local mode
+  did that already. The line pastes as it is.
 
 ### Changed
 
@@ -62,21 +66,21 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 - `pivotkit login` takes the client ID the server publishes (`rest.signIn.clientId`) when neither
   `--client-id` nor `PIVOTKIT_CLIENT_ID` gives one, and says so. `pivotkit-cli/rest` exports
-  `SIGN_IN_CLIENT_FIELD` and `CLIENT_ID_SYNTAX` (#486).
+  `SIGN_IN_CLIENT_FIELD` and `CLIENT_ID_SYNTAX` ([#486](https://github.com/eizedev/pivotkit/issues/486)).
 - The example views leave out the chart settings newer than 0.7 while they hold their default
   (`tooltip`), so a 0.7 reader takes them without a warning ([#36](https://github.com/eizedev/pivotkit/issues/36), [#54](https://github.com/eizedev/pivotkit/issues/54)).
 - `pivotkit login --url <server> --client-id <id>` signs in at the server's sign-in provider with
   the OAuth 2.0 device code flow. It keeps the refresh token in the system's keychain, else in a
   file only you read. `pivotkit token` prints a fresh access token, and `pivotkit logout` removes
   the sign-in, revoking the refresh token where the provider offers that
-  ([sign in](https://pivotkit.eize.dev/reference/cli/#sign-in), #486).
+  ([sign in](https://pivotkit.eize.dev/reference/cli/#sign-in), [#486](https://github.com/eizedev/pivotkit/issues/486)).
 - Exit code 3: `pivotkit token` says the sign-in has ended and `pivotkit login` is needed again.
 - `pivotkit-cli/rest` exports `resourceMetadataUrlOf`, the address of a server's sign-in metadata.
 - `--filter Field=Item` keeps the rows of one item: `--filter Country=Germany`. Given again for
-  the same field, it keeps each item. JSON and `@file.json` work as before (#508).
+  the same field, it keeps each item. JSON and `@file.json` work as before ([#508](https://github.com/eizedev/pivotkit/issues/508)).
 - With layout flags and local data, an item of a text field that is none of its values is a
   warning `itemUnknown` with the item meant. Number fields and server mode get only
-  `noRowsKept` (#508).
+  `noRowsKept` ([#508](https://github.com/eizedev/pivotkit/issues/508)).
 
 ### Changed
 
@@ -86,10 +90,10 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 - The example views (`pivotkit example`) name the chart's `tooltip` setting, `"auto"`.
 
 - `--filter Revenue>1000`, `Country!=Germany` or `Country<>Germany` is a usage error that gives
-  the JSON filter it means. A value in neither form gets an example of each (#508).
+  the JSON filter it means. A value in neither form gets an example of each ([#508](https://github.com/eizedev/pivotkit/issues/508)).
 - `--values avg:Revenue` asks "did you mean average?", as do `mean`, `cnt`, `total`, `distinct`
-  and `stddev` (#508).
-- `itemCase` says "did you mean" once: pivotkit-core's message no longer names the item meant (#508).
+  and `stddev` ([#508](https://github.com/eizedev/pivotkit/issues/508)).
+- `itemCase` says "did you mean" once: pivotkit-core's message no longer names the item meant ([#508](https://github.com/eizedev/pivotkit/issues/508)).
 - pivotkit-core's internal limit helper words a file over its limit. The text stays the same
   ([#509](https://github.com/eizedev/pivotkit/issues/509)).
 

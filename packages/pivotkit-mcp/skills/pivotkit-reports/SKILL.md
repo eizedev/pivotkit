@@ -68,8 +68,8 @@ JSON), and the server runs it and hands the result to the user as a file or a li
 When the user pastes a table or another tool gave you one, and the tools offer `data`, send it with
 `source` `"inline:"`: `data` holds `columns` (each name once), `rows` (one list per row, one value per
 column, numbers as JSON numbers, not texts, `null` for none) and `rowCount`, the number of all rows.
-Send the whole table: a `rowCount` that differs from the rows is refused. `list_sources` says how
-much may be sent (500 rows, 5,000 cells and 256 KiB at most); for more, ask the operator for a source.
+Send the whole table: the server refuses a `rowCount` that differs from the rows. `list_sources` says in its
+`data` how many rows, cells and bytes you may send. For more, ask the operator for a source.
 You wrote these rows, so they are not the operator's data and no exposure policy guards them: say
 so when you report on them. A link or a schedule cannot be made over them.
 

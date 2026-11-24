@@ -1,6 +1,6 @@
 // Compiled by `npm run test:types` against the generated declarations, through the package's own
 // exports map: the element, its properties and its events as a TypeScript user sees them.
-import { EVENTS, PivotReportElement, define, type CellClick, type ExportFile, type PivotReportEventMap, type PivotView, type Template } from "pivotkit-element";
+import { EVENTS, PivotReportElement, define, type CellClick, type ColumnarData, type DataLoad, type ExportFile, type FieldDefaults, type PivotReportEventMap, type PivotView, type ReaderPlugin, type SourceEntry, type SourceSwitch, type Template, type TemplateDelete, type TemplatePublish, type TemplateSave, type TipDismiss } from "pivotkit-element";
 import { EVENTS as EVENTS_ONLY, define as defineOnly } from "pivotkit-element/element";
 
 const el: PivotReportElement = document.createElement("pivot-report");
@@ -80,7 +80,21 @@ el.addEventListener("pivot-data-load", (e) => {
     return rows + (e.detail.source?.id ?? "").length;
 });
 
+// every type an event or a property uses comes from the package root too
+const typed: { defaults: FieldDefaults; tip: (d: TipDismiss) => string; load: (d: DataLoad) => number; entry: SourceEntry; switched: (d: SourceSwitch) => string; plugin: ReaderPlugin; columns: ColumnarData; save: (d: TemplateSave) => string; remove: (d: TemplateDelete) => string; publish: (d: TemplatePublish) => string } = {
+    defaults: { agg: "sum" },
+    tip: (d) => d.id ?? "",
+    load: (d) => d.rows,
+    entry: { id: "sales" },
+    switched: (d) => d.source.id,
+    plugin: el.plugins![0],
+    columns: { columns: ["Team"], data: [["A"]] },
+    save: (d) => d.name,
+    remove: (d) => d.name,
+    publish: (d) => d.name
+};
+
 const eventName: keyof PivotReportEventMap = EVENTS.viewChange;
 const sameEventName: keyof PivotReportEventMap = EVENTS_ONLY.viewChange;
 const ctor: CustomElementConstructor | undefined = define("my-report") ?? defineOnly("other-report");
-export { el, found, eventName, sameEventName, ctor };
+export { el, found, eventName, sameEventName, ctor, typed };
