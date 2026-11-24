@@ -84,7 +84,7 @@ export const FIELD_TYPES = Object.freeze(["string", "number", "date", "boolean",
  * A text of a view file (a name, a description, an id) as plain text: its inner spaces as written,
  * cut without an ellipsis, so an id or a field's name keeps matching the data's; "" when there is none.
  */
-const textOrEmpty = (value, max) => plainText(value, max, { keepSpaces: true }) ?? "";
+const textOrEmpty = (value, max) => plainText(value, max, { id: true }) ?? "";
 
 /**
  * Every place a view names a field, in the order a reader meets them: rows, columns, values, filters

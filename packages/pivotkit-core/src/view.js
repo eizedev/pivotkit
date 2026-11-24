@@ -296,14 +296,14 @@ function oneOf(value, allowed, fallback) {
 }
 
 /**
- * oneOf, and a value given but not allowed is reported with `report`: an error (null too), or a
- * warning for a setting older readers dropped without a word (a sort's by and order, an axis), where
- * null counts as not given, as for a switch.
+ * oneOf, and a value given but not allowed is reported: an error (null too), or with `warn` a warning,
+ * for a setting older readers dropped without a word (a sort's by and order, an axis), where null
+ * counts as not given, as for a switch.
  */
-function choice(value, allowed, fallback, ctx, path, report = ctx.issue) {
+function choice(value, allowed, fallback, ctx, path, warn) {
     const out = oneOf(value, allowed, fallback);
-    if (value !== undefined && out !== value && (value !== null || report === ctx.issue)) {
-        report(path, `unknown ${path.split(".").pop()} ${JSON.stringify(value)}`, "unknownSetting", { value: shown(value) });
+    if (value !== undefined && out !== value && !(warn && value === null)) {
+        (warn ? ctx.warn : ctx.issue)(path, `unknown ${path.split(".").pop()} ${JSON.stringify(value)}`, "unknownSetting", { value: shown(value) });
     }
     return out;
 }
@@ -319,16 +319,14 @@ function bool(value, fallback, ctx, path) {
     return fallback;
 }
 
-/** Whether a section given at `path` is an object; another value is a warning (null counts as not given). */
-function sectionObject(value, path, ctx) {
-    if (value === undefined || value === null) {
-        return false;
-    }
-    if (!isPlainObject(value)) {
+/**
+ * A warning for a section given at `path` that is no object (null counts as not given). The section
+ * reads as empty then: get() and ctx.keys() read only an object.
+ */
+function checkSection(value, path, ctx) {
+    if (value !== undefined && value !== null && !isPlainObject(value)) {
         ctx.issue(path, "not an object", "notSection", { value: shown(value) });
-        return false;
     }
-    return true;
 }
 
 /** Accepts an encoded data set, a schema { fields } or an array of fields. */
@@ -480,7 +478,7 @@ function showAsOf(showAs, ref, path, ctx) {
         ctx.issue(path, `${type} needs an aggregator that adds up (sum or count), not ${ref.agg}`, "showAsNotAdditive", { value: type, agg: ref.agg });
         return null;
     }
-    return { type, axis: choice(get(s, "axis"), AXES, "rows", ctx, `${path}.axis`, ctx.warn) };
+    return { type, axis: choice(get(s, "axis"), AXES, "rows", ctx, `${path}.axis`, true) };
 }
 
 function valuesSection(raw, view, ctx) {
@@ -606,8 +604,8 @@ function sortSection(raw, view, ctx) {
         if (!f || seen.has(f.name)) {
             return f ? ctx.issue(path, `"${f.name}" is sorted twice`, "sortedTwice", { field: f.name }) : ctx.unknownField(path, get(s, "field"));
         }
-        const by = choice(get(s, "by"), SORT_BY, "label", ctx, `${path}.by`, ctx.warn);
-        const spec = { field: f.name, by, order: choice(get(s, "order"), SORT_ORDERS, "asc", ctx, `${path}.order`, ctx.warn) };
+        const by = choice(get(s, "by"), SORT_BY, "label", ctx, `${path}.by`, true);
+        const spec = { field: f.name, by, order: choice(get(s, "order"), SORT_ORDERS, "asc", ctx, `${path}.order`, true) };
         if (by === "custom") {
             const items = customItems(get(s, "items"), f, `${path}.items`, ctx);
             if (!items) {
@@ -650,10 +648,9 @@ function totalsSection(raw, view, ctx) {
 
 /** Collapsed groups: key paths of fields on the axis. */
 function collapsedSection(raw, view, ctx) {
-    if (!sectionObject(get(raw, "collapsed"), "collapsed", ctx)) {
-        return;
-    }
-    ctx.keys(get(raw, "collapsed"), VIEW_KEYS.collapsed, "collapsed");
+    const collapsed = get(raw, "collapsed");
+    checkSection(collapsed, "collapsed", ctx);
+    ctx.keys(collapsed, VIEW_KEYS.collapsed, "collapsed");
     for (const axis of AXES) {
         const types = view[axis].map((name) => ctx.fields.get(name.toLowerCase()).type);
         const seen = new Set();
@@ -701,42 +698,41 @@ function displaySection(raw, view, ctx) {
     const display = get(raw, "display");
     view.display = choice(display, DISPLAY_MODES, view.display, ctx, "display");
     const chart = get(raw, "chart");
-    if (sectionObject(chart, "chart", ctx)) {
-        ctx.keys(chart, VIEW_KEYS.chart, "chart");
-        const flag = (key) => bool(get(chart, key), false, ctx, `chart.${key}`);
-        const own = (key, allowed, fallback) => choice(get(chart, key), allowed, fallback, ctx, `chart.${key}`);
-        const title = get(chart, "title");
-        view.chart = {
-            type: own("type", CHART_TYPES, view.chart.type),
-            stacked: flag("stacked"),
-            horizontal: flag("horizontal"),
-            valueLabels: own("valueLabels", CHART_VALUE_LABELS, "auto"),
-            legend: own("legend", CHART_LEGENDS, "auto"),
-            title: title === undefined || title === null ? null : ctx.text(title),
-            smooth: flag("smooth"),
-            axisLabels: own("axisLabels", CHART_AXIS_LABELS, "auto"),
-            groupLabels: own("groupLabels", CHART_GROUP_LABELS, "auto"),
-            labelPosition: own("labelPosition", CHART_LABEL_POSITIONS, "outside"),
-            tooltip: own("tooltip", CHART_TOOLTIPS, "auto"),
-            zoom: own("zoom", CHART_ZOOMS, "auto"),
-            stackPercent: flag("stackPercent"),
-            hidden: listOnce(raw, "chart.hidden", ctx, (n) => (nameOf(n) === null ? null : { id: /** @type {string} */ (n), value: n })),
-            referenceLines: referenceLinesOf(get(chart, "referenceLines"), ctx),
-            colors: listOnce(raw, "chart.colors", ctx, (c, path) => {
-                const name = nameOf(get(c, "name"));
-                const color = get(c, "color");
-                if (name === null || !isColor(color)) {
-                    return null;
-                }
-                // a key an entry does not have is said (unknownKey), the entry still used
-                ctx.keys(c, VIEW_KEYS.color, path);
-                return { id: name.toLowerCase(), value: { name, color } };
-            }),
-            tooltipShare: flag("tooltipShare")
-        };
-        if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {
-            ctx.issue("chart.title", `not a text up to ${ctx.limits.name} characters`, "badTitle", { max: ctx.limits.name });
-        }
+    checkSection(chart, "chart", ctx);
+    ctx.keys(chart, VIEW_KEYS.chart, "chart");
+    const flag = (key) => bool(get(chart, key), false, ctx, `chart.${key}`);
+    const own = (key, allowed, fallback) => choice(get(chart, key), allowed, fallback, ctx, `chart.${key}`);
+    const title = get(chart, "title");
+    view.chart = {
+        type: own("type", CHART_TYPES, view.chart.type),
+        stacked: flag("stacked"),
+        horizontal: flag("horizontal"),
+        valueLabels: own("valueLabels", CHART_VALUE_LABELS, "auto"),
+        legend: own("legend", CHART_LEGENDS, "auto"),
+        title: title === undefined || title === null ? null : ctx.text(title),
+        smooth: flag("smooth"),
+        axisLabels: own("axisLabels", CHART_AXIS_LABELS, "auto"),
+        groupLabels: own("groupLabels", CHART_GROUP_LABELS, "auto"),
+        labelPosition: own("labelPosition", CHART_LABEL_POSITIONS, "outside"),
+        tooltip: own("tooltip", CHART_TOOLTIPS, "auto"),
+        zoom: own("zoom", CHART_ZOOMS, "auto"),
+        stackPercent: flag("stackPercent"),
+        hidden: listOnce(raw, "chart.hidden", ctx, (n) => (nameOf(n) === null ? null : { id: /** @type {string} */ (n), value: n })),
+        referenceLines: referenceLinesOf(get(chart, "referenceLines"), ctx),
+        colors: listOnce(raw, "chart.colors", ctx, (c, path) => {
+            const name = nameOf(get(c, "name"));
+            const color = get(c, "color");
+            if (name === null || !isColor(color)) {
+                return null;
+            }
+            // a key an entry does not have is said (unknownKey), the entry still used
+            ctx.keys(c, VIEW_KEYS.color, path);
+            return { id: name.toLowerCase(), value: { name, color } };
+        }),
+        tooltipShare: flag("tooltipShare")
+    };
+    if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {
+        ctx.issue("chart.title", `not a text up to ${ctx.limits.name} characters`, "badTitle", { max: ctx.limits.name });
     }
 }
 
@@ -746,24 +742,20 @@ function displaySection(raw, view, ctx) {
  */
 function referenceLinesOf(lines, ctx) {
     const path = "chart.referenceLines";
-    const given = sectionObject(lines, path, ctx);
-    if (given) {
-        ctx.keys(lines, VIEW_KEYS.referenceLines, path);
-    }
-    const target = given ? get(lines, "target") : undefined;
-    const flag = (key) => (given ? bool(get(lines, key), false, ctx, `${path}.${key}`) : false);
+    checkSection(lines, path, ctx);
+    ctx.keys(lines, VIEW_KEYS.referenceLines, path);
+    const target = get(lines, "target");
+    const flag = (key) => bool(get(lines, key), false, ctx, `${path}.${key}`);
     const out = { average: flag("average"), trend: flag("trend"), target: finite(target), extremes: flag("extremes") };
     if (target !== undefined && target !== null && out.target === null) {
-        ctx.issue("chart.referenceLines.target", `not a number ${JSON.stringify(shown(target))}`, "unknownSetting", { value: shown(target) });
+        ctx.issue(`${path}.target`, `not a number ${JSON.stringify(shown(target))}`, "unknownSetting", { value: shown(target) });
     }
     return out;
 }
 
 function formattingSection(raw, view, ctx) {
     const formatting = get(raw, "formatting");
-    if (!sectionObject(formatting, "formatting", ctx)) {
-        return;
-    }
+    checkSection(formatting, "formatting", ctx);
     ctx.keys(formatting, VIEW_KEYS.formatting, "formatting");
     const locale = get(formatting, "locale");
     if (locale !== undefined && locale !== null) {
