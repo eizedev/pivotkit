@@ -22,9 +22,10 @@ async function get(url) {
     for (let attempt = 1; ; attempt++) {
         let response;
         try {
-            response = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" } });
+            // a connection that hangs ends after a minute, as one that times out
+            response = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" }, signal: AbortSignal.timeout(60_000) });
         } catch (error) {
-            // a connection that timed out: try again, three times at most
+            // a connection that timed out or failed: try again, three times at most
             if (attempt >= 3) throw error;
             await later(10_000 * attempt);
             continue;

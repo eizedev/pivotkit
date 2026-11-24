@@ -11,6 +11,7 @@
 //
 //   npm run bench:browser                                        all engines, sizes and views, 5 runs
 //   npm run bench:browser -- --runs 3 --sizes 100000,250000 --browsers chromium --json out.json
+//   npm run bench:browser -- --views 0,2                         only these views, by their place in VIEWS
 //
 // Timings for the documentation (docs/concepts/limits.md, "Measured in the browser"): machines differ.
 import { createServer } from "node:http";
@@ -36,9 +37,19 @@ const { values: args } = parseArgs({
         json: { type: "string" }
     }
 });
+/** Stops with a usage message when `ok` is false. */
+const expectArg = (ok, message) => {
+    if (ok) return;
+    console.error(`bench:browser: ${message}`);
+    process.exit(2);
+};
+const isCount = (n) => Number.isInteger(n) && n > 0;
 const RUNS = Number(args.runs);
+expectArg(isCount(RUNS), `--runs is a whole number above 0, not "${args.runs}"`);
 const SIZES = args.sizes.split(",").map(Number);
+expectArg(SIZES.every(isCount), `--sizes are whole numbers above 0, comma-separated, not "${args.sizes}"`);
 const BROWSERS = args.browsers.split(",");
+expectArg(BROWSERS.every((b) => Object.hasOwn(ENGINES, b)), `--browsers takes ${Object.keys(ENGINES).join(", ")}, not "${args.browsers}"`);
 
 /**
  * The views: two of the playground's presets and one with the aggregators that keep a value per row
@@ -66,6 +77,7 @@ const VIEWS = {
     }
 };
 const viewNames = args.views ? args.views.split(",").map((i) => Object.keys(VIEWS)[Number(i)]) : Object.keys(VIEWS);
+expectArg(viewNames.every(Boolean), `--views takes places 0 to ${Object.keys(VIEWS).length - 1} in VIEWS, not "${args.views}"`);
 
 /** Builds pivotkit-react's dist/ and the page, minified, production React, as the playground. */
 async function build() {
@@ -236,45 +248,48 @@ const report = {
 try {
     for (const engine of BROWSERS) {
         const browser = await ENGINES[engine].launch();
-        report.browsers[engine] = browser.version();
-        console.log(`\n${engine} ${browser.version()}`);
-        report.results[engine] = {};
-        for (const name of viewNames) {
-            report.results[engine][name] = {};
-            let stopped = null;
-            for (const n of SIZES) {
-                if (stopped) {
-                    report.results[engine][name][n] = { skipped: `not run: ${stopped}` };
-                    continue;
+        try {
+            report.browsers[engine] = browser.version();
+            console.log(`\n${engine} ${browser.version()}`);
+            report.results[engine] = {};
+            for (const name of viewNames) {
+                report.results[engine][name] = {};
+                let stopped = null;
+                for (const n of SIZES) {
+                    if (stopped) {
+                        report.results[engine][name][n] = { skipped: `not run: ${stopped}` };
+                        continue;
+                    }
+                    const runs = [];
+                    for (let i = 0; i < RUNS; i++) {
+                        const r = await run(browser, engine, url, name, n);
+                        runs.push(r);
+                        // a failure is not repeated: the next runs would fail the same way, slowly
+                        if (r.failed || r.render?.error) break;
+                    }
+                    const s = summarize(runs);
+                    report.results[engine][name][n] = s;
+                    const m = s.median;
+                    const note = s.failed ? `FAILED: ${s.failed}` : s.limit ? `LIMIT: ${s.limit}` : "";
+                    console.log(
+                        `  ${name}, ${n.toLocaleString("en-US")} rows: first table ${fmt(m["render.ms"])} (encode ${fmt(m["render.measures.encode"])}, computePivot ${fmt(m["render.measures.computePivot"])}, toGrid ${fmt(m["render.measures.toGrid"])}), longest frame gap ${fmt(m["render.maxFrameGapMs"])}` +
+                            (m["render.longTasks.count"] !== undefined ? `, long tasks ${m["render.longTasks.count"]} (longest ${fmt(m["render.longTasks.longestMs"])})` : "") +
+                            (m["heap.reportMB"] !== undefined ? `, heap data ${Math.round(m["heap.dataMB"])} MB + report ${Math.round(m["heap.reportMB"])} MB` : "") +
+                            `, load ${s.loadMax.toFixed(1)}` +
+                            (s.ok < s.runs ? ` [${s.ok}/${s.runs} ok]` : "") +
+                            (note ? ` ${note}` : "") +
+                            (s.wrong ? ` WRONG: ${s.wrong}` : "") +
+                            (s.problems.length ? ` console: ${s.problems.join(" | ")}` : "")
+                    );
+                    for (const k of ["open a filter's values", "take a value out of a filter", "add a field", "export XLSX", "switch to the chart"]) {
+                        if (m[`steps.${k}.ms`] !== undefined) console.log(`      ${k}: ${fmt(m[`steps.${k}.ms`])}, longest frame gap ${fmt(m[`steps.${k}.maxFrameGapMs`])}`);
+                    }
+                    if (s.failed || s.limit) stopped = `${n.toLocaleString("en-US")} rows failed`;
                 }
-                const runs = [];
-                for (let i = 0; i < RUNS; i++) {
-                    const r = await run(browser, engine, url, name, n);
-                    runs.push(r);
-                    // a failure is not repeated: the next runs would fail the same way, slowly
-                    if (r.failed || r.render?.error) break;
-                }
-                const s = summarize(runs);
-                report.results[engine][name][n] = s;
-                const m = s.median;
-                const note = s.failed ? `FAILED: ${s.failed}` : s.limit ? `LIMIT: ${s.limit}` : "";
-                console.log(
-                    `  ${name}, ${n.toLocaleString("en-US")} rows: first table ${fmt(m["render.ms"])} (encode ${fmt(m["render.measures.encode"])}, computePivot ${fmt(m["render.measures.computePivot"])}, toGrid ${fmt(m["render.measures.toGrid"])}), longest frame gap ${fmt(m["render.maxFrameGapMs"])}` +
-                        (m["render.longTasks.count"] !== undefined ? `, long tasks ${m["render.longTasks.count"]} (longest ${fmt(m["render.longTasks.longestMs"])})` : "") +
-                        (m["heap.reportMB"] !== undefined ? `, heap data ${Math.round(m["heap.dataMB"])} MB + report ${Math.round(m["heap.reportMB"])} MB` : "") +
-                        `, load ${s.loadMax.toFixed(1)}` +
-                        (s.ok < s.runs ? ` [${s.ok}/${s.runs} ok]` : "") +
-                        (note ? ` ${note}` : "") +
-                        (s.wrong ? ` WRONG: ${s.wrong}` : "") +
-                        (s.problems.length ? ` console: ${s.problems.join(" | ")}` : "")
-                );
-                for (const k of ["open a filter's values", "take a value out of a filter", "add a field", "export XLSX", "switch to the chart"]) {
-                    if (m[`steps.${k}.ms`] !== undefined) console.log(`      ${k}: ${fmt(m[`steps.${k}.ms`])}, longest frame gap ${fmt(m[`steps.${k}.maxFrameGapMs`])}`);
-                }
-                if (s.failed || s.limit) stopped = `${n.toLocaleString("en-US")} rows failed`;
             }
+        } finally {
+            await browser.close();
         }
-        await browser.close();
     }
 } finally {
     server.close();

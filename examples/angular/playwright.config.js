@@ -6,7 +6,8 @@ import { defineConfig } from "@playwright/test";
 import base from "../../playwright.config.js";
 import { fileURLToPath } from "node:url";
 
-const port = Number(process.env.ANGULAR_PORT ?? 4174);
+// another port than the playground (4173) and the docs scripts (4174, 4175): they may run at the same time
+const port = Number(process.env.ANGULAR_PORT ?? 4176);
 
 export default defineConfig({
     ...base,
