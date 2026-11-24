@@ -39,6 +39,7 @@ and what changed. In the report itself, **More**, **Help**, **Keyboard shortcuts
     - the top N
     - the whole value condition
     - the sort
+
 ??? info "Menus, headers, the chart and messages"
     - In a chip's menu, each row says what is set and whether it is the default: "Filter, 3 of 4,
       changed". A level's title names the field, such as "Month › Group". A level with fields is a group

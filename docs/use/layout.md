@@ -66,21 +66,31 @@ The report adapts to its own width, not the window's.
 ![The report at phone width: toolbar, the zones folded under their heading, one tip, the tabs with their icon buttons, and the table below](../assets/screenshots/phone-light.png#only-light){ width="320" }
 ![The report at phone width: toolbar, the zones folded under their heading, one tip, the tabs with their icon buttons, and the table below](../assets/screenshots/phone-dark.png#only-dark){ width="320" }
 
-- **The drawer** closes with its **x** ("Close field list"), Escape or a tap beside it. It also
-  closes by itself, so you see where the field lands:
-    - once you add a field from it
-    - when its **Add to Filters** opens the filter
-    - when a drag starts
-- **Sheets**: on a phone, **More** and every menu are a sheet at the bottom of the window. A sheet
-  takes at most 82 % of the window's height and scrolls inside, so every entry is reachable.
-- **Icons**: next to the tabs, **Table settings** or **Chart settings**, **Enlarge**, **Full screen**
-  and **Swap rows and columns** show their icon only. Each keeps its whole name as a tooltip and for
-  a screen reader. On the smallest phones the buttons have no room beside the tabs and move to a
-  line above them.
-- **Notes above the result**: on a narrow report one note shows at a time; a notice, such as the
-  one about a top N, takes a tip's place.
-- **More** is always at the end of the toolbar. Its first entry, **Help and keyboard shortcuts**,
-  opens the level **Help**. Toolbar buttons that do not fit move into **More**, below it.
+- **Fields** in the toolbar opens the field list on a phone. **More** at the end of the toolbar holds
+  Help, and the buttons that do not fit.
+- Menus open as sheets from the bottom of the window and scroll inside.
+
+??? info "The drawer, sheets, icons and notes"
+    - **The drawer** closes with its **x** ("Close field list"), Escape or a tap beside it. It also
+      closes by itself, so you see where the field lands:
+        - once you add a field from it
+        - when its **Add to Filters** opens the filter
+        - when a drag starts
+    - **Sheets**: on a phone, **More** and every menu are a sheet at the bottom of the window. A sheet
+      takes at most 82 % of the window's height and scrolls inside, so every entry is reachable.
+    - **Icons**: next to the tabs, **Table settings** or **Chart settings**, **Enlarge**, **Full screen**
+      and **Swap rows and columns** show their icon only. Each keeps its whole name as a tooltip and for
+      a screen reader. On the smallest phones the buttons have no room beside the tabs and move to a
+      line above them.
+    - **Notes above the result**: on a narrow report one note shows at a time; a notice, such as the
+      one about a top N, takes a tip's place.
+    - **The table**: row labels wrap between words when the table is wider than the phone. A table
+      that is still too wide scrolls sideways.
+
+??? info "What moves into More"
+    **More** is always at the end of the toolbar. Its first entry, **Help and keyboard shortcuts**,
+    opens the level **Help**. Toolbar buttons that do not fit move into **More**, below it.
+
     - They move in a fixed order: Data first, then Start over and Views last. Start over holds New,
       and Views is where you save.
     - Only the buttons that the room left in the toolbar cannot hold move. A button that fits stays,
@@ -96,52 +106,42 @@ The report adapts to its own width, not the window's.
     - The name of the view you loaded takes the room that is left on its line. The report shortens it
       with "…", never to less than a few letters. A tap on it opens Views.
 
-    | Window (field list open / folded) | English | German |
-    | --- | --- | --- |
-    | 1280 px and wider | every button / every button | every button / every button |
-    | 1000 px | every button / every button | Start over in More / every button |
-    | 1000 px, with Data | Data in More / every button | Data and Start over in More / every button |
-    | A phone, 390 px | Start over and Views in More, and Data where there is one | the same |
-
-    The table shows measurements in the playground with the sales data, in Chromium. Another font or
-    other texts move the limits a little.
-
     ![More on a phone: Help first, then Reset and New, empty report, then Views, with a line between the groups](../assets/screenshots/more-menu-light.png#only-light)
     ![More on a phone: Help first, then Reset and New, empty report, then Views, with a line between the groups](../assets/screenshots/more-menu-dark.png#only-dark)
 
-- **The table**: row labels wrap between words when the table is wider than the phone. A table
-  that is still too wide scrolls sideways.
-
 ### A low report
 
-A report is low below 600 px of height, a narrow one below 820 px. Then it starts with its zones
-folded. The heading **Fields in the report** stays, and next to it, in the same line, what is
-placed: "Rows: Team · Columns: Priority · Values: Count of Ticket". At most one tip shows.
+A low report, such as one in a small card or on a phone, starts with its zones folded. The heading
+**Fields in the report** stays, and next to it, in the same line, what is placed: "Rows: Team ·
+Columns: Priority · Values: Count of Ticket". At most one tip shows.
 
-- When the zones need more room than the report has, they fold after you leave the area, not while
-  you work in it. Adding, moving or removing fields never folds them under your hand.
-- A click on the heading or on what is placed folds or opens the zones. The chevron on its left
-  turns.
-- The **i** next to the heading says what the section is for.
-- The heading row is one line on every screen. On a phone, what is placed is cut with "…"; point at
-  the heading to read it whole.
-- **Swap rows and columns** sits at the right end of the heading row. It works while the zones are
-  folded too.
-- A drag from the field list or the table opens the zones while it lasts.
-- Your click holds until the page is loaded again, also after **Start over** or **New, empty
-  report**.
-- A report with no field placed starts with its zones open, so **+ Add** is there to start with.
-  They stay open as you add fields. On a phone, fold them again with the heading once the report is
-  built, so the result has the room. A saved view or a template loaded into an empty report folds
-  them as any loaded view does.
+A click on the heading opens the zones again.
 
-The report's box can be lower than its toolbar, its zones, its tips and the least height of the
-result need. The least height is 240 px, 280 px on a narrow report. In that case:
+??? info "When the zones fold and open"
+    - When the zones need more room than the report has, they fold after you leave the area, not while
+      you work in it. Adding, moving or removing fields never folds them under your hand.
+    - A click on the heading or on what is placed folds or opens the zones. The chevron on its left
+      turns.
+    - The **i** next to the heading says what the section is for.
+    - The heading row is one line on every screen. On a phone, what is placed is cut with "…"; point at
+      the heading to read it whole.
+    - **Swap rows and columns** sits at the right end of the heading row. It works while the zones are
+      folded too.
+    - A drag from the field list or the table opens the zones while it lasts.
+    - Your click holds until the page is loaded again, also after **Start over** or **New, empty
+      report**.
+    - A report with no field placed starts with its zones open, so **+ Add** is there to start with.
+      They stay open as you add fields. On a phone, fold them again with the heading once the report is
+      built, so the result has the room. A saved view or a template loaded into an empty report folds
+      them as any loaded view does.
 
-- A report whose height the application sets, such as a card, stays inside that height, and its
-  table scrolls.
-- A report without such a height grows, and the page scrolls. This keeps the table from being
-  squeezed into a sliver.
+    The report's box can be lower than its toolbar, its zones, its tips and the least height of the
+    result need. In that case:
+
+    - A report whose height the application sets, such as a card, stays inside that height, and its
+      table scrolls.
+    - A report without such a height grows, and the page scrolls. This keeps the table from being
+      squeezed into a sliver.
 
 ## Menus and text fields
 
@@ -152,20 +152,22 @@ result need. The least height is 240 px, 280 px on a narrow report. In that case
     - Next to an item of Table settings the **i** is for the pointer. A screen reader reads the
       explanation with the item.
     - **More**, **Help**, **Show explanations** hides them all.
-- Every text field in a menu has an **×** while it holds text. The **×** empties the field and keeps
-  the focus there. Ctrl+Z in the field brings the text back. These text fields are:
-    - the field search
-    - a value's name
-    - "Starting at" of number ranges
-    - a saved view's name
-    - the text of a filter condition
-    - the box of Open view file
-- **Escape** in such a field empties it first. The next Escape closes the menu. In a level of a
-  chip's menu, a field applies as you type. There Escape gives back what applies and then goes back
-  a level.
-- While the report waits for its data, or opens a shared link, it shows grey shapes where the
-  toolbar, the zones and the table will be. A screen reader hears "Loading the report…". A large
-  data set of more than 10,000 rows shows them for a moment too, while the report reads it.
+
+??? info "Text fields and loading"
+    - Every text field in a menu has an **×** while it holds text. The **×** empties the field and keeps
+      the focus there. Ctrl+Z in the field brings the text back. These text fields are:
+        - the field search
+        - a value's name
+        - "Starting at" of number ranges
+        - a saved view's name
+        - the text of a filter condition
+        - the box of Open view file
+    - **Escape** in such a field empties it first. The next Escape closes the menu. In a level of a
+      chip's menu, a field applies as you type. There Escape gives back what applies and then goes back
+      a level.
+    - While the report waits for its data, or opens a shared link, it shows grey shapes where the
+      toolbar, the zones and the table will be. A screen reader hears "Loading the report…". A large
+      data set of more than 10,000 rows shows them for a moment too, while the report reads it.
 
 ## Menus that are long
 
@@ -180,46 +182,48 @@ their first level stays short:
       the totals of Table settings.
 - A row opens the topic's level in the menu's place. The level's title names the field:
   "Month › Group". **‹ Back**, Escape or the left arrow key go back to the row it came from.
-- Every choice applies at once. The table behind the menu changes while the menu is open, and Undo
-  takes back each change as one step.
-    - A number applies a moment after you stop typing, or with Enter.
-    - A value's name applies with Enter or when you leave the field.
-    - Escape in a field gives back what applies.
-- The search above a chip menu's first level finds any choice of any level, with where it is:
-  "Percent · Number format". It also finds the levels by their titles. **/** goes to the search from
-  the menu.
-    - It knows a few more words. "percent" and "%" find the shares of Show as first. "rename" finds
-      Name. "top 5", or "5", applies Top 5. "text condition" or "value condition" opens the Filter
-      level on its conditions.
-    - The arrow keys move into the hits, and Enter runs one. "Nothing found" says when there is none.
-- A name, a count or a number you typed applies when you leave the field, press Enter, go back a
-  level or click outside the menu. Escape in the field gives back what applied.
-- Entries few people need come last in their level, under a heading: **More statistics**,
-  **More calculations**, **More formats** (whole number, compact, bytes, durations).
-- A menu keeps the mouse wheel to itself. At its end it stops, and the table or the page behind it
-  does not scroll. Scrolling a long menu by touch stops at its end too. A menu is never higher than
-  the window. What does not fit scrolls inside it.
 
-**Views** is in levels too. Its first level is the list to scan: This view, Shared views, My views,
-Share this view. Save as…, Open view file… and the questions before a delete or a publish open
-levels of their own. See [views](views.md#the-views-menu). In **Chart settings**, below the chart
-types, Value labels, Legend, Title, Axis, Tooltip, Series and Layout are rows that open levels. See
-[charts](charts.md#display-settings). In **More**, **Help** opens a level. The Export menus and
-**Start over** are flat lists. No menu folds.
+??? info "Choices, the search and scrolling"
+    - Every choice applies at once. The table behind the menu changes while the menu is open, and Undo
+      takes back each change as one step.
+        - A number applies a moment after you stop typing, or with Enter.
+        - A value's name applies with Enter or when you leave the field.
+        - Escape in a field gives back what applies.
+    - The search above a chip menu's first level finds any choice of any level, with where it is:
+      "Percent · Number format". It also finds the levels by their titles. **/** goes to the search from
+      the menu.
+        - It knows a few more words. "percent" and "%" find the shares of Show as first. "rename" finds
+          Name. "top 5", or "5", applies Top 5. "text condition" or "value condition" opens the Filter
+          level on its conditions.
+        - The arrow keys move into the hits, and Enter runs one. "Nothing found" says when there is none.
+    - A name, a count or a number you typed applies when you leave the field, press Enter, go back a
+      level or click outside the menu. Escape in the field gives back what applied.
+    - Entries few people need come last in their level, under a heading: **More statistics**,
+      **More calculations**, **More formats** (whole number, compact, bytes, durations).
+    - A menu keeps the mouse wheel to itself. At its end it stops, and the table or the page behind it
+      does not scroll. Scrolling a long menu by touch stops at its end too. A menu is never higher than
+      the window. What does not fit scrolls inside it.
 
-Every menu draws its groups alike. Each group stands under its title in bold, with a line between one
-group and the next:
+    **Views** is in levels too. Its first level is the list to scan: This view, Shared views, My views,
+    Share this view. Save as…, Open view file… and the questions before a delete or a publish open
+    levels of their own. See [views](views.md#the-views-menu). In **Chart settings**, below the chart
+    types, Value labels, Legend, Title, Axis, Tooltip, Series and Layout are rows that open levels. See
+    [charts](charts.md#display-settings). In **More**, **Help** opens a level. The Export menus and
+    **Start over** are flat lists. No menu folds.
 
-| Menu | Groups |
-| --- | --- |
-| Table settings | Totals and Rows |
-| Views | This view, Shared views, My views and Share this view |
-| Chart settings | Chart type and Display |
-| Export | Download and Copy |
-| A value's levels | More statistics and the like |
+    Every menu draws its groups alike. Each group stands under its title in bold, with a line between one
+    group and the next:
 
-Below Help, **More** has lines only, no titles. Inside the chart's Display, a dashed line parts its
-own groups, such as Value labels, Legend and Title.
+    | Menu | Groups |
+    | --- | --- |
+    | Table settings | Totals and Rows |
+    | Views | This view, Shared views, My views and Share this view |
+    | Chart settings | Chart type and Display |
+    | Export | Download and Copy |
+    | A value's levels | More statistics and the like |
+
+    Below Help, **More** has lines only, no titles. Inside the chart's Display, a dashed line parts its
+    own groups, such as Value labels, Legend and Title.
 
 ![A value's menu on a phone: a sheet at the bottom, its first level with Number format · ● Currency and Highlight side by side](../assets/screenshots/phone-value-menu-light.png#only-light){ width="320" }
 ![A value's menu on a phone: a sheet at the bottom, its first level with Number format · ● Currency and Highlight side by side](../assets/screenshots/phone-value-menu-dark.png#only-dark){ width="320" }
@@ -244,12 +248,14 @@ never over the table.
 - The **x** of a tip hides that tip, and the report remembers it. Tab reaches the **x**.
 - The notes that say the result is cut or empty always stay. They have no x. Such notes are about a
   top 5, the first 50 categories of a chart, or a filter that leaves nothing.
-- **More**, **Help** has three switches. The report remembers them like the tips.
-    - **Show tips** switches all tips off and on.
-    - **Show explanations** switches every **i**: of the fields, the zones and the settings of the
-      menus.
-    - **Show dismissed tips again** is greyed out until you dismiss a tip.
-- **More**, **Help**, **Keyboard shortcuts** lists the keys. See [keyboard](keyboard.md).
+
+??? info "Switch tips and explanations off"
+    - **More**, **Help** has three switches. The report remembers them like the tips.
+        - **Show tips** switches all tips off and on.
+        - **Show explanations** switches every **i**: of the fields, the zones and the settings of the
+          menus.
+        - **Show dismissed tips again** is greyed out until you dismiss a tip.
+    - **More**, **Help**, **Keyboard shortcuts** lists the keys. See [keyboard](keyboard.md).
 
 ![Above the table: the notice that the top 3 cover these items only, and a tip with its x](../assets/screenshots/tips-light.png#only-light)
 ![Above the table: the notice that the top 3 cover these items only, and a tip with its x](../assets/screenshots/tips-dark.png#only-dark)

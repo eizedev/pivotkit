@@ -33,6 +33,16 @@ in the order go until the rest fits. Then each of them that the room left still 
   their own, then Data, then Views.
 - The report decides all this before the first paint.
 
+Measured in the playground with the sales data, in Chromium, the toolbar keeps these buttons.
+Another font or other texts move the limits a little.
+
+| Window (field list open / folded) | English | German |
+| --- | --- | --- |
+| 1280 px and wider | every button / every button | every button / every button |
+| 1000 px | every button / every button | Start over in More / every button |
+| 1000 px, with Data | Data in More / every button | Data and Start over in More / every button |
+| A phone, 390 px | Start over and Views in More, and Data where there is one | the same |
+
 The name of the view loaded takes the room left. The report cuts it with "…", never below 4em.
 
 The zones stack, one line each, whenever the area next to the field list is narrower than 640 px. A
