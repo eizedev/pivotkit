@@ -100,6 +100,8 @@ A loaded file is user input. Every reader follows these rules:
 - Build the table with `createTable` in `import-table.js`. Every format is cleaned the same way.
 - Start no worker of your own. A strict CSP blocks `blob:` workers.
 - Errors are `INVALID_FILE` with `details.reason`, or `LIMIT_EXCEEDED` with `details.file`.
+- A new rule that reads text as a number or a date comes with a table test of its edge cases: a
+  leading zero, a sign, both notations, a column that mixes them, an empty value.
 
 ### Reader fixtures
 
