@@ -88,12 +88,13 @@ export const limitText = (value, max, what, where) => `${value.toLocaleString("e
  * @param {number} value
  * @param {number} max
  * @param {string} what  for the message, e.g. "grid cells"
+ * @param {string} [where]  what holds the limit, for the message: the setting `limits.<limit>` by default
  */
-export function checkLimit(limit, value, max, what) {
+export function checkLimit(limit, value, max, what, where = `limits.${limit}`) {
     if (value > max) {
         throw new PivotkitError(
             "LIMIT_EXCEEDED",
-            limitText(value, max, what, `limits.${limit}`),
+            limitText(value, max, what, where),
             { limit, value, max }
         );
     }
