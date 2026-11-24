@@ -18,7 +18,7 @@
             "docs/security.md": [908],
             "docs/use/charts.md": [481]
         },
-        "totalLines": 24000
+        "totalLines": 24001
     },
     "functions": {
         "complexity": {
@@ -62,7 +62,7 @@
             "packages/pivotkit-react/src/toolbar.jsx Function 'Toolbar'": [27],
             "packages/pivotkit-report/src/operations.js Async method 'run'": [35],
             "packages/pivotkit-report/src/operations.js Function 'checkInput'": [47],
-            "packages/pivotkit-report/src/render.js Async function 'render'": [97],
+            "packages/pivotkit-report/src/render.js Async function 'render'": [68],
             "packages/pivotkit-report/src/svg.js Function 'cleanSvg'": [39],
             "packages/pivotkit-report/src/template-style.js Function 'templateTheme'": [33],
             "packages/pivotkit-report/src/template.js Function 'parseTemplate'": [48],
@@ -147,7 +147,6 @@
             "packages/pivotkit-react/src/toolbar-panels.jsx Function 'ViewsPanel'": [139],
             "packages/pivotkit-react/src/toolbar.jsx Function 'Toolbar'": [152],
             "packages/pivotkit-react/src/zones.jsx Function 'Zones'": [142],
-            "packages/pivotkit-report/src/render.js Async function 'render'": [151],
             "packages/pivotkit-report/src/template.js Function 'parseTemplate'": [190],
             "packages/pivotkit-server/src/auth.js Async function 'createAuthCore'": [188],
             "packages/pivotkit-server/src/compute.js Function 'createComputer'": [342],
