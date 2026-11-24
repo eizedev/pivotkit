@@ -34,7 +34,7 @@ Which report gets which link depends on the source:
   sent in the request (`inline:`), a source bound to a person (a
   [parameter bound to a claim](sources.md#http-claims) or a backend's
   [token exchange](sources.md#http-auth)), and a code source you mark with
-  [`perPerson: true`](sources.md#code-options).
+  [`perPerson: true`](code-sources.md#code-options).
 
 `check-config` names, for each closed source, what makes it closed.
 

@@ -52,7 +52,7 @@ To aggregate on the server instead, you have two ways:
 - Run the [REST service](getting-started/rest.md), its container image or the
   [MCP server](getting-started/mcp.md). They fetch the data themselves from the sources you
   configure: files, an [HTTP API](reference/sources.md#http) or your
-  [own code](reference/sources.md#code). Programs or an AI client ask them for reports.
+  [own code](reference/code-sources.md#code). Programs or an AI client ask them for reports.
 
 ## Does pivotkit send anything home?
 

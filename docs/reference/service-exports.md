@@ -35,7 +35,7 @@ The options, the context, the errors, and the helpers for requests.
 | --- | --- |
 | `ConfigError` | The error of a wrong option or configuration file. |
 | `OperationError` | The error of an operation, with a code such as `INVALID_INPUT`. [Codes](rest.md#errors) |
-| `SourceError` | The error a code source throws to answer with a code. [Details](sources.md#code) |
+| `SourceError` | The error a code source throws to answer with a code. [Details](code-sources.md#code) |
 | `SOURCE_ERROR_CODES` | The codes a `SourceError` may carry. |
 | `SecretError` | The error when pivotkit cannot read a secret. Its code is `SECRET`. |
 
@@ -197,14 +197,14 @@ Without a token, `createRestHandler` throws a `ConfigError` that says how to mak
 
 A configured source may be an operator's backend, an [HTTP source](sources.md#http)
 (`sources.<id>.http`, with typed `params`), or, for a library host, a function instead of a file, a
-[code source](sources.md#code):
+[code source](code-sources.md#code):
 
 - `load(params, { caller, signal })` returns an array of row objects, `{ rows, asOf }`, or columnar
   data `{ columns, types, data }` with one array per column. It does not return `encode()`'s result,
   so hidden fields can be dropped.
 - `load` runs in the host's thread. Its `signal` is aborted after `timeMs` (30 s by default).
 - The report over its data is computed in a worker under `compute.timeMs` and `compute.memoryMb`
-  ([where it runs](sources.md#code-thread)).
+  ([where it runs](code-sources.md#code-thread)).
 - pivotkit keeps one copy of the data for each combination of caller, parameter values and policy
   levels. The caller counts with its client, scopes, groups and claims.
     - With `cacheShared: true`, one copy serves all callers.

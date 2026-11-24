@@ -76,7 +76,7 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
    [command line](getting-started/cli.md).
 7. **Live data from files, HTTP APIs and code.** You run the REST service and the MCP server. They
    read a file, call an [HTTP API](reference/sources.md#http) or run your
-   [own code](reference/sources.md#code) with the caller's parameters. They keep a load for a short
+   [own code](reference/code-sources.md#code) with the caller's parameters. They keep a load for a short
    time per caller. An AI model gets field names and counts. It gets rows only where the policy
    shows them: see [what reaches an AI model](model-data.md). Every result says when its data is
    from: "Data as of" in the server's HTML reports, a document property in its Excel files.

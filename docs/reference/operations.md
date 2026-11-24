@@ -418,7 +418,7 @@ kill of the whole container, with every report running in it. For a smaller cont
 a limit of about 1.4 GB is a starting point.
 
 With code or HTTP sources, the main process also keeps up to `sourceCache.maxMb` of loaded data,
-256 MiB by default ([bounds](sources.md#code-cache)). Add it to the limit, or lower
+256 MiB by default ([bounds](code-sources.md#code-cache)). Add it to the limit, or lower
 `sourceCache.maxMb`.
 
 For an idea of real use, here is one measurement. It ran once with Node 26 on macOS, not with the

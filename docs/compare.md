@@ -144,7 +144,7 @@ project's own docs name.
   default). See the [FAQ](faq.md#my-data-is-on-a-server-does-pivotkit-fetch-it).
 - The command line reads local files, or asks a REST service. An operator runs the REST service and
   the MCP server. They answer requests, and they read the files,
-  [HTTP APIs](reference/sources.md#http) and [code sources](reference/sources.md#code) that their
+  [HTTP APIs](reference/sources.md#http) and [code sources](reference/code-sources.md#code) that their
   configuration names.
 - It is not access control. A viewer can see every row the host passes. With Source data
   (`exportData`, off by default), the viewer can also download those rows. See

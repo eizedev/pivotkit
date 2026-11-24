@@ -65,6 +65,7 @@ nav = [
     { "pivotkit-server (REST)" = "reference/rest.md" },
     { "pivotkit-mcp" = "reference/mcp.md" },
     { "Data sources" = "reference/sources.md" },
+    { "Code sources" = "reference/code-sources.md" },
     { "Download links" = "reference/delivery.md" },
     { "Your own name and links" = "reference/branding.md" },
     { "Sign-in and identity providers" = "reference/sign-in.md" },

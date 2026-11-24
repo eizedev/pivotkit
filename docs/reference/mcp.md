@@ -70,7 +70,7 @@ in. A time in the future becomes now. `render_view`'s message and summary line e
 ("Data as of 2026-11-15 08:00 UTC.").
 
 A result may also carry `stale: { since }` when last good data stands in for a code source's load
-that failed ([last good data](sources.md#code-cache)).
+that failed ([last good data](code-sources.md#code-cache)).
 
 The tools are one table shared with the command line
 ([`pivotkit-report/operations`](report.md#operations)). The [REST service](rest.md) offers the same
@@ -348,10 +348,10 @@ one probably meant.
 | `sources.<id>.fields.<name>.description` | - | none | The operator's words about a field (at most 500 characters), shown by describe_source at every level but `hide`. Control and direction characters are removed |
 | `sources.<id>.http` | - | none | An [HTTP source](sources.md#http): an operator's backend, its address with `{name}` for a parameter, where the rows are, paging and limits, its sign-in (`http.auth`: a secret header, client credentials or a token exchange, [backend sign-in](sources.md#http-auth)) |
 | `sources.<id>.params` | - | none | An HTTP or code source's parameters: values a caller passes with the source (see below) |
-| `sources.<id>.timeMs`, `.ttl`, `.maxStale` | - | code: 30000 ms, none, 3600 s; HTTP: 15000 ms, 60 s, 3600 s | An HTTP or code source's time limit, reuse and last good data ([HTTP](sources.md#http-options), [code](sources.md#code-options)) |
-| `sources.<id>.cacheShared` | - | false | A code source's one copy for all callers ([code sources](sources.md#code-options)) |
-| `sourceCache.maxMb` | - | 256 | The loaded data of code and HTTP sources the process keeps, in MiB (1 to 65536). The largest table that can be kept is a quarter of it (64 MiB by default). A larger one loads on every call. With several contexts in one process, the largest setting applies ([bounds](sources.md#code-cache)) |
-| `sources.<id>.perPerson` | - | false | A code source whose data differs per caller. Its reports get only links the person who asked can open ([code sources](sources.md#code-options)) |
+| `sources.<id>.timeMs`, `.ttl`, `.maxStale` | - | code: 30000 ms, none, 3600 s; HTTP: 15000 ms, 60 s, 3600 s | An HTTP or code source's time limit, reuse and last good data ([HTTP](sources.md#http-options), [code](code-sources.md#code-options)) |
+| `sources.<id>.cacheShared` | - | false | A code source's one copy for all callers ([code sources](code-sources.md#code-options)) |
+| `sourceCache.maxMb` | - | 256 | The loaded data of code and HTTP sources the process keeps, in MiB (1 to 65536). The largest table that can be kept is a quarter of it (64 MiB by default). A larger one loads on every call. With several contexts in one process, the largest setting applies ([bounds](code-sources.md#code-cache)) |
+| `sources.<id>.perPerson` | - | false | A code source whose data differs per caller. Its reports get only links the person who asked can open ([code sources](code-sources.md#code-options)) |
 | `httpSources.enabled`, `.allowIpLiterals`, `.backends` | - | true, false, none | HTTP sources on or off, an IP address as a host, backends many sources share (with `intranet` for loopback and private addresses) ([HTTP sources](sources.md#http-options)) |
 | `files.allowDirs` | `--allow-dir dir` | none | Directories the model may name files in (`file:`) |
 | `files.list` | `--list-files` | false | list_sources lists the data files of the allowed directories (not their subdirectories) by name, never by path; a name an earlier directory has is listed once |
@@ -449,7 +449,7 @@ starts the workers.
 - `await createHttpHandler(context)` gives `{ fetch, close }` with every check of this page.
 - `loadConfig(file)` reads a configuration file into options.
 
-A library host may give a source a function instead of a file, a [code source](sources.md#code):
+A library host may give a source a function instead of a file, a [code source](code-sources.md#code):
 
 - `load(params, { caller, signal })` returns rows, `{ rows, asOf }` or columnar data.
 - `version(params, { caller })` says when the data changed.
@@ -457,7 +457,7 @@ A library host may give a source a function instead of a file, a [code source](s
   `issuer`, which are null without OAuth. It never holds a token.
 - `signal` is aborted after the source's `timeMs` (30 s by default).
 - `load` runs in the host's thread. The report over its data is computed in a worker under
-  `compute.timeMs` and `compute.memoryMb`, as for a file ([where it runs](sources.md#code-thread)).
+  `compute.timeMs` and `compute.memoryMb`, as for a file ([where it runs](code-sources.md#code-thread)).
 - pivotkit keeps one copy of the data for each combination of caller, parameter values and policy
   levels. The caller counts with its client, scopes, groups and claims.
     - With `cacheShared: true`, one copy serves all callers.
@@ -470,7 +470,7 @@ A library host may give a source a function instead of a file, a [code source](s
   default), with `stale` in the result.
 - A `SourceError` (exported by pivotkit-server) says what went wrong in words a caller may read.
   Anything else a load throws is `SOURCE_UNAVAILABLE` with a fixed text
-  ([errors](sources.md#code-errors)).
+  ([errors](code-sources.md#code-errors)).
 
 An operator configures an [HTTP source](sources.md#http) in the configuration file. pivotkit requests
 the operator's backend at an address with `{name}` for a parameter, never at an address a caller
@@ -575,7 +575,7 @@ since the same call does not work when tried again.
 | `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page or over data sent in the request; a schedule over a `file:` source, data sent in the request, or a source with a token exchange or a parameter bound to a claim ([backend sign-in](sources.md#http-claims)) |
 | `BUSY`, `TIMEOUT` | No worker free within `queueMs`, or a parameter's pattern [could not be checked in time](#configuration); a call over `timeMs` |
-| `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](sources.md#code-errors), [HTTP sources](sources.md#http-errors)). An html render whose print template the server cannot read. The text is one of pivotkit's fixed texts (not available right now, the backend refused this server's access, not set up correctly, the server's print template is not available now), with the source's id and whether trying again may work |
+| `SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running ([code sources](code-sources.md#code-errors), [HTTP sources](sources.md#http-errors)). An html render whose print template the server cannot read. The text is one of pivotkit's fixed texts (not available right now, the backend refused this server's access, not set up correctly, the server's print template is not available now), with the source's id and whether trying again may work |
 | `DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`); an HTTP source's backend answered 401, 403 or 404 for the values given |
 | `UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload). A fixed text with the request id and whether trying again may work. The report stays in the output directory |
 | `INTERNAL` | Anything else: "internal error". The details are only in the log, with `--log debug` |
