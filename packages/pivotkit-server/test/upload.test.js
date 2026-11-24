@@ -156,6 +156,7 @@ test("options: one way to the store, https:// origins, credentials only as secre
     refused({ url: "https://store.example.com/r/{id}", headers: { "x-api-key": "abc" } }, /headers\.x-api-key: looks like a credential/);
     refused({ url: "https://store.example.com/r/{id}", headers: { host: "other.example.com" } }, /headers\.host: this header is set by the connection/);
     refused({ url: "https://store.example.com/r/{id}", headers: { "x-note": "a\r\nb" } }, /headers\.x-note: a value without line breaks/);
+    refused({ url: "https://store.example.com/r/{id}", headers: { "x-note": "a\u009bb" } }, /headers\.x-note: a value without line breaks, control characters/);
     refused({ url: "https://store.example.com/r/{id}", headers: { authorization: { prefix: "Bearer ", value: "the-token" } } }, /must be a reference to a secret|must be a text/);
     // the template: only {id}, {name} and {format}, and never in the host
     refused({ url: "https://store.example.com/r/{user}" }, /\{user\} is not a placeholder/);
@@ -368,6 +369,8 @@ test("a presign answer that is not followed: an address off allowOrigins, http:/
         [{ headers: { Cookie: "a=b" } }, "UPLOAD_HEADERS"],
         [{ headers: { "x-amz-meta-a": "x\r\nset-cookie: a=b" } }, "UPLOAD_HEADERS"],
         [{ headers: { "proxy-authorization": "x" } }, "UPLOAD_HEADERS"],
+        // a C1 control code is no text a header carries
+        [{ headers: { "x-amz-meta-a": "x\u0085y" } }, "UPLOAD_HEADERS"],
         // the body's type and encoding are the report's; proxy headers are not the store's to set
         [{ headers: { "content-type": "text/html" } }, "UPLOAD_HEADERS"],
         [{ headers: { "Content-Encoding": "gzip" } }, "UPLOAD_HEADERS"],

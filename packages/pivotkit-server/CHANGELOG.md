@@ -85,6 +85,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- **Breaking:** a header value refuses the C1 control characters U+0080 to U+009F, as it refuses the
+  other control characters. This holds for `http.headers`, the upload store's headers, a backend's
+  sign-in header and the headers a presign service asks for. A configured value with such a character
+  stops the start, and a secret's value fails its sign-in with a warning in the log. Both name the
+  header: remove the character.
 - check-config writes every size the same way: `256 KiB` for the issuer's limits, `16 MiB` for the
   kept loads and the uploads.
 - With `files.list`, list_sources names a directory's files by name order. Before, it took the first

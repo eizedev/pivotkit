@@ -474,7 +474,7 @@ export async function backendHeaders(auth, caller, how) {
     if (auth.kind === "header") {
         const value = `${auth.prefix}${await secretOf(auth.value, auth, means, "value")}`;
         if (!HEADER_VALUE.test(value)) {
-            warn(how, `${auth.at}.value is no header value (a character outside Latin-1, or longer than 16 KiB)`, {}, { once: true });
+            warn(how, `${auth.at}.value is no header value (a control character or a character outside Latin-1, or longer than 16 KiB)`, {}, { once: true });
             throw signInFailure("setup");
         }
         return { [auth.name]: value };

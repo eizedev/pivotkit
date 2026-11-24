@@ -365,7 +365,7 @@ function headersOf(headers, path) {
             throw new ConfigError(`${path}.${name}: a sign-in header holds a secret, which is never written in the configuration; set the backend's sign-in in http.auth (a header from a secret reference, client credentials or token exchange)`);
         }
         if (!HEADER_VALUE.test(value)) {
-            throw new ConfigError(`${path}.${name}: a value without line breaks, NUL or characters outside Latin-1, at most 1000 characters`);
+            throw new ConfigError(`${path}.${name}: a value without line breaks, control characters or characters outside Latin-1, at most 1000 characters`);
         }
         out[name.toLowerCase()] = value;
     }
