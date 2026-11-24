@@ -42,21 +42,6 @@ export { environment, versions };
  * @property {string} [program]  how the user ran it, for the pointers to its help (default "pivotkit"; pivotkit-server: "pivotkit-server cli")
  */
 
-/**
- * @typedef {object} Outcome  what a command gives back
- * @property {any[]} findings
- * @property {Record<string, any>} [extra]  its fields of the --json object
- * @property {string | null} [note]  the line for a person: what was written or checked
- * @property {boolean} [noteIsError]  the note says why nothing was written: shown with -q too
- */
-
-/**
- * @typedef {object} Output  how main() writes
- * @property {boolean} json  --json: one object on stdout
- * @property {string} program  the name a user typed to run it, for the pointers to its help
- * @property {(text: string) => void} say  a line on stderr
- */
-
 /** The most findings stderr lists; --json has them all. */
 const PRINTED_FINDINGS = 200;
 
@@ -70,7 +55,7 @@ const LOCAL_COMMANDS = Object.freeze({ render: renderCommand, validate: validate
  * @returns {Promise<number>}  the exit code
  */
 export async function main(argv, io) {
-    /** @type {Output} */
+    // how to write: --json's one object on stdout, the name typed to run it (for the pointers to its help), a line on stderr
     const out = { json: argv.includes("--json"), program: io.program ?? "pivotkit", say: (text) => io.stderr.write(`${text}\n`) };
     /** @type {any[]} */
     let findings = [];
@@ -106,8 +91,8 @@ function commandOf(argv) {
  * sign-in commands, which write their own output; else the command and its outcome.
  * @param {string[]} argv
  * @param {Io} io
- * @param {Output} out
- * @returns {Promise<number | { command: string, values: Record<string, any>, outcome: Outcome }>}
+ * @param {{ json: boolean, program: string, say: (text: string) => void }} out
+ * @returns {Promise<number | { command: string, values: Record<string, any>, outcome: { findings: any[], extra?: Record<string, any>, note?: string | null, noteIsError?: boolean } }>}
  */
 async function run(argv, io, out) {
     if (argv.length === 0 || argv[0] === "--help" || argv[0] === "-h") {
@@ -187,7 +172,7 @@ function helpCommand(command, positionals, io) {
  * @param {"login" | "token" | "logout"} command
  * @param {Record<string, any>} values
  * @param {{ io: Io }} ctx
- * @param {Output} out
+ * @param {{ json: boolean, program: string, say: (text: string) => void }} out
  * @returns {Promise<number>}
  */
 async function signInCommand(command, values, ctx, { json, say }) {
@@ -215,8 +200,8 @@ async function signInCommand(command, values, ctx, { json, say }) {
  * @param {string[]} positionals
  * @param {Record<string, any>} values
  * @param {Io} io
- * @param {Output} out
- * @returns {Promise<Outcome>}
+ * @param {{ json: boolean, program: string, say: (text: string) => void }} out
+ * @returns {Promise<{ findings: any[], extra?: Record<string, any>, note?: string | null, noteIsError?: boolean }>}  the findings, the fields of the --json object, and the line for a person (noteIsError: shown with -q too)
  */
 async function runCommand(command, positionals, values, io, { say }) {
     const remote = command === "sources" || values.url !== undefined || values.source !== undefined;
@@ -233,9 +218,9 @@ async function runCommand(command, positionals, values, io, { say }) {
 /**
  * A command's outcome written: --json's object, else its findings and its note on stderr. The exit
  * code: 1 for an error, or a warning with --strict.
- * @param {{ command: string, values: Record<string, any>, outcome: Outcome }} ran
+ * @param {{ command: string, values: Record<string, any>, outcome: { findings: any[], extra?: Record<string, any>, note?: string | null, noteIsError?: boolean } }} ran
  * @param {Io} io
- * @param {Output} out
+ * @param {{ json: boolean, program: string, say: (text: string) => void }} out
  */
 function report({ command, values, outcome }, io, { json, say }) {
     const findings = outcome.findings;
@@ -297,7 +282,7 @@ function printFindings(findings, values, say) {
  * @param {unknown} e
  * @param {{ command: string, findings: any[] }} at  the command and the findings so far
  * @param {Io} io
- * @param {Output} out
+ * @param {{ json: boolean, program: string, say: (text: string) => void }} out
  */
 function failure(e, { command, findings }, io, { json, program, say }) {
     const error = asCliError(e);
