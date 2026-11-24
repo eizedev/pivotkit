@@ -80,11 +80,11 @@ export const FIELD_TYPES = Object.freeze(["string", "number", "date", "boolean",
  * @property {string[]} needs  every field the view uses
  */
 
-/** plainText (util.js), "" when there is none. */
-const textOrEmpty = (value, max) => plainText(value, max) ?? "";
-/** An identifier or a field's name as plain text: cut, never changed by an ellipsis; "" when there is none. */
-const idOrEmpty = (value, max) => plainText(value, max, { id: true }) ?? "";
-
+/**
+ * A text of a view file (a name, a description, an id) as plain text: its inner spaces as written,
+ * cut without an ellipsis, so an id or a field's name keeps matching the data's; "" when there is none.
+ */
+const textOrEmpty = (value, max) => plainText(value, max, { keepSpaces: true }) ?? "";
 
 /**
  * Every place a view names a field, in the order a reader meets them: rows, columns, values, filters
@@ -303,7 +303,7 @@ export function toViewFile(view, meta = {}, options = {}) {
     expect(isPlainObject(view), "toViewFile(view): view must be an object");
     view = newerChartKeys(view, false);
     const name = textOrEmpty(meta.name, VIEW_FILE_LIMITS.name);
-    const sourceId = idOrEmpty(meta.source?.id, VIEW_FILE_LIMITS.name);
+    const sourceId = textOrEmpty(meta.source?.id, VIEW_FILE_LIMITS.name);
     const params = sourceId ? paramsOf(meta.source?.params, LIMITS, () => {}) : null;
     const withParams = params && Object.keys(params).length ? { params } : {};
     if (options.link) {
@@ -497,7 +497,7 @@ function readSource(raw, issue, limits) {
     }
     /** @type {ViewFileSource} */
     const source = {};
-    const id = idOrEmpty(get(raw, "id"), VIEW_FILE_LIMITS.name);
+    const id = textOrEmpty(get(raw, "id"), VIEW_FILE_LIMITS.name);
     const name = textOrEmpty(get(raw, "name"), VIEW_FILE_LIMITS.name);
     if (id) {
         source.id = id;
@@ -519,7 +519,7 @@ function readSource(raw, issue, limits) {
             }
             source.fields = [];
             fields.slice(0, VIEW_FILE_LIMITS.fields).forEach((f, i) => {
-                const fieldName = idOrEmpty(get(f, "name"), VIEW_FILE_LIMITS.name);
+                const fieldName = textOrEmpty(get(f, "name"), VIEW_FILE_LIMITS.name);
                 const type = get(f, "type");
                 if (!fieldName) {
                     issue(`source.fields[${i}]`, "no name");

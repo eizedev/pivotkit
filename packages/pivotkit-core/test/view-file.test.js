@@ -177,6 +177,15 @@ test("names, descriptions and the source are plain text, capped; a broken envelo
     assert.equal(names.source?.id, "i".repeat(VIEW_FILE_LIMITS.name));
 });
 
+test("a view file's name, description, source name and generator keep their inner spaces and are cut without \"…\", written and read", () => {
+    const long = `a  b ${"y".repeat(300)}`;
+    const meta = { name: long, description: "line1\n\nline2   x", source: { id: "s", name: "Sales   2026" }, generator: { name: "my   app", version: "1  2" } };
+    const file = toViewFile(view, meta);
+    assert.deepEqual([file.name, file.description, file.source.name, file.generator.name, file.generator.version], [long.slice(0, VIEW_FILE_LIMITS.name), "line1 line2   x", "Sales   2026", "my   app", "1  2"]);
+    const read = fromViewFile({ format: VIEW_FILE_FORMAT, formatVersion: 2, ...meta, view });
+    assert.deepEqual([read.name, read.description, read.source?.name, read.generator?.name], [long.slice(0, VIEW_FILE_LIMITS.name), "line1 line2   x", "Sales   2026", "my   app"]);
+});
+
 test("with the data it says whether the view fits: same source, every field there with its type", () => {
     const file = toViewFile(view, { name: "Units", source: { id: "sales" }, data });
     assert.deepEqual(fromViewFile(file, { data, sourceId: "sales" }).compatible, { ok: true, source: "same", missing: [], changed: [], needs: ["Region", "Date", "Product", "Units", "Rep", "Price"] });
