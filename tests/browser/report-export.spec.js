@@ -2,7 +2,7 @@
 // report opened on its own (its policy loads and runs nothing), and the print frame the browser's
 // dialog prints, with print() stubbed (a headless browser has no dialog).
 import { readFile } from "node:fs/promises";
-import { capturePrint, expect, test, toolbar } from "./fixtures.js";
+import { capturePrint, expect, test, toolbar, watchConsole } from "./fixtures.js";
 
 const printed = (page) => page.evaluate(() => /** @type {any} */ (window).__printed ?? null);
 
@@ -20,8 +20,7 @@ test.describe("Export menu: HTML report, SVG and print", () => {
         expect(html).not.toContain("pk-report-chart\"");
         // opened as a page of its own: the table, bold totals, nothing loaded or run
         const report = await context.newPage();
-        const problems = [];
-        report.on("console", (m) => (m.type() === "error" || m.type() === "warning") && problems.push(m.text()));
+        const problems = watchConsole(report);
         await report.setContent(html);
         const grand = report.locator("th", { hasText: /^Grand Total$/ }).first();
         await expect(grand).toBeVisible();
@@ -42,11 +41,13 @@ test.describe("Export menu: HTML report, SVG and print", () => {
         // the dark theme's colours stay out: a report on paper takes the light ones
         expect(html).toContain("<style>:root{--pk-surface:#ffffff;");
         const report = await context.newPage();
+        const problems = watchConsole(report);
         await report.setContent(html);
         const grand = report.locator("th", { hasText: /^Grand Total$/ }).first();
         await expect(grand).toBeVisible();
         expect(await grand.evaluate((el) => getComputedStyle(el).fontWeight)).toBe("800");
         expect(await report.locator("thead th").first().evaluate((el) => getComputedStyle(el).fontWeight)).toBe("500");
+        expect(problems).toEqual([]);
         await report.close();
     });
 

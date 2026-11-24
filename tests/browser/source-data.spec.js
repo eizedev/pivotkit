@@ -5,7 +5,7 @@ import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { expect, tableRows, test, toolbar } from "./fixtures.js";
+import { expect, tableRows, test, toolbar, watchConsole } from "./fixtures.js";
 import { fieldNames, fileOf, pickThroughMenu } from "./import-helpers.js";
 
 const CLI = fileURLToPath(new URL("../../packages/pivotkit-cli/bin/pivotkit.js", import.meta.url));
@@ -83,9 +83,11 @@ test.describe("Export → Source data", () => {
         expect(JSON.parse(stdout).ok).toBe(true);
         // the report's table opened as a page: its body rows as the screen shows them
         const report = await context.newPage();
+        const problems = watchConsole(report);
         await report.setContent(await readFile(out, "utf8"));
         const rendered = await report.locator("table tbody tr").evaluateAll((trs) => trs.map((tr) => [...tr.children].map((c) => c.textContent.trim())));
         expect(rendered).toEqual(screen);
+        expect(problems).toEqual([]);
         await report.close();
     });
 

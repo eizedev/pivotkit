@@ -1,4 +1,5 @@
 // Keyboard, focus and screen reader behaviour (WCAG 2.2 AA): every test here fails without its fix.
+import { SHOWN_MS } from "../../packages/pivotkit-react/src/toasts.jsx";
 import { chipMenu, chips, expect, tableRows, test, toolbar } from "./fixtures.js";
 
 test.describe("keyboard and focus", () => {
@@ -238,6 +239,8 @@ test.describe("names, roles and sizes", () => {
 
 test.describe("notes", () => {
     test("no note for an add; Undone names the step; notes sit in view, under the table when its end is on screen; a note stays while hovered", async ({ page }) => {
+        // the notes' time is counted on the page's clock
+        await page.clock.install();
         await page.goto("?data=sales");
         await page.locator('.pk-field[data-field="Channel"] .pk-field-name').click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country", "Channel"]);
@@ -254,10 +257,11 @@ test.describe("notes", () => {
             return (await toast.boundingBox()).y - (table.y + table.height);
         }).toBeGreaterThanOrEqual(0);
         await toast.hover();
-        await page.waitForTimeout(6800);
+        await page.clock.fastForward(SHOWN_MS + 800);
         await expect(toast).toBeVisible();
         await page.mouse.move(0, 0);
-        await expect(toast).toHaveCount(0, { timeout: 9000 });
+        await page.clock.fastForward(SHOWN_MS);
+        await expect(toast).toHaveCount(0);
     });
 });
 

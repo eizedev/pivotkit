@@ -6,6 +6,7 @@
 // token resolved in the same report) and checked for contrast in both themes. The text actions drew
 // as plain text in the text colour while the reset outranked their classes (issue #193).
 import { encodeViewLink } from "pivotkit-core/link";
+import { installContrast } from "./contrast.js";
 import { chipMenu, expect, openRules, test } from "./fixtures.js";
 
 /** The weather by month, the last two years as a quick choice: Reset filter and "change it above". */
@@ -32,42 +33,17 @@ async function openView(page, data, view, theme = "light") {
  * and the contrast of its colour against what is behind it (the backgrounds of its ancestors, laid
  * over each other up to the first opaque one).
  */
-function look(locator) {
+async function look(locator) {
+    await installContrast(locator.page());
     return locator.evaluate((el) => {
-        // any CSS colour (rgb(), color(srgb), oklab() of a color-mix) as 0-255 RGB and an alpha, through a canvas
-        const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
-        const parse = (c) => {
-            ctx.clearRect(0, 0, 1, 1);
-            ctx.fillStyle = c;
-            ctx.fillRect(0, 0, 1, 1);
-            const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
-            return a === 0 ? [0, 0, 0, 0] : [r, g, b, a / 255];
-        };
-        const over = (top, below) => [0, 1, 2].map((i) => top[i] * top[3] + below[i] * (1 - top[3])).concat(1);
-        const lum = (c) => {
-            const [r, g, b] = c.slice(0, 3).map((v) => {
-                const s = v / 255;
-                return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-            });
-            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        };
-        const layers = [];
-        for (let n = el; n; n = n.parentElement) {
-            const bg = parse(getComputedStyle(n).backgroundColor);
-            if (bg[3] > 0) layers.push(bg);
-            if (bg[3] === 1) break;
-        }
-        let behind = [255, 255, 255, 1];
-        for (const layer of layers.reverse()) behind = over(layer, behind);
+        const { parse, over, ratio, behind: behindOf } = window.__pkContrast;
+        const behind = behindOf(el);
         const style = getComputedStyle(el);
         // an opacity on the element or its ancestors fades the text into what is behind it
         let opacity = 1;
         for (let n = el; n; n = n.parentElement) opacity *= Number(getComputedStyle(n).opacity);
         const ink = parse(style.color);
-        const ratio = (alpha) => {
-            const [hi, lo] = [lum(over([ink[0], ink[1], ink[2], alpha], behind)), lum(behind)].sort((a, b) => b - a);
-            return (hi + 0.05) / (lo + 0.05);
-        };
+        const contrastAt = (alpha) => ratio(over([ink[0], ink[1], ink[2], alpha], behind), behind);
         const root = el.closest(".pk-root") ?? document.querySelector(".pk-root");
         const token = (name, prop) => {
             const probe = document.createElement("span");
@@ -87,9 +63,9 @@ function look(locator) {
             text: token("--pk-text", "color"),
             danger: token("--pk-danger", "color"),
             small: token("--pk-small", "font-size"),
-            contrast: ratio(ink[3] * opacity),
+            contrast: contrastAt(ink[3] * opacity),
             // the colour itself, without the opacity that fades it (a disabled action's)
-            solidContrast: ratio(ink[3])
+            solidContrast: contrastAt(ink[3])
         };
     });
 }

@@ -4,7 +4,7 @@
 // strict Content-Security-Policy. Playwright's CSS locators reach into open shadow roots.
 import { readFile } from "node:fs/promises";
 import { test as plain } from "@playwright/test";
-import { TRACE_IN_PRINT_FRAME, capturePrint, expect, openSaveAs, test } from "./fixtures.js";
+import { capturePrint, expect, openSaveAs, test, toolbar, twoFrames, watchConsole } from "./fixtures.js";
 
 const wanted = process.env.PIVOTKIT_REACT === "19" ? /^19\./ : /^18\./;
 
@@ -13,24 +13,6 @@ const events = (page, type) => page.evaluate((t) => window.__events.filter((e) =
 
 /** The chip names of a zone of one element. */
 const zone = (page, host, name) => page.locator(`${host} [data-zone="${name}"] .pk-chip`).evaluateAll((els) => els.map((e) => e.getAttribute("data-chip")));
-
-/**
- * Clicks a toolbar action of one element: its own button, or its entry in "More" when the toolbar has
- * no room for it (fonts differ between machines).
- */
-async function tool(host, testId) {
-    const own = host.getByTestId(testId);
-    if (await own.count()) {
-        // an open menu stays open (Views after a save): a click on its button would close it
-        if ((await own.getAttribute("aria-expanded")) !== "true") await own.click();
-    } else {
-        await host.getByTestId("more").click();
-        await host.getByTestId(`more-${testId}`).click();
-    }
-    // a menu takes the focus a frame after it opens (from More once its panel is there): wait for it,
-    // so a test that moves the focus inside does not lose it to that
-    await expect.poll(() => host.evaluate((el) => Boolean(el.shadowRoot?.activeElement?.closest(".pk-popover")))).toBe(true);
-}
 
 /** A custom property's value on an element's .pk-root. */
 const token = (page, host, name) => page.locator(`${host} .pk-root`).evaluate((el, n) => getComputedStyle(el).getPropertyValue(n).trim(), name);
@@ -41,7 +23,7 @@ test("the menus' German texts load only for a German report, also when the langu
     await page.goto("pages/element-views.html");
     const host = page.locator("#views");
     await expect(host.locator(".pk-root")).toBeVisible();
-    await tool(host, "more");
+    await toolbar(host, "more");
     await expect(host.getByTestId("more-help")).toHaveText("Help and keyboard shortcuts");
     await page.keyboard.press("Escape");
     expect(loaded.filter((p) => /menu-texts-de-/.test(p))).toEqual([]);
@@ -56,7 +38,7 @@ test("the menus' German texts load only for a German report, also when the langu
         document.getElementById("views").locale = "de-DE";
     });
     await expect(host.locator(".pk-root")).toHaveAttribute("lang", "de");
-    await tool(host, "more");
+    await toolbar(host, "more");
     await expect(host.getByTestId("more-help")).toHaveText("Hilfe und Tastenkürzel");
     expect(loaded.filter((p) => /menu-texts-de-/.test(p))).toHaveLength(1);
     // the menu waited for the German texts: no English title in between
@@ -71,13 +53,13 @@ test("a host's text for a menu text wins over the German one", async ({ page }) 
         document.getElementById("views").locale = "de-DE";
     });
     await expect(host.locator(".pk-root")).toHaveAttribute("lang", "de");
-    await tool(host, "more");
+    await toolbar(host, "more");
     await expect(host.getByTestId("more-help")).toHaveText("Hilfe und Tastenkürzel");
     await page.keyboard.press("Escape");
     await page.evaluate(() => {
         document.getElementById("views").labels = { helpAndShortcuts: "Hilfe und Tipps" };
     });
-    await tool(host, "more");
+    await toolbar(host, "more");
     await expect(host.getByTestId("more-help")).toHaveText("Hilfe und Tipps");
 });
 
@@ -85,7 +67,7 @@ test("a language change while a menu is open keeps the menu and its focus, and c
     await page.goto("pages/element-views.html");
     const host = page.locator("#views");
     await expect(host.locator(".pk-root")).toBeVisible();
-    await tool(host, "more");
+    await toolbar(host, "more");
     await host.getByTestId("more-help").click();
     await host.getByTestId("show-tips").focus();
     await page.evaluate(() => {
@@ -100,21 +82,21 @@ test("two reports on one page, English and German: each menu in its language, an
     const sales = page.locator("#sales");
     const tickets = page.locator("#tickets");
     await expect(tickets.locator(".pk-root")).toHaveAttribute("lang", "de");
-    await tool(sales, "more");
+    await toolbar(sales, "more");
     await expect(sales.getByTestId("more-help")).toHaveText("Help and keyboard shortcuts");
     await page.keyboard.press("Escape");
-    await tool(tickets, "more");
+    await toolbar(tickets, "more");
     await expect(tickets.getByTestId("more-help")).toHaveText("Hilfe und Tastenkürzel");
     await page.keyboard.press("Escape");
     // the English report stays English after the German texts loaded
-    await tool(sales, "more");
+    await toolbar(sales, "more");
     await expect(sales.getByTestId("more-help")).toHaveText("Help and keyboard shortcuts");
     await page.keyboard.press("Escape");
     await page.evaluate(() => {
         document.getElementById("tickets").locale = "en-US";
     });
     await expect(tickets.locator(".pk-root")).toHaveAttribute("lang", "en");
-    await tool(tickets, "more");
+    await toolbar(tickets, "more");
     await expect(tickets.getByTestId("more-help")).toHaveText("Help and keyboard shortcuts");
 });
 
@@ -127,7 +109,7 @@ plain("when the German menu texts cannot load, the menus open in English, work, 
     await page.goto("pages/element-two.html");
     const tickets = page.locator("#tickets");
     await expect(tickets.locator(".pk-root")).toHaveAttribute("lang", "de");
-    await tool(tickets, "more");
+    await toolbar(tickets, "more");
     await expect(tickets.getByTestId("more-help")).toHaveText("Help and keyboard shortcuts");
     // it works: Help opens its level, a switch turns off and on
     await tickets.getByTestId("more-help").click();
@@ -140,7 +122,7 @@ plain("when the German menu texts cannot load, the menus open in English, work, 
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     blocked = false;
-    await tool(tickets, "more");
+    await toolbar(tickets, "more");
     await expect(tickets.getByTestId("more-help")).toHaveText("Hilfe und Tastenkürzel");
 });
 
@@ -200,7 +182,7 @@ test.describe("two elements on one page", () => {
     test("templates: save and delete wait for the page's promise; a rejected one shows its message", async ({ page }) => {
         await page.goto("pages/element-two.html");
         const sales = page.locator("#sales");
-        await tool(sales, "views");
+        await toolbar(sales, "views");
         await openSaveAs(sales);
         await sales.getByTestId("saved-view-name").fill("Mine");
         await sales.getByRole("button", { name: "Save", exact: true }).click();
@@ -211,22 +193,22 @@ test.describe("two elements on one page", () => {
         // a save goes to the user's own views
         expect(save.detail.scope).toBe("user");
         // the view shown is "Mine" now: the field saves it under another name, its button says so
-        await tool(sales, "views");
+        await toolbar(sales, "views");
         await openSaveAs(sales);
         await sales.getByTestId("saved-view-name").fill("fail");
         await sales.getByRole("button", { name: "Save as", exact: true }).click();
         await expect(sales.locator(".pk-toasts")).toContainText("the server said no");
-        await tool(sales, "views");
+        await toolbar(sales, "views");
         await sales.getByRole("menuitem", { name: "Delete Mine" }).click();
         await sales.getByTestId("confirm-delete").click();
         await expect(sales.locator(".pk-toasts")).toContainText("View “Mine” deleted");
-        await tool(sales, "views");
+        await toolbar(sales, "views");
         await expect(sales.getByTestId("saved-view-Mine")).toHaveCount(0);
         expect((await events(page, "pivot-template-delete"))[0].detail).toEqual({ name: "Mine", scope: "user" });
         // the other element has no save-templates: its Templates menu offers no save
         await page.keyboard.press("Escape");
         const tickets = page.locator("#tickets");
-        await tool(tickets, "views");
+        await toolbar(tickets, "views");
         await expect(tickets.locator(".pk-popover")).toHaveCount(1);
         await expect(tickets.getByTestId("saved-view-name")).toHaveCount(0);
     });
@@ -290,12 +272,12 @@ test.describe("two elements on one page", () => {
         });
         expect(await tickets.evaluate((el) => [el.saveTemplates, el.canPublish, el.allowImport, el.shareLink, el.loading, el.exportData, el.drillDownExport])).toEqual([false, false, false, undefined, false, false, false]);
         // what the attributes would switch on is not offered: no save, no link, no Data menu
-        await tool(tickets, "views");
+        await toolbar(tickets, "views");
         await expect(tickets.getByTestId("saved-view-name")).toHaveCount(0);
         await expect(tickets.getByTestId("copy-link")).toHaveCount(0);
         await page.keyboard.press("Escape");
         await expect(tickets.getByTestId("data")).toHaveCount(0);
-        await tool(tickets, "more");
+        await toolbar(tickets, "more");
         await expect(tickets.getByTestId("more-data")).toHaveCount(0);
         await page.keyboard.press("Escape");
         await expect(tickets.locator('[data-testid="pivot-table"]')).toBeVisible();
@@ -305,10 +287,10 @@ test.describe("two elements on one page", () => {
             for (const attr of ["share-link", "allow-import"]) el.setAttribute(attr, "");
         });
         expect(await tickets.evaluate((el) => [el.shareLink, el.allowImport])).toEqual([true, true]);
-        await tool(tickets, "views");
+        await toolbar(tickets, "views");
         await expect(tickets.getByTestId("copy-link")).toBeVisible();
         await page.keyboard.press("Escape");
-        await tool(tickets, "data");
+        await toolbar(tickets, "data");
         await expect(tickets.getByTestId("data-menu")).toBeVisible();
     });
 
@@ -373,6 +355,7 @@ test.describe("lifecycle", () => {
         await expect.poll(() => zone(page, "#sales", "rows")).toEqual([]);
         // a new object with the same view: the user's change and the undo history stay
         await page.evaluate((v) => (document.getElementById("sales").defaultView = structuredClone(v)), start);
+        // nothing changes, also a moment later
         await page.waitForTimeout(100);
         expect(await zone(page, "#sales", "rows")).toEqual([]);
         await expect(sales.getByTestId("undo")).toBeEnabled();
@@ -402,9 +385,7 @@ test.describe("lifecycle", () => {
 
     // not the shared fixture: the second copy warns on purpose, and the test checks the warnings
     plain("loading the package twice defines once, throws nothing and warns with both versions; define() takes other names", async ({ page }) => {
-        const messages = [];
-        page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && messages.push(`${m.type()}: ${m.text()}`));
-        page.on("pageerror", (e) => messages.push(`pageerror: ${e.message}`));
+        const messages = watchConsole(page);
         await page.goto("pages/element-twice.html");
         await expect(page.locator("my-pivot .pk-root")).toBeVisible();
         expect(await page.evaluate(() => window.__twice)).toEqual({ differentModules: true, sameDefinition: true, again: true, custom: true, customFirst: true });
@@ -507,7 +488,8 @@ test.describe("lifecycle", () => {
             await expect(page.locator("pivot-report").getByTestId("drill-panel")).toBeVisible();
             const open = await page.evaluate(() => window.__live());
             await page.evaluate(() => document.querySelector("pivot-report").remove());
-            await page.waitForTimeout(100);
+            // the element unmounts in a microtask after its removal; its cleanup is done once the page has drawn again
+            await twoFrames(page);
             return { open, closed: await page.evaluate(() => window.__live()) };
         };
         const first = await cycle();
@@ -664,9 +646,7 @@ test.describe("keyboard and focus inside the shadow root", () => {
 // Not the shared fixture: this test provokes one violation on purpose, to show that the policy is
 // enforced, and checks the console itself.
 plain("a strict Content-Security-Policy: styles, chart and export work without 'unsafe-inline' or 'unsafe-eval'", async ({ page }) => {
-    const problems = [];
-    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && !TRACE_IN_PRINT_FRAME.test(m.text()) && problems.push(m.text()));
-    page.on("pageerror", (e) => problems.push(e.message));
+    const problems = watchConsole(page);
     await page.goto("pages/element-csp.html");
     await capturePrint(page);
     const el = page.locator("#strict");
@@ -733,7 +713,7 @@ test("the element example renders, and its theme switch themes the report", asyn
     await page.locator("pivot-report").getByRole("button", { name: "Remove Country" }).click();
     await expect(page.locator("#last-event")).toHaveText("View: rows Region; 1 value(s).");
     // the chart template groups the dates by month: the categories read "Jan 2025", not "Jan 1, 2025"
-    await tool(page.locator("pivot-report"), "views");
+    await toolbar(page.locator("pivot-report"), "views");
     await page.locator("pivot-report").getByTestId("saved-view-Units per month (chart)").click();
     const summary = page.locator('pivot-report [data-testid="chart-summary"]');
     await expect(summary).toContainText(/\b[A-Z][a-z]{2} 202[56]\b/);

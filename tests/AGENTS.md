@@ -60,18 +60,31 @@ npm run bench:browser                                     # benchmark, 100k to 1
 
 - They run in Chromium, Firefox and WebKit, on React 18 and 19. CI has one job per engine and React.
 - A test fails on any console error or warning (`tests/browser/fixtures.js`).
-- A test expects the report's English texts by key: `TEXTS` and `textOf` in `fixtures.js`.
+  A page the fixture does not give, or a test that expects one warning, uses `watchConsole(page, { ignore })` from there.
+  A touch screen is `test.use({ hasTouch: true })`, so the fixture's page is the touch page.
+- A new test takes the report's English texts by key: `TEXTS` and `textOf` in `fixtures.js`.
+  A change of wording then breaks no test. Nearly all specs still spell the words out (only a few take them by key) and fail on a wording change.
 - The chart specs are in `chart/`. A topic the unit tests of pivotkit-core or pivotkit-react also test has the same filename.
-- `chart/report.js` mounts a chart report and finds where ECharts drew its marks. `point-menu` and `tooltip` use it.
+- `chart/report.js` mounts a report on the host page (`mountReport`), waits for its chart (`chartOf`) and finds where ECharts drew its marks.
+  `labels.spec.js` mounts a report of its own: its view is controlled (`view`, not `defaultView`).
 - A test that measures layout waits until the layout has settled.
   `animationsSettled(page)` in `fixtures.js` waits until no animation runs.
 - A test waits for a file chooser with `nextFileChooser(page)` from `import-helpers.js`, not `page.waitForEvent`.
   It keeps Firefox from opening the native picker on the second pick.
 - A mouse drag waits until its target shows it takes the drop, then releases. `drag()` in `fixtures.js` does this.
   A busy WebKit can take the release before it has drawn the last moves, and the drop is lost.
-- A test looks for a toolbar button, its own or in More, after `twoFrames(page)` from `fixtures.js`.
-  The toolbar moves buttons into More again while the report lays out.
-- A test that rests the pointer for a time counts it on the page's clock, not with a wait in the test.
+- A test opens a toolbar action, its own button or its entry in More, with `toolbar(scope, testId)` from `fixtures.js`.
+  `scope` is the page or one report of several. It waits for `twoFrames(page)` first:
+  the toolbar moves buttons into More again while the report lays out.
+- A test waits for a condition: `expect`, `expect.poll`, `animationsSettled`, `twoFrames`.
+  A fixed sleep (`waitForTimeout`) checks that nothing happens for a while, or gives an input a person's pace.
+  A comment on its line or the line above says which. `tests/browser-sleeps.test.js` fails on a sleep without one.
+  A time the report counts, such as a note's `SHOWN_MS`, runs on `page.clock`.
+- A layout measured in pixels depends on the font. CI's Playwright image has the same fonts on every run.
+  A spec whose widths must hold on any machine calls `pinFont(page)` from `fixtures.js` (Arial, or Liberation Sans with its widths),
+  or measures what fits on the page itself (`toolbar-overflow.spec.js`, `boxThatFits` in `zones-fold.spec.js`).
+- `contrast.js` holds the WCAG contrast maths the specs run in the page: `installContrast(page)`, then `window.__pkContrast`.
+- A new test that rests the pointer for a time counts it on the page's clock where the report counts that time. Older specs still wait, with a comment that says why.
   `restAt()` in `popover-clip.spec.js` does this for the info tips.
 
 ## Browser test pages
@@ -94,6 +107,7 @@ npm run bench:browser                                     # benchmark, 100k to 1
 
 ## Repository checks
 
+- `tests/browser-sleeps.test.js` checks that every fixed sleep of the browser tests has a comment.
 - `tests/ci.test.js` checks pins, caret ranges, lock files, check-release and version statements in the docs.
 - `tests/markdown-files.js` defines the docs pages and the current-state Markdown that these checks read.
 - `tests/workflows.test.js` checks the workflows as parsed YAML: jobs, steps and their order, events, permissions.
