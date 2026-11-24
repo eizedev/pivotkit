@@ -13,6 +13,11 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ### Changed
 
+- A number in a text cell reads in the notation of the `locale` when both notations fit, as a
+  comma-separated file does. `"1,234"` reads as 1.234 in a German locale, as before. In an English
+  locale it reads as 1234, with the note `DECIMAL_MARK`; before, it read as 1.234 there too. A
+  column whose other values fit only one notation reads in that one. Needs the pivotkit-core of the
+  same release.
 - The XML checks of a workbook are split into smaller files: the declaration check, the guard, the
   sheet filter, the entry count, and how the parser reads tags and attributes. A workbook reads the
   same, and the messages stay the same.

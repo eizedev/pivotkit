@@ -153,6 +153,20 @@ test("cells with an Excel error are empty, with a note", async () => {
     assert.equal(t.notes.find((n) => n.code === "ERROR_CELLS").params.count, 2);
 });
 
+test("a number in a text cell that both notations read reads in the locale's: 1,234 is 1.234 in German, 1234 in English", async () => {
+    const bytes = makeXlsx({ sheets: [{ name: "S", rows: [["Name", "Amount"], ["a", "1,234"], ["b", "2,5"]] }] });
+    const de = await read(fileOf(bytes), { locale: "de-DE" });
+    assert.deepEqual(de.data[1], [1.234, 2.5]);
+    assert.equal(de.notes.find((n) => n.code === "DECIMAL_MARK"), undefined);
+    const en = await read(fileOf(bytes), { locale: "en-US" });
+    assert.deepEqual(en.data[1], [1.234, 2.5]);
+    const both = makeXlsx({ sheets: [{ name: "S", rows: [["Name", "Amount"], ["a", "1,234"]] }] });
+    assert.deepEqual((await read(fileOf(both), { locale: "de-DE" })).data[1], [1.234]);
+    const english = await read(fileOf(both), { locale: "en-US" });
+    assert.deepEqual(english.data[1], [1234]);
+    assert.equal(english.notes.find((n) => n.code === "DECIMAL_MARK").params.decimal, ".");
+});
+
 test("inline strings, booleans, a sheet name with an ampersand, a name with direction characters", async () => {
     const bytes = makeXlsx({ sheets: [{ name: "R&D", rows: [[{ inline: "Te\u{202E}am" }, "Done"], [{ inline: " A " }, true], ["B", false]] }] });
     const t = await read(fileOf(bytes));
