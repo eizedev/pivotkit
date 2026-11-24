@@ -27,7 +27,8 @@ export function parse(command, args) {
         if (e.code === "ERR_PARSE_ARGS_UNKNOWN_OPTION") {
             throw new CliError("usage", "UNKNOWN_OPTION", `unknown option ${printable(JSON.stringify(flag))}${didYouMean(flag.replace(/^-+/, ""), Object.keys(specs), "--")}`);
         }
-        throw new CliError("usage", "BAD_OPTION", printable(String(e.message).split("\n")[0]));
+        // Node's message ends a sentence: the full stop goes, as pivotkit's own messages have none
+        throw new CliError("usage", "BAD_OPTION", printable(String(e.message).split("\n")[0].replace(/\.$/, "")));
     }
 }
 
