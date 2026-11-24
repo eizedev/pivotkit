@@ -212,6 +212,19 @@ test("with MCP beside REST, a path nobody serves names the REST and OpenAPI addr
     }
 });
 
+test("without OAuth the REST resource's metadata is not found, for every method", async () => {
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: workspace() }, { env: { PIVOTKIT_TOKEN: TOKEN } });
+    try {
+        for (const method of ["GET", "HEAD", "POST", "PUT", "DELETE"]) {
+            const res = await fetch(`${server.url}/.well-known/oauth-protected-resource/api/v1`, { method });
+            assert.equal(res.status, 404, method);
+            assert.equal(res.headers.get("allow"), null, method);
+        }
+    } finally {
+        await server.close();
+    }
+});
+
 test("save is an input of POST /views/render, not of the file route", () => {
     const doc = openApiDocument();
     const schemaOf = (path) => {

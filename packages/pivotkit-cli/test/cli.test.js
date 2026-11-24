@@ -45,6 +45,10 @@ test("help: pivotkit, a command's help and help <command>; an unknown command is
     const parseError = JSON.parse((await run(["render", "x.csv", "--title", "--json"])).stdout).error.message;
     assert.match(parseError, /--title/);
     assert.match(parseError, /[^.]; run "pivotkit render --help"$/);
+    // a message of pivotkit's own that ends in "..." keeps it
+    const suggestOnly = await run(["describe", "sales.csv", "--rows", "Region"], { cwd: fixtureDir() });
+    assert.equal(suggestOnly.code, 2);
+    assert.equal(suggestOnly.stderr, 'pivotkit: --rows acts with --suggest only: pivotkit describe <data> --suggest --rows ...; run "pivotkit describe --help"\n');
     // run as "pivotkit-server cli", the pointers name that
     const { main } = await import("../src/cli.js");
     const err = [];

@@ -18,7 +18,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   directory layout. Every file is listed by its name now; a name an earlier directory has comes once.
 - A source whose policy hides row counts (`rows: false`) gives no `noRowsKept` finding: it told whether
   the source has rows.
-- A file source that does not say `hardLinks` refuses hard links, as `files.hardLinks` defaults to.
+- The file reader refuses hard links when a source it gets does not set `hardLinks`, as
+  `files.hardLinks` defaults to. Before, it allowed them. Nothing changes for an operator: every
+  source the server builds sets it. A `file:` read follows `files.hardLinks`, and a file source in
+  `sources` still reads a hard link.
 - A static token's file rewritten after the start with a character no bearer token holds (such as a
   space) counts as unusable and is said on the log, as at the start. Before, only its length and how
   guessable it was counted.
@@ -41,7 +44,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   "Customer Name".
 - `/openapi.json` and the REST resource's metadata answer GET and HEAD, and every other method with
   405 and `Allow: GET, HEAD`. Before, the metadata answered any method, `/openapi.json` refused
-  HEAD, and its 405 had no `Allow` header.
+  HEAD, and its 405 had no `Allow` header. With an `auth.mode` other than `oauth`, the metadata does
+  not exist: every method gets 404.
+- The `path` of a refused line on the log names the REST route family by whole path segments.
+  `/api/v1x` no longer counts as `/api/v1`, and `/openapi.json/` counts as the OpenAPI document.
 - `token list` and the prune of signed tokens leave out a record without its issue time. Before, one
   such hand-edited record stopped the whole list.
 - A download's file name with a lone surrogate gets a replacement character in `Content-Disposition`.
