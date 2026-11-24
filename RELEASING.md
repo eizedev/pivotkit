@@ -67,7 +67,8 @@ Release packages in this order. It follows their run-time dependencies.
 
 ### 3. Tag
 
-- Wait for CI on main.
+- Wait for CI on main. The `build` job needs a green CI run of the push to main for the tagged commit.
+  A CI run that is still going or that someone cancelled fails it: re-run the job once CI is green.
 - Tag the merge commit `<package>@<version>`.
 - Push one tag at a time, in publish order. Push the next only after the previous one is live.
 - Push the pivotkit-server tag right after the release pull request is merged. The docs site deploys

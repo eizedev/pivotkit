@@ -60,7 +60,7 @@ npm run bench:browser                                     # benchmark, 100k to 1
 
 - They run in Chromium, Firefox and WebKit, on React 18 and 19. CI has one job per engine, shard, and React version, in `.github/workflows/browser.yml`.
 - A pull request that changes only `docs/`, Markdown, or the Angular example skips them. Every push to main runs them.
-  So a browser test, the playground, and the test pages read no docs page and no Markdown file. `tests/workflows.test.js` checks it.
+  So a browser test, the playground, and the test pages read no docs page and no Markdown file. `tests/workflows.test.js` looks for such paths in their code.
 - A test fails on any console error or warning (`tests/browser/fixtures.js`).
   A page the fixture does not give, or a test that expects one warning, uses `watchConsole(page, { ignore })` from there.
   A touch screen is `test.use({ hasTouch: true })`, so the fixture's page is the touch page.
