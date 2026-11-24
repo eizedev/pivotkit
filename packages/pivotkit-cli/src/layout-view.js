@@ -13,6 +13,7 @@ import { sourceIdOf } from "pivotkit-core/import";
 import { LAYOUT_NOTE_SEVERITY, OperationError, viewOfLayout } from "pivotkit-report/operations";
 import { CliError, printable, shortName } from "pivotkit-node/files";
 import { LAYOUT_FLAGS, isJsonFilter, layoutOf, parseFilter, parseMap, parseShortFilter } from "./layout-flags.js";
+import { limitsOption } from "./options.js";
 
 /** The most bytes of a --filter @file (a filter is small; a view may be larger). */
 const FILTER_BYTES = 1_000_000;
@@ -106,7 +107,7 @@ export function mapOf(list, used) {
  * @returns {Promise<{ view: Record<string, any>, name: string, picks: import("pivotkit-core").LayoutPick[], findings: any[], encoded: import("pivotkit-core").Encoded, layout: import("pivotkit-core").Layout }>}
  */
 export async function layoutView(data, values, ctx, where) {
-    const encoded = encode(data.table, { ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) });
+    const encoded = encode(data.table, { ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...limitsOption(ctx.limits) });
     const description = describeSource(encoded, { items: 0 });
     const fields = data.table.columns.map(String);
     const filters = await filtersOf(values.filter, ctx, fields);
