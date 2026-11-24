@@ -1067,10 +1067,13 @@ const largeTable = (n) => ({
 
 test("where it runs: a code source's operation is computed in a worker, bounded by compute.timeMs; its load is kept for the next call", async () => {
     let loads = 0;
+    // compute.timeMs 1: no machine sends 400,000 rows to a worker and computes over them that fast, so
+    // the call times out whatever the machine's speed
     const table = largeTable(400_000);
-    const context = await contextOf({ compute: { workers: 1, timeMs: 20 }, sources: { t: { load: async () => (loads++, table), ttl: 60 } } });
+    const context = await contextOf({ compute: { workers: 1, timeMs: 1 }, sources: { t: { load: async () => (loads++, table), ttl: 60 } } });
     try {
-        // a timer of this thread runs while the worker computes
+        // a timer of this thread runs while the worker computes: it was set first, so it fires before
+        // the time limit's own timer, unless the thread is blocked
         let ticks = 0;
         const timer = setInterval(() => ticks++, 1);
         const started = Date.now();
