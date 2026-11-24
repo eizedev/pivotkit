@@ -6,6 +6,11 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Fixed
+
+- The quick-start page escapes the address of `branding.icon` in its HTML, as it escapes every other
+  value. The server makes the address from the icon's file, so the page looks the same.
+
 ### Changed
 
 - The skill no longer names the caps of inline data. It points to `list_sources`, which names the

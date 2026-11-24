@@ -10,6 +10,10 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 - The README, the package's page on npm, no longer carries a paragraph on what dates say. It said
   nothing about the web component, and the docs describe dates.
+- The first load grows by about 1.3 KiB gzip with pivotkit-core's and pivotkit-react's fixes of this
+  release: 181.9 KiB measured on a Mac, in 13 files instead of 12. Its budget goes to 182.5 KiB
+  ([#782](https://github.com/eizedev/pivotkit/pull/782), [#786](https://github.com/eizedev/pivotkit/pull/786),
+  [#796](https://github.com/eizedev/pivotkit/pull/796)).
 
 ### Fixed
 
@@ -26,6 +30,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   ([#706](https://github.com/eizedev/pivotkit/issues/706)).
 - The filter's **Only**, the Filter level's wording, the number formats and the Publish icon of
   My views. See pivotkit-react's changelog.
+- The menus count with the host's `limits`, a part that failed to load loads again on the next try,
+  an error note stays until someone closes it, the report ignores a too long view kept for the tab,
+  the zone's flash and the empty report's chips follow `--pk-duration`, the report reads
+  `chartOptions` without calling a getter, a `fileName` such as `aux.data` is safe on Windows,
+  type-ahead uses the menu's language, and the settings button shows its icon only on a phone. See
+  pivotkit-react's changelog.
 
 ## [0.9.0] - 2026-11-22
 
