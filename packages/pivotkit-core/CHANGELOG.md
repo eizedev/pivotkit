@@ -23,14 +23,16 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   - A grouped whole number of more than 15 digits stays text, as an ungrouped one does.
   - A column a person makes a number with `retype` reads in the notation its values fit. The notes
     `DECIMAL_MARK` and `DATE_ORDER` belong to a column's type and go when the type changes.
-- `normalize()` reports the settings it dropped without an issue:
+- `normalize()` reports the settings it dropped without an issue. Each is a warning, so `validate()`
+  still calls such a view valid and a strict render still renders it. The default is used, as before:
   - A switch that is not `true` or `false` gives the new code `notSwitch`.
   - A `chart`, `formatting`, `collapsed` or `chart.referenceLines` that is not an object gives the
     new code `notSection`.
   - A sort's `by` or `order` and a "show values as" `axis` of an unknown kind give `unknownSetting`.
 
-  `null` counts as not given, for a switch as for a section. The value an issue quotes loses
-  controls and invisible characters, direction characters included.
+  `null` counts as not given, for a switch as for a section. A choice such as `order` reports `null`,
+  as the display and the chart's choices always did, and as the schema refuses it. The value an
+  issue quotes loses controls and invisible characters, direction characters included.
 - `renameFields` swaps the fields' own names too when it swaps two fields, as `{ A: "B", B: "A" }`
   does. It lost one name.
 - The name, description and source of a view file lose invisible characters, direction characters

@@ -277,6 +277,44 @@ test("a switch that is not true or false and a section that is not an object are
     assert.equal(normalize({ chart: { stacked: "a\u202eb" } }, data).issues[0].params.value, "ab");
 });
 
+test("settings earlier versions dropped without a word are warnings, so a strict check still takes the view", () => {
+    const view = {
+        rows: ["Region"],
+        values: [{ field: "Units", agg: "sum", showAs: { type: "percentOfRowTotal", axis: "columns" } }],
+        sort: [{ field: "Region", by: "size", order: "descending" }],
+        totals: { grandTotalRow: "false" },
+        collapsed: [],
+        chart: "bar",
+        formatting: "de-DE"
+    };
+    const got = validate(view, data);
+    assert.equal(got.valid, true);
+    assert.deepEqual(got.warnings.map((i) => [i.path, i.code]), [
+        ["values[0].showAs.axis", "unknownSetting"],
+        ["sort[0].by", "unknownSetting"],
+        ["sort[0].order", "unknownSetting"],
+        ["totals.grandTotalRow", "notSwitch"],
+        ["collapsed", "notSection"],
+        ["chart", "notSection"],
+        ["formatting", "notSection"]
+    ]);
+    // the value is still dropped for its default
+    const n = normalize(view, data).view;
+    assert.deepEqual([n.values[0].showAs.axis, n.sort[0].by, n.sort[0].order, n.totals.grandTotalRow], ["rows", "label", "asc", true]);
+});
+
+test("a choice of the display or the chart that is not allowed is an error, null included, as the schema refuses it", () => {
+    for (const v of [{ display: null }, { display: "radar" }, { chart: { type: null } }, { chart: { legend: null } }]) {
+        assert.deepEqual(validate(v, data).errors.map((i) => [i.code, i.severity]), [["unknownSetting", "error"]], JSON.stringify(v));
+    }
+});
+
+test("an issue cuts a long reference line target it quotes, as it cuts any value", () => {
+    const issue = normalize({ chart: { referenceLines: { target: "x".repeat(5000) } } }, data).issues[0];
+    assert.equal(issue.code, "unknownSetting");
+    assert.ok(issue.message.length < 130, issue.message.length);
+});
+
 test("chart display settings: value labels, legend, title and smooth lines, checked against fixed lists", () => {
     assert.deepEqual(emptyView().chart, { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null, extremes: false }, colors: [], tooltipShare: false });
     const chart = { type: "pie", valueLabels: "both", legend: "right", title: "  Units by region ", smooth: true, labelPosition: "inside", tooltip: "axis" };

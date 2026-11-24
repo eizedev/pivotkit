@@ -30,7 +30,10 @@ export const VIEW_VERSION = 2;
  * - `severity`: "error", the part is left out or replaced by its default; "warning", the view is used
  *   as it is but may not do what was meant (an item that matches no item of the data only by case,
  *   a key inside a section that this version does not know). An issue carries its code's severity;
- *   `unknownKey` is an error at the top of a view and a warning inside a section.
+ *   `unknownKey` is an error at the top of a view and a warning inside a section. `notSwitch`,
+ *   `notSection`, and `unknownSetting` for a sort's `by` and `order` and a "show as" `axis` are
+ *   warnings: the default is used, as earlier versions used it without a word, so a strict check
+ *   still takes such a view.
  * - `schema`: whether the view's JSON Schema (schema/view-2.json) refuses the case of the code too;
  *   false for what only the data can tell (a field's name or type) and what JSON Schema cannot say.
  * computePivot adds "timeZoneMismatch" (the view's time zone is not the data's). `params` holds what
@@ -55,7 +58,7 @@ export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
     filterCompareValue: "error",
     filterRelativeDirection: "error schema", filterRelativeUnit: "error schema", filterRelativeCount: "error schema", filterRelativeAnchor: "error schema",
     sortNoItems: "error schema", sortedTwice: "error", sortColumn: "warning",
-    badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", notSwitch: "error schema", notSection: "error schema", badTitle: "error schema",
+    badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", notSwitch: "warning schema", notSection: "warning schema", badTitle: "error schema",
     unknownLocale: "error", unknownTimeZone: "error", timeZoneMismatch: "error", tooManyIssues: "warning",
     labelTwice: "warning", labelTaken: "warning"
 });
@@ -292,16 +295,19 @@ function oneOf(value, allowed, fallback) {
     return typeof value === "string" && allowed.includes(value) ? value : fallback;
 }
 
-/** oneOf, and a value given but not allowed is reported (null counts as not given). */
-function choice(value, allowed, fallback, ctx, path) {
+/**
+ * oneOf, and a value given but not allowed (null too) is reported with `report`: an error, or a
+ * warning for a setting older readers dropped without a word (a sort's by and order, an axis).
+ */
+function choice(value, allowed, fallback, ctx, path, report = ctx.issue) {
     const out = oneOf(value, allowed, fallback);
-    if (value !== undefined && value !== null && out !== value) {
-        ctx.issue(path, `unknown ${path.split(".").pop()} ${JSON.stringify(value)}`, "unknownSetting", { value: shown(value) });
+    if (value !== undefined && out !== value) {
+        report(path, `unknown ${path.split(".").pop()} ${JSON.stringify(value)}`, "unknownSetting", { value: shown(value) });
     }
     return out;
 }
 
-/** A switch: true or false; anything else given is reported and the fallback used (null counts as not given). */
+/** A switch: true or false; anything else given is a warning and the fallback used (null counts as not given). */
 function bool(value, fallback, ctx, path) {
     if (typeof value === "boolean") {
         return value;
@@ -312,7 +318,7 @@ function bool(value, fallback, ctx, path) {
     return fallback;
 }
 
-/** Whether a section given at `path` is an object; another value is reported (null counts as not given). */
+/** Whether a section given at `path` is an object; another value is a warning (null counts as not given). */
 function sectionObject(value, path, ctx) {
     if (value === undefined || value === null) {
         return false;
@@ -473,7 +479,7 @@ function showAsOf(showAs, ref, path, ctx) {
         ctx.issue(path, `${type} needs an aggregator that adds up (sum or count), not ${ref.agg}`, "showAsNotAdditive", { value: type, agg: ref.agg });
         return null;
     }
-    return { type, axis: choice(get(s, "axis"), AXES, "rows", ctx, `${path}.axis`) };
+    return { type, axis: choice(get(s, "axis"), AXES, "rows", ctx, `${path}.axis`, ctx.warn) };
 }
 
 function valuesSection(raw, view, ctx) {
@@ -599,8 +605,8 @@ function sortSection(raw, view, ctx) {
         if (!f || seen.has(f.name)) {
             return f ? ctx.issue(path, `"${f.name}" is sorted twice`, "sortedTwice", { field: f.name }) : ctx.unknownField(path, get(s, "field"));
         }
-        const by = choice(get(s, "by"), SORT_BY, "label", ctx, `${path}.by`);
-        const spec = { field: f.name, by, order: choice(get(s, "order"), SORT_ORDERS, "asc", ctx, `${path}.order`) };
+        const by = choice(get(s, "by"), SORT_BY, "label", ctx, `${path}.by`, ctx.warn);
+        const spec = { field: f.name, by, order: choice(get(s, "order"), SORT_ORDERS, "asc", ctx, `${path}.order`, ctx.warn) };
         if (by === "custom") {
             const items = customItems(get(s, "items"), f, `${path}.items`, ctx);
             if (!items) {
@@ -747,7 +753,7 @@ function referenceLinesOf(lines, ctx) {
     const flag = (key) => (given ? bool(get(lines, key), false, ctx, `${path}.${key}`) : false);
     const out = { average: flag("average"), trend: flag("trend"), target: finite(target), extremes: flag("extremes") };
     if (target !== undefined && target !== null && out.target === null) {
-        ctx.issue("chart.referenceLines.target", `not a number ${JSON.stringify(target)}`, "unknownSetting", { value: shown(target) });
+        ctx.issue("chart.referenceLines.target", `not a number ${JSON.stringify(shown(target))}`, "unknownSetting", { value: shown(target) });
     }
     return out;
 }
