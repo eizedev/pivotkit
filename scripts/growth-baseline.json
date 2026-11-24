@@ -22,10 +22,6 @@
     },
     "functions": {
         "complexity": {
-            "packages/pivotkit-cli/src/cli.js Async function 'describeCommand'": [55],
-            "packages/pivotkit-cli/src/cli.js Async function 'main'": [74],
-            "packages/pivotkit-cli/src/cli.js Async function 'readData'": [35],
-            "packages/pivotkit-cli/src/cli.js Async function 'renderCommand'": [66],
             "packages/pivotkit-cli/src/remote.js Async function 'request'": [30],
             "packages/pivotkit-cli/src/sign-in.js Async function 'loginCommand'": [27],
             "packages/pivotkit-core/src/chart-fit.js Function 'pointLabels'": [43],
@@ -125,7 +121,6 @@
             "packages/pivotkit-xlsx/src/zip.js Function 'readDirectory'": [26]
         },
         "lines": {
-            "packages/pivotkit-cli/src/cli.js Async function 'main'": [127],
             "packages/pivotkit-cli/src/credential-store.js Function 'credentialStore'": [134],
             "packages/pivotkit-cli/src/remote.js Function 'createClient'": [161],
             "packages/pivotkit-core/src/chart-style.js Function 'decorateOption'": [155],

@@ -12,7 +12,8 @@ const root = new URL("../", import.meta.url);
 const BOUNDED = {
     "packages/pivotkit-server/src/data.js": [2, "code sources: loadedTable counts limits.columns and limits.importCells before the columns are made; HTTP sources: sources/http.js tableBuilder; data sent with a request: the input schema (1,000 columns) and sources/inline.js checkTableSize (limits.columns, rows, cells)"],
     "packages/pivotkit-server/src/check/sources.js": [1, "a table read by a file reader of pivotkit-core/import"],
-    "packages/pivotkit-cli/src/cli.js": [2, "a table read by a file reader of pivotkit-core/import"],
+    "packages/pivotkit-cli/src/operation.js": [1, "a table read by a file reader of pivotkit-core/import"],
+    "packages/pivotkit-cli/src/render.js": [1, "a table read by a file reader of pivotkit-core/import"],
     "packages/pivotkit-cli/src/layout-view.js": [1, "a table read by a file reader of pivotkit-core/import"],
     "packages/pivotkit-react/src/import-ui.jsx": [1, "a table read by a file reader of pivotkit-core/import with the host's importLimits"],
     "packages/pivotkit-react/src/use-shown-data.js": [2, "the host's own data (trusted), and an empty table"],
