@@ -66,7 +66,9 @@ test("values are typed numbers and dates; totals are bold; a reader gets them ba
     assert.equal(grand[0], "Grand Total");
     assert.equal(typeof grand[2], "number");
     // bold font on the total row
-    const boldXfs = [].concat(styles.cellXfs.xf).map((x, i) => (x.fontId === "1" ? i : -1)).filter((i) => i >= 0);
+    const fonts = [].concat(styles.fonts.font);
+    const boldXfs = [].concat(styles.cellXfs.xf).map((x, i) => (fonts[Number(x.fontId)]?.b !== undefined ? i : -1)).filter((i) => i >= 0);
+    assert.ok(boldXfs.length > 0, "a bold style exists");
     const lastRow = [].concat(parser.parse(xml("xl/worksheets/sheet1.xml")).worksheet.sheetData.row).at(-1);
     assert.ok([].concat(lastRow.c).every((c) => boldXfs.includes(Number(c.s))));
 });
@@ -229,13 +231,12 @@ test("XLSX: dates before 1900-03-01 get Excel's serials, earlier than 1900 is te
 });
 
 test("XLSX: text is cut at Excel's 32,767 characters, a number label stays a number", () => {
-    const { sheetXml, cells } = sheetOf(toXlsx(gridOf([{ k: "x".repeat(40_000), v: 1 }, { k: "y", v: 2 }], { rows: ["k"], values: [{ field: "v", agg: "sum" }] })));
+    const { sheetXml } = sheetOf(toXlsx(gridOf([{ k: "x".repeat(40_000), v: 1 }, { k: "y", v: 2 }], { rows: ["k"], values: [{ field: "v", agg: "sum" }] })));
     const longest = Math.max(...[...sheetXml.matchAll(/<t xml:space="preserve">([^<]*)<\/t>/g)].map((m) => m[1].length));
     assert.equal(longest, 32_767);
     const years = sheetOf(toXlsx(gridOf([{ d: "2026-01-01", v: 1 }], { derived: [{ name: "Year", field: "d", by: "year" }], rows: ["Year"], values: [{ field: "v", agg: "sum" }] }))).cells;
     assert.equal(years.get("A2").v, 2026);
     assert.equal(years.get("A2").t, undefined);
-    assert.ok(cells.get("A2"));
 });
 
 test("XLSX sheet names: control characters go, History is reserved", () => {

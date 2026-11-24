@@ -141,7 +141,7 @@ test("decorateOption: treemap labels take --pk-text or --pk-surface, whichever r
     );
     // tiles are parted by the background's colour
     assert.equal(out.series[0].itemStyle.borderColor, "#ffffff");
-    // on yellow the dark text reads (8.9:1): no outline; on a mid blue neither reaches 4.5:1, so the
+    // on yellow the dark text reads (7.8:1): no outline; on a mid blue neither reaches 4.5:1, so the
     // white label gets a dark outline it reads against
     assert.equal(out.series[0].data[0].label.textBorderColor, undefined);
     assert.deepEqual([out.series[0].data[1].label.textBorderColor, out.series[0].data[1].label.textBorderWidth], ["#1a1d23", 2]);

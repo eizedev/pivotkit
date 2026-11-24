@@ -1,8 +1,14 @@
 // Compiled by `npm run test:types` against the generated declarations, through the package's own
 // exports map: the published types must describe the public API as a TypeScript user sees it.
-import { computePivot, encode, fieldDefaultsFromSchema, fieldLabel, isDateMs, MAX_DATE_MS, normalize, PivotkitError, relativeDateRange, toEChartsOption, toGrid, type EncodeIssue, type Grid, type PivotResult, type SchemaFieldDefaults, type View } from "pivotkit-core";
+import {
+    computePivot, dateUnitFor, describeSource, encode, fieldDefaultsFromSchema, fieldLabel, foldText, GROUPING_NAMES, groupingName, isDateMs, isIdentifierName, LIMITS,
+    MAX_DATE_MS, normalize, outsideLimits, PivotkitError, relativeDateRange, renameFields, suggestLayout, toEChartsOption, toGrid, validate, viewFromLayout,
+    type ColumnarData, type EncodeIssue, type Grid, type LayoutView, type PivotResult, type SchemaFieldDefaults, type View
+} from "pivotkit-core";
 import { rowsToCsv, rowsToXlsx, toCsv, toJson, toTsv, toXlsx } from "pivotkit-core/export";
 import { parseTemplates, templatesFromSchema, TEMPLATE_LIMITS, TEMPLATES_EXTENSION } from "pivotkit-core/templates";
+import { BUILT_IN_READERS, createTable, readFile, retype, sourceIdOf, validatePlugin, type ImportTable, type PluginTable, type ReaderModule, type ReaderPlugin } from "pivotkit-core/import";
+import { readViewLink } from "pivotkit-core/link";
 
 const data = encode([{ Region: "North", Units: 3 }], { timeZone: "UTC", inferNumbers: true });
 const { view, issues }: { view: View; issues: Array<{ path: string; message: string }> } = normalize({ rows: ["Region"] }, data);
@@ -44,10 +50,8 @@ void anchored;
 void latest;
 
 // loading a file: the built-in readers and a reader plugin; the table is encode's columnar input
-import { BUILT_IN_READERS, createTable, readFile, retype, validatePlugin, type ImportTable, type PluginTable, type ReaderModule, type ReaderPlugin } from "pivotkit-core/import";
-import { LIMITS as READ_LIMITS } from "pivotkit-core";
 // a reader's table builder: its options are typed
-const builder = createTable({ file: "a.csv", limits: READ_LIMITS, locale: "en-US", hints: { decimal: "," } });
+const builder = createTable({ file: "a.csv", limits: LIMITS, locale: "en-US", hints: { decimal: "," } });
 builder.row(["a"]);
 const builtTable: ImportTable = builder.finish();
 void builtTable;
@@ -57,7 +61,6 @@ createTable({ locale: "en-US" });
 const handBuilt: PluginTable = { columns: ["a"], types: ["string"], data: [["x"]], notes: [] };
 const handReader: ReaderModule = { read: async () => handBuilt };
 void handReader;
-import { type ColumnarData } from "pivotkit-core";
 const plugin: ReaderPlugin = validatePlugin({ apiVersion: 1, kind: "reader", name: "demo", label: "Demo", accept: [".demo"], load: async () => ({ read: async () => ({}) }) });
 export async function load(file: File): Promise<number> {
     const table: ImportTable = await readFile(file, { plugins: [plugin, ...BUILT_IN_READERS], limits: { fileBytes: 1_000_000 }, signal: new AbortController().signal, onProgress: (p) => void p.phase, types: { Zip: "string" } });
@@ -67,8 +70,6 @@ export async function load(file: File): Promise<number> {
 }
 
 // a link of a page's fragment, with its data source; views checked with severities and hints
-import { readViewLink } from "pivotkit-core/link";
-import { outsideLimits, validate, foldText } from "pivotkit-core";
 const link = readViewLink("#pivot-sales=1.abc", "sales", { allowParams: ["year"] });
 const srcId: string | undefined = link.src?.id;
 const year: string | undefined = link.src?.params?.year;
@@ -81,8 +82,6 @@ void warned;
 void folded;
 
 // a view from a layout and the data's field description; a file's source id
-import { describeSource, groupingName, isIdentifierName, renameFields, suggestLayout, viewFromLayout, dateUnitFor, GROUPING_NAMES, type LayoutView } from "pivotkit-core";
-import { sourceIdOf } from "pivotkit-core/import";
 const described = describeSource(encode([{ Region: "North", Units: 3 }]));
 const suggestion = suggestLayout(described, { locale: "de-DE" });
 const pickCodes: string[] = suggestion.picks.map((p) => p.code);

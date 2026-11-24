@@ -9,6 +9,8 @@ const wallDate = (year, month) => {
     return d;
 };
 
+// The expected label is built with Intl as the engine builds it, so this test proves that the table,
+// the chart and the export agree. The labels' own text is pinned literally in expanded-years.test.js.
 for (const by of ["yearMonth", "yearQuarter"]) {
     test(`${by} historical labels agree across table, chart and export`, () => {
         for (const locale of ["en-US", "de-DE", "en-US-u-ca-islamic-civil"]) {

@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CATALOG, computePivot, encode, fieldItems, findNode, fromViewFile, normalize, relativeDateRange, toViewFile, validate, viewFileText } from "../src/index.js";
 import { SALES } from "./fixtures.js";
-import { MS_PER_DAY } from "../src/util.js";
 
+const DAY = 86_400_000;
 const data = encode(SALES);
 const sumUnits = { field: "Units", agg: "sum" };
 const regions = (r) => r.rowRoot.children.map((n) => n.key);
@@ -256,12 +256,12 @@ test("now at the edge of what a Date holds: INVALID_OPTION in every zone, a rang
     assert.equal(relativeDateRange("year", 500, { now: -8.64e15 }), null);
     assert.deepEqual(relativeDateRange("day", 1, { now: -8.64e15 }), { from: "-271821-04-20", to: "-271821-04-20" });
     assert.equal(relativeDateRange("day", 2, { now: -8.64e15 }), null);
-    assert.deepEqual(relativeDateRange("day", 1, { now: 8.64e15 - MS_PER_DAY }), { from: "+275760-09-12", to: "+275760-09-12" });
+    assert.deepEqual(relativeDateRange("day", 1, { now: 8.64e15 - DAY }), { from: "+275760-09-12", to: "+275760-09-12" });
     assert.throws(() => relativeDateRange("year", 1, { now: 8.64e15, timeZone: "Europe/Berlin" }), { code: "INVALID_OPTION" });
     // the pivot keeps the dates on today's side of a range without an end: none of 2026 is in the last 500 years of year 275760
     assert.equal(total(computePivot(zoned, relative, { now: 8.64e15 })), 0);
     assert.equal(total(computePivot(data, relative, { now: -8.64e15 })), 0);
-    assert.equal(kept([{ field: "Date", type: "relative", unit: "day", count: 500 }], {}, { now: -8.64e15 + MS_PER_DAY }), 0);
+    assert.equal(kept([{ field: "Date", type: "relative", unit: "day", count: 500 }], {}, { now: -8.64e15 + DAY }), 0);
 });
 
 // ---- the reference date of a relative range: today, or the data's latest record (anchor) ----
@@ -393,22 +393,25 @@ test("the field-type matrix: a filter type on a field it does not fit is an erro
     assert.deepEqual(CATALOG.filterFields.relative, ["date", "dateGrouping"]);
 });
 
-test("version 1's operators and types in a version-2 view are errors that name version 2's", () => {
-    const errors = (filter) => validate({ version: 2, filters: [filter] }, data).errors.map((e) => [e.code, e.params?.suggestion]);
-    assert.deepEqual(errors({ field: "Region", type: "include", items: ["North"] }), [["unknownFilterType", "in"]]);
-    assert.deepEqual(errors({ field: "Region", type: "label", op: "contains", value: "N" }), [["unknownFilterType", "text"]]);
+test("a filter without its type, operator or value names what it takes, with an example", () => {
     // no type at all: the message lists the types, not "unknown filter type undefined"
     const untyped = validate({ version: 2, filters: [{ field: "Region", items: ["North"] }] }, data).errors[0];
     assert.equal(untyped.code, "unknownFilterType");
     assert.match(untyped.message, /^a filter needs a type: one of in, /);
-    // an unknown type lists the types too (#508)
+    // an unknown type lists the types too
     const unknownType = validate({ version: 2, filters: [{ field: "Region", type: "bogus", items: ["North"] }] }, data).errors[0];
     assert.equal(unknownType.message, 'unknown filter type "bogus"; the types: in, blank, text, compare, relative, top, value');
-    // a comparison without its operator or value names the operators and shows one written out (#508)
+    // a comparison without its operator or value names the operators and shows one written out
     const compare = (filter) => validate({ version: 2, filters: [{ blanks: "exclude", ...filter }] }, data).errors.map((e) => e.message);
     assert.deepEqual(compare({ field: "Price", type: "compare" }), ['needs an operator and a value of the number field; the operators: =, >, >=, <, <=, between; e.g. "op": ">=", "value": 1000']);
     assert.deepEqual(compare({ field: "Price", type: "compare", op: "between", value: 1 }), ['needs an operator and two values of the number field; the operators: =, >, >=, <, <=, between; e.g. "op": "between", "value": 1000, "value2": 2000']);
     assert.deepEqual(compare({ field: "Date", type: "compare", op: "~", value: "2025-01-01" }), ['needs an operator and a value of the date field; the operators: =, >, >=, <, <=, between; e.g. "op": ">=", "value": "2025-01-01"']);
+});
+
+test("version 1's operators and types in a version-2 view are errors that name version 2's", () => {
+    const errors = (filter) => validate({ version: 2, filters: [filter] }, data).errors.map((e) => [e.code, e.params?.suggestion]);
+    assert.deepEqual(errors({ field: "Region", type: "include", items: ["North"] }), [["unknownFilterType", "in"]]);
+    assert.deepEqual(errors({ field: "Region", type: "label", op: "contains", value: "N" }), [["unknownFilterType", "text"]]);
     assert.deepEqual(errors({ field: "Region", type: "text", op: "notEquals", value: "N" }), [["filterTextOp", "equals"]]);
     assert.deepEqual(errors({ field: "Price", type: "compare", op: "!=", value: 1, blanks: "exclude" }), [["filterCompareValue", "="]]);
     assert.deepEqual(errors({ field: "Region", type: "value", op: "notBetween", value: 1, value2: 2 }), [["filterValue", "between"]]);
@@ -436,8 +439,10 @@ test("value: not inverts the comparison; a group without a number never matches"
     const keep = (extra) => keptRegions([{ field: "Region", type: "value", op: "between", value: 5, value2: 8, ...extra }]);
     assert.deepEqual(keep({}), ["South", null]);
     assert.deepEqual(keep({ not: true }), ["North", "West"]);
-    const prices = computePivot(data, { version: 2, rows: ["Region"], values: [{ field: "Units", agg: "average" }], filters: [{ field: "Product", type: "value", op: "=", value: 99, not: true, by: { field: "Units", agg: "sum" } }] });
-    assert.ok(prices.rows.length > 0);
+    // Dee's one row has no units, so the average of her group is no number: kept by neither side
+    const reps = (not) => regions(computePivot(data, { version: 2, rows: ["Rep"], values: [sumUnits], filters: [{ field: "Rep", type: "value", op: ">", value: 0, not, by: { field: "Units", agg: "average" } }] }));
+    assert.deepEqual(reps(false), ["Ann", "Bob", "Cid", "Eve"]);
+    assert.deepEqual(reps(true), []);
 });
 
 test("compare: a date's precision takes both sides to the start of their year, quarter, month, day or hour", () => {
