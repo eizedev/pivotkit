@@ -582,13 +582,9 @@ const SHOTS = [
     {
         // a donut with the numbers on its slices, Chart settings open
         name: "donut-labels",
-        query: "data=sales",
+        query: "data=sales&height=900",
         hash: encodeViewLink({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum", format: "compact" }], display: "chart", chart: { type: "donut", valueLabels: "value", labelPosition: "inside" } }),
         size: WIDE,
-        open: async (page) => {
-            await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
-            await page.getByTestId("view-settings").click();
-        }
     },
     {
         // a donut on a phone with its values outside: a smaller pie, the labels whole on two lines

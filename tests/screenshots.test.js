@@ -8,7 +8,14 @@ import { sitePages } from "./markdown-files.js";
 
 const root = new URL("../", import.meta.url);
 const DIR = "docs/assets/screenshots";
-const files = readdirSync(new URL(`${DIR}/`, root)).filter((f) => /\.(png|webp|jpe?g|gif)$/.test(f));
+const entries = readdirSync(new URL(`${DIR}/`, root), { withFileTypes: true });
+const IMAGE = /\.(png|webp|jpe?g|gif|svg|avif)$/i;
+const files = entries.filter((e) => e.isFile() && IMAGE.test(e.name)).map((e) => e.name);
+
+test("the folder holds screenshots only, no subfolders and no other files", () => {
+    // a file the other checks skip could be shown nowhere or lack its partner unseen
+    assert.deepEqual(entries.filter((e) => !e.isFile() || !IMAGE.test(e.name)).map((e) => e.name), []);
+});
 /** Every Markdown image of the docs and the READMEs that shows a screenshot: [file, alt, fragment, page]. */
 const shown = [...sitePages().map((p) => `docs/${p}`), "README.md", ...readdirSync(new URL("packages/", root)).map((p) => `packages/${p}/README.md`)]
     .filter((page) => existsSync(new URL(page, root)))
@@ -24,7 +31,7 @@ test("every screenshot is shown on a page", () => {
 test("every screenshot comes as a light and a dark one", () => {
     const pairs = new Map();
     for (const f of files) {
-        const m = /^(.+)-(light|dark)\.\w+$/.exec(f);
+        const m = /^(.+)-(light|dark)\.\w+$/i.exec(f);
         assert.ok(m, `${f}: named <name>-light or <name>-dark`);
         pairs.set(m[1], [...(pairs.get(m[1]) ?? []), m[2]]);
     }
