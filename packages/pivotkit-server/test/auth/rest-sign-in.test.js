@@ -4,14 +4,16 @@
 // REST and the other way round.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, mkdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { REQUEST_LIMITS } from "../../src/limits.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { checkConfig, validateOptions } from "pivotkit-server";
-import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, untilReady, workspace, mcpInitialize } from "../helpers.js";
+import { checkConfig, validateOptions, callerOf } from "pivotkit-server";
+import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, untilReady, workspace, mcpInitialize, tempDir } from "../helpers.js";
 import { until } from "../../../../tests/until.js";
 import { localIssuer, signingKey } from "./local-issuer.js";
+import { createAuthCore } from "../../src/auth.js";
+import { createLimits, limitKeyOf } from "pivotkit-server/internal";
 
 const MCP_RESOURCE = "https://pk.example.com/mcp";
 const REST_RESOURCE = "https://pk.example.com/api/v1";
@@ -332,4 +334,108 @@ test("rest.signIn: OAuth only, a client ID of the right form, and never a secret
     assert.throws(() => validateOptions({ ...base, rest: { signIn: { clientId: "two words" } } }), /rest\.signIn\.clientId: the public client's ID/);
     assert.throws(() => validateOptions({ ...base, rest: { signIn: {} } }), /rest\.signIn\.clientId: the public client's ID/);
     assert.throws(() => validateOptions({ ...base, rest: { signIn: { clientId: "pivotkit-cli", clientSecret: { env: "S" } } } }), /clientSecret/);
+});
+
+test("F3: limitKeyOf names the person, else the client; a client's people together run at most concurrency x clientShare requests", () => {
+    const oauth = (subject) => callerOf("oauth", { token: "jwt", clientId: "claude", scopes: [], expiresAt: 0, extra: { subject, issuer: "https://auth.example.test/" } });
+    assert.notEqual(limitKeyOf(oauth("ana")), limitKeyOf(oauth("ben")));
+    assert.equal(limitKeyOf(oauth("ana")), limitKeyOf(oauth("ana")));
+    assert.equal(limitKeyOf(oauth(undefined)), "client:claude", "a token without a person counts for its client");
+    assert.match(limitKeyOf(callerOf("none")), /^person:/);
+    const limits = createLimits({ concurrency: 1 });
+    try {
+        const cap = REQUEST_LIMITS.clientShare;
+        for (let i = 0; i < cap; i++) {
+            assert.equal(limits.enter(`person:${i}`, "claude"), true);
+        }
+        assert.equal(limits.enter("person:one-more", "claude"), false, "the client's cap");
+        assert.equal(limits.enter("person:other", "other-client"), true, "another client is not held by it");
+        assert.equal(limits.enter("person:0", "claude"), false, "a person's own concurrency");
+        limits.leave("person:0", "claude");
+        assert.equal(limits.enter("person:one-more", "claude"), true, "a place given back");
+    } finally {
+        limits.close();
+    }
+});
+
+test("auth token: a token file emptied or removed after the start refuses with 401 and writes one warning per minute naming the token, never a value", async () => {
+    const dir = tempDir();
+    const file = join(dir, "bot.token");
+    writeFileSync(file, `${TOKEN}\n`);
+    const warnings = [];
+    const log = { warn: (msg, fields) => warnings.push({ msg, ...fields }), info() {}, debug() {} };
+    const core = await createAuthCore({ auth: { mode: "token", tokens: [{ name: "bot", file }] } }, { env: {}, log, loopback: true });
+    const ask = () => core.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } }));
+    assert.equal((await ask()).clientId, "bot");
+    writeFileSync(file, "");
+    await assert.rejects(ask(), (e) => e.status === 401);
+    await assert.rejects(ask(), (e) => e.status === 401);
+    assert.equal(warnings.length, 1, JSON.stringify(warnings));
+    assert.match(warnings[0].msg, /auth: the token "bot" cannot be used \(its file is empty\)/);
+    // the cause, each in its words: a file cut short, a file gone (another core: the warning is per minute)
+    const again = async (content) => {
+        const seen = [];
+        writeFileSync(file, `${TOKEN}\n`);
+        const other = await createAuthCore({ auth: { mode: "token", tokens: [{ name: "bot", file }] } }, { env: {}, log: { ...log, warn: (msg) => seen.push(msg) }, loopback: true });
+        if (content === null) unlinkSync(file);
+        else writeFileSync(file, content);
+        await assert.rejects(other.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } })));
+        return seen.join("\n");
+    };
+    assert.match(await again("short-token-12345"), /\(its file has 17 characters\)/);
+    assert.match(await again(null), /\(its file is missing\)/);
+    // rotated to a token too easy to guess: refused like a short one, even when a request sends it
+    const weak = "x".repeat(40);
+    const seen = [];
+    writeFileSync(file, `${TOKEN}\n`);
+    const rotated = await createAuthCore({ auth: { mode: "token", tokens: [{ name: "bot", file }] } }, { env: {}, log: { ...log, warn: (msg) => seen.push(msg) }, loopback: true });
+    writeFileSync(file, `${weak}\n`);
+    for (let i = 0; i < 2; i++) {
+        await assert.rejects(rotated.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${weak}` } })), (e) => e.status === 401);
+    }
+    assert.match(seen.join("\n"), /\(its file holds a token too easy to guess \(1 different character, at least 8\)\)/);
+    assert.ok(!JSON.stringify(warnings).includes(TOKEN.slice(0, 12)), "never the token");
+    assert.ok(!JSON.stringify(warnings).includes(dir), "never the file's path either");
+});
+
+test("REST: a token in the address is refused 401 and logged with reason token_in_address, on a GET and on a POST (its precheck)", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, baseDir: dir }, { env: { PIVOTKIT_TOKEN: TOKEN } });
+    try {
+        assert.equal((await call(`${server.api}/sources?access_token=${TOKEN}`)).status, 401);
+        assert.equal((await call(`${server.api}/views/validate?access_token=${TOKEN}`, { body: { source: "sales", view: { rows: ["Region"] } } })).status, 401);
+        const reasons = server.log.filter((l) => l.event === "refused").map((l) => l.reason);
+        assert.deepEqual(reasons, ["token_in_address", "token_in_address"]);
+        assert.ok(!JSON.stringify(server.log).includes(TOKEN), "the token is never logged");
+    } finally {
+        await server.close();
+    }
+});
+
+test("F3: one client's people together take at most clientShare times perMinute: a person cannot open buckets without end", () => {
+    let now = 0;
+    const limits = createLimits({ rateLimit: { perMinute: 1, burst: 1 } }, () => now);
+    try {
+        for (let i = 0; i < REQUEST_LIMITS.clientShare; i++) {
+            assert.equal(limits.take(`person:${i}`, "claude"), 0, `person ${i}`);
+        }
+        assert.ok(limits.take("person:new", "claude") > 0, "the client's own bucket is empty");
+        assert.equal(limits.take("person:other", "other-client"), 0, "another client is not held by it");
+        now += 60_000;
+        assert.equal(limits.take("person:new", "claude"), 0, "it fills again");
+    } finally {
+        limits.close();
+    }
+});
+
+test("auth token: a token file that cannot be read (a directory in its place) is said so, not called empty", async () => {
+    const dir = tempDir();
+    const file = join(dir, "bot.token");
+    writeFileSync(file, `${TOKEN}\n`);
+    const seen = [];
+    const core = await createAuthCore({ auth: { mode: "token", tokens: [{ name: "bot", file }] } }, { env: {}, log: { warn: (msg) => seen.push(msg), info() {}, debug() {} }, loopback: true });
+    unlinkSync(file);
+    mkdirSync(file);
+    await assert.rejects(core.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } })));
+    assert.match(seen.join("\n"), /\(its file cannot be read\)/);
 });

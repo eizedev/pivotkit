@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { OPERATION_ERRORS, OperationError } from "pivotkit-report/operations";
-import { ConfigError, callerOf, createContext, present, validateOptions } from "pivotkit-server";
+import { ConfigError, callerOf, createContext, present, validateOptions, checkConfig } from "pivotkit-server";
 import { presentedInput } from "pivotkit-server/internal";
 import { createComputer } from "../src/compute.js";
 import { errorDetails, newRequestId, requestId, withRequestId } from "../src/request-id.js";
@@ -14,7 +14,7 @@ import { asOfMembers, asOfSentence, asOfText } from "../src/sources/as-of.js";
 import { INLINE_ID, kindOf } from "../src/sources/index.js";
 import { canonicalJson, tableKeyOf } from "../src/sources/keys.js";
 import { MATCH_MS, declaredProblems, matchMeans, matchWithin, normalizeParams, paramSchemaOf, paramsList } from "../src/sources/params.js";
-import { BY_REGION, TOKEN, call, restServer, workspace } from "./helpers.js";
+import { BY_REGION, TOKEN, call, restServer, workspace, factsOf } from "./helpers.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
 
 const LOCAL = callerOf("none", undefined);
@@ -609,4 +609,15 @@ test("a refused value: the parameter's words in one parenthesis at the end, its 
     const { normalizeParams } = await import("../src/sources/params.js");
     assert.throws(() => normalizeParams({ team: { type: "string", enum: ["blue", "red"], description: "The team", example: "blue" } }, { team: "green" }, null, "t"), (e) => e.message === "params.team must be one of blue, red (The team, for example blue)");
     assert.throws(() => normalizeParams({ team: { type: "string", pattern: "^[a-z]+$" } }, { team: "Blue" }, null, "t"), (e) => e.message === "params.team is not in the expected form (pattern ^[a-z]+$)");
+});
+
+test("#471: check-config names the sources without a description in one hint line (not a warning) under Sources", async () => {
+    const dir = workspace();
+    const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" }, described: { file: "data/sales.csv", description: "Orders by region and product, one row per order" }, orders: { file: "data/sales.csv" } }, baseDir: dir }, { http: false, env: {} });
+    const text = factsOf(result.text);
+    assert.match(text, /^Sources \(3\):\n {2}no description: sales, orders \(a model chooses sources by it: sources\.<id>\.description\)$/m);
+    assert.equal(text.match(/no description/g)?.length, 1, "one line for all of them");
+    assert.doesNotMatch(text, /WARNING[^\n]*description/);
+    const described = factsOf((await checkConfig({ sources: { described: { file: "data/sales.csv", description: "Orders" } }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.doesNotMatch(described, /no description/);
 });

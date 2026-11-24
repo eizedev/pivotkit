@@ -17,6 +17,7 @@ import { MCP_DATA_CAP, REST_DATA_BYTES } from "../src/sources/inline.js";
 import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspace, runBin } from "./helpers.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
 import { until } from "../../../tests/until.js";
+import { connect } from "node:net";
 
 const LOCAL = callerOf("none", undefined);
 
@@ -718,6 +719,64 @@ test("one place for a large body per caller: its second gets 503 BUSY while anot
         held.destroy();
         // a complete body: it takes a place only when one is free, else it is BUSY at once
         await until(async () => (await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: big } })).status === 200, { message: "its place is free again once it left" });
+    } finally {
+        await server.close();
+    }
+});
+
+/**
+ * A POST sent whole before anything is read, as .NET's HttpClient and PowerShell send: the answer's
+ * status line and request id, or the error that ended the connection.
+ */
+function sendThenRead(url, token, bytes) {
+    return new Promise((resolve) => {
+        const u = new URL(url);
+        const socket = connect(Number(u.port), u.hostname);
+        const received = [];
+        let error = null;
+        socket.on("error", (e) => (error = e));
+        socket.pause();
+        const head = `POST ${u.pathname} HTTP/1.1\r\nHost: ${u.host}\r\nAuthorization: Bearer ${token}\r\nContent-Type: application/json\r\nContent-Length: ${bytes}\r\nConnection: close\r\n\r\n`;
+        const chunk = Buffer.alloc(65_536, 0x20);
+        let left = bytes;
+        socket.write(head);
+        const pump = () => {
+            while (left > 0) {
+                const n = Math.min(left, chunk.length);
+                left -= n;
+                if (!socket.write(n === chunk.length ? chunk : chunk.subarray(0, n))) {
+                    socket.once("drain", pump);
+                    return;
+                }
+            }
+            // all sent: only now is the answer read
+            socket.on("data", (d) => received.push(d));
+            socket.resume();
+        };
+        pump();
+        socket.on("close", () => {
+            const text = Buffer.concat(received).toString("latin1");
+            resolve({ status: Number(/^HTTP\/1\.1 (\d{3})/.exec(text)?.[1] ?? 0), requestId: /\r\nx-request-id: ([^\r]+)/i.exec(text)?.[1] ?? null, error: error?.code ?? null });
+        });
+    });
+}
+
+test("#473: a declared body over rest.data.maxBytes from a caller that may send data gets 413 with its request id, also when the client reads only after sending it all", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, policy: { profiles: { etl: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }] }, baseDir: dir }, { env: { ETL_TOKEN: TOKEN } });
+    try {
+        // 11 MiB: over the default rest.data.maxBytes (10 MiB), under four times it
+        const got = await sendThenRead(`${server.api}/views/render`, TOKEN, 11 * 1_048_576);
+        assert.equal(got.status, 413, JSON.stringify(got));
+        assert.ok(got.requestId, JSON.stringify(got));
+        // a caller without a valid token keeps the small bound: its body is drained up to four times
+        // 2 MiB, then the connection is cut. 30 MiB is under four times the signed-in caller's 10 MiB,
+        // so only that small bound cuts it, long before the client has sent it all and reads
+        const stranger = await sendThenRead(`${server.api}/views/render`, "a-token-nobody-has-0123456789012345678", 30 * 1_048_576);
+        assert.equal(stranger.status, 0, JSON.stringify(stranger));
+        assert.ok(stranger.error, JSON.stringify(stranger));
+        const refused = server.log.filter((l) => l.event === "refused" && l.status === 413);
+        assert.deepEqual(refused.map((l) => l.size), [11 * 1_048_576, 30 * 1_048_576], "each refused by its declared size");
     } finally {
         await server.close();
     }

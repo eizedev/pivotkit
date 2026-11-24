@@ -10,7 +10,7 @@ import { whyNot } from "../src/context.js";
 import { prune } from "../src/present.js";
 import { makeRoom } from "../src/output.js";
 import { checkConfig } from "pivotkit-server";
-import { BY_REGION, call, factsOf, restServer, workspace, runBin } from "./helpers.js";
+import { BY_REGION, call, factsOf, restServer, workspace, runBin, tempDir } from "./helpers.js";
 
 
 /** The reports and drafts pivotkit wrote into a directory (by the mark in their names). */
@@ -555,4 +555,82 @@ test("an output.dir inside an allowed directory: the start's error and check-con
     assert.equal(check.status, 1, check.stdout);
     assert.ok(factsOf(check.stdout).split("\n").includes(`PROBLEM: output.dir: ${reason} -> the server does not start`), check.stdout);
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, files: { allowDirs: ["data"] }, output: { dir: "data/out" }, baseDir: dir }), (e) => e.message === `output.dir: ${reason}`);
+});
+
+/** A schedule draft's file as draft_schedule writes it, with its status. */
+const draftJson = (status) => JSON.stringify({ format: "pivotkit-report-draft", version: 0, status, name: "Weekly" });
+
+test("output.maxAgeDays: a sweep deletes old reports and drafts no longer waiting, never a draft waiting for approval, and writes one info line with the counts; one that deletes nothing writes none", async () => {
+    const dir = tempDir();
+    const old = (Date.now() - 3 * 86_400_000) / 1000;
+    const files = { "a.pivotkit-out.csv": "x", "b.pivotkit-out.xlsx": "x", "Weekly.pivotkit-out.report.json": draftJson("draft"), "Done.pivotkit-out.report.json": draftJson("approved"), "fresh.pivotkit-out.csv": "x", "mine.csv": "x" };
+    for (const [name, text] of Object.entries(files)) {
+        writeFileSync(join(dir, name), text);
+        if (name !== "fresh.pivotkit-out.csv") utimesSync(join(dir, name), old, old);
+    }
+    const lines = [];
+    const log = { info: (msg, fields) => lines.push({ msg, ...fields }) };
+    await prune({ output: { dir, maxAgeDays: 1, cleanUp: true }, log });
+    assert.deepEqual(readdirSync(dir).sort(), ["Weekly.pivotkit-out.report.json", "fresh.pivotkit-out.csv", "mine.csv"], "the draft waits for a person");
+    assert.equal(lines.length, 1, JSON.stringify(lines));
+    assert.equal(lines[0].msg, "output.maxAgeDays: reports and schedule drafts no longer waiting older than 1 day deleted");
+    assert.deepEqual([lines[0].reports, lines[0].drafts], [2, 1]);
+    // a directory of old drafts that wait: nothing deleted, nothing said
+    const drafts = tempDir();
+    writeFileSync(join(drafts, "Old.pivotkit-out.report.json"), draftJson("draft"));
+    utimesSync(join(drafts, "Old.pivotkit-out.report.json"), old, old);
+    await prune({ output: { dir: drafts, maxAgeDays: 1, cleanUp: true }, log });
+    assert.deepEqual(readdirSync(drafts), ["Old.pivotkit-out.report.json"]);
+    const empty = tempDir();
+    await prune({ output: { dir: empty, maxAgeDays: 1, cleanUp: true }, log });
+    assert.equal(lines.length, 1, "nothing deleted, nothing said");
+});
+
+test("output.maxAgeDays: a draft whose status the host changed from \"draft\" no longer waits and goes by age; one still \"draft\" or unreadable stays; check-config counts the ones that go", async () => {
+    const dir = workspace();
+    const out = join(dir, "out");
+    const old = (Date.now() - 40 * 86_400_000) / 1000;
+    const draft = (status) => JSON.stringify({ format: "pivotkit-report-draft", version: 0, status, name: "Weekly" });
+    const files = { "waiting.pivotkit-out.report.json": draft("draft"), "approved.pivotkit-out.report.json": draft("approved"), "rejected.pivotkit-out.report.json": draft("rejected"), "broken.pivotkit-out.report.json": "{not json", "old.pivotkit-out.csv": "x" };
+    for (const [name, text] of Object.entries(files)) {
+        writeFileSync(join(out, name), text);
+        utimesSync(join(out, name), old, old);
+    }
+    const text = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.match(text, /^WARNING \(Output\): 1 report and 2 schedule drafts no longer waiting for approval are older than 30 days and are deleted at the next start; copy them away or set output\.maxAgeDays: 0$/m);
+    const lines = [];
+    await prune({ output: { dir: out, maxAgeDays: 30, cleanUp: true }, log: { info: (msg, fields) => lines.push({ msg, ...fields }) } });
+    assert.deepEqual(readdirSync(out).sort(), ["broken.pivotkit-out.report.json", "waiting.pivotkit-out.report.json"]);
+    assert.deepEqual(lines, [{ msg: "output.maxAgeDays: reports and schedule drafts no longer waiting older than 30 days deleted", reports: 1, drafts: 2, maxAgeDays: 30 }]);
+});
+
+test("check-config: output.dir in the configuration's directory is a WARNING (Output), with the text serve warns with", async () => {
+    const dir = workspace();
+    const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "." }, baseDir: dir }, { http: false, env: {} });
+    assert.match(factsOf(result.text), /^WARNING \(Output\): output\.dir is the configuration's directory or holds a source, template or token file: reports there are never deleted to make room, so a full directory refuses new ones; give the reports a directory of their own$/m);
+    assert.ok(result.warnings >= 1);
+    // a directory of the reports' own: no such warning
+    assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text, /never deleted to make room/);
+});
+
+test("check-config: counts the reports the age sweep deletes at the next start, as a WARNING (Output); drafts waiting for approval are not counted", async () => {
+    const dir = workspace();
+    const out = join(dir, "out");
+    const old = (Date.now() - 40 * 86_400_000) / 1000;
+    for (const name of ["a.pivotkit-out.csv", "b.pivotkit-out.xlsx", "Weekly.pivotkit-out.report.json", "fresh.pivotkit-out.csv", "mine.csv"]) {
+        writeFileSync(join(out, name), "x");
+        if (name !== "fresh.pivotkit-out.csv") utimesSync(join(out, name), old, old);
+    }
+    const text = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.match(text, /^WARNING \(Output\): 2 reports are older than 30 days and are deleted at the next start; copy them away or set output\.maxAgeDays: 0$/m);
+    assert.match(text, /^ {2}reports older than 30 days are deleted; schedule drafts stay until a person approves or removes them$/m);
+    // no age limit, or nothing old: no such warning
+    assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text, /deleted at the next start/);
+    assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 60 }, baseDir: dir }, { http: false, env: {} })).text, /deleted at the next start/);
+});
+
+test("check-config: an output directory shared with the configuration says so once, as the WARNING", async () => {
+    const dir = workspace();
+    const text = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "." }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.equal(text.match(/refuses new (reports|ones)/g)?.length, 1, text);
 });
