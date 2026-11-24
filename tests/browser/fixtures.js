@@ -159,33 +159,36 @@ export const twoFrames = (page) => page.evaluate(() => new Promise((done) => req
 
 /**
  * Clicks a toolbar action: its own button, or its entry in "More" when the report is too narrow for
- * all buttons. `testId` is the button's ("redo", "views", "more"), an action of Start over
+ * all buttons. `scope` is the page or one report of several (a locator, also a web component's host).
+ * `testId` is the button's ("redo", "views", "more", "export"), an action of Start over
  * ("reset", "new-report": its menu, then the action), "help" (More, then its Help level), or a menu
- * beside the tabs ("table-settings", "chart-settings": its tab is shown first, with a click, when it is
- * not). A menu that is open already (Views stays open after a save) stays open: a click on its button
- * would close it.
+ * beside the tabs ("view-settings"; "table-settings", "chart-settings": its tab is shown first, with a
+ * click, when it is not). A menu that is open already (Views stays open after a save) stays open: a
+ * click on its button would close it.
+ * @param {import("@playwright/test").Page | import("@playwright/test").Locator} scope
  */
-export async function toolbar(page, testId) {
+export async function toolbar(scope, testId) {
+    const page = "goto" in scope ? scope : scope.page();
     // the report has its data (a real data set loads as a chunk of its own) and its toolbar has settled
-    await page.locator('[data-testid="pivot-table"], [data-testid="pivot-chart"], [data-testid="empty-state"]').first().waitFor();
+    await scope.locator('[data-testid="pivot-table"], [data-testid="pivot-chart"], [data-testid="empty-state"]').first().waitFor();
     await twoFrames(page);
     const button = START_OVER.includes(testId) ? "start-over" : testId;
-    const own = page.getByTestId(button);
+    const own = scope.getByTestId(button);
     if (Object.hasOwn(SETTINGS, testId)) {
-        const tab = page.getByTestId(`show-${SETTINGS[testId]}`);
+        const tab = scope.getByTestId(`show-${SETTINGS[testId]}`);
         if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click();
-        const settings = page.getByTestId("view-settings");
+        const settings = scope.getByTestId("view-settings");
         if ((await settings.getAttribute("aria-expanded")) !== "true") await settings.click();
     } else if (testId === "help") {
-        await page.getByTestId("more").click();
-        await page.getByTestId("more-help").click();
-        await expect(page.getByTestId("level-help")).toBeVisible();
+        await scope.getByTestId("more").click();
+        await scope.getByTestId("more-help").click();
+        await expect(scope.getByTestId("level-help")).toBeVisible();
     } else if (await own.count()) {
         if ((await own.getAttribute("aria-expanded")) !== "true") await own.click();
-        if (button !== testId) await page.getByTestId(testId).click();
+        if (button !== testId) await scope.getByTestId(testId).click();
     } else {
-        await page.getByTestId("more").click();
-        await page.getByTestId(`more-${testId}`).click();
+        await scope.getByTestId("more").click();
+        await scope.getByTestId(`more-${testId}`).click();
     }
     // a menu takes the focus a frame after it opens (from More once its panel is there): wait for it,
     // so a test that moves the focus inside does not lose it to that
