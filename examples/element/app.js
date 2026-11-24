@@ -1,7 +1,10 @@
 // The page's own code: made-up rows from a fixed seed, the templates from the JSON block, the theme
 // switch, and the report's events. No framework, no build step.
 
-/** A small seeded random generator (mulberry32): the same rows on every load. */
+/**
+ * A small seeded random generator (mulberry32): the same rows on every load. The playground has the
+ * same function (examples/playground/src/data.js); this page has no build step to import it.
+ */
 function random(seed) {
     let a = seed >>> 0;
     return () => {

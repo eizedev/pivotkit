@@ -116,7 +116,10 @@ export async function settled(chartEl) {
     })).toBe(true);
 }
 
-/** Runs `at(chart, arg)` in the page with the chart's ECharts instance. */
+/**
+ * Runs `at(chart, arg)` in the page with the chart's ECharts instance. `at` is sent as its source text
+ * and built again in the page, so it reaches no variable of the spec: pass what it needs as `arg`.
+ */
 export const inChart = (chartEl, at, arg) =>
     chartEl.evaluate(async (el, { at, arg }) => {
         const { getInstanceByDom } = await import("echarts/core");

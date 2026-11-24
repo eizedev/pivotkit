@@ -11,9 +11,5 @@
 
 ## Test plan
 
-- [ ] `npm run lint`
-- [ ] `npm run types` (type check, generated declarations, TypeScript consumer)
-- [ ] `npm test` (all workspace packages)
-- [ ] `npm run pack:check` if files, exports or package.json changed
-- [ ] `npm run bench -w pivotkit-core` if the engine changed (timings in the description)
-- [ ] An exported `.xlsx` opened in Excel or LibreOffice, if the export changed
+- [ ] The checks of [Check your change](https://github.com/eizedev/pivotkit/blob/main/CONTRIBUTING.md#check-your-change): those for every change, and those for what this one changes
+- [ ] What I ran, with numbers where a check gives some, such as benchmark timings:

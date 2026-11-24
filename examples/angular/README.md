@@ -1,10 +1,14 @@
 # pivotkit in Angular
 
-A minimal Angular app with the web component `<pivot-report>` of `pivotkit-element`: a standalone,
-zoneless component (`src/ticket-report.component.ts`) that binds data and the start view as properties
-and handles `pivot-view-change`, with `allow-import`: `angular.json` copies the element's
-`dist/import-worker.js` as an asset, so a file is read in the element's worker. CI builds it and runs `test/angular.spec.js` in Chromium, Firefox and
-WebKit. The walkthrough is on the documentation site:
+A minimal Angular app with the web component `<pivot-report>` of `pivotkit-element`.
+
+- A standalone, zoneless component (`src/ticket-report.component.ts`) binds the data and the start view as properties.
+  It handles `pivot-view-change`.
+- The report has `allow-import`. `angular.json` copies the element's `dist/import-worker.js` as an asset,
+  so the element's worker reads a picked file.
+- CI builds the app and runs `test/angular.spec.js` in Chromium, Firefox and WebKit.
+
+The walkthrough is on the documentation site:
 [Getting started with the web component, Angular](https://pivotkit.eize.dev/getting-started/web-component/#angular).
 
 From the repository root, after `npm ci`:
@@ -15,3 +19,6 @@ npm ci --prefix examples/angular --ignore-scripts          # Angular, from this 
 npm run build --prefix examples/angular                    # into examples/angular/dist/browser/
 npx playwright test -c examples/angular/playwright.config.js
 ```
+
+`.npmrc` sets `ignore-scripts`: the install runs no install scripts, as in CI.
+The build needs none of them, and a script of a build tool's dependency cannot run on your machine.

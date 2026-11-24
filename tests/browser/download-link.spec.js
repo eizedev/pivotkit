@@ -79,11 +79,9 @@ test("a one-time link: the page's Download button saves the file once; the link 
             await other.close();
         }
         // the browser that took it may repeat it, and the page says until when
-        if (download) {
-            await page.goto(output.url);
-            await expect(page.getByText(/You downloaded it in this browser a moment ago and can download it again until/)).toBeVisible();
-            await expect(page.getByRole("button", { name: "Download" })).toBeVisible();
-        }
+        await page.goto(output.url);
+        await expect(page.getByText(/You downloaded it in this browser a moment ago and can download it again until/)).toBeVisible();
+        await expect(page.getByRole("button", { name: "Download" })).toBeVisible();
     } finally {
         await server.close();
     }

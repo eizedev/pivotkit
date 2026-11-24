@@ -4,22 +4,12 @@ import { readFile } from "node:fs/promises";
 import { test as plain } from "@playwright/test";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chips, expect, openZones, test, toolbar, watchConsole } from "./fixtures.js";
+import { captureClipboard, chips, expect, openZones, test, toolbar, watchConsole } from "./fixtures.js";
 
 /** A switch of a menu (its checkbox is drawn as a track): by keyboard, as a person reaches it. */
 async function flip(locator) {
     await locator.focus();
     await locator.press("Space");
-}
-
-/** navigator.clipboard.writeText that keeps what it was given in window.__copied (every browser, no permission). */
-async function captureClipboard(page) {
-    await page.addInitScript(() => {
-        Object.defineProperty(navigator, "clipboard", {
-            configurable: true,
-            value: { writeText: async (text) => void (/** @type {any} */ (window).__copied = text) }
-        });
-    });
 }
 
 test.describe("chart display", () => {

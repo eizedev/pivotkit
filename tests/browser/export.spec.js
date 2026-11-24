@@ -2,6 +2,7 @@
 // export menu (Copy, Copy as JSON, Download CSV, Download Excel), the note on a cut list.
 import { readFile } from "node:fs/promises";
 import { strFromU8, unzipSync } from "fflate";
+import { LIGHT_TOKENS } from "pivotkit-report";
 import { captureClipboard, chipMenu, copied, expect, inClick, test, toolbar } from "./fixtures.js";
 
 test.describe("Export menu: copies", () => {
@@ -250,7 +251,7 @@ test.describe("Excel export: a colour scale in the theme's colours", () => {
         const [low, high] = await tokens(page);
         expect(await exportedScale(page)).toEqual([low, high]);
         // the theme's heat colours: light blue for low, strong blue for high, never Excel's red for low
-        expect([low, high]).toEqual(["#eaf1fb", "#2a78d6"]);
+        expect([low, high]).toEqual([LIGHT_TOKENS["--pk-heat-low"], LIGHT_TOKENS["--pk-heat-high"]]);
         // the report draws the lowest value lighter than the highest
         const { low: lowBg, high: highBg } = await ends(page);
         const light = (rgb) => rgb.match(/\d+/g).slice(0, 3).map(Number).reduce((a, b) => a + b, 0);
@@ -280,6 +281,6 @@ test.describe("Excel export: a colour scale in the theme's colours", () => {
     test("dark: the workbook gets the light theme's colours, readable with Excel's black text", async ({ page }) => {
         await page.goto("?data=sales&theme=dark");
         await scaleRevenue(page);
-        expect(await exportedScale(page)).toEqual(["#eaf1fb", "#2a78d6"]);
+        expect(await exportedScale(page)).toEqual([LIGHT_TOKENS["--pk-heat-low"], LIGHT_TOKENS["--pk-heat-high"]]);
     });
 });

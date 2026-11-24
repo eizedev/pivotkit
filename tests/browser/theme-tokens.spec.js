@@ -44,7 +44,7 @@ const rootRule = (html) => html.match(/<style>:root\{([^}]*)\}/)[1];
 const withoutDarkScreen = (html) => html.replace(/^@media screen[^{]*\{:root(?::not\(\[data-pk-theme="light"\]\)|\[data-pk-theme="dark"\])\{.*$/gm, "");
 
 test.describe("a host's tokens for corners, the code font, the focus ring and the chart (#216)", () => {
-    test("the default look: the corners, the code font and the ring widths of before", async ({ page, browserName }) => {
+    test("the default look: the corners, the code font and the ring widths", async ({ page, browserName }) => {
         await page.goto("?data=sales&theme=light");
         const radius = (selector) => page.locator(selector).first().evaluate((el) => getComputedStyle(el).borderTopLeftRadius);
         expect(await radius(".pk-type")).toBe("6px");
@@ -424,7 +424,7 @@ test.describe("a host's tokens for the tabs, icon buttons, button frames and pri
     }
 
     for (const theme of ["light", "dark"]) {
-        test(`${theme}: the defaults are today's colours, from the general tokens`, async ({ page }) => {
+        test(`${theme}: the defaults come from the general tokens`, async ({ page }) => {
             await page.goto(`?data=sales&lang=en&theme=${theme}`);
             await page.addStyleTag({ content: ".pk-root { --pk-duration: 0ms; }" });
             const p = await parts(page, page);

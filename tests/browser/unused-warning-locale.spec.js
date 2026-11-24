@@ -1,7 +1,10 @@
+// The report's language and number format where a locale is unusual: the warning about unused fields
+// counts in the view's or the host's locale (an invalid one falls back to en-US), and a locale the
+// browser has no data for shows the report in en-US and says so.
 import { test, expect } from "./fixtures.js";
 
 for (const [hostLocale, viewLocale, expectedLocale] of [["ar-EG", undefined, "ar-EG"], ["de-DE", "fa-IR", "fa-IR"], ["invalid_locale", undefined, "en-US"]]) {
-    test(`unused warning counts retain locale ${expectedLocale} after work limit`, async ({page}) => {
+    test(`unused warning counts retain locale ${expectedLocale} after work limit`, async ({ page }) => {
         await page.goto("pages/element-views.html");
         const host = page.locator("#views");
         await expect(host.locator(".pk-root")).toBeVisible();

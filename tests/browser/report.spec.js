@@ -1,6 +1,11 @@
+// The report end to end in the playground: building it by drag and by menu, filters, the table and
+// the chart, exports and templates, theme and language, the layout at wide and narrow widths, the
+// virtual table of 100,000 rows and a result taller than its area.
 import { readFile } from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
+import { DARK_TOKENS, LIGHT_TOKENS } from "pivotkit-report";
 import { chipMenu, chips, drag, expect, expectChartType, openLevel, openSaveAs, tableRows, test, toolbar } from "./fixtures.js";
+import { rgb } from "./report-contrast.js";
 
 test.describe("building a report", () => {
     test("the empty state explains the first steps; fields are added by drag and by menu", async ({ page }) => {
@@ -273,10 +278,10 @@ test.describe("theme, language and layout", () => {
         await expect(root).toHaveAttribute("data-pk-theme", "dark");
         await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
         await expect(root).toHaveAttribute("data-pk-theme", "light");
-        expect(await root.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(255, 255, 255)");
+        expect(await root.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(rgb(LIGHT_TOKENS["--pk-surface"]));
         await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
         await expect(root).toHaveAttribute("data-pk-theme", "dark");
-        expect(await root.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(22, 24, 29)");
+        expect(await root.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(rgb(DARK_TOKENS["--pk-surface"]));
     });
 
     test("German labels and number format, and the report's language", async ({ page }) => {
