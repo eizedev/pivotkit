@@ -149,7 +149,7 @@ Switch it off with `mcp.data: false` (MCP) and by not giving any profile `data: 
 
 ## Rows of a source { #records }
 
-The [rows route](reference/rest.md#records) hands the rows of a source to a person, where a profile
+The [rows route](reference/records.md#records) hands the rows of a source to a person, where a profile
 names the source in `records`. It is off by default. Once you grant it, this leaves the server:
 
 | What | Leaves or stays | To whom |

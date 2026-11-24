@@ -622,7 +622,7 @@ and the sign-in above hold for it too. What differs:
     that much of the server's time and memory. Give it to programs you run. Keep
     `rest.data.maxBytes` as small as they need, and keep the rate limits.
 
-- **Rows of a source** ([rows route](reference/rest.md#records)) are off until a profile names a
+- **Rows of a source** ([rows route](reference/records.md#records)) are off until a profile names a
   source in `records`.
     - Only a person gets rows: an OAuth token with a subject, or an external issuer's token with a
       subject. Static and signed tokens and a server without sign-in get 403.

@@ -41,7 +41,7 @@ Node 24 or later. It brings [pivotkit-report](report.md), pivotkit-xlsx, ECharts
 
 Every route is under `/api/v1` and answers JSON. A `GET` route answers `HEAD` too, without the body.
 The routes are RPC-style (`POST /views/validate`), one per operation of the
-[operation table](report.md#operations), and the [rows route](#records):
+[operation table](report.md#operations), and the [rows route](records.md#records):
 
 | Route | Operation | What it does |
 | --- | --- | --- |
@@ -56,7 +56,7 @@ The routes are RPC-style (`POST /views/validate`), one per operation of the
 | `POST /views/render/file` | `render_view` | The same report as the answer itself, a download ([below](#downloads)) |
 | `POST /views/link` | `create_link` | A link that opens the view in the source's report page, with the source's link parameters in the page's query string ([link parameters](../concepts/sharing.md#link-params)) |
 | `POST /schedules/draft` | `draft_schedule` | A draft of a scheduled report for a person to approve. It runs and sends nothing |
-| `POST /sources/records` | none (REST only) | The rows of a source for a person who signed in, where a profile allows it ([below](#records)) |
+| `POST /sources/records` | none (REST only) | The rows of a source for a person who signed in, where a profile allows it ([below](records.md#records)) |
 
 `GET /sources/records` and `GET /sources/describe` answer 405 with `Allow: POST`. A source with the
 id `records` or `describe` is still described there for a caller who may use it.
@@ -361,7 +361,7 @@ which only the file route reads.
 
 | Key | Default | What it is |
 | --- | --- | --- |
-| `policy.profiles.<name>` | none | A profile: `default` (show, values or summary), `fields`, `items`, `rows`, `counts`, `inline`, `results`, `records` ([rows route](#records)) |
+| `policy.profiles.<name>` | none | A profile: `default` (show, values or summary), `fields`, `items`, `rows`, `counts`, `inline`, `results`, `records` ([rows route](records.md#records)) |
 | `policy.results`, `sources.<id>.policy.results` | false | Downloads through the file route for callers without a profile, per source |
 | `auth.tokens[].profile` | none | A static token's profile |
 | `auth.clientProfiles` | none | OAuth client id (`azp` or `client_id`) to profile: `{ "report-bot": "export" }` |
@@ -516,260 +516,10 @@ PIVOTKIT_TOKEN=$EXPORT_TOKEN pivotkit render sales.pivotkit.json --url http://12
 
 ## Rows of a source { #records }
 
-A host application can show a live report over a source that only pivotkit-server can reach. Its
-backend fetches the rows for the person who opens the page. The page hands them to the components.
-This route is off by default. [Record 0015](../decisions/0015-live-rows-for-a-host-page.md) says
-why it works this way.
+<span id="records-setup"></span><span id="records-who"></span><span id="records-fields"></span><span id="records-limits"></span><span id="records-host"></span><span id="records-log"></span><span id="records-sizing"></span>
 
-`POST /sources/records` answers the rows of one source:
-
-```bash
-curl -s -H "Authorization: Bearer $PERSON_TOKEN" -H "Content-Type: application/json" \
-  -d '{"source":"sales","fields":["Region","Sales"]}' \
-  https://reports.example.com/api/v1/sources/records
-```
-
-```json
-{ "columns": ["Region", "Sales"], "types": ["string", "number"], "rowCount": 2,
-  "dataAsOf": "2026-11-18T08:00:00Z", "withheld": ["Customer"], "requestId": "Ab3_xY9-k2Q",
-  "data": [["North", "South"], [10, 20]] }
-```
-
-- `columns`, `types` and `data` are the columnar shape the components take: one array per column.
-  pivotkit-core's `encode` reads it as it is.
-- A date is ISO text without an offset, such as `2026-11-18` or `2026-11-18T08:30:00`. It means the
-  same day and time in every time zone.
-- `rowCount` is every row of the source. The policy's `rows: false` and `counts: false` do not
-  hide it here, since `data` holds every row anyway.
-- `withheld` names the fields at `values` or `summary` for the caller. They are left out.
-- `dataAsOf` and `stale` are as on every other route.
-
-The input:
-
-| Key | Required | What it is |
-| --- | --- | --- |
-| `source` | yes | A source id whose entry in `GET /sources` has `records: true` |
-| `params` | no | The source's parameters, as on the other routes |
-| `fields` | no | The fields to answer, in this order. Names match without case |
-| `view` | no | A view, or its JSON text. Only the fields it uses are answered |
-
-Give `fields` or `view`, not both. Without either, every field at `show` is answered.
-
-The server does not apply a view's filters. Filters are no permission. Every row of the source
-leaves, also when the view filters most of them out.
-
-### Turn it on { #records-setup }
-
-1. Give a profile the right, as a list of source ids: `"records": ["sales"]`.
-2. Set each field that may leave to `show` for that profile.
-3. Bind the profile to people, for example with `auth.groupProfiles` or `auth.defaultProfile`.
-4. Run `check-config`. It lists per profile the sources and the fields that would leave.
-
-```json
-{
-  "sources": { "sales": { "file": "data/sales.csv", "policy": { "fields": { "Customer": "hide" } } } },
-  "policy": { "profiles": { "staff": { "records": ["sales"], "fields": { "Region": "show", "Sales": "show" } } } },
-  "auth": { "mode": "oauth", "issuer": "https://login.example.com", "resource": "https://reports.example.com/mcp",
-    "defaultProfile": "staff" }
-}
-```
-
-There is no switch for every caller or every source. A source added later stays closed until a
-profile names it.
-
-### Who gets rows { #records-who }
-
-Only a person gets rows:
-
-- an OAuth token of the configured issuer with a subject (`auth.subjectClaim`)
-- a [token from another system](tokens.md#external-issuers) with a subject
-
-Everyone else gets 403 `NOT_ALLOWED`: a static token, a signed token, an OAuth token without a
-subject, and every caller of a server without sign-in.
-
-A machine's token with a subject cannot be told apart from a person's. Give no such client a
-profile with `records`.
-
-A caller whose profile does not name the source gets 403 `NOT_ALLOWED`. A source that does not
-exist answers the same. The `detail` names the caller's profile, or says that the caller has none.
-
-`GET /sources` adds `"records": true` to each source the caller may read the rows of.
-
-MCP has no tool for this route. A model gets results, never rows.
-
-### Which fields leave { #records-fields }
-
-Only fields at `show` for the caller leave.
-
-| The request names | Answer |
-| --- | --- |
-| nothing | every field at `show`; the others in `withheld` |
-| fields at `show` only | those fields |
-| a field at `values` or `summary` | 403 `NOT_ALLOWED`. `detail` names the fields, `notShown` lists them for programs |
-| a hidden field | 400 `INVALID_INPUT`, as for a field that does not exist. Neither is named |
-| a view with errors, or one that uses a hidden field | 400 `INVALID_INPUT`. Check the view with `POST /views/validate` |
-| a [named view](sources.md#views) by its name | the fields it uses |
-| a named view that uses a field at `values` or `summary` | 403 `NOT_ALLOWED`. `detail` and `notShown` name those fields only |
-| a named view that uses a hidden field | 400 `INVALID_INPUT`, as for a name that does not exist |
-
-```json
-{ "type": "https://pivotkit.eize.dev/reference/rest/#error-not-allowed", "title": "Not allowed",
-  "status": 403, "code": "NOT_ALLOWED", "detail": "Team is not at show for you, so its values cannot leave: leave it out, or ask the operator to show it",
-  "requestId": "Ab3_xY9-k2Q", "notShown": ["Team"] }
-```
-
-Under a profile with `"default": "show"`, a column the data gains later leaves too. `check-config`
-warns about such a profile.
-
-### Limits { #records-limits }
-
-!!! warning "One rows request at a time by default"
-
-    `rest.records.concurrency` is 1 by default, for the whole server. One person's rows request
-    holds the route. Every other person gets 503 `BUSY` until that answer is read or cut off. Raise
-    `rest.records.concurrency` and `compute.workers` together when several people open live reports
-    at once.
-
-The load stays bounded by the server's other limits: `limits.rows`, `limits.fileBytes`,
-`http.maxBytes` and `sourceCache.maxMb`. These keys bound what one answer hands out. The smallest
-limit wins.
-
-| Key | Default | What it is |
-| --- | --- | --- |
-| `policy.profiles.<name>.records` | none | The source ids whose rows the profile may read |
-| `rest.records.maxRows` | 50000 | The most rows of one answer (1 to 10,000,000) |
-| `rest.records.maxCells` | 1000000 | The most values of one answer: rows times fields (1 to 100,000,000) |
-| `rest.records.concurrency` | 1 | Rows requests at once over all callers, one per person (1 to 64). Keep it below `compute.workers` (default 2) |
-| `rest.records.idleMs` | 30000 | A reader that reads nothing for this long loses its place (1000 to 600000) |
-| `rest.records.writeMs` | 10000, at most `compute.timeMs` | A reader that has not read the whole answer within this time loses its place (1000 to 600000, not above `compute.timeMs`) |
-| `sources.<id>.records.maxRows` | `rest.records.maxRows` | A lower row limit for one source. It cannot be higher than the server's |
-
-The defaults are a first guess. Real row counts will set them better.
-
-- Over a row or cell limit, the answer is 413 `LIMIT_EXCEEDED`, for example "this source has too
-  many rows to open here (60,000, the limit is 50,000); filter it with a parameter or ask the
-  operator". Where the policy hides the row count (`rows: false`), the message leaves the count out.
-  It names a parameter only for a source that takes one the caller sends.
-- The server checks the fields and the limits before it writes the first byte.
-- Beyond `concurrency`, or for a second request of the same person, the answer is 503 `BUSY` with
-  `Retry-After` and `retryable: true`.
-- With the default of 1, the route serves one person at a time. A slow reader keeps the others at
-  503 `BUSY` for up to `writeMs`. A source that loads slowly keeps them there while it loads, up to
-  its own time limit and `compute.timeMs`. The place is taken before the load, so at most
-  `concurrency` loads hold data at once. Raise `concurrency` and `compute.workers` together for
-  more people at once.
-- `writeMs` cuts an honest reader on a slow link too. The default answer of 50,000 rows is about
-  4 MiB ([sizing](#records-sizing)), which needs about 3.5 Mbit/s within 10 s.
-- `auth.toolScopes` cannot name this route, since it is no operation. `rest.requiredScopes` and the
-  source's `scopes` apply.
-- The places for [large bodies](#data) count per client, so they are not used here.
-- One request holds a [compute worker](mcp.md#configuration) while its answer is written. Keep
-  `concurrency` below `compute.workers`, so reports still find a worker. `check-config` warns
-  otherwise.
-- The whole request, reading and writing, must end within `compute.timeMs`, and the writing within
-  `writeMs`. A slow reader's answer is cut off then, and the connection ends without the closing
-  bracket.
-- The answer has no `Content-Length`. Read it to its end, then parse it.
-
-### A host backend fetches the rows { #records-host }
-
-A page shows a live report over a source that only pivotkit-server can reach, such as an HTTP source
-with a token exchange. The page's own backend fetches the rows for the person who opens it. The
-page hands them to the report.
-
-The operator sets up pivotkit-server once:
-
-1. A profile names the source in `records`. The fields that may leave are `show` for it.
-2. The profile is bound to the people, for example with `auth.defaultProfile` or
-   `auth.groupProfiles`.
-3. With OAuth, the backend sends the person's access token from your application's own sign-in.
-   pivotkit-server must be an intended audience of it: list your application's audience in
-   `rest.audience`, beside the REST resource. The token needs the scopes of `rest.requiredScopes`
-   and of the source (`sources.<id>.scopes`).
-4. Or your application signs a token for the person ([tokens from another
-   system](tokens.md#external-issuers)). Such a token cannot read a source with a token
-   exchange.
-
-```json
-{
-  "rest": { "audience": ["https://reports.example.com/api/v1", "host-app"], "requiredScopes": ["pivotkit"] },
-  "policy": { "profiles": { "staff": { "records": ["vms"], "default": "hide", "fields": { "Name": "show", "Cpu": "show" } } } },
-  "auth": { "mode": "oauth", "issuer": "https://login.example.com", "resource": "https://reports.example.com/mcp", "defaultProfile": "staff" }
-}
-```
-
-The backend forwards the answer as text, and the page encodes it:
-
-```js
-// the host application's backend, for the signed-in person
-const answer = await fetch("https://reports.example.com/api/v1/sources/records", {
-    method: "POST",
-    headers: { authorization: `Bearer ${personAccessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({ source: "vms", params: { customer: "acme" } })
-});
-if (!answer.ok) throw new Error((await answer.json()).detail);
-// pass the text on as it is: no objects of your own in between
-response.setHeader("content-type", "application/json");
-response.setHeader("cache-control", "no-store");
-response.end(await answer.text());
-```
-
-```js
-// the page: the columnar answer is what <pivot-report> takes as data
-const { columns, types, data } = await (await fetch("/my-app/report-rows")).json();
-document.querySelector("pivot-report").data = { columns, types, data };
-```
-
-- On an error, the problem's `code` says what to do: 503 `BUSY` means try again after
-  `Retry-After` seconds; `notShown` names the fields to leave out.
-- An answer that does not parse was cut off (an idle or slow reader, `compute.timeMs`). Ask again.
-- A backend short of memory can pipe `answer.body` to its own answer instead of reading the text.
-- The answer is the person's rows. Keep `Cache-Control: no-store` on your own answer.
-- The page holds every row. The browser is not access control: send only what the person may see.
-- The rows' memory: [sizing](#records-sizing).
-
-### What the log says { #records-log }
-
-Every answer that started ends with a `records` line: the source, the rows and columns, the profile,
-`client` and `ms`, how long the answer took to read. With `audit.subject` it names the person too.
-It never holds a value. An answer cut off has `outcome: "error"` and `reason`: `idle`, `slow` (not
-read within `writeMs`), `client` (the reader left), `timeout` or `error`.
-
-### Sizing { #records-sizing }
-
-By default the route serves one request at a time, server-wide: `rest.records.concurrency` is 1
-([limits](#records-limits)). Size for the number of people who open live reports at the same moment.
-
-An answer holds every row of the source. Three places hold it.
-
-- **The browser.** The components encode the rows and compute every view there. The
-  [browser benchmark](../concepts/limits.md#measured-in-the-browser) measured about 10 MB for the
-  data and 13 MB for the report at 100,000 rows of 9 columns. A rows answer of 50,000 rows takes
-  about half of that, as an estimate: it was not measured with the rows route.
-- **The host application's server.** It receives the whole answer, then passes it to the page as
-  text. Pass it on as text, never as objects of your own: objects of its own language take more
-  memory than the text. The answer's size is in the table below.
-- **pivotkit-server.** It reads the source as for a report and keeps it in a worker. It writes the
-  answer in pieces of about 256 KiB, one piece per read. The main thread holds at most one piece of
-  an answer.
-
-Measured in pivotkit-server with `npm run bench:records -w pivotkit-server`. Node 26 on an Apple M4
-with 10 cores. A CSV source of 8 columns, the REST handler in one process without sockets, each
-answer read to its end. Cold: a fresh server reads the file. Warm: the worker kept the data. RSS
-counts the main thread and the workers. The render is a pivot of the same source as csv, through
-the [file route](#downloads).
-
-| Rows | Answer | CPU rows, cold / warm | CPU render, cold / warm | RSS rows, cold / warm | RSS render, cold / warm | Main heap rows, warm |
-| --- | --- | --- | --- | --- | --- | --- |
-| 10,000 | 0.8 MiB | 197 ms / 18 ms | 205 ms / 7 ms | 43 MiB / 11 MiB | 45 MiB / 0 MiB | 0 MiB |
-| 50,000 | 4.2 MiB | 427 ms / 61 ms | 403 ms / 7 ms | 101 MiB / 9 MiB | 98 MiB / 1 MiB | 0 MiB |
-| 100,000 | 8.3 MiB | 694 ms / 118 ms | 617 ms / 25 ms | 134 MiB / 5 MiB | 142 MiB / 2 MiB | 0 MiB |
-
-- 50,000 rows is the default row limit. The 100,000 row run raised `rest.records.maxRows`.
-- Reading the source costs most. Once the worker keeps the data, a rows request costs more CPU in
-  pivotkit-server than a render of the same source. The pivoting then happens in the browser.
-- The main thread's heap does not grow with the answer.
-- These are numbers of one machine and one run. Measure your own data before you raise a limit.
+`POST /api/v1/sources/records` gives the rows of a source to a person who signed in, where a profile
+allows it. [Rows of a source](records.md) says how to turn it on, its limits and its sizing.
 
 ## Sign-in { #auth }
 
@@ -819,7 +569,7 @@ refusals say `limit: clientRate` and `limit: clientShare` on the log line:
 | `rest.inline` | false | csv and json results inline in the answer, where the policy allows |
 | `rest.data.maxBytes` | 10485760 (10 MiB) | The body of a caller that may [send data](#data). Everyone else gets 2 MiB |
 
-The [rows route](#records-limits) has limits of its own (`rest.records`).
+The [rows route](records.md#records-limits) has limits of its own (`rest.records`).
 
 Over a limit, the answer is 429 `RATE_LIMITED` with `Retry-After`. The MCP endpoint has the same
 limits with counts of its own (`mcp.rateLimit`, `mcp.concurrency`, see [MCP](mcp.md#configuration)).
@@ -896,7 +646,7 @@ when, where it is known.
   403 or 404 for a source with parameters.
 - `UPLOAD_FAILED`: as the store's failure is.
 - 503 `BUSY` for a [large body](#data) while two are read already, for a parameter's pattern that
-  could not be checked in time, or for a [rows request](#records-limits) beyond the limit: `true`.
+  could not be checked in time, or for a [rows request](records.md#records-limits) beyond the limit: `true`.
 
 Every other error carries no `retryable`. This includes a limit of a source's settings
 (`LIMIT_EXCEEDED`, `http.maxBytes` or `http.maxPages`).
@@ -917,7 +667,7 @@ Rows go by status, then by code. The answers of the download links come last.
 | 403 | <a id="error-forbidden-host"></a>`FORBIDDEN_HOST` | A `Host` the server does not answer to (DNS rebinding protection; `http.allowHosts`, `http.publicUrl`) |
 | 403 | <a id="error-forbidden-origin"></a>`FORBIDDEN_ORIGIN` | A browser origin not in `rest.cors.origins` |
 | 403 | <a id="error-insufficient-scope"></a>`INSUFFICIENT_SCOPE` | The token lacks a scope the service or the operation needs |
-| 403 | <a id="error-not-allowed"></a>`NOT_ALLOWED` | The file route without `results: true`; `inline:` data from a caller without `data: true`; a code source that refuses the caller (its `SourceError`); `save: false` where the result may not come back inline; the [rows route](#records) for a caller without a person or the right, or for a field below `show` (with `notShown`) |
+| 403 | <a id="error-not-allowed"></a>`NOT_ALLOWED` | The file route without `results: true`; `inline:` data from a caller without `data: true`; a code source that refuses the caller (its `SourceError`); `save: false` where the result may not come back inline; the [rows route](records.md#records) for a caller without a person or the right, or for a field below `show` (with `notShown`) |
 | 404 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`, [code sources](sources.md#code-errors)); an HTTP source's backend answered 401, 403 or 404 for the values given ([HTTP sources](sources.md#http-errors)) |
 | 404 | <a id="error-file-not-available"></a>`FILE_NOT_AVAILABLE` | The source's file is missing or changed while read |
 | 404 | <a id="error-not-found"></a>`NOT_FOUND` | No such route. With REST on, the `detail` names the REST service and the OpenAPI document |
@@ -925,7 +675,7 @@ Rows go by status, then by code. The answers of the download links come last.
 | 405 | <a id="error-method-not-allowed"></a>`METHOD_NOT_ALLOWED` | GET for a POST route or the other way round (`Allow` names the method) |
 | 409 | <a id="error-no-link"></a>`NO_LINK`, <a id="error-not-schedulable"></a>`NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a source that cannot have one: a `file:` source, data sent in the request, a source with a token exchange or a parameter bound to a claim ([backend sign-in](sources.md#http-claims)) |
 | 409 | <a id="error-no-output"></a>`NO_OUTPUT` | No output directory for a file, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
-| 413 | <a id="error-body-too-large"></a>`BODY_TOO_LARGE`, <a id="error-limit-exceeded"></a>`LIMIT_EXCEEDED` | The body over 2 MiB (over `rest.data.maxBytes` for a caller that may send data); a file, the data sent, a view or the work over a limit; with `save: false`, a result over the `inline` limits; [rows](#records-limits) over `rest.records` |
+| 413 | <a id="error-body-too-large"></a>`BODY_TOO_LARGE`, <a id="error-limit-exceeded"></a>`LIMIT_EXCEEDED` | The body over 2 MiB (over `rest.data.maxBytes` for a caller that may send data); a file, the data sent, a view or the work over a limit; with `save: false`, a result over the `inline` limits; [rows](records.md#records-limits) over `rest.records` |
 | 415 | <a id="error-unsupported-media-type"></a>`UNSUPPORTED_MEDIA_TYPE`, <a id="error-unsupported-format"></a>`UNSUPPORTED_FORMAT` | A POST whose `Content-Type` is not `application/json` (curl's `-d` alone sends a form) nor, where data may be sent, `multipart/form-data`; a file sent in no data format; a source file in no data format |
 | 422 | <a id="error-data-mismatch"></a>`DATA_MISMATCH` | [Data sent in the request](#data) whose `rowCount` differs from the rows sent, or a file whose SHA-256 differs from `sha256` |
 | 422 | <a id="error-invalid-file"></a>`INVALID_FILE`, <a id="error-not-regular-file"></a>`NOT_REGULAR_FILE`, <a id="error-hard-link"></a>`HARD_LINK`, <a id="error-invalid-template"></a>`INVALID_TEMPLATE` | The source's file cannot be used, or its print template (`sources.<id>.template` or `output.template`, a [print template](print-template.md) whose `--pk-*` colours reach the chart, [options](mcp.md)) holds what the parser refuses |
@@ -934,7 +684,7 @@ Rows go by status, then by code. The answers of the download links come last.
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else. The details are only in the log, with `--log debug` |
 | 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running. An html render whose print template the server cannot read. `detail` is one of pivotkit's fixed texts: not available right now, the source's backend refused this server's access, the source is not set up correctly, or the server's print template is not available now. `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
 | 502 | <a id="error-upload-failed"></a>`UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload) (`retryable` says whether trying again may help); the report stays in the output directory |
-| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, two [large bodies](#data) read already, a parameter's pattern not checked in time, or too many [rows requests](#records-limits); starting or stopping; the OAuth issuer not loaded yet |
+| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, two [large bodies](#data) read already, a parameter's pattern not checked in time, or too many [rows requests](records.md#records-limits); starting or stopping; the OAuth issuer not loaded yet |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
 | 400, 403, 409, 410, 503 | <a id="error-link-expired"></a>`LINK_EXPIRED`, <a id="error-link-used"></a>`LINK_USED`, <a id="error-link-not-yours"></a>`LINK_NOT_YOURS`, <a id="error-sign-in-failed"></a>`SIGN_IN_FAILED`, <a id="error-sign-in-not-ready"></a>`SIGN_IN_NOT_READY` | Answers of the server's own [download links](delivery.md#answers) (`/downloads/`), not of `/api/v1` |
 
@@ -945,7 +695,7 @@ to a CORS preflight (`OPTIONS`), which carries no body:
 
 | Header | Value | Why |
 | --- | --- | --- |
-| `Cache-Control` | `no-store` | No proxy or browser keeps an answer. The [rows](#records) are a person's |
+| `Cache-Control` | `no-store` | No proxy or browser keeps an answer. The [rows](records.md#records) are a person's |
 | `X-Content-Type-Options` | `nosniff` | A browser takes the type as sent |
 | `Referrer-Policy` | `no-referrer` | No address leaves with a link |
 | `X-Request-Id` | the request's id | The same id as `requestId` and the [log lines](#logging) |
@@ -1207,112 +957,8 @@ default. It is personal data. `log.address: "off"` leaves it out.
 
 ## In your own server { #embed }
 
-`pivotkit-server` is a library too. `createContext(options)` checks the options and starts the
-workers. `createRestHandler(context)` from `pivotkit-server/rest` returns a fetch handler (a
-`Request` in, a `Response` out) for any server that speaks them:
-
-```js
-import { createContext, serveFetch } from "pivotkit-server";
-import { createRestHandler } from "pivotkit-server/rest";
-
-// your data, and a value that changes when the data does
-let rows = [{ Region: "North", Revenue: 120 }, { Region: "South", Revenue: 80 }];
-let rowsVersion = 1;
-
-const context = await createContext({
-    sources: { sales: { load: async () => rows, version: () => rowsVersion, cacheShared: true, policy: { fields: { Region: "show" } } } },
-    output: { dir: "/srv/reports" },
-    auth: { mode: "token" } // the token is $PIVOTKIT_TOKEN, or list several in auth.tokens
-});
-const rest = await createRestHandler(context, { env: process.env, loopback: true });
-
-// on node:http with the checks of this page (body cap, slow clients, a graceful stop):
-const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes: 2_097_152 });
-// or in a framework: return rest.fetch(request, { address });
-```
-
-Create `/srv/reports` first, or point `output.dir` at a directory you own. Run it with a token of at
-least 32 characters in `PIVOTKIT_TOKEN`:
-
-```bash
-PIVOTKIT_TOKEN="$(npx -y pivotkit-server token new)" node server.js
-```
-
-Without a token, `createRestHandler` throws a `ConfigError` that says how to make one.
-
-- `bodyBytes` is a number, or `(request, info) => number`. A function is called once per request,
-  after the precheck. There `peekSignIn(info)` gives the sign-in the precheck kept (`{ caller }`, or
-  undefined). A function gives a caller who is not signed in at most `BODY_BYTES` (2 MiB) and a
-  signed-in one at most `MAX_BODY_BYTES` (64 MiB). `bodyBytesOf(options)` is the server's own:
-  `rest.data.maxBytes` for a REST caller that may [send data](#data), else 2 MiB.
-- Each request runs inside `withRequestId(id, fn)`. `requestId()` gives its id anywhere in its work,
-  a code source's `load` included, for the host's own log lines. Every log line written inside it
-  names the id. `errorDetails({ retryable, retryAfter })` builds an `OperationError`'s details with
-  that id. `callerFields(caller)` is what a log line may hold of a caller: the client, and `subject`
-  where `audit.subject` named the person when the token was verified.
-- The handlers (`createRestHandler`, `createServerHandler`, pivotkit-mcp's `createHttpHandler`) run
-  each request in its scope and set `X-Request-Id` on every answer. The scope comes from
-  `requestScopeFor(request, info, { trustProxy })`: its id, the trace id of a valid `traceparent`, a
-  checked `X-Request-Id`, `info.address` and, with `http.trustProxy`, the forwarded client as
-  `address`. `serveFetch` does the same for any handler (pass its `trustProxy`). The context's runtime
-  takes `service` (`{ name, version }`, the program on every line) and `env` (where `NO_COLOR` is
-  read).
-- With `auth.groupProfiles`, answer a verified token whose groups are unknown before you make its
-  caller. `groupRefusal(options.auth, authInfo)` gives the text of the 403, or null. `callerOf`
-  throws `NOT_ALLOWED` for such a token, so it never gets the sources' own policy.
-- A secret in your options is a reference, `{ "env": "NAME" }` or `{ "file": "path" }`
-  (`SECRET_REF`). `readSecret(ref, options, env)` reads it on every use, so a rotated file works
-  without a restart. It trims one trailing newline and refuses a value with another line break or a
-  NUL. Its error names the reference, never the value.
-
-A configured source may be an operator's backend, an [HTTP source](sources.md#http)
-(`sources.<id>.http`, with typed `params`), or, for a library host, a function instead of a file, a
-[code source](sources.md#code):
-
-- `load(params, { caller, signal })` returns an array of row objects, `{ rows, asOf }`, or columnar
-  data `{ columns, types, data }` with one array per column. It does not return `encode()`'s result,
-  so hidden fields can be dropped.
-- `load` runs in the host's thread. Its `signal` is aborted after `timeMs` (30 s by default).
-- The report over its data is computed in a worker under `compute.timeMs` and `compute.memoryMb`
-  ([where it runs](sources.md#code-thread)).
-- pivotkit keeps one copy of the data for each combination of caller, parameter values and policy
-  levels. The caller counts with its client, scopes, groups and claims.
-    - With `cacheShared: true`, one copy serves all callers.
-    - A caller without an identity (an OAuth token without a usable subject) gets nothing kept.
-    - A kept copy is reused while `version(params, { caller })` gives the same value, or for `ttl`
-      seconds.
-- Parallel calls share one load.
-- After a transient failure, the last good data stands in for up to `maxStale` seconds, with `stale`
-  in the result.
-- A `SourceError` answers its code with its `publicMessage`. Anything else `load` throws answers 502
-  `SOURCE_UNAVAILABLE` with a fixed text. Its class goes into the log, its message with
-  `log: "debug"`.
-
-More about the handler:
-
-- The one static token without `auth.tokens` is `$PIVOTKIT_TOKEN`. Set while auth is `none`, it gets
-  a warning at start and in `check-config`, over HTTP only: "PIVOTKIT_TOKEN is set but auth is none;
-  use --auth token (or auth.mode token)". A written `auth.mode: "none"` gives no warning.
-  `createContext(options, { tokenEnv })` names another. Tokens are read from `env` of
-  `createRestHandler`.
-- `loopback` says whether the server listens on loopback only. It decides whether `auth: none` is
-  allowed, so it must match the address you listen on.
-- `rest.fetch(request, { address })` takes the client's address for the limit on refused tokens.
-  Without it, refused tokens are not limited, and a warning says so once.
-- The Host check reads the request's `Host` header. For a `Request` built in code without one, it
-  reads its URL's host. It accepts `localhost`, `127.0.0.1`, `[::1]`, the host of `http.publicUrl`
-  and `http.allowHosts`.
-- `createServerHandler(options, { env, stderr, loopback })` is the handler of
-  `pivotkit-server serve`. It serves REST and, when pivotkit-mcp is installed, MCP over one context,
-  with `/healthz` and `/readyz`. Hand it to `serveFetch` or your own server.
-- To combine them yourself, build the context with pivotkit-mcp's `createMcpContext`, since its
-  `createHttpHandler` needs the MCP server factory it adds. Give that context to both
-  `createHttpHandler` and `createRestHandler`.
-- From `pivotkit-server/rest`, `openApiDocument(options)` builds the OpenAPI document and
-  `REST_ROUTES` lists the routes.
-- From `pivotkit-server`, `present(context, operation, input, caller)` runs an operation for a
-  caller (`callerOf("none")` without sign-in). It gives `{ text, result }` as both endpoints do.
-- `serve(options, { env, stderr })` is `pivotkit-server serve` in code.
+`pivotkit-server` is a library too: `createContext` and `createRestHandler` put the REST service into
+a server of your own. [In your own server](service-exports.md#embed) has the example.
 
 ## PowerShell Universal { #psu }
 

@@ -230,7 +230,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - Policy profiles per caller, with data sent in the request where a profile allows it
       ([profiles](reference/rest.md#profiles)).
     - The rows of a source for a host application's backend, off by default
-      ([rows route](reference/rest.md#records)).
+      ([rows route](reference/records.md#records)).
     - CORS off by default, and limits per caller.
     - A configuration check that says whether the server starts, and commands to make, list and
       revoke tokens and keys ([list, revoke, remove](reference/tokens.md#token-list)).

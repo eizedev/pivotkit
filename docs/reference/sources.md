@@ -62,7 +62,7 @@ Where views appear:
 - `list_sources` and `describe_source` list each view's `name`, `title` and `description`.
 - `render_view`, `create_link` and `draft_schedule` take a name as `view`, such as
   `"view": "by-region"`. A view's JSON text still works as before.
-- The [rows route](rest.md#records-fields) takes a name as `view` too. The fields the view uses leave.
+- The [rows route](records.md#records-fields) takes a name as `view` too. The fields the view uses leave.
 - `validate_view` and `describe_view` take the view itself, not a name.
 - A view file's `source` is ignored. A link and a draft name the source the caller asked for.
 
@@ -113,7 +113,7 @@ Where views appear:
     ```
 
 A person may read the rows of any kind of source where a profile names it in `records`
-([rows route](rest.md#records)). `sources.<id>.records.maxRows` gives one source a lower row limit
+([rows route](records.md#records)). `sources.<id>.records.maxRows` gives one source a lower row limit
 than `rest.records.maxRows`. It cannot be higher.
 
 ## HTTP sources { #http }
