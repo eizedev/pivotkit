@@ -9,7 +9,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { quoteArg } from "../src/layout-view.js";
-import { BY_REGION, SALES_CSV, run, tempDir } from "./helpers.js";
+import { BY_REGION, SALES_CSV, has, run, tempDir } from "./helpers.js";
 
 /** A directory with sales.csv and the view file view.json over it. */
 function fixtureDir() {
@@ -77,17 +77,7 @@ test("describe <view file> --suggest, and render <view file> with layout flags: 
     assert.equal((await run(["describe", "rows.json", "--suggest"], { cwd: dir })).code, 0);
 });
 
-/** Whether bash runs here (a Windows machine without Git Bash has none). */
-const hasBash = (() => {
-    try {
-        execFileSync("bash", ["-c", "true"], { stdio: "ignore" });
-        return true;
-    } catch {
-        return false;
-    }
-})();
-
-test("quoteArg: a value with ! in single quotes, so an interactive bash pastes it without history expansion", { skip: hasBash ? false : "bash is not installed" }, () => {
+test("quoteArg: a value with ! in single quotes, so an interactive bash pastes it without history expansion", { skip: has("bash") ? false : "bash is not installed" }, () => {
     assert.equal(quoteArg("sum:Units"), "sum:Units");
     assert.equal(quoteArg("Mean °C"), '"Mean °C"');
     assert.equal(quoteArg("Wow!"), "'Wow!'");

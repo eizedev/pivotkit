@@ -1,6 +1,6 @@
 // Runs the CLI as a user would: a spawned process with its arguments, stdin, working directory and
 // environment, giving the exit code, stdout and stderr.
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { tempDir as sharedTempDir } from "../../../tests/temp-dir.js";
 
@@ -34,6 +34,16 @@ export function run(args, { cwd, input, env = {}, timeout = 30_000 } = {}) {
 
 /** A new empty directory (its real path), removed when the test file ends (tests/temp-dir.js). */
 export const tempDir = (prefix = "pivotkit-cli-") => sharedTempDir(prefix);
+
+/** Whether a program runs here (`bash`, `fish`, `pwsh`): a test that needs one skips without it. */
+export function has(program) {
+    try {
+        execFileSync(program, ["--version"], { stdio: "ignore" });
+        return true;
+    } catch {
+        return false;
+    }
+}
 
 export const SALES_CSV = "Region,Product,Units,Date\nNorth,A,3,2026-01-05\nSouth,B,4,2026-09-01\nNorth,B,2,2026-10-01\nWest,A,5,2025-06-30\n";
 

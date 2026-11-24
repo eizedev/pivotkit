@@ -7,16 +7,7 @@ import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { COMMANDS, optionsOf } from "../src/commands.js";
-import { run, tempDir } from "./helpers.js";
-
-const has = (cmd) => {
-    try {
-        execFileSync("sh", ["-c", `command -v ${cmd}`], { stdio: "ignore" });
-        return true;
-    } catch {
-        return false;
-    }
-};
+import { has, run, tempDir } from "./helpers.js";
 
 const CHECKS = {
     bash: ["bash", (f) => ["-n", f]],

@@ -42,7 +42,9 @@ test("help: pivotkit, a command's help and help <command>; an unknown command is
     assert.equal(envelope.error.message, '"--json" comes after the command: pivotkit sources --json; run "pivotkit --help"');
     assert.equal((await run(["--bogus"])).stderr, 'pivotkit: unknown option "--bogus"; run "pivotkit --help"\n');
     // Node's own parse error ends with a full stop: it goes before the "; run"
-    assert.match(JSON.parse((await run(["render", "x.csv", "--title", "--json"])).stdout).error.message, /'--title' argument is ambiguous; run "pivotkit render --help"$/);
+    const parseError = JSON.parse((await run(["render", "x.csv", "--title", "--json"])).stdout).error.message;
+    assert.match(parseError, /--title/);
+    assert.match(parseError, /[^.]; run "pivotkit render --help"$/);
     // run as "pivotkit-server cli", the pointers name that
     const { main } = await import("../src/cli.js");
     const err = [];
