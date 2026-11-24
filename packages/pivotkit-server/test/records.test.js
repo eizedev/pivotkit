@@ -480,7 +480,7 @@ test("a stalled reader loses its slot after idleMs", async () => {
         assert.equal((await h.ask(token, { source: "sales" })).status, 503);
         // the stream ends with an error once the reader was idle too long, and the slot is free
         const reader = /** @type {ReadableStream} */ (stalled.body).getReader();
-        await new Promise((r) => setTimeout(r, 1500));
+        await until(() => h.lines.some((l) => l.event === "records" && l.reason === "idle"), { message: "the idle reader was not cut" });
         await assert.rejects(async () => {
             for (;;) {
                 const { done } = await reader.read();
@@ -549,6 +549,7 @@ test("a slow reader loses its place after writeMs, also when it reads within idl
         const started = Date.now();
         const cut = await (async () => {
             for (;;) {
+                // the slow reader's pace: a piece every 400 ms, inside idleMs
                 await new Promise((r) => setTimeout(r, 400));
                 const read = await reader.read().then(
                     (r) => r,
