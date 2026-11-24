@@ -315,12 +315,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
     many more there are.
 
 - The drill-down panel's copy and download follow `exportData`. With it off, the panel shows the
-  rows but offers no copy and no download (#263).
+  rows but offers no copy and no download ([#263](https://github.com/eizedev/pivotkit/issues/263)).
 - pivotkit-core's ECharts option (`toEChartsOption`) loads with ECharts, from `pivotkit-core/chart`,
-  not with the first load (#546).
+  not with the first load ([#546](https://github.com/eizedev/pivotkit/issues/546)).
 - The row count under the result says how many of the data's rows the filters keep: "2,190 of 4,386
-  rows", German "2.190 von 4.386 Zeilen". With nothing filtered it says "4,386 rows" (#108).
-  Its words are pivotkit-core's `ROW_COUNT_TEXTS`, so the HTML report says the same (#547).
+  rows", German "2.190 von 4.386 Zeilen". With nothing filtered it says "4,386 rows" ([#108](https://github.com/eizedev/pivotkit/issues/108)).
+  Its words are pivotkit-core's `ROW_COUNT_TEXTS`, so the HTML report says the same ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 
 ### Fixed
 
@@ -364,7 +364,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The zones fold when they no longer fit the report's box, also when the box keeps its size. Longer
   texts in another language, more fields in Rows, a tip or a late stylesheet made them taller without
   a resize, and they stayed open over a squeezed result. Folded that way, they open again once they
-  fit (#93).
+  fit ([#93](https://github.com/eizedev/pivotkit/issues/93)).
 
 ## [0.7.0] - 2026-11-16
 
@@ -500,7 +500,7 @@ What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/
   fields, under the fields' own names, values not formatted (`<fileName>-data.csv`,
   `<fileName>-data.json`; `onExport` kinds `"data-csv"`, `"data-json"`). With the view file of
   Download view, `pivotkit render` makes the report again. It holds what the report holds, also
-  columns no view places, so it is off unless the host turns it on (docs/security.md, "Source data").
+  columns no view places, so it is off unless the host turns it on ([Security, Source data](https://pivotkit.eize.dev/security/#source-data)).
 
 ### Changed
 

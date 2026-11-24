@@ -220,15 +220,24 @@ test("styles.css: corner radii, font families and ring geometry only from --pk-*
     assert.deepEqual(found, [], `use a --pk-* token (docs/reference/theming.md) instead of:\n${found.join("\n")}`);
 });
 
-test("styles.css: every --pk-* token a rule uses is declared in the token block", () => {
+test("styles.css: every --pk-* token a rule uses has a default in the token block, a rule of its own, or is set from code or by the host", () => {
     const declared = new Set(declarations(css).filter((d) => d.selector === ":where(.pk-root)").map((d) => d.prop));
-    // tokens a host may add, or set by the report from code (a cell's colour, a bar's length)
-    const optional = new Set(["--pk-font", "--pk-scale-mid"]);
+    // tokens a rule of styles.css sets for its part (the result's least height, a label's width)
+    const byRule = new Set([...css.matchAll(/(--pk-[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+    // tokens the report sets from code (a cell's colour, a bar's length, a swatch, the split) and the
+    // one a host may set (--pk-font: unset, the report inherits the page's font)
+    const fromCode = ["--pk-swatch", "--pk-row-cols", "--pk-row-room", "--pk-cell-bg", "--pk-bar-color", "--pk-bar", "--pk-split"];
+    const byHost = ["--pk-font"];
+    const code = readdirSync(new URL("../src/", import.meta.url))
+        .filter((f) => /\.jsx?$/.test(f))
+        .map((f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8"))
+        .join("\n");
+    for (const name of fromCode) {
+        assert.ok(code.includes(`"${name}"`) || code.includes(`\`${name}`), `${name} is listed as set from code, but no module sets it`);
+    }
     const used = new Set([...css.matchAll(/var\((--pk-[a-z0-9-]+)/g)].map((m) => m[1]));
     for (const name of used) {
-        if (/^--pk-(radius|font-mono|focus-|ring-|chart-title|chart-text)/.test(name) && !optional.has(name)) {
-            assert.ok(declared.has(name), `${name} is used but has no default in :where(.pk-root)`);
-        }
+        assert.ok(declared.has(name) || byRule.has(name) || fromCode.includes(name) || byHost.includes(name), `${name} is used but has no default in :where(.pk-root) and nothing sets it`);
     }
 });
 

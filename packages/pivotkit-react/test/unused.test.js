@@ -17,7 +17,6 @@ import { partOf, stillApplies, unusedNotes } from "../src/unused-keep.js";
 
 const data = encode(SALES);
 const keys = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" && !Array.isArray(v) ? keys(v, `${p}${k}.`) : [`${p}${k}`])).sort();
-/** The line of an issue as one text. */
 /** What unused.jsx gives a line of the report's: its labels, fill and the names of fields and values. */
 const ctxOf = (labels) => ({ labels, fill, field: (name) => fieldLabel(name, labels.core), value: (spec) => valueLabel(spec, labels) });
 /** An issue's parts in the texts of `lang` (null: English) with the host's texts of `labels`. */
@@ -111,7 +110,7 @@ test("a host's field labels name the fields; a host's texts and an unknown code 
     assert.equal(line(issue, raw, labels), "Sales region: twice - once is enough");
     // a code of a newer pivotkit-core, a view without that part: the general text, the part's name
     assert.equal(line({ path: "chart.depth", message: "unknown depth", code: "newThing" }, {}, LABELS.en), "Chart: this part could not be used - it is left out");
-    // a pivotkit-core without codes (0.1.0): the core's own message
+    // an issue without a code: the core's own message
     assert.equal(line({ path: "rows[0]", message: 'unknown field "Planet"' }, { rows: ["Planet"] }, LABELS.en), 'Planet: unknown field "Planet"');
     assert.equal(line({ path: "label", message: "unknown key", code: "unknownKey" }, {}, LABELS.en), "“label”: this setting is unknown here - it is ignored");
     assert.equal(line({ path: "label", message: "unknown key", code: "unknownKey" }, {}, LABELS.de, de), "„label“: diese Einstellung ist hier unbekannt - sie wird ignoriert");

@@ -62,7 +62,8 @@ test("Years combined writes years with a sign, and the first and last year as fa
     const view = { rows: [field], derived: [{ name: field, field: "D", by: "month" }], values: [{ agg: "count" }], filters: rules };
     const normalized = normalize(view, data);
     assert.deepEqual(normalized.issues, []);
-    assert.equal(computePivot(data, normalized.view).value(computePivot(data, normalized.view).rowRoot, computePivot(data, normalized.view).colRoot, 0), 2);
+    const result = computePivot(data, normalized.view);
+    assert.equal(result.value(result.rowRoot, result.colRoot, 0), 2);
     const edges = yearRules(field, [-271821, 275760], [-271821, 0, 275760]);
     assert.deepEqual(edges[0].value, isoDay(-MAX_DATE_MS));
     assert.deepEqual(edges[0].value2, isoDay(MAX_DATE_MS));
