@@ -258,7 +258,7 @@ service again:
     prints a fresh token for curl or PowerShell. Set `rest.signIn.clientId` to your provider's public
     client for the command line. The server publishes it, so people need only the address. The
     scripts for curl and PowerShell alone are in
-    [Sign in from the command line](../reference/rest.md#sign-in-cli).
+    [Sign in from the command line](../reference/sign-in.md#sign-in-cli).
 
 In the second terminal, read the two tokens into variables:
 
@@ -339,7 +339,7 @@ try {
 ## Next { #next }
 
 - [pivotkit-server (REST)](../reference/rest.md): every route, profiles, sign-in with OAuth, CORS, limits, errors.
-- [Sign in from the command line](../reference/rest.md#sign-in-cli): a token from your sign-in
+- [Sign in from the command line](../reference/sign-in.md#sign-in-cli): a token from your sign-in
   provider with `pivotkit login`, curl or PowerShell.
 - The OpenAPI document of your service, at the server's root, not under `/api/v1`:
   `GET http://127.0.0.1:3333/openapi.json`, with a token where the server needs one

@@ -98,7 +98,7 @@ The configuration is a ConfigMap mounted at `/config`, where the image reads
   `kubectl -n pivotkit exec deploy/pivotkit -- pivotkit-server token new --file /var/lib/pivotkit/secrets/admin.token --force`.
   The server reads the file on every request, so the old token gets 401 at once, without a restart.
 - `output.dir` is `/var/lib/pivotkit/out`, on the same volume.
-- With [OAuth](#oauth) instead of tokens, add `auth` as shown there. The server then makes no token.
+- With [OAuth](../reference/sign-in.md#authentik) instead of tokens, add `auth` as shown there. The server then makes no token.
 - The server does not read a changed ConfigMap again. Restart the Deployment:
   `kubectl -n pivotkit rollout restart deployment/pivotkit`.
 
@@ -136,7 +136,7 @@ What each setting is for:
 
 | Setting | Why |
 | --- | --- |
-| `replicas: 1`, `strategy: Recreate` | One server process per state volume (`pivotkit-state`, ReadWriteOnce). One process keeps the count of the reports' files and cleans them up ([output directory](../reference/rest.md#auth)). A rolling update would run two pods on the volume for a while. |
+| `replicas: 1`, `strategy: Recreate` | One server process per state volume (`pivotkit-state`, ReadWriteOnce). One process keeps the count of the reports' files and cleans them up ([output directory](../reference/sign-in.md#auth)). A rolling update would run two pods on the volume for a while. |
 | `enableServiceLinks: false` | With service links on, Kubernetes sets `PIVOTKIT_PORT=tcp://<address>:3333` in every pod of the namespace for the Service named `pivotkit`. The server then stops with `PIVOTKIT_PORT is "tcp://...", which Kubernetes sets for a Service named pivotkit`. The example also sets `PIVOTKIT_PORT` to 3333. |
 | `automountServiceAccountToken: false` | pivotkit calls no Kubernetes API. |
 | User and group 10001, `fsGroup: 10001` | 10001 is the image's user. `fsGroup` makes the volumes readable and `/var/lib/pivotkit` writable for it. It also makes a Secret's files with mode 0440 readable, see [managed secrets](#managed-secrets). `fsGroupChangePolicy: OnRootMismatch` changes the owner of a volume's files only when its top directory does not match yet. So a start does not walk a large volume every time. |
@@ -166,85 +166,10 @@ as a `PROBLEM` the server starts with, and exits with 1. Run it with the flags o
 
 ## Memory and workers { #sizing }
 
-A pool of worker threads computes the reports over a file. `compute.*` in
-[the configuration](../reference/mcp.md#configuration) sets it up:
-
-| Key | Default | What it does |
-| --- | --- | --- |
-| `compute.workers` | 2 (at most 16) | Reports computed at once |
-| `compute.memoryMb` | 1024 | The JavaScript heap a worker may use. A report that needs more fails with `LIMIT_EXCEEDED`, and the server replaces the worker |
-| `compute.timeMs` | 30000 | The longest a report may compute (`TIMEOUT`) |
-| `compute.queueMs` | 10000 | How long a call waits for a free worker before `BUSY` |
-| `limits.fileBytes` | 50 MB | The largest file the server reads |
-
-`compute.memoryMb` bounds a worker's JavaScript heap, but not all of its memory:
-
-- The bound covers the old generation. The young generation adds up to 64 MB.
-- The bytes of the file the worker reads lie outside the heap.
-- The encoded columns lie outside it too. They are typed arrays, up to 12 bytes per row and column.
-- Each worker keeps the last four data sets it read, so its memory stays up after a report instead
-  of going back down. The encoded columns of all four count.
-
-As a starting point for the container's memory limit:
-
-```text
-memory limit  =  main process  +  compute.workers x (compute.memoryMb + 64 MB + limits.fileBytes)
-```
-
-With the defaults that is about 150 MB + 2 x (1024 + 64 + 50) MB, about 2.4 GB. The example sets
-2560Mi. Large files with many columns need more than this for the encoded columns the workers keep.
-Watch the pod's memory with your own data.
-
-With a limit below the sum, a report that alone would fail with `LIMIT_EXCEEDED` becomes an OOM
-kill of the whole pod, with every report running in it. For a smaller pod, lower
-`compute.memoryMb` or the workers, not the limit alone. With `compute.memoryMb` 512 and 2 workers,
-a limit of about 1.4 GB is a starting point.
-
-With code or HTTP sources, the main process also keeps up to `sourceCache.maxMb` of loaded data,
-256 MiB by default ([bounds](../reference/sources.md#code-cache)). Add it to the limit, or lower
-`sourceCache.maxMb`.
-
-For an idea of real use, here is one measurement. It ran once with Node 26 on macOS, not with the
-image. Take it as a rough order and check your own data with `kubectl top pod`. The source was a CSV
-file of 30 MB with 700,000 rows and 6 columns. The process used about 100 MB without work. Each
-worker that had computed a report over the file added about 470 MB.
-
-An HTTP source's first call loads the backend's answer and computes over it. This table shows how
-much the server process grew during that call. The main thread and the workers count together. It
-also shows the largest JavaScript heap of the main thread, without the answer's bytes. It ran on
-one laptop with Node 26 on macOS, with seven columns, one of them hidden. Each value is the median
-of three runs and only a rough order. The 66 MB and 34 MB answers needed a larger `sources.<id>.http.maxBytes`
-and `limits.fileBytes`.
-
-| Answer | Rows | Size | Memory added | Main thread heap |
-| --- | ---: | ---: | ---: | ---: |
-| JSON | 10,000 | 1 MB | about 70 MB | about 20 MB |
-| JSON | 100,000 | 13 MB | about 250 MB | about 60 MB |
-| JSON | 151,550 | 20 MB | about 290 MB | about 70 MB |
-| JSON | 500,000 | 66 MB | about 570 MB | about 140 MB |
-| CSV | 10,000 | 1 MB | about 70 MB | about 20 MB |
-| CSV | 100,000 | 7 MB | about 240 MB | about 20 MB |
-| CSV | 293,222 | 20 MB | about 440 MB | about 20 MB |
-| CSV | 500,000 | 34 MB | about 640 MB | about 20 MB |
-
-A worker reads a CSV answer, so its heap shows in the memory added, not in the main thread's.
-
-The server reads a JSON answer while it arrives, as [memory](../reference/sources.md#http-memory)
-explains. It holds a CSV answer whole until a worker has read it.
-
-The memory added is the process's highest resident memory during the call, minus what it used
-before. The benchmark reads the heap at each garbage collection, so its true peak may be a little
-higher.
-
-To measure on your own machine, run this in a checkout of the repository. It needs `openssl` and
-runs every size of the table.
-
-```bash
-node bench/server/http-source.js
-```
-
-A report runs on one worker thread. Give the pod about one CPU per worker that should compute at the
-same time. The example requests half a CPU and sets no CPU limit.
+The example gives the pod a memory limit of 2560Mi for the two default workers. It requests half a
+CPU and sets no CPU limit. [Memory and workers](../reference/operations.md#sizing) says how to size
+the limit for your workers and your data. With a limit below that size, a report that would fail
+alone becomes an OOM kill of the whole pod.
 
 ## Data in /data { #data }
 
@@ -301,6 +226,11 @@ as above. Otherwise the source is missing until the schedule runs the job. The j
 command are an example. Any program that writes the file and renames it does the job.
 
 ### A sidecar with an emptyDir { #sidecar }
+
+!!! warning "Not run in a cluster"
+
+    This setup follows git-sync's documentation and passes the schema check. Nobody has run it in a
+    cluster yet. Check the flags against the documentation of the git-sync version you run.
 
 A second container in the pod fetches the data into an `emptyDir`. The server's container mounts it
 read-only. You need no ReadWriteMany storage. Each pod has its own copy and fetches it again after a
@@ -373,9 +303,7 @@ That was not tried here.
 The policy `pivotkit` needs egress to the Git server on port 443, as for
 [the issuer](#oauth-egress). The policy holds for both containers of the pod.
 
-This sidecar setup follows git-sync's documentation and passes the schema check. It has not been run
-in a cluster here, so check the flags against the documentation of the version you run. Any other
-sidecar works the same way when it renames or flips a link.
+Any other sidecar works the same way when it renames or flips a link.
 
 The images of the CronJob and the sidecar are third-party images pinned by tag. Pin them by digest
 (`image@sha256:...`) where you need the exact image every time, as for pivotkit's own.
@@ -504,65 +432,11 @@ file of PEM certificates, which the server reads when it starts
     - the volume `ca`, which names the ConfigMap `pivotkit-ca`
 3. Apply the manifest. After a later change of the ConfigMap, restart the Deployment.
 
-## Sign-in with Authentik { #oauth }
+## Sign-in { #oauth }
 
-With OAuth, the MCP endpoint takes access tokens of your identity provider instead of static tokens.
-It works with any provider that issues JWT access tokens. [OAuth 2.1](../reference/mcp.md#oauth) has
-every key. With [Authentik](https://goauthentik.io/):
-
-1. Under **Customization > Property Mappings**, create a **Scope Mapping**. Give it the **Scope name**
-   `pivotkit` and an expression that returns `{}`. The scope adds no claims. Authentik drops a scope
-   a client asks for when the provider has no scope mapping for it. A token without `pivotkit` then
-   gets 403.
-2. Under **Applications > Applications**, choose **New Application**. Give it the slug `pivotkit`
-   and the provider type **OAuth2/OIDC**, with these provider settings:
-     - **Client Type**: **Public**. An MCP client keeps no secret. It signs in with PKCE.
-     - **Redirect URIs/Origins (RegEx)**: the callback addresses of the MCP clients you allow. Take
-       them from the clients' documentation. Give each the matching mode **Strict**, which matches
-       the address exactly. With **Regex**, the whole address must match the expression. Then
-       escape the dots (`https://app\.example\.com/callback`) and use no `.*`. Otherwise a sign-in
-       can be sent to an address you did not mean.
-     - **Signing Key**: a certificate with one of the keys the server accepts by default
-       (`auth.algorithms`): an RSA key (RS256), an EC P-256 key (ES256) or an Ed25519 key (EdDSA).
-       For the other EC curves, Authentik signs with ES384 or ES512. Without a signing key,
-       Authentik signs with HS256 and the client secret, which the server refuses.
-     - **Encryption Key**: none. With one, Authentik encrypts the access token (JWE), and the server
-       cannot read it.
-     - **Access Token Validity**: minutes, for example `minutes=10`. The default is one hour. A token stays
-       valid until it expires.
-     - **Scopes**: add the `pivotkit` mapping to the selected scopes.
-3. On the application's **Policy / Group / User Bindings**, bind the group that may use pivotkit
-   (**Bind existing group/user**). You can bind users or a policy instead. An application without
-   any binding lets every user of Authentik sign in to it.
-4. Note the provider's **Client ID**.
-
-The server accepts every access token this provider issues for its audience with the required
-scopes. So Authentik decides who gets a token: by the bindings of step 3 and by the scopes.
-
-The issuer is `https://auth.example.com/application/o/pivotkit/`. It ends with the application's
-slug. That holds with the default issuer mode, where each provider has its own issuer. Authentik
-puts the client ID into the access token's `aud`, and the granted scopes into its `scope` claim. The
-`auth` part of the configuration:
-
-```json
-{
-  "auth": { "mode": "oauth",
-    "issuer": "https://auth.example.com/application/o/pivotkit/",
-    "resource": "https://reports.example.com/mcp",
-    "audience": ["<the provider's client id>"],
-    "requiredScopes": ["pivotkit"] },
-  "http": { "publicUrl": "https://reports.example.com/", "trustProxy": true, "enable": ["mcp"] }
-}
-```
-
-- `requiredScopes` also keeps Authentik's ID tokens out: they carry the same `aud` but no `scope`.
-  Do not set `auth.requireTyp`: Authentik's access tokens carry no `typ` of `at+jwt`.
-- `http.enable: ["mcp"]` serves the MCP endpoint only. The REST service is a resource of its own,
-  and its tokens must carry its audience ([REST sign-in](../reference/rest.md#auth)). With
-  Authentik, every token of the provider carries the same client ID. To serve REST from the same
-  provider, set `rest.audience` to that client ID. Give REST a scope of its own with
-  `rest.requiredScopes` and a second scope mapping. A token with both scopes then works on both
-  endpoints.
+With OAuth, the server takes the access tokens of your identity provider instead of static tokens.
+[Authentik step by step](../reference/sign-in.md#authentik) sets up a provider and the server's
+`auth` settings. In a cluster, the server also needs to reach the issuer.
 
 ### Egress to the issuer { #oauth-egress }
 
@@ -586,22 +460,6 @@ An issuer whose name resolves to a cluster address or another private address al
 `"intranet": true` in `auth`. Without it, the server refuses loopback and private addresses for the
 issuer, and `check-config` names the setting. The same setting covers the token endpoint of the
 [download sign-in](../reference/delivery.md#sign-in).
-
-These settings are based on the following sources, checked in November 2026:
-
-- Authentik's [OAuth2 provider documentation](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/):
-  issuer, signing key, PKCE.
-- Authentik's source code at the release `version/2026.8.5`:
-    - `authentik/providers/oauth2/`: the access token's `aud`, `scope` and header, the signing
-      algorithm per key, the default validity, scopes without a mapping, and redirect addresses
-      matched in full.
-    - `authentik/policies/engine.py`: an application without bindings passes everyone.
-    - `web/src/admin/`: the labels of the forms.
-
-Labels and defaults can change between Authentik releases. It was not checked whether Authentik
-reads the `resource` parameter of [RFC 8707](https://www.rfc-editor.org/rfc/rfc8707). The server
-does not need it, since it accepts the client ID as audience. Decode an access token of your own to
-see what your setup issues.
 
 ## Update { #update }
 

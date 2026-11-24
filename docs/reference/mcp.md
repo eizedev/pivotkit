@@ -965,7 +965,7 @@ provider's documentation and in a decoded access token of your own. Examples:
     ```
 
     The provider's settings in Authentik (signing key, scope mapping, client type):
-    [Sign-in with Authentik](../getting-started/kubernetes.md#oauth).
+    [Sign-in with Authentik](sign-in.md#authentik).
 
 === "Keycloak"
 

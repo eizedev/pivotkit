@@ -773,347 +773,10 @@ the [file route](#downloads).
 
 ## Sign-in { #auth }
 
-The modes are the [MCP server's](mcp.md#auth), from the same `auth` settings:
+<span id="sign-in-cli"></span><span id="sign-in-cli-operator"></span><span id="sign-in-cli-manual"></span>
 
-| Mode | How | 401 answers with |
-| --- | --- | --- |
-| `none` | No check. Loopback only unless `auth.allowUnauthenticated` | - |
-| `token` | `Authorization: Bearer <token>`: `$PIVOTKIT_TOKEN`, named tokens in `auth.tokens` (from a variable or a file read on every request), a [signed token](#signed-tokens) the server issued, or a [token from another system](#external-issuers) | `WWW-Authenticate: Bearer realm="pivotkit"` |
-| `oauth` | A JWT access token of the issuer for the REST resource | `WWW-Authenticate: Bearer error="invalid_token", ..., resource_metadata="..."` |
-
-The server reads only the `Authorization` header. It refuses a token in the address
-(`?access_token=`), two `Authorization` headers, Basic and cookies. Static tokens and their scopes
-work on both endpoints.
-
-With OAuth, the REST service is a protected resource of its own:
-
-- Its resource is `rest.resource`. The default is the origin of `auth.resource` with `/api/v1`, for
-  example `https://reports.example.com/api/v1`.
-- Its metadata ([RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728)) is at
-  `/.well-known/oauth-protected-resource/api/v1`.
-- A token must carry its audience. REST refuses a token issued for the MCP endpoint, and the MCP
-  endpoint refuses one issued for REST.
-- `auth.audience` applies to `/mcp` only. REST checks `rest.audience`.
-- A REST caller may hold a token issued to another application. Providers such as Authentik put
-  that application's client ID into `aud`. List that client ID in `rest.audience`, as for the
-  [command line's](#sign-in-cli-operator) client ID.
-- `rest.audience` replaces the default. Keep `rest.resource` in the list if tokens issued for it
-  should still work:
-  `"rest": { "audience": ["https://reports.example.com/api/v1", "<other client id>"] }`.
-- The issuer's settings are the MCP endpoint's ([OAuth 2.1](mcp.md#oauth)), including
-  `auth.intranet` for an issuer on a private address.
-- `auth.mode: "oauth"` needs `auth.resource`, also when only REST is on. `rest.resource` takes its
-  default from it.
-
-A token without the required scopes gets 403 `INSUFFICIENT_SCOPE` with
-`WWW-Authenticate: Bearer error="insufficient_scope", scope="..."` naming them.
-
-A person whose token does not carry their groups gets 403 `NOT_ALLOWED` without a challenge, since
-signing in again with more scopes would not help. This applies with `auth.groupProfiles` and no
-`auth.defaultProfile` ([groups](mcp.md#groups)). The `refused` log line of a 403 for groups names
-the client.
-
-The metadata lists the required scopes, and the sources' scopes with `auth.offerSourceScopes: true`
-([which scopes](mcp.md#scopes)). An empty `GET /sources` for a token without the sources' scopes has
-a `hint`.
-
-Set `auth.requireTyp: "at+jwt"` where the provider marks its access tokens so (RFC 9068). The server
-then refuses an ID token with the right audience.
-
-The output directory holds at most `output.maxFiles` files and `output.maxMb` MiB that
-pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them, so any
-token that may render can push other callers' older reports out. A link to such a report
-(`output.baseUrl`) then answers 404, and one of the server's own links answers 410 `LINK_EXPIRED`.
-
-Schedule drafts are never deleted this way. They may take at most half of `output.maxFiles` (none at
-1) and half of `output.maxMb`. A draft over that answers 409 `NO_OUTPUT`, while reports keep
-working. `output.maxAgeDays` does not delete a draft that waits for approval either.
-`output.draftMaxAgeDays` does, where you set it. So give `draft_schedule` a scope of its own too,
-and remove the drafts nobody approved. A file you name with `.pivotkit-out.` yourself counts as
-pivotkit's and may be deleted.
-
-A quota per caller was the other choice. It was not taken because a caller is no stable owner: with
-auth `none` every caller is the same, and files written before a restart have none. The directory
-would also still need a total that, once reached, refuses everyone again. So:
-
-- Set `output.maxFiles` well above what your callers render between two clean-ups.
-- Give `render_view` a scope of its own (`auth.toolScopes`) when not every caller needs it.
-- Keep the per-caller rate limit ([limits](#limits)).
-- Keep `output.maxAgeDays` on (30 days by default).
-- Run one server process per output directory, since the count is kept within a process.
-
-When the server is killed during a write, the write leaves its temporary file
-(`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). The server neither counts it nor deletes it to
-make room. With `output.maxAgeDays: 0`, it stays until you remove it.
-
-The server holds at most 256 connections. It keeps 16 of them for loopback clients, such as the
-health check or a proxy on the same host. A client has 5 seconds to send its headers
-([MCP](mcp.md#http) has the details). One address may hold at most 32 connections
-(`http.maxConnectionsPerAddress`). With `http.trustProxy` there is no such bound by default. On a
-network you do not trust, put a reverse proxy in front.
-
-With `auth.mode: oauth` and neither required scopes nor `auth.toolScopes`, the start warns. Any token
-of the issuer for the REST audience then gets everything its profile allows.
-
-Scopes per operation (`auth.toolScopes`, for example `{ "render_view": ["pivotkit:render"] }`) and
-per source (`sources.<id>.scopes`) hold as for MCP. A source the caller may not use answers as a
-missing one (404 `SOURCE_NOT_FOUND`).
-
-| Key | Default | What it is |
-| --- | --- | --- |
-| `rest.resource` | origin of `auth.resource` + `/api/v1` | The REST service's resource (OAuth) |
-| `rest.audience` | `[rest.resource]` | The `aud` values a REST token may carry |
-| `rest.requiredScopes` | `auth.requiredScopes` | Scopes every REST call needs |
-| `rest.signIn.clientId` | none | The public client `pivotkit login` signs in with, published in the metadata (OAuth only). Not `output.downloads.signIn.clientId` |
-
-## Sign in from the command line { #sign-in-cli }
-
-With `auth.mode: oauth`, a person gets a REST token from the sign-in provider with a code in the
-browser. This is the OAuth 2.0 device authorization grant
-([RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)). The token goes from the provider to the
-person. The server takes no part in the sign-in. It only publishes its metadata.
-
-=== "pivotkit"
-
-    ```bash
-    pivotkit login --url https://reports.example.com/api/v1
-    pivotkit token | sed 's/^/Authorization: Bearer /' | curl -H @- https://reports.example.com/api/v1/sources
-    ```
-
-    curl reads the header from stdin (`-H @-`), so the token is in no argument. Other users of the
-    machine can read arguments in the process list.
-
-=== "PowerShell"
-
-    ```powershell
-    pivotkit login --url https://reports.example.com/api/v1
-    Invoke-RestMethod https://reports.example.com/api/v1/sources -Headers @{ Authorization = "Bearer $(pivotkit token)" }
-    ```
-
-`pivotkit login` prints an address and a code. Open the address, enter the code and sign in.
-It takes the client ID the server publishes. Where the server publishes none, give it with
-`--client-id`.
-`pivotkit token` then prints a fresh access token whenever you need one.
-[pivotkit-cli](cli.md#sign-in) describes both commands and where they keep the refresh token.
-
-### What the operator sets up { #sign-in-cli-operator }
-
-1. Create a client at the provider for the command line:
-    - It is a public client. `pivotkit login` sends no client secret.
-    - It may use the device authorization grant.
-    - It may get refresh tokens. Authentik and Entra ID give one only with the scope `offline_access`.
-2. Make its access tokens fit the REST service, as for any other client ([Sign-in](#auth)):
-    - their `aud` is in `rest.audience`
-    - they carry `rest.requiredScopes`
-3. Publish the client ID, so users need only the server's address:
-
-    ```json
-    { "rest": { "signIn": { "clientId": "pivotkit-cli" } } }
-    ```
-
-    The server then names it in its metadata as `pivotkit_client_id`, next to the fields of
-    [RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728). `check-config` shows it.
-    The field is pivotkit's own extension, which other clients ignore. RFC 9728 says in section 2:
-    "Additional protected resource metadata parameters MAY also be used." Section 3.2 adds: "any
-    metadata parameters that are not understood MUST be ignored."
-    Without the setting, tell the users the client ID. They pass it with `--client-id` or
-    `PIVOTKIT_CLIENT_ID`. Either pins the ID: `login` then never takes the published one.
-    This client is not the browser client of a download link's sign-in
-    ([`output.downloads.signIn.clientId`](delivery.md#configuration)).
-
-!!! warning "Publish a public client only"
-
-    Anyone can read the metadata, without a token. Publish only a public client: one the provider
-    lets sign in without a secret. A client with a secret does not work with `pivotkit login`, and
-    its ID tells others which client to attack. The setting has no field for a secret.
-
-The command line asks for the scopes in the server's metadata. It adds `offline_access` when the
-provider lists it or lists no scopes. `--scope` replaces both.
-
-=== "Authentik"
-
-    - Its discovery names the device endpoint
-      ([source](https://github.com/goauthentik/authentik/blob/version/2026.8.5/authentik/providers/oauth2/views/provider.py)).
-    - Set a **Device code flow** on the brand. Without it, Authentik offers no device code
-      ([device code flow](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/device_code/),
-      [brands](https://docs.goauthentik.io/customize/branding/)).
-    - The device endpoint is `/application/o/device/`, the same for every application.
-      The issuer stays the application's: `https://auth.example.com/application/o/<slug>/`
-      ([OAuth2 provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)).
-    - Add the `offline_access` scope mapping to the provider. Without it, there is no refresh
-      token ([OAuth2 provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)).
-    - Authentik puts the client ID into `aud`. List the command line's client ID in `rest.audience`.
-      Keep `rest.resource` in the list if tokens issued for it should still work
-      ([Sign-in with Authentik](../getting-started/kubernetes.md#oauth)).
-
-=== "Keycloak"
-
-    - Under **Capability config**, turn on the device authorization grant
-      ([client settings](https://github.com/keycloak/keycloak/blob/main/docs/documentation/server_admin/topics/clients/oidc/con-basic-settings.adoc)).
-      Turn off client authentication, which makes it a public client.
-    - The device endpoint is `/realms/<realm>/protocol/openid-connect/auth/device`. The realm's
-      discovery names it only while the device flow feature of the server is on
-      ([source](https://github.com/keycloak/keycloak/blob/main/services/src/main/java/org/keycloak/protocol/oidc/OIDCWellKnownProvider.java)).
-    - Keycloak returns refresh tokens by default
-      ([server administration guide](https://www.keycloak.org/docs/latest/server_admin/index.html)).
-      When the realm lists `offline_access`, `pivotkit login` asks for it too. Give `--scope`
-      without it if users should not get that scope.
-    - An **Audience** mapper puts the REST resource into `aud`
-      ([audience support](https://github.com/keycloak/keycloak/blob/main/docs/documentation/server_admin/topics/clients/oidc/con-audience.adoc)).
-
-=== "Microsoft Entra ID"
-
-    - The device code endpoint is `https://login.microsoftonline.com/<tenant>/oauth2/v2.0/devicecode`
-      ([device code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code)).
-      The server's issuer names the tenant, as for the [MCP endpoint](mcp.md#oauth).
-    - Set **Allow public client flows** to **Yes** under the app registration's advanced settings
-      ([desktop app registration](https://learn.microsoft.com/en-us/entra/identity-platform/scenario-desktop-app-registration)).
-    - Ask for the API's `.default` scope and `offline_access`:
-      `--scope "api://<application id>/.default offline_access"`
-      ([scopes](https://learn.microsoft.com/en-us/entra/identity-platform/scopes-oidc)).
-      Entra gives a refresh token only with `offline_access`.
-    - Set `requestedAccessTokenVersion` to `2` in the API's manifest. Its tokens then have the issuer
-      `https://login.microsoftonline.com/<tenant id>/v2.0`
-      ([manifest](https://learn.microsoft.com/en-us/entra/identity-platform/reference-app-manifest)).
-    - A Conditional Access policy can block the device code flow. Microsoft recommends blocking it
-      where it is not used. Check your tenant's policies
-      ([authentication flows](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-authentication-flows)).
-    - A person in more than 200 groups gets no `groups` claim, only a marker
-      ([claims](https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference)).
-      See [groups](mcp.md#groups).
-
-Labels and defaults change between releases of the providers. These notes follow their
-documentation and source code as of November 2026. Decode an access token of your own to see what
-your setup issues.
-
-### Without the command line { #sign-in-cli-manual }
-
-The same steps work with curl or PowerShell:
-
-1. Read the server's metadata at `/.well-known/oauth-protected-resource/api/v1`. Check that its
-   `resource` is the address you use. Its `authorization_servers` names the issuer.
-2. Read the issuer's metadata ([RFC 8414](https://www.rfc-editor.org/rfc/rfc8414)) at
-   `/.well-known/oauth-authorization-server` before the issuer's path. Where that fails, read
-   `<issuer>/.well-known/openid-configuration`. Check that its `issuer` is the one the server named.
-   It names the `device_authorization_endpoint` and the `token_endpoint`. Both must be https.
-3. Post `client_id` and `scope` to the device endpoint. The answer has the `verification_uri`, the
-   `user_code`, the `device_code` and the `interval`.
-4. Check that the address is on your sign-in provider's site. Open it and enter the code.
-5. Post `grant_type=urn:ietf:params:oauth:grant-type:device_code`, the `device_code` and the
-   `client_id` to the token endpoint every `interval` seconds:
-    - `authorization_pending` (HTTP 400): ask again.
-    - `slow_down` (HTTP 400): wait 5 seconds longer from now on.
-    - Any other error ends the sign-in.
-    - HTTP 200 holds the `access_token`.
-
-The token endpoint answers 400 while it waits. So `curl -f` fails there, and `Invoke-RestMethod`
-throws. The scripts below handle that, and they check the addresses as steps 1 and 2 say.
-
-=== "PowerShell"
-
-    Save it as `Get-PivotkitToken.ps1`. It needs no module.
-
-    ```powershell
-    <#
-    .SYNOPSIS
-    Signs in to a pivotkit REST service with a device code and returns an access token.
-    .EXAMPLE
-    $token = ./Get-PivotkitToken.ps1 -Api https://reports.example.com/api/v1 -ClientId pivotkit-cli
-    Invoke-RestMethod "https://reports.example.com/api/v1/sources" -Headers @{ Authorization = "Bearer $token" }
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)] [uri] $Api,
-        [Parameter(Mandatory)] [string] $ClientId,
-        [string] $Scope
-    )
-    $ErrorActionPreference = 'Stop'
-    function Assert-Https([string] $Address, [string] $What) {
-        if (([uri]$Address).Scheme -ne 'https') { throw "$What is no https:// address: $Address" }
-    }
-    $base = $Api.AbsoluteUri.TrimEnd('/')
-    Assert-Https $base 'The server'
-    $resource = Invoke-RestMethod ($Api.GetLeftPart([UriPartial]::Authority) + '/.well-known/oauth-protected-resource' + $Api.AbsolutePath.TrimEnd('/'))
-    if ($resource.resource.TrimEnd('/') -ne $base) { throw "The server's metadata is for $($resource.resource), not $base." }
-    $issuerName = $resource.authorization_servers[0]
-    Assert-Https $issuerName 'The issuer'
-    $issuerUri = [uri]$issuerName
-    $issuer = $null
-    foreach ($at in @(($issuerUri.GetLeftPart([UriPartial]::Authority) + '/.well-known/oauth-authorization-server' + $issuerUri.AbsolutePath.TrimEnd('/')), ($issuerName.TrimEnd('/') + '/.well-known/openid-configuration'))) {
-        try { $issuer = Invoke-RestMethod $at -MaximumRedirection 0; break } catch { $issuer = $null }
-    }
-    if (-not $issuer -or $issuer.issuer -ne $issuerName) { throw "The issuer's metadata cannot be read, or names another issuer." }
-    Assert-Https $issuer.device_authorization_endpoint 'The device endpoint'
-    Assert-Https $issuer.token_endpoint 'The token endpoint'
-    if (-not $Scope) {
-        $Scope = (@($resource.scopes_supported | Where-Object { $_ }) + 'offline_access') -join ' '
-    }
-    $start = Invoke-RestMethod $issuer.device_authorization_endpoint -Method Post -Body @{ client_id = $ClientId; scope = $Scope }
-    Assert-Https $start.verification_uri 'The code page'
-    Write-Host "Sign in at $($issuerUri.Host). Open $($start.verification_uri) and enter the code $($start.user_code)"
-    $interval = if ($start.interval) { [int]$start.interval } else { 5 }
-    $deadline = (Get-Date).AddSeconds([int]$start.expires_in)
-    while ((Get-Date) -lt $deadline) {
-        Start-Sleep -Seconds $interval
-        try {
-            $body = @{ grant_type = 'urn:ietf:params:oauth:grant-type:device_code'; device_code = $start.device_code; client_id = $ClientId }
-            return (Invoke-RestMethod $issuer.token_endpoint -Method Post -Body $body).access_token
-        } catch {
-            $answer = $_.ErrorDetails.Message | ConvertFrom-Json
-            switch ($answer.error) {
-                'authorization_pending' { }
-                'slow_down' { $interval += 5 }
-                default { throw "The sign-in did not finish: $($answer.error)" }
-            }
-        }
-    }
-    throw 'The code expired before the sign-in finished.'
-    ```
-
-=== "curl"
-
-    It needs [jq](https://jqlang.org/) to read the JSON answers. The device code and the token go to
-    curl on stdin (`@-`), never as an argument, since other users of the machine can read arguments
-    in the process list.
-
-    ```bash
-    set -eu
-    API=https://reports.example.com/api/v1
-    CLIENT_ID=pivotkit-cli
-    https() { case "$1" in https://*) ;; *) echo "$2 is no https:// address: $1" >&2; exit 1 ;; esac; }
-    https "$API" "The server"
-    ORIGIN=${API%/api/v1}
-    PRM=$(curl -fsS "$ORIGIN/.well-known/oauth-protected-resource/api/v1")
-    [ "$(echo "$PRM" | jq -r '.resource | rtrimstr("/")')" = "$API" ] || { echo "The server's metadata is for another address" >&2; exit 1; }
-    ISSUER=$(echo "$PRM" | jq -r '.authorization_servers[0]')
-    https "$ISSUER" "The issuer"
-    ISSUER_ORIGIN=$(echo "$ISSUER" | sed -E 's#^(https://[^/]+).*#\1#')
-    ISSUER_PATH=${ISSUER#"$ISSUER_ORIGIN"}
-    META=$(curl -fsS "$ISSUER_ORIGIN/.well-known/oauth-authorization-server${ISSUER_PATH%/}" || curl -fsS "${ISSUER%/}/.well-known/openid-configuration")
-    [ "$(echo "$META" | jq -r .issuer)" = "$ISSUER" ] || { echo "The issuer's metadata names another issuer" >&2; exit 1; }
-    DEVICE_URL=$(echo "$META" | jq -r .device_authorization_endpoint); https "$DEVICE_URL" "The device endpoint"
-    TOKEN_URL=$(echo "$META" | jq -r .token_endpoint); https "$TOKEN_URL" "The token endpoint"
-    SCOPE=$(echo "$PRM" | jq -r '(.scopes_supported // []) + ["offline_access"] | join(" ")')
-    START=$(curl -fsS -d "client_id=$CLIENT_ID" --data-urlencode "scope=$SCOPE" "$DEVICE_URL")
-    https "$(echo "$START" | jq -r .verification_uri)" "The code page"
-    echo "$START" | jq -r --arg host "${ISSUER_ORIGIN#https://}" '"Sign in at \($host). Open \(.verification_uri) and enter the code \(.user_code)"'
-    INTERVAL=$(echo "$START" | jq -r '.interval // 5')
-    while :; do
-      sleep "$INTERVAL"
-      ANSWER=$(echo "$START" | jq -j .device_code | curl -sS -d grant_type=urn:ietf:params:oauth:grant-type:device_code \
-        -d "client_id=$CLIENT_ID" --data-urlencode device_code@- "$TOKEN_URL")
-      case "$(echo "$ANSWER" | jq -r '.error // "done"')" in
-        done) break ;;
-        authorization_pending) ;;
-        slow_down) INTERVAL=$((INTERVAL + 5)) ;;
-        *) echo "The sign-in did not finish: $(echo "$ANSWER" | jq -r .error)" >&2; exit 1 ;;
-      esac
-    done
-    echo "$ANSWER" | jq -r '"Authorization: Bearer \(.access_token)"' | curl -fsS -H @- "$API/sources"
-    ```
-
-Both scripts keep no refresh token. Run them again when the access token expires, or use
-`pivotkit login`, which keeps the refresh token for you.
+[Sign-in to the REST service](sign-in.md) has the sign-in modes, OAuth with the REST resource and
+its scopes, and the command line's sign-in with `pivotkit login`.
 
 ## CORS { #cors }
 
@@ -1165,6 +828,39 @@ limits with counts of its own (`mcp.rateLimit`, `mcp.concurrency`, see [MCP](mcp
 - The counts live in the memory of one process. Two instances behind a load balancer count on their
   own.
 - The address is the socket's, or with `http.trustProxy` the last one in `X-Forwarded-For`.
+
+The server holds at most 256 connections. It keeps 16 of them for loopback clients, such as the
+health check or a proxy on the same host. A client has 5 seconds to send its headers
+([MCP](mcp.md#http) has the details). One address may hold at most 32 connections
+(`http.maxConnectionsPerAddress`). With `http.trustProxy` there is no such bound by default. On a
+network you do not trust, put a reverse proxy in front.
+
+### The output directory { #output-limits }
+
+The output directory holds at most `output.maxFiles` files and `output.maxMb` MiB that
+pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them, so any
+token that may render can push other callers' older reports out. A link to such a report
+(`output.baseUrl`) then answers 404, and one of the server's own links answers 410 `LINK_EXPIRED`.
+
+Schedule drafts are never deleted this way. They may take at most half of `output.maxFiles` (none at
+1) and half of `output.maxMb`. A draft over that answers 409 `NO_OUTPUT`, while reports keep
+working. `output.maxAgeDays` does not delete a draft that waits for approval either.
+`output.draftMaxAgeDays` does, where you set it. So give `draft_schedule` a scope of its own too,
+and remove the drafts nobody approved. A file you name with `.pivotkit-out.` yourself counts as
+pivotkit's, and the server may delete it.
+
+The cap counts all callers together. A caller is no stable owner: with auth `none` every caller is
+the same, and files written before a restart have none. So:
+
+- Set `output.maxFiles` well above what your callers render between two clean-ups.
+- Give `render_view` a scope of its own (`auth.toolScopes`) when not every caller needs it.
+- Keep the per-caller rate limit ([limits](#limits)).
+- Keep `output.maxAgeDays` on (30 days by default).
+- Run one server process per output directory, since each process keeps its own count.
+
+When the server stops hard during a write, the write leaves its temporary file
+(`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). The server neither counts it nor deletes it to
+make room. With `output.maxAgeDays: 0`, it stays until you remove it.
 
 ## Errors { #errors }
 

@@ -465,7 +465,7 @@ gets at each level, and how to set them per client.
     - Set `maxFiles` high. Give `render_view` and `draft_schedule` scopes of their own. Keep
       `output.maxAgeDays` on, 30 days by default. It never deletes drafts that wait.
       `output.draftMaxAgeDays` does, where you set it. Keep the rate limits
-      ([REST](reference/rest.md#auth)).
+      ([REST](reference/sign-in.md#auth)).
 - **Data the model sends** (`source` `inline:`, [details](reference/mcp.md#data)) belongs to the
   model, not the operator:
     - No exposure policy applies to it.

@@ -339,7 +339,7 @@ What the server holds while it reads an answer depends on its format:
   reader needs the whole text to find the encoding, the separator, and the header.
 
 The rows of a kept load stay in memory for `ttl`, bounded as for code sources. Keep `maxBytes` near
-what a source needs. [Memory and workers](../getting-started/kubernetes.md#sizing) has measurements.
+what a source needs. [Memory and workers](operations.md#sizing) has measurements.
 
 ### Backend sign-in { #http-auth }
 
@@ -570,7 +570,7 @@ settings change, so check the current documentation of your provider's version.
     "[Token exchange](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/token_exchange/)":
 
     - pivotkit exchanges as a confidential client, with `clientSecret`. The provider of the
-      [Authentik sign-in](../getting-started/kubernetes.md#oauth) is public. So create a second,
+      [Authentik sign-in](sign-in.md#authentik) is public. So create a second,
       confidential provider for the exchange, such as `pivotkit-backend`, and bind it to an
       application.
     - Under **Grant Types** of `pivotkit-backend`, select **Token exchange**.

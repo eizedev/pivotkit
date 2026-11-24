@@ -226,7 +226,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
       ([signed tokens](reference/rest.md#signed-tokens)), and tokens another system issues
       ([tokens from another system](reference/rest.md#external-issuers)).
     - Sign-in from the command line with a code in the browser
-      ([sign in from the command line](reference/rest.md#sign-in-cli)).
+      ([sign in from the command line](reference/sign-in.md#sign-in-cli)).
     - Policy profiles per caller, with data sent in the request where a profile allows it
       ([profiles](reference/rest.md#profiles)).
     - The rows of a source for a host application's backend, off by default

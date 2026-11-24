@@ -150,7 +150,7 @@ The settings each provider needs:
     ```
 
     Authentik needs a signing key, a scope mapping and a public client. See
-    [Sign-in with Authentik](getting-started/kubernetes.md#oauth).
+    [Sign-in with Authentik](reference/sign-in.md#authentik).
 
 === "Keycloak"
 
@@ -175,7 +175,7 @@ The settings each provider needs:
 
     The issuer names your tenant, not `/common`.
 
-The full list of settings is in [OAuth](reference/mcp.md#oauth) and [REST sign-in](reference/rest.md#auth).
+The full list of settings is in [OAuth](reference/mcp.md#oauth) and [REST sign-in](reference/sign-in.md#auth).
 
 ## MCP clients { #mcp-clients }
 
