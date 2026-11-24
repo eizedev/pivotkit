@@ -26,7 +26,7 @@ import { closest, encode } from "pivotkit-core";
 import { readSafe, readTable } from "pivotkit-node/files";
 import { findingText } from "pivotkit-report/operations";
 import { serverLimitsOf } from "../config.js";
-import { autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, withStats } from "../policy.js";
+import { autoValuesOf, autoValuesOption, fieldKey, fieldStatsOf, levelInfo, resolvePolicy, withStats } from "../policy.js";
 import { sourceStats } from "../stats.js";
 import { allShown, quotedBreakOf } from "../data.js";
 import { checkTemplates } from "../print-template.js";
@@ -204,7 +204,7 @@ function fieldLevelItems(id, resolved, names, stats, sourcePolicy, serverPolicy)
     const looking = [];
     const levels = names.map((name) => {
         const info = levelInfo(policy, name);
-        const looks = info.level === "values" && !info.auto ? (stats.fields[fieldKey(name)]?.looks ?? []) : [];
+        const looks = info.level === "values" && !info.auto ? (fieldStatsOf(stats, fieldKey(name))?.looks ?? []) : [];
         if (looks.length) {
             looking.push(warning(`sources.${id}: the values field ${nameText(name)} holds a value that looks like ${looks.join(", ")}`));
         }

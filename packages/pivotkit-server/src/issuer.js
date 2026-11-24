@@ -21,7 +21,7 @@
 
 import { isIP } from "node:net";
 import { createGuardedFetch, GuardedFetchError, guardedFetch } from "./sources/fetch.js";
-import { HTTPS_ISSUER_TEXT } from "./options/shared.js";
+import { ConfigError, HTTPS_ISSUER_TEXT } from "./options/shared.js";
 
 /** The most bytes and the longest time of each request to the issuer. */
 export const ISSUER_LIMITS = Object.freeze({ metadataBytes: 262_144, metadataMs: 10_000, jwksBytes: 262_144, jwksMs: 5000, tokenBytes: 65_536, tokenMs: 10_000 });
@@ -58,6 +58,17 @@ export const issuerMeans = { fetch: guardedFetch, loopback: createGuardedFetch({
 export function issuerSchemeProblem(auth) {
     const issuer = String(auth.issuer);
     return URL.canParse(issuer) && new URL(issuer).protocol !== "https:" && !auth.allowInsecureIssuer ? `auth.issuer: ${HTTPS_ISSUER_TEXT}` : null;
+}
+
+/**
+ * The start's refusal of auth.issuer's scheme (issuerSchemeProblem), as a ConfigError.
+ * @param {import("./config.js").AuthOptions} auth
+ */
+export function refuseIssuerScheme(auth) {
+    const problem = issuerSchemeProblem(auth);
+    if (problem) {
+        throw new ConfigError(problem);
+    }
 }
 
 /**

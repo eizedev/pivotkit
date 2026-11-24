@@ -870,11 +870,17 @@ test("the writer gives every value as pivotkit-core's data export does, dates as
 });
 
 test("a field named in the request matches its column as the policy matches names: case, spaces and Unicode form", async () => {
-    const { server, person } = await serverOf();
+    // a header with a doubled space, and one with "ö" written as o and a combining diaeresis (NFD)
+    const names = ["Store  Name,Gro\u0308\u00dfe", "Berlin,10", "Hamburg,20"].join("\n") + "\n";
+    const staff = { ...PROFILES.staff, records: ["sales", "stores"], fields: { ...PROFILES.staff.fields, "Store Name": "show", "Gr\u00f6\u00dfe": "show" } };
+    const { server, person } = await serverOf({ sources: { stores: { file: "data/stores.csv" } }, profiles: { staff } }, { "sales.csv": CSV, "stores.csv": names });
     try {
-        const answer = await rows(server, await person(), { source: "sales", fields: ["  region ", "SALES"] });
-        assert.equal(answer.status, 200, answer.text);
-        assert.deepEqual(answer.data.columns, ["Region", "Sales"]);
+        const sales = await rows(server, await person(), { source: "sales", fields: ["  region ", "SALES"] });
+        assert.equal(sales.status, 200, sales.text);
+        assert.deepEqual(sales.data.columns, ["Region", "Sales"]);
+        const stores = await rows(server, await person(), { source: "stores", fields: ["store name", "GR\u00d6\u00dfE"] });
+        assert.equal(stores.status, 200, stores.text);
+        assert.deepEqual(stores.data.columns.map((c) => c.normalize("NFC")), ["Store  Name", "Gr\u00f6\u00dfe"]);
     } finally {
         await server.close();
     }

@@ -549,3 +549,14 @@ test("two rules of one policy that name the same field keep the stricter level, 
         await server.close();
     }
 });
+
+test("a refused line names the REST family by whole segments: /api/v1x is none, /openapi.json/ is the document's", async () => {
+    const { routeFamily } = await import("../src/rest/handler.js");
+    const family = (path) => routeFamily(new Request(`http://localhost${path}`));
+    assert.deepEqual(family("/api/v1"), { path: "/api/v1" });
+    assert.deepEqual(family("/api/v1/sources"), { path: "/api/v1" });
+    assert.deepEqual(family("/api/v1x"), {});
+    assert.deepEqual(family("/openapi.json"), { path: "/openapi.json" });
+    assert.deepEqual(family("/openapi.json/"), { path: "/openapi.json" });
+    assert.deepEqual(family("/openapi.jsonx"), {});
+});

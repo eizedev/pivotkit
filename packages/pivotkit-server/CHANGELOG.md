@@ -39,9 +39,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - The rows route matches the names in `fields` as the policy does: case, spaces, and Unicode form.
   Before, `"Customer  Name"` with two spaces did not find the column the policy calls
   "Customer Name".
-- `/openapi.json` and the REST resource's metadata answer every method but GET with 405 and
-  `Allow: GET`. Before, the metadata answered any method, and the 405 of `/openapi.json` had no
-  `Allow` header.
+- `/openapi.json` and the REST resource's metadata answer GET and HEAD, and every other method with
+  405 and `Allow: GET, HEAD`. Before, the metadata answered any method, `/openapi.json` refused
+  HEAD, and its 405 had no `Allow` header.
 - `token list` and the prune of signed tokens leave out a record without its issue time. Before, one
   such hand-edited record stopped the whole list.
 - A download's file name with a lone surrogate gets a replacement character in `Content-Disposition`.

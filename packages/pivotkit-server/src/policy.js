@@ -154,7 +154,8 @@ const withDenyRead = (deny) => {
 
 /**
  * The automatic rule of a policy.autoValues option: off, the thresholds, or the thresholds with the
- * option's numbers and deny words.
+ * option's numbers and deny words. An option object is read once and its result kept: the options
+ * count as frozen once validateOptions checked them.
  * @param {boolean | { maxDistinct?: number, minRowsPerValue?: number, minRows?: number, deny?: string[] } | undefined} option
  * @returns {AutoValues | false}
  */
@@ -162,7 +163,8 @@ export function autoValuesOf(option) {
     if (option === false) {
         return false;
     }
-    if (option === true || option === undefined || option === null) {
+    // validateOptions takes a boolean or an object; anything else counts as true
+    if (option === null || typeof option !== "object") {
         return AUTO_VALUES;
     }
     // resolvePolicy asks on every request: the deny list is read once per option object
@@ -272,7 +274,7 @@ export const withStats = (policy, stats) => ({ ...policy, stats: stats ?? null }
  * @param {import("./stats.js").SourceStats | null | undefined} stats
  * @param {string} key  fieldKey of the field's name
  */
-const fieldStatsOf = (stats, key) => (stats?.fields && Object.hasOwn(stats.fields, key) ? stats.fields[key] : undefined);
+export const fieldStatsOf = (stats, key) => (stats?.fields && Object.hasOwn(stats.fields, key) ? stats.fields[key] : undefined);
 
 /**
  * A field name as the policy matches it: Unicode NFC (a file from macOS may write "ö" as two code

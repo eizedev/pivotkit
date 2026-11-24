@@ -32,7 +32,7 @@ import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
 import { auditText, noteAudit } from "./log.js";
 import { AUDIT_KEY_MIN, TOKEN_DISTINCT_MIN, TOKEN_MIN, TOKEN_SYNTAX, keyProblem, tokenFault } from "./secret-rules.js";
 import { UTF16_TEXT, readSecret, readSecretFile, secretValue, unreadable } from "./secrets.js";
-import { discover, issuerRulesOf, issuerSchemeProblem, jwksUriOf, remoteKeySet } from "./issuer.js";
+import { discover, issuerRulesOf, jwksUriOf, refuseIssuerScheme, remoteKeySet } from "./issuer.js";
 import { guardedFetch, isGuardedFetch } from "./sources/fetch.js";
 import { claimNamesOf, claimsOf } from "./sources/params.js";
 import { SIGNED_TOKEN, SignedTokenError, createSignedVerifier, expiryOf, keyring, looksSigned, signedStore } from "./signed-tokens.js";
@@ -556,9 +556,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
 
     // oauth
     const issuer = /** @type {string} */ (auth.issuer);
-    if (issuerSchemeProblem(auth)) {
-        throw new ConfigError(/** @type {string} */ (issuerSchemeProblem(auth)));
-    }
+    refuseIssuerScheme(auth);
     const algorithms = auth.algorithms?.length ? auth.algorithms : [...DEFAULT_ALGORITHMS];
     const audit = await auditOf(options, { env, log });
     // the claims a caller holds: only those the sources' params name (sources/params.js claimsOf)

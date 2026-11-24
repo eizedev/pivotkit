@@ -123,8 +123,9 @@ const handles = (path) => path === REST_BASE || path.startsWith(`${REST_BASE}/`)
  * The route family of a request, for a refused line written by logUnanswered: /api/v1 or /openapi.json.
  * @param {Request} request
  */
-function routeFamily(request) {
-    const path = new URL(request.url).pathname;
-    // whole segments, as handles() reads them: /api/v1x is no REST path
+export function routeFamily(request) {
+    const { pathname } = new URL(request.url);
+    // whole segments, as handles() reads them: /api/v1x is no REST path; a trailing slash as serve() reads it
+    const path = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
     return path === REST_BASE || path.startsWith(`${REST_BASE}/`) ? { path: REST_BASE } : path === OPENAPI_PATH ? { path: OPENAPI_PATH } : {};
 }

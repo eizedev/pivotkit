@@ -16,9 +16,9 @@ export const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/;
  * A header's value of min to max characters: tab, visible ASCII, space and 0x80-0xFF (RFC 9110's
  * obs-text, which holds the C1 control codes 0x80-0x9F too); no line break, no NUL.
  * @param {number} min
- * @param {number} max
+ * @param {number} [max]  none: no upper bound
  */
-export const headerValueOf = (min, max) => new RegExp(`^[\\t\\x20-\\x7e\\x80-\\xff]{${min},${max}}$`);
+export const headerValueOf = (min, max = undefined) => new RegExp(`^[\\t\\x20-\\x7e\\x80-\\xff]{${min},${max ?? ""}}$`);
 
 /** A configured header's value: headerValueOf, at most 1000 characters. */
 export const HEADER_VALUE = headerValueOf(0, 1000);
