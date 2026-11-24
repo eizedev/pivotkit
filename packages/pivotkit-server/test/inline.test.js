@@ -6,7 +6,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { unzipSync, strFromU8 } from "fflate";
@@ -15,11 +14,12 @@ import { presentedInput } from "pivotkit-server/internal";
 import { openApiDocument } from "pivotkit-server/rest";
 import { BODY_BYTES, MAX_BODY_BYTES } from "../src/listen.js";
 import { MCP_DATA_CAP, REST_DATA_BYTES } from "../src/sources/inline.js";
-import { BIN, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspace } from "./helpers.js";
+import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspace, runBin } from "./helpers.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
+import { until } from "../../../tests/until.js";
+import { connect } from "node:net";
 
 const LOCAL = callerOf("none", undefined);
-const BY_REGION = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
 
 /** A team's open tickets as a model would send them: names, numbers, a blank. */
 const TICKETS = Object.freeze({
@@ -265,6 +265,9 @@ const restOptions = (dir, more = {}) => ({
     ...more
 });
 const restEnv = { env: { ETL_TOKEN: TOKEN, PLAIN_TOKEN: OTHER_TOKEN } };
+
+/** The places for large bodies the server's log says are held (its debug line), once `count` are. */
+const untilPlacesHeld = (server, count) => until(() => server.log.some((l) => l.msg === "REST: a large body holds one of the places for large bodies" && l.held === count), { message: `${count} places for large bodies held` });
 
 /** A multipart request: the parts as FormData, sent with fetch. */
 async function multipart(url, token, parts) {
@@ -555,7 +558,7 @@ test("pivotkit-server check-config refuses a cap above the built-in one and a bo
     ]) {
         const config = join(dir, "pivotkit.json");
         writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, ...options }));
-        const res = spawnSync(process.execPath, [BIN, "check-config", "--config", config], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
+        const res = runBin(["check-config", "--config", config]);
         // an invalid configuration, as for any other key: the runner's exit code for one
         assert.equal(res.status, 2, res.stdout + res.stderr);
         assert.match(res.stderr, pattern);
@@ -605,7 +608,7 @@ test("the large body: only on a route that takes a source, and at most two at on
     // three callers that may send data: each may hold one place, two places in all
     const THIRD_TOKEN = "a-third-test-token-that-is-long-enough-42";
     const tokens = [TOKEN, OTHER_TOKEN, THIRD_TOKEN];
-    const server = await restServer(restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }, { name: "etl2", env: "PLAIN_TOKEN", profile: "etl" }, { name: "etl3", env: "THIRD_TOKEN", profile: "etl" }] } }), { env: { ...restEnv.env, THIRD_TOKEN } });
+    const server = await restServer(restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } }, log: "debug", auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }, { name: "etl2", env: "PLAIN_TOKEN", profile: "etl" }, { name: "etl3", env: "THIRD_TOKEN", profile: "etl" }] } }), { env: { ...restEnv.env, THIRD_TOKEN } });
     const size = 3 * 1_048_576;
     try {
         // (a request that declares a size it never sends gets a connection of its own: one kept alive
@@ -624,7 +627,7 @@ test("the large body: only on a route that takes a source, and at most two at on
             req.write("{");
             open.push(req);
         }
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await untilPlacesHeld(server, 2);
         const third = await raw(`${server.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${THIRD_TOKEN}`, "content-length": String(size), connection: "close" } });
         assert.equal(third.status, 503);
         assert.equal(third.data.code, "BUSY");
@@ -636,9 +639,9 @@ test("the large body: only on a route that takes a source, and at most two at on
         for (const req of open) {
             req.destroy();
         }
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        // a complete body: it takes a place only when one is free, else it is BUSY at once
         const big = { columns: ["Region", "Note"], rows: Array.from({ length: 25_000 }, (_, i) => [["North", "South"][i % 2], "n".repeat(90)]), rowCount: 25_000 };
-        assert.equal((await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: big } })).status, 200);
+        await until(async () => (await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: big } })).status === 200, { message: "the places were given back" });
     } finally {
         await server.close();
     }
@@ -697,7 +700,7 @@ test("a cell full of brackets is data, not nesting: only a view or layout given 
 });
 
 test("one place for a large body per caller: its second gets 503 BUSY while another caller still gets one", async () => {
-    const options = restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } }, policy: { profiles: { etl: { data: true }, etl2: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }, { name: "etl2", env: "PLAIN_TOKEN", profile: "etl2" }] } });
+    const options = restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } }, log: "debug", policy: { profiles: { etl: { data: true }, etl2: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }, { name: "etl2", env: "PLAIN_TOKEN", profile: "etl2" }] } });
     const server = await restServer(options, restEnv);
     const size = 3 * 1_048_576;
     const { request } = await import("node:http");
@@ -706,7 +709,7 @@ test("one place for a large body per caller: its second gets 503 BUSY while anot
         const held = request({ agent: false, host: url.hostname, port: url.port, path: url.pathname, method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}`, "content-length": String(size) } });
         held.on("error", () => undefined);
         held.write("{");
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await untilPlacesHeld(server, 1);
         const second = await raw(`${server.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}`, "content-length": String(size), connection: "close" } });
         assert.equal(second.status, 503);
         assert.equal(second.data.code, "BUSY");
@@ -714,8 +717,66 @@ test("one place for a large body per caller: its second gets 503 BUSY while anot
         const big = { columns: ["Region", "Note"], rows: Array.from({ length: 25_000 }, (_, i) => [["North", "South"][i % 2], "n".repeat(90)]), rowCount: 25_000 };
         assert.equal((await call(`${server.api}/sources/describe`, { token: OTHER_TOKEN, body: { source: "inline:", data: big } })).status, 200, "another caller takes the other place");
         held.destroy();
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        assert.equal((await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: big } })).status, 200, "its place is free again once it left");
+        // a complete body: it takes a place only when one is free, else it is BUSY at once
+        await until(async () => (await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: big } })).status === 200, { message: "its place is free again once it left" });
+    } finally {
+        await server.close();
+    }
+});
+
+/**
+ * A POST sent whole before anything is read, as .NET's HttpClient and PowerShell send: the answer's
+ * status line and request id, or the error that ended the connection.
+ */
+function sendThenRead(url, token, bytes) {
+    return new Promise((resolve) => {
+        const u = new URL(url);
+        const socket = connect(Number(u.port), u.hostname);
+        const received = [];
+        let error = null;
+        socket.on("error", (e) => (error = e));
+        socket.pause();
+        const head = `POST ${u.pathname} HTTP/1.1\r\nHost: ${u.host}\r\nAuthorization: Bearer ${token}\r\nContent-Type: application/json\r\nContent-Length: ${bytes}\r\nConnection: close\r\n\r\n`;
+        const chunk = Buffer.alloc(65_536, 0x20);
+        let left = bytes;
+        socket.write(head);
+        const pump = () => {
+            while (left > 0) {
+                const n = Math.min(left, chunk.length);
+                left -= n;
+                if (!socket.write(n === chunk.length ? chunk : chunk.subarray(0, n))) {
+                    socket.once("drain", pump);
+                    return;
+                }
+            }
+            // all sent: only now is the answer read
+            socket.on("data", (d) => received.push(d));
+            socket.resume();
+        };
+        pump();
+        socket.on("close", () => {
+            const text = Buffer.concat(received).toString("latin1");
+            resolve({ status: Number(/^HTTP\/1\.1 (\d{3})/.exec(text)?.[1] ?? 0), requestId: /\r\nx-request-id: ([^\r]+)/i.exec(text)?.[1] ?? null, error: error?.code ?? null });
+        });
+    });
+}
+
+test("#473: a declared body over rest.data.maxBytes from a caller that may send data gets 413 with its request id, also when the client reads only after sending it all", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, policy: { profiles: { etl: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }] }, baseDir: dir }, { env: { ETL_TOKEN: TOKEN } });
+    try {
+        // 11 MiB: over the default rest.data.maxBytes (10 MiB), under four times it
+        const got = await sendThenRead(`${server.api}/views/render`, TOKEN, 11 * 1_048_576);
+        assert.equal(got.status, 413, JSON.stringify(got));
+        assert.ok(got.requestId, JSON.stringify(got));
+        // a caller without a valid token keeps the small bound: its body is drained up to four times
+        // 2 MiB, then the connection is cut. 30 MiB is under four times the signed-in caller's 10 MiB,
+        // so only that small bound cuts it, long before the client has sent it all and reads
+        const stranger = await sendThenRead(`${server.api}/views/render`, "a-token-nobody-has-0123456789012345678", 30 * 1_048_576);
+        assert.equal(stranger.status, 0, JSON.stringify(stranger));
+        assert.ok(stranger.error, JSON.stringify(stranger));
+        const refused = server.log.filter((l) => l.event === "refused" && l.status === 413);
+        assert.deepEqual(refused.map((l) => l.size), [11 * 1_048_576, 30 * 1_048_576], "each refused by its declared size");
     } finally {
         await server.close();
     }

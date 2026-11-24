@@ -5,8 +5,10 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { request as httpRequest } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
 import { fileURLToPath } from "node:url";
 import { tempDir as sharedTempDir } from "../../../tests/temp-dir.js";
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { serve } from "pivotkit-server";
 import { createGuardedFetch } from "../src/sources/fetch.js";
 import { until } from "../../../tests/until.js";
@@ -26,9 +28,9 @@ export const binEnv = (env = {}) => ({ PATH: process.env.PATH ?? "", HOME: proce
 /**
  * Runs the command as an operator does, in a fresh process with binEnv(env), and waits for it.
  * @param {string[]} args
- * @param {{ env?: Record<string, string>, cwd?: string }} [options]
+ * @param {{ env?: Record<string, string>, cwd?: string, node?: string[] }} [options]  node: Node's own flags before the command, such as a loader hook
  */
-export const runBin = (args, { env = {}, cwd } = {}) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", cwd, env: binEnv(env), timeout: 30_000 });
+export const runBin = (args, { env = {}, cwd, node = [] } = {}) => spawnSync(process.execPath, [...node, BIN, ...args], { encoding: "utf8", cwd, env: binEnv(env), timeout: 30_000 });
 
 /** Orders of a made-up shop: a personal field (Customer), dates over two years, a one-letter field. */
 export const SALES_CSV = ["Region,Product,Customer,Sales,OrderDate,Q", "North,A,Alice Example,10,2025-11-05,1", "South,B,Bob Example,20,2026-09-01,2", "North,B,Carol Example,5,2026-10-01,3", "West,A,Dan Example,7,2026-10-20,1", ",A,Eve Example,3,2024-12-31,2"].join("\n") + "\n";
@@ -50,6 +52,16 @@ export function workspace(files = { "sales.csv": SALES_CSV }) {
     }
     return dir;
 }
+
+/** A directory as workspace() makes it, with the given print templates (or other files) beside data/sales.csv. */
+export const withTemplates = (files = {}) => workspace({ "sales.csv": SALES_CSV, ...files });
+
+/** A print template as an operator writes one: its own header, a typo on line 7; and the parser's message for it. */
+export const TYPO_TEMPLATE = ["<!doctype html>", "<html>", "<head>", "<title>{{title}}</title>", "</head>", "<body>", "<h1>{{titel}}</h1>", "{{table}}", "</body>", "</html>"].join("\n");
+export const TYPO = "unknown placeholder {{titel}} (line 7); did you mean {{title}}?";
+
+/** A text as a regular expression's source that matches it as it is. */
+export const literal = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * check-config's text with each wrapped fact joined back into one line (check/format.js: a wrapped
@@ -143,6 +155,76 @@ export function raw(url, { method = "GET", headers = {}, body } = {}) {
 export async function untilReady(server, tries = 50) {
     await until(async () => (await call(`${server.url}/readyz`)).status === 200, { message: "the server did not get ready", tries, every: 50 });
 }
+
+/** An MCP initialize request's JSON body. */
+export const MCP_INITIALIZE = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } });
+
+/**
+ * An MCP initialize request to the server's /mcp with a bearer token, sent with fetch: its Response.
+ * @param {{ url: string }} server
+ * @param {string} token
+ */
+export const mcpInitialize = (server, token) => fetch(`${server.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${token}` }, body: MCP_INITIALIZE });
+
+/**
+ * An MCP tool call (describe_source of `source`) by an MCP client with a bearer token: whether it was
+ * let in. A refusal of the token (401) is false; any other failure throws.
+ * @param {{ url: string }} server
+ * @param {string} token
+ * @param {string} [source]
+ */
+export async function mcpToolWorks(server, token, source = "sales") {
+    const client = new Client({ name: "pivotkit-server-test", version: "1.0.0" });
+    try {
+        await client.connect(new StreamableHTTPClientTransport(new URL(`${server.url}/mcp`), { requestInit: { headers: { authorization: `Bearer ${token}` } } }));
+        return !(await client.callTool({ name: "describe_source", arguments: { source } })).isError;
+    } catch (e) {
+        if (/401|invalid_token|Unauthorized/i.test(String(e?.message ?? e))) {
+            return false;
+        }
+        throw e;
+    } finally {
+        await client.close().catch(() => undefined);
+    }
+}
+
+/**
+ * A DNS lookup for createGuardedFetch: a name resolves to `addressOf(name)`, else to 127.0.0.1.
+ * @param {(host: string) => string | undefined} [addressOf]
+ */
+export const fakeLookup =
+    (addressOf = () => undefined) =>
+    (host, options, callback) => {
+        const address = addressOf(host) ?? "127.0.0.1";
+        callback(null, options?.all ? [{ address, family: 4 }] : address, 4);
+    };
+
+/**
+ * An https server on 127.0.0.1 that answers for `names` (loopbackCert), and a guardedFetch that
+ * trusts its certificate and resolves names through fakeLookup(addressOf): a test's backend, store
+ * or token endpoint.
+ * @param {string[]} names
+ * @param {import("node:http").RequestListener} handler
+ * @param {(host: string) => string | undefined} [addressOf]
+ */
+export async function loopbackHttps(names, handler, addressOf) {
+    const { key, cert } = loopbackCert(...names);
+    const server = createHttpsServer({ key, cert }, handler);
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(undefined)));
+    const port = /** @type {import("node:net").AddressInfo} */ (server.address()).port;
+    return { server, port, fetch: createGuardedFetch({ ca: cert, lookup: fakeLookup(addressOf) }) };
+}
+
+/**
+ * A route of such a server that answers JSON.
+ * @param {unknown} body  a text as it is, anything else as JSON
+ */
+export const json =
+    (body, status = 200, headers = {}) =>
+    (_request, res) => {
+        res.writeHead(status, { "content-type": "application/json", ...headers });
+        res.end(typeof body === "string" ? body : JSON.stringify(body));
+    };
 
 /** A guardedFetch that may use plain http to loopback (createGuardedFetch's test means). */
 export const plainLoopbackFetch = createGuardedFetch({ allowHttpLoopback: true });

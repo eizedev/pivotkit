@@ -191,12 +191,14 @@ test("a symbolic link (a mounted Secret) is read, never written; a link to nothi
 
 /** The start's preparation in a child process, its token file's value on stdout. */
 const childPrepare = (state) =>
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
         const code = `const { prepareHttpServe } = await import("pivotkit-server/internal"); const { readFileSync } = await import("node:fs"); await prepareHttpServe({}, { env: {}, host: "0.0.0.0", tokenEnv: "PIVOTKIT_TOKEN", stateDir: ${JSON.stringify(state)} }); process.stdout.write(readFileSync(${JSON.stringify(join(state, "secrets", "admin.token"))}, "utf8"));`;
         const child = spawn(process.execPath, ["--input-type=module", "-e", code], { cwd: process.cwd() });
         let out = "";
         child.stdout.on("data", (c) => (out += c));
-        child.on("exit", (status) => resolve({ status, out: out.trim() }));
+        child.on("error", reject);
+        // close, not exit: the child's stdout is read to its end only then
+        child.on("close", (status) => resolve({ status, out: out.trim() }));
     });
 
 test("starts racing on one state directory end with one token, and no temporary file", async () => {
