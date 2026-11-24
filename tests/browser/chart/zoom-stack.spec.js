@@ -2,36 +2,16 @@
 // come from the chart's own layout (getItemLayout, the legend's and the slider's elements), not from
 // fixed fractions.
 import { test, expect } from "../fixtures.js";
-import { barMiddle, inChart, inPage, ROWS, settled, tooltipOf, VIEW } from "./report.js";
+import { barMiddle, chartOf, inChart, inPage, mountReport, ROWS, settled, tooltipOf, VIEW } from "./report.js";
 
 /** 40 countries with long names: a phone's chart cannot write each one. */
 const COUNTRIES = Array.from({ length: 40 }, (_, i) => ({ Country: `Country number ${String(i + 1).padStart(2, "0")}`, Units: 10 + ((i * 7) % 13) }));
 const COUNTRY_VIEW = { rows: ["Country"], cols: [], values: [{ field: "Units", agg: "sum" }], display: "chart" };
 
-/** Mounts a report at the top of the host page; mount again to change it. */
+/** Mounts a report with `chart` over `view`, 560 px high; mount again to change it. */
 async function mount(page, chart, { view = VIEW, rows = ROWS, theme = "light" } = {}) {
-    await page.evaluate(
-        async ({ rows, view, theme }) => {
-            const React = await import("react");
-            const { createRoot } = await import("react-dom/client");
-            const { PivotReport } = await import("pivotkit-react");
-            if (!window.__zoomRoot) {
-                const el = document.createElement("section");
-                el.id = "zoom-report";
-                document.body.prepend(el);
-                window.__zoomRoot = createRoot(el);
-            }
-            window.__zoomRoot.render(null);
-            await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-            window.__zoomViews = [];
-            window.__zoomRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view), theme, data: rows, height: 560, defaultView: view, onViewChange: (v) => window.__zoomViews.push(v) }));
-        },
-        { rows, view: { ...view, chart }, theme }
-    );
-    const chartEl = page.locator("#zoom-report").getByTestId("pivot-chart");
-    await expect(chartEl.locator("canvas").first()).toBeVisible();
-    await settled(chartEl);
-    return chartEl;
+    await mountReport(page, { id: "zoom-report", rows, view: { ...view, chart }, theme, height: 560 });
+    return chartOf(page, "zoom-report");
 }
 
 /** The middle of a legend entry's text, from the legend's own drawing. */
@@ -88,7 +68,7 @@ async function stillAfterDrag(page, chartEl) {
     }).toBe(true);
 }
 
-const lastView = (page) => page.evaluate(() => window.__zoomViews.at(-1)?.chart);
+const lastView = (page) => page.evaluate(() => window.__views.at(-1)?.chart);
 
 test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
     test.beforeEach(async ({ page }) => {

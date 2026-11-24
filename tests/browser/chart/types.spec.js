@@ -3,6 +3,7 @@
 // the token colour that reads on it). The drawn marks come from the chart's own model.
 import { installContrast } from "../contrast.js";
 import { expect, test } from "../fixtures.js";
+import { mountReport } from "./report.js";
 
 /** Revenue and units of five regions: two values of very different sizes. */
 const ROWS = [
@@ -17,23 +18,11 @@ const TWO = [
     { field: "Units", agg: "sum" }
 ];
 
-/** Mounts a report of ROWS with `view` as its starting view; mount again to change it. */
+/** Opens the host page at `width` and mounts a report of ROWS, 640 px high, with `view` as its starting view. */
 async function mount(page, view, { theme = "light", width = 1440 } = {}) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("pages/host.html");
-    await page.evaluate(
-        async ({ rows, view, theme }) => {
-            const React = await import("react");
-            const { createRoot } = await import("react-dom/client");
-            const { PivotReport } = await import("pivotkit-react");
-            const el = document.createElement("section");
-            el.id = "types-report";
-            document.body.prepend(el);
-            window.__typesViews = [];
-            createRoot(el).render(React.createElement(PivotReport, { theme, data: rows, height: 640, defaultView: view, onViewChange: (v) => window.__typesViews.push(v) }));
-        },
-        { rows: ROWS, view: { rows: ["Region"], display: "chart", ...view }, theme }
-    );
+    await mountReport(page, { id: "types-report", rows: ROWS, view: { rows: ["Region"], display: "chart", ...view }, theme, height: 640 });
     return page.locator("#types-report");
 }
 
@@ -67,7 +56,7 @@ test("Chart settings offers bars and lines; with one value it is greyed out and 
     report = await mount(page, { values: TWO, chart: { type: "bar" } });
     await report.getByTestId("view-settings").click();
     await report.getByTestId("chart-combo").click();
-    await expect.poll(() => page.evaluate(() => window.__typesViews.at(-1)?.chart.type)).toBe("combo");
+    await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.type)).toBe("combo");
     await expect.poll(async () => (await drawnSeries(report))?.map((s) => [s.type, s.axis])).toEqual([
         ["bar", 0],
         ["line", 1]

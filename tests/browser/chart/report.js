@@ -21,53 +21,90 @@ export const VALUES = [
 ];
 
 /**
- * Mounts a report of ROWS at the top of the host page, with `chart` (and `view`) over VIEW's; mount again to change it.
- * `drillDown`: the prop, left out when undefined.
+ * The report's height the chart specs' measures were taken at, the zones folded: on a phone a pixel
+ * less, as its tabs are.
+ * @param {import("@playwright/test").Page} page
  */
-export async function mount(page, chart, { theme = "light", view = {}, rows = ROWS, cellClicks = false, drillDown } = {}) {
+export const chartHeight = (page) => ((page.viewportSize()?.width ?? 1280) < 640 ? 572 : 573);
+
+/**
+ * Mounts a PivotReport at the top of the host page (pages/host.html), in a section of its own with
+ * the id `id`; mount again with the same id to replace it. The report before is gone first, so
+ * nothing reads its chart. The page keeps what the report reports: its views in window.__views, with
+ * `cellClicks` its onCellClick calls in window.__cellClicks ({ row, col, count }), with `exports` its
+ * onExport calls in window.__exports ({ kind, fileName, type }). window.__rerender(changes) renders
+ * the same report again in place with some props changed (`theme`).
+ * @param {import("@playwright/test").Page} page
+ * @param {{ id: string, rows: object[], view: object, theme?: string, height: number, cellClicks?: boolean, exports?: boolean, props?: object }} report
+ *   `props`: more props of PivotReport (colorMap, drillDown), as data
+ */
+export async function mountReport(page, { id, rows, view, theme = "light", height, cellClicks = false, exports = false, props = {} }) {
     await page.evaluate(
-        async ({ rows, view, theme, cellClicks, drillDown }) => {
+        async ({ id, rows, view, theme, height, cellClicks, exports, props }) => {
             const React = await import("react");
             const { createRoot } = await import("react-dom/client");
             const { PivotReport } = await import("pivotkit-react");
-            if (!window.__tooltipRoot) {
+            window.__roots ??= {};
+            if (!window.__roots[id]) {
                 const el = document.createElement("section");
-                el.id = "tooltip-report";
+                el.id = id;
                 document.body.prepend(el);
-                window.__tooltipRoot = createRoot(el);
-                window.__tooltipViews = [];
+                window.__roots[id] = createRoot(el);
             }
-            // the report before is gone first, so nothing below reads its chart
-            window.__tooltipRoot.render(null);
+            const root = window.__roots[id];
+            root.render(null);
             await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+            window.__views = [];
             window.__cellClicks = [];
-            // onCellClick's calls, as row, column and count
-            const onCellClick = cellClicks ? ({ row, col, count }) => window.__cellClicks.push({ row, col, count }) : undefined;
-            // the chart's height the measures below were taken at, the zones folded: their heading
-            // and the tabs take 13 px more than before, on a phone 12
-            const height = window.innerWidth < 640 ? 572 : 573;
-            // what a test needs to render the same report again in place
-            Object.assign(window, { __tooltipChart: view.chart, __tooltipRows: rows, __tooltipHeight: height, __tooltipView: view });
-            window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height, defaultView: view, onCellClick, ...(drillDown === undefined ? {} : { drillDown }), onViewChange: (v) => window.__tooltipViews.push(v) }));
+            window.__exports = [];
+            const all = {
+                key: JSON.stringify({ view, theme }),
+                theme,
+                data: rows,
+                height,
+                defaultView: view,
+                onViewChange: (v) => window.__views.push(v),
+                ...(cellClicks ? { onCellClick: ({ row, col, count }) => window.__cellClicks.push({ row, col, count }) } : {}),
+                ...(exports ? { onExport: (f) => void window.__exports.push({ kind: f.kind, fileName: f.fileName, type: f.blob.type }) } : {}),
+                ...props
+            };
+            window.__rerender = (changes) => root.render(React.createElement(PivotReport, { ...all, ...changes }));
+            root.render(React.createElement(PivotReport, all));
         },
-        { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks, drillDown }
+        { id, rows, view, theme, height, cellClicks, exports, props }
     );
-    const chartEl = page.locator("#tooltip-report").getByTestId("pivot-chart");
+}
+
+/**
+ * The chart of a report mountReport mounted, once it is drawn: the option has a series (of `type`,
+ * when given; an area is a line, a donut a pie), the first animation is over and the page has drawn it.
+ * @param {import("@playwright/test").Page} page
+ * @param {string} id
+ * @param {string} [type]
+ */
+export async function chartOf(page, id, type) {
+    const chartEl = page.locator(`#${id}`).getByTestId("pivot-chart");
     await expect(chartEl.locator("canvas").first()).toBeVisible();
-    // drawn: the option has the series of this chart, and the first animation is over
-    const drawn = { area: "line", donut: "pie" }[chart.type] ?? chart.type;
-    await expect.poll(() => chartEl.evaluate(async (el) => {
-        const { getInstanceByDom } = await import("echarts/core");
-        return getInstanceByDom(el)?.getOption().series?.[0]?.type;
-    })).toBe(drawn);
-    // the first animation is over: slices and bars stand where their layout says
-    await expect.poll(() => chartEl.evaluate(async (el) => {
-        const { getInstanceByDom } = await import("echarts/core");
-        return getInstanceByDom(el).getZr().animation.isFinished();
-    })).toBe(true);
-    // and drawn on the canvas
+    if (type) {
+        const drawn = { area: "line", donut: "pie" }[type] ?? type;
+        await expect.poll(() => chartEl.evaluate(async (el) => {
+            const { getInstanceByDom } = await import("echarts/core");
+            return getInstanceByDom(el)?.getOption().series?.[0]?.type;
+        })).toBe(drawn);
+    }
+    // slices and bars stand where their layout says
+    await settled(chartEl);
     await twoFrames(page);
     return chartEl;
+}
+
+/**
+ * Mounts a report of ROWS with `chart` (and `view`) over VIEW's, at chartHeight; mount again to change it.
+ * `drillDown`: the prop, left out when undefined.
+ */
+export async function mount(page, chart, { theme = "light", view = {}, rows = ROWS, cellClicks = false, drillDown } = {}) {
+    await mountReport(page, { id: "tooltip-report", rows, view: { ...VIEW, ...view, chart }, theme, height: chartHeight(page), cellClicks, props: drillDown === undefined ? {} : { drillDown } });
+    return chartOf(page, "tooltip-report", chart.type);
 }
 
 /** Waits until the chart has a series and its animation is over. */

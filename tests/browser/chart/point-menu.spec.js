@@ -5,7 +5,7 @@ import { test, expect } from "../fixtures.js";
 import { HARDWARE, NORTH, SOFTWARE, barMiddle, cellMiddle, hover, mount, pointOf, sliceMiddle, tooltipOf } from "./report.js";
 
 const menu = (page) => page.getByRole("menu");
-const lastView = (page) => page.evaluate(() => window.__tooltipViews.at(-1));
+const lastView = (page) => page.evaluate(() => window.__views.at(-1));
 /** The categories the chart draws now, in order. */
 const categories = (chartEl) =>
     chartEl.evaluate(async (el) => {

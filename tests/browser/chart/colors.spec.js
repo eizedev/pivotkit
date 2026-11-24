@@ -2,7 +2,7 @@
 // series or slice (the host's colorMap and the view's colours from Display), and the share of the total
 // in the tooltip. Positions come from the chart's own layout.
 import { expect, test, toolbar } from "../fixtures.js";
-import { barMiddle, hover, inChart, pointOf, ROWS, settled, sliceMiddle, tooltipOf, VIEW } from "./report.js";
+import { barMiddle, chartOf, hover, inChart, mountReport, pointOf, ROWS, settled, sliceMiddle, tooltipOf, VIEW } from "./report.js";
 
 /** navigator.clipboard.write that keeps the types and the first bytes of what it was given (every engine, no permission). */
 async function captureImageClipboard(page) {
@@ -20,33 +20,10 @@ async function captureImageClipboard(page) {
     });
 }
 
-/** Mounts a report at the top of the host page; mount again to change it. */
+/** Mounts a report of ROWS with `chart` over `view`, 560 px high; mount again to change it. */
 async function mount(page, chart, { theme = "light", colorMap, view = VIEW } = {}) {
-    await page.evaluate(
-        async ({ view, theme, colorMap, rows }) => {
-            const React = await import("react");
-            const { createRoot } = await import("react-dom/client");
-            const { PivotReport } = await import("pivotkit-react");
-            if (!window.__colorRoot) {
-                const el = document.createElement("section");
-                el.id = "color-report";
-                document.body.prepend(el);
-                window.__colorRoot = createRoot(el);
-            }
-            window.__colorRoot.render(null);
-            await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-            window.__colorViews = [];
-            window.__exports = [];
-            window.__colorRoot.render(
-                React.createElement(PivotReport, { key: JSON.stringify({ view, theme }), theme, data: rows, height: 560, defaultView: view, colorMap, onViewChange: (v) => window.__colorViews.push(v), onExport: (f) => void window.__exports.push({ kind: f.kind, fileName: f.fileName, type: f.blob.type }) })
-            );
-        },
-        { view: { ...view, chart }, theme, colorMap, rows: ROWS }
-    );
-    const chartEl = page.locator("#color-report").getByTestId("pivot-chart");
-    await expect(chartEl.locator("canvas").first()).toBeVisible();
-    await settled(chartEl);
-    return chartEl;
+    await mountReport(page, { id: "color-report", rows: ROWS, view: { ...view, chart }, theme, height: 560, exports: true, props: { colorMap } });
+    return chartOf(page, "color-report");
 }
 
 /** The colour ECharts draws each series with (bars), or each slice with (a pie). */
@@ -59,7 +36,7 @@ const drawnColors = (chart) => {
     }
     return Object.fromEntries(model.getSeries().map((s) => [s.name, s.getData().getVisual("style").fill]));
 };
-const lastChart = (page) => page.evaluate(() => window.__colorViews.at(-1)?.chart);
+const lastChart = (page) => page.evaluate(() => window.__views.at(-1)?.chart);
 
 test.describe("chart extras (#54)", () => {
     test.beforeEach(async ({ page }) => {

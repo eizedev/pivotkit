@@ -171,7 +171,7 @@ test.describe("the chart's tooltip follows the pointer", () => {
         await report.getByTestId("view-settings").click();
         await report.getByTestId("topic-legend").click();
         await report.getByTestId("legend-bottom").click();
-        await expect.poll(() => page.evaluate(() => window.__tooltipViews.at(-1)?.chart.legend)).toBe("bottom");
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.legend)).toBe("bottom");
         await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
         await expect(report.getByTestId("view-settings")).toHaveAttribute("aria-expanded", "false");
@@ -190,12 +190,7 @@ test.describe("the chart's tooltip follows the pointer", () => {
         await hover(page, at);
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
         // the same report in the dark theme: a new option, drawn in place, the pointer does not move
-        await page.evaluate(async () => {
-            const React = await import("react");
-            const { PivotReport } = await import("pivotkit-react");
-            const last = window.__tooltipViews;
-            window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(window.__tooltipChart), theme: "dark", data: window.__tooltipRows, height: window.__tooltipHeight, defaultView: window.__tooltipView, onViewChange: (v) => last.push(v) }));
-        });
+        await page.evaluate(() => window.__rerender({ theme: "dark" }));
         await expect(page.locator("#tooltip-report .pk-root")).toHaveAttribute("data-pk-theme", "dark");
         await settled(chartEl);
         // the tooltip of the old marks goes, or names the segment: never every series
@@ -212,7 +207,7 @@ test.describe("the chart's tooltip follows the pointer", () => {
         await report.getByTestId("topic-tooltip").click();
         await expect(report.getByTestId("tooltip-auto")).toHaveAttribute("aria-checked", "true");
         await report.getByTestId("tooltip-axis").click();
-        await expect.poll(() => page.evaluate(() => window.__tooltipViews.at(-1)?.chart.tooltip)).toBe("axis");
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.tooltip)).toBe("axis");
         await page.keyboard.press("Escape");
         await hover(page, await pointOf(chartEl, barMiddle, { series: SERVICES, index: NORTH }));
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Services 10", "Hardware 20", "Software 30", "Total 60"]);

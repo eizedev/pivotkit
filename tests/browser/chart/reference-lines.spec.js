@@ -1,8 +1,8 @@
 // A chart's reference lines (#48): an average and a trend per series, a target, drawn on bars, lines and
 // areas (ECharts' markLine), named in the tooltip and the text alternative, set in Display -> Reference
 // lines. And the high and low points (#574, ECharts' markPoint), set in the same level. Real pointer input; the positions come from the chart's own layout (convertToPixel).
-import { expect, test, twoFrames } from "../fixtures.js";
-import { barMiddle, hover, pointOf, tooltipOf } from "./report.js";
+import { expect, test } from "../fixtures.js";
+import { barMiddle, chartHeight, chartOf, hover, mountReport, pointOf, tooltipOf } from "./report.js";
 
 /**
  * Revenue per month and product. A climbs by 10 a month (10, 20, 30, 40: average 25, trend 10 to 40),
@@ -17,46 +17,16 @@ const VIEW = { derived: [{ name: "Month", field: "Date", by: "yearMonth" }], row
 const A = 0;
 const MARCH = 2;
 
-/** Mounts a report of ROWS at the top of the host page with `chart` over VIEW's; mount again to change it. */
+/** Mounts a report of ROWS with `chart` over VIEW's, at chartHeight; mount again to change it. */
 async function mount(page, chart, { theme = "light", view = {}, cellClicks = false, rows = ROWS } = {}) {
-    await page.evaluate(
-        async ({ rows, view, theme, cellClicks }) => {
-            const React = await import("react");
-            const { createRoot } = await import("react-dom/client");
-            const { PivotReport } = await import("pivotkit-react");
-            if (!window.__linesRoot) {
-                const el = document.createElement("section");
-                el.id = "lines-report";
-                document.body.prepend(el);
-                window.__linesRoot = createRoot(el);
-            }
-            window.__linesRoot.render(null);
-            await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-            window.__cellClicks = [];
-            window.__linesViews = [];
-            const onCellClick = cellClicks ? ({ row, col }) => window.__cellClicks.push({ row, col }) : undefined;
-            // a chart of 319 px on a phone and 351 px on a desktop, the zones folded, as the measures
-            // below were taken at
-            const height = window.innerWidth < 640 ? 572 : 573;
-            window.__linesRoot.render(React.createElement(PivotReport, { key: JSON.stringify(view.chart), theme, data: rows, height, defaultView: view, onCellClick, onViewChange: (v) => window.__linesViews.push(v) }));
-        },
-        { rows, view: { ...VIEW, ...view, chart }, theme, cellClicks }
-    );
-    if (view.display === "table") {
+    const merged = { ...VIEW, ...view, chart };
+    await mountReport(page, { id: "lines-report", rows, view: merged, theme, height: chartHeight(page), cellClicks });
+    if (merged.display === "table") {
         // the table shown: no chart to wait for
         await expect(page.locator("#lines-report").getByTestId("pivot-table")).toBeVisible();
         return null;
     }
-    const chartEl = page.locator("#lines-report").getByTestId("pivot-chart");
-    await expect(chartEl.locator("canvas").first()).toBeVisible();
-    await expect.poll(() => chartEl.evaluate(async (el) => {
-        const { getInstanceByDom } = await import("echarts/core");
-        const chart = getInstanceByDom(el);
-        return Boolean(chart?.getOption().series?.length) && chart.getZr().animation.isFinished();
-    })).toBe(true);
-    // and drawn on the canvas
-    await twoFrames(page);
-    return chartEl;
+    return chartOf(page, "lines-report");
 }
 
 /**
@@ -267,7 +237,7 @@ test.describe("reference lines", () => {
         await report.getByTestId("topic-lines").click();
         await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Reference lines");
         await report.getByTestId("line-average").click();
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines)).toEqual({ average: true, trend: false, target: null, extremes: false });
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.referenceLines)).toEqual({ average: true, trend: false, target: null, extremes: false });
         // a switch keeps its level open: the next one is there to click
         await expect(report.getByTestId("line-average")).toHaveAttribute("aria-checked", "true");
         await report.getByTestId("line-trend").click();
@@ -279,7 +249,7 @@ test.describe("reference lines", () => {
         await target.click();
         await page.keyboard.type("80");
         await page.keyboard.press("Enter");
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines)).toEqual({ average: true, trend: true, target: 80, extremes: false });
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.referenceLines)).toEqual({ average: true, trend: true, target: 80, extremes: false });
         await expect.poll(async () => (await drawnLines(chartEl)).map((l) => l.label).filter(Boolean).sort()).toEqual(["Average 25", "Average 5", "Target 80", "Trend", "Trend"]);
         // a text that is no number is not applied
         await target.fill("lots");
@@ -288,13 +258,13 @@ test.describe("reference lines", () => {
         // the × takes the target off
         await target.fill("80");
         await report.locator(".pk-inline-form", { has: page.getByTestId("chart-target") }).getByRole("button", { name: "Clear" }).click();
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.target)).toBe(null);
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.referenceLines.target)).toBe(null);
         // "Remove the target" once there is one
         await target.fill("26");
         await page.keyboard.press("Enter");
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.target)).toBe(26);
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.referenceLines.target)).toBe(26);
         await report.getByTestId("target-remove").click();
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.target)).toBe(null);
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.referenceLines.target)).toBe(null);
         // Back twice: the row says which lines are on
         await report.getByTestId("level-back").click();
         await expect(report.getByTestId("line-target")).toBeFocused();
@@ -325,13 +295,13 @@ test.describe("reference lines", () => {
         await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Reference lines");
         await expect(report.getByTestId("line-average")).toBeFocused();
         await page.keyboard.press("Space");
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.average)).toBe(true);
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.referenceLines.average)).toBe(true);
         await expect(report.getByTestId("line-average")).toBeFocused();
         await expect(report.getByTestId("line-average")).toHaveAttribute("aria-checked", "true");
         await page.keyboard.press("ArrowDown");
         await expect(report.getByTestId("line-trend")).toBeFocused();
         await page.keyboard.press("Enter");
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.trend)).toBe(true);
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.referenceLines.trend)).toBe(true);
         await expect(report.getByTestId("line-trend")).toBeFocused();
         // past the high and low points' switch, the Target row opens its form, the field takes the focus
         await page.keyboard.press("ArrowDown");
@@ -342,7 +312,7 @@ test.describe("reference lines", () => {
         await expect(report.getByTestId("chart-target")).toBeFocused();
         await page.keyboard.type("35");
         await page.keyboard.press("Enter");
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.target)).toBe(35);
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.referenceLines.target)).toBe(35);
         // Escape in the filled field would empty it (as every menu's text field); Back by keyboard instead
         await page.keyboard.press("Shift+Tab");
         await expect(report.getByTestId("level-back")).toBeFocused();
@@ -362,13 +332,13 @@ test.describe("reference lines", () => {
             const chartEl = await mount(page, { type: "bar", stacked, referenceLines: { average: true, trend: false, target: 26 } });
             const at = await legendEntry(chartEl, "B");
             await page.mouse.click(at.x, at.y);
-            await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.hidden)).toEqual(["B"]);
+            await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.hidden)).toEqual(["B"]);
             // the target stays; side by side A's average too, stacked the total's (A alone: 25)
             await expect.poll(async () => (await drawnLines(chartEl)).map((l) => l.label).filter(Boolean).sort()).toEqual(["Average 25", "Target 26"]);
             // A hidden as well: no series shown, no lines
             const a = await legendEntry(chartEl, "A");
             await page.mouse.click(a.x, a.y);
-            await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.hidden)).toEqual(["B", "A"]);
+            await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.hidden)).toEqual(["B", "A"]);
             await expect.poll(async () => (await drawnLines(chartEl)).filter((l) => l.label).length).toBe(0);
         });
     }
@@ -420,7 +390,7 @@ test.describe("reference lines", () => {
         await report.getByTestId("chart-target").click();
         await page.keyboard.type("30%");
         await page.keyboard.press("Enter");
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.target)).toBe(0.3);
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.referenceLines.target)).toBe(0.3);
     });
 
     test("each label sits at its own line at 1440 px: within a line of text, the closer one moved just below", async ({ page }) => {
@@ -471,7 +441,7 @@ test.describe("reference lines", () => {
         await expect(report.getByTestId("line-average-reason")).toHaveText("These lines need a total. Switch to Bars, not stacked, to draw them.");
         await report.getByTestId("level-back").click();
         await report.getByTestId("chart-bar").click();
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.stacked)).toBe(false);
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.stacked)).toBe(false);
         await openLines(report);
         await expect(report.getByTestId("line-average")).not.toHaveAttribute("aria-disabled", "true");
         await expect(report.getByText("These lines need a total. Switch to Bars, not stacked, to draw them.")).toHaveCount(0);
@@ -484,7 +454,7 @@ test.describe("reference lines", () => {
         await expect(report.getByTestId("line-target-reason")).toContainText("different units");
         await expect(report.getByTestId("line-target")).toHaveAttribute("aria-disabled", "true");
         await report.getByTestId("target-remove").click();
-        await expect.poll(() => page.evaluate(() => window.__linesViews.at(-1)?.chart.referenceLines.target)).toBe(null);
+        await expect.poll(() => page.evaluate(() => window.__views.at(-1)?.chart.referenceLines.target)).toBe(null);
     });
 
     test("a bare number above 1 for a share gets a soft warning tied to the field; percent100 has its own hint", async ({ page }) => {
@@ -616,7 +586,7 @@ test.describe("high and low points (#574)", () => {
         // a bar's labels both above its end: the lowest bar's too
         const low = points.find((p) => p.label === "▼ 10");
         expect(low.box.y + low.box.height).toBeLessThanOrEqual(low.dot.y);
-        expect(await page.evaluate(() => window.__linesViews.at(-1).chart.referenceLines.extremes)).toBe(true);
+        expect(await page.evaluate(() => window.__views.at(-1).chart.referenceLines.extremes)).toBe(true);
     });
 });
 
