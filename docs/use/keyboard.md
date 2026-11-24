@@ -91,7 +91,7 @@ and what changed. In the report itself, **More**, **Help**, **Keyboard shortcuts
   its place.
 
 !!! note "For developers"
-    The [pivotkit-react reference](../reference/react.md#escape-and-the-host-page) explains how
+    The [layout reference](../reference/react-layout.md#escape-and-the-host-page) explains how
     Escape works when the report sits in a dialog of the host page. `label` names the report's
     region, so several reports on a page can be told apart. The region is not a
     `<main>`, so it fits inside the host page's own main landmark. The sorted header carries

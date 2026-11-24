@@ -263,6 +263,6 @@ The report speaks English and German. Numbers, dates and currency follow the lan
 
 !!! note "For developers"
     The report's height, `grow`, `fieldList`, `zones`, the width classes and the least heights are in the
-    [pivotkit-react reference, Layout](../reference/react.md#layout). The tips, their ids and
+    [layout reference](../reference/react-layout.md#layout). The tips, their ids and
     `storageKey` are in [Tips](../reference/react.md#tips). The texts and languages are in
     [Localisation](../reference/localisation.md).

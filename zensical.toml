@@ -79,6 +79,7 @@ nav = [
   { "Reference" = [
     { "pivotkit-core" = "reference/core.md" },
     { "pivotkit-react props" = "reference/react.md" },
+    { "pivotkit-react layout and menus" = "reference/react-layout.md" },
     { "pivotkit-element" = "reference/element.md" },
     { "View file format" = "reference/view-file.md" },
     { "Loading files" = "reference/import.md" },

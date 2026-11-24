@@ -171,7 +171,7 @@ Attribute: `height`. Type: `number` or `string`; default: `640`.
 
 Pixels (`height="480"`) or a CSS length. `"100%"` fills the element, which then needs a height from
 the page (`pivot-report { height: 70vh }`). When the height is lower than the report needs, the
-report grows ([layout](react.md#layout)).
+report grows ([layout](react-layout.md#layout)).
 
 ### `storageKey` { #prop-storagekey }
 

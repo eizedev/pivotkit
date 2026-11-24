@@ -52,7 +52,7 @@ Each recipe names a task and the page with its worked example. The recipes cover
 | Change a text, add a language | [Localisation](../reference/localisation.md) |
 | The same colour for a category in every chart, such as red for "Failed" | [`colorMap`](../concepts/charts.md#fixed-colours) |
 | Adjust the chart beyond its menus, such as font sizes or axis names | [`chartOptions`](../concepts/charts.md#chartoptions-for-developers) |
-| A taller report on phones | [web component](../getting-started/web-component.md#a-taller-report-on-phones), [layout](../reference/react.md#layout) |
+| A taller report on phones | [web component](../getting-started/web-component.md#a-taller-report-on-phones), [layout](../reference/react-layout.md#layout) |
 | Keep, log or block every export and copy | [`onExport`](../reference/react.md#prop-onexport) |
 | Let users download the rows behind the report, so the command line can render the same report | [`exportData`](../reference/react.md#prop-exportdata) |
 | Let users copy or download the rows behind a value, without Source data | [`drillDownExport`](../reference/react.md#prop-drilldownexport) |
@@ -70,4 +70,4 @@ Each recipe names a task and the page with its worked example. The recipes cover
 | A live report over a source only pivotkit-server reaches | [a host backend fetches the rows](../reference/records.md#records-host) |
 | A strict Content-Security-Policy | [security](../security.md#content-security-policy), [element](../reference/element.md#content-security-policy) |
 | Several reports on one page | [FAQ](../faq.md#several-reports-on-one-page) |
-| The report inside a dialog of your page | [Escape and the host page](../reference/react.md#escape-and-the-host-page) |
+| The report inside a dialog of your page | [Escape and the host page](../reference/react-layout.md#escape-and-the-host-page) |

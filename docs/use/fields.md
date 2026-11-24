@@ -235,5 +235,5 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
 
 !!! note "For developers"
     How the layout follows the report's width, and the least heights, are in the
-    [pivotkit-react reference](../reference/react.md#layout).
+    [layout reference](../reference/react-layout.md#layout).
 
