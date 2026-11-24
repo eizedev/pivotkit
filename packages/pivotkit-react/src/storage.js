@@ -1,20 +1,26 @@
 /*
  * The browser's storage, one way for every part of the report that keeps something there (the
- * dismissed tips, the views of the browser store): reads and writes that never throw (a sandboxed
+ * dismissed tips, the views of the browser store, the tab's view): reads and writes that never throw (a sandboxed
  * frame, private mode or a full quota only lose what was to be kept), and a subscription to an item,
  * told about a write in this page and in another tab of the same site (the storage event). Read with
  * useSyncExternalStore and a server snapshot of "nothing stored", so server rendering and hydration
  * match.
  */
 
-/** The browser's localStorage, or null where it is missing or blocked (a sandboxed frame throws). */
-export function localStore() {
+/** A storage of the browser by its name, or null where it is missing or blocked (a sandboxed frame throws). */
+function browserStore(name) {
     try {
-        return typeof window !== "undefined" && window.localStorage ? window.localStorage : null;
+        return typeof window !== "undefined" && window[name] ? window[name] : null;
     } catch {
         return null;
     }
 }
+
+/** The browser's localStorage, or null where it is missing or blocked. */
+export const localStore = () => browserStore("localStorage");
+
+/** The tab's sessionStorage, or null where it is missing or blocked. */
+export const sessionStore = () => browserStore("sessionStorage");
 
 /**
  * The stored text of an item, or null (no storage, nothing stored, blocked).

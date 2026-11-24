@@ -10,18 +10,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { linkNow, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, writeStoredView } from "./share.js";
 import { useIsoLayoutEffect } from "./iso.js";
+import { sessionStore } from "./storage.js";
 
 /** The page's address and fragment, or undefined outside a browser. */
 const here = () => (typeof location !== "undefined" ? { href: location.href, hash: location.hash } : undefined);
-
-/** The tab's sessionStorage, or null where it is missing or blocked. */
-function sessionStore() {
-    try {
-        return typeof window !== "undefined" && window.sessionStorage ? window.sessionStorage : null;
-    } catch {
-        return null;
-    }
-}
 
 /**
  * @typedef {object} LinkReport  the report as a link meets it, at the moment it is opened

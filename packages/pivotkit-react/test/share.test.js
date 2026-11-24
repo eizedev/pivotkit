@@ -8,7 +8,7 @@ import { CHART_OPTIONS_CAPS, cleanChartOptions, mergeChartOptions } from "../src
 import { LABELS } from "../src/labels.js";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../src/deferred.js";
-import { loadCheck, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, viewStorageName, withLinkParam, writeStoredView } from "../src/share.js";
+import { VIEW_TEXT_MAX, loadCheck, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, viewStorageName, withLinkParam, writeStoredView } from "../src/share.js";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3 },
@@ -63,6 +63,16 @@ test("the tab's view: stored per storageKey, quietly nothing when storage is blo
     assert.equal(readStoredView("sales", blocked), null);
     assert.doesNotThrow(() => writeStoredView("sales", blocked, {}));
     assert.equal(readStoredView("sales", null), null);
+});
+
+test("the tab's view: a stored text longer than a view file is not read (storage is outside input)", () => {
+    const fits = JSON.stringify({ rows: ["Region"], note: "x".repeat(VIEW_TEXT_MAX - 30) });
+    const tooLong = JSON.stringify({ rows: ["Region"], note: "x".repeat(VIEW_TEXT_MAX) });
+    const map = new Map([[viewStorageName("fits"), fits], [viewStorageName("big"), tooLong]]);
+    const storage = { getItem: (k) => map.get(k) ?? null };
+    assert.ok(fits.length <= VIEW_TEXT_MAX && tooLong.length > VIEW_TEXT_MAX);
+    assert.equal(readStoredView("fits", storage), fits);
+    assert.equal(readStoredView("big", storage), null);
 });
 
 test("a loaded view is normalized against the data; a template file gives its view", () => {

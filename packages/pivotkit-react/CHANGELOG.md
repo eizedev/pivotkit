@@ -31,6 +31,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   try. Before, the failed import was kept for the life of the page. Every part that loads on demand
   now follows one rule (`lazy.js`).
 - An error note stays until it is closed, also when two newer notes come.
+- A view kept for the tab (`persistView="session"`) that is longer than a view file may be is not
+  read. The report shows its start view. Storage counts as outside input.
 - The help of the chart's zoom says that the arrow keys move the slider. It said the slider could
   not be moved by keyboard yet.
 - On a phone, the settings button beside the tabs shows its icon only, as Enlarge and Full screen

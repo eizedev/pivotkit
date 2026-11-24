@@ -73,7 +73,8 @@ export function readStoredView(key, storage) {
         return null;
     }
     try {
-        return storage.getItem(viewStorageName(key));
+        const text = storage.getItem(viewStorageName(key));
+        return text !== null && text.length <= VIEW_TEXT_MAX ? text : null;
     } catch {
         return null;
     }
