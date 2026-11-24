@@ -12,6 +12,7 @@
 
 import { ROW_STEP, bytesOf, createTable, fileError, fileName, limitError, pause, readOptions } from "./import-table.js";
 import { decodeText } from "./import-text.js";
+import { localeDecimal } from "./locale-decimal.js";
 
 const CANDIDATES = [",", ";", "\t", "|"];
 const SEPARATOR_NAMES = { ",": "commas", ";": "semicolons", "\t": "tabs", "|": "vertical bars" };
@@ -150,17 +151,6 @@ export function detectSeparator(text, start, preferred) {
         }
     }
     return best.sep;
-}
-
-/** The decimal mark of a locale ("," for de-DE), "." when it has none or is invalid. */
-function localeDecimal(locale) {
-    if (!locale) return ".";
-    try {
-        const part = new Intl.NumberFormat(locale).formatToParts(1.5).find((p) => p.type === "decimal");
-        return part?.value === "," ? "," : ".";
-    } catch {
-        return ".";
-    }
 }
 
 /**

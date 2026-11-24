@@ -199,6 +199,14 @@ test("a bad view never throws: its issues come back; strict gives no body, else 
     assert.deepEqual([notView.ok, notView.issues[0].code, notView.issues[0].severity], [false, "viewFile", "error"]);
 });
 
+test("strict renders a view whose dropped settings are only warnings, as it did before they were reported", async () => {
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], sort: [{ field: "Region", order: "descending" }], totals: { grandTotalRow: "false" }, collapsed: [], chart: "bar" };
+    const strict = await render(view, SALES, { format: "csv", strict: true, ...FIXED });
+    assert.equal(strict.ok, true);
+    assert.deepEqual(strict.issues.map((i) => [i.code, i.severity]), [["unknownSetting", "warning"], ["notSwitch", "warning"], ["notSection", "warning"], ["notSection", "warning"]]);
+    assert.equal(strict.text, (await render({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }, SALES, { format: "csv", ...FIXED })).text);
+});
+
 test("a view from outside: outsideLimits apply unless the host says the view is its own (trusted)", async () => {
     const filters = Array.from({ length: 60 }, () => ({ field: "Region", type: "in", items: ["North", "South", "West"] }));
     const outside = await render({ rows: ["Region"], filters }, SALES, { format: "json" });

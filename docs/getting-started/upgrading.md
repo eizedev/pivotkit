@@ -121,7 +121,9 @@ These changes are on `main` and come with the next release.
 | **Breaking:** two inputs where the CLI read one | a script runs `pivotkit render <view> --link <url>`, or `pivotkit describe <data> --data <other>` | keep the input you mean: the view or `--link`; the data to describe, or a view with `--data` |
 | **Breaking:** the label `settingsShort` is gone | your `labels` set `settingsShort` | remove it. On a phone the settings button shows its icon only, named by `tableSettings` or `chartSettings` |
 | **Breaking:** the theme token `--pk-knob` is gone | your page or `tokens` set `--pk-knob` | remove it; nothing used it |
+| **Breaking:** the CLI's `--strict` refuses views with a dropped setting | a script runs `pivotkit render` or `validate` with `--strict` on a view with a switch that is not `true` or `false`, a section that is not an object, or an unknown sort `order` or "show as" `axis` | fix the setting the warning names, or leave out `--strict` |
 | **Breaking:** `render` checks the kind of its options | your code passes pivotkit-report's `render` a `tableCells` as text or with a fraction (`"100"`, `10.5`), or a `title`, `description`, `source`, `labels` or `texts` of another kind | pass a whole number (or `Infinity`), texts and objects; `null` still means "not given" |
+| **Breaking:** `toViewFile` throws `PivotkitError` | your code calls pivotkit-core's `toViewFile` with a view that is no object and catches `TypeError` | catch `PivotkitError` with the code `INVALID_ARGUMENT` |
 | **Breaking:** reports are written with mode 0600 | another user reads the output directory without `output.baseUrl`, such as a backup job | run that reader as the server's user, or set `output.baseUrl`; `chmod 600` older reports to match |
 
 #### pivotkit-server no longer brings pivotkit-cli { #server-without-cli }

@@ -208,9 +208,9 @@ const SPACED = new RegExp(`(?:${CONTROLS.source}|[\\t\\r\\n\\u2028\\u2029])+`, "
 /**
  * Plain text of at most `max` characters: controls and line breaks become a space, invisible and
  * direction characters (HIDDEN) go, runs of spaces one space, the ends trimmed; a longer text is cut
- * and ends with "…". With `{ id: true }` (an identifier, a field's name) the inner spaces stay as
- * given, so the name keeps matching the data's, and a longer text is only cut. Undefined for anything
- * else and for empty text.
+ * and ends with "…". With `{ id: true }` (an identifier, a field's name, a view file's text) the
+ * inner spaces stay as given and a longer text is only cut: a name keeps matching the data's, and a
+ * view file's texts read as written. Undefined for anything else and for empty text.
  * @param {unknown} value
  * @param {number} max
  * @param {{ id?: boolean }} [options]
