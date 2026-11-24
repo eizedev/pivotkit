@@ -341,14 +341,13 @@ export async function viewListFor(context, id, policy) {
         });
 }
 
-/** The most view files a hint reads: the nearest names are read one at a time until one may be named. */
-const HINT_READS = 3;
-
 /**
  * The nearest of the names the caller may know of, for a name that is not there. The names are
- * compared first, without a read; then the nearest is read alone, and the next nearest when the
- * caller may not know of it, at most HINT_READS. A nearer view the caller may not know of neither
- * shows up nor takes the place of the hint; when the nearest HINT_READS are such views, there is none.
+ * compared first, without a read; then the nearest is read alone, and the next nearest while the
+ * caller may not know of it, until one may be named or no name is close enough (closest). A nearer
+ * view the caller may not know of neither shows up nor takes the place of the hint, and never keeps
+ * one from showing: only views the operator hides cost reads beyond the first, never the caller's
+ * name alone. Such reads take time, so how long the answer takes may hint that a hidden view is near.
  * @param {any} context
  * @param {string} id
  * @param {string} name
@@ -358,7 +357,7 @@ const HINT_READS = 3;
  */
 async function nearestKnown(context, id, name, names, policy) {
     let others = names.filter((n) => n !== name);
-    for (let read = 0; read < HINT_READS; read++) {
+    for (;;) {
         const near = closest(name, others);
         if (near === null) {
             return null;
@@ -369,7 +368,6 @@ async function nearestKnown(context, id, name, names, policy) {
         }
         others = others.filter((n) => n !== near);
     }
-    return null;
 }
 
 /**

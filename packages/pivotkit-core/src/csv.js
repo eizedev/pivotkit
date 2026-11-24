@@ -6,8 +6,9 @@
  * - text starting with a tab or a carriage return;
  * - text whose first visible character (after spaces, line breaks, control characters and invisible
  *   format characters such as zero-width spaces, which some spreadsheets skip) is = or @;
- * - the same for a full-width or small form of these characters (＝ ＠ ＋ －, ﹦ ﹫ ﹢ ﹣): the text is read
- *   in its compatibility form (NFKC) when it starts with a character outside ASCII, so "－５" is a number;
+ * - the same for a compatibility form of these characters, such as the full-width and small forms
+ *   (＝ ＠ ＋ －, ﹦ ﹫ ﹢ ﹣) or a superscript ⁼: text that starts with a character outside ASCII is read in
+ *   its compatibility form (NFKC), so "－５" is a number;
  * - text whose first visible character is + or -, unless the whole text is a number as a locale
  *   writes it ("-5%", "-1,234.5", "-1.234,5", "-1'234.5" and "-1’234.5" in de-CH, "-5,3 %", "-€1.50",
  *   "-1 234,50 €") or a number range like the bin label "-10 – 0": those are data, and a ' would change
@@ -66,7 +67,7 @@ export function neutralizeFormula(text) {
         return `'${text}`;
     }
     const visible = text.replace(LEADING_INVISIBLE, "");
-    // a full-width or small form (＝ ＠ ＋ －, ﹦ ...) is read as its ASCII character, digits too
+    // a compatibility form (＝ ＠ ＋ －, ﹦ ...) is read as its ASCII character, digits too
     const start = visible.charCodeAt(0) > 0x7f ? visible.normalize("NFKC").replace(LEADING_INVISIBLE, "") : visible;
     const formula = /^[=@]/.test(start) || (/^[+-]/.test(start) && !PLAIN_NUMBER.test(start) && !NUMBER_RANGE.test(start));
     return formula ? `'${text}` : text;

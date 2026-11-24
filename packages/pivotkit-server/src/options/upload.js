@@ -170,12 +170,12 @@ function headersOf(headers, path) {
                 throw new ConfigError(`${path}.${name}: looks like a credential; give it as { "prefix": "Bearer ", "value": { "env": "NAME" } } (or "file"), never as a text in the configuration`);
             }
             if (!HEADER_VALUE.test(value)) {
-                throw new ConfigError(`${path}.${name}: a value without line breaks, control characters or characters outside Latin-1, at most 1000 characters`);
+                throw new ConfigError(`${path}.${name}: a value without line breaks, control characters other than tab, or characters outside Latin-1, at most 1000 characters`);
             }
         } else if (!value.value) {
             throw new ConfigError(`${path}.${name}.value: the secret reference is missing ({ "env": "NAME" } or { "file": "path" })`);
         } else if (value.prefix !== undefined && !HEADER_VALUE.test(value.prefix)) {
-            throw new ConfigError(`${path}.${name}.prefix: a text without line breaks, control characters or characters outside Latin-1`);
+            throw new ConfigError(`${path}.${name}.prefix: a text without line breaks, control characters other than tab, or characters outside Latin-1`);
         }
         out[name.toLowerCase()] = value;
     }

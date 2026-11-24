@@ -344,7 +344,7 @@ test("a header name or value node:http cannot send, or another method, is a Guar
         [{ headers: { "bad name": "x" } }, "BAD_HEADER"],
         [{ headers: { "x-a": "caf\u00e9 \u2603" } }, "BAD_HEADER"],
         [{ headers: { "x-a": "a\u0007b" } }, "BAD_HEADER"],
-        // DEL and the C1 control codes are no text, though RFC 9110's obs-text holds 0x80-0x9F
+        // DEL, and the C1 control codes, though RFC 9110's obs-text holds 0x80-0x9F
         [{ headers: { "x-a": "a\u007fb" } }, "BAD_HEADER"],
         [{ headers: { "x-a": "a\u0080b" } }, "BAD_HEADER"],
         [{ headers: { "x-a": "a\u0085b" } }, "BAD_HEADER"],

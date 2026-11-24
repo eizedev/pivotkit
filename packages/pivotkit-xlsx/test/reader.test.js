@@ -887,7 +887,7 @@ test("a row whose cells name one column counts as wide as the parser makes it, b
     };
     const oneColumn = Array.from({ length: 50 }, (_, k) => `<c r="A${k + 1}"><v>1</v></c>`).join("");
     assert.throws(() => filtered(oneColumn, { maxColumn: 10 }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "columns" && e.details.value === 50);
-    assert.throws(() => filtered(oneColumn, { maxCells: 49 }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells");
+    assert.throws(() => filtered(oneColumn, { maxCells: 100 }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells");
     // cells in their order, with gaps and empty cells: as wide as the last column, as before
     const inOrder = '<c r="A1"><v>1</v></c><c r="C1" s="1"/><c r="J1"><v>1</v></c>';
     assert.doesNotThrow(() => filtered(inOrder, { maxColumn: 10, maxCells: 10 }));
