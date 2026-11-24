@@ -65,14 +65,23 @@ test("the inline cap counts the text that is sent: json on one line fits where i
     const dir = workspace({ "amounts.csv": AMOUNTS_CSV });
     const local = callerOf("none", undefined);
     const input = { source: "amounts", layout: LAYOUT, format: "json", save: false };
-    const contextOf = async (bytes) => createContext({ log: "off", baseDir: dir, sources: { amounts: { file: "data/amounts.csv", policy: { default: "show", inline: { cells: 500, bytes } } } } });
-    const wide = await contextOf(1_000_000);
-    const sent = (await present(wide, "render_view", input, local)).result.inline.text;
-    const indented = JSON.stringify(JSON.parse(sent), null, 2);
-    const exact = await contextOf(Buffer.byteLength(sent));
-    assert.equal((await present(exact, "render_view", input, local)).result.inline.text, sent, `fits at ${Buffer.byteLength(sent)} bytes, the indented one takes ${Buffer.byteLength(indented)}`);
-    const under = await contextOf(Buffer.byteLength(sent) - 1);
-    await assert.rejects(present(under, "render_view", input, local), (e) => e.code === "LIMIT_EXCEEDED");
+    const contexts = [];
+    const contextOf = async (bytes) => {
+        const context = await createContext({ log: "off", baseDir: dir, sources: { amounts: { file: "data/amounts.csv", policy: { default: "show", inline: { cells: 500, bytes } } } } });
+        contexts.push(context);
+        return context;
+    };
+    try {
+        const wide = await contextOf(1_000_000);
+        const sent = (await present(wide, "render_view", input, local)).result.inline.text;
+        const indented = JSON.stringify(JSON.parse(sent), null, 2);
+        const exact = await contextOf(Buffer.byteLength(sent));
+        assert.equal((await present(exact, "render_view", input, local)).result.inline.text, sent, `fits at ${Buffer.byteLength(sent)} bytes, the indented one takes ${Buffer.byteLength(indented)}`);
+        const under = await contextOf(Buffer.byteLength(sent) - 1);
+        await assert.rejects(present(under, "render_view", input, local), (e) => e.code === "LIMIT_EXCEEDED");
+    } finally {
+        await Promise.all(contexts.map((context) => context.close()));
+    }
 });
 
 test("REST locale: ar-EG writes Latin digits with \".\" and \",\"; a numbering system of its own is refused", async () => {

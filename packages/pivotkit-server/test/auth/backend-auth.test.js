@@ -10,7 +10,6 @@
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, writeFileSync } from "node:fs";
-import { createServer } from "node:https";
 import { join } from "node:path";
 import { callerOf, checkConfig, createContext, present, validateOptions } from "pivotkit-server";
 import { serverTextOf } from "pivotkit-server/internal";
@@ -18,12 +17,12 @@ import { createAuthCore, exchangeTokenFor } from "../../src/auth.js";
 import { checkSource } from "../../src/check-source.js";
 import { authMeans, backendHeaders, tokenCache, TOKEN_LIMITS } from "../../src/sources/auth.js";
 import { httpSettingsOf } from "../../src/options/http.js";
-import { createGuardedFetch } from "../../src/sources/fetch.js";
 import { httpMeans } from "../../src/sources/http.js";
 import { withRequestId } from "../../src/request-id.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { call, factsOf, loopbackCert, restServer, tempDir } from "../helpers.js";
+import { call, factsOf, restServer, tempDir, json, loopbackHttps } from "../helpers.js";
 import { localIssuer } from "./local-issuer.js";
+import { until } from "../../../../tests/until.js";
 
 /** Values that must never leave the server: a secret, a person's own token, the tokens issued, an error description. */
 const SECRET = "SENTINEL-client-secret-7f3a";
@@ -40,8 +39,7 @@ let port = 0;
 let issued = 0;
 
 before(async () => {
-    const { key, cert } = loopbackCert("api.example.test", "auth.example.test");
-    server = createServer({ key, cert }, (req, res) => {
+    const backend = await loopbackHttps(["api.example.test", "auth.example.test"], (req, res) => {
         const url = new URL(req.url ?? "/", "https://x");
         let body = "";
         req.on("data", (c) => (body += c));
@@ -57,9 +55,8 @@ before(async () => {
             route(req, res, form);
         });
     });
-    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-    port = server.address().port;
-    httpMeans.fetch = createGuardedFetch({ ca: cert, lookup: (_host, options, callback) => callback(null, options?.all ? [{ address: "127.0.0.1", family: 4 }] : "127.0.0.1", 4) });
+    ({ server, port } = backend);
+    httpMeans.fetch = backend.fetch;
 });
 
 after(() => server.close());
@@ -70,12 +67,6 @@ beforeEach(() => {
     tokenCache.clear();
     delete process.env.PIVOTKIT_TEST_API_KEY;
 });
-
-/** A JSON answer. */
-const json = (body, status = 200) => (_req, res) => {
-    res.writeHead(status, { "content-type": "application/json" });
-    res.end(typeof body === "string" ? body : JSON.stringify(body));
-};
 
 /** A token endpoint that issues a new token on every request ("issued-<n>"), with these members. */
 const tokenEndpoint = (more = {}) => (_req, res) => {
@@ -222,7 +213,9 @@ test("header: the value read from its secret on every load (a rotated file works
     }
 });
 
-test("client credentials: a client secret as client_secret_basic, the token kept until 30 s before it expires and shared by every caller, one request for many callers", async () => {
+test("client credentials: a client secret as client_secret_basic, the token kept until 30 s before it expires and shared by every caller, one request for many callers", async (t) => {
+    // the clock a kept token's expiry is counted on, moved by the test
+    t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
     routes.set("/token", tokenEndpoint({ scope: "platform:read" }));
     routes.set("/v1/vms", json({ items: VMS }));
     const file = secretFile(SECRET);
@@ -254,7 +247,7 @@ test("client credentials: a client secret as client_secret_basic, the token kept
         await describe(short);
         await describe(short);
         assert.equal(asked.filter((a) => a.path === "/token").length, 1);
-        await sleep(3100);
+        t.mock.timers.tick(3100);
         await describe(short);
         assert.equal(asked.filter((a) => a.path === "/token").length, 2);
     } finally {
@@ -386,15 +379,20 @@ test("a token endpoint that drops the connection: no last good data; one that ha
 
 test("races: a caller that goes away does not fail others waiting for the same token; two 401s at once both ask once more and share the new token", async () => {
     routes.set("/v1/vms", json({ items: VMS }));
-    routes.set("/token", (req, res) => setTimeout(() => tokenEndpoint()(req, res), 200));
+    // the token endpoint answers once the test lets it, after the first caller went away
+    let answer;
+    const answered = new Promise((resolve) => (answer = resolve));
+    routes.set("/token", (req, res) => answered.then(() => tokenEndpoint()(req, res)));
     const file = secretFile(SECRET);
     const context = await contextOf(optionsOf({ clientCredentials: { tokenUrl: tokenUrl(), clientId: "p", clientSecret: { file }, intranet: true } }));
     try {
         const gone = new AbortController();
         const first = present(context, "describe_source", { source: "vms" }, LOCAL, { signal: gone.signal });
         const second = describe(context, staticToken);
-        setTimeout(() => gone.abort(new Error("went away")), 50);
+        await until(() => asked.some((a) => a.path === "/token"), { message: "the token request was sent" });
+        gone.abort(new Error("went away"));
         await assert.rejects(first);
+        answer();
         assert.equal((await second).result.fields.length, 3);
         assert.equal(asked.filter((a) => a.path === "/token").length, 1);
         // the backend stops taking the kept token: both loads at once get 401, both ask once more
@@ -496,7 +494,9 @@ test("token exchange: the person's token goes as subject_token to the token endp
     }
 });
 
-test("token exchange: an exchanged token never outlives the person's own token or maxAgeSeconds; a backend's 401 asks again; its aud is compared", async () => {
+test("token exchange: an exchanged token never outlives the person's own token or maxAgeSeconds; a backend's 401 asks again; its aud is compared", async (t) => {
+    // the clock the person's token and maxAgeSeconds are counted on, moved by the test
+    t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
     routes.set("/v1/vms", json({ items: VMS }));
     const file = secretFile(SECRET);
     // a JWT for another audience: used, with a warning
@@ -512,7 +512,7 @@ test("token exchange: an exchanged token never outlives the person's own token o
         const soon = person("ana", { expiresAt: Math.floor(Date.now() / 1000) + 1 });
         await describe(context, soon);
         assert.ok(context.lines.some((l) => l.event === "warning" && /the token's aud does not name the requested audience platform-api/.test(l.message)));
-        await sleep(1100 + (1000 - (Date.now() % 1000)));
+        t.mock.timers.tick(2000);
         await describe(context, person("ana"));
         assert.equal(asked.filter((a) => a.path === "/xchg").length, 2, "exchanged again after the person's token expired");
     } finally {
@@ -525,7 +525,7 @@ test("token exchange: an exchanged token never outlives the person's own token o
         await describe(short, person("ana"));
         await describe(short, person("ana"));
         assert.equal(asked.filter((a) => a.path === "/xchg").length, 1);
-        await sleep(3100);
+        t.mock.timers.tick(3100);
         await describe(short, person("ana"));
         assert.equal(asked.filter((a) => a.path === "/xchg").length, 2, "maxAgeSeconds");
     } finally {
@@ -819,7 +819,9 @@ test("review: the quick-start page's titles leave out sources only a signed-in p
     }
 });
 
-test("review: an exchanged token never outlives a person's token whose exp is fractional, and is not kept when its exp is unknown", async () => {
+test("review: an exchanged token never outlives a person's token whose exp is fractional, and is not kept when its exp is unknown", async (t) => {
+    // the clock the person's token is counted on, moved by the test
+    t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
     routes.set("/xchg", tokenEndpoint());
     routes.set("/v1/vms", json({ items: VMS }));
     const file = secretFile(SECRET);
@@ -827,7 +829,7 @@ test("review: an exchanged token never outlives a person's token whose exp is fr
     try {
         const exp = Date.now() / 1000 + 1.9;
         await describe(context, person("ana", { expiresAt: exp }));
-        await sleep(Math.max(0, exp * 1000 - Date.now()) + 200);
+        t.mock.timers.tick(2100);
         await describe(context, person("ana"));
         assert.equal(asked.filter((a) => a.path === "/xchg").length, 2, "a fractional exp still bounds the exchanged token");
         tokenCache.clear();

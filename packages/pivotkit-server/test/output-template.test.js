@@ -7,26 +7,16 @@ import assert from "node:assert/strict";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ConfigError, callerOf, checkConfig, createContext, present } from "pivotkit-server";
-import { BY_REGION, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
+import { BY_REGION, TOKEN, call, factsOf, restServer, withTemplates, TYPO_TEMPLATE, TYPO, literal } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
 
 /** A print template with a mark of its own in the page, so a report shows which template made it. */
 const branded = (mark) => ["<!doctype html>", "<html>", "<head>", "<title>{{title}}</title>", "{{style}}", "</head>", "<body>", `<p class="brand">${mark}</p>`, "{{table}}", "</body>", "</html>"].join("\n");
-const TYPO = "unknown placeholder {{titel}} (line 7); did you mean {{title}}?";
-const BROKEN = ["<!doctype html>", "<html>", "<head>", "<title>{{title}}</title>", "</head>", "<body>", "<h1>{{titel}}</h1>", "{{table}}", "</body>", "</html>"].join("\n");
 
 /** A small table as a caller sends it. */
 const TICKETS = { name: "Tickets", columns: ["Region", "Sales"], rows: [["North", 10], ["South", 20]], rowCount: 2 };
 
-/** A workspace with data/sales.csv and the given template files in data/. */
-function withTemplates(files) {
-    const dir = workspace();
-    for (const [name, text] of Object.entries(files)) {
-        writeFileSync(join(dir, "data", name), text);
-    }
-    return dir;
-}
 
 /** The fixed text of a print template the server cannot read now (#653). */
 const TEMPLATE_GONE = "the server's print template is not available now; tell the operator and give the request id";
@@ -73,7 +63,7 @@ test("output.template: inline: data, a file: path and a source without a templat
 });
 
 test("output.template: the start refuses what the parser refuses and warns of a missing file", async () => {
-    const dir = withTemplates({ "house.html": BROKEN });
+    const dir = withTemplates({ "house.html": TYPO_TEMPLATE });
     await assert.rejects(
         createContext({ log: "off", output: { dir: "out", template: "data/house.html" }, baseDir: dir }),
         (e) => e instanceof ConfigError && e.message === `output.template: ${TYPO}`
@@ -91,9 +81,9 @@ test("check-config names output.template and reports its problems as for a sourc
     assert.match(factsOf(ok.text), /^ {2}print template: data\/house\.html, for every html report whose source has none, data sent in the request too$/m);
     assert.doesNotMatch(ok.text, /PROBLEM/);
 
-    const bad = withTemplates({ "house.html": BROKEN });
+    const bad = withTemplates({ "house.html": TYPO_TEMPLATE });
     const broken = await checkConfig({ output: { dir: "out", template: "data/house.html" }, baseDir: bad }, { http: false });
-    assert.match(factsOf(broken.text), new RegExp(`^PROBLEM: output\\.template: ${TYPO.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} -> the server does not start$`, "m"));
+    assert.match(factsOf(broken.text), new RegExp(`^PROBLEM: output\\.template: ${literal(TYPO)} -> the server does not start$`, "m"));
     assert.equal(broken.stops, 1);
 
     const none = withTemplates({});
