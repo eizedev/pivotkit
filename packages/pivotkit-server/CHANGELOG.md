@@ -14,6 +14,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - A source whose policy hides row counts (`rows: false`) gives no `noRowsKept` finding: it told whether
   the source has rows.
 - A file source that does not say `hardLinks` refuses hard links, as `files.hardLinks` defaults to.
+- A table sent with a request (`inline:`) counts its columns against `limits.columns`. Before, only
+  rows and cells counted, so an operator's lower `limits.columns` did not hold for it; the input
+  schema's 1,000 columns did.
 
 ### Security
 
