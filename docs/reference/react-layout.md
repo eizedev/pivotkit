@@ -60,6 +60,10 @@ In every layout:
 - From 300 rows on, rows have one height, too low for two lines. The report then cuts a row label
   with an ellipsis. Its full text is the cell's title. The status line under the table shows the
   whole row label ("Row: Linux / 24.04") of a tapped label, or of the value the focus is on.
+- In such a long table, the row label column is as wide as its longest labels, at most 28em. It
+  keeps that width while the table scrolls. The report measures it again when the font or its size
+  changes. "Longest" counts characters, so a label of fewer but wider characters, such as Chinese or
+  emoji, can end in "…" although it would fit.
 
 The report starts in the compact layout when it is lower than a threshold. It measures the border
 box before the first paint:
