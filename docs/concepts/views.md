@@ -89,7 +89,7 @@ value:
 | `collapsed` | Key paths of collapsed groups per axis. | |
 | `display`, `chart` | Table, chart or both side by side (a narrower report shows the table), the chart's type, stacking and direction, and how it is drawn: value labels, legend, title, smooth lines, axis labels, group labels, tooltip, reference lines ([Charts](charts.md)). | |
 | `formatting` | The view's own locale and time zone, and the first day of a week for relative ranges in weeks (`weekStart`, 1 Monday to 7 Sunday). | [Locale and time zones](limits.md), [Relative date ranges](filters.md#relative-date-ranges) |
-| `fieldLabels` | Names of the report's own for fields, by the field's name. The headers, the chart and the exports show them instead of the field's name or a host's display name. A view has the key only when it gives at least one field a name. pivotkit 0.8 does not know it. | [Upgrading](../getting-started/upgrading.md#from-0-8-2) |
+| `fieldLabels` | Names of the report's own for fields, by the field's name. The headers, the chart and the exports show them instead of the field's name or a host's display name. A view has the key only when it gives at least one field a name. An older reader leaves it out with an `unknownKey` error. | [Upgrading](../getting-started/upgrading.md#from-0-8-2) |
 | `version` | The view format's version. pivotkit migrates older views. | |
 
 ## A view is user input
@@ -185,12 +185,11 @@ it to the current `VIEW_VERSION` (`migrate`, which `normalize` runs first).
 
 Store views as they come from `onViewChange`. They always carry the current version.
 
-A view file and a link leave out the chart settings newer than pivotkit 0.7 (`tooltip`, `zoom`,
-`stackPercent`, `hidden`, `referenceLines`, `colors`, `tooltipShare`) while they hold their
-default. A 0.7 reader then takes the view as it is. A view that sets one, such as a hidden series,
-gets an `unknownKey` warning from a 0.7 reader, which ignores that setting.
-In the same way, `referenceLines` leaves out `extremes`, which is newer than 0.8, while it is
-`false`.
+A view file and a link leave out chart settings while they hold their default, so an older reader
+takes the view as it is. These are `tooltip`, `zoom`, `stackPercent`, `hidden`, `referenceLines`,
+`colors`, `tooltipShare`, and `extremes` inside `referenceLines`. A view that sets one, such as a
+hidden series, gets an `unknownKey` warning from a reader that does not know it. That reader
+ignores the setting.
 
 From version 1 to 2, only the filters change ([Filters](filters.md)). Every version-1 view keeps what it
 kept, apart from the exception below.

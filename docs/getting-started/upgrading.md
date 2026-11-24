@@ -58,7 +58,7 @@ A running process keeps the version it started with.
 
 - An MCP client over stdio starts the server per session. Restart the client.
 - Restart `pivotkit-server serve` and `pivotkit-mcp --http`, for example
-  `nssm restart pivotkit` for [the Windows service](mcp.md#psu-service).
+  `nssm restart pivotkit` for [the Windows service](powershell-universal.md#psu-service).
 
 ### The container image { #update-image }
 

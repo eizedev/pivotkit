@@ -42,7 +42,7 @@ token itself. Every request without the token gets 401.
 
 A server with a sign-in provider (OAuth) has no `admin` token. There, people sign in with
 `pivotkit login` and get a token with `pivotkit token`
-([Sign in from the command line](../reference/rest.md#sign-in-cli)).
+([Sign in from the command line](../reference/sign-in.md#sign-in-cli)).
 
 ## 3. Call it with curl { #curl }
 

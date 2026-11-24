@@ -1,4 +1,4 @@
-// The example of docs/reference/sources.md (Code sources), as written there, compiled with strict
+// The example of docs/reference/code-sources.md, as written there, compiled with strict
 // TypeScript against the generated declarations; keep the two the same.
 import { createContext, SourceError } from "pivotkit-server";
 

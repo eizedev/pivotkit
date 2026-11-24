@@ -31,7 +31,7 @@ and what changed. In the report itself, **More**, **Help**, **Keyboard shortcuts
 
 - An empty cell of the table is a stop too. It says "No rows" when no rows are behind it, and
   "No value" when its rows have no number.
-- From 300 rows on, the report cuts a row label to one line. The status line under the table shows
+- In a long table, the report cuts a row label to one line. The status line under the table shows
   the whole label of the row the focus is on, or of a label you tap.
 - A chip's name says what is set on it. The chip's tooltip has the same words. The name covers:
     - the filter, such as "3 of 4"
@@ -39,62 +39,57 @@ and what changed. In the report itself, **More**, **Help**, **Keyboard shortcuts
     - the top N
     - the whole value condition
     - the sort
-- In a chip's menu, each row says what is set and whether it is the default: "Filter, 3 of 4,
-  changed". A level's title names the field, such as "Month › Group". A level with fields is a group
-  with that heading. A level of choices is a menu. The Filter level says how many items it keeps as
-  it changes.
-- The header whose sort you chose says its order: "sorted descending". After a click on a header, a
-  screen reader reads out the new order: "Region sorted: Z to A".
-- The chart has a text alternative: type, values, counts, highest and lowest value.
-- A screen reader reads out status messages, such as "Undone: Region removed" or
-  "View “Sales” saved". See [status messages](behaviour.md#status-messages).
-- While the report waits for its data, it says "Loading the report…" once.
-- The descriptions of fields stay readable for screen readers even when the **i** is switched off.
+
+???+ info "Menus, headers, the chart and messages"
+    - In a chip's menu, each row says what is set and whether it is the default: "Filter, 3 of 4,
+      changed". A level's title names the field, such as "Month › Group". A level with fields is a group
+      with that heading. A level of choices is a menu. The Filter level says how many items it keeps as
+      it changes.
+    - The header whose sort you chose says its order: "sorted descending". After a click on a header, a
+      screen reader reads out the new order: "Region sorted: Z to A".
+    - The chart has a text alternative: type, values, counts, highest and lowest value.
+    - A screen reader reads out status messages, such as "Undone: Region removed" or
+      "View “Sales” saved". See [status messages](behaviour.md#status-messages).
+    - While the report waits for its data, it says "Loading the report…" once.
+    - The descriptions of fields stay readable for screen readers even when the **i** is switched off.
 
 ## Focus
 
-- A menu takes the focus on its first entry when it opens, with or without reduced motion. It gives
-  the focus back to its button when it closes. A level of a chip's menu takes the focus on its choice
-  in use, or on its first field. It gives the focus back to the row it came from.
-- The drill-down, the field drawer and the bottom sheets keep the focus inside while they are open.
-  They give it back when they close.
-- When you remove a chip, the focus goes to the neighbouring chip, or to the zone.
-- After you add a field with **+ Add**, the focus goes to its new chip. A screen reader hears
-  "Country added to Rows", or "Category moved from Columns to Rows".
-- When the zones fold or open, the focus stays on the heading row. After a swap it stays on **Swap
-  rows and columns**. When the zones fold by themselves while the focus is in them, it goes to the
-  heading row.
-- After you show a tab, the focus stays on it.
-- The **×** of a text field keeps the focus in the field.
-- After a publish or Cancel in the Views menu, the focus goes back to where you asked. After a
-  delete, it goes to the view that takes the deleted one's place.
+A menu or a panel takes the focus when it opens and gives it back when it closes.
+
+???+ info "Where the focus goes"
+    - A menu takes the focus on its first entry when it opens, with or without reduced motion. It gives
+      the focus back to its button when it closes. A level of a chip's menu takes the focus on its choice
+      in use, or on its first field. It gives the focus back to the row it came from.
+    - The drill-down, the field drawer and the bottom sheets keep the focus inside while they are open.
+      They give it back when they close.
+    - When you remove a chip, the focus goes to the neighbouring chip, or to the zone.
+    - After you add a field with **+ Add**, the focus goes to its new chip. A screen reader hears
+      "Country added to Rows", or "Category moved from Columns to Rows".
+    - When the zones fold or open, the focus stays on the heading row. After a swap it stays on **Swap
+      rows and columns**. When the zones fold by themselves while the focus is in them, it goes to the
+      heading row.
+    - After you show a tab, the focus stays on it.
+    - The **×** of a text field keeps the focus in the field.
+    - After a publish or Cancel in the Views menu, the focus goes back to where you asked. After a
+      delete, it goes to the view that takes the deleted one's place.
 
 ## Touch and sizes
 
-- Text is at least 14 px, and controls at least 24 x 24 px.
-- On a touch screen, every button takes a finger: at least 44 x 44 px. That holds for the toolbar,
-  the tabs **Table** and **Chart**, **Settings**, **Enlarge** and **Full screen**, the zones'
-  heading, the chips, ×, **i**, **+ Add**, a tip's x and the small text buttons such as
-  **Select all** and **Reset filter**.
-- Every menu's rows are at least 44 px high: the levels, Export, Data and their Back row, search
-  row and choices side by side. So are a filter's values, the fold of Pick items and Rules, and a
-  rule's fields.
-- A row's fold arrow keeps its size in the table. A finger finds it in an area 44 px wide and as high
-  as its row.
+- Text stays readable at every page size, and every control is large enough to hit.
+- On a touch screen, every button, tab, chip and menu row is large enough for a finger.
+- In the field list, the buttons keep their small size, so the names stay on one line. A finger
+  still finds each one in a larger area around it.
 - A link inside a sentence, such as **Learn more**, keeps the size of its text.
-- In the field list, the buttons keep their desktop size. This keeps the rows as compact, and the
-  names on one line where they fit. A finger still finds each button in an area 44 px high around
-  it. The grip's area is also 44 px wide. The rows stand a little further apart, so that no area
-  reaches into the next row.
 - Contrast is checked in both themes.
 - Reduced motion switches the animations and transitions off: a menu or popover appears at once, in
   its place.
 
 !!! note "For developers"
-    The [pivotkit-react reference](../reference/react.md#escape-and-the-host-page) explains how
+    The [layout reference](../reference/react-layout.md#escape-and-the-host-page) explains how
     Escape works when the report sits in a dialog of the host page. `label` names the report's
     region, so several reports on a page can be told apart. The region is not a
     `<main>`, so it fits inside the host page's own main landmark. The sorted header carries
     `aria-sort`. The view loaded in the Views menu carries `aria-current`. Table and Chart are ARIA
-    tabs with manual activation, and the result is their tab panel. The sizes are `--pk-*`
-    tokens: see [theming](../reference/theming.md).
+    tabs with manual activation, and the result is their tab panel. The text sizes and the touch
+    targets in px are `--pk-*` tokens: see [theming](../reference/theming.md#sizes-and-motion).

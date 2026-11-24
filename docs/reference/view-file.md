@@ -30,7 +30,7 @@ The schema cannot check what only the data can tell, such as a field's name and 
 checks that against the data and says what it leaves out. The repository's tests validate real
 exports against the schema with a JSON Schema 2020-12 validator.
 
-pivotkit also reads files of format version 1, which pivotkit 0.4 and before wrote. Their schema stays
+pivotkit also reads files of format version 1, which older releases wrote. Their schema stays
 published as [view-file-1.json](../schema/view-file-1.json).
 
 ## An example
@@ -108,13 +108,13 @@ A writer puts the keys in this order: `$schema`, `format`, `formatVersion` first
 ends with a newline. Without `createdAt`, two exports of the same view are the same bytes. So a file
 kept in a repository changes only when the view does.
 
-The writer leaves out the chart keys newer than pivotkit 0.7 (`tooltip`, `zoom`,
-`stackPercent`, `hidden`, `referenceLines`, `colors`, `tooltipShare`) while they hold their default. A 0.7 reader then takes the file without a
-warning. It leaves out `extremes` in `referenceLines`, newer than 0.8, while it is `false`.
-`fromViewFile` puts them back at their defaults when it reads a file.
+The writer leaves out chart keys while they hold their default, so an older reader takes the file
+without a warning. These are `tooltip`, `zoom`, `stackPercent`, `hidden`, `referenceLines`,
+`colors`, `tooltipShare`, and `extremes` inside `referenceLines`. `fromViewFile` puts them back at
+their defaults when it reads a file.
 
 `display` is `"table"`, `"chart"` or `"both"`. `"both"` shows the table and the chart side by side.
-It is newer than 0.8, and the writer keeps it. A 0.8 reader reports it as `unknownSetting` and shows
+The writer keeps it. A reader that does not know `"both"` reports it as `unknownSetting` and shows
 the table.
 
 The suggested file name is `<slug>.pivotkit.json`. The slug is the name in lower case, with accents
@@ -199,7 +199,7 @@ anyway** and **Cancel**. It also offers **Switch to “…” and load** when th
   (`view-file-3.json`). Examples are a key that changes meaning and a new required key. Readers of
   version 2 refuse such a file.
 - Version 2 is such a change. It carries views of version 2, which a reader of version 1 would read
-  wrong. So pivotkit 0.4 refuses a file or a link of version 2 as newer.
+  wrong. So a reader of version 1 refuses a file or a link of version 2 as newer.
 - A change of the view itself goes through `view.version` and pivotkit-core's `MIGRATIONS`, not
   through the envelope. A reader migrates an older view when it reads it.
 - A new filter type keeps both versions. A reader that does not know the type reports that filter as

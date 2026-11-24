@@ -240,6 +240,7 @@ const VERSION_STATEMENTS = [
     // the official plugins table: the pivotkit-core version pivotkit-xlsx needs (its caret range on core)
     { file: "docs/reference/plugins.md", pattern: /^\| <span id="pivotkit-xlsx"><\/span>.*\| (\d+\.\d+(?:\.\d+)?) \(plugin API \d+\) \|$/m, pkg: "pivotkit-core" }
 ];
+const UPGRADING = "docs/getting-started/upgrading.md";
 const minorOf = (version) => version.split(".").slice(0, 2).join(".");
 
 test("agentsFiles finds the nested AGENTS.md files in a copy without .git, outside build output", () => {
@@ -251,11 +252,16 @@ test("agentsFiles finds the nested AGENTS.md files in a copy without .git, outsi
     assert.deepEqual(agentsFiles(dir), ["AGENTS.md", "packages/a/AGENTS.md"]);
 });
 
-test("docs and READMEs write no caret range of a pivotkit package; the version statements name the current minor", () => {
+test("docs and READMEs write no caret range of a pivotkit package and name no pivotkit release in prose; the version statements name the current minor", () => {
     for (const file of currentStateDocs()) {
         const text = readFileSync(new URL(file, root), "utf8");
         const range = /"?pivotkit-[a-z]+"?:? *"?\^\d+\.\d+\.\d+|\^0\.[1-9]\d*\.\d+/.exec(text);
         assert.equal(range, null, `${file} writes the range ${range?.[0]}: write it without a version (\`^<version of pivotkit-core>\`, \`^0.y.z\`)`);
+        // "pivotkit 0.8 does not know it" is true today and wrong for the next reader: say what a
+        // reader that lacks the feature does instead (AGENTS.md, "Docs name no version of pivotkit").
+        // The upgrading page is the one place that names releases.
+        const named = file === UPGRADING ? null : /\bpivotkit \d+\.\d+/.exec(text);
+        assert.equal(named, null, `${file} names "${named?.[0]}": describe what an older reader does, without its version`);
     }
     for (const { file, pattern, pkg } of VERSION_STATEMENTS) {
         const found = pattern.exec(readFileSync(new URL(file, root), "utf8"))?.[1];

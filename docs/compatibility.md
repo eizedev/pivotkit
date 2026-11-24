@@ -70,7 +70,7 @@ A host is the application the report runs in.
 | A plain HTML page | Tested in CI | The web component on test pages, a strict Content-Security-Policy among them |
 | Angular | Tested in CI | CI builds the zoneless Angular 22 example and runs its browser test |
 | PowerShell Universal apps | Tested by hand | The report in a PowerShell Universal app, on release 0.3.0. [#118](https://github.com/eizedev/pivotkit/pull/118) fixed the findings. CI tests host pages that render as PowerShell Universal does. |
-| PowerShell Universal scripts with the REST service or the MCP server | Documented, not tested | [PowerShell Universal](getting-started/mcp.md#psu) |
+| PowerShell Universal scripts with the REST service or the MCP server | Documented, not tested | [PowerShell Universal](getting-started/powershell-universal.md#psu) |
 | A Node program, engine only | Tested in CI | pivotkit-core's tests |
 | Your own Node server with pivotkit-server inside | Tested in CI | The REST handler with requests as a framework passes them |
 
@@ -107,7 +107,7 @@ The settings each host needs:
     or a component of your own: [PowerShell Universal](getting-started/react.md#powershell-universal).
 
     For scripts, run `pivotkit-server serve` on the PowerShell Universal server. Its scripts call the
-    REST service: [PowerShell Universal](getting-started/mcp.md#psu).
+    REST service: [PowerShell Universal](getting-started/powershell-universal.md#psu).
 
 ## Sign-in to the services { #sign-in }
 
@@ -137,7 +137,7 @@ The settings each provider needs:
     PIVOTKIT_TOKEN=... pivotkit-server serve --config pivotkit.json --auth token
     ```
 
-    `pivotkit-server token new` makes a token. See [tokens and keys](reference/rest.md#credentials).
+    `pivotkit-server token new` makes a token. See [tokens and keys](reference/tokens.md#credentials).
 
 === "Authentik"
 
@@ -150,7 +150,7 @@ The settings each provider needs:
     ```
 
     Authentik needs a signing key, a scope mapping and a public client. See
-    [Sign-in with Authentik](getting-started/kubernetes.md#oauth).
+    [Sign-in with Authentik](reference/sign-in.md#authentik).
 
 === "Keycloak"
 
@@ -175,7 +175,7 @@ The settings each provider needs:
 
     The issuer names your tenant, not `/common`.
 
-The full list of settings is in [OAuth](reference/mcp.md#oauth) and [REST sign-in](reference/rest.md#auth).
+The full list of settings is in [OAuth](reference/mcp.md#oauth) and [REST sign-in](reference/sign-in.md#auth).
 
 ## MCP clients { #mcp-clients }
 
@@ -379,7 +379,7 @@ Both drivers give every line the same level. Let the log server parse the JSON a
 | Docker Compose | Tested in CI | The Compose example in `docker/` |
 | Kubernetes | Documented, not tested | [Kubernetes](getting-started/kubernetes.md) |
 | Behind a reverse proxy | Documented, not tested | [Behind a proxy](reference/delivery.md#proxy) |
-| A Windows service with IIS in front | Documented, not tested | [PowerShell Universal](getting-started/mcp.md#psu-service) |
+| A Windows service with IIS in front | Documented, not tested | [PowerShell Universal](getting-started/powershell-universal.md#psu-service) |
 
 ## Something missing? { #missing }
 

@@ -14,7 +14,7 @@ carries it. It makes no compliance claim.
 
 | What | Where | How long | Who sees it |
 | --- | --- | --- | --- |
-| [Source data loaded for a caller](#memory) (code and HTTP sources) | the server's memory | until newer loads push it out (at most 64 loads and `sourceCache.maxMb`, default 256 MiB, a quarter per person or shared source) or a restart | the caller it was loaded for, through the policy |
+| [Source data of code and HTTP sources](#memory), per caller | the server's memory | until newer loads push it out, or a restart | the caller it was loaded for, through the policy |
 | [Reports](#retention) | files in `output.dir` | 30 days by default (`output.maxAgeDays`), or until `output.maxFiles`/`output.maxMb` push them out | whoever opens their link, or can read the directory |
 | [Schedule drafts](#retention) | files in `output.dir` | while waiting for approval, until the host or you remove them, or `output.draftMaxAgeDays` where you set it; once the host sets another `status`, as reports | whoever can read the directory, such as the host that approves them |
 | [Rows of a source](#records) (`POST /api/v1/sources/records`, off by default) | the person's host application and browser. The server keeps no answer; it keeps the loaded data as for a report ([memory](#memory)) | as the host application keeps them | the person, and the host application that fetched them for the person |
@@ -128,7 +128,7 @@ Deny the fields about people (`autoValues.deny`).
 A caller may send a small table of its own with the source `inline:`
 ([data in the request](reference/rest.md#data)):
 
-- On MCP it is on by default, up to 500 rows, 5000 cells and 256 KiB.
+- On MCP it is on by default, within a [fixed cap](reference/mcp.md#data).
 - On REST it is on only for profiles with `data: true`.
 
 No exposure policy applies to it. The caller sent it, so the model sees every value it computes
@@ -149,7 +149,7 @@ Switch it off with `mcp.data: false` (MCP) and by not giving any profile `data: 
 
 ## Rows of a source { #records }
 
-The [rows route](reference/rest.md#records) hands the rows of a source to a person, where a profile
+The [rows route](reference/records.md#records) hands the rows of a source to a person, where a profile
 names the source in `records`. It is off by default. Once you grant it, this leaves the server:
 
 | What | Leaves or stays | To whom |
@@ -193,16 +193,8 @@ A library host's code source receives them as `caller.subject` and `caller.issue
 callers share it (`cacheShared`). What it does with them is the host's decision. The access token
 itself goes to no source.
 
-The server keeps the data a code source loaded in its memory per person until newer loads push it
-out. The cap is 64 loads and `sourceCache.maxMb` in all, default 256 MiB, a quarter per person or
-shared source. The data stays even after its `maxStale` has passed or the person lost access. The
-server does not give it to anyone then, but it stays in memory until newer loads push it out or the
-process restarts.
-
-Each compute worker (`compute.workers`) keeps the data sets of its last four runs in memory, of any
-source, without hidden fields. They take at most a quarter of `compute.memoryMb`. They stay until
-newer ones push them out or the server replaces the worker. Only this process can ask for them again,
-for the same load and the same owner: the person, or all callers for a shared source.
+The server keeps the data a code source loaded per person in its memory, and each compute worker
+keeps its last data sets. [Memory](#memory) says how much and for how long.
 
 An [HTTP source](reference/sources.md#http) sends the values a caller passes for its parameters to
 the operator's backend, in the address the operator configured. It sends nothing else of the caller:
@@ -267,9 +259,10 @@ The server keeps in its memory, never on disk:
     The server keeps an HTTP source's answer, JSON or CSV, without the columns the caller's policy
     hides.
 
-- **In each compute worker**, the data sets of its last four runs without hidden fields. They take
-  at most a quarter of `compute.memoryMb` and stay until newer ones push them out or the server
-  replaces the worker.
+- **In each compute worker**, the data sets of its last four runs, of any source, without hidden
+  fields. They take at most a quarter of `compute.memoryMb` and stay until newer ones push them out
+  or the server replaces the worker. Only this process can ask for them again, for the same load and
+  the same owner: the person, or all callers for a shared source.
 - **Exchanged backend tokens**, per person, at most until the person's own token expires.
 - **The last read of a source every caller reads alike**: its row count and `dataAsOf`, until the
   process restarts. Such a source is a file source or a shared code source. The
