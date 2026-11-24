@@ -996,7 +996,9 @@ test("page and offset paging: exactly maxPages full pages and an empty one after
     }
 });
 
-test("a new load is a new table: after ttl the worker computes the backend's new rows, not the ones it kept", async () => {
+test("a new load is a new table: after ttl the worker computes the backend's new rows, not the ones it kept", async (t) => {
+    // the clock the ttl is counted on, moved by the test
+    t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
     let items = VMS;
     routes.set("/v1/customers/acme/vms", (req, res) => json({ items })(req, res));
     const context = await contextOf(optionsOf({}, { ttl: 1 }));
@@ -1004,7 +1006,7 @@ test("a new load is a new table: after ttl the worker computes the backend's new
         assert.equal((await describe(context, { customer: "acme" })).result.rows, 3);
         items = VMS.slice(0, 1);
         assert.equal((await describe(context, { customer: "acme" })).result.rows, 3, "within ttl: kept data");
-        await new Promise((r) => setTimeout(r, 1100));
+        t.mock.timers.tick(1100);
         assert.equal((await describe(context, { customer: "acme" })).result.rows, 1);
         assert.equal(asked.length, 2);
     } finally {
