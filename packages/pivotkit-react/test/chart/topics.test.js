@@ -3,19 +3,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { encode, normalize } from "pivotkit-core";
-import { LABELS } from "../../src/labels.js";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../../src/deferred.js";
-import { en as menuEn } from "../../src/menu-labels.js";
-import { de as menuDe } from "../../src/menu-labels-de.js";
 import { chartTopics } from "../../src/menu-topics.js";
 import { rowFolding } from "../../src/view-ops.js";
+import { MENU } from "../helpers.js";
 
 const data = encode([
     { Region: "North", Country: "A", Category: "Hardware", Revenue: 20, Price: 3 },
     { Region: "South", Country: "B", Category: "Services", Revenue: 5, Price: 4 }
 ]);
-const labels = { ...LABELS.en, ...menuEn };
+const labels = MENU.en;
 const norm = (v) => normalize(v, data).view;
 const ids = (topics) => topics.filter((t) => !t.hidden).map((t) => t.id);
 const byId = (topics, id) => topics.find((t) => t.id === id);
@@ -154,7 +152,7 @@ test("Reference lines: a level after Tooltip on bars, lines and areas: Average a
         assert.equal(byId(of({ average: true, trend: false, target: null }, { type }), "lines"), undefined, type);
     }
     // German
-    const de = { ...LABELS.de, ...menuDe };
+    const de = MENU.de;
     const view = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar" } });
     assert.equal(byId(chartTopics({ view, drawn: "bar", labels: de, names: ["x"], act: { display: () => {} } }), "lines").state, "Aus");
 });
@@ -185,7 +183,7 @@ test("Layout folds the groups of Rows in words of the fields: Show each Country,
         ["chart-show-only", "Show group totals only", true, "Needs two or more fields in Rows."]
     ]);
     // German, with the names
-    const de = { ...LABELS.de, ...menuDe };
+    const de = MENU.de;
     const german = choices(byId(chartTopics({ view: two, drawn: "bar", labels: de, names: [], act, folding }), "layout"));
     assert.deepEqual(german.map((c) => c.text), ["Country einzeln zeigen", "Nur Region zeigen"]);
 });
@@ -205,7 +203,7 @@ test("Layout's row says how the groups of Rows show: Each Country, Region only, 
     // one field in Rows: nothing to say about groups
     const one = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "line" } });
     assert.deepEqual(state(one, rowFolding(one, [])), [null, false]);
-    const de = { ...LABELS.de, ...menuDe };
+    const de = MENU.de;
     assert.equal(byId(chartTopics({ view: plain, drawn: "line", labels: de, names: [], act, folding: { canExpand: true, canCollapse: false, collapsed: 2, why: {} } }), "layout").state, "Nur Region");
 });
 

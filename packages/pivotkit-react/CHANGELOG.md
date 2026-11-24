@@ -26,11 +26,26 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The menus count with the host's `limits`, as the report does: a field's items in the Filter level,
   the totals its rules compare and the items a Top N shows. With a raised `limits.groups` or
   `limits.cells`, a view the report showed could stop the menu with an error nothing caught. Over a
-  limit, a menu now leaves its counts out; the report says what is over it.
+  limit, a menu now leaves its counts out; the report says what is over it. The Filter level counts
+  what each rule keeps again when the host changes `limits`.
 - A chart or a link whose part failed to load (offline, a deploy in between) loads again on the next
   try. Before, the failed import was kept for the life of the page. Every part that loads on demand
   now follows one rule (`lazy.js`).
 - An error note stays until it is closed, also when two newer notes come.
+- The report ignores a view kept for the tab with `persistView="session"` when it is longer than a
+  view file may be, and shows its start view. Storage counts as outside input.
+- The flash of a zone that takes a field and the floating chips of the empty report last a multiple
+  of `--pk-duration`, as the other animations do. A host that sets `--pk-duration: 0ms` stops them,
+  and a longer value makes them longer. The flash ends with its animation, not after a fixed 600 ms.
+  The chips' short start delays stay fixed.
+- The report reads `chartOptions` without calling a getter. It leaves a getter out and names it in
+  the console warning. Past 2,000 entries the warning has one line for it, not one per object still
+  to come.
+- A `fileName` that is a Windows device name before a dot, such as `aux.data`, becomes `pivot`, as
+  `aux` alone did. Windows reserves `AUX.data.csv` too, and `COM¹` as `COM1`.
+- Type-ahead and the search compare letters in the language of the menu's texts. This holds in a
+  field's menu, the settings menus, More, and Views. Before, they used the browser's language or the
+  number locale.
 - The help of the chart's zoom says that the arrow keys move the slider. It said the slider could
   not be moved by keyboard yet.
 - On a phone, the settings button beside the tabs shows its icon only, as Enlarge and Full screen
@@ -305,12 +320,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
     many more there are.
 
 - The drill-down panel's copy and download follow `exportData`. With it off, the panel shows the
-  rows but offers no copy and no download (#263).
+  rows but offers no copy and no download ([#263](https://github.com/eizedev/pivotkit/issues/263)).
 - pivotkit-core's ECharts option (`toEChartsOption`) loads with ECharts, from `pivotkit-core/chart`,
-  not with the first load (#546).
+  not with the first load ([#546](https://github.com/eizedev/pivotkit/issues/546)).
 - The row count under the result says how many of the data's rows the filters keep: "2,190 of 4,386
-  rows", German "2.190 von 4.386 Zeilen". With nothing filtered it says "4,386 rows" (#108).
-  Its words are pivotkit-core's `ROW_COUNT_TEXTS`, so the HTML report says the same (#547).
+  rows", German "2.190 von 4.386 Zeilen". With nothing filtered it says "4,386 rows" ([#108](https://github.com/eizedev/pivotkit/issues/108)).
+  Its words are pivotkit-core's `ROW_COUNT_TEXTS`, so the HTML report says the same ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 
 ### Fixed
 
@@ -354,7 +369,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The zones fold when they no longer fit the report's box, also when the box keeps its size. Longer
   texts in another language, more fields in Rows, a tip or a late stylesheet made them taller without
   a resize, and they stayed open over a squeezed result. Folded that way, they open again once they
-  fit (#93).
+  fit ([#93](https://github.com/eizedev/pivotkit/issues/93)).
 
 ## [0.7.0] - 2026-11-16
 
@@ -490,7 +505,7 @@ What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/
   fields, under the fields' own names, values not formatted (`<fileName>-data.csv`,
   `<fileName>-data.json`; `onExport` kinds `"data-csv"`, `"data-json"`). With the view file of
   Download view, `pivotkit render` makes the report again. It holds what the report holds, also
-  columns no view places, so it is off unless the host turns it on (docs/security.md, "Source data").
+  columns no view places, so it is off unless the host turns it on ([Security, Source data](https://pivotkit.eize.dev/security/#source-data)).
 
 ### Changed
 

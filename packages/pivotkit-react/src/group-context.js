@@ -1,6 +1,9 @@
-import { MAX_DATE_MS, isDateMs } from "pivotkit-core";
-// Group-level hints load only with the menus.
-import { CATALOG, monthName } from "pivotkit-core";
+/*
+ * The hints of the Group level of a date field: what each unit (year, quarter, month, ...) would give
+ * for the data at hand, from one scan of the field's dictionary. Loaded only with the menus.
+ */
+
+import { CATALOG, MAX_DATE_MS, isDateMs, monthName } from "pivotkit-core";
 import { yearText } from "./names.js";
 import { plural } from "./labels.js";
 import { dateFormatter, dateRangeText } from "./date-context.js";

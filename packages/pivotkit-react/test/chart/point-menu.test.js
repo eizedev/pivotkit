@@ -3,12 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { encode, normalize } from "pivotkit-core";
-import { LABELS } from "../../src/labels.js";
 import "../../src/deferred.js";
-import { de as menuDe } from "../../src/menu-labels-de.js";
-import { en as menuEn } from "../../src/menu-labels.js";
 import { pointActions } from "../../src/menu-ops.js";
 import { filtersOf, selectedItems } from "../../src/view-ops.js";
+import { MENU } from "../helpers.js";
 
 const data = encode([
     { Region: "East", Category: "Hardware", Revenue: 3 },
@@ -16,8 +14,7 @@ const data = encode([
     { Region: "East", Category: "Software", Revenue: 5 },
     { Region: "North", Category: "Software", Revenue: 1 }
 ]);
-const en = { ...LABELS.en, ...menuEn };
-const de = { ...LABELS.de, ...menuDe };
+const { en, de } = MENU;
 const view = normalize({ rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], display: "chart" }, data).view;
 const point = { rowPath: ["East"], colPath: ["Hardware"], valueIndex: 0, value: 3 };
 

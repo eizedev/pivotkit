@@ -270,7 +270,6 @@ function Shortcuts({ labels, mod }) {
     );
 }
 
-
 /**
  * Table settings (topics in menu-topics.js): the totals, then Expand all and Collapse all. A switch
  * applies at once and the menu stays open (the table behind it shows the change); Expand all and

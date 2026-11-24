@@ -3,12 +3,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { MAX_DATE_MS, computePivot, encode, normalize } from "pivotkit-core";
-import { LABELS } from "../src/labels.js";
-import { en as menuEn } from "../src/menu-labels.js";
 import { combinedYearsText, dateFromInput, dateInputValue, dayOnOrBefore, yearRules } from "../src/menu-ops.js";
 import { compareText, isoDay, periodText, rangeShare, wholeYears, yearText } from "../src/names.js";
+import { MENU } from "./helpers.js";
 
-const L = { ...LABELS.en, ...menuEn };
+const L = MENU.en;
 // today for the data's share of a range: long after the data of years around 0, long before 10000
 const TODAY = "2026-11-17";
 /** Wall-clock ms of a day in any year. */
@@ -62,7 +61,8 @@ test("Years combined writes years with a sign, and the first and last year as fa
     const view = { rows: [field], derived: [{ name: field, field: "D", by: "month" }], values: [{ agg: "count" }], filters: rules };
     const normalized = normalize(view, data);
     assert.deepEqual(normalized.issues, []);
-    assert.equal(computePivot(data, normalized.view).value(computePivot(data, normalized.view).rowRoot, computePivot(data, normalized.view).colRoot, 0), 2);
+    const result = computePivot(data, normalized.view);
+    assert.equal(result.value(result.rowRoot, result.colRoot, 0), 2);
     const edges = yearRules(field, [-271821, 275760], [-271821, 0, 275760]);
     assert.deepEqual(edges[0].value, isoDay(-MAX_DATE_MS));
     assert.deepEqual(edges[0].value2, isoDay(MAX_DATE_MS));

@@ -104,7 +104,6 @@ export function AddMenu({ zone, view, fields, placed, nameOf, info, labels, clos
             <LevelMenu
                 name={name}
                 labels={labels}
-                locale={locale}
                 topics={topics}
                 close={close}
                 onPick={(choice) => choice.run?.()}

@@ -53,7 +53,7 @@ export const TIP_LIMIT = 1;
  * @property {string} [icon]
  */
 
-export const name = (ctx, field) => fieldLabel(field, { fields: ctx.fields });
+export const fieldName = (ctx, field) => fieldLabel(field, { fields: ctx.fields });
 export const chart = (ctx) => !ctx.failed && ctx.display !== "table" && ctx.series !== null && ctx.view.values.length > 0;
 /** The chart's series where chart(ctx) holds. */
 export const seriesOf = (ctx) => /** @type {NonNullable<TipContext["series"]>} */ (ctx.series);
@@ -80,7 +80,7 @@ export const NOTICES = Object.freeze([
             for (const field of [...ctx.view.rows, ...ctx.view.cols]) {
                 const top = filtersOf(ctx.view, field, ["top"])[0];
                 if (top) {
-                    return { field: name(ctx, field), count: top.count, bottom: Boolean(top.bottom) };
+                    return { field: fieldName(ctx, field), count: top.count, bottom: Boolean(top.bottom) };
                 }
             }
             return null;
