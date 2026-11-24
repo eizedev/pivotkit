@@ -264,6 +264,22 @@ test("a custom sort order: listed items first in their order, the rest by label,
     assert.deepEqual(validate({ rows: ["Region"], sort: [{ field: "Region", by: "custom" }] }, data).errors.map((e) => e.path), ["sort[0].items"]);
 });
 
+test("a switch that is not true or false and a section that is not an object are reported, never dropped silently", () => {
+    const bad = normalize({ totals: { grandTotalRow: "no" }, chart: { stacked: "yes", referenceLines: { trend: 1 } } }, data);
+    assert.deepEqual(bad.issues.map((i) => [i.path, i.code]), [["totals.grandTotalRow", "notSwitch"], ["chart.stacked", "notSwitch"], ["chart.referenceLines.trend", "notSwitch"]]);
+    assert.equal(bad.view.totals.grandTotalRow, emptyView().totals.grandTotalRow);
+    assert.equal(bad.view.chart.stacked, false);
+    for (const key of ["chart", "formatting", "collapsed"]) {
+        const got = normalize({ [key]: "abc" }, data);
+        assert.deepEqual(got.issues.map((i) => [i.path, i.code, i.params.value]), [[key, "notSection", "abc"]], key);
+        assert.deepEqual(got.view[key], emptyView()[key], key);
+    }
+    assert.deepEqual(normalize({ chart: { referenceLines: [] } }, data).issues.map((i) => i.path), ["chart.referenceLines"]);
+    // null is "not given", as for a section; the value an issue quotes has no direction characters
+    assert.deepEqual(normalize({ chart: { stacked: null }, totals: { rowSubtotals: null } }, data).issues, []);
+    assert.equal(normalize({ chart: { stacked: "a\u202eb" } }, data).issues[0].params.value, "ab");
+});
+
 test("chart display settings: value labels, legend, title and smooth lines, checked against fixed lists", () => {
     assert.deepEqual(emptyView().chart, { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null, extremes: false }, colors: [], tooltipShare: false });
     const chart = { type: "pie", valueLabels: "both", legend: "right", title: "  Units by region ", smooth: true, labelPosition: "inside", tooltip: "axis" };
@@ -273,7 +289,7 @@ test("chart display settings: value labels, legend, title and smooth lines, chec
     // unknown settings fall back to their defaults and are reported
     const bad = normalize({ chart: { valueLabels: "everything", legend: "left", title: 42, smooth: "yes", labelPosition: "above" } }, data);
     assert.deepEqual(bad.view.chart, emptyView().chart);
-    assert.deepEqual(bad.issues.map((i) => i.path), ["chart.valueLabels", "chart.legend", "chart.labelPosition", "chart.title"]);
+    assert.deepEqual(bad.issues.map((i) => i.path), ["chart.valueLabels", "chart.legend", "chart.smooth", "chart.labelPosition", "chart.title"]);
     assert.equal(norm({ chart: { title: "x".repeat(300) } }).chart.title, null);
     assert.equal(norm({ chart: { title: "   " } }).chart.title, null);
     // a view of before these settings reads with their defaults
@@ -406,4 +422,54 @@ test("a key inside a part of the view that this version does not know is a warni
         ["formatting.timezone", "timeZone"]
     ]);
     assert.ok(warnings.every((w) => w.code === "unknownKey" && w.severity === "warning"));
+});
+
+// Guard for "say in plain words what was dropped": every leaf of a full view, given a value of a
+// wrong kind, gives an issue, is taken as given, or leaves the view as it was. A section added to the
+// view belongs in `full` too, or this guard does not see it. null is no wrong value: it means "not
+// given", and the default without an issue is what it asks for.
+test("a wrong value anywhere in a view gives an issue or changes nothing", () => {
+    const full = {
+        version: VIEW_VERSION,
+        rows: ["Region", "Month"],
+        cols: ["Product"],
+        derived: [{ name: "Month", field: "Date", by: "month" }],
+        values: [{ field: "Units", agg: "sum", label: "Units sold", showAs: { type: "runningTotal", axis: "rows" }, format: "number", conditional: { type: "dataBar", color: "#336699" } }],
+        filters: [{ field: "Rep", type: "in", items: ["Ann"], blanks: "exclude" }],
+        sort: [{ field: "Region", by: "value", order: "desc" }],
+        totals: { grandTotalRow: true, grandTotalColumn: false, rowSubtotals: true, colSubtotals: false },
+        collapsed: { rows: [["North"]], cols: [] },
+        display: "table",
+        chart: { type: "bar", stacked: true, horizontal: false, valueLabels: "both", legend: "right", title: "Units", smooth: false, hidden: ["A"], colors: [{ name: "North", color: "#E3000F" }], referenceLines: { average: true, trend: false, target: 3, extremes: false }, tooltipShare: false },
+        formatting: { locale: "de-DE", weekStart: 1 }
+    };
+    const base = normalize(full, data);
+    assert.deepEqual(base.issues, [], "the full view is valid");
+    const leaves = [];
+    const walk = (node, path) => {
+        if (node !== null && typeof node === "object") {
+            for (const [k, v] of Object.entries(node)) walk(v, [...path, k]);
+        } else if (path.length > 0 && path[0] !== "version") {
+            leaves.push(path);
+        }
+    };
+    walk(full, []);
+    const silent = [];
+    for (const path of leaves) {
+        for (const wrong of ["zz", 5, [], {}, true]) {
+            const view = structuredClone(full);
+            let at = view;
+            for (const k of path.slice(0, -1)) at = at[k];
+            if (JSON.stringify(at[path.at(-1)]) === JSON.stringify(wrong)) continue;
+            at[path.at(-1)] = wrong;
+            const got = normalize(view, data);
+            let kept = got.view;
+            for (const k of path) kept = kept?.[k];
+            // a value taken as given is no drop (true for a switch, 5 for a target, an item the data
+            // lacks), nor is one converted to the field's type (the item 5 of a text field is "5")
+            const taken = JSON.stringify(kept) === JSON.stringify(wrong) || (typeof wrong !== "object" && kept === String(wrong));
+            if (got.issues.length === 0 && !taken && JSON.stringify(got.view) !== JSON.stringify(base.view)) silent.push(`${path.join(".")} = ${JSON.stringify(wrong)}`);
+        }
+    }
+    assert.deepEqual(silent, []);
 });

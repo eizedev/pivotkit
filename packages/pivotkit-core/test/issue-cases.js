@@ -71,6 +71,8 @@ export const ISSUE_CASES = Object.freeze({
     badTotals: { totals: true },
     collapsedPath: { rows: ["Region"], collapsed: { rows: [["North"]] } },
     unknownSetting: { chart: { type: "radar" } },
+    notSwitch: { chart: { stacked: "yes" } },
+    notSection: { formatting: "de-DE" },
     badTitle: { chart: { title: 7 } },
     unknownLocale: { formatting: { locale: "not a locale" } },
     unknownTimeZone: { formatting: { timeZone: "Mars/Olympus" } },
