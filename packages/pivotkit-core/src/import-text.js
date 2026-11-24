@@ -1,8 +1,10 @@
 /*
- * Bytes of a text file as text: the encoding from a byte order mark, else strict UTF-8, else
- * Windows-1252 (Excel's "CSV" on a Western Windows), so invalid bytes switch the encoding instead of
- * becoming replacement characters. Files that are no text (a workbook, a PDF, binary data) are refused
- * with what they look like. Part of pivotkit-core/import; not part of the public API.
+ * Bytes of a text file as text: the encoding from a byte order mark, else UTF-16 when the bytes look
+ * like it, else strict UTF-8, else Windows-1252 (Excel's "CSV" on a Western Windows), so invalid bytes
+ * switch the encoding instead of becoming replacement characters. A byte order mark is final: bytes
+ * that do not fit its encoding become replacement characters (U+FFFD). Files that are no text (a
+ * workbook, a PDF, binary data) are refused with what they look like. Part of pivotkit-core/import;
+ * not part of the public API.
  */
 
 import { fileError } from "./import-table.js";
@@ -17,13 +19,18 @@ const SIGNATURES = [
 
 const startsWith = (bytes, sig) => sig.every((b, i) => bytes[i] === b);
 
-/** True when the bytes look like UTF-16 little endian without a byte order mark: ASCII with a zero byte after each character. */
-function looksUtf16le(bytes) {
+/**
+ * True when the bytes look like UTF-16 without a byte order mark: ASCII with a zero byte after each
+ * character (little endian, `high` 1) or before it (big endian, `high` 0).
+ * @param {Uint8Array} bytes
+ * @param {0 | 1} high  the place of the zero byte in each pair
+ */
+function looksUtf16(bytes, high) {
     const n = Math.min(bytes.length, 4096) & ~1;
     if (n < 8) return false;
     let zeros = 0;
-    for (let i = 1; i < n; i += 2) {
-        if (bytes[i] === 0 && bytes[i - 1] !== 0) zeros++;
+    for (let i = 0; i < n; i += 2) {
+        if (bytes[i + high] === 0 && bytes[i + 1 - high] !== 0) zeros++;
     }
     return zeros > n / 2 * 0.9;
 }
@@ -51,8 +58,10 @@ export function decodeText(bytes, file) {
     } else if (startsWith(bytes, [0xfe, 0xff])) {
         encoding = "utf-16be";
         start = 2;
-    } else if (looksUtf16le(bytes)) {
+    } else if (looksUtf16(bytes, 1)) {
         encoding = "utf-16le";
+    } else if (looksUtf16(bytes, 0)) {
+        encoding = "utf-16be";
     }
     const body = bytes.subarray(start);
     let text;
@@ -67,12 +76,13 @@ export function decodeText(bytes, file) {
             encoding = "windows-1252";
         }
     }
-    // a zero character does not occur in text: the file is binary (or in an encoding not read here)
-    const zero = text.indexOf("\0");
-    if (zero !== -1 && zero < text.length - 1) {
+    // a zero character does not occur in text: the file is binary (or in an encoding not read here);
+    // zeros at the end are padding and go
+    const end = text.replace(/\0+$/, "");
+    if (end.includes("\0")) {
         throw fileError("BINARY", file, "this file holds binary data, not text.");
     }
-    return { text: zero === -1 ? text : text.slice(0, zero), encoding: ENCODING_NAMES[encoding] };
+    return { text: end, encoding: ENCODING_NAMES[encoding] };
 }
 
 const ENCODING_NAMES = { "utf-8": "UTF-8", "utf-16le": "UTF-16 (little endian)", "utf-16be": "UTF-16 (big endian)", "windows-1252": "Windows-1252" };

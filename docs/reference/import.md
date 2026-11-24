@@ -61,10 +61,13 @@ the first file of their kind is read. So `pivotkit-core/import` itself stays sma
 
 ## How a CSV file is read
 
-- **Encoding**: a byte order mark decides: UTF-8, or UTF-16 little or big endian. Without one, the
-  reader reads the file as strict UTF-8. If a byte is not valid UTF-8, it reads the whole file as
-  Windows-1252, which Excel writes as "CSV" on a Western Windows. Invalid bytes never become
-  replacement characters.
+- **Encoding**: a byte order mark decides: UTF-8, or UTF-16 little or big endian. Bytes that do not
+  fit it become the replacement character U+FFFD. Without a byte order mark:
+    - Text with a zero byte after or before each character is UTF-16 in little or big endian.
+    - Else the reader reads the file as strict UTF-8. If a byte is not valid UTF-8, it reads the whole
+      file as Windows-1252, which Excel writes as "CSV" on a Western Windows.
+- **Zero characters**: zeros at the end of a file are padding and go. A zero anywhere else means the
+  file holds binary data, and the reader refuses it with `BINARY`.
 - **Separator**: Excel's first line `sep=;` names it. Else the reader takes comma, semicolon, tab or
   vertical bar, whichever splits the first 100 lines into the same number of fields most often. For
   `.tsv` it tries a tab first.
@@ -261,6 +264,10 @@ pivotkit checks each file against [`LIMITS`](../concepts/limits.md#limits) befor
 limit guards, so a file that is too large costs no memory first. The `limits` option is merged over
 them. In the report, [`importLimits`](react.md#prop-importlimits) is merged over `limits`.
 
+The JSON reader parses a file whole, in one step, after its size check. The parsed objects take
+several times the file's size, and the step shows no progress and ignores the abort signal. A host
+that reads large JSON files on a small device lowers `fileBytes` for them.
+
 | Limit | Default | When |
 | --- | --- | --- |
 | `fileBytes` | 100 MiB | The file's size, before a byte is read. |
@@ -323,6 +330,8 @@ plugin, and the message names the plugin and the field.
 - `read`: bytes
 - `unpack`: a workbook's bytes
 - `parse`: characters or rows
+- `type`: columns, for a plugin that checks its columns' types in a step of its own. The built-in
+  readers do not report it.
 
 `signal`, an `AbortSignal`, stops a read between steps with the signal's `AbortError`. The readers
 give the event loop a turn every 16,384 rows. So a page stays responsive enough to show progress and a

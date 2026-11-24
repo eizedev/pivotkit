@@ -166,7 +166,8 @@ function localeDecimal(locale) {
 /**
  * Reads delimited text (CSV, TSV, TXT) into a table.
  * @param {Blob | ArrayBuffer | Uint8Array} file
- * @param {import("./import-table.js").ReadOptions & { separator?: string }} [options]  `separator` skips the detection
+ * @param {import("./import-table.js").ReadOptions & { separator?: string }} [options]  `separator` skips the
+ *   detection; one that is not a single character, a quote or a line break is not used
  * @returns {Promise<import("./import-table.js").ImportTable>}
  */
 export async function read(file, options) {
@@ -179,11 +180,13 @@ export async function read(file, options) {
     o.signal?.throwIfAborted();
 
     let start = 0;
-    let sep = typeof o.separator === "string" && o.separator.length === 1 ? o.separator : null;
+    // one character that is no quote and no line break: those would read every line as one value
+    const usable = (c) => (typeof c === "string" && c.length === 1 && !/["\r\n]/.test(c) ? c : null);
+    let sep = usable(o.separator);
     const hint = /^sep=(.)\r?\n/i.exec(text.slice(0, 8));
     if (hint) {
         start = hint[0].length;
-        sep ??= hint[1];
+        sep ??= usable(hint[1]);
     }
     sep ??= detectSeparator(text, start, /\.tsv$/i.test(name) ? "\t" : undefined);
 
