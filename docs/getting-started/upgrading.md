@@ -128,6 +128,7 @@ layout, and new options.
 | **Breaking:** `toViewFile` throws `PivotkitError` | your code calls pivotkit-core's `toViewFile` with a view that is no object and catches `TypeError` | catch `PivotkitError` with the code `INVALID_ARGUMENT` |
 | **Breaking:** header values refuse the control characters U+0080 to U+009F | a header value in your configuration or secret holds one of them | remove the character. The start or the log names the header |
 | **Breaking:** reports are written with mode 0600 | another user reads the output directory without `output.baseUrl`, such as a backup job | run that reader as the server's user, or set `output.baseUrl`; `chmod 600` older reports to match |
+| Numbers in loaded files read by their decimal mark | people load CSV or Excel files with text numbers such as `1,234` or `1.500` | check the column the note `DECIMAL_MARK` names. A comma-separated file reads `"1,234"` as 1234, where it read as 1.234; an Excel text cell `"1.500"` reads as 1500 in a German locale, where it read as 1.5 |
 | [Versions move together](#update) | you list pivotkit-core, pivotkit-report or pivotkit-xlsx yourself | update them to the release of pivotkit-react 0.10: core 0.10.0, report 0.6.0, xlsx 0.7.0 |
 
 #### pivotkit-server no longer brings pivotkit-cli { #server-without-cli }
