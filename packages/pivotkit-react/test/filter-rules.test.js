@@ -628,3 +628,12 @@ test("itemTotals counts with the host's limits; over a limit it gives no totals,
     assert.equal(itemTotals(data, view, "Item", by, [], { groups: 10 }).rows, 0);
     assert.equal(itemTotals(data, view, "Item", by, []).totals.size, 50);
 });
+
+test("belowLimits gives the fallback only for a limit the data or view is over; any other error is thrown on", async () => {
+    const { belowLimits } = await import("../src/limits-context.js");
+    const { PivotkitError } = await import("pivotkit-core");
+    assert.equal(belowLimits(() => { throw new PivotkitError("LIMIT_EXCEEDED", "over"); }, "none"), "none");
+    assert.throws(() => belowLimits(() => { throw new PivotkitError("INVALID_ARGUMENT", "a defect"); }, "none"), /a defect/);
+    assert.throws(() => belowLimits(() => { throw new TypeError("a bug"); }, "none"), TypeError);
+    assert.equal(belowLimits(() => 3, "none"), 3);
+});

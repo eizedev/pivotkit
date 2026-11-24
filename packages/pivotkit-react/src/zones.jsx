@@ -55,7 +55,7 @@ function fieldState(view, field, encoded, locale, labels, sourceType, limits) {
     const condition = filtersOf(view, field, ["value"])[0] ?? null;
     const sort = sortOf(view, field);
     // a sort by one column says which, as the table names it (#70)
-    const sortColumn = sort?.column ? columnText(view, sort.column, encoded, labels, locale) : undefined;
+    const sortColumn = sort?.column ? columnText(view, sort.column, encoded, labels, locale, limits) : undefined;
     return { summary, rules, top, condition, sort, sortColumn };
 }
 

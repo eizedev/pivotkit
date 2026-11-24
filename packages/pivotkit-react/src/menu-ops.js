@@ -6,7 +6,7 @@
  */
 
 import { CATALOG, MATCH_DEFAULTS, MAX_DATE_MS, computePivot, fieldLabel, isFormat } from "pivotkit-core";
-import { itemsOf } from "./limits-context.js";
+import { belowLimits, itemsOf } from "./limits-context.js";
 import { fill } from "./labels.js";
 import { parseNumber } from "./numbers.js";
 import { dayMs, isoDay, isoYear, itemRuleText, valueConditionText, wholeYears, yearOf, yearText } from "./names.js";
@@ -486,11 +486,9 @@ export const resetFilter = (view, field) => replaceFilters(view, field, ["in", "
  */
 export function itemTotals(encoded, view, field, by, filters, limits) {
     const totals = new Map();
-    let result;
-    try {
-        result = computePivot(encoded, { ...view, rows: [field], cols: [], values: [{ ...(by.field ? { field: by.field } : {}), agg: by.agg }], filters, sort: [] }, { limits });
-    } catch {
-        // over a limit: no totals to compare, the report says what is over it
+    // over a limit: no totals to compare, the report says what is over it
+    const result = belowLimits(() => computePivot(encoded, { ...view, rows: [field], cols: [], values: [{ ...(by.field ? { field: by.field } : {}), agg: by.agg }], filters, sort: [] }, { limits }), null);
+    if (!result) {
         return { totals, rows: 0 };
     }
     // a measure the data cannot give (a view's issue) leaves no value to read
@@ -711,15 +709,15 @@ export function parseTarget(text, locale, format) {
  * @param {import("pivotkit-core").Encoded} encoded
  * @param {any} labels
  * @param {string} locale
- * @param {{ showRows?: boolean }} [options]  `showRows`: whether a value's rows go anywhere, the
+ * @param {{ showRows?: boolean, limits?: Partial<import("pivotkit-core").Limits> }} [options]  `limits`: the host's (LimitsContext); `showRows`: whether a value's rows go anywhere, the
  *   drill-down panel or the host's onCellClick (default true)
  * @returns {Array<{ id: string, text: string, field?: string, change?: () => { view: any, note: any } }>}
  */
-export function pointActions(view, point, encoded, labels, locale, { showRows = true } = {}) {
+export function pointActions(view, point, encoded, labels, locale, { showRows = true, limits } = {}) {
     /** @type {Array<{ id: string, text: string, field?: string, change?: () => { view: any, note: any } }>} */
     const out = point.slice || !showRows ? [] : [{ id: "rows", text: labels.pointRows }];
     const add = (axis, field, key) => {
-        const info = itemsOf(encoded, field, { view, locale, labels: labels.core });
+        const info = itemsOf(encoded, field, { view, locale, labels: labels.core, limits });
         if (!info) {
             return;
         }

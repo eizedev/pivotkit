@@ -73,11 +73,14 @@ export function refLabel(view, ref, labels) {
  * @param {any} view
  * @param {any[]} column
  * @param {import("pivotkit-core").Encoded} encoded
+ * @param {any} labels
+ * @param {string} locale
+ * @param {Partial<import("pivotkit-core").Limits>} [limits]  the host's (LimitsContext)
  */
-export function columnText(view, column, encoded, labels, locale) {
+export function columnText(view, column, encoded, labels, locale, limits) {
     return column
         .map((key, i) => {
-            const items = itemsOf(encoded, view.cols[i], { view, locale, labels: labels.core })?.items ?? [];
+            const items = itemsOf(encoded, view.cols[i], { view, locale, labels: labels.core, limits })?.items ?? [];
             return items.find((item) => item.value === key)?.label ?? String(key);
         })
         .join(" › ");

@@ -11,7 +11,7 @@
 
 import React, { useContext, useId, useMemo, useState } from "react";
 import { computePivot, fieldLabel } from "pivotkit-core";
-import { LimitsContext } from "./limits-context.js";
+import { LimitsContext, belowLimits } from "./limits-context.js";
 import { ClearInput } from "./clear-input.jsx";
 import { useFormName } from "./dom.js";
 import { FilterLevel } from "./filter-level.jsx";
@@ -35,11 +35,7 @@ import { binProblem, setTopFilter, updateValue } from "./menu-ops.js";
  */
 /** How many items of the field the report shows on `axis`, with its limits; null over one (the report says why). */
 function itemsShown(encoded, view, axis, limits) {
-    try {
-        return computePivot(encoded, view, { limits })[axis].children.length;
-    } catch {
-        return null;
-    }
+    return belowLimits(() => computePivot(encoded, view, { limits })[axis].children.length, null);
 }
 
 function TopLevel({ view, field, types, labels, locale, commit, back, encoded }) {
@@ -377,7 +373,8 @@ const picker = (commit, close) => (/** @type {import("./menu-topics.js").Choice}
 /** The menu of a chip on Rows or Columns. */
 export function AxisMenu({ view, zone, index, field, types, labels, commit, close, onRemove, defaultsOf, rangeOf, locale, info, state, encoded }) {
     const source = sourceOf(view, field);
-    const topics = axisTopics({ view, zone, index, field, types, labels, locale, state, defaultsOf, encoded });
+    const limits = useContext(LimitsContext);
+    const topics = axisTopics({ view, zone, index, field, types, labels, locale, state, defaultsOf, encoded, limits });
     const regroup = (unit, size, origin) => {
         close();
         const sourceName = fieldLabel(source, labels.core);

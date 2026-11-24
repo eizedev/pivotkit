@@ -6,8 +6,9 @@
  * click on the chart goes straight to the rows. Loaded with the menus (menus.js).
  */
 
-import React, { useMemo } from "react";
+import React, { useContext, useMemo } from "react";
 import { fill } from "./labels.js";
+import { LimitsContext } from "./limits-context.js";
 import { pointActions } from "./menu-ops.js";
 import { Group, Option, Popover } from "./popover.jsx";
 
@@ -18,7 +19,8 @@ import { Group, Option, Popover } from "./popover.jsx";
  */
 export function PointMenu({ target, onClose, onRows, view, encoded, locale, labels, commit, showRows = true }) {
     const anchor = useMemo(() => ({ current: target ? target.anchor : null }), [target]);
-    const actions = target ? pointActions(view, target.point, encoded, labels, locale, { showRows }) : [];
+    const limits = useContext(LimitsContext);
+    const actions = target ? pointActions(view, target.point, encoded, labels, locale, { showRows, limits }) : [];
     // closed: the focus goes to the chart (its anchor takes none), so the report's keys (Undo) work on
     const close = () => {
         target?.home?.focus({ preventScroll: true });
