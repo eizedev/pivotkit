@@ -7,7 +7,11 @@
  * match.
  */
 
-/** A storage of the browser by its name, or null where it is missing or blocked (a sandboxed frame throws). */
+/**
+ * A storage of the browser by its name, or null where it is missing or blocked (a sandboxed frame throws).
+ * @param {"localStorage" | "sessionStorage"} name
+ * @returns {Storage | null}
+ */
 function browserStore(name) {
     try {
         return typeof window !== "undefined" && window[name] ? window[name] : null;
