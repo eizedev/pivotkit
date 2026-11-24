@@ -26,20 +26,22 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The menus count with the host's `limits`, as the report does: a field's items in the Filter level,
   the totals its rules compare and the items a Top N shows. With a raised `limits.groups` or
   `limits.cells`, a view the report showed could stop the menu with an error nothing caught. Over a
-  limit, a menu now leaves its counts out; the report says what is over it.
+  limit, a menu now leaves its counts out; the report says what is over it. The Filter level counts
+  what each rule keeps again when the host changes `limits`.
 - A chart or a link whose part failed to load (offline, a deploy in between) loads again on the next
   try. Before, the failed import was kept for the life of the page. Every part that loads on demand
   now follows one rule (`lazy.js`).
 - An error note stays until it is closed, also when two newer notes come.
-- A view kept for the tab (`persistView="session"`) that is longer than a view file may be is not
-  read. The report shows its start view. Storage counts as outside input.
+- The report ignores a view kept for the tab with `persistView="session"` when it is longer than a
+  view file may be, and shows its start view. Storage counts as outside input.
 - The flash of a zone that takes a field and the floating chips of the empty report follow
   `--pk-duration`, as every other animation does. A host that sets `--pk-duration: 0ms` stops them
   too.
-- `chartOptions` is read without calling a getter: a getter is left out and named in the console
-  warning. Past 2,000 entries the warning has one line for it, not one per object still to come.
-- A file name from `fileName` that is a Windows device name before a dot, such as `aux.data`,
-  becomes `pivot`, as `aux` alone did. Windows reserves `AUX.data.csv` too.
+- The report reads `chartOptions` without calling a getter. It leaves a getter out and names it in
+  the console warning. Past 2,000 entries the warning has one line for it, not one per object still
+  to come.
+- A `fileName` that is a Windows device name before a dot, such as `aux.data`, becomes `pivot`, as
+  `aux` alone did. Windows reserves `AUX.data.csv` too.
 - Type-ahead in a field's menu and in the settings menus compares letters in the report's `locale`.
 - The help of the chart's zoom says that the arrow keys move the slider. It said the slider could
   not be moved by keyboard yet.
