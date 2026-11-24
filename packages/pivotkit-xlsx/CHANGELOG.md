@@ -6,6 +6,12 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Changed
+
+- The XML checks of a workbook are split into smaller files: the declaration check, the guard, the
+  sheet filter, the entry count, and how the parser reads tags and attributes. A workbook reads the
+  same, and the messages stay the same.
+
 ## [0.6.0] - 2026-11-22
 
 ### Changed

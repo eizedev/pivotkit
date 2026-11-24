@@ -126,6 +126,8 @@ test("in More (a phone): Reset and New are entries of their own, with the same r
 
 test("in More: Help first, then a letter jumps to the next entry that starts with it", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
+    // the pause between letters is counted on the page's clock
+    await page.clock.install();
     await page.goto("?data=sales");
     const more = page.getByTestId("more");
     await more.focus();
@@ -135,7 +137,8 @@ test("in More: Help first, then a letter jumps to the next entry that starts wit
     for (const [key, id] of [["r", "more-reset"], ["v", "more-views"], ["n", "more-new-report"], ["h", "more-help"]]) {
         await page.keyboard.press(key);
         await expect(page.getByTestId(id)).toBeFocused();
-        await page.waitForTimeout(700);
+        // longer than the menu takes letters for one word (600 ms, levels.jsx)
+        await page.clock.fastForward(700);
     }
     // Help opens its level, as a row of a menu in levels does
     await expect(page.getByTestId("more-help")).toHaveAttribute("aria-haspopup", "menu");

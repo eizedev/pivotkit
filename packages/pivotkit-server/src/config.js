@@ -150,8 +150,8 @@ export { SERVER_LIMITS };
  */
 export const serverLimitsOf = (options) => ({ ...SERVER_LIMITS, ...(options.limits ?? {}) });
 
-/** The defaults of the compute pool. */
-export const COMPUTE_DEFAULTS = Object.freeze({ workers: 2, timeMs: 30_000, memoryMb: 1024, queueMs: 10_000 });
+/** The defaults of the compute pool: compute-defaults.js. */
+export { COMPUTE_DEFAULTS } from "./compute-defaults.js";
 
 /** How many reports and drafts the output directory holds, and how many MiB (output.maxMb), before its oldest go. */
 /**

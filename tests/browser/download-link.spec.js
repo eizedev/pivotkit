@@ -7,12 +7,22 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { serve } from "pivotkit-server";
-import { expect, test } from "@playwright/test";
+import { installContrast } from "./contrast.js";
+import { expect, test, watchConsole } from "./fixtures.js";
 import { measure } from "./report-contrast.js";
 import { removeTempDirs, tempDir } from "../temp-dir.js";
 
 // the servers' directories go when the file's tests are done
 test.afterAll(removeTempDirs);
+
+/** What a browser logs for a page the server answers with an error on purpose (a used or unknown link, a refused sign-in). */
+const REFUSED_PAGE = /^Failed to load resource: the server responded with a status of 40[049] \(.+\)$/;
+/**
+ * Firefox's own request for /favicon.ico, which the pages' policy (default-src 'none') refuses: the
+ * browser's, logged from its FaviconLoader, not the page's.
+ */
+const FAVICON = /^\[JavaScript Error: "Content-Security-Policy: .+\/favicon\.ico .+" \{file: "resource:\/\/\/modules\/FaviconLoader\.sys\.mjs"/;
+test.use({ ignoreConsole: [FAVICON] });
 
 const SALES = "Region,Customer,Sales\nNorth,Alice Example,10\nSouth,Bob Example,20\n";
 
@@ -57,12 +67,14 @@ test("a one-time link: the page's Download button saves the file once; the link 
         const other = await browser.newContext();
         try {
             const second = await other.newPage();
+            const problems = watchConsole(second, { ignore: [REFUSED_PAGE, FAVICON] });
             const opened = await second.goto(output.url);
             expect(opened?.status()).toBe(409);
             await expect(second).toHaveTitle("Link already used - pivotkit report");
             await expect(second.getByRole("heading", { name: "Link already used" })).toBeVisible();
             await expect(second.getByText("This link was already used. If you downloaded the report earlier, look in the downloads of the browser you used. Otherwise ask whoever made the report to make it again.")).toBeVisible();
             await expect(second.getByRole("button")).toHaveCount(0);
+            expect(problems).toEqual([]);
         } finally {
             await other.close();
         }
@@ -94,10 +106,11 @@ test("the pages, light and dark, wide and at 390 px: details of the file, contra
                 const context = await browser.newContext({ colorScheme, viewport: { width, height: 844 } });
                 try {
                     const page = await context.newPage();
+                    const problems = watchConsole(page, { ignore: [REFUSED_PAGE, FAVICON] });
                     for (const [name, url] of Object.entries(pages)) {
                         await page.goto(url);
                         const where = `${name}, ${colorScheme}, ${width} px`;
-                        const drawn = await page.evaluate(measure);
+                        const drawn = await measure(page);
                         // the scheme's own surface is what is measured against
                         expect(drawn.body, where).toBe(colorScheme === "dark" ? "rgb(13, 17, 23)" : "rgb(255, 255, 255)");
                         for (const t of drawn.texts) {
@@ -126,17 +139,17 @@ test("the pages, light and dark, wide and at 390 px: details of the file, contra
                             await page.keyboard.press("Tab");
                         }
                     }
+                    await installContrast(page);
                     const ring = await button.evaluate((b) => {
-                        const parse = (c) => (c.match(/[\d.]+/g) ?? []).map(Number).slice(0, 3).map((v) => (c.startsWith("color(") ? v * 255 : v));
-                        const lum = (rgb) => rgb.map((v) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+                        const { parse, ratio } = window.__pkContrast;
                         const style = getComputedStyle(b);
-                        const [x, y] = [lum(parse(style.outlineColor)), lum(parse(getComputedStyle(document.body).backgroundColor))].sort((p, q) => q - p);
-                        return { visible: b.matches(":focus-visible"), style: style.outlineStyle, width: parseFloat(style.outlineWidth), ratio: (x + 0.05) / (y + 0.05) };
+                        return { visible: b.matches(":focus-visible"), style: style.outlineStyle, width: parseFloat(style.outlineWidth), ratio: ratio(parse(style.outlineColor), parse(getComputedStyle(document.body).backgroundColor)) };
                     });
                     expect(ring.visible, `${colorScheme} ${width}: focus by keyboard`).toBe(true);
                     expect(ring.style).toBe("solid");
                     expect(ring.width).toBeGreaterThanOrEqual(2);
                     expect(ring.ratio).toBeGreaterThanOrEqual(3);
+                    expect(problems, `${colorScheme} ${width}: console errors and warnings`).toEqual([]);
                 } finally {
                     await context.close();
                 }

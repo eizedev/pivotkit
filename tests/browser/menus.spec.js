@@ -675,6 +675,7 @@ test.describe("menus in levels", () => {
         for (let i = 0; i < 6; i++) {
             await page.mouse.wheel(0, 600);
         }
+        // nothing behind the menu scrolls, also once the wheel's scrolling would be done
         await page.waitForTimeout(300);
         expect(await page.evaluate(() => window.scrollY)).toBe(before);
         await expect(menu).toBeVisible();
@@ -813,6 +814,7 @@ test.describe("a press on a menu's button that never ends in a click", () => {
             await expect(button).toHaveAttribute("aria-expanded", "true");
             await expect.poll(menuHasFocus).toBe(true);
             await pressWithoutClick();
+            // right after the press, or longer after it than PRESS_MS
             await page.waitForTimeout(wait);
             await focusAround();
             await expect(button, `${wait} ms after the press`).toHaveAttribute("aria-expanded", open);

@@ -44,6 +44,8 @@ npx playwright test tests/browser/report-               # after a stylesheet or 
 ## Operations
 
 `src/operations.js` (`pivotkit-report/operations`) is the one table of operations: `OPERATIONS`.
+Its pieces are in `src/operations/`: errors, findings, schemas, layouts, the view guide and
+`checkInput`. `operations.js` re-exports their public names.
 
 - Operations have no file system and no network. A front end passes them in `env`.
 - A front end puts a returned `file` where it belongs.

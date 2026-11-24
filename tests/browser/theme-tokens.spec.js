@@ -5,7 +5,7 @@
 // host's dark colours for a dark screen (#385).
 import { readFile } from "node:fs/promises";
 import { strFromU8, unzipSync } from "fflate";
-import { chipMenu, expect, test, toolbar } from "./fixtures.js";
+import { chipMenu, expect, test, toolbar, watchConsole } from "./fixtures.js";
 
 /** A host's theme keyed on the theme the report shows: light colours, and dark ones for the dark theme. */
 const HOST_THEME = (selector) => `
@@ -346,6 +346,7 @@ test.describe("the HTML report carries the host's dark colours too (#385)", () =
             expect(await page.evaluate(() => window.__runs)).toBe(0);
 
             const report = await context.newPage();
+            const problems = watchConsole(report);
             const NAMES = ["--pk-heat-low", "--pk-heat-high", "--pk-scale-mid", "--pk-chart-1"];
             const tokensOf = async (colorScheme, media) => {
                 await report.emulateMedia({ colorScheme, media });
@@ -356,6 +357,7 @@ test.describe("the HTML report carries the host's dark colours too (#385)", () =
             expect(await tokensOf("dark", "screen")).toEqual(["#331a00", "#ff9933", "#553300", "#c58cf2"]);
             expect(await tokensOf("light", "screen")).toEqual(LIGHT);
             expect(await tokensOf("dark", "print")).toEqual(LIGHT);
+            expect(problems).toEqual([]);
             await report.close();
         });
     }

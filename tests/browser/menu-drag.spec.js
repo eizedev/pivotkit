@@ -6,7 +6,7 @@
 // checked is what the user sees: the chips stay in their zones, the table and the chips' filter
 // marks stay as they were, and no dragged chip follows the pointer.
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, chips, expect, openRules, openZones, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, openRules, openZones, tableRows, test, toolbar, twoFrames } from "./fixtures.js";
 
 const MONTH = "Date by month of year";
 const MEAN = "Average of Mean °C";
@@ -95,7 +95,8 @@ async function closeChipMenu(page) {
     const menu = page.locator(".pk-chip-menu");
     for (let i = 0; i < 4 && (await menu.count()); i++) {
         await page.keyboard.press("Escape");
-        await page.waitForTimeout(50);
+        // the menu has drawn what is left of it
+        await twoFrames(page);
     }
     await expect(menu).toHaveCount(0);
 }
@@ -125,6 +126,7 @@ test.describe("a press inside a chip's menu never drags the chip", () => {
                 overlays.push(await page.locator(".pk-overlay").count());
             }
             await page.mouse.up();
+            // no drop, also after dnd-kit's 50 ms after a drag
             await page.waitForTimeout(150);
             expect(overlays, "no dragged chip follows the pointer").toEqual([0, 0]);
             expect((await seen(page)).zones).toEqual(before.zones);
@@ -181,6 +183,7 @@ test.describe("a press inside a chip's menu never drags the chip", () => {
         await page.mouse.move(over.x, over.y, { steps: 8 });
         overlays.push(await page.locator(".pk-overlay").count());
         await page.mouse.up();
+        // no drop, also after dnd-kit's 50 ms after a drag
         await page.waitForTimeout(150);
         expect(overlays, "no dragged chip follows the pointer").toEqual([0, 0]);
         expect(await seen(page)).toEqual(before);
@@ -265,6 +268,7 @@ test.describe("a press inside another menu drags nothing", () => {
             overlays.push(await page.locator(".pk-overlay").count());
         }
         await touch("touchEnd");
+        // no drop, also after dnd-kit's 50 ms after a drag
         await page.waitForTimeout(150);
         expect(overlays, "no dragged chip follows the finger").toEqual(overlays.map(() => 0));
         expect(await seen(page)).toEqual(before);

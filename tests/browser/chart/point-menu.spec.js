@@ -5,7 +5,7 @@ import { test, expect } from "../fixtures.js";
 import { HARDWARE, NORTH, SOFTWARE, barMiddle, cellMiddle, hover, mount, pointOf, sliceMiddle, tooltipOf } from "./report.js";
 
 const menu = (page) => page.getByRole("menu");
-const lastView = (page) => page.evaluate(() => window.__tooltipViews.at(-1));
+const lastView = (page) => page.evaluate(() => window.__views.at(-1));
 /** The categories the chart draws now, in order. */
 const categories = (chartEl) =>
     chartEl.evaluate(async (el) => {
@@ -140,23 +140,25 @@ test.describe("the menu at a clicked point of the chart", () => {
     });
 });
 
-test("on a phone the menu is a sheet at the bottom, and its entries are big enough to tap", async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: false });
-    const page = await context.newPage();
-    await page.goto("pages/host.html");
-    const chartEl = await mount(page, { type: "bar" });
-    const at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
-    // the first tap shows the tooltip, the second opens the menu
-    await page.touchscreen.tap(at.x, at.y);
-    await page.waitForTimeout(400);
-    await page.touchscreen.tap(at.x, at.y);
-    await expect(menu(page)).toBeVisible();
-    // the click a phone sends after the tap does not close it
-    await page.waitForTimeout(400);
-    await expect(menu(page)).toBeVisible();
-    const heights = await menu(page).getByRole("menuitem").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
-    expect(heights.every((h) => h >= 44)).toBe(true);
-    await menu(page).getByRole("menuitem", { name: "Only North" }).tap();
-    await expect.poll(() => categories(chartEl)).toEqual(["North"]);
-    await context.close();
+test.describe("a touch screen", () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: false });
+
+    test("on a phone the menu is a sheet at the bottom, and its entries are big enough to tap", async ({ page }) => {
+        await page.goto("pages/host.html");
+        const chartEl = await mount(page, { type: "bar" });
+        const at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
+        // the first tap shows the tooltip, the second opens the menu
+        await page.touchscreen.tap(at.x, at.y);
+        // a person's pace between the taps, no double tap
+        await page.waitForTimeout(400);
+        await page.touchscreen.tap(at.x, at.y);
+        await expect(menu(page)).toBeVisible();
+        // the click a phone sends after the tap does not close it
+        await page.waitForTimeout(400);
+        await expect(menu(page)).toBeVisible();
+        const heights = await menu(page).getByRole("menuitem").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
+        expect(heights.every((h) => h >= 44)).toBe(true);
+        await menu(page).getByRole("menuitem", { name: "Only North" }).tap();
+        await expect.poll(() => categories(chartEl)).toEqual(["North"]);
+    });
 });
