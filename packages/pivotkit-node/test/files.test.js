@@ -18,7 +18,7 @@ test("the package exports the file helpers of pivotkit-node/files and the REST c
     for (const host of ["127.example.com", "localhost.example.com", "128.0.0.1", "0.0.0.0", "::", "[::ffff:7f00:1]", ""]) assert.equal(rest.isLoopback(host), false, host);
     await assert.rejects(import("pivotkit-node/safe-files"), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
     const files = await import("pivotkit-node/files");
-    assert.deepEqual(Object.keys(files).sort(), ["CliError", "DATA_FORMATS", "INFO_NOTES", "TEMP_FILE_NAME", "allowedDirs", "asCliError", "cleanFileName", "isInside", "printable", "readSafe", "readStdin", "readTable", "shortName", "writeNew", "writeSafe"]);
+    assert.deepEqual(Object.keys(files).sort(), ["CliError", "DATA_FORMATS", "INFO_NOTES", "NO_HARD_LINKS", "TEMP_FILE_NAME", "allowedDirs", "asCliError", "cleanFileName", "isInside", "printable", "readSafe", "readStdin", "readTable", "shortName", "writeNew", "writeSafe"]);
 });
 
 test("a file that has more bytes than its size said is refused as changed, never cut (Linux: a /proc file says 0)", { skip: process.platform === "linux" ? false : "needs /proc, whose files report size 0" }, async () => {
@@ -51,6 +51,50 @@ test("writeNew never replaces a file: a taken name gets -2, -3; the name is clea
     assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith(".tmp")), []);
     await assert.rejects(writeNew(dir, "Sales", "csv", new Uint8Array(), { tries: 3 }), (e) => e.code === "EXISTS");
     assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith(".tmp")), []);
+});
+
+test("writeNew without hard links (FAT, exFAT, some SMB mounts): the name is created exclusively in place", async () => {
+    const { fileMeans } = await import("../src/safe-files.js");
+    const { writeNew } = await import("pivotkit-node/files");
+    const { link, unlink } = fileMeans;
+    const dir = tempDir();
+    const noLink = (code) => async () => {
+        throw Object.assign(new Error(code), { code });
+    };
+    try {
+        for (const code of ["EPERM", "ENOTSUP"]) {
+            fileMeans.link = noLink(code);
+            assert.equal(await writeNew(dir, `Sales ${code}`, "csv", new TextEncoder().encode("a,b")), `Sales ${code}.csv`);
+            assert.equal(readFileSync(join(dir, `Sales ${code}.csv`), "utf8"), "a,b");
+        }
+        if (process.platform !== "win32") {
+            await writeNew(dir, "Own", "csv", new Uint8Array(), { mode: 0o600 });
+            assert.equal(statSync(join(dir, "Own.csv")).mode & 0o777, 0o600);
+        }
+        // a file that appears in between is never replaced: the next name
+        let raced = false;
+        fileMeans.link = async (_temp, target) => {
+            if (!raced) writeFileSync(target, "keep");
+            raced = true;
+            throw Object.assign(new Error("EPERM"), { code: "EPERM" });
+        };
+        assert.equal(await writeNew(dir, "Raced", "csv", new TextEncoder().encode("new")), "Raced-2.csv");
+        assert.equal(readFileSync(join(dir, "Raced.csv"), "utf8"), "keep");
+        assert.equal(readFileSync(join(dir, "Raced-2.csv"), "utf8"), "new");
+        // any other failure of link() is no reason to write in place
+        fileMeans.link = noLink("EACCES");
+        await assert.rejects(writeNew(dir, "Denied", "csv", new Uint8Array()), (e) => e.code === "EACCES");
+        assert.deepEqual(readdirSync(dir).filter((f) => f.startsWith("Denied")), []);
+        // the file has its name: a temporary file that cannot be removed then is no failure
+        fileMeans.link = link;
+        fileMeans.unlink = async () => {
+            throw Object.assign(new Error("EBUSY"), { code: "EBUSY" });
+        };
+        assert.equal(await writeNew(dir, "Linked", "csv", new TextEncoder().encode("x")), "Linked.csv");
+    } finally {
+        Object.assign(fileMeans, { link, unlink });
+    }
+    assert.equal(readFileSync(join(dir, "Linked.csv"), "utf8"), "x");
 });
 
 test("writeNew writes the mode it is given, whatever the umask; 0644 without one", { skip: process.platform === "win32" && "Windows has no file modes" }, async () => {

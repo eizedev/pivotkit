@@ -169,6 +169,7 @@ test("options: an HTTP source compiles; its keys are checked with the path; a si
         [optionsOf({ headers: { "x-forwarded-for": "1.2.3.4" } }), /x-forwarded-for/],
         [optionsOf({ headers: { "proxy-authorization": "x" } }), /proxy-authorization/],
         [optionsOf({ headers: { "x-team": "a\r\nhost: evil" } }), /without line breaks/],
+        [optionsOf({ headers: { "x-team": "a\u0080b" } }), /without line breaks, control characters/],
         [optionsOf({ auth: { header: { value: "the-secret-itself" } } }), /sources\.vms\.http\.auth\.header\.value: must be a reference to a secret/],
         [optionsOf({ paging: { page: "customer" } }), /customer is a query name pivotkit fills while paging, so it cannot also be a parameter/],
         [optionsOf({ paging: { offset: "o", limit: "l", size: 0 } }), /size: the rows per page/],

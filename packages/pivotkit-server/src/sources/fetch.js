@@ -332,7 +332,7 @@ export function createGuardedFetch(means = {}) {
                 continue;
             }
             if (!TOKEN.test(name) || OWN_HEADERS.test(name) || !HEADER_VALUE.test(String(value))) {
-                throw new GuardedFetchError("BAD_HEADER", `the header ${JSON.stringify(String(name).slice(0, 40))} is no header name, is guardedFetch's own, or its value holds a line break or a character outside Latin-1`);
+                throw new GuardedFetchError("BAD_HEADER", `the header ${JSON.stringify(String(name).slice(0, 40))} is no header name, is guardedFetch's own, or its value holds a line break, a control character or a character outside Latin-1`);
             }
             headers[name.toLowerCase()] = String(value);
         }

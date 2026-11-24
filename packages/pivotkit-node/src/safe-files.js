@@ -20,7 +20,8 @@
  * handling; a caller that owns a directory removes them (pivotkit-server's output.maxAgeDays).
  * `hardLinks: false` refuses a file with more than one name (a hard link), for callers that read on
  * behalf of someone else (pivotkit-mcp). `writeNew` never replaces a file: the final name is created
- * by writeSafe's exclusive write (link(), which fails when the name exists). The module is exported
+ * by writeSafe's exclusive write (link(), which fails when the name exists; where the file system has
+ * no hard links, the name is created with O_EXCL and written in place). The module is exported
  * as `pivotkit-node/files` (and `pivotkit-cli/files`).
  */
 
@@ -29,6 +30,13 @@ import { link, lstat, open, realpath, rename, stat, unlink } from "node:fs/promi
 import { basename, dirname, join, relative, resolve, isAbsolute, sep } from "node:path";
 import { limitText } from "pivotkit-core/internal";
 import { CliError, printable, shortName } from "./errors.js";
+
+/** The calls tests replace: a file system without hard links, a temporary file that cannot be removed. */
+export const fileMeans = { link, unlink };
+
+/** The codes of link() where a file system has no hard links (FAT, exFAT, some SMB and FUSE mounts). */
+/** @type {ReadonlySet<string>} */
+export const NO_HARD_LINKS = new Set(["EPERM", "ENOTSUP", "EOPNOTSUPP", "ENOSYS", "EXDEV", "EMLINK"]);
 
 const READ_FLAGS = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);
 
@@ -191,8 +199,8 @@ export function isWindowsDevice(name) {
 
 /**
  * Writes `bytes` to `path`: into a new temporary file in the target's directory, then renamed over it;
- * with `exclusive`, linked into place instead, which fails when a file is there (also one made
- * between the check and the write), so nothing is replaced: `EXISTS`.
+ * with `exclusive`, linked into place instead (linkNew), which fails when a file is there (also one
+ * made between the check and the write), so nothing is replaced: `EXISTS`.
  * @param {string} path
  * @param {Uint8Array} bytes
  * @param {{ cwd: string, allow: string[], exclusive?: boolean, mode?: number }} options  `mode`: the new file's
@@ -224,21 +232,11 @@ export async function writeSafe(path, bytes, { cwd, allow, exclusive = false, mo
         throw new CliError("io", existing.isSymbolicLink() || existing.isDirectory() ? "NOT_REGULAR_FILE" : "SPECIAL_FILE", `${shortName(path)}: exists and is ${what}; not replaced`);
     }
     const temp = join(dir, tempFileName(basename(full)));
-    const handle = await open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), mode ?? (existing ? existing.mode & 0o777 : 0o644));
-    try {
-        await handle.writeFile(bytes);
-        await handle.sync();
-    } catch (e) {
-        await handle.close();
-        await unlink(temp).catch(() => undefined);
-        throw e;
-    }
-    await handle.close();
+    const fileMode = mode ?? (existing ? existing.mode & 0o777 : 0o644);
+    await createFile(temp, bytes, fileMode);
     try {
         if (exclusive) {
-            // link() never replaces: a file that appeared since the check stays as it is
-            await link(temp, target);
-            await unlink(temp);
+            await linkNew(temp, target, bytes, fileMode);
         } else {
             await rename(temp, target);
         }
@@ -247,6 +245,38 @@ export async function writeSafe(path, bytes, { cwd, allow, exclusive = false, mo
         throw e.code === "EEXIST" ? new CliError("io", "EXISTS", `${shortName(path)}: is already there; not replaced`) : e;
     }
     return target;
+}
+
+/** Creates `path` with `bytes` (O_EXCL, never through a symbolic link), synced; removed again when the write fails. */
+async function createFile(path, bytes, mode) {
+    const handle = await open(path, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), mode);
+    try {
+        await handle.writeFile(bytes);
+        await handle.sync();
+    } catch (e) {
+        await handle.close();
+        await unlink(path).catch(() => undefined);
+        throw e;
+    }
+    await handle.close();
+}
+
+/**
+ * Gives the temporary file its name with link(), which never replaces: a file that appeared since
+ * the check stays as it is. Where the file system has no hard links, the name itself is created
+ * exclusively and written; a reader at that moment may see it before its bytes are written.
+ */
+async function linkNew(temp, target, bytes, mode) {
+    try {
+        await fileMeans.link(temp, target);
+    } catch (e) {
+        if (!NO_HARD_LINKS.has(/** @type {any} */ (e)?.code)) {
+            throw e;
+        }
+        await createFile(target, bytes, mode);
+    }
+    // the file has its name: a temporary file that cannot be removed stays behind (TEMP_FILE_NAME)
+    await fileMeans.unlink(temp).catch(() => undefined);
 }
 
 /** The characters a name of writeNew keeps (parentheses too: "Orders (fake backend)"); the others become "-". */

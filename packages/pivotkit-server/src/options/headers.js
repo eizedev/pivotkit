@@ -13,12 +13,13 @@ import { ConfigError } from "./shared.js";
 export const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/;
 
 /**
- * A header's value of min to max characters: tab, visible ASCII, space and 0x80-0xFF (RFC 9110's
- * obs-text, which holds the C1 control codes 0x80-0x9F too); no line break, no NUL.
+ * A header's value of min to max characters: tab, visible ASCII, space and Latin-1 from 0xA0 to 0xFF.
+ * No line break, no other control character: RFC 9110's obs-text (0x80-0xFF) also holds the C1
+ * control codes 0x80-0x9F, which no text a header carries needs.
  * @param {number} min
  * @param {number} [max]  none: no upper bound
  */
-export const headerValueOf = (min, max = undefined) => new RegExp(`^[\\t\\x20-\\x7e\\x80-\\xff]{${min},${max ?? ""}}$`);
+export const headerValueOf = (min, max = undefined) => new RegExp(`^[\\t\\x20-\\x7e\\xa0-\\xff]{${min},${max ?? ""}}$`);
 
 /** A configured header's value: headerValueOf, at most 1000 characters. */
 export const HEADER_VALUE = headerValueOf(0, 1000);

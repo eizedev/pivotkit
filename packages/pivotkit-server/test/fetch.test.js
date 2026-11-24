@@ -344,6 +344,11 @@ test("a header name or value node:http cannot send, or another method, is a Guar
         [{ headers: { "bad name": "x" } }, "BAD_HEADER"],
         [{ headers: { "x-a": "caf\u00e9 \u2603" } }, "BAD_HEADER"],
         [{ headers: { "x-a": "a\u0007b" } }, "BAD_HEADER"],
+        // DEL, and the C1 control codes, though RFC 9110's obs-text holds 0x80-0x9F
+        [{ headers: { "x-a": "a\u007fb" } }, "BAD_HEADER"],
+        [{ headers: { "x-a": "a\u0080b" } }, "BAD_HEADER"],
+        [{ headers: { "x-a": "a\u0085b" } }, "BAD_HEADER"],
+        [{ headers: { "x-a": "a\u009fb" } }, "BAD_HEADER"],
         [{ headers: { "x-\u00e9": "1" } }, "BAD_HEADER"],
         [{ method: "CONNECT" }, "BAD_METHOD"],
         [{ method: "GET /x HTTP/1.1\r\n" }, "BAD_METHOD"],
@@ -352,8 +357,8 @@ test("a header name or value node:http cannot send, or another method, is a Guar
     for (const [request, code] of cases) {
         assert.equal(await codeOf(local(`${base}/ok`, request)), code, JSON.stringify(request));
     }
-    // a Latin-1 value is sent as it is
-    assert.equal((await local(`${base}/ok`, { headers: { "x-a": "caf\u00e9" } })).status, 200);
+    // a Latin-1 value is sent as it is, from the no-break space on, and a tab
+    assert.equal((await local(`${base}/ok`, { headers: { "x-a": "caf\u00e9\t\u00a0\u00ff" } })).status, 200);
     // the successful request's own timer is cleared as its answer ends; a refused one never had one
     await until(() => timers() <= start, { message: `timers left behind: ${timers() - start}` });
 });

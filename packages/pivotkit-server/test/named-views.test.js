@@ -6,7 +6,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { createRequire, syncBuiltinESMExports } from "node:module";
+import { join, sep } from "node:path";
 import { encode, toViewFile, viewFileText } from "pivotkit-core";
 import { readViewLink } from "pivotkit-core/link";
 import { ConfigError, checkConfig, createContext, present, validateOptions } from "pivotkit-server";
@@ -378,14 +379,45 @@ test("list_sources gives at most 10,000 characters of view descriptions per sour
 // view that uses a hidden field must not take its place, or a missing hint would tell it is there
 test("a name that does not exist suggests the nearest view the caller may know of, also past a nearer hidden one", async () => {
     const dir = workspace();
-    const views = { "by-regiom": { rows: ["Customer"] }, "by-region": { rows: ["Region"] } };
+    // however many nearer views are hidden, the hint is there: its absence would tell of them
+    const hidden = Object.fromEntries(["by-regiom", "by-regio1", "by-regio2", "by-regio3", "by-regio4"].map((n) => [n, { rows: ["Customer"] }]));
+    const views = { ...hidden, "by-region": { rows: ["Region"] } };
     const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "show", fields: { Customer: "hide" } }, views } }, output: { dir: "out" }, auth: { mode: "token", tokens: [{ name: "plain", env: "T1" }] }, baseDir: dir }, { env: { T1: TOKEN } });
     try {
         const typo = await call(`${server.api}/views/render`, { token: TOKEN, body: { source: "sales", view: "by-regixx", format: "csv" } });
         assert.equal(typo.status, 400);
         assert.match(typo.data.detail, /did you mean "by-region"\?/);
-        assert.doesNotMatch(typo.data.detail, /by-regiom/);
+        assert.doesNotMatch(typo.data.detail, /by-regio[m1-4]/);
     } finally {
         await server.close();
+    }
+});
+
+// the hint costs one file read, not one per view: the names are compared first, then only the
+// nearest file is read to learn whether the caller may know of it
+test("a name that does not exist reads only the nearest view file for its hint", async () => {
+    const dir = workspace();
+    mkdirSync(join(dir, "views"));
+    for (let i = 0; i < 100; i++) {
+        writeFileSync(join(dir, "views", `v${String(i).padStart(3, "0")}.json`), JSON.stringify({ rows: ["Region"] }));
+    }
+    const context = await createContext({ sources: { sales: { file: "data/sales.csv", viewsDir: "views" } }, output: { dir: "out" }, baseDir: dir });
+    const fsPromises = createRequire(import.meta.url)("node:fs/promises");
+    const open = fsPromises.open;
+    let reads = 0;
+    fsPromises.open = async (path, ...rest) => {
+        if (String(path).includes(`${sep}views${sep}`)) reads++;
+        return open(path, ...rest);
+    };
+    syncBuiltinESMExports();
+    try {
+        // "v00x" is one edit from ten views and two from the rest
+        const missing = await present(context, "render_view", { source: "sales", view: "v00x", format: "csv" }, { scopes: null, client: "test" }).catch((e) => e);
+        assert.match(String(missing?.message), /no view "v00x" for the source sales; did you mean "v000"\?/);
+        assert.equal(reads, 1, `${reads} view files read`);
+    } finally {
+        fsPromises.open = open;
+        syncBuiltinESMExports();
+        await context.close();
     }
 });

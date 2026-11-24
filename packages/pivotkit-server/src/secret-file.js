@@ -40,6 +40,7 @@ import { randomBytes } from "node:crypto";
 import { constants, unlinkSync } from "node:fs";
 import { link, lstat, open, realpath, rename, unlink } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
+import { NO_HARD_LINKS } from "pivotkit-node/files";
 import { MAX_SECRET_BYTES, UTF16_TEXT, readSecretHandle, secretValue } from "./secrets.js";
 
 /** The random bytes of each kind of secret: a token of 43 base64url characters, a key of 64. */
@@ -105,9 +106,6 @@ export const secretFileMeans = { link, rename, lstat, uid: () => process.getuid?
 
 /** The signals during which a temporary file is removed. */
 const SIGNALS = Object.freeze(["SIGINT", "SIGTERM"]);
-
-/** The codes of link() where a file system has no hard links. */
-const NO_HARD_LINKS = new Set(["EPERM", "ENOTSUP", "EOPNOTSUPP", "ENOSYS", "EXDEV", "EMLINK"]);
 
 /** @extends {CodedError<"EXISTS" | "NOT_REGULAR_FILE" | "NO_DIRECTORY" | "READ_ONLY" | "MOUNTED" | "UNUSABLE" | "UNREADABLE", undefined>} */
 export class SecretFileError extends CodedError {

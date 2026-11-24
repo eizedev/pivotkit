@@ -13,6 +13,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
+- A request with a view name that does not exist reads fewer view files for its "did you mean"
+  hint: the names are compared first, then only the nearest file is read, and the next nearest only
+  while the caller may not know of it. It read every view file of the source.
+- Reports are written to an output directory on a file system without hard links, such as FAT,
+  exFAT and some SMB mounts. Writing them failed there. One-time links still need hard links there.
 - With two or more `files.allowDirs` and `files.list`, list_sources named the files of the second and
   later directories by their absolute path, so every caller with the files scope saw the server's
   directory layout. Every file is listed by its name now; a name an earlier directory has comes once.
@@ -83,6 +88,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- **Breaking:** a header value refuses the C1 control characters U+0080 to U+009F, as it refuses the
+  other control characters. This holds for `http.headers`, the upload store's headers, a backend's
+  sign-in header and the headers a presign service asks for. A configured value with such a character
+  stops the start, and a secret's value fails its sign-in with a warning in the log. Both name the
+  header: remove the character.
 - check-config writes every size the same way: `256 KiB` for the issuer's limits, `16 MiB` for the
   kept loads and the uploads.
 - With `files.list`, list_sources names a directory's files by name order. Before, it took the first

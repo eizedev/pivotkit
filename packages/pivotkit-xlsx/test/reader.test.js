@@ -876,6 +876,27 @@ test("a sheet with namespace prefixes is checked and trimmed as one without", as
     }
 });
 
+// read-excel-file appends each cell with a value to its row, after the empty cells up to the cell's
+// column: a row whose cells all name column A is as wide as its number of cells
+test("a row whose cells name one column counts as wide as the parser makes it, before parsing", async () => {
+    const { createSheetFilter } = await import("../src/sheet-filter.js");
+    const filtered = (cells, limits) => {
+        const filter = createSheetFilter({ write() {} }, limits);
+        filter.push(strToU8(`<worksheet><sheetData><row r="1">${cells}</row></sheetData></worksheet>`));
+        return filter.end();
+    };
+    const oneColumn = Array.from({ length: 50 }, (_, k) => `<c r="A${k + 1}"><v>1</v></c>`).join("");
+    assert.throws(() => filtered(oneColumn, { maxColumn: 10 }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "columns" && e.details.value === 50);
+    assert.throws(() => filtered(oneColumn, { maxCells: 100 }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells");
+    // cells in their order, with gaps and empty cells: as wide as the last column, as before
+    const inOrder = '<c r="A1"><v>1</v></c><c r="C1" s="1"/><c r="J1"><v>1</v></c>';
+    assert.doesNotThrow(() => filtered(inOrder, { maxColumn: 10, maxCells: 10 }));
+    assert.throws(() => filtered(`${inOrder}<c r="J2"><v>1</v></c>`, { maxColumn: 10 }), (e) => e.details?.value === 11);
+    // and read() refuses it, with the limit the filter names
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    await assert.rejects(read(fileOf(makeXlsxWithSheet(`<worksheet ${NS}><sheetData><row r="1">${oneColumn}</row></sheetData></worksheet>`)), { limits: { columns: 10 } }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "columns");
+});
+
 // read-excel-file reads a row's r with Number() and a cell's r as letters, then Number(), with
 // entities decoded (a prefixed r maybe twice) and any prefix but "xmlns:" left out; the checks
 // before parsing read them so too (an entity or a byte beyond ASCII counts as the worst), or a few bytes ask it for a

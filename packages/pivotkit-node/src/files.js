@@ -10,7 +10,7 @@ import { readFile } from "pivotkit-core/import";
 import xlsxReader from "pivotkit-xlsx";
 import { printable, shortName } from "./errors.js";
 
-export { TEMP_FILE_NAME, allowedDirs, cleanFileName, isInside, readSafe, readStdin, writeNew, writeSafe } from "./safe-files.js";
+export { NO_HARD_LINKS, TEMP_FILE_NAME, allowedDirs, cleanFileName, isInside, readSafe, readStdin, writeNew, writeSafe } from "./safe-files.js";
 export { CliError, asCliError, printable, shortName } from "./errors.js";
 
 /** The data formats the front ends read, by extension. */
