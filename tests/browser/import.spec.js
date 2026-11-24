@@ -323,8 +323,10 @@ strict("the element under a strict CSP: a CSV read in its own worker, a workbook
 });
 
 plain("a policy that refuses workers: the element reads the file on the page and loads it", async ({ page }) => {
-    // the browser's own messages about the refused worker are what this test expects
-    const problems = watchConsole(page, { ignore: [/worker|Worker/] });
+    // the browser's own messages about the refused worker are what this test expects: a message about a
+    // worker and the page's policy (worker-src, Content Security Policy). pivotkit's own warnings, such as
+    // one about importWorkerUrl, name no policy and still fail the test
+    const problems = watchConsole(page, { ignore: [/(Content.Security.Policy|worker-src)[^]*[Ww]orker|[Ww]orker[^]*(Content.Security.Policy|worker-src)/] });
     await page.goto("pages/element-import-noworker.html");
     await page.waitForFunction(() => window.__ready === true);
     const report = page.locator("pivot-report");
