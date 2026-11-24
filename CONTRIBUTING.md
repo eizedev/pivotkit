@@ -53,6 +53,8 @@ Then, depending on what you changed:
 | a reader | tests on real files, see `packages/pivotkit-core/test/import-fixtures/SOURCES.md` |
 | pivotkit-xlsx | `npm run size -w pivotkit-xlsx` and `npm run bench -w pivotkit-xlsx` |
 | the HTML report's look | `npx playwright test tests/browser/report-` |
+| the XLSX export | open an exported `.xlsx` in Excel or LibreOffice |
+| a package's files, exports or `package.json` | `npm run pack:check` |
 
 The package's `AGENTS.md` lists its commands and what its tests cover.
 
@@ -76,13 +78,15 @@ Preview the site:
 
 ```bash
 npm run docs:demo
-curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css
+curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/<commit>/docs-site/site.css
 uvx zensical@<version> serve
 ```
 
 After `uvx zensical@<version> build --strict`, `node scripts/check-readme-links.js site` checks that README links resolve.
 
-- Take `<version>` from eizedev/brand's `docs-site/requirements.txt`.
+- Take `<commit>` from the line `uses: eizedev/brand/docs-site@<commit>` in `.github/workflows/docs.yml`.
+  CI builds the site with that commit of the design.
+- Take `<version>` from `docs-site/requirements.txt` of eizedev/brand at that commit.
 - CI runs `zensical build --strict`.
 
 ## Changelog and commits

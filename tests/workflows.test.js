@@ -5,6 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
+import { workspacesToCheck } from "../scripts/check-pack.js";
 import { GUARD_NAMES } from "../scripts/growth.js";
 import { commandsOf, stringsOf, workflow, workflowFiles } from "./workflow.js";
 
@@ -135,7 +136,8 @@ test("the release packs and uploads the tarball before lint and tests, and publi
     const upload = steps.findIndex((step) => String(step.uses).startsWith("actions/upload-artifact@"));
     const checks = stepRunning(steps, "npm run lint");
     assert.ok(signatures !== -1 && pack === signatures + 2, "the pack follows the install, its signature check and one step");
-    // the pack step itself runs these commands and no other
+    // the pack step itself runs these commands and no other, word for word on purpose: it makes the
+    // tarball that is published, so any change to it needs a review here
     assert.deepEqual(commandsOf(steps[pack]), [
         "set -o pipefail",
         'mkdir -p "$RUNNER_TEMP/pack"',
@@ -168,8 +170,10 @@ test("every package of this repository is checked, packed and released", () => {
     // the case of the tag check: "pivotkit-core|pivotkit-react|...) ;;"
     const tagCheck = release.jobs.build.steps.flatMap(commandsOf).map((line) => /^((?:pivotkit-[a-z]+\|?)+)\) ;;$/.exec(line)?.[1]).find(Boolean);
     const accepted = tagCheck?.split("|") ?? [];
+    // pack:check names no workspace: check-pack.js then checks every one of the root package.json
+    assert.equal(pkg.scripts["pack:check"], "node scripts/check-pack.js");
+    assert.deepEqual(workspacesToCheck([]), [...OWN]);
     for (const name of OWN) {
-        assert.ok(pkg.scripts["pack:check"].includes(`check-pack.js ${name}`), `pack:check misses ${name}`);
         assert.ok(release.on.push.tags.includes(`${name}@*`), `release.yml has no tag pattern for ${name}`);
         assert.ok(accepted.includes(name), `release.yml does not accept a ${name} tag`);
     }
@@ -262,7 +266,14 @@ test("the code of the browser jobs names no path their pull request filter ignor
 // PWTEST_SHARD_WEIGHTS is not in Playwright's docs: an update that drops it would quietly bring back
 // shards of equal test counts, so the installed Playwright must still read it
 test("the installed Playwright still reads PWTEST_SHARD_WEIGHTS", () => {
-    const cli = readFileSync(new URL("node_modules/playwright/lib/cli/testActions.js", root), "utf8");
+    // an internal file of Playwright: a release that moves it fails here, with this message
+    const file = "node_modules/playwright/lib/cli/testActions.js";
+    let cli;
+    try {
+        cli = readFileSync(new URL(file, root), "utf8");
+    } catch (error) {
+        assert.fail(`${file} is gone (${error.code}): after npm ci, find where Playwright reads PWTEST_SHARD_WEIGHTS now (#672)`);
+    }
     assert.match(cli, /process\.env\.PWTEST_SHARD_WEIGHTS/, "Playwright no longer reads PWTEST_SHARD_WEIGHTS: balance the WebKit shards in browser.yml another way (#672)");
 });
 

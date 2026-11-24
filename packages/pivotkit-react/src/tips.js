@@ -9,7 +9,7 @@
 
 import { CATALOG, stacksToPercent, suggestDateUnit, valueAddsUp } from "pivotkit-core";
 import { CHART_TYPES, MANY_SERIES, SLICE_TYPES, chartPlan } from "./chart-types.js";
-import { NOTICES, activeEntries, chart, name, seriesOf } from "./notices.js";
+import { NOTICES, activeEntries, chart, fieldName, seriesOf } from "./notices.js";
 import { sourceOf } from "./view-ops.js";
 
 export { TIP_LIMIT, tipActionText, tipContext, tipText } from "./notices.js";
@@ -84,7 +84,7 @@ export const TIPS = Object.freeze([
                 return null;
             }
             const field = [...ctx.view.rows, ...ctx.view.cols].find((f) => ctx.typeOf(f) === "date" && !CATALOG.cyclicUnits.includes(derivedBy(ctx, f)));
-            return field ? { field: name(ctx, field) } : null;
+            return field ? { field: fieldName(ctx, field) } : null;
         }
     },
     {
@@ -115,7 +115,7 @@ export const TIPS = Object.freeze([
         id: "pieColumns",
         icon: "info",
         action: "bars",
-        when: (ctx) => (sliceChart(ctx) && ctx.view.cols.length > 0 ? { fields: ctx.view.cols.map((f) => name(ctx, f)).join(", ") } : null)
+        when: (ctx) => (sliceChart(ctx) && ctx.view.cols.length > 0 ? { fields: ctx.view.cols.map((f) => fieldName(ctx, f)).join(", ") } : null)
     },
     {
         id: "chartDates",
@@ -156,7 +156,7 @@ export const TIPS = Object.freeze([
             }
             // a value with a name of its own ("Laureates") is counted on purpose
             const spec = ctx.view.values.find((v) => v.field && !v.label && ["string", "boolean"].includes(ctx.typeOf(v.field)));
-            return spec ? { field: name(ctx, spec.field) } : null;
+            return spec ? { field: fieldName(ctx, spec.field) } : null;
         }
     },
     {
@@ -177,7 +177,7 @@ export const TIPS = Object.freeze([
             const suggested = suggestDateUnit(ctx.encoded, field);
             // a grouping by day changes nothing for dates without a time: by month then
             const unit = !suggested || (suggested === "day" && column?.dateOnly) ? "yearMonth" : suggested;
-            return { field: name(ctx, field), source: field, unit };
+            return { field: fieldName(ctx, field), source: field, unit };
         }
     },
     {

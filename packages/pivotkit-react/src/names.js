@@ -510,7 +510,6 @@ export function groupingName(source, unit, labels, size) {
     return unit === "bin" ? fill(labels.binsName, { field: source, size }) : fill(labels.derivedName, { field: source, unit: inName ?? unit });
 }
 
-
 /** The zone a click on a field of the field list puts it in: numbers to Values, the rest to Rows. */
 export const quickZone = (type) => (type === "number" ? "values" : "rows");
 

@@ -15,6 +15,8 @@ const built = buildSchemas();
 const committed = (name) => readFileSync(new URL(`../packages/pivotkit-core/schema/${name}`, import.meta.url), "utf8");
 const viewSchema = JSON.parse(committed(`view-${VIEW_VERSION}.json`));
 const data = encode(SALES);
+// the view schema's validator: it holds no state between validations, so every test shares it
+const validator = new Validator(viewSchema, "2020-12", false);
 
 test("the committed schemas are what scripts/schemas.js builds", () => {
     for (const [name, schema] of Object.entries(built)) {
@@ -27,7 +29,6 @@ test("the committed schemas are what scripts/schemas.js builds", () => {
 });
 
 test("the view schema refuses every issue case that VIEW_ISSUES marks schema", () => {
-    const validator = new Validator(viewSchema, "2020-12", false);
     const marked = Object.entries(VIEW_ISSUES).filter(([, i]) => i.schema).map(([code]) => code);
     assert.ok(marked.length > 30, "most codes are the schema's too");
     for (const code of marked) {
@@ -37,7 +38,6 @@ test("the view schema refuses every issue case that VIEW_ISSUES marks schema", (
 });
 
 test("views pivotkit-core writes pass the schema and validate()", () => {
-    const validator = new Validator(viewSchema, "2020-12", false);
     const views = [
         emptyView(),
         normalize({}, data).view,
@@ -78,7 +78,6 @@ test("views pivotkit-core writes pass the schema and validate()", () => {
 });
 
 test("a filter is checked against the schema of its own type, so the errors are about it", () => {
-    const validator = new Validator(viewSchema, "2020-12", false);
     // the errors about the filter itself, without those of the schemas around them that only pass them up
     const passUp = ["properties", "allOf", "if", "false"];
     const errors = (filter) => validator.validate({ version: 2, filters: [filter] }).errors.filter((e) => e.instanceLocation.startsWith("#/filters/0") && !passUp.includes(e.keyword));
@@ -96,7 +95,6 @@ test("a filter is checked against the schema of its own type, so the errors are 
 });
 
 test("a field name of only spaces is refused by the schema as by validate()", () => {
-    const validator = new Validator(viewSchema, "2020-12", false);
     assert.equal(validator.validate({ version: 2, rows: ["  "] }).valid, false);
     assert.deepEqual(validate({ version: 2, rows: ["  "] }, data).errors.map((e) => e.code), ["unknownField"]);
 });

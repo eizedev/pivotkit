@@ -4,9 +4,14 @@
 // scripts/docs-demo.js makes). view-file-1.json still describes the files of format version 1.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Validator } from "@cfworker/json-schema";
 import { CATALOG, LIMITS, VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION, encode, fromViewFile, normalize, toViewFile } from "pivotkit-core";
+import { copySchemas } from "../scripts/docs-demo.js";
+import { SCHEMA_BASE } from "../scripts/schemas.js";
+import { tempDir } from "./temp-dir.js";
 
 const schemaFile = (version) => new URL(`../packages/pivotkit-core/schema/view-file-${version}.json`, import.meta.url);
 const schema = JSON.parse(readFileSync(schemaFile(VIEW_FILE_VERSION), "utf8"));
@@ -22,14 +27,21 @@ test("one schema per format version: the package ships them, the site's copy (sc
         }
     }
     assert.ok(pkg.files.includes("schema"));
-    const demo = readFileSync(new URL("../scripts/docs-demo.js", import.meta.url), "utf8");
-    assert.match(demo, /packages\/pivotkit-core\/schema\//);
-    assert.equal(schemaV1.$id, "https://pivotkit.eize.dev/schema/view-file-1.json");
+    // the copy the site build makes, made here: every schema, the same bytes
+    const site = join(tempDir("site-schema"), "schema");
+    await copySchemas(site);
+    assert.deepEqual(readdirSync(site).sort(), readdirSync(fileURLToPath(new URL("../packages/pivotkit-core/schema/", import.meta.url))).sort());
+    for (const version of [1, VIEW_FILE_VERSION]) {
+        assert.deepEqual(readFileSync(join(site, `view-file-${version}.json`)), readFileSync(schemaFile(version)));
+    }
+    assert.equal(schemaV1.$id, `${SCHEMA_BASE}view-file-1.json`);
     assert.equal(schemaV1.properties.formatVersion.const, 1);
 });
 
 test("the schema file is the one the files name, for the format and version the core writes", () => {
     assert.equal(schema.$id, VIEW_FILE_SCHEMA);
+    // pivotkit-core names the address on its own (a package cannot read zensical.toml): the site's
+    assert.equal(VIEW_FILE_SCHEMA, `${SCHEMA_BASE}view-file-${VIEW_FILE_VERSION}.json`);
     assert.equal(schema.properties.format.const, VIEW_FILE_FORMAT);
     assert.equal(schema.properties.formatVersion.const, VIEW_FILE_VERSION);
     assert.equal(schema.properties.name.maxLength, VIEW_FILE_LIMITS.name);
@@ -102,8 +114,7 @@ const V1_FILTERS = Object.freeze({
     relativeUnits: ["year", "month", "day"]
 });
 test("the schema's filters are version 1's: types, operators, units, the count's range", () => {
-    const schema = schemaV1;
-    const filters = schema.properties.view.properties.filters;
+    const filters = schemaV1.properties.view.properties.filters;
     assert.equal(filters.maxItems, LIMITS.filters);
     // the known types are listed; any other text is valid too (a newer pivotkit's, reported as unused)
     assert.deepEqual([...filters.items.properties.type.anyOf[0].enum].sort(), V1_FILTERS.types);
@@ -111,7 +122,7 @@ test("the schema's filters are version 1's: types, operators, units, the count's
     assert.deepEqual(compare.op.enum, V1_FILTERS.valueOps);
     assert.deepEqual(relative.unit.enum, V1_FILTERS.relativeUnits);
     assert.equal(relative.count.maximum, CATALOG.relativeMaxCount);
-    const validator = new Validator(schema, "2020-12", false);
+    const validator = new Validator(schemaV1, "2020-12", false);
     const data = encode([{ Region: "North", Units: 3, Date: "2026-01-01" }]);
     // a version-1 view as 0.4.0 wrote it
     const view = /** @type {any} */ (

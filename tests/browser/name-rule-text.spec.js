@@ -197,7 +197,8 @@ test.describe("a rule on the name, typed (#159)", () => {
         await expect.poll(() => values(texts)).toEqual(["s", "a"]);
     });
 
-    // passes without the fix as well (#167 folds the ends of the text); it guards the case the owner asked about
+    // a guard, not a fix's test: it passes without #167's fix as well (that fix folds the ends of the
+    // text), and keeps a space typed at the end from losing items
     test("a space typed at the end: the items that begin with the words stay, none is lost", async ({ page }) => {
         const menu = await beginsWith(page);
         await menu.getByTestId("filter-condition-text").click();

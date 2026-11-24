@@ -19,6 +19,7 @@ import { useIsoLayoutEffect } from "./iso.js";
 function fullScreenSupported() {
     return typeof document !== "undefined" && Boolean(document.fullscreenEnabled) && typeof HTMLElement !== "undefined" && typeof HTMLElement.prototype.requestFullscreen === "function";
 }
+
 const never = () => () => {};
 
 /**

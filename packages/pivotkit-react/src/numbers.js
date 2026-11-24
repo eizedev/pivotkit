@@ -6,12 +6,17 @@
  * thousands separator. Anything else is no number (null), so the form can say so instead of guessing.
  */
 
+/** The marks of the locales seen, at most MARKS_KEPT: the locale comes from the host. */
 const cache = new Map();
+const MARKS_KEPT = 32;
 
 /** The decimal mark and the grouping mark of a locale. */
 function marks(locale) {
     let m = cache.get(locale);
     if (!m) {
+        if (cache.size >= MARKS_KEPT) {
+            cache.delete(cache.keys().next().value);
+        }
         let parts;
         try {
             parts = new Intl.NumberFormat(locale).formatToParts(12345.6);

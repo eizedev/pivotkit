@@ -2,16 +2,16 @@
 // search entries made from what is typed ("last 3 years", "from 2022").
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, normalize, relativeDateRange } from "pivotkit-core";
-import { LABELS, fill, plural } from "../src/labels.js";
+import { PivotkitError, computePivot, encode, normalize, relativeDateRange } from "pivotkit-core";
+import { belowLimits } from "../src/limits-context.js";
+import { fill, plural } from "../src/labels.js";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../src/deferred.js";
-import { en as menuEn } from "../src/menu-labels.js";
-import { de as menuDe } from "../src/menu-labels-de.js";
-import { QUICK_UNITS, RULES_MAX, RULE_TYPES, conditionKind, filterState, keepsBlanks, rowsInRange, setRuleBlanks, setTopFilter, setLabelFilter, textOn, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, yearRules } from "../src/menu-ops.js";
+import { QUICK_UNITS, RULES_MAX, RULE_TYPES, conditionKind, filterState, itemTotals, keepsBlanks, rowsInRange, setRuleBlanks, setTopFilter, setLabelFilter, textOn, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, yearRules } from "../src/menu-ops.js";
 import { axisTopics, filterZoneTopics, searchEntries, searchHits } from "../src/menu-topics.js";
 import { compareText, itemRuleText, namedUntil, rangeShare, rangeText, relativeText } from "../src/names.js";
 import { addField, dateSpan, filterZoneFields, filtersOf, groupField, selectedItems } from "../src/view-ops.js";
+import { MENU } from "./helpers.js";
 
 const data = encode([
     { Region: "North", Units: 3, Price: 10, Released: "2019-05-01" },
@@ -19,7 +19,6 @@ const data = encode([
     { Region: "West", Units: 1, Price: 30, Released: "2025-12-20" }
 ]);
 const norm = (v) => normalize(v, data).view;
-const MENU = { en: { ...LABELS.en, ...menuEn }, de: { ...LABELS.de, ...menuDe } };
 const types = new Map([["region", "string"], ["units", "number"], ["price", "number"], ["released", "date"]]);
 const byYear = norm(groupField(norm({ rows: ["Released"] }), "Released", "year", { name: "Released (Year)" }).view);
 const byMonth = norm(groupField(norm({ rows: ["Released"] }), "Released", "yearMonth", { name: "Released (Month)" }).view);
@@ -531,7 +530,7 @@ test("Top items with ties: the items tied with the last one stay; a change keeps
     const by = { field: "Score", agg: "sum" };
     const names = (v) => computePivot(tied, v).rowRoot.children.map((n) => n.key).sort();
     const top2 = setTopFilter(base, "Name", { count: 2, bottom: false, by });
-    assert.deepEqual(names(top2).length, 2);
+    assert.equal(names(top2).length, 2);
     const ties = setTopFilter(top2, "Name", { count: 2, bottom: false, by, ties: "all" }, filtersOf(top2, "Name", ["top"])[0]);
     assert.deepEqual(filtersOf(ties, "Name", ["top"])[0].ties, "all");
     assert.deepEqual(names(ties), ["A", "B", "C", "D"]);
@@ -619,7 +618,6 @@ test("the condition on the labels by the field's type, none for dates and yes/no
 // The rules on totals compare what itemTotals counts: with the host's limits, as the report computes,
 // and over a limit no totals instead of an error the menu cannot catch.
 test("itemTotals counts with the host's limits; over a limit it gives no totals, never an error", async () => {
-    const { itemTotals } = await import("../src/menu-ops.js");
     const rows = Array.from({ length: 50 }, (_, i) => ({ Item: `i${i}`, Units: i }));
     const data = encode(rows);
     const view = normalize({ rows: ["Item"], values: [{ field: "Units", agg: "sum" }] }, data).view;
@@ -630,8 +628,6 @@ test("itemTotals counts with the host's limits; over a limit it gives no totals,
 });
 
 test("belowLimits gives the fallback only for a limit the data or view is over; any other error is thrown on", async () => {
-    const { belowLimits } = await import("../src/limits-context.js");
-    const { PivotkitError } = await import("pivotkit-core");
     assert.equal(belowLimits(() => { throw new PivotkitError("LIMIT_EXCEEDED", "over"); }, "none"), "none");
     assert.throws(() => belowLimits(() => { throw new PivotkitError("INVALID_ARGUMENT", "a defect"); }, "none"), /a defect/);
     assert.throws(() => belowLimits(() => { throw new TypeError("a bug"); }, "none"), TypeError);

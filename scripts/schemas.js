@@ -19,9 +19,14 @@ import { MATCH_CASES, MATCH_WHITESPACE } from "../packages/pivotkit-core/src/tex
 import { FIELD_TYPES, VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION } from "../packages/pivotkit-core/src/view-file.js";
 import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TOOLTIPS, CHART_TYPES, CHART_VALUE_LABELS, CHART_ZOOMS, COLOR, DISPLAY_MODES, SORT_BY, VIEW_VERSION, emptyView } from "../packages/pivotkit-core/src/view.js";
 import { isMain } from "./is-main.js";
+import { siteUrl } from "./site-url.js";
 
-/** Where the schemas are published (the site copies schema/ there, scripts/docs-demo.js). */
-export const SCHEMA_BASE = "https://pivotkit.eize.dev/schema/";
+/**
+ * Where the schemas are published: the site's address (zensical.toml) and schema/, where the site
+ * copies them (scripts/docs-demo.js). pivotkit-core's VIEW_FILE_SCHEMA names the same place
+ * (tests/view-file-schema.test.js).
+ */
+export const SCHEMA_BASE = `${siteUrl()}/schema/`;
 
 /** An object of exactly these properties, `required` of them. */
 const object = (properties, required = [], extra = {}) => ({ type: "object", additionalProperties: false, ...(required.length ? { required } : {}), properties, ...extra });

@@ -2,8 +2,9 @@
  * The host's chartOptions: a plain JSON object merged over the ECharts option the report builds, for
  * what the menus do not offer (a font size, a grid margin, the axis names). It comes from a
  * developer, often as JSON from a server (PowerShell Universal), so it is checked like data: only
- * plain objects, arrays, strings, finite numbers, booleans and null pass; functions, class instances,
- * symbols, prototype keys and anything too deep or too large are dropped and named in `problems`.
+ * plain objects, arrays, strings, finite numbers, booleans and null pass; functions, getters, class
+ * instances, symbols, prototype keys and anything too deep or too large are dropped and named in
+ * `problems`.
  *
  * Some ECharts options are markup or addresses, not data (ECharts 6.1.0): a string `formatter` of a
  * tooltip and the tooltip's `content` are written with innerHTML (TooltipHTMLContent.js) and would
@@ -41,7 +42,24 @@ export function cleanChartOptions(value) {
     }
     const problems = [];
     let entries = 0;
+    // one problem line for the cap, then nothing more is read
+    const over = (path) => {
+        if (entries++ === CHART_OPTIONS_CAPS.entries) {
+            problems.push(`${path}: more than ${CHART_OPTIONS_CAPS.entries} entries in all`);
+        }
+        return entries > CHART_OPTIONS_CAPS.entries;
+    };
+    // an entry's own value, never through a getter (which would run the host's code)
+    const getter = Symbol("getter");
+    const read = (o, key) => {
+        const d = Object.getOwnPropertyDescriptor(o, key);
+        return d && !("value" in d) ? getter : d?.value;
+    };
     const clean = (v, path, depth) => {
+        if (v === getter) {
+            problems.push(`${path}: a getter, not allowed`);
+            return undefined;
+        }
         if (typeof v === "string" && /^\s*image:\/\//i.test(v)) {
             problems.push(`${path}: an image address, not allowed`);
             return undefined;
@@ -64,11 +82,10 @@ export function cleanChartOptions(value) {
             if (Array.isArray(v)) {
                 const out = [];
                 for (let i = 0; i < v.length; i++) {
-                    if (++entries > CHART_OPTIONS_CAPS.entries) {
-                        problems.push(`${path}: more than ${CHART_OPTIONS_CAPS.entries} entries in all`);
+                    if (over(path)) {
                         break;
                     }
-                    const c = clean(v[i], `${path}[${i}]`, depth + 1);
+                    const c = clean(read(v, i), `${path}[${i}]`, depth + 1);
                     out.push(c === undefined ? null : c);
                 }
                 return out;
@@ -83,15 +100,15 @@ export function cleanChartOptions(value) {
                     problems.push(`${path}.${key}: markup, an address or the tooltip's element, not allowed`);
                     continue;
                 }
-                if (TEMPLATE_KEYS.has(key) && typeof v[key] === "string") {
+                const value = read(v, key);
+                if (TEMPLATE_KEYS.has(key) && typeof value === "string") {
                     problems.push(`${path}.${key}: a text template (written as markup), not allowed`);
                     continue;
                 }
-                if (++entries > CHART_OPTIONS_CAPS.entries) {
-                    problems.push(`${path}: more than ${CHART_OPTIONS_CAPS.entries} entries in all`);
+                if (over(path)) {
                     break;
                 }
-                const c = clean(v[key], `${path}.${key}`, depth + 1);
+                const c = clean(value, `${path}.${key}`, depth + 1);
                 if (c !== undefined) {
                     out[key] = c;
                 }

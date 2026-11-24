@@ -87,7 +87,6 @@ function useTooltipHeld(chart, ready, menuOpen) {
 /** ECharts, loaded on the first chart (lazy.js: a failed import is tried again on the next chart). */
 export const loadECharts = echarts.load;
 
-
 /**
  * @param {{ result: import("pivotkit-core").PivotResult, series: ReturnType<typeof import("pivotkit-core").toSeries> | null,
  *   labels: import("./labels.js").UiLabels, locale: string,
@@ -254,10 +253,10 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                 ro?.observe(el.current);
                 // a press: a finger's or not; one outside the chart forgets the tapped element
                 // (composedPath: inside a shadow root the document sees the host as the target)
-                const box = el.current;
-                doc = box.ownerDocument;
+                const chartEl = el.current;
+                doc = chartEl.ownerDocument;
                 onPress = (/** @type {PointerEvent} */ e) => {
-                    if (e.composedPath().includes(box)) {
+                    if (e.composedPath().includes(chartEl)) {
                         touched.current = e.pointerType === "touch";
                     } else {
                         tapped.current = null;

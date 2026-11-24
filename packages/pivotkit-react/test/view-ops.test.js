@@ -17,6 +17,7 @@ import "../src/deferred.js";
 import { en as menuEn } from "../src/menu-labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "../src/chart-types.js";
+import { MENU } from "./helpers.js";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3, Date: "2026-01-05" },
@@ -25,7 +26,6 @@ const data = encode([
 ]);
 const norm = (v) => normalize(v, data).view;
 // the labels the menus see (menuLabels): the first load's with the menus' own texts
-const MENU = { en: { ...LABELS.en, ...menuEn }, de: { ...LABELS.de, ...menuDe } };
 const empty = norm({});
 
 test("adding a field: an axis takes it from the other axis, Values adds a value, Filters an empty filter", () => {
@@ -564,7 +564,10 @@ test("the picker's search finds an item whatever its case and whitespace (#159)"
     // data copied from a web page holds a no-break space; what is typed holds a plain one
     const items = [{ label: "ACTIVE\u00A0DIRECTORY" }, { label: "Active  Directory admins" }, { label: "Other" }];
     assert.deepEqual(searchItems(items, "ACTIVE DIRECTORY").map((i) => i.label), ["ACTIVE\u00A0DIRECTORY", "Active  Directory admins"]);
-    assert.deepEqual(searchItems(items, " active directory ").length, 2);
+    assert.equal(searchItems(items, " active directory ").length, 2);
+    // no search: the list itself, which filter.jsx reads as "no search is on"
+    assert.equal(searchItems(items, ""), items);
+    assert.equal(searchItems(items, " \u00A0 "), items);
     assert.equal(searchItems(items, "  ").length, 3);
 });
 
@@ -596,7 +599,6 @@ test("the menus' operators and version 2's: a negation is the positive operator 
 });
 
 test("a chart type picked while table and chart are side by side keeps both (#51)", async () => {
-    const { setChart } = await import("../src/view-ops.js");
     assert.equal(setChart({ display: "both", chart: { type: "bar" } }, "line").display, "both");
     assert.equal(setChart({ display: "table", chart: { type: "bar" } }, "line").display, "chart");
 });

@@ -43,7 +43,9 @@ test("Angular: allow-import reads a picked CSV file in the element's import work
     await page.goto("/");
     const report = page.locator("pivot-report");
     await expect(report.getByTestId("pivot-table")).toBeVisible();
-    // the Data menu's Load data… and the browser's file chooser, as a person picks a file
+    // the Data menu's Load data… and the browser's file chooser, as a person picks a file. The toolbar
+    // moves buttons into More while the report lays out: two frames first, then Data or More decides
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
     const own = report.getByTestId("data");
     if (await own.count()) await own.click();
     else {

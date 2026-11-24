@@ -6,8 +6,8 @@
 /**
  * Waits until `condition` returns a truthy value (not 0, "" or null), and returns that value. A condition
  * that hangs (a request that never answers) is not cut off: give such a request its own time limit.
- * Throws `message` after
- * `tries` tries `every` ms apart (by default 500 tries 10 ms apart, about five seconds when idle).
+ * Throws `message` after `tries` tries `every` ms apart (by default 500 tries 10 ms apart, about five
+ * seconds when idle).
  * @template T
  * @param {() => T | Promise<T>} condition
  * @param {{ message?: string, tries?: number, every?: number }} [options]

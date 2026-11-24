@@ -239,22 +239,37 @@ export async function expectChartType(scope, name, id) {
 }
 
 /**
- * Opens the report's zones when they are folded, once the report has settled: it folds or opens them
- * while it measures itself after the first renders, so the layout is read twice, apart, before.
+ * Reads `read()` until two readings in a row, apart, are the same (as JSON) and `ready` holds for the
+ * reading, and returns it: a layout or a drawing settles over its first frames.
+ * @template T
+ * @param {() => Promise<T>} read
+ * @param {{ ready?: (value: T) => boolean, intervals?: number[] }} [options]  `intervals`: expect.poll's
+ * @returns {Promise<T>}
  */
-export async function openZones(page) {
-    const root = page.locator(".pk-root").first();
-    let last = "";
+export async function untilStable(read, { ready = () => true, intervals = [250, 250, 250, 500] } = {}) {
+    let last;
+    let seen = false;
     await expect
         .poll(async () => {
-            const now = String(await root.getAttribute("data-pk-layout"));
-            const same = now === last;
+            const now = await read();
+            const same = seen && ready(now) && JSON.stringify(now) === JSON.stringify(last);
             last = now;
+            seen = true;
             return same;
-        }, { intervals: [250, 250, 250, 500] })
+        }, { intervals })
         .toBe(true);
-    if (last === "compact") await page.getByTestId("layout-summary").click();
-    await expect(page.locator(".pk-zone").first()).toBeVisible();
+    return last;
+}
+
+/**
+ * Opens the report's zones when they are folded, once the report has settled: it folds or opens them
+ * while it measures itself after the first renders, so the layout is read twice, apart, before.
+ * `scope` is the page or one report of several.
+ */
+export async function openZones(scope) {
+    const layout = await untilStable(() => scope.locator(".pk-root").first().getAttribute("data-pk-layout"));
+    if (layout === "compact") await scope.getByTestId("layout-summary").click();
+    await expect(scope.locator(".pk-zone").first()).toBeVisible();
 }
 
 /**

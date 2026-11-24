@@ -5,6 +5,7 @@
 // API the layer's z-index is --pk-layer-z.
 import { expect, openZones, test, toolbar } from "./fixtures.js";
 import { NAV_PAGES, hitAt, labelsOnTop, reportOf, settled } from "./host-nav.js";
+import { DRAWER } from "./pages/nav-shell.js";
 
 test.describe("menus and sheets above a fixed host navigation (#111)", () => {
     for (const [name, url] of NAV_PAGES) {
@@ -13,9 +14,9 @@ test.describe("menus and sheets above a fixed host navigation (#111)", () => {
             await page.goto(url);
             const report = reportOf(page);
             await openZones(page);
-            // the navigation covers the left 250 px of the window, where a sheet starts
+            // the navigation covers the left of the window, where a sheet starts
             const drawer = await page.getByTestId("host-drawer").boundingBox();
-            expect(drawer.width).toBe(250);
+            expect(drawer.width).toBe(DRAWER);
 
             await report.getByTestId("chip-menu-Environment").click();
             const sheet = report.locator(".pk-popover.pk-sheet");
@@ -24,7 +25,7 @@ test.describe("menus and sheets above a fixed host navigation (#111)", () => {
             const box = await sheet.boundingBox();
             expect(box.x).toBe(0);
             expect((await hitAt(page, 40, box.y + 30))?.inPopover).toBe(true);
-            // every label of the sheet shows, the ones left of 250 px too (Sort, Filter, Top items, Move to, Remove)
+            // every label of the sheet shows, the ones left of the drawer's edge too (Sort, Filter, Top items, Move to, Remove)
             const labels = await labelsOnTop(page, sheet);
             expect(labels.filter((l) => l.on !== "popover")).toEqual([]);
             expect(labels.map((l) => l.text).join(" ")).toContain("Remove");

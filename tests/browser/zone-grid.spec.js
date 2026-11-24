@@ -3,7 +3,9 @@
 // never three areas and one below them. The switch follows the report's width, not the window's. A
 // chip added to a zone moves no cell, so the drop targets stay where they are. Each zone has a light
 // frame at rest. Real layout measurements in the playground with the sales data.
+import { LIGHT_TOKENS } from "pivotkit-report";
 import { chips, expect, pinFont, test } from "./fixtures.js";
+import { rgb } from "./report-contrast.js";
 
 async function open(page, { width, height = 900, lang = "en" }) {
     await page.setViewportSize({ width, height });
@@ -148,8 +150,9 @@ test.describe("each zone's frame and hint", () => {
         const frame = () => page.locator('[data-zone="filters"]').evaluate((el) => ({ style: getComputedStyle(el).borderTopStyle, color: getComputedStyle(el).borderTopColor, border: getComputedStyle(el).getPropertyValue("--pk-border-strong").trim() }));
         const rest = await frame();
         expect(rest.style).toBe("solid");
-        expect(rest.border).toBe("#c3c9d2");
-        expect(rest.color).toBe("rgb(195, 201, 210)");
+        // the light theme's value, as pivotkit-report keeps it (its tokens test compares it with styles.css)
+        expect(rest.border).toBe(LIGHT_TOKENS["--pk-border-strong"]);
+        expect(rest.color).toBe(rgb(LIGHT_TOKENS["--pk-border-strong"]));
         await page.addStyleTag({ content: ".pk-root { --pk-zone-border: rgb(200, 30, 40); }" });
         // the frame's colour has a transition
         await expect.poll(async () => (await frame()).color).toBe("rgb(200, 30, 40)");
