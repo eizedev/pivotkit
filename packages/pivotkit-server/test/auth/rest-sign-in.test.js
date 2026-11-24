@@ -10,6 +10,7 @@ import { REQUEST_LIMITS } from "../../src/limits.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { checkConfig, validateOptions } from "pivotkit-server";
 import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, untilReady, workspace } from "../helpers.js";
+import { until } from "../../../../tests/until.js";
 import { localIssuer, signingKey } from "./local-issuer.js";
 
 const MCP_RESOURCE = "https://pk.example.com/mcp";
@@ -259,13 +260,16 @@ test("limits: the people of one OAuth client together are held to concurrency x 
     const dir = workspace();
     let open;
     const gate = new Promise((resolve) => (open = resolve));
-    const server = await restServer({ sources: { slow: { load: async () => (await gate, [{ Region: "North" }]), policy: { default: "show" } }, slow2: { load: async () => (await gate, [{ Region: "North" }]), policy: { default: "show" } } }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, rest: { concurrency: 1 }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir }, { enable: ["rest", "mcp"] });
+    // the loads started: each one's request holds its place
+    let started = 0;
+    const slow = { load: async () => (started++, await gate, [{ Region: "North" }]), policy: { default: "show" } };
+    const server = await restServer({ sources: { slow, slow2: { ...slow } }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, rest: { concurrency: 1 }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir }, { enable: ["rest", "mcp"] });
     try {
         const people = await Promise.all(Array.from({ length: REQUEST_LIMITS.clientShare + 1 }, (_, i) => jwt({ sub: `person-${i}` })));
         // four loads of one source run at once: the held requests spread over two
         const held = people.slice(0, -1).map((token, i) => call(`${server.api}/sources/describe`, { token, body: { source: i % 2 ? "slow2" : "slow" } }));
         // the held requests take their places before the last one is sent
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await until(() => started === people.length - 1, { message: "every held request's load started" });
         const refused = await call(`${server.api}/sources/describe`, { token: people.at(-1), body: { source: "slow" } });
         assert.equal(refused.status, 429, JSON.stringify(refused.data));
         assert.ok(server.log.some((l) => l.event === "refused" && l.reason === "rate_limited" && l.limit === "clientShare"), JSON.stringify(server.log.filter((l) => l.event === "refused")));
