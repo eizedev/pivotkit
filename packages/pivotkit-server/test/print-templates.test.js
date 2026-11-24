@@ -32,11 +32,11 @@ test("check-config: a template the parser accepts is listed with no PROBLEM; a m
     assert.equal(ok.problems, 0);
 
     const missing = withTemplate(undefined);
-    const gone = await checkConfig({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: missing }, { http: false });
+    const gone = await checkConfig({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: missing }, { http: false, name: "pivotkit-server" });
     // like a missing source file: the server starts, the source's html reports fail until it is there
     assert.match(gone.text, /^ {4}template: data\/brand\.html$/m);
     assert.match(factsOf(gone.text), /^PROBLEM: sources\.sales\.template: brand\.html: not found -> the server starts; html reports of sales fail until it can be read$/m);
-    assert.match(factsOf(gone.text), /^pivotkit-mcp: the server starts, but not everything will work\.\n1 problem, /);
+    assert.match(factsOf(gone.text), /^pivotkit-server: the server starts, but not everything will work\.\n1 problem, /);
     assert.equal(gone.problems, 1);
     assert.equal(gone.stops, 0);
 

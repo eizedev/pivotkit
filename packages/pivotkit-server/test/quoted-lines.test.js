@@ -7,7 +7,7 @@ import { checkConfig } from "pivotkit-server";
 import { quotedBreakOf } from "../src/data.js";
 import { call, factsOf, restServer, workspace } from "./helpers.js";
 
-/** The review's probe: the quote before South is never closed where it should be. */
+/** A probe: the quote before South is never closed where it should be. */
 const PROBE = 'Region,Secret,Sales\nNorth,hid-1,10\n"South,hid-2,20\nWest,hid-3,30\nEast,"hid-4",40\nNorth,hid-5,50\n';
 
 /** Two stray quotes that pair up on a separator: the value closes on a comma, the rows between still move. */
@@ -31,7 +31,7 @@ async function answers(name, bytes, policy) {
     }
 }
 
-test("the review's probe: a source that hides Secret is refused, and no hidden value reaches describe or a render", async () => {
+test("a quote left open before South: a source that hides Secret is refused, and no hidden value reaches describe or a render", async () => {
     const got = await answers("people.csv", PROBE, HIDDEN);
     assert.doesNotMatch(got.text, /hid-[2-5]/, got.text);
     assert.equal(got.described.status, 422, got.text);

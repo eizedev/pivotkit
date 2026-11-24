@@ -119,12 +119,12 @@ test("a read through the rows route fills the source list's rows and dataAsOf", 
     const { server, person } = await serverOf();
     try {
         const token = await person();
-        const before = (await call(`${server.api}/sources`, { token })).data.sources.find((s) => s.id === "sales");
-        assert.equal(before.rows, undefined);
+        const listedBefore = (await call(`${server.api}/sources`, { token })).data.sources.find((s) => s.id === "sales");
+        assert.equal(listedBefore.rows, undefined);
         const answer = await rows(server, token, { source: "sales" });
         assert.equal(answer.status, 200, answer.text);
-        const after = (await call(`${server.api}/sources`, { token })).data.sources.find((s) => s.id === "sales");
-        assert.deepEqual([after.rows, after.dataAsOf], [5, answer.data.dataAsOf]);
+        const listedAfter = (await call(`${server.api}/sources`, { token })).data.sources.find((s) => s.id === "sales");
+        assert.deepEqual([listedAfter.rows, listedAfter.dataAsOf], [5, answer.data.dataAsOf]);
     } finally {
         await server.close();
     }
@@ -596,11 +596,11 @@ test("503 BUSY logs its refused line and every other line of the request at warn
     const h = await handlerOf({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } }, rest: { records: { concurrency: 1 } } }, { "sales.csv": bigCsv(40_000) });
     try {
         const first = await h.ask(await h.person({ sub: "ana" }), { source: "sales" });
-        const before = h.lines.length;
+        const lineCount = h.lines.length;
         const busy = await h.ask(await h.person({ sub: "ben" }), { source: "sales" });
         assert.equal(busy.status, 503);
         await first.body?.cancel();
-        const lines = h.lines.slice(before).filter((l) => l.status === 503);
+        const lines = h.lines.slice(lineCount).filter((l) => l.status === 503);
         assert.ok(lines.some((l) => l.event === "refused" && l.reason === "busy"), JSON.stringify(lines));
         assert.deepEqual(lines.map((l) => [l.event, l.level]).filter(([, level]) => level !== "warn"), []);
     } finally {
@@ -845,8 +845,8 @@ test("the writer gives every value as pivotkit-core's data export does, dates as
         { Day: null, At: null, Ms: "+10000-01-01T00:00:00.001", Text: "", N: 1e21, B: null, Empty: null }
     ];
     const data = encode(rows, { timeZone: "Europe/Berlin" });
-    const text = [...columnPieces(data, data.columns, 16)].join("");
     const pieces = [...columnPieces(data, data.columns, 16)];
+    const text = pieces.join("");
     assert.ok(pieces.length > 3, "small pieces");
     // a piece ends after a whole value: its last character closes a value, an array or a text
     for (const piece of pieces.slice(0, -1)) {
@@ -867,4 +867,15 @@ test("the writer gives every value as pivotkit-core's data export does, dates as
         assert.deepEqual(Array.from(back.codes, (k) => (k < 0 ? null : back.dict[k])), Array.from(column.codes, (k) => (k < 0 ? null : column.dict[k])), column.name);
     }
     assert.equal(again.column("Empty")?.type, "null", "the column without a value is null again");
+});
+
+test("a field named in the request matches its column as the policy matches names: case, spaces and Unicode form", async () => {
+    const { server, person } = await serverOf();
+    try {
+        const answer = await rows(server, await person(), { source: "sales", fields: ["  region ", "SALES"] });
+        assert.equal(answer.status, 200, answer.text);
+        assert.deepEqual(answer.data.columns, ["Region", "Sales"]);
+    } finally {
+        await server.close();
+    }
 });

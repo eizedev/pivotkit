@@ -1,6 +1,7 @@
 // Results a caller reads or pastes as they are: inline csv and json with numbers as the view shows
 // them (no float noise), in the caller's locale, with one header row on request and json on one line;
-// saved files and the file route keep full precision unless numbers says otherwise; every answer
+// saved files and the file route keep full precision (15 significant digits, as pivotkit-core writes
+// numbers) unless numbers says otherwise; every answer
 // names its request id; saved files are named without spaces.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +12,7 @@ import { callerOf, createContext, present } from "pivotkit-server";
 import { presentedOutput } from "pivotkit-server/internal";
 import { call, restServer, workspace } from "./helpers.js";
 
-/** 64 amounts of 0.1 and 0.2: their sum is 9.599999999999994 in floating point, not 9.6. */
+/** 64 amounts of 0.1 and 0.2: their sum is 9.599999999999994 in floating point, not 9.6; 9.59999999999999 in 15 digits. */
 const AMOUNTS_CSV = ["Region,Product,Amount", ...Array.from({ length: 64 }, (_, i) => `${["East", "North"][(i >> 1) % 2]},${["A", "B"][(i >> 2) % 2]},${[0.1, 0.2][i % 2]}`)].join("\n") + "\n";
 
 /** A value with columns: Product down, Region across, one sum. */

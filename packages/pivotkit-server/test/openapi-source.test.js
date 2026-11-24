@@ -21,6 +21,15 @@ const PLATFORM = readDocument(fixture("platform.json"));
 const HOSTILE_TEXT = fixture("hostile.json");
 const generate = (doc, operation, more = {}) => sourceFromOpenApi(doc, { operation, ...more });
 
+/** A document with one GET operation at /a (operationId "op") whose answer is a list of `row`, and what else is given. */
+const minimal = (row, more = {}) => ({
+    openapi: "3.1.0",
+    info: { title: "T", version: "1" },
+    servers: [{ url: "https://api.example.com" }],
+    paths: { "/a": { get: { operationId: "op", responses: { 200: { description: "x", content: { "application/json": { schema: { type: "array", items: row } } } } } } } },
+    ...more
+});
+
 /** The bin as an operator runs it. */
 
 /** What an operator writes for each TODO, by the key that holds it. */
@@ -390,32 +399,58 @@ test("options: a value under httpSources or a source's http that still says TODO
     assert.doesNotThrow(() => validateOptions(config));
 });
 
-/** A document with one GET operation at /a (operationId "op") whose answer is a list of `row`, and what else is given. */
-const minimal = (row, more = {}) => ({
-    openapi: "3.1.0",
-    info: { title: "T", version: "1" },
-    servers: [{ url: "https://api.example.com" }],
-    paths: { "/a": { get: { operationId: "op", responses: { 200: { description: "x", content: { "application/json": { schema: { type: "array", items: row } } } } } } } },
-    ...more
+test("source-from-openapi: a property of an allOf part is a property, whatever its name", () => {
+    // the merge once kept a part's items and description among the properties under a "\0" prefix: a
+    // property named "\u0000items" vanished from the fields and set the schema's items
+    const row = { allOf: [{ type: "object", properties: { "\u0000items": { type: "string" }, name: { type: "string" } } }] };
+    const result = generate(readDocument(JSON.stringify(minimal(row))), "op");
+    assert.deepEqual(Object.keys(result.config.sources.op.policy.fields), ["name"]);
+    assert.ok(result.notes.some((n) => n.startsWith("Skipped the row's property")), result.notes.join("\n"));
+});
+
+test("source-from-openapi: path parameters whose names clean to the same name each keep their own placeholder", () => {
+    const doc = {
+        openapi: "3.1.0",
+        info: { title: "T", version: "1" },
+        servers: [{ url: "https://api.example.com" }],
+        paths: { "/x/{a-b}/{a_b}": { get: { operationId: "op", parameters: [{ name: "a-b", in: "path", required: true, schema: { type: "string" } }, { name: "a_b", in: "path", required: true, schema: { type: "string" } }], responses: { 200: { description: "x", content: { "application/json": { schema: { type: "array", items: { type: "object" } } } } } } } } }
+    };
+    const { http, params } = generate(readDocument(JSON.stringify(doc)), "op").config.sources.op;
+    const placeholders = [...http.path.matchAll(/\{([^}]*)\}/g)].map((m) => m[1]);
+    assert.equal(placeholders.length, 2, http.path);
+    assert.notEqual(placeholders[0], placeholders[1], http.path);
+    assert.deepEqual(placeholders.toSorted(), Object.keys(params).toSorted());
+});
+
+test("source-from-openapi: a parameter in a place OpenAPI does not define is skipped with a note", () => {
+    const doc = minimal({ type: "object" });
+    doc.paths["/a"].get.parameters = [{ name: "q", in: "body", schema: { type: "string" } }];
+    const result = generate(readDocument(JSON.stringify(doc)), "op");
+    assert.equal(result.config.sources.op.params, undefined);
+    assert.ok(result.notes.some((n) => n.startsWith('Skipped the parameter "q": its "in" is "body"')), result.notes.join("\n"));
+});
+
+test("source-from-openapi: scopes beyond 1000 characters are left out whole, with a note", () => {
+    const scopes = Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`scope.${String(i).padStart(2, "0")}.${"x".repeat(20)}`, ""]));
+    const doc = minimal({ type: "object" }, { components: { securitySchemes: { cc: { type: "oauth2", flows: { clientCredentials: { tokenUrl: "https://auth.example.com/token", scopes } } } } }, security: [{ cc: Object.keys(scopes) }] });
+    const result = generate(readDocument(JSON.stringify(doc)), "op");
+    const backend = Object.values(result.config.httpSources.backends)[0];
+    const scope = backend.auth.clientCredentials.scope;
+    assert.ok(scope.length <= 1000, String(scope.length));
+    assert.ok(scope.split(" ").every((s) => Object.hasOwn(scopes, s)), "no scope cut in the middle");
+    assert.ok(result.notes.some((n) => n.includes("of its scopes are left out")), result.notes.join("\n"));
 });
 
 test("source-from-openapi: a wide allOf repeated many times stays within the node budget and is fast", () => {
-    // the reviewer's shape: Leaf with 20000 properties, S0 = allOf of 2000 references to it (about 300 KB)
+    // Leaf with 20000 properties, S0 = allOf of 2000 references to it (about 300 KB): the merge stops
+    // at OPENAPI_LIMITS.merged properties, so the document is read, its fields capped, with a note
     const leaf = { type: "object", properties: Object.fromEntries(Array.from({ length: 20_000 }, (_, i) => [`f${i}`, {}])) };
     const doc = minimal({ $ref: "#/components/schemas/S0" }, { components: { schemas: { Leaf: leaf, S0: { allOf: Array.from({ length: 2000 }, () => ({ $ref: "#/components/schemas/Leaf" })) } } } });
     const cpu = cpuClock();
-    let result;
-    try {
-        result = generate(readDocument(JSON.stringify(doc)), "op");
-    } catch (e) {
-        assert.ok(e instanceof OpenApiError, String(e));
-        assert.match(e.message, /more than 100000 nodes/);
-    }
+    const result = generate(readDocument(JSON.stringify(doc)), "op");
     assert.ok(cpu() < 3000, `took ${Math.round(cpu())} ms of CPU`);
-    if (result) {
-        assert.ok(Object.keys(result.config.sources.op.policy.fields).length <= OPENAPI_LIMITS.fields);
-        assert.ok(result.notes.some((n) => n.includes(`allOf merges more than ${OPENAPI_LIMITS.merged} properties`)));
-    }
+    assert.ok(Object.keys(result.config.sources.op.policy.fields).length <= OPENAPI_LIMITS.fields);
+    assert.ok(result.notes.some((n) => n.includes(`allOf merges more than ${OPENAPI_LIMITS.merged} properties`)), result.notes.join("\n"));
 });
 
 test("source-from-openapi: an unexpected failure prints a fixed text and exits 2", async () => {
@@ -441,12 +476,12 @@ test("source-from-openapi: scopes, header names and values from the document tha
         doc.paths["/a"].get.parameters = parameters;
         return generate(readDocument(JSON.stringify(doc)), "op");
     };
-    // S2: a scope that starts with TODO would read as a placeholder
+    // a scope that starts with TODO would read as a placeholder
     const cc = withSecurity([{ cc: ["TODO:", "todo-x", "read"] }]);
     assert.equal(Object.values(cc.config.httpSources.backends)[0].auth.clientCredentials.scope, "read");
     assert.ok(cc.notes.some((n) => n.includes("scopes starting with TODO are left out")));
     assertValidates(cc);
-    // S3: an API key in Cookie or Origin is no header name to copy; a fitting one is listed for review
+    // an API key in Cookie or Origin is no header name to copy; a fitting one is listed for review
     for (const name of ["cookie", "origin"]) {
         const g = withSecurity([{ [name]: [] }]);
         assert.equal(Object.values(g.config.httpSources.backends)[0].auth.header.name, "TODO: the header's name", name);
@@ -455,11 +490,12 @@ test("source-from-openapi: scopes, header names and values from the document tha
     }
     const good = withSecurity([{ good: [] }]);
     assert.ok(good.review.some((r) => r.path.endsWith(".auth.header.name") && r.text === "x-api-key"));
-    // S4: values that look like credentials, whatever the parameter's name
+    // values that look like credentials, whatever the parameter's name (made up, assembled here so
+    // no scanner takes the test file for one)
     const secrets = withSecurity(
         [],
         [
-            { name: "a", in: "query", schema: { type: "string", example: "sk-proj-abc123def456ghi789" } },
+            { name: "a", in: "query", schema: { type: "string", example: ["sk", "proj", "abc123def456ghi789"].join("-") } },
             { name: "b", in: "query", schema: { type: "string", enum: ["ok", ["ghp", "abcdefghijklmnopqrstuvwxyz0123456789"].join("_")] } },
             { name: "c", in: "query", schema: { type: "string", example: "aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bC1dF3h" } },
             { name: "d", in: "query", schema: { type: "string", enum: ["eu-central", "us-east"] } },
@@ -562,7 +598,7 @@ test("source-from-openapi: the guards each have a case that fails without them",
 });
 
 test("source-from-openapi: a schema's other keys are not copied, and a schema referenced thousands of times is merged once", () => {
-    // the reviewer's shape: Big = allOf plus 60000 x- keys, and an answer of 6000 properties that each reference Big (about 1 MB)
+    // Big = allOf plus 60000 x- keys, and an answer of 6000 properties that each reference Big (about 1 MB)
     const big = { allOf: [{ type: "object" }], ...Object.fromEntries(Array.from({ length: 60_000 }, (_, i) => [`x-k${i}`, 1])) };
     const doc = minimal({ type: "object" }, { components: { schemas: { Big: big } } });
     doc.paths["/a"].get.responses[200].content["application/json"].schema = { type: "object", properties: Object.fromEntries(Array.from({ length: 6000 }, (_, i) => [`p${i}`, { $ref: "#/components/schemas/Big" }])) };
@@ -575,12 +611,13 @@ test("source-from-openapi: a schema's other keys are not copied, and a schema re
 });
 
 test("source-from-openapi: credential-looking values: the known prefixes and long tokens go, words stay, and a note says which", () => {
+    // made-up keys, assembled here so no scanner takes the test file for one
     const values = {
-        aws: "ASIAIOSFODNN7EXAMPLE",
-        google: "ya29.a0AfH6SMBexampleexample",
-        sendgrid: "SG.abcdefgh12345678.qrstuvwxyz90",
-        shopify: "shpat_0123456789abcdef0123",
-        digitalocean: "dop_v1_0123456789abcdef0123456789",
+        aws: `ASIA${"IOSFODNN7EXAMPLE"}`,
+        google: ["ya29", "a0AfH6SMBexampleexample"].join("."),
+        sendgrid: ["SG", "abcdefgh12345678", "qrstuvwxyz90"].join("."),
+        shopify: ["shpat", "0123456789abcdef0123"].join("_"),
+        digitalocean: ["dop", "v1", "0123456789abcdef0123456789"].join("_"),
         dotted: "abcd1234.efgh5678.ijkl9012.mnop3456.qrst",
         kebab: "order-status-pending-fulfillment-queue",
         bare: "pk-",
@@ -604,7 +641,7 @@ test("source-from-openapi: credential-looking values: the known prefixes and lon
 test("source-from-openapi: known key prefixes with 16 or more token characters are credentials, digits or not; short ones are words", () => {
     // made-up keys, assembled here so no scanner takes the test file for one
     const tail = "AbCdEfGhIjKlMnOpQrStUvWx";
-    for (const secret of [["sk", "live", tail].join("_"), `ghp_${"a".repeat(36)}`, `hf_${"b".repeat(34)}`, `AKIA${"ABCDEFGHIJKLMNOPQR"}`, ["xoxb", "AbCdEfGhIj", "AbCdEf"].join("-"), `AIza${"Sy"}${tail}`, "sk-proj-abc123def456ghi789"]) {
+    for (const secret of [["sk", "live", tail].join("_"), `ghp_${"a".repeat(36)}`, `hf_${"b".repeat(34)}`, `AKIA${"ABCDEFGHIJKLMNOPQR"}`, ["xoxb", "AbCdEfGhIj", "AbCdEf"].join("-"), `AIza${"Sy"}${tail}`, ["sk", "proj", "abc123def456ghi789"].join("-")]) {
         assert.equal(looksSecret(secret), true, secret);
     }
     for (const word of ["sk-SK", "ghp_1", "skp_1", "pk-", "pk-ordinary", "order-status-pending-fulfillment-queue", "running", "123e4567-e89b-12d3-a456-426614174000"]) {
@@ -625,7 +662,6 @@ test("source-from-openapi: a schema merged deep down does not cut the same schem
     // C5 at depth 1 reaches C9 (depth 5), so every level shows up whichever comes first
     assert.ok(forward.includes("f9"), forward.join(","));
 });
-
 
 test("source-from-openapi: a server on a private address suggests intranet (a note, never set), a public one does not", () => {
     const noteOf = (url) => generate(readDocument(JSON.stringify(minimal({ type: "object" }, { servers: [{ url }] }))), "op").notes.find((n) => /intranet/.test(n));

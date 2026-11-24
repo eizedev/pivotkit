@@ -164,10 +164,10 @@ test("profiles in the configuration: an unknown profile name and a default of hi
 });
 
 test("hide holds for a repeated header the reader renamed and for a name in another Unicode form, also under a profile that shows by default", async () => {
-    const nfd = "Größe";
+    const nfd = "Gro\u0308\u00DFe";
     const dir = workspace({ "hr.csv": `Name,Email,Region,email ,${nfd}\nAnn,a@example.invalid,North,a2@example.invalid,180\nBen,b@example.invalid,South,b2@example.invalid,170\n` });
     const server = await restServer(
-        { sources: { hr: { file: "data/hr.csv", policy: { fields: { Email: "hide", "Größe": "hide" } } } }, policy: { profiles: { open: { default: "show", results: true } } }, auth: { mode: "token", tokens: [{ name: "open", env: "T", profile: "open" }] }, baseDir: dir },
+        { sources: { hr: { file: "data/hr.csv", policy: { fields: { Email: "hide", "Gr\u00F6\u00DFe": "hide" } } } }, policy: { profiles: { open: { default: "show", results: true } } }, auth: { mode: "token", tokens: [{ name: "open", env: "T", profile: "open" }] }, baseDir: dir },
         { env: { T: TOKEN } }
     );
     try {

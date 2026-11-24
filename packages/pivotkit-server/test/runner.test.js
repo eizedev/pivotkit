@@ -6,13 +6,14 @@ import { spawn } from "node:child_process";
 import { chmodSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createRequire } from "node:module";
+import { EventEmitter } from "node:events";
 import { serve } from "pivotkit-server";
 import { fitsRange } from "../src/version-range.js";
+import { run } from "../src/runner.js";
 import { BIN, BY_REGION, call, factsOf, runBin, TOKEN, workspace } from "./helpers.js";
 import { until } from "../../../tests/until.js";
 
 const { version: VERSION } = createRequire(import.meta.url)("../package.json");
-
 
 /**
  * A start error as the person reads it: serve writes it as a JSON line where stderr is no terminal
@@ -135,6 +136,9 @@ test("fitsRange reads the ranges npm writes: caret, tilde, exact, comparisons, |
         [">=0.2.0 <0.3.0", "0.2.4", true], [">=0.2.0 <0.3.0", "0.3.0", false], ["^0.1.0 || ^0.2.0", "0.2.1", true],
         ["0.2.x", "0.2.7", true], ["0.2.x", "0.3.0", false], ["*", "0.2.0", true],
         ["^0.2.0", "0.2.0-rc.1", false], ["^0.2.0-rc.1", "0.2.0", true],
+        // a partial version after > or <= covers its whole span, as npm's semver reads it
+        [">1.2", "1.2.5", false], [">1.2", "1.3.0", true], ["<=1.2", "1.2.5", true], ["<=1.2", "1.3.0", false],
+        [">1", "1.5.0", false], [">1", "2.0.0", true], ["<=1", "1.5.0", true], ["<=1", "2.0.0", false],
         ["file:../pivotkit-server", "0.2.0", null], ["latest", "0.2.0", null], ["", "0.2.0", null]
     ];
     for (const [range, version, fits] of cases) {
@@ -171,13 +175,16 @@ test("check-config reads the file $PIVOTKIT_CONFIG names and says what REST woul
 test("serve from the command line: REST and MCP on one port, /healthz for healthcheck, and SIGTERM stops it", async (t) => {
     const dir = workspace();
     const child = spawn(process.execPath, [BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0", "--auth", "token"], { cwd: dir, env: { PATH: process.env.PATH ?? "", PIVOTKIT_TOKEN: TOKEN } });
-    const lines = [];
-    child.stderr.on("data", (c) => lines.push(...String(c).trim().split("\n")));
+    // stderr as it comes: a piece can end in the middle of a line, and a line may be no JSON (a Node warning)
+    let stderr = "";
+    child.stderr.on("data", (c) => (stderr += c));
+    /** The complete JSON lines read so far. */
+    const jsonLines = () => stderr.split("\n").slice(0, -1).filter((l) => l.startsWith("{")).map((l) => JSON.parse(l));
     try {
         const started = await new Promise((resolve, reject) => {
-            const timer = setTimeout(() => reject(new Error(`not started: ${lines.join("\n")}`)), 20_000);
+            const timer = setTimeout(() => reject(new Error(`not started: ${stderr}`)), 20_000);
             child.stderr.on("data", () => {
-                const line = lines.map((l) => JSON.parse(l)).find((l) => l.message === "started");
+                const line = jsonLines().find((l) => l.message === "started");
                 if (line) {
                     clearTimeout(timer);
                     resolve(line);
@@ -249,7 +256,6 @@ test("healthcheck probes the port serve listens on: --port, then http.port of th
 
 test("stopOnSignals: SIGTERM or SIGINT closes the server once and exits 0; a close that throws is logged and exits 1", async () => {
     const { stopOnSignals } = await import("pivotkit-server/internal");
-    const { EventEmitter } = await import("node:events");
     for (const [signal, fails] of [["SIGTERM", false], ["SIGINT", true]]) {
         const signals = new EventEmitter();
         const exits = [];
@@ -328,4 +334,26 @@ test("PIVOTKIT_PORT as Kubernetes service links set it (tcp://...): serve, check
     const check = runBin(["check-config", "--source", "sales=data/sales.csv", "--port", "3333"], { env, cwd: dir });
     assert.equal(check.status, 0, check.stderr);
     assert.equal(runBin(["healthcheck", "http://127.0.0.1:1/healthz"], { env }).status, 1);
+});
+
+test("pivotkit-server --help names --version", async () => {
+    const out = [];
+    const io = { env: {}, stdout: { write: (t) => out.push(t) }, stderr: { write: (t) => out.push(t) } };
+    assert.equal(await run(["--help"], io), 0);
+    assert.match(out.join(""), /\n {7}pivotkit-server --version\n/);
+    assert.match(out.join(""), /\n {2}--version +Print the version and exit\.\n {2}--help +Print this help and exit\.\n/, "--version before --help, as pivotkit-mcp's");
+});
+
+test("the command's refusals: an unknown command, and a bad --auth as a JSON line, or as text on a terminal", async () => {
+    const err = [];
+    const io = { env: {}, stdout: { write: () => true }, stderr: { write: (t) => err.push(t) } };
+    assert.equal(await run(["serve", "--auth", "bogus"], io), 2);
+    // serve's error where stderr is no terminal is a JSON line (the log's auto rule), with the same words
+    assert.equal(JSON.parse(err.join("")).msg, '--auth must be none, token or oauth; run "pivotkit-server --help"');
+    err.length = 0;
+    assert.equal(await run(["serve", "--auth", "bogus"], { ...io, stderr: { isTTY: true, write: (t) => err.push(t) } }), 2);
+    assert.equal(err.join(""), 'pivotkit-server: --auth must be none, token or oauth; run "pivotkit-server --help"\n', "on a terminal: text");
+    err.length = 0;
+    assert.equal(await run(["bogus"], io), 2);
+    assert.equal(err.join(""), 'pivotkit-server: unknown command "bogus"; run "pivotkit-server --help"\n');
 });

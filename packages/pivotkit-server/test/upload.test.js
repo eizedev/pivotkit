@@ -10,14 +10,14 @@
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { createHash, createHmac, hkdfSync } from "node:crypto";
-import { existsSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { platform } from "node:process";
 import { join } from "node:path";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { OperationError } from "pivotkit-report/operations";
 import { callerOf, checkConfig, present, validateOptions } from "pivotkit-server";
 import { serverTextOf } from "pivotkit-server/internal";
-import { checkedAddress, expiryOf, fillTemplate, nameSlug, uploadMeans } from "../src/upload.js";
+import { checkedAddress, fillTemplate, nameSlug, uploadExpiryOf, uploadMeans } from "../src/upload.js";
 import { deliver, NO_LINK_NOTE, storeFor } from "../src/delivery.js";
 import { createDownloadHandler } from "../src/downloads.js";
 import { subkeysOf } from "../src/downloads/tokens.js";
@@ -85,7 +85,6 @@ beforeEach(() => {
 });
 
 const origin = (host) => `https://${host}.example.test:${port}`;
-
 
 /** The presign service as a store's is: it names an address in the bucket, a header for it and the link. */
 function presignRoute(more = {}) {
@@ -210,12 +209,12 @@ test("an address from an answer: https://, on the list, no user name, no control
 
 test("an expiry from an answer: a future time in one form, else none", () => {
     const now = Date.UTC(2026, 10, 15, 8, 0, 0);
-    assert.equal(expiryOf("2026-11-15T08:59:59+01:00", now), null);
-    assert.equal(expiryOf("2026-11-15T10:30:00.987Z", now), "2026-11-15T10:30:00Z");
-    assert.equal(expiryOf(now / 1000 + 3600, now), "2026-11-15T09:00:00Z");
-    assert.equal(expiryOf("tomorrow <script>", now), null);
-    assert.equal(expiryOf("2030-01-01T00:00:00Z", now), null);
-    assert.equal(expiryOf(null, now), null);
+    assert.equal(uploadExpiryOf("2026-11-15T08:59:59+01:00", now), null);
+    assert.equal(uploadExpiryOf("2026-11-15T10:30:00.987Z", now), "2026-11-15T10:30:00Z");
+    assert.equal(uploadExpiryOf(now / 1000 + 3600, now), "2026-11-15T09:00:00Z");
+    assert.equal(uploadExpiryOf("tomorrow <script>", now), null);
+    assert.equal(uploadExpiryOf("2030-01-01T00:00:00Z", now), null);
+    assert.equal(uploadExpiryOf(null, now), null);
 });
 
 test("which report goes to the store: open sources; closed ones only to bound links, on REST only with results; never a draft", () => {
@@ -344,6 +343,7 @@ test("bound store links (signIn): a report over a closed source goes there for a
         assert.equal(asked.length, 6);
     } finally {
         await context.close();
+        delete process.env.PIVOTKIT_TEST_DL_KEY;
     }
 });
 
@@ -631,7 +631,6 @@ test("check-config: where reports go and which go there", async () => {
     const keyed = await checkConfig({ ...presignOptions({ bind: "signIn" }, { downloads: { key: { env: "K" } } }), baseDir: dir }, { http: true, env: { PIVOTKIT_TEST_STORE_TOKEN: "x", K: DL_KEY } });
     assert.doesNotMatch(factsOf(keyed.text), /subject binding/);
     assert.doesNotMatch(once.text, /PROBLEM/);
-    assert.ok(existsSync(join(dir, "data", "sales.csv")));
     // an address's query is not printed: it may hold a signature
     const sas = await checkConfig({ sources: SOURCES, output: { dir: "out", upload: { url: "https://acct.blob.core.example.com/reports/{id}.{format}?sv=2026-01-01&sig=SAS-SECRET", link: "header:location" } }, baseDir: dir }, { http: true, env: {} });
     assert.match(sas.text, /target: https:\/\/acct\.blob\.core\.example\.com\/reports\/\{id\}\.\{format\}\?\.\.\.\n {4}PUT/);
