@@ -17,7 +17,7 @@ import { compileTemplate, expandUrl } from "../src/sources/template.js";
 import { checkSource, paramFlags } from "../src/check-source.js";
 import { loadRunner } from "../src/sources/run.js";
 import { run } from "../src/runner.js";
-import { call, factsOf, restServer, tempDir, json, loopbackHttps, fakeLookup } from "./helpers.js";
+import { call, factsOf, restServer, tempDir, json, loopbackHttps, fakeLookup, literal } from "./helpers.js";
 import { until } from "../../../tests/until.js";
 
 /** What the backend answers per path, set by each test; and what it was asked. */
@@ -796,7 +796,7 @@ test("check-source for the operator: options in any order, exit 2 for an id that
     routes.set("/v1/all", json({ error: "no" }, 401));
     const withHeader = { httpSources: { backends: { platform: { url: `https://api.example.test:${port}/v1`, intranet: true, auth: { header: { value: { file: secret } } } } } }, sources: { all: { http: { backend: "platform", path: "/all", rows: "/items" }, policy: POLICY } } };
     const refused = await checkSource(withHeader, "all", {});
-    assert.match(refused.text, new RegExp(`\\n  the backend answered 401: check the secret behind httpSources\\.backends\\.platform\\.auth\\.header \\(the file ${secret.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\) and that the backend accepts it\\n`));
+    assert.match(refused.text, new RegExp(`\\n  the backend answered 401: check the secret behind httpSources\\.backends\\.platform\\.auth\\.header \\(the file ${literal(secret)}\\) and that the backend accepts it\\n`));
     assert.doesNotMatch(refused.text, /s3cret/);
 
     // a certificate the server does not trust: with NODE_EXTRA_CA_CERTS set, that its file does not cover it
