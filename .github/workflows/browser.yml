@@ -1,0 +1,106 @@
+name: Browser tests
+
+# The browser matrix: the playground, the host pages and the web component's pages in Chromium,
+# Firefox and WebKit, on React 18 and 19. Its 16 jobs are most of CI's runner time, so a pull request
+# runs them only when it changes something they build or test. They read no Markdown file, nothing in
+# docs/ and nothing of the Angular example (which ci.yml's angular job tests): a pull request that
+# changes only those skips this workflow. ci.yml's test, platforms and angular jobs still run for it,
+# since they check docs and Markdown too. A push to main runs the whole matrix inside ci.yml's run
+# (workflow_call), so release.yml and image.yml, which need a green ci.yml run for the tagged commit,
+# still find the browser tests in it. tests/workflows.test.js checks the triggers and the ignore list.
+on:
+  # every base branch: a pull request stacked on another one is tested too
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - "examples/angular/**"
+  workflow_call:
+
+permissions:
+  contents: read
+
+# a newer push to the same pull request replaces the run in progress; its own group name, since
+# groups are shared across workflows and ci.yml's group would cancel this run
+concurrency:
+  group: browser-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    # The playground (examples/playground), the host pages and the web component's pages
+    # (tests/browser/pages) in Chromium, Firefox and WebKit, on React 18 (the workspace's, as
+    # PowerShell Universal provides it) and on React 19 (tests/react19, its own lock file). One job per
+    # engine, shard and React version, so a failure names its engine. Shards keep each job's tests near
+    # 8 minutes, half of its timeout: one Chromium or three WebKit shards ran up to 14.3 minutes (#627).
+    # Playwright gives each shard the same number of tests. WebKit's slow tests sit in its second and
+    # fourth quarter, so its shards take other shares of the tests: PWTEST_SHARD_WEIGHTS in the test
+    # step (#672). The weights come from the "Browser tests" step times of a green main run, taken as
+    # even within each quarter of the test list; check them again after larger test changes. The
+    # variable is Playwright's own but not in its docs, so this is a workaround; tests/workflows.test.js checks
+    # that the installed Playwright still reads it. Other engines pass an empty value, which it ignores.
+    # Playwright's own image carries the browsers and their system libraries, so nothing is installed
+    # with apt. Its version must be the one of @playwright/test in package-lock.json; tests/workflows.test.js
+    # checks that and this matrix.
+    name: browser (${{ matrix.target.browser }} ${{ matrix.target.shard }}/${{ matrix.target.of }}, React ${{ matrix.react }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        react: ["18", "19"]
+        target:
+          - { browser: chromium, shard: 1, of: 2 }
+          - { browser: chromium, shard: 2, of: 2 }
+          - { browser: firefox, shard: 1, of: 2 }
+          - { browser: firefox, shard: 2, of: 2 }
+          - { browser: webkit, shard: 1, of: 4 }
+          - { browser: webkit, shard: 2, of: 4 }
+          - { browser: webkit, shard: 3, of: 4 }
+          - { browser: webkit, shard: 4, of: 4 }
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe
+      options: --user 1001
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install
+        run: npm ci --no-audit --no-fund --ignore-scripts
+      - name: Install React 19
+        if: matrix.react == '19'
+        run: npm ci --prefix tests/react19 --no-audit --no-fund --ignore-scripts
+      - name: Build
+        # the packages, the playground and the test pages, on the job's React
+        env:
+          PIVOTKIT_REACT: ${{ matrix.react }}
+        run: npm run build:playground
+      - name: React 19 types
+        if: matrix.react == '19'
+        # Generate declarations in workspace build order, then resolve the consumer's React from
+        # tests/react19 via tsconfig paths, never from the React 18 workspace install.
+        run: npm run types && npm run types --prefix tests/react19
+      - name: Browser tests
+        # tests/browser against the build, in the job's engine and shard only; a run that leaves a
+        # temporary directory behind fails (scripts/test-run.js)
+        env:
+          PIVOTKIT_REACT: ${{ matrix.react }}
+          PWTEST_SHARD_WEIGHTS: ${{ matrix.target.browser == 'webkit' && '31:22:29:18' || '' }}
+        run: node scripts/test-run.js npx playwright test --project=${{ matrix.target.browser }} --shard=${{ matrix.target.shard }}/${{ matrix.target.of }}
+      - name: Playground build
+        # the static files the tests opened, to try the playground without building it
+        if: success() && matrix.react == '18' && matrix.target.browser == 'chromium'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playground
+          path: examples/playground/dist/
+          retention-days: 14
+      - name: Test report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-${{ matrix.target.browser }}-${{ matrix.target.shard }}-of-${{ matrix.target.of }}-react-${{ matrix.react }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
