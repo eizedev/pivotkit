@@ -104,10 +104,11 @@ export function tabLeaves(e, close) {
 /**
  * An ARIA menu: one Tab stop (the item focused last, else the one marked `data-pk-start`, else the
  * first), the arrow keys, Home and End, type-ahead; left and right move inside a group of choices
- * side by side (`data-pk-seg`). `onKey` runs first and may take a key (return true).
- * @param {{ label?: string, labelledBy?: string, describedBy?: string, className?: string, close: () => void, children: React.ReactNode, testId?: string }} props
+ * side by side (`data-pk-seg`).
+ * Type-ahead compares in the report's `locale`.
+ * @param {{ label?: string, labelledBy?: string, describedBy?: string, className?: string, close: () => void, children: React.ReactNode, testId?: string, locale?: string }} props
  */
-export function MenuList({ label, labelledBy, describedBy, className, close, children, testId }) {
+export function MenuList({ label, labelledBy, describedBy, className, close, children, testId, locale }) {
     const ref = useRef(/** @type {HTMLDivElement | null} */ (null));
     const last = useRef(/** @type {string | null} */ (null));
     const typed = useRef({ text: "", at: 0 });
@@ -183,7 +184,7 @@ export function MenuList({ label, labelledBy, describedBy, className, close, chi
         if (e.key.length === 1 && e.key !== " ") {
             const now = Date.now();
             typed.current = { text: now - typed.current.at < 600 ? typed.current.text + e.key : e.key, at: now };
-            go(typeAheadIndex(items.map((el) => el.dataset.pkText ?? el.textContent ?? ""), at, typed.current.text));
+            go(typeAheadIndex(items.map((el) => el.dataset.pkText ?? el.textContent ?? ""), at, typed.current.text, locale));
         }
     };
     return (
@@ -457,7 +458,7 @@ function TopicFirst({ topic, labels, onPick, onOpen }) {
  * The search of a menu: every choice of every level, by its text and its path. Enter runs only a hit
  * the arrow keys moved to; nothing found says so.
  */
-function SearchHits({ hits, labels, onPick, onOpen, close }) {
+function SearchHits({ hits, labels, onPick, onOpen, close, locale }) {
     if (!hits.length) {
         return (
             <p className="pk-hint pk-level-nothing" role="status" data-testid="menu-search-nothing">
@@ -466,7 +467,7 @@ function SearchHits({ hits, labels, onPick, onOpen, close }) {
         );
     }
     return (
-        <MenuList label={labels.searchResults} close={close} testId="menu-search-hits">
+        <MenuList label={labels.searchResults} close={close} testId="menu-search-hits" locale={locale}>
             {hits.map((h) => (
                 <MenuItem key={h.id} id={`hit-${h.id}`} text={h.choice ? h.text : `${h.text}…`} plain={h.text} checked={h.choice?.checked} icon={h.choice ? h.topic.icon : "chevronRight"} hint={h.path || undefined} haspopup={h.choice ? undefined : "dialog"} onSelect={() => (h.choice ? onPick(h.choice) : onOpen(h.topic.id, undefined, h.focus))} />
             ))}
@@ -607,9 +608,9 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                 ) : null}
                 <Scroller className="pk-level-first">
                     {hits || none ? (
-                        <SearchHits hits={hits ?? []} labels={labels} onPick={pick} onOpen={open} close={close} />
+                        <SearchHits hits={hits ?? []} labels={labels} onPick={pick} onOpen={open} close={close} locale={locale} />
                     ) : (
-                        <MenuList label={name} close={close} testId="level-first">
+                        <MenuList label={name} close={close} testId="level-first" locale={locale}>
                             {shown.map((t) => (
                                 <TopicFirst key={t.id} topic={t} labels={labels} onPick={pick} onOpen={() => open(t.id)} />
                             ))}
@@ -643,7 +644,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                         {topic.kind === "menu" ? (
                             <>
                                 {topic.intro ? <p id={`${titleId}-intro`} className="pk-hint pk-menu-hint">{topic.intro}</p> : null}
-                                <MenuList labelledBy={titleId} describedBy={topic.intro ? `${titleId}-intro` : undefined} close={close}>
+                                <MenuList labelledBy={titleId} describedBy={topic.intro ? `${titleId}-intro` : undefined} close={close} locale={locale}>
                                     <Groups topic={topic} onPick={pick} />
                                 </MenuList>
                             </>

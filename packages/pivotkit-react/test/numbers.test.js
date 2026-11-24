@@ -39,9 +39,9 @@ test("numbers typed in German: grouping points, a decimal comma; a plain point n
 
 test("numbers typed in French: spaces of any kind group, a decimal comma", () => {
     const fr = (t) => parseNumber(t, "fr-FR");
-    assert.equal(fr("1 000,5"), 1000.5);
-    assert.equal(fr("1 000,5"), 1000.5);
-    assert.equal(fr("1 234 567"), 1234567);
+    assert.equal(fr("1 000,5"), 1000.5); // a plain space
+    assert.equal(fr("1\u202F000,5"), 1000.5); // a narrow no-break space, as Intl writes French
+    assert.equal(fr("1\u00A0234\u00A0567"), 1234567); // no-break spaces
     assert.equal(fr("-2 500"), -2500);
     assert.equal(fr("12,75"), 12.75);
     assert.equal(fr("1.5"), 1.5);
@@ -58,4 +58,12 @@ test("a number for editing: the locale's decimal mark, no grouping", () => {
             assert.equal(parseNumber(numberText(n, locale), locale), n, `${locale} ${n}`);
         }
     }
+});
+
+test("numbers still read right after more locales than the marks' cache keeps (the first one is read anew)", () => {
+    assert.equal(parseNumber("1.000,5", "de-DE"), 1000.5);
+    for (let i = 0; i < 40; i++) {
+        assert.equal(parseNumber("1,000.5", `en-US-x-k${i}`), 1000.5);
+    }
+    assert.equal(parseNumber("1.000,5", "de-DE"), 1000.5);
 });
