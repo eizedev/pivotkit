@@ -65,7 +65,6 @@
             "packages/pivotkit-report/src/svg.js Function 'cleanSvg'": [39],
             "packages/pivotkit-report/src/template-style.js Function 'templateTheme'": [33],
             "packages/pivotkit-report/src/template.js Function 'parseTemplate'": [48],
-            "packages/pivotkit-server/src/auth.js Async function 'staticTokens'": [27],
             "packages/pivotkit-server/src/auth.js Function 'callerOf'": [36],
             "packages/pivotkit-server/src/check-source.js Async function 'checkSource'": [61],
             "packages/pivotkit-server/src/check/access.js Async function 'section'": [61],

@@ -5,7 +5,7 @@
 
 import { CodedError } from "pivotkit-core/internal";
 import { OperationError } from "pivotkit-report/operations";
-import { INPUT_DEPTH, jsonDepth } from "../present.js";
+import { INPUT_DEPTH, jsonDepth } from "../input-depth.js";
 
 /**
  * A body the REST service does not take: its code is a REST problem's (pivotkit-node/rest

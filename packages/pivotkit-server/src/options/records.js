@@ -14,7 +14,7 @@
  */
 
 import { ConfigError, throwRange } from "./shared.js";
-import { COMPUTE_DEFAULTS } from "../config.js";
+import { COMPUTE_DEFAULTS } from "../compute-defaults.js";
 
 export const NAME = "records";
 
