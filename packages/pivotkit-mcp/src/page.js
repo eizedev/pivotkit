@@ -50,7 +50,7 @@ export function quickStartPage({ endpoint, version, auth, issuer, sources, brand
         .map((op) => `<li><code>${esc(op.name)}</code>: ${esc(op.title)}</li>`)
         .join("");
     const docs = branding.docs === null ? "" : `\n<h2>Documentation</h2>\n<p>${DOC_LINKS.map(([words, path]) => `<a href="${esc(docsLink(branding.docs, path))}">${words}</a>`).join(" · ")}</p>`;
-    const icon = branding.icon ? `\n<link rel="icon" type="image/png" href="${branding.icon.src}">` : "";
+    const icon = branding.icon ? `\n<link rel="icon" type="image/png" href="${esc(branding.icon.src)}">` : "";
     const list = sources?.length ? `<h2>Sources</h2><ul>${sources.map((s) => `<li><code>${esc(s.id)}</code>${s.title !== s.id ? `: ${esc(s.title)}` : ""}</li>`).join("")}</ul>` : "";
     return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

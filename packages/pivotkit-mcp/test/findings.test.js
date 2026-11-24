@@ -1,5 +1,5 @@
-// Bugs the reviews of the built server found, each a test that failed before its fix: a padded field
-// name past the policy, counts in a cut chart's or a limit's message, a readable output directory, a
+// Edges of the policy, the files and the sign-in that once let through what they should not; each
+// test failed before its fix: a padded field name past the policy, counts in a cut chart's or a limit's message, a readable output directory, a
 // file: path past a source's scopes, an operator's file name in an error, a parser's quote of a file,
 // a worker's hidden count, a caller without a token, the body read before the token.
 import { test } from "node:test";

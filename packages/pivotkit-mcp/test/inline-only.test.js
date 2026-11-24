@@ -1,7 +1,7 @@
 // render_view with save: false, over the wire: the result comes back inline only, with no file in the
 // output directory, no output and no link; where it cannot come back inline (a format that is a file,
 // inline results off, a field that is not fully shown, a result over the inline caps) the call fails
-// with a code and a way out, never a silent file. Without save the render is as it always was.
+// with a code and a way out, never a silent file. Without save, a render writes its file.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync } from "node:fs";
@@ -111,7 +111,7 @@ test("save: false with inline results off: NOT_ALLOWED, no file", () =>
         assert.deepEqual(files(), []);
     }));
 
-test("without save, and with save: true, a render is as before: a file with a link, inline where allowed; the call line has no saved", () =>
+test("without save, and with save: true, a render writes a file with a link, inline where allowed; the call line has no saved", () =>
     withServer(POLICY, async (client, { files, log }) => {
         for (const save of [undefined, true]) {
             const rendered = await call(client, "render_view", { source: "open", view: COUNT_BY_REGION, format: "csv", ...(save === undefined ? {} : { save }) });
