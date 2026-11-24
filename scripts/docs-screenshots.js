@@ -8,8 +8,9 @@
 // Every shot is one entry in SHOTS: the playground's URL parameters, a view for the fragment, the
 // window size, whether to wait for the chart and what to open before the picture is taken. Each shot is taken in both themes,
 // `<name>-light.png` and `<name>-dark.png`, which the pages show with `#only-light` and `#only-dark`.
-// The generated data has a fixed seed and the real data is a committed snapshot, so the numbers are
-// the same on every run.
+// The generated data has a fixed seed, the real data is a committed snapshot and the browser's clock
+// stands at the snapshot's day (tests/snapshot-day.js), so the numbers are the same on every run,
+// also for filters relative to today. A shot opened from a link hides the toast the link gives.
 //
 // One picture is not taken here: xlsx-result-light.png and xlsx-result-dark.png (one image twice,
 // since a workbook has no dark theme). Take it again by hand when the export's look changes:
@@ -22,6 +23,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink, hideToasts, openPlayground, openZones, startPlayground } from "./docs-playground.js";
+import { SNAPSHOT_DAY } from "../tests/snapshot-day.js";
 
 const out = fileURLToPath(new URL("../docs/assets/screenshots/", import.meta.url));
 
@@ -219,7 +221,6 @@ const SHOTS = [
     // the hero of the start page: real data (the weather of 14 cities)
     { name: "report", query: "data=weather", size: WIDE },
     { name: "date-context", query: "data=weather&height=640", size: WIDE },
-    { name: "date-context-phone", query: "data=weather&height=430", size: PHONE },
     // a value's menu: its first level, one row per topic with what is set
     {
         name: "value-menu",
@@ -581,13 +582,9 @@ const SHOTS = [
     {
         // a donut with the numbers on its slices, Chart settings open
         name: "donut-labels",
-        query: "data=sales",
+        query: "data=sales&height=900",
         hash: encodeViewLink({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum", format: "compact" }], display: "chart", chart: { type: "donut", valueLabels: "value", labelPosition: "inside" } }),
         size: WIDE,
-        open: async (page) => {
-            await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
-            await page.getByTestId("view-settings").click();
-        }
     },
     {
         // a donut on a phone with its values outside: a smaller pie, the labels whole on two lines
@@ -597,7 +594,6 @@ const SHOTS = [
         size: PHONE,
         chart: true,
         open: async (page) => {
-            await page.addStyleTag({ content: ".pk-toast-dock { visibility: hidden; }" });
             await page.getByTestId("pivot-chart").evaluate((el) => {
                 el.style.scrollMarginTop = "12px";
                 el.scrollIntoView({ block: "start" });
@@ -654,7 +650,6 @@ const SHOTS = [
         size: PHONE,
         chart: true,
         open: async (page) => {
-            await page.addStyleTag({ content: ".pk-toast-dock { visibility: hidden; }" });
             await page.getByTestId("pivot-chart").evaluate((el) => {
                 el.style.scrollMarginTop = "12px";
                 el.scrollIntoView({ block: "start" });
@@ -820,7 +815,10 @@ try {
     for (const shot of SHOTS.filter((s) => !only || only.includes(s.name))) {
         for (const theme of THEMES) {
             const page = await browser.newPage({ viewport: shot.size, deviceScaleFactor: 1, reducedMotion: "reduce", colorScheme: theme });
+            await page.clock.setFixedTime(SNAPSHOT_DAY);
             await openPlayground(page, playground.base, { query: shot.query, hash: shot.hash, theme });
+            // "Opened the view from the link" is no part of what a shot shows
+            if (shot.hash) await hideToasts(page);
             if (shot.chart) await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
             if (shot.open) await shot.open(page);
             // fonts, the chart's first frame, the popover's position
