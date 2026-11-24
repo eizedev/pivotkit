@@ -87,6 +87,21 @@ test("a target line that is no number has its line: the setting by name, in Engl
     assert.equal(line(issue, raw, LABELS.de, de), "Diagramm: Ziellinie „lots“ ist unbekannt - die Voreinstellung gilt");
 });
 
+test("a switch that is not on or off, a part that is not an object and a sort of another kind say so by name", () => {
+    const raw = { rows: ["Region"], chart: { stacked: "yes" }, formatting: "de-DE", sort: [{ field: "Region", by: "size" }] };
+    const lines = (labels, lang) => normalize(raw, data).issues.map((issue) => line(issue, raw, labels, lang));
+    assert.deepEqual(lines(LABELS.en), [
+        "Region: the sort “size” is unknown - the default is used",
+        "Chart: the stacking is on or off, not “yes” - the default is used",
+        "Formatting: this part holds no settings (“de-DE”) - the usual settings are used"
+    ]);
+    assert.deepEqual(lines(LABELS.de, de), [
+        "Region: Sortierung „size“ ist unbekannt - die Voreinstellung gilt",
+        "Diagramm: Stapeln ist an oder aus, nicht „yes“ - die Voreinstellung gilt",
+        "Formatierung: dieser Teil enthält keine Einstellungen („de-DE“) - die üblichen gelten"
+    ]);
+});
+
 test("a host's field labels name the fields; a host's texts and an unknown code have their line", () => {
     // the report puts the host's field labels (fieldDefaults) into labels.core.fields
     const host = resolveLabels("en", { unused: { codes: { placedTwice: "twice - once is enough" } } });

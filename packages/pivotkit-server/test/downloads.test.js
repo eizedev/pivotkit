@@ -171,14 +171,19 @@ test("token: a signed token reads back; a changed payload or signature, another 
     for (const bad of ["", ".", token.replace(".", ""), `${token}.x`, `${body}.${sig}=`, `${body}%2E${sig}`, `${"A".repeat(700)}.${sig}`, `${body} .${sig}`, null, 42]) {
         assert.equal(readToken(KEYS, /** @type {any} */ (bad)), null, String(bad));
     }
-    // a person is an HMAC of issuer and subject under its own key: not the subject, not a plain hash
-    // of it, and the same subject of another issuer is another person
-    const s = subjectDigest(KEYS, "https://auth.example.com/", "alice");
+    // a person is an HMAC of nonce, issuer and subject under its own key: not the subject, not a plain
+    // hash of it, the same subject of another issuer is another person, and two links of one person
+    // carry different digests
+    const s = subjectDigest(KEYS, n, "https://auth.example.com/", "alice");
+    assert.equal(s, subjectDigest(KEYS, n, "https://auth.example.com/", "alice"));
     assert.notEqual(s, createHash("sha256").update("alice").digest("base64url"));
     assert.notEqual(s, createHmacB64(KEYS.token, "alice"));
-    assert.notEqual(s, subjectDigest(KEYS, "https://other.example.com/", "alice"));
-    // issuer and subject cannot be cut differently to the same person: "a" + "b\0c" is not "a\0b" + "c"
-    assert.notEqual(subjectDigest(KEYS, "a", "b\u0000c"), subjectDigest(KEYS, "a\u0000b", "c"));
+    assert.notEqual(s, subjectDigest(KEYS, n, "https://other.example.com/", "alice"));
+    assert.notEqual(s, subjectDigest(KEYS, n, "https://auth.example.com/", "bob"));
+    assert.notEqual(s, subjectDigest(KEYS, randomBytes(16).toString("base64url"), "https://auth.example.com/", "alice"));
+    // nonce, issuer and subject cannot be cut differently to the same person: "a" + "b\0c" is not "a\0b" + "c"
+    assert.notEqual(subjectDigest(KEYS, n, "a", "b\u0000c"), subjectDigest(KEYS, n, "a\u0000b", "c"));
+    assert.notEqual(subjectDigest(KEYS, "a", "b\u0000c", "d"), subjectDigest(KEYS, "a\u0000b", "c", "d"));
 });
 
 /** HMAC-SHA256 in base64url (a signature under a key the test holds). */
@@ -1308,4 +1313,75 @@ test("signIn: sign-in callbacks from one address are rate limited (each writes a
     } finally {
         await server.close();
     }
+});
+
+test("download links: an http:// http.publicUrl off loopback with download links on is refused unless output.downloads.allowInsecureUrl is set", () => {
+    const base = { sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" } };
+    assert.throws(() => validateOptions({ ...base, http: { publicUrl: "http://reports.example.com" } }), /http\.publicUrl \(or --public-url\): an http:\/\/ address .*output\.downloads\.allowInsecureUrl: true .*switch every download link off with output\.downloads\.enabled: false/);
+    assert.throws(() => validateOptions({ ...base, output: { dir: "out", downloads: { bind: "once" } }, http: { publicUrl: "http://10.1.2.3:3333" } }), /allowInsecureUrl/);
+    // allowed: https, loopback, links off, or the opt-in
+    for (const options of [
+        { ...base, http: { publicUrl: "https://reports.example.com" } },
+        { ...base, http: { publicUrl: "http://localhost:3333" } },
+        { ...base, http: { publicUrl: "http://[::1]:3333" } },
+        { ...base, http: { publicUrl: "http://127.0.0.1:3333" } },
+        { ...base, output: { dir: "out", downloads: { enabled: false } }, http: { publicUrl: "http://reports.example.com" } },
+        { ...base, output: { dir: "out", downloads: { allowInsecureUrl: true } }, http: { publicUrl: "http://reports.example.com" } }
+    ]) {
+        assert.doesNotThrow(() => validateOptions(options), JSON.stringify(options));
+    }
+});
+
+test("download links: with the opt-in, check-config and the start warn of links in clear text", async () => {
+    const dir = workspace();
+    const options = { sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", downloads: { allowInsecureUrl: true } }, http: { publicUrl: "http://reports.example.com" }, baseDir: dir };
+    const text = factsOf((await checkConfig(options, { http: true, env: {} })).text);
+    assert.match(text, /^WARNING \(Delivery\): http\.publicUrl is http:\/\/ on reports\.example\.com \(accepted by output\.downloads\.allowInsecureUrl\): download links and their cookies cross the network in clear text/m);
+    const server = await restServer(options);
+    try {
+        assert.ok(server.log.some((l) => l.level === "warn" && /http\.publicUrl is http:\/\/ on reports\.example\.com/.test(l.msg)), JSON.stringify(server.log));
+    } finally {
+        await server.close();
+    }
+    // https: no such warning
+    assert.doesNotMatch((await checkConfig({ ...options, output: { dir: "out" }, http: { publicUrl: "https://reports.example.com" } }, { http: true, env: {} })).text, /clear text/);
+});
+
+test("the download key: requests with forged tokens do not read the key file or variable each time", async () => {
+    const dir = workspace();
+    let reads = 0;
+    const env = new Proxy({ DL_KEY: "a-download-key-for-tests-that-is-long-enough-0123456789" }, { get: (t, k) => (k === "DL_KEY" && reads++, Reflect.get(t, k)) });
+    const server = await restServer({ sources: { open: { file: "data/sales.csv", policy: { default: "show" } } }, output: { dir: "out", downloads: { key: { env: "DL_KEY" } } }, baseDir: dir }, { env });
+    try {
+        const forged = signToken(subkeysOf(randomBytes(32)), { n: randomBytes(16).toString("base64url"), e: Math.floor(Date.now() / 1000) + 600, b: "none" });
+        const before = reads;
+        const statuses = [];
+        for (let i = 0; i < 20; i++) {
+            statuses.push((await fetch(`${server.url}/downloads/${forged}`)).status);
+        }
+        assert.ok(statuses.every((s) => s === 404), String(statuses));
+        assert.ok(reads - before <= 2, `the key was read ${reads - before} times for 20 requests`);
+    } finally {
+        await server.close();
+    }
+});
+
+test("sign-in state: sweepMarkers deletes an expired sign-in state's marker and keeps a live one", async () => {
+    const dir = tempDir();
+    const old = join(dir, `${randomBytes(16).toString("base64url")}.state`);
+    const live = join(dir, `${randomBytes(16).toString("base64url")}.state`);
+    await placeMarker(old, Math.floor(Date.now() / 1000) - 1);
+    await placeMarker(live, Math.floor(Date.now() / 1000) + 600);
+    assert.deepEqual(readdirSync(dir).filter((n) => n.endsWith(".tmp")), [], "no temporary file is left");
+    await sweepMarkers(dir);
+    assert.equal(existsSync(old), false);
+    assert.equal(existsSync(live), true);
+});
+
+test("#468: check-config warns of download links that expire in under 5 minutes; 5 and more say nothing more", async () => {
+    const dir = workspace();
+    const at = async (expiresMinutes) => factsOf((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: { default: "show" } } }, output: { dir: "out", downloads: { expiresMinutes } }, baseDir: dir }, { http: true, env: {} })).text);
+    assert.match(await at(1), /^WARNING \(Delivery\): output\.downloads\.expiresMinutes is 1: a person must read the answer, open the link and sign in within this time; 5 minutes or more is safer$/m);
+    assert.match(await at(4), /expiresMinutes is 4: a person must read the answer/);
+    assert.doesNotMatch(await at(5), /expiresMinutes is/);
 });

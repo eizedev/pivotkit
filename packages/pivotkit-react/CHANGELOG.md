@@ -6,18 +6,16 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
-### Fixed
+### Added
 
-- The menus count with the host's `limits`, as the report does: a field's items in the Filter level,
-  the totals its rules compare and the items a Top N shows. With a raised `limits.groups` or
-  `limits.cells`, a view the report showed could stop the menu with an error nothing caught. Over a
-  limit, a menu now leaves its counts out; the report says what is over it.
+- English and German texts for the import notes `DECIMAL_MARK`, `NUMBERS_TOO_LARGE` and
+  `NUMBERS_ROUNDED` of pivotkit-core, and for its view issues `notSwitch` and `notSection`. The
+  warning about unused parts names the switches and the sort by name.
 
 ### Changed
 
 - **Breaking:** the theme token `--pk-knob` is gone, as announced for 0.9.0: nothing draws a switch.
   A page that sets it keeps its value unused; remove it.
-
 - **Breaking:** the label `settingsShort` is gone: no text uses it. TypeScript code that sets it in
   `labels` no longer compiles; remove it.
 - `<PivotReport>` is built from hooks and small components, one per concern, instead of one large
@@ -25,6 +23,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- The menus count with the host's `limits`, as the report does: a field's items in the Filter level,
+  the totals its rules compare and the items a Top N shows. With a raised `limits.groups` or
+  `limits.cells`, a view the report showed could stop the menu with an error nothing caught. Over a
+  limit, a menu now leaves its counts out; the report says what is over it.
 - A chart or a link whose part failed to load (offline, a deploy in between) loads again on the next
   try. Before, the failed import was kept for the life of the page. Every part that loads on demand
   now follows one rule (`lazy.js`).

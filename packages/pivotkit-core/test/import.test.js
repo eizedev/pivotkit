@@ -214,6 +214,66 @@ test("dates with slashes: the values decide the order, else the locale, with a n
     assert.deepEqual(col(de, "When"), ["2026-03-02"]);
 });
 
+test("numbers that both notations read differently: the separator or locale decides, with a note", async () => {
+    // "1,234" is 1234 in English and 1.234 in German: never read as one without saying so
+    const en = await readFile(text("a.csv", 'Sales\n"1,234"\n"5,678"\n'));
+    assert.deepEqual(col(en, "Sales"), [1234, 5678]);
+    assert.equal(en.notes.find((n) => n.code === "DECIMAL_MARK").message, 'Numbers in "Sales" were read with "." as the decimal mark; some, such as "1,234", also fit the other mark.');
+    const de = await readFile(text("b.csv", 'Sales\n"1,234"\n"5,678"\n'), { locale: "de-DE" });
+    assert.deepEqual(col(de, "Sales"), [1.234, 5.678]);
+    assert.equal(de.notes.find((n) => n.code === "DECIMAL_MARK").params.decimal, ",");
+    // English groups of three are read; a value only one notation fits decides without a note
+    const grouped = await readFile(text("c.csv", 'Sales\n"1,234,567"\n"2.5"\n'));
+    assert.deepEqual(col(grouped, "Sales"), [1234567, 2.5]);
+    assert.ok(!codes(grouped).includes("DECIMAL_MARK"));
+    // whole numbers without a mark are the same in both: no note
+    const plain = await readFile(text("d.csv", "Count\n12\n345\n"));
+    assert.ok(!codes(plain).includes("DECIMAL_MARK"));
+    // a first group never starts with 0: "0,125" and "0.500" are decimals in either file
+    const zero = await readFile(text("e.csv", 'Kg\n"0,125"\n"0,250"\n'));
+    assert.deepEqual(col(zero, "Kg"), [0.125, 0.25]);
+    assert.ok(!codes(zero).includes("DECIMAL_MARK"));
+    assert.deepEqual(col(await readFile(text("f.csv", "Kg;N\n0.500;1\n")), "Kg"), [0.5]);
+    // a value only German fits decides the column, in any order of rows: "1,234" is 1.234, no note
+    for (const rows of ['"1,234"\n"5,5"', '"5,5"\n"1,234"']) {
+        const mixed = await readFile(text("g.csv", `Kg\n${rows}\n`));
+        assert.deepEqual(col(mixed, "Kg").toSorted(), [1.234, 5.5]);
+        assert.ok(!codes(mixed).includes("DECIMAL_MARK"));
+    }
+    // grouped digits beyond what a number holds stay text, as ungrouped ones do
+    const long = await readFile(text("h.csv", 'Id\n"1,234,567,890,123,456,789"\n'));
+    assert.equal(typeOf(long, "Id"), "string");
+});
+
+test("retype: a column made a number reads in its values' notation, and notes of a column follow its type", async () => {
+    const t = await readFile(text("a.csv", 'Kg,Day\n"1,234",02/03/2026\n"2,500",x\n'), { types: { Kg: "string", Day: "string" } });
+    // the column is text: no note about how it would read as a number or a date
+    assert.ok(!codes(t).includes("DECIMAL_MARK") && !codes(t).includes("DATE_ORDER"));
+    const n = retype(t, { Kg: "number" });
+    assert.deepEqual(col(n, "Kg"), [1234, 2500]);
+    assert.equal(n.notes.find((x) => x.code === "DECIMAL_MARK").params.column, "Kg");
+    assert.ok(!codes(retype(n, { Kg: "string" })).includes("DECIMAL_MARK"));
+    // a value that is no number does not decide the notation of the others
+    const junk = retype(await readFile(text("b.csv", 'Kg\n"1,234"\n"5,5"\nx\n'), { types: { Kg: "string" } }), { Kg: "number" });
+    assert.deepEqual(col(junk, "Kg"), [1.234, 5.5, null]);
+    const both = retype(await readFile(text("c.csv", 'Kg\n"1,234"\n"2,500"\nx\n'), { types: { Kg: "string" } }), { Kg: "number" });
+    assert.deepEqual(col(both, "Kg"), [1234, 2500, null]);
+    assert.deepEqual(codes(both).filter((c) => c === "DECIMAL_MARK" || c === "VALUES_NOT_CONVERTED"), ["DECIMAL_MARK", "VALUES_NOT_CONVERTED"]);
+});
+
+test("JSON numbers a double cannot hold are noted: too large ones are empty, long whole numbers may have lost digits", async () => {
+    const big = await readFile(text("a.json", '[{"a":1e999,"b":1},{"a":5,"b":2}]'));
+    assert.deepEqual(col(big, "a"), [null, 5]);
+    assert.deepEqual(big.notes.find((n) => n.code === "NUMBERS_TOO_LARGE").params, { column: "a", count: 1 });
+    const ids = await readFile(text("b.json", '[{"id":12345678901234567890,"n":6.02e23},{"id":9007199254740993,"n":1},{"id":1,"n":2}]'));
+    // the note names the column; a measurement written with an exponent is no identifier
+    assert.deepEqual(ids.notes.filter((n) => n.code === "NUMBERS_ROUNDED").map((n) => n.params), [{ column: "id", count: 2 }]);
+    // the same ids as strings keep every digit and need no note
+    const strings = await readFile(text("c.json", '[{"id":"12345678901234567890"}]'));
+    assert.deepEqual(col(strings, "id"), ["12345678901234567890"]);
+    assert.ok(!codes(strings).includes("NUMBERS_ROUNDED"));
+});
+
 test("retype: another type from the values as read, without reading the file again", async () => {
     const t = await readFile(fileOf("kerg2-btw25.csv"));
     const asText = retype(t, { Prozent: "string", Wahltag: "string" });

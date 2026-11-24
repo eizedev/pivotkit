@@ -438,9 +438,19 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * pivotkit-core's rank and running total per group (#782) take the first load to about 181.2 on CI's
  * zlib. Moving the unused-parts warning out made it larger (more files, 181.3), so the maintainer took
  * the budget to 181.5; #772 makes room again.
+ * The import notes on numbers a file changed (DECIMAL_MARK, NUMBERS_TOO_LARGE, NUMBERS_ROUNDED) with
+ * their English and German texts take import to 22.7 on CI's zlib: import goes to 23.2. Their unused-part texts (notSwitch, notSection, the names of the switches) take
+ * unused to 6.1: unused goes to 6.5.
+ * Reporting every setting normalize() drops and one list of hidden characters for every text from
+ * outside (#786) take the first load to 181.6 on CI's zlib: the maintainer took the budget to 182.0;
+ * #772 makes room again.
+ * The menus that count with the host's limits (#796) read the limits on the first load: 181.9 on a
+ * Mac's zlib, about 0.3 more on CI's. The budget goes to 182.5; #772 makes room again.
+ * Before moving code out of the first load, measure a probe build with `--size`: more chunk files can
+ * make the first load larger.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 181.5, chart: 259.5, export: 12.6, link: 7.5, menus: 59.6, texts: 8.5, unused: 6, import: 22, report: 24, template: 3, lang: 6.2, tips: 1.8 };
+export const SIZE_BUDGET_KIB = { initial: 182.5, chart: 259.5, export: 12.6, link: 7.5, menus: 59.6, texts: 8.5, unused: 6.5, import: 23.2, report: 24, template: 3, lang: 6.2, tips: 1.8 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

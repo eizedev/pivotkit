@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { checkConfig, validateOptions } from "pivotkit-server";
 import { REST_ROUTES } from "../src/rest/routes.js";
 import { sourceFromOpenApiCommand } from "../src/openapi-source.js";
-import { call, factsOf, raw, restServer, TOKEN, untilReady, workspace } from "./helpers.js";
+import { call, factsOf, raw, restServer, TOKEN, untilReady, workspace, mcpInitialize } from "./helpers.js";
 import { localIssuer } from "./auth/local-issuer.js";
 
 /** The documentation site pivotkit names by default. */
@@ -249,7 +249,7 @@ test("branding.name: the titles end users and clients see carry the operator's n
         assert.equal(prm.data.resource_name, "Team Reports REST");
         const mcp = await call(`${server.url}/.well-known/oauth-protected-resource/mcp`);
         assert.equal(mcp.data.resource_name, "Team Reports");
-        const init = await fetch(`${server.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${await jwt(MCP_RESOURCE)}` }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } }) });
+        const init = await mcpInitialize(server, await jwt(MCP_RESOURCE));
         const text = await init.text();
         const result = JSON.parse(text.startsWith("{") ? text : text.split("\n").find((l) => l.startsWith("data: ")).slice(6)).result;
         assert.equal(result.serverInfo.title, "Team Reports");
@@ -306,7 +306,7 @@ test("defaults: the names, links and realms stay pivotkit's", async () => {
         assert.equal((await fetch(`${server.url}/icon.png`)).status, 404);
         const html = await (await fetch(`${server.url}/downloads/no-such-link`, { headers: { accept: "text/html" } })).text();
         assert.match(html, /<title>[^<]* - pivotkit report<\/title>/);
-        const init = await fetch(`${server.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${TOKEN}` }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } }) });
+        const init = await mcpInitialize(server, TOKEN);
         const text = await init.text();
         const result = JSON.parse(text.startsWith("{") ? text : text.split("\n").find((l) => l.startsWith("data: ")).slice(6)).result;
         assert.equal(result.serverInfo.title, "pivotkit");
