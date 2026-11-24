@@ -145,14 +145,16 @@ All nine packages publish through staging: their trusted publishers have "Allow 
 
 1. Create the package on npm by hand with a placeholder version `0.0.0-stage`. It must not be the
    version in this repository: the release tag stages that one, and npm refuses a version twice.
-   The placeholder is a folder with a `package.json` (`name`, `"version": "0.0.0-stage"`,
+   The placeholder is a folder of its own with a `package.json` (`name`, `"version": "0.0.0-stage"`,
    `"description": "Temporary package placeholder for staged publishing"`, `license`, `repository`
-   with the package's `directory`) and a short README:
+   with the package's `directory`) and a short README. In that folder:
 
    ```bash
    npm pack --pack-destination ..
-   npm publish ../<package>-0.0.0-stage.tgz --access public
+   npm publish ../<package>-0.0.0-stage.tgz --access public --tag stage
    ```
+
+   `--tag stage` is required for a prerelease version, and it keeps the placeholder off `latest`.
 
    Use an npm account with two-factor authentication.
 2. On npm, add a trusted publisher to each package:

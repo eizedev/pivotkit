@@ -49,8 +49,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   `"2026-01-30T23:59:59.9996"` rounded up into the next day and made its whole column text.
 - The format `percent100` writes a blank or a text as it is, as `number` does. It wrote "NaN".
 - `createHistory`: `push`, `undo`, `redo` and `reset` work when taken off the object.
-  **Breaking:** a `limit` that is no number throws `INVALID_OPTION`. Before, `NaN` kept every step without a word. `Infinity`
-  keeps every step, as before.
+- **Breaking:** `createHistory` with a `limit` that is no number throws `INVALID_OPTION`. Before,
+  `NaN` kept every step without a word. `Infinity` keeps every step, as before. Affected: a host that
+  computes `limit` from a value that can be missing; pass a number or leave `limit` out.
 - `toXlsx` names "an Excel sheet" for a grid larger than a sheet, not a setting
   `limits.xlsxRows` that does not exist. `details.limit` stays `xlsxRows` or `xlsxColumns`.
 - A row field sorted by a value in one column takes time in proportion to the rows. Each row
@@ -77,13 +78,15 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - `encodeViewLink` counts the view in bytes, as `decodeViewLink` does: a view of many non-ASCII
   characters gave a link that `decodeViewLink` refused. The messages say "bytes".
 - **Breaking:** `viewFromLayout` throws `INVALID_ARGUMENT` for a filter with a cycle or a BigInt, not a
-  `TypeError`.
+  `TypeError`. Affected: a host that catches that `TypeError`; catch `PivotkitError` instead
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-9)).
 - Reading a file:
   - The readers read UTF-16 big endian without a byte order mark, as they read little endian.
   - Zero characters at the end of a file are padding and go. Several of them refused the file.
   - The reader ignores a `separator` that is a quote or a line break and finds one itself.
   - A `Blob` has no name to pick a reader by: the message says to read a `File` or pass `reader`.
-  - **Breaking:** `plugins` that is no list throws `INVALID_OPTION`, not a `TypeError`.
+  - **Breaking:** `plugins` that is no list throws `INVALID_OPTION`, not a `TypeError`. Affected: a
+    host that catches that `TypeError`; catch `PivotkitError` instead.
   - `readFile` calls a plugin's `load()` on the plugin, so a plugin that is an instance of a class
     works.
 
