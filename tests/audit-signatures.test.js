@@ -1,5 +1,5 @@
 // scripts/audit-signatures.js with a stand-in for npm first on PATH: it tries again only when npm
-// cannot read the registry's answer (FETCH_ERROR), passes npm's exit code on, and stops after three tries.
+// cannot read the registry's answer (FETCH_ERROR), passes npm's exit code on, and stops after five tries.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
