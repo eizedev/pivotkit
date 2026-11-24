@@ -78,8 +78,9 @@ jobs:
       - name: Install
         run: npm ci --no-audit --no-fund --ignore-scripts
       - name: Registry signatures
-        # every installed package carries the registry's signature (and its attestation where it has one)
-        run: npm audit signatures
+        # every installed package carries the registry's signature (and its attestation where it has one);
+        # an answer of the registry that cannot be read is tried again (scripts/audit-signatures.js)
+        run: node scripts/audit-signatures.js
       - name: Types
         # every workspace's declarations, in build order: a package's types import its dependencies'
         # (pivotkit-react's do not compile without them). tsc only; lint and tests run after the pack
