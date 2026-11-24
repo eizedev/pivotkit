@@ -6,6 +6,7 @@
  */
 
 import { expect } from "./errors.js";
+import { plainText } from "./util.js";
 
 /** Caps on what is read from a schema: it may come from anywhere. */
 export const SCHEMA_CAPS = Object.freeze({
@@ -30,30 +31,6 @@ const own = (o, k) => (isObject(o) && Object.hasOwn(o, k) ? o[k] : undefined);
 /** A copy of a schema object without some of its keywords. */
 const without = (o, ...keys) => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
 
-/**
- * Plain text of at most `max` characters: control characters become spaces, bidi controls and
- * zero-width characters go, runs of spaces one space, the ends trimmed; a longer text is cut and ends with "…". Undefined for anything else.
- * @param {unknown} value
- * @param {number} max
- * @returns {string | undefined}
- */
-export function plainText(value, max) {
-    if (typeof value !== "string") {
-        return undefined;
-    }
-    const text = value
-        .slice(0, max * 4)
-        // eslint-disable-next-line no-control-regex
-        .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ")
-        // bidi controls and zero-width characters: they can make a text read as another one
-        .replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-    if (!text) {
-        return undefined;
-    }
-    return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
-}
 
 /**
  * The link of a "Learn more": an absolute https URL, else undefined.
