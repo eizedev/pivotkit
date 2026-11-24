@@ -54,3 +54,23 @@ updates:
       # react and react-dom must have the same version
       react:
         patterns: ["react", "react-dom"]
+  - package-ecosystem: "npm"
+    # the Angular example: its own lock file, outside the workspaces
+    directory: "/examples/angular"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "build(deps)"
+  - package-ecosystem: "docker"
+    # the container image's base images (docker/Dockerfile), pinned by digest
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "build(deps)"

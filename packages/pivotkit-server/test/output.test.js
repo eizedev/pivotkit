@@ -1,19 +1,17 @@
 // The output directory as callers fill it, REST and MCP alike (both write through present()): a
 // caller that renders without pause, renders at once, a directory the server cannot write, a
-// directory that holds the operator's own files; and what check-config says about the directory and
-// the policy before the first request.
+// directory that holds the operator's own files; the age sweep (output.maxAgeDays), which never
+// deletes a draft waiting for approval; and what check-config says about the directory and the
+// policy before the first request.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { whyNot } from "../src/context.js";
 import { prune } from "../src/present.js";
 import { makeRoom } from "../src/output.js";
 import { checkConfig } from "pivotkit-server";
-import { BIN, BY_REGION, call, factsOf, restServer, workspace } from "./helpers.js";
-
-const run = (args) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
+import { BY_REGION, call, factsOf, restServer, workspace, runBin, tempDir } from "./helpers.js";
 
 /** The reports and drafts pivotkit wrote into a directory (by the mark in their names). */
 const reports = (dir) => readdirSync(dir).filter((n) => /\.pivotkit-out\.(xlsx|html|csv|json|svg|report\.json)$/i.test(n));
@@ -210,7 +208,7 @@ test("output.draftMaxAgeDays: drafts that still wait go after that many days, al
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", draftMaxAgeDays: -1 }, baseDir: kept }), /output\.draftMaxAgeDays: must be a whole number of 0 or more/);
     const config = join(kept, "pivotkit.json");
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data", draftMaxAgeDays: 7 } }));
-    const check = run(["check-config", "--config", config]);
+    const check = runBin(["check-config", "--config", config]);
     assert.equal(check.status, 1, check.stdout);
     assert.match(factsOf(check.stdout), /PROBLEM: output\.draftMaxAgeDays in a directory that holds the configuration or a source, template or token file; give the reports a directory of their own -> the server does not start/);
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data", draftMaxAgeDays: 7 }, baseDir: kept }), /output\.dir: is the configuration's directory or holds a source, template or token file, which output\.draftMaxAgeDays could delete/);
@@ -297,7 +295,7 @@ test("an output directory the server cannot write: a warning at start, 409 NO_OU
         }
         const config = join(dir, "pivotkit.json");
         writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" } }));
-        const check = run(["check-config", "--config", config]);
+        const check = runBin(["check-config", "--config", config]);
         assert.equal(check.status, 1, check.stdout);
         const said = factsOf(check.stdout);
         assert.match(said, /^PROBLEM: output\.dir is not writable by the user \d+ the server runs as -> the server starts; every report fails with NO_OUTPUT$/m);
@@ -312,7 +310,7 @@ test("output.maxAgeDays never cleans a directory of the operator's own files: ch
     place(join(dir, "data"), [["old.pivotkit-out.csv", 10, 5 * 86_400]]);
     const config = join(dir, "pivotkit.json");
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data", maxAgeDays: 1 } }));
-    const check = run(["check-config", "--config", config]);
+    const check = runBin(["check-config", "--config", config]);
     assert.equal(check.status, 1, check.stdout);
     assert.match(factsOf(check.stdout), /PROBLEM: output\.maxAgeDays in a directory that holds the configuration or a source, template or token file; give the reports a directory of their own -> the server does not start/);
     assert.doesNotMatch(check.stdout, /older than 1 days are deleted/);
@@ -331,7 +329,7 @@ test("check-config warns of a policy rule that matches no column and prints the 
         policy: { fields: { PRODUCT: "show", Margin: "hide" }, profiles: { export: { fields: { customer: "show" } } } },
         output: { dir: "out" }
     }));
-    const res = run(["check-config", "--config", config]);
+    const res = runBin(["check-config", "--config", config]);
     assert.equal(res.status, 0, res.stdout);
     const said = factsOf(res.stdout);
     assert.match(said, /\n {4}policy: summary by default; Product show, Margin hide, Region show, Customr hide\n/);
@@ -354,7 +352,7 @@ test("check-config prints a source's rules in its own spelling, never in another
         policy: { fields: { amount: "show" } },
         output: { dir: "out" }
     }));
-    const res = run(["check-config", "--config", config]);
+    const res = runBin(["check-config", "--config", config]);
     const said = factsOf(res.stdout);
     assert.match(said, /\n {4}policy: hide by default; Amount summary, order show, customer show\n/, said);
     assert.match(said, /\n {4}policy: summary by default; amount show, Customer values\n/, said);
@@ -440,7 +438,7 @@ test("a symbolic link to nothing as output.dir is a problem in check-config and 
     symlinkSync(join(dir, "gone"), join(dir, "dangling"));
     const config = join(dir, "pivotkit.json");
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "dangling" } }));
-    const check = run(["check-config", "--config", config]);
+    const check = runBin(["check-config", "--config", config]);
     assert.equal(check.status, 1, check.stdout);
     assert.match(factsOf(check.stdout), /PROBLEM: output\.dir: a symbolic link to nothing \(its target does not exist\) -> the server does not start/);
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "dangling" }, baseDir: dir }), /output\.dir: a symbolic link to nothing/);
@@ -455,7 +453,7 @@ test("check-config refuses what serve refuses: a missing output.dir inside an al
     const config = join(dir, "pivotkit.json");
     const check = (options) => {
         writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, ...options }));
-        return run(["check-config", "--config", config]);
+        return runBin(["check-config", "--config", config]);
     };
     const inside = check({ files: { allowDirs: ["data"] }, output: { dir: "data/new/out" } });
     assert.equal(inside.status, 1, inside.stdout);
@@ -471,7 +469,7 @@ test("check-config says whether the output directory exists, will be created, or
     const config = join(dir, "pivotkit.json");
     const check = (output) => {
         writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output }));
-        return run(["check-config", "--config", config]);
+        return runBin(["check-config", "--config", config]);
     };
     const created = check({ dir: "later/out" });
     assert.equal(created.status, 0, created.stdout);
@@ -497,7 +495,7 @@ test("a name longer than the file system allows: check-config and serve both ref
     const config = join(dir, "pivotkit.json");
     for (const path of [long, `${long}/out`]) {
         writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: path } }));
-        const check = run(["check-config", "--config", config]);
+        const check = runBin(["check-config", "--config", config]);
         assert.equal(check.status, 1, check.stdout);
         assert.match(factsOf(check.stdout), /PROBLEM: output\.dir: cannot be created: a name in the path is longer than the file system allows -> the server does not start/);
         await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: path }, baseDir: dir }), /^ConfigError: output\.dir: cannot be created: a name in the path is longer than the file system allows$/);
@@ -511,7 +509,7 @@ test("a symbolic link loop in output.dir is named as one, in check-config and at
     const config = join(dir, "pivotkit.json");
     for (const path of ["loop", "loop/out"]) {
         writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: path } }));
-        const check = run(["check-config", "--config", config]);
+        const check = runBin(["check-config", "--config", config]);
         assert.equal(check.status, 1, check.stdout);
         assert.match(factsOf(check.stdout), /PROBLEM: output\.dir: cannot be created: a symbolic link in the path leads in a loop -> the server does not start/);
         await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: path }, baseDir: dir }), /^ConfigError: output\.dir: cannot be created: a symbolic link in the path leads in a loop$/);
@@ -533,7 +531,7 @@ test("check-config and serve give the same reason for an output.dir stat refuses
     const config = join(dir, "pivotkit.json");
     const both = async (output, reason) => {
         writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output }));
-        const check = run(["check-config", "--config", config]);
+        const check = runBin(["check-config", "--config", config]);
         assert.equal(check.status, 1, check.stdout);
         assert.ok(factsOf(check.stdout).split("\n").includes(`PROBLEM: output.dir: ${reason} -> the server does not start`), check.stdout);
         await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output, baseDir: dir }), (e) => e.message === `output.dir: ${reason}`);
@@ -553,8 +551,85 @@ test("an output.dir inside an allowed directory: the start's error and check-con
     const reason = "lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them";
     const config = join(dir, "pivotkit.json");
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, files: { allowDirs: ["data"] }, output: { dir: "data/out" } }));
-    const check = run(["check-config", "--config", config]);
+    const check = runBin(["check-config", "--config", config]);
     assert.equal(check.status, 1, check.stdout);
     assert.ok(factsOf(check.stdout).split("\n").includes(`PROBLEM: output.dir: ${reason} -> the server does not start`), check.stdout);
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, files: { allowDirs: ["data"] }, output: { dir: "data/out" }, baseDir: dir }), (e) => e.message === `output.dir: ${reason}`);
+});
+
+/** A schedule draft's file as draft_schedule writes it, with its status. */
+const draftJson = (status) => JSON.stringify({ format: "pivotkit-report-draft", version: 0, status, name: "Weekly" });
+
+test("output.maxAgeDays: a sweep deletes old reports and drafts no longer waiting, never a draft waiting for approval, and writes one info line with the counts; one that deletes nothing writes none", async () => {
+    const dir = tempDir();
+    const old = (Date.now() - 3 * 86_400_000) / 1000;
+    const files = { "a.pivotkit-out.csv": "x", "b.pivotkit-out.xlsx": "x", "Weekly.pivotkit-out.report.json": draftJson("draft"), "Done.pivotkit-out.report.json": draftJson("approved"), "fresh.pivotkit-out.csv": "x", "mine.csv": "x" };
+    for (const [name, text] of Object.entries(files)) {
+        writeFileSync(join(dir, name), text);
+        if (name !== "fresh.pivotkit-out.csv") utimesSync(join(dir, name), old, old);
+    }
+    const lines = [];
+    const log = { info: (msg, fields) => lines.push({ msg, ...fields }) };
+    await prune({ output: { dir, maxAgeDays: 1, cleanUp: true }, log });
+    assert.deepEqual(readdirSync(dir).sort(), ["Weekly.pivotkit-out.report.json", "fresh.pivotkit-out.csv", "mine.csv"], "the draft waits for a person");
+    assert.equal(lines.length, 1, JSON.stringify(lines));
+    assert.equal(lines[0].msg, "output.maxAgeDays: reports and schedule drafts no longer waiting older than 1 day deleted");
+    assert.deepEqual([lines[0].reports, lines[0].drafts], [2, 1]);
+    // a directory of old drafts that wait: nothing deleted, nothing said
+    const drafts = tempDir();
+    writeFileSync(join(drafts, "Old.pivotkit-out.report.json"), draftJson("draft"));
+    utimesSync(join(drafts, "Old.pivotkit-out.report.json"), old, old);
+    await prune({ output: { dir: drafts, maxAgeDays: 1, cleanUp: true }, log });
+    assert.deepEqual(readdirSync(drafts), ["Old.pivotkit-out.report.json"]);
+    const empty = tempDir();
+    await prune({ output: { dir: empty, maxAgeDays: 1, cleanUp: true }, log });
+    assert.equal(lines.length, 1, "nothing deleted, nothing said");
+});
+
+test("output.maxAgeDays: a draft whose status the host changed from \"draft\" no longer waits and goes by age; one still \"draft\" or unreadable stays; check-config counts the ones that go", async () => {
+    const dir = workspace();
+    const out = join(dir, "out");
+    const old = (Date.now() - 40 * 86_400_000) / 1000;
+    const files = { "waiting.pivotkit-out.report.json": draftJson("draft"), "approved.pivotkit-out.report.json": draftJson("approved"), "rejected.pivotkit-out.report.json": draftJson("rejected"), "broken.pivotkit-out.report.json": "{not json", "old.pivotkit-out.csv": "x" };
+    for (const [name, text] of Object.entries(files)) {
+        writeFileSync(join(out, name), text);
+        utimesSync(join(out, name), old, old);
+    }
+    const text = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.match(text, /^WARNING \(Output\): 1 report and 2 schedule drafts no longer waiting for approval are older than 30 days and are deleted at the next start; copy them away or set output\.maxAgeDays: 0$/m);
+    const lines = [];
+    await prune({ output: { dir: out, maxAgeDays: 30, cleanUp: true }, log: { info: (msg, fields) => lines.push({ msg, ...fields }) } });
+    assert.deepEqual(readdirSync(out).sort(), ["broken.pivotkit-out.report.json", "waiting.pivotkit-out.report.json"]);
+    assert.deepEqual(lines, [{ msg: "output.maxAgeDays: reports and schedule drafts no longer waiting older than 30 days deleted", reports: 1, drafts: 2, maxAgeDays: 30 }]);
+});
+
+test("check-config: output.dir in the configuration's directory is a WARNING (Output), with the text serve warns with", async () => {
+    const dir = workspace();
+    const result = await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "." }, baseDir: dir }, { http: false, env: {} });
+    assert.match(factsOf(result.text), /^WARNING \(Output\): output\.dir is the configuration's directory or holds a source, template or token file: reports there are never deleted to make room, so a full directory refuses new ones; give the reports a directory of their own$/m);
+    assert.ok(result.warnings >= 1);
+    // a directory of the reports' own: no such warning
+    assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text, /never deleted to make room/);
+});
+
+test("check-config: counts the reports the age sweep deletes at the next start, as a WARNING (Output); drafts waiting for approval are not counted", async () => {
+    const dir = workspace();
+    const out = join(dir, "out");
+    const old = (Date.now() - 40 * 86_400_000) / 1000;
+    for (const name of ["a.pivotkit-out.csv", "b.pivotkit-out.xlsx", "Weekly.pivotkit-out.report.json", "fresh.pivotkit-out.csv", "mine.csv"]) {
+        writeFileSync(join(out, name), "x");
+        if (name !== "fresh.pivotkit-out.csv") utimesSync(join(out, name), old, old);
+    }
+    const text = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.match(text, /^WARNING \(Output\): 2 reports are older than 30 days and are deleted at the next start; copy them away or set output\.maxAgeDays: 0$/m);
+    assert.match(text, /^ {2}reports older than 30 days are deleted; schedule drafts stay until a person approves or removes them$/m);
+    // no age limit, or nothing old: no such warning
+    assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text, /deleted at the next start/);
+    assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 60 }, baseDir: dir }, { http: false, env: {} })).text, /deleted at the next start/);
+});
+
+test("check-config: an output directory shared with the configuration says so once, as the WARNING", async () => {
+    const dir = workspace();
+    const text = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "." }, baseDir: dir }, { http: false, env: {} })).text);
+    assert.equal(text.match(/refuses new (reports|ones)/g)?.length, 1, text);
 });

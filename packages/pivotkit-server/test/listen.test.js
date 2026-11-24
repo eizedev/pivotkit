@@ -6,13 +6,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { connect } from "node:net";
 import { request as httpRequest } from "node:http";
-import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT, generateKeyPair } from "jose";
 import { CONNECTION_LIMITS, connectionGate, connectionLimitsOf, refusedText } from "../src/listen.js";
 import { checkConfig, serveFetch } from "pivotkit-server";
-import { BIN, call, factsOf, restServer, TOKEN, untilReady, workspace } from "./helpers.js";
+import { call, factsOf, restServer, TOKEN, untilReady, workspace, runBin } from "./helpers.js";
 import { localIssuer, signingKey } from "./auth/local-issuer.js";
 import { until } from "../../../tests/until.js";
 
@@ -160,7 +159,7 @@ test("a static token with characters a bearer token cannot carry is refused at s
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT" }] }, baseDir: dir }, { env: { BOT: bad } }), (e) => /the token "bot".*cannot carry.*make one with: pivotkit-server token new/.test(e.message));
     const config = join(dir, "pivotkit.json");
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT" }] } }));
-    const check = spawnSync(process.execPath, [BIN, "check-config", "--config", config], { encoding: "utf8", env: { PATH: process.env.PATH ?? "", BOT: bad } });
+    const check = runBin(["check-config", "--config", config], { env: { BOT: bad } });
     assert.equal(check.status, 1, check.stdout);
     assert.match(check.stdout, /PROBLEM: the token bot \(\$BOT\) has characters a bearer token cannot carry/);
     // a good token still starts
@@ -277,8 +276,7 @@ test("a client that leaves before the answer starts: its streamed body is given 
                 }, 30);
             });
         });
-        await new Promise((resolve) => setTimeout(resolve, 600));
-        assert.equal(cancelled, true, "the body of an answer whose client already left is cancelled");
+        await until(() => cancelled, { message: "the body of an answer whose client already left is cancelled" });
     } finally {
         await listening.close();
     }
@@ -370,21 +368,23 @@ test("a broken chunked body after a slow precheck: the request ends, and a stop 
         socket.on("close", resolve);
         socket.resume();
     });
-    // the precheck is still running here; let it end
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    // the precheck is still running here; once it ends, the unread body is answered as one the server
+    // cannot read, which frees what the precheck took
+    await until(() => problems === 1, { message: "the unread body is answered as one the server cannot read" });
     const started = performance.now();
     await listening.close();
     const ms = performance.now() - started;
     assert.ok(ms < 5_000, `close took ${Math.round(ms)} ms`); // wall time: a stop waits on timers and sockets
-    assert.equal(problems, 1, "the unread body is answered as one the server cannot read, which frees what the precheck took");
+    assert.equal(problems, 1);
 });
 
 // the same with a complete body: the client leaves while the precheck runs, before anyone read it
 test("a complete body whose client leaves during a slow precheck: the request ends, and a stop does not wait graceMs", async () => {
     let problems = 0;
+    let prechecking = false;
     const listening = await serveFetch(
         {
-            precheck: () => new Promise((resolve) => setTimeout(() => resolve(null), 300)),
+            precheck: () => ((prechecking = true), new Promise((resolve) => setTimeout(() => resolve(null), 300))),
             fetch: async () => new Response("read"),
             problem: (status) => {
                 problems++;
@@ -395,9 +395,9 @@ test("a complete body whose client leaves during a slow precheck: the request en
     );
     const socket = connect(listening.port, "127.0.0.1", () => socket.write("POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\nhi"));
     socket.on("error", () => undefined);
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await until(() => prechecking);
     socket.destroy();
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await until(() => problems === 1, { message: "the request whose client left is answered" });
     const started = performance.now();
     await listening.close();
     const ms = performance.now() - started;

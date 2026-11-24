@@ -10,6 +10,14 @@ body:
         - pivotkit-core
         - pivotkit-react
         - pivotkit-element
+        - pivotkit-xlsx
+        - pivotkit-report
+        - pivotkit-cli
+        - pivotkit-server
+        - pivotkit-mcp
+        - pivotkit-node
+        - the container image
+        - the docs
     validations:
       required: true
   - type: input
@@ -23,10 +31,10 @@ body:
     id: view
     attributes:
       label: The view (template JSON) and a few rows of sample data
-      description: Made-up data that shows the problem, no real data.
+      description: For a report that shows the problem. Made-up data, no real data. Leave it empty for the docs or the container image.
       render: json
     validations:
-      required: true
+      required: false
   - type: textarea
     id: what
     attributes:

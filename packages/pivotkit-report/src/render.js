@@ -94,6 +94,22 @@ const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limit
  * @property {import("pivotkit-core").Grid} [grid]  the table as pivotkit-core's toGrid made it, for another export of the same result (toCsv, toJson); absent when `strict` gave no body
  */
 
+/**
+ * A view given as an object, as the JSON text fromViewFile reads; a view JSON cannot write (one that
+ * holds itself, a BigInt) is no view, so the text is one fromViewFile refuses with an issue.
+ * @param {unknown} view
+ */
+function viewText(view) {
+    try {
+        return JSON.stringify(view ?? null);
+    } catch {
+        return "not JSON: the view holds itself or a value JSON cannot write";
+    }
+}
+
+/** What a wrong option is, for its message: "null", "a list", "an object", "a number". */
+const kindOf = (value) => (value === null ? "null" : Array.isArray(value) ? "a list" : typeof value === "object" ? "an object" : `a ${typeof value}`);
+
 /** @param {string} key  @param {string} message */
 const badOption = (key, message) => new PivotkitError("INVALID_OPTION", `render: ${message}`, { option: key });
 
@@ -139,16 +155,13 @@ function dataAsOfText(asOf, locale, timeZone) {
 }
 
 /**
- * Renders a view over data as a file.
- * @param {unknown} view  a view, a view file or a template { name, view }, as an object or JSON text
- * @param {unknown} data  rows, columnar data ({ columns, types, data }) or encode()'s result
- * @param {RenderOptions} [options]
- * @returns {Promise<RenderResult>}
+ * Refuses an option render cannot use, with INVALID_OPTION naming it, before any work: an unknown name
+ * (with the closest one), an unknown format, a value of the wrong kind. A misspelt or mistyped option
+ * is never ignored.
+ * @param {RenderOptions} options
+ * @returns {keyof typeof RENDER_FORMATS}  the format, "html" when none is given
  */
-export async function render(view, data, options = {}) {
-    if (options === null || typeof options !== "object" || Array.isArray(options)) {
-        throw badOption("options", "options must be an object");
-    }
+function checkOptions(options) {
     for (const key of Object.keys(options)) {
         if (!OPTION_KEYS.includes(key)) {
             const near = closest(key, OPTION_KEYS);
@@ -159,11 +172,6 @@ export async function render(view, data, options = {}) {
     if (!Object.hasOwn(RENDER_FORMATS, format)) {
         throw badOption("format", `unknown format ${JSON.stringify(String(format)).slice(0, 40)}; one of ${Object.keys(RENDER_FORMATS).join(", ")}`);
     }
-    const kind = RENDER_FORMATS[format];
-    const base = { format, mediaType: kind.mediaType, extension: kind.extension };
-    // a template is checked before any work
-    const template = format === "html" ? parseTemplate(options.template ?? DEFAULT_TEMPLATE) : null;
-    const size = format === "svg" || format === "html" ? sizeOf(options.size) : null;
     // options that take one of a few values: anything else (a CLI's "on") would be read as the default
     for (const [key, allowed] of Object.entries(OPTION_VALUES)) {
         const value = /** @type {Record<string, unknown>} */ (options)[key];
@@ -174,6 +182,16 @@ export async function render(view, data, options = {}) {
     if ((format === "svg" || (format === "html" && options.chart === true)) && typeof options.echarts?.init !== "function") {
         throw badOption("echarts", `${format === "svg" ? "an SVG" : "a report with chart: true"} needs ECharts: pass the echarts module (with its SVG renderer) as options.echarts`);
     }
+    checkValues(options);
+    return format;
+}
+
+/**
+ * The part of checkOptions for options whose value has a kind of its own: an object, a text, a number,
+ * a time.
+ * @param {RenderOptions} options
+ */
+function checkValues(options) {
     if (options.colorMap !== undefined && (options.colorMap === null || typeof options.colorMap !== "object" || Array.isArray(options.colorMap))) {
         throw badOption("colorMap", "colorMap must be an object of a colour per name");
     }
@@ -185,15 +203,61 @@ export async function render(view, data, options = {}) {
     for (const key of /** @type {const} */ (["tokens", "darkTokens"])) {
         const value = options[key];
         if (value !== undefined && (value === null || typeof value !== "object" || Array.isArray(value))) {
-            throw badOption(key, `${key} is an object of --pk-* names and their values, not ${value === null ? "null" : Array.isArray(value) ? "a list" : `a ${typeof value}`}`);
+            throw badOption(key, `${key} is an object of --pk-* names and their values, not ${kindOf(value)}`);
         }
+    }
+    checkKinds(options);
+}
+
+/**
+ * The part of checkValues for texts, objects of texts and the table's size. null is "not given", as
+ * the defaults read it.
+ * @param {RenderOptions} options
+ */
+function checkKinds(options) {
+    // another type would throw deep inside (title.trim),
+    // print "[object Object]" or give a table of headers only
+    for (const key of /** @type {const} */ (["title", "description", "source"])) {
+        const value = options[key];
+        if (value !== undefined && value !== null && typeof value !== "string") {
+            throw badOption(key, `${key} is a text, not ${kindOf(value)}`);
+        }
+    }
+    for (const key of /** @type {const} */ (["labels", "texts"])) {
+        const value = options[key];
+        if (value !== undefined && value !== null && (typeof value !== "object" || Array.isArray(value))) {
+            throw badOption(key, `${key} is an object of texts by name, not ${kindOf(value)}`);
+        }
+    }
+    const cells = options.tableCells;
+    if (cells !== undefined && cells !== null && !(typeof cells === "number" && cells >= 1 && (Number.isInteger(cells) || cells === Infinity))) {
+        throw badOption("tableCells", `tableCells is a whole number of at least 1 (Infinity: no limit), not ${typeof cells === "number" ? String(cells) : kindOf(cells)}`);
     }
     if (options.now !== undefined) {
         // checked here, so a wrong one is named as an option before any work
         generatedText(options.now, "en-US", "UTC");
     }
+}
+
+/**
+ * Renders a view over data as a file.
+ * @param {unknown} view  a view, a view file or a template { name, view }, as an object or JSON text
+ * @param {unknown} data  rows, columnar data ({ columns, types, data }) or encode()'s result
+ * @param {RenderOptions} [options]
+ * @returns {Promise<RenderResult>}
+ */
+export async function render(view, data, options = {}) {
+    if (options === null || typeof options !== "object" || Array.isArray(options)) {
+        throw badOption("options", "options must be an object");
+    }
+    const format = checkOptions(options);
+    const kind = RENDER_FORMATS[format];
+    const base = { format, mediaType: kind.mediaType, extension: kind.extension };
+    // a template is checked before any work
+    const template = format === "html" ? parseTemplate(options.template ?? DEFAULT_TEMPLATE) : null;
+    const size = format === "svg" || format === "html" ? sizeOf(options.size) : null;
     const issues = [];
-    const read = fromViewFile(typeof view === "string" ? view : JSON.stringify(view ?? null));
+    const read = fromViewFile(typeof view === "string" ? view : viewText(view));
     if (read.failed) {
         issues.push({ path: "", code: "viewFile", message: `not a view: ${read.issues.at(-1)?.message ?? read.failed}`, severity: "error", params: { value: read.failed } });
     }
