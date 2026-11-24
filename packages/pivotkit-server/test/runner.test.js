@@ -2,7 +2,7 @@
 // by variable, the health check, and a stop (SIGTERM) that lets a running report finish.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { chmodSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createRequire } from "node:module";
@@ -54,22 +54,22 @@ test("help, version, an unknown command; cli and mcp hand over to their packages
 test("cli without pivotkit-cli installed says to install it, for a project and a global install; --version still runs", () => {
     // a file URL: --import takes a specifier, and on Windows a path with a drive letter is none
     const hook = new URL("./fixtures/package-missing/hook.js", import.meta.url).href;
-    const r = spawnSync(process.execPath, ["--import", hook, BIN, "cli", "--version"], { encoding: "utf8", cwd: workspace(), env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
+    const r = runBin(["cli", "--version"], { cwd: workspace(), node: ["--import", hook] });
     assert.equal(r.status, 2, r.stderr);
     assert.equal(r.stdout, "");
     assert.equal(r.stderr.split("\n")[0], "pivotkit-server: cli needs the package pivotkit-cli beside pivotkit-server (npm install pivotkit-cli; for a global pivotkit-server: npm install --global pivotkit-cli); the container image has it");
-    const version = spawnSync(process.execPath, ["--import", hook, BIN, "--version"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
+    const version = runBin(["--version"], { node: ["--import", hook] });
     assert.equal(version.status, 0, version.stderr);
 });
 
 test("mcp, and serve --enable mcp, without pivotkit-mcp installed say to install it, for a project and a global install", () => {
     const hook = new URL("./fixtures/package-missing/hook.js", import.meta.url).href;
-    const env = { PATH: process.env.PATH ?? "", MISSING_PACKAGE: "pivotkit-mcp" };
+    const env = { MISSING_PACKAGE: "pivotkit-mcp" };
     const install = "needs the package pivotkit-mcp beside pivotkit-server (npm install pivotkit-mcp; for a global pivotkit-server: npm install --global pivotkit-mcp)";
-    const mcp = spawnSync(process.execPath, ["--import", hook, BIN, "mcp", "--version"], { encoding: "utf8", cwd: workspace(), env, timeout: 30_000 });
+    const mcp = runBin(["mcp", "--version"], { env, cwd: workspace(), node: ["--import", hook] });
     assert.equal(mcp.status, 2, mcp.stderr);
     assert.equal(mcp.stderr.split("\n")[0], `pivotkit-server: mcp ${install}`);
-    const serving = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0", "--enable", "mcp"], { encoding: "utf8", cwd: workspace(), env, timeout: 30_000 });
+    const serving = runBin(["serve", "--source", "sales=data/sales.csv", "--port", "0", "--enable", "mcp"], { env, cwd: workspace(), node: ["--import", hook] });
     assert.equal(serving.status, 2, serving.stderr);
     assert.ok(startError(serving.stderr).includes(`http.enable: "mcp" ${install}`), serving.stderr);
 });
@@ -79,7 +79,7 @@ test("a pivotkit-mcp of another release: serve and mcp say so with both versions
     const hook = new URL("./fixtures/mcp-other-release/hook.js", import.meta.url).href;
     const dir = workspace();
     for (const args of [["serve", "--source", "sales=data/sales.csv", "--port", "0"], ["mcp", "--version"]]) {
-        const r = spawnSync(process.execPath, ["--import", hook, BIN, ...args], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
+        const r = runBin(args, { cwd: dir, node: ["--import", hook] });
         assert.equal(r.status, 2, `${args[0]}: ${r.stderr}`);
         // the first line: a Node release may warn of the resolution hook below it
         assert.equal(
@@ -89,17 +89,17 @@ test("a pivotkit-mcp of another release: serve and mcp say so with both versions
         );
     }
     // the same for a name of a subpath (pivotkit-server/policy)
-    const subpath = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "subpath-export.js" }, timeout: 30_000 });
+    const subpath = runBin(["serve", "--source", "sales=data/sales.csv", "--port", "0"], { env: { MCP_STUB: "subpath-export.js" }, cwd: dir, node: ["--import", hook] });
     assert.equal(subpath.status, 2, subpath.stderr);
     assert.match(startError(subpath.stderr).split("\n")[0], /^pivotkit-server: pivotkit-mcp 0\.0\.1 does not fit pivotkit-server [^ ]+ \(it needs pivotkit-server \^0\.0\.1; The requested module 'pivotkit-server\/policy' does not provide an export named 'EXPORT_OF_ANOTHER_RELEASE'\)\. Install/);
     // the same for an entry point this pivotkit-server does not have (pivotkit-server/internal of a later
     // release): named, without the path of the installed package
-    const entry = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "subpath-missing.js" }, timeout: 30_000 });
+    const entry = runBin(["serve", "--source", "sales=data/sales.csv", "--port", "0"], { env: { MCP_STUB: "subpath-missing.js" }, cwd: dir, node: ["--import", hook] });
     assert.equal(entry.status, 2, entry.stderr);
     assert.match(startError(entry.stderr).split("\n")[0], /^pivotkit-server: pivotkit-mcp 0\.0\.1 does not fit pivotkit-server [^ ]+ \(it needs pivotkit-server \^0\.0\.1; this pivotkit-server has no entry point pivotkit-server\/entry-of-another-release\)\. Install/);
     assert.ok(!entry.stderr.includes("package.json"), entry.stderr);
     // a missing export of another package is no mismatch of the two: its own error stays
-    const other = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "core-export.js" }, timeout: 30_000 });
+    const other = runBin(["serve", "--source", "sales=data/sales.csv", "--port", "0"], { env: { MCP_STUB: "core-export.js" }, cwd: dir, node: ["--import", hook] });
     assert.equal(other.status, 2, other.stderr);
     assert.equal(startError(other.stderr).split("\n")[0], "pivotkit-server: could not start: The requested module 'pivotkit-core' does not provide an export named 'EXPORT_OF_ANOTHER_RELEASE'");
 });
@@ -109,7 +109,7 @@ test("a pivotkit-mcp of another release whose imports resolve: its declared rang
     const hook = new URL("./fixtures/mcp-other-release/hook.js", import.meta.url).href;
     const dir = workspace();
     for (const args of [["mcp", "--version"], ["check-config", "--source", "sales=data/sales.csv"]]) {
-        const r = spawnSync(process.execPath, ["--import", hook, BIN, ...args], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "imports-fine.js" }, timeout: 30_000 });
+        const r = runBin(args, { env: { MCP_STUB: "imports-fine.js" }, cwd: dir, node: ["--import", hook] });
         if (args[0] === "check-config") {
             // check-config does not load pivotkit-mcp: it starts nothing
             assert.equal(r.status, 0, r.stderr);
@@ -122,7 +122,7 @@ test("a pivotkit-mcp of another release whose imports resolve: its declared rang
         );
     }
     // serve the same, before it listens
-    const serving = spawnSync(process.execPath, ["--import", hook, BIN, "serve", "--source", "sales=data/sales.csv", "--port", "0"], { encoding: "utf8", cwd: dir, env: { PATH: process.env.PATH ?? "", MCP_STUB: "imports-fine.js" }, timeout: 30_000 });
+    const serving = runBin(["serve", "--source", "sales=data/sales.csv", "--port", "0"], { env: { MCP_STUB: "imports-fine.js" }, cwd: dir, node: ["--import", hook] });
     assert.equal(serving.status, 2, serving.stderr);
     assert.match(startError(serving.stderr).split("\n")[0], /^pivotkit-server: pivotkit-mcp 0\.0\.1 does not fit pivotkit-server [^ ]+ \(it needs pivotkit-server \^0\.0\.1\)\. Install/);
 });
@@ -189,7 +189,7 @@ test("serve from the command line: REST and MCP on one port, /healthz for health
         const mcp = await fetch(`${started.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream" }, body: "{}" });
         assert.equal(mcp.status, 401, "the MCP endpoint is there and asks for the token");
         const port = new URL(started.url).port;
-        const ok = spawnSync(process.execPath, [BIN, "healthcheck"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "", PIVOTKIT_PORT: port } });
+        const ok = runBin(["healthcheck"], { env: { PIVOTKIT_PORT: port } });
         assert.equal(ok.status, 0, ok.stderr);
         const exited = new Promise((resolve) => child.once("exit", (c) => resolve(c)));
         if (process.platform === "win32") {
@@ -201,7 +201,7 @@ test("serve from the command line: REST and MCP on one port, /healthz for health
             child.kill("SIGTERM");
             assert.equal(await exited, 0);
         }
-        const dead = spawnSync(process.execPath, [BIN, "healthcheck", `http://127.0.0.1:${port}/healthz`], { encoding: "utf8" });
+        const dead = runBin(["healthcheck", `http://127.0.0.1:${port}/healthz`]);
         assert.equal(dead.status, 1);
     } finally {
         child.kill("SIGKILL");

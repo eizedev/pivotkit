@@ -26,9 +26,9 @@ export const binEnv = (env = {}) => ({ PATH: process.env.PATH ?? "", HOME: proce
 /**
  * Runs the command as an operator does, in a fresh process with binEnv(env), and waits for it.
  * @param {string[]} args
- * @param {{ env?: Record<string, string>, cwd?: string }} [options]
+ * @param {{ env?: Record<string, string>, cwd?: string, node?: string[] }} [options]  node: Node's own flags before the command, such as a loader hook
  */
-export const runBin = (args, { env = {}, cwd } = {}) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", cwd, env: binEnv(env), timeout: 30_000 });
+export const runBin = (args, { env = {}, cwd, node = [] } = {}) => spawnSync(process.execPath, [...node, BIN, ...args], { encoding: "utf8", cwd, env: binEnv(env), timeout: 30_000 });
 
 /** Orders of a made-up shop: a personal field (Customer), dates over two years, a one-letter field. */
 export const SALES_CSV = ["Region,Product,Customer,Sales,OrderDate,Q", "North,A,Alice Example,10,2025-11-05,1", "South,B,Bob Example,20,2026-09-01,2", "North,B,Carol Example,5,2026-10-01,3", "West,A,Dan Example,7,2026-10-20,1", ",A,Eve Example,3,2024-12-31,2"].join("\n") + "\n";

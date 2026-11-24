@@ -6,7 +6,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { unzipSync, strFromU8 } from "fflate";
@@ -15,12 +14,11 @@ import { presentedInput } from "pivotkit-server/internal";
 import { openApiDocument } from "pivotkit-server/rest";
 import { BODY_BYTES, MAX_BODY_BYTES } from "../src/listen.js";
 import { MCP_DATA_CAP, REST_DATA_BYTES } from "../src/sources/inline.js";
-import { BIN, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspace } from "./helpers.js";
+import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspace, runBin } from "./helpers.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
 import { until } from "../../../tests/until.js";
 
 const LOCAL = callerOf("none", undefined);
-const BY_REGION = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
 
 /** A team's open tickets as a model would send them: names, numbers, a blank. */
 const TICKETS = Object.freeze({
@@ -559,7 +557,7 @@ test("pivotkit-server check-config refuses a cap above the built-in one and a bo
     ]) {
         const config = join(dir, "pivotkit.json");
         writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, ...options }));
-        const res = spawnSync(process.execPath, [BIN, "check-config", "--config", config], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
+        const res = runBin(["check-config", "--config", config]);
         // an invalid configuration, as for any other key: the runner's exit code for one
         assert.equal(res.status, 2, res.stdout + res.stderr);
         assert.match(res.stderr, pattern);

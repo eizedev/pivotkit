@@ -4,11 +4,11 @@
 // file that is not there is like a missing source file: a PROBLEM the server starts with, a warning at start.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ConfigError, checkConfig, createContext } from "pivotkit-server";
-import { BIN, factsOf, workspace } from "./helpers.js";
+import { factsOf, workspace, runBin } from "./helpers.js";
 
 /** A print template as an operator writes one: its own header, a typo on line 7. */
 const BRAND = ["<!doctype html>", "<html>", "<head>", "<title>{{title}}</title>", "</head>", "<body>", "<h1>{{titel}}</h1>", "{{table}}", "</body>", "</html>"].join("\n");
@@ -94,13 +94,12 @@ test("pivotkit-server serve and check-config from the command line: the template
     const dir = withTemplate(BRAND);
     const config = join(dir, "pivotkit.json");
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } } }));
-    const env = { PATH: process.env.PATH ?? "" };
-    const serve = spawnSync(process.execPath, [BIN, "serve", "--config", config, "--port", "0"], { encoding: "utf8", cwd: dir, env, timeout: 30_000 });
+    const serve = runBin(["serve", "--config", config, "--port", "0"], { cwd: dir });
     assert.equal(serve.status, 2, serve.stderr);
     // stderr is a pipe here: serve's start error is a JSON line (the log's auto rule) with the same words
     const said = JSON.parse(serve.stderr.split("\n")[0]);
     assert.deepEqual([said.level, said.code, said.msg], ["error", "CONFIG", `sources.sales.template: ${TYPO}`]);
-    const check = spawnSync(process.execPath, [BIN, "check-config", "--config", config], { encoding: "utf8", cwd: dir, env, timeout: 30_000 });
+    const check = runBin(["check-config", "--config", config], { cwd: dir });
     assert.equal(check.status, 1, check.stderr);
     assert.match(factsOf(check.stdout), new RegExp(`PROBLEM: sources\\.sales\\.template: ${TYPO.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} -> the server does not start`));
 });

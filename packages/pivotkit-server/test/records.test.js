@@ -7,7 +7,6 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT } from "jose";
@@ -17,7 +16,7 @@ import { checkConfig, createContext, validateOptions } from "pivotkit-server";
 import { createRestHandler } from "pivotkit-server/rest";
 import { answeredType, columnPieces } from "../src/records-writer.js";
 import { recordsBoundsOf } from "../src/options/records.js";
-import { BIN, call, factsOf, restServer, TOKEN, untilReady, workspace } from "./helpers.js";
+import { call, factsOf, restServer, TOKEN, untilReady, workspace, runBin } from "./helpers.js";
 import { localIssuer } from "./auth/local-issuer.js";
 import { until } from "../../../tests/until.js";
 
@@ -215,7 +214,7 @@ test("NOT_ALLOWED without the right, and for every caller without a person", asy
         // a static token whose profile names the source: no person
         await refused(TOKEN, "a static token");
         // a signed token of the server, with that profile
-        const issued = spawnSync(process.execPath, [BIN, "token", "issue", "--config", writeConfig(options), "--profile", "staff", "--json"], { encoding: "utf8" });
+        const issued = runBin(["token", "issue", "--config", writeConfig(options), "--profile", "staff", "--json"]);
         assert.equal(issued.status, 0, issued.stderr);
         await refused(JSON.parse(issued.stdout).token, "a signed token");
     } finally {
@@ -829,7 +828,7 @@ test("check-config reports a problem when a static or signed token's profile has
     const text = factsOf((await checkConfig(options, { http: true, env: { OPS: TOKEN }, rest: true })).text);
     assert.match(text, /PROBLEM: auth\.tokens\[0\] \(ops\): its profile staff reads rows \(records\), but a static token is no person -> the server starts; it gets NOT_ALLOWED from POST \/api\/v1\/sources\/records/);
     // a signed token names its profile when it is issued: the register says which
-    const issued = spawnSync(process.execPath, [BIN, "token", "issue", "--config", writeConfig(options), "--name", "laptop", "--profile", "narrow", "--json"], { encoding: "utf8" });
+    const issued = runBin(["token", "issue", "--config", writeConfig(options), "--name", "laptop", "--profile", "narrow", "--json"]);
     assert.equal(issued.status, 0, issued.stderr);
     const id = JSON.parse(issued.stdout).id;
     const signed = factsOf((await checkConfig({ ...options, auth: { ...options.auth, tokens: [] } }, { http: true, env: {}, rest: true })).text);
