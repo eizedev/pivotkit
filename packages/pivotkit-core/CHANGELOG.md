@@ -86,7 +86,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   comma-separated files with `"1,234"` read as 1234 where they read as 1.234, with the note
   `DECIMAL_MARK`. A German locale or a semicolon file still reads 1.234.
 - **Breaking:** `toViewFile` throws `PivotkitError` `INVALID_ARGUMENT` for a view that is no
-  object, as every function does for a programmer's error. It threw a `TypeError`. Affected: a host
+  object, as every function does for a programmer's error
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#next)). It threw a `TypeError`. Affected: a host
   that catches `TypeError` from `toViewFile`. What to do: catch `PivotkitError` (code
   `INVALID_ARGUMENT`) instead.
 - `PivotkitError` extends `CodedError` of `pivotkit-core/internal`, the base of every error class

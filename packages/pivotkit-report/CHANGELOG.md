@@ -25,6 +25,9 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
   `null` still means "not given", and `tableCells: Infinity` still means no limit.
 
+- `render` checks the `template` after its other options, except `size`. With a bad template and
+  another bad option, such as `chart: "yes"`, it throws `INVALID_OPTION` for the option, where it
+  threw `INVALID_TEMPLATE`. A single bad option or template throws the same error as before.
 - `OperationError` extends `CodedError` of `pivotkit-core/internal`. Its members and their types stay
   the same.
 - The operations table is split into smaller files: errors, findings, schemas, layouts, the view
