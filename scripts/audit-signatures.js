@@ -5,7 +5,8 @@
 import { spawnSync } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 
-const TRIES = 3;
+// the registry answers so while it throttles a runner: a longer pause each time (20, 40, 60, 80 s)
+const TRIES = 5;
 const PAUSE_MS = Number(process.env.PIVOTKIT_AUDIT_PAUSE_MS) || 20_000;
 
 for (let attempt = 1; ; attempt++) {
@@ -17,6 +18,6 @@ for (let attempt = 1; ; attempt++) {
     if (run.status === 0 || !unread || attempt === TRIES) {
         process.exit(run.status ?? 1);
     }
-    console.error(`npm audit signatures: the registry's answer could not be read (try ${attempt} of ${TRIES}); trying again in ${PAUSE_MS / 1000} s`);
-    await sleep(PAUSE_MS);
+    console.error(`npm audit signatures: the registry's answer could not be read (try ${attempt} of ${TRIES}); trying again in ${(PAUSE_MS * attempt) / 1000} s`);
+    await sleep(PAUSE_MS * attempt);
 }

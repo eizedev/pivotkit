@@ -32,6 +32,6 @@ test("an answer npm cannot read is tried again; a later pass passes", { skip: pr
     assert.deepEqual(run([["npm error code FETCH_ERROR", 1], ["audited 71 packages", 0]]), { status: 0, tries: 2 });
 });
 
-test("three answers npm cannot read fail, after three tries", { skip: process.platform === "win32" }, () => {
-    assert.deepEqual(run([["npm error code FETCH_ERROR", 1]]), { status: 1, tries: 3 });
+test("five answers npm cannot read fail, after five tries", { skip: process.platform === "win32" }, () => {
+    assert.deepEqual(run([["npm error code FETCH_ERROR", 1]]), { status: 1, tries: 5 });
 });
