@@ -12,7 +12,7 @@
  *    and what follows them, cuts long runs of whitespace and refuses a text over 1 MiB or a tag over 256 KiB, which
  *    read-excel-file would parse in quadratic time; of the shared strings it keeps those up to the
  *    highest one the sheet's cells name, and counts them and the formats against limits.importCells,
- *    since the parser keeps an entry for each (xml.js).
+ *    since the parser keeps an entry for each (sheet-filter.js, xml-guard.js, entry-count.js).
  * 3. read-excel-file (MIT) parses those parts: shared strings, styles (a date is a number with a date
  *    format), the values Excel saved (never a formula). It gets them as a ZIP without compression,
  *    so it unpacks nothing itself and starts no worker: no `blob:` worker, which a strict
@@ -23,7 +23,10 @@
 
 import { bytesOf, cleanText, createTable, fileError, fileName, readOptions } from "pivotkit-core/import";
 import { readSheet } from "read-excel-file/universal";
-import { checkXml, createEntryCount, createSheetFilter, createXmlCheck, createXmlGuard } from "./xml.js";
+import { createEntryCount } from "./entry-count.js";
+import { createSheetFilter } from "./sheet-filter.js";
+import { checkXml, createXmlCheck } from "./xml.js";
+import { createXmlGuard } from "./xml-guard.js";
 import { createStoredZip, readDirectory, unpack, unpackStream } from "./zip.js";
 import { sharedParts, worksheets } from "./workbook.js";
 

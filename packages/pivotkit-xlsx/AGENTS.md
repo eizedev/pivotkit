@@ -23,10 +23,12 @@ Run `size` and `bench` after a change of the reader.
 
 ## XML guard
 
-- Every part read-excel-file gets passes `createXmlGuard`.
+- Every part read-excel-file gets passes `createXmlGuard` (`xml-guard.js`).
 - The guard cuts whitespace runs and refuses over-long tags and tokens.
 - Reason: read-excel-file re-reads an unfinished token with every piece. That is quadratic.
-- Shared strings and formats count against `importCells`.
+- `sheet-filter.js` leaves out the rows without a value. It reads tags and attributes as the parser
+  does (`xml-tags.js`, `xml-attributes.js`).
+- Shared strings and formats count against `importCells` (`entry-count.js`).
 
 ## Parsing
 

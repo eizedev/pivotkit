@@ -50,7 +50,9 @@ const USED_RANGE_ROUNDS = 5;
  */
 async function sheetScanTimes(bytes, path) {
     const { readDirectory, unpackStream } = await import("../src/zip.js");
-    const { createSheetFilter, createXmlCheck, createXmlGuard } = await import("../src/xml.js");
+    const { createSheetFilter } = await import("../src/sheet-filter.js");
+    const { createXmlCheck } = await import("../src/xml.js");
+    const { createXmlGuard } = await import("../src/xml-guard.js");
     const entry = readDirectory(bytes, "book.xlsx", { archiveEntries: 100, unpackedBytes: 1e9 }).find((e) => e.name === path);
     // the unpacking is the unit of the bounds: its fastest of three, so one slow pass on a busy
     // runner does not loosen them
@@ -373,7 +375,8 @@ test("abort and progress", async () => {
 });
 
 test("the sheet filter gives the same XML however the sheet arrives in pieces", async () => {
-    const { createSheetFilter, createXmlCheck } = await import("../src/xml.js");
+    const { createSheetFilter } = await import("../src/sheet-filter.js");
+    const { createXmlCheck } = await import("../src/xml.js");
     const xml = [
         '<?xml version="1.0"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:C9"/><sheetData>',
         '<row r="1"><c r="A1" t="s"><v>0</v></c></row>\n',
@@ -410,7 +413,7 @@ test("the sheet filter gives the same XML however the sheet arrives in pieces", 
         assert.deepEqual(stats, { lastRow: 9, lastValueRow: 4, dropped: 3, errors: 1, shared: 0 }, `pieces of ${size} bytes`);
     }
     // the guard: whitespace runs cut, over-long tokens refused, the same however the XML is split
-    const { createXmlGuard, SPACE_RUN, MAX_TOKEN, MAX_TAG } = await import("../src/xml.js");
+    const { createXmlGuard, SPACE_RUN, MAX_TOKEN, MAX_TAG } = await import("../src/xml-guard.js");
     const through = (text, size) => {
         const input = strToU8(text);
         const parts = [];
@@ -605,7 +608,7 @@ test("a </row> inside a comment, CDATA section or processing instruction in a ro
     }
     // the same in the filter however the sheet arrives in pieces, and a row with many sections in it
     // ends in linear time
-    const { createSheetFilter } = await import("../src/xml.js");
+    const { createSheetFilter } = await import("../src/sheet-filter.js");
     const xml = `<worksheet><sheetData><row r="1"><c r="A1"><v>1</v></c><t><![CDATA[</row>]]></t><!--</row>--><?x </row>?></row></sheetData></worksheet>`;
     for (const size of [1, 2, 5, 13, xml.length]) {
         const parts = [];
@@ -656,7 +659,7 @@ test("styles: cell and number formats count against importCells, together with t
 });
 
 test("the count of shared strings and formats gives the same XML however the part arrives in pieces", async () => {
-    const { createEntryCount } = await import("../src/xml.js");
+    const { createEntryCount } = await import("../src/entry-count.js");
     const sst = '<?xml version="1.0"?><sst count="4"><si><t>a</t></si><si/><si\n><r><t>b</t></r></si><si><t>c</t></si></sst>';
     const through = (text, size, keep, options = {}) => {
         const parts = [];
@@ -746,7 +749,7 @@ test("whitespace 0x09-0x0D after a name: <c\\f r> and <row\\v r> are checked bef
 });
 
 test("whitespace 0x09-0x0D: the guard cuts a long run of form feeds or vertical tabs as of spaces", async () => {
-    const { createXmlGuard, SPACE_RUN } = await import("../src/xml.js");
+    const { createXmlGuard, SPACE_RUN } = await import("../src/xml-guard.js");
     const parts = [];
     createXmlGuard({ write: (b, from = 0, to = b.length) => parts.push(b.slice(from, to)) }, "s.xlsx", "sheet").write(strToU8(`<a${"\f".repeat(SPACE_RUN + 9)}b="1">${"\v".repeat(SPACE_RUN + 9)}</a>`));
     assert.equal(parts.reduce((n, p) => n + p.length, 0), `<ab="1"></a>`.length + 2 * SPACE_RUN);
@@ -793,7 +796,7 @@ test("a quoted '>' or '/>' in a row tag does not end the tag: the row is read an
     }
     await assert.rejects(read(fileOf(sheet('<row r="2" x="/>"><c r="XFD2"><v>1</v></c></row>'))), (e) => e.details?.limit === "columns");
     // the filter gives the same XML however the sheet arrives in pieces
-    const { createSheetFilter } = await import("../src/xml.js");
+    const { createSheetFilter } = await import("../src/sheet-filter.js");
     const xml = '<worksheet><sheetData><row r="1" q="/>"><c r="A1"><v>1</v></c></row><row r="2" q=\'>\'><c r="A2" s="1"/></row></sheetData><pageMargins/></worksheet>';
     const expected = '<worksheet><sheetData><row r="1" q="/>"><c r="A1"><v>1</v></c></row></sheetData></worksheet>';
     for (const size of [1, 2, 5, 13, xml.length]) {
@@ -828,7 +831,7 @@ test("a sheet with namespace prefixes is checked and trimmed as one without", as
     assert.ok(t.notes.some((note) => note.code === "USED_RANGE"), JSON.stringify(t.notes));
     // the filter gives the same XML however the sheet arrives in pieces, and finds the shared string a
     // cell names in a <v> with a prefix
-    const { createSheetFilter } = await import("../src/xml.js");
+    const { createSheetFilter } = await import("../src/sheet-filter.js");
     const xml = '<x:worksheet><x:sheetData><x:row r="1"><x:c r="A1" t="s"><x:v>3</x:v></x:c></x:row ><x:row r="2"><x:c r="A2" s="1"/></x:row></x:sheetData><x:pageMargins/></x:worksheet>';
     const expected = '<x:worksheet><x:sheetData><x:row r="1"><x:c r="A1" t="s"><x:v>3</x:v></x:c></x:row ></x:sheetData></x:worksheet>';
     for (const size of [1, 2, 5, 13, xml.length]) {

@@ -60,7 +60,7 @@
             "packages/pivotkit-react/src/toolbar-panels.jsx Function 'ViewsPanel'": [30],
             "packages/pivotkit-react/src/toolbar.jsx Function 'Toolbar'": [27],
             "packages/pivotkit-report/src/operations.js Async method 'run'": [35],
-            "packages/pivotkit-report/src/operations.js Function 'checkInput'": [47],
+            "packages/pivotkit-report/src/operations/check-input.js Function 'checkInput'": [47],
             "packages/pivotkit-report/src/render.js Async function 'render'": [68],
             "packages/pivotkit-report/src/svg.js Function 'cleanSvg'": [39],
             "packages/pivotkit-report/src/template-style.js Function 'templateTheme'": [33],
@@ -117,9 +117,9 @@
             "packages/pivotkit-server/src/state.js Function 'planState'": [38],
             "packages/pivotkit-server/src/token-admin.js Async function 'tokenIssue'": [26],
             "packages/pivotkit-server/src/upload.js Async arrow function": [35],
-            "packages/pivotkit-xlsx/src/xml.js Arrow function": [38],
-            "packages/pivotkit-xlsx/src/xml.js Function 'eachAttr'": [26],
-            "packages/pivotkit-xlsx/src/xml.js Method 'write'": [67],
+            "packages/pivotkit-xlsx/src/sheet-filter.js Arrow function": [38],
+            "packages/pivotkit-xlsx/src/xml-attributes.js Function 'eachAttr'": [26],
+            "packages/pivotkit-xlsx/src/xml-guard.js Method 'write'": [67],
             "packages/pivotkit-xlsx/src/zip.js Function 'readDirectory'": [26]
         },
         "lines": {
@@ -160,9 +160,9 @@
             "packages/pivotkit-server/src/sources/json-rows.js Function 'push'": [133],
             "packages/pivotkit-server/src/sources/json-rows.js Function 'rowsReader'": [231],
             "packages/pivotkit-server/src/sources/run.js Function 'createLoadRunner'": [284],
-            "packages/pivotkit-xlsx/src/xml.js Function 'createSheetFilter'": [145],
-            "packages/pivotkit-xlsx/src/xml.js Function 'createXmlGuard'": [158],
-            "packages/pivotkit-xlsx/src/xml.js Method 'write'": [134]
+            "packages/pivotkit-xlsx/src/sheet-filter.js Function 'createSheetFilter'": [145],
+            "packages/pivotkit-xlsx/src/xml-guard.js Function 'createXmlGuard'": [158],
+            "packages/pivotkit-xlsx/src/xml-guard.js Method 'write'": [134]
         }
     },
     "unused": [
@@ -378,7 +378,6 @@
         "packages/pivotkit-xlsx/src/index.js duplicates xlsxReader=default",
         "packages/pivotkit-xlsx/src/workbook.js exports decodeXml",
         "packages/pivotkit-xlsx/src/workbook.js exports partPath",
-        "packages/pivotkit-xlsx/src/xml.js exports indexOf",
         "packages/pivotkit-xlsx/src/zip.js exports crc32",
         "tests/browser/fixtures.js exports SETTINGS",
         "tests/browser/fixtures.js exports START_OVER",

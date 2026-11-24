@@ -25,6 +25,9 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 - `OperationError` extends `CodedError` of `pivotkit-core/internal`. Its members and their types stay
   the same.
+- The operations table is split into smaller files: errors, findings, schemas, layouts, the view
+  guide, the input check and the helpers of the operations. `pivotkit-report/operations` exports the
+  same names, and answers and messages stay the same.
 
 ## [0.5.0] - 2026-11-22
 

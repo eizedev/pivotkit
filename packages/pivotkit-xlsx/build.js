@@ -20,9 +20,9 @@ const SAXEN = dirname(createRequire(fileURLToPath(import.meta.resolve("read-exce
 
 /**
  * The most each part may be, gzip, in KiB, with a little room: the descriptor, and the reader with
- * read-excel-file, fflate's inflate, the XML guard (xml.js) and the table of pivotkit-core/import,
- * which reads number notations per column. The reader measures 32.9 on a Mac with Node 26; CI's
- * Node 24 measures about 0.2 more.
+ * read-excel-file, fflate's inflate, the XML checks (xml.js, xml-guard.js, sheet-filter.js,
+ * entry-count.js) and the table of pivotkit-core/import, which reads number notations per column.
+ * The reader measures 32.9 on a Mac with Node 26; CI's Node 24 measures about 0.2 more.
  */
 export const SIZE_BUDGET_KIB = { plugin: 0.5, reader: 33.5 };
 

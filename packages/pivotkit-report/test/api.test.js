@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import * as report from "pivotkit-report";
 import * as template from "pivotkit-report/template";
 import * as operations from "pivotkit-report/operations";
@@ -15,7 +15,12 @@ test("the package exports its documented entry points and nothing else", () => {
 });
 
 test("the sources import nothing Node has and browsers do not: no node: modules, no echarts", () => {
-    for (const file of ["index.js", "operations.js", "render.js", "svg.js", "template.js", "html-table.js", "report-css.js", "tokens.js", "texts.js", "default-template.js"]) {
+    // every source file, in folders too
+    const files = readdirSync(new URL("../src/", import.meta.url), { recursive: true })
+        .map((f) => f.replaceAll("\\", "/"))
+        .filter((f) => f.endsWith(".js"));
+    assert.ok(files.includes("operations.js") && files.includes("operations/errors.js"));
+    for (const file of files) {
         const text = readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8");
         for (const [, spec] of text.matchAll(/^(?:import|export)\s[^;]*?from\s+"([^"]+)"/gm)) {
             assert.ok(spec.startsWith(".") || spec.startsWith("pivotkit-core"), `${file} imports ${spec}`);
