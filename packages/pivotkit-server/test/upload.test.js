@@ -680,11 +680,12 @@ test("a refused or timed-out upload closes its file: the count of open files sta
             for (let i = 0; i < tries; i++) {
                 await assert.rejects(deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }), /could not be stored/);
             }
-            // the store's side of the timed-out connections, then a moment for closed streams to close their files
+            // the store's side of the timed-out connections; then the closed streams close their files.
+            // A few files of the process's own may come and go meanwhile: the bound does not grow with
+            // the uploads, so one file kept per upload fails it
             unanswered.splice(0).forEach((res) => res.destroy());
-            await new Promise((resolve) => setTimeout(resolve, 300));
             assert.equal(log.findLast((l) => l.upload)?.upload, code, what);
-            assert.ok(openFds() - before < tries, `${what}: ${openFds() - before} more open files after ${tries} uploads`);
+            await until(() => openFds() - before <= 2, { message: `${what}: files still open after ${tries} uploads` });
         } finally {
             await context.close();
         }
