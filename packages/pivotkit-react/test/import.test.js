@@ -12,7 +12,7 @@ import { acceptOf, formatsOf, readImport, sheetsOf } from "../src/import-run.js"
 import { backToOriginal, loadData, moveData, restoreData } from "../src/import-steps.js";
 import { KEPT_REPORTS, forgetData, hostIdentity, keepData, keptData } from "../src/data-keep.js";
 import { importLimitsOf } from "../src/import-limits.js";
-import { resolveLabels } from "../src/labels.js";
+import { LABELS, resolveLabels } from "../src/labels.js";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../src/deferred.js";
 import { createState } from "../src/view-history.js";
@@ -124,7 +124,8 @@ test("every note code of the readers has a text in English and German; German ha
         assert.ok(Object.hasOwn(en.notes, code), `en ${code}`);
     }
     assert.deepEqual(keys(de), keys(en));
-    assert.deepEqual(Object.keys(IMPORT_TEXTS), ["en", "de"]);
+    // every language of the report has import texts
+    assert.deepEqual(Object.keys(IMPORT_TEXTS), Object.keys(LABELS));
 });
 
 test("a note in the report's language: counts in their plural form and the locale's digits, the variants of a code, a plugin's own code in its words", () => {

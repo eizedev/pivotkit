@@ -27,6 +27,7 @@ function render(props) {
 test("the package exports the component, and the labels from pivotkit-react/labels with every text", async () => {
     const mod = await import("pivotkit-react");
     assert.deepEqual(Object.keys(mod).sort(), ["PivotReport"]);
+    // the report's languages; a new one is added here too (AGENTS.md, "Adding a language")
     assert.deepEqual(Object.keys(LABELS), ["en", "de"]);
     // the first load's texts and the menus' (loaded with the menus) in one object
     assert.deepEqual([LABELS.en.zones.rows, LABELS.en.cancel, LABELS.de.showAsNames.runningTotal], ["Rows", "Cancel", "Laufende Summe"]);

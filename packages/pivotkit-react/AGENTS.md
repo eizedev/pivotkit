@@ -49,7 +49,7 @@ One module is the only place for each of these:
 | localStorage | `storage.js` |
 | Numbers typed into a menu | `numbers.js`. Never `type="number"` |
 | Importing @dnd-kit | `dnd.jsx` |
-| Importing ECharts | `echarts.js`, by name, as its own chunk |
+| Importing ECharts | `echarts.js`, by name, as its own chunk. `report-run.js` adds only the SVG renderer |
 | Focus, Tab and Escape in a shadow root | `dom.js` |
 | Unique form field names | `useFormName` in `dom.js` |
 | Menu filters to core filters | `view-ops.js` (`ruleOp`, `opOf`, `pickFilter`) |
@@ -151,6 +151,7 @@ Visual values come from `--pk-*` tokens. A host can then match its design withou
 7. All of them in `all-labels.js`.
 8. A row in `docs/reference/localisation.md`.
 9. pivotkit-element's `texts`, `unused` and `lang` budgets in its `build.js`.
+10. The language list that `test/render.test.js` expects of `pivotkit-react/labels`.
 
 `test/menu-texts.test.js` and `test/unused.test.js` check the loaders and keys.
 

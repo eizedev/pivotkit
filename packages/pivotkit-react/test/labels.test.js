@@ -91,7 +91,7 @@ test("the row count under the result: the data's rows, or the rows a filter keep
 });
 
 test("the row count's words are pivotkit-core's: the component and the HTML report say the same (#547)", () => {
-    for (const lang of /** @type {const} */ (["en", "de"])) {
+    for (const lang of /** @type {("en" | "de")[]} */ (Object.keys(LABELS))) {
         assert.equal(LABELS[lang].rowsCount, ROW_COUNT_TEXTS[lang].rowsCount, lang);
         assert.equal(LABELS[lang].rowsFiltered, ROW_COUNT_TEXTS[lang].rowsFiltered, lang);
         assert.equal(REPORT_TEXTS[lang].rowsCount, ROW_COUNT_TEXTS[lang].rowsCount, lang);

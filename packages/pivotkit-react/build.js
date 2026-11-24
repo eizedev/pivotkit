@@ -7,9 +7,10 @@
 //   node build.js --watch    rebuild on change
 import * as esbuild from "esbuild";
 import { isMain } from "../../scripts/is-main.js";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-const pkg = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./package.json", import.meta.url), "utf8"));
+const pkg = JSON.parse(await readFile(new URL("./package.json", import.meta.url), "utf8"));
 const externals = [...Object.keys(pkg.peerDependencies ?? {}), ...Object.keys(pkg.dependencies ?? {})];
 
 /** chart.jsx's import("./echarts.js") stays an import of dist/echarts.js, a file of its own. */
@@ -57,7 +58,6 @@ export const options = {
     jsx: "transform",
     jsxFactory: "React.createElement",
     jsxFragment: "React.Fragment",
-    loader: { ".js": "jsx" },
     legalComments: "none",
     // the version for the view files' `generator` (src/version.js), from package.json
     define: { __PIVOTKIT_REACT_VERSION__: JSON.stringify(pkg.version) },
