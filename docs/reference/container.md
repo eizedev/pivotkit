@@ -29,7 +29,7 @@ The image runs `pivotkit-server serve --host 0.0.0.0` on port 3333. It reads the
 
 The server listens on every address of the container, so it serves only with sign-in. Without a
 token of yours, it makes the token `admin` at its first start, in the state directory
-`/var/lib/pivotkit` ([made at the first start](rest.md#first-start)).
+`/var/lib/pivotkit` ([made at the first start](tokens.md#first-start)).
 [Server in 5 minutes](../getting-started/server-in-5-minutes.md) walks through it:
 
 ```bash
@@ -149,7 +149,7 @@ makes no `admin`. Keep the tokens in files (secrets), not in environment variabl
 `docker inspect` shows a container's environment.
 
 The simplest way lets the server make each token file. Write the token with `"create": true` and a
-file in the state volume ([made at the first start](rest.md#first-start)):
+file in the state volume ([made at the first start](tokens.md#first-start)):
 
 ```json
 { "auth": { "mode": "token", "tokens": [
@@ -178,11 +178,11 @@ afterwards that the file is there and that you can read it.
 
 With Node, run `npx -y pivotkit-server token new --file secrets/pivotkit_token`.
 
-`token new --file` writes mode 0600 for your own user ([tokens and keys](rest.md#credentials)).
+`token new --file` writes mode 0600 for your own user ([tokens and keys](tokens.md#credentials)).
 Output you save with `>` instead gets the mode your umask gives, often 0644, which everyone can
 read. Run `umask 077` first if you do that.
 
-For a token that expires on its own, issue a [signed token](rest.md#signed-tokens) in the running
+For a token that expires on its own, issue a [signed token](tokens.md#signed-tokens) in the running
 container. It needs no change to the configuration:
 
 ```bash
@@ -332,5 +332,6 @@ from the repository's lock file. The base images are pinned by digest
 ## Without containers { #windows }
 
 The same service runs from npm. Install it with `npm install --global pivotkit-server pivotkit-mcp`,
-then run `pivotkit-server serve --config pivotkit.json`. You can run it as a Windows service next to
-PowerShell Universal, for example. See [Running it](rest.md#running).
+then run `pivotkit-server serve --config pivotkit.json`. See [Running it](rest.md#running).
+[Services next to PowerShell Universal](../getting-started/powershell-universal.md) runs it as a
+Windows service.

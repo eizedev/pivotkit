@@ -21,7 +21,7 @@ const FINDING = { severity: "error", code: "unknownField", path: "rows[0]", mess
 function problem(res, req, status, code, { detail, headers = {}, extra = {} } = {}) {
     const auth = req.headers.authorization ?? "";
     res.writeHead(status, { "content-type": "application/problem+json", "x-echo": auth, ...headers });
-    res.end(JSON.stringify({ type: "https://pivotkit.eize.dev/reference/rest/#error", title: code, status, code, detail: detail ?? `refused ${auth}`, raw: RAW, ...extra }));
+    res.end(JSON.stringify({ type: "https://pivotkit.eize.dev/reference/rest/#errors", title: code, status, code, detail: detail ?? `refused ${auth}`, raw: RAW, ...extra }));
 }
 
 /** A JSON answer with the marker outside the fields the CLI reads. */

@@ -1,6 +1,6 @@
 ---
 title: pivotkit-server (REST)
-description: The pivotkit REST service - routes, the OpenAPI 3.1 document, sign-in with tokens or OAuth 2.1, policy profiles, downloads, CORS, limits, errors as problem details, logging, and embedding pivotkit-server in your own Node server.
+description: The pivotkit REST service - routes, the OpenAPI 3.1 document, policy profiles, downloads, CORS, limits, errors as problem details and logging. Sign-in, tokens and the rows route have pages of their own.
 ---
 
 # pivotkit-server (REST)
@@ -41,7 +41,7 @@ Node 24 or later. It brings [pivotkit-report](report.md), pivotkit-xlsx, ECharts
 
 Every route is under `/api/v1` and answers JSON. A `GET` route answers `HEAD` too, without the body.
 The routes are RPC-style (`POST /views/validate`), one per operation of the
-[operation table](report.md#operations), and the [rows route](#records):
+[operation table](report.md#operations), and the [rows route](records.md#records):
 
 | Route | Operation | What it does |
 | --- | --- | --- |
@@ -56,7 +56,7 @@ The routes are RPC-style (`POST /views/validate`), one per operation of the
 | `POST /views/render/file` | `render_view` | The same report as the answer itself, a download ([below](#downloads)) |
 | `POST /views/link` | `create_link` | A link that opens the view in the source's report page, with the source's link parameters in the page's query string ([link parameters](../concepts/sharing.md#link-params)) |
 | `POST /schedules/draft` | `draft_schedule` | A draft of a scheduled report for a person to approve. It runs and sends nothing |
-| `POST /sources/records` | none (REST only) | The rows of a source for a person who signed in, where a profile allows it ([below](#records)) |
+| `POST /sources/records` | none (REST only) | The rows of a source for a person who signed in, where a profile allows it ([below](records.md#records)) |
 
 `GET /sources/records` and `GET /sources/describe` answer 405 with `Allow: POST`. A source with the
 id `records` or `describe` is still described there for a caller who may use it.
@@ -361,7 +361,7 @@ which only the file route reads.
 
 | Key | Default | What it is |
 | --- | --- | --- |
-| `policy.profiles.<name>` | none | A profile: `default` (show, values or summary), `fields`, `items`, `rows`, `counts`, `inline`, `results`, `records` ([rows route](#records)) |
+| `policy.profiles.<name>` | none | A profile: `default` (show, values or summary), `fields`, `items`, `rows`, `counts`, `inline`, `results`, `records` ([rows route](records.md#records)) |
 | `policy.results`, `sources.<id>.policy.results` | false | Downloads through the file route for callers without a profile, per source |
 | `auth.tokens[].profile` | none | A static token's profile |
 | `auth.clientProfiles` | none | OAuth client id (`azp` or `client_id`) to profile: `{ "report-bot": "export" }` |
@@ -516,604 +516,17 @@ PIVOTKIT_TOKEN=$EXPORT_TOKEN pivotkit render sales.pivotkit.json --url http://12
 
 ## Rows of a source { #records }
 
-A host application can show a live report over a source that only pivotkit-server can reach. Its
-backend fetches the rows for the person who opens the page. The page hands them to the components.
-This route is off by default. [Record 0015](../decisions/0015-live-rows-for-a-host-page.md) says
-why it works this way.
+<span id="records-setup"></span><span id="records-who"></span><span id="records-fields"></span><span id="records-limits"></span><span id="records-host"></span><span id="records-log"></span><span id="records-sizing"></span>
 
-`POST /sources/records` answers the rows of one source:
-
-```bash
-curl -s -H "Authorization: Bearer $PERSON_TOKEN" -H "Content-Type: application/json" \
-  -d '{"source":"sales","fields":["Region","Sales"]}' \
-  https://reports.example.com/api/v1/sources/records
-```
-
-```json
-{ "columns": ["Region", "Sales"], "types": ["string", "number"], "rowCount": 2,
-  "dataAsOf": "2026-11-18T08:00:00Z", "withheld": ["Customer"], "requestId": "Ab3_xY9-k2Q",
-  "data": [["North", "South"], [10, 20]] }
-```
-
-- `columns`, `types` and `data` are the columnar shape the components take: one array per column.
-  pivotkit-core's `encode` reads it as it is.
-- A date is ISO text without an offset, such as `2026-11-18` or `2026-11-18T08:30:00`. It means the
-  same day and time in every time zone.
-- `rowCount` is every row of the source. The policy's `rows: false` and `counts: false` do not
-  hide it here, since `data` holds every row anyway.
-- `withheld` names the fields at `values` or `summary` for the caller. They are left out.
-- `dataAsOf` and `stale` are as on every other route.
-
-The input:
-
-| Key | Required | What it is |
-| --- | --- | --- |
-| `source` | yes | A source id whose entry in `GET /sources` has `records: true` |
-| `params` | no | The source's parameters, as on the other routes |
-| `fields` | no | The fields to answer, in this order. Names match without case |
-| `view` | no | A view, or its JSON text. Only the fields it uses are answered |
-
-Give `fields` or `view`, not both. Without either, every field at `show` is answered.
-
-The server does not apply a view's filters. Filters are no permission. Every row of the source
-leaves, also when the view filters most of them out.
-
-### Turn it on { #records-setup }
-
-1. Give a profile the right, as a list of source ids: `"records": ["sales"]`.
-2. Set each field that may leave to `show` for that profile.
-3. Bind the profile to people, for example with `auth.groupProfiles` or `auth.defaultProfile`.
-4. Run `check-config`. It lists per profile the sources and the fields that would leave.
-
-```json
-{
-  "sources": { "sales": { "file": "data/sales.csv", "policy": { "fields": { "Customer": "hide" } } } },
-  "policy": { "profiles": { "staff": { "records": ["sales"], "fields": { "Region": "show", "Sales": "show" } } } },
-  "auth": { "mode": "oauth", "issuer": "https://login.example.com", "resource": "https://reports.example.com/mcp",
-    "defaultProfile": "staff" }
-}
-```
-
-There is no switch for every caller or every source. A source added later stays closed until a
-profile names it.
-
-### Who gets rows { #records-who }
-
-Only a person gets rows:
-
-- an OAuth token of the configured issuer with a subject (`auth.subjectClaim`)
-- a [token from another system](#external-issuers) with a subject
-
-Everyone else gets 403 `NOT_ALLOWED`: a static token, a signed token, an OAuth token without a
-subject, and every caller of a server without sign-in.
-
-A machine's token with a subject cannot be told apart from a person's. Give no such client a
-profile with `records`.
-
-A caller whose profile does not name the source gets 403 `NOT_ALLOWED`. A source that does not
-exist answers the same. The `detail` names the caller's profile, or says that the caller has none.
-
-`GET /sources` adds `"records": true` to each source the caller may read the rows of.
-
-MCP has no tool for this route. A model gets results, never rows.
-
-### Which fields leave { #records-fields }
-
-Only fields at `show` for the caller leave.
-
-| The request names | Answer |
-| --- | --- |
-| nothing | every field at `show`; the others in `withheld` |
-| fields at `show` only | those fields |
-| a field at `values` or `summary` | 403 `NOT_ALLOWED`. `detail` names the fields, `notShown` lists them for programs |
-| a hidden field | 400 `INVALID_INPUT`, as for a field that does not exist. Neither is named |
-| a view with errors, or one that uses a hidden field | 400 `INVALID_INPUT`. Check the view with `POST /views/validate` |
-| a [named view](sources.md#views) by its name | the fields it uses |
-| a named view that uses a field at `values` or `summary` | 403 `NOT_ALLOWED`. `detail` and `notShown` name those fields only |
-| a named view that uses a hidden field | 400 `INVALID_INPUT`, as for a name that does not exist |
-
-```json
-{ "type": "https://pivotkit.eize.dev/reference/rest/#error-not-allowed", "title": "Not allowed",
-  "status": 403, "code": "NOT_ALLOWED", "detail": "Team is not at show for you, so its values cannot leave: leave it out, or ask the operator to show it",
-  "requestId": "Ab3_xY9-k2Q", "notShown": ["Team"] }
-```
-
-Under a profile with `"default": "show"`, a column the data gains later leaves too. `check-config`
-warns about such a profile.
-
-### Limits { #records-limits }
-
-!!! warning "One rows request at a time by default"
-
-    `rest.records.concurrency` is 1 by default, for the whole server. One person's rows request
-    holds the route. Every other person gets 503 `BUSY` until that answer is read or cut off. Raise
-    `rest.records.concurrency` and `compute.workers` together when several people open live reports
-    at once.
-
-The load stays bounded by the server's other limits: `limits.rows`, `limits.fileBytes`,
-`http.maxBytes` and `sourceCache.maxMb`. These keys bound what one answer hands out. The smallest
-limit wins.
-
-| Key | Default | What it is |
-| --- | --- | --- |
-| `policy.profiles.<name>.records` | none | The source ids whose rows the profile may read |
-| `rest.records.maxRows` | 50000 | The most rows of one answer (1 to 10,000,000) |
-| `rest.records.maxCells` | 1000000 | The most values of one answer: rows times fields (1 to 100,000,000) |
-| `rest.records.concurrency` | 1 | Rows requests at once over all callers, one per person (1 to 64). Keep it below `compute.workers` (default 2) |
-| `rest.records.idleMs` | 30000 | A reader that reads nothing for this long loses its place (1000 to 600000) |
-| `rest.records.writeMs` | 10000, at most `compute.timeMs` | A reader that has not read the whole answer within this time loses its place (1000 to 600000, not above `compute.timeMs`) |
-| `sources.<id>.records.maxRows` | `rest.records.maxRows` | A lower row limit for one source. It cannot be higher than the server's |
-
-The defaults are a first guess. Real row counts will set them better.
-
-- Over a row or cell limit, the answer is 413 `LIMIT_EXCEEDED`, for example "this source has too
-  many rows to open here (60,000, the limit is 50,000); filter it with a parameter or ask the
-  operator". Where the policy hides the row count (`rows: false`), the message leaves the count out.
-  It names a parameter only for a source that takes one the caller sends.
-- The server checks the fields and the limits before it writes the first byte.
-- Beyond `concurrency`, or for a second request of the same person, the answer is 503 `BUSY` with
-  `Retry-After` and `retryable: true`.
-- With the default of 1, the route serves one person at a time. A slow reader keeps the others at
-  503 `BUSY` for up to `writeMs`. A source that loads slowly keeps them there while it loads, up to
-  its own time limit and `compute.timeMs`. The place is taken before the load, so at most
-  `concurrency` loads hold data at once. Raise `concurrency` and `compute.workers` together for
-  more people at once.
-- `writeMs` cuts an honest reader on a slow link too. The default answer of 50,000 rows is about
-  4 MiB ([sizing](#records-sizing)), which needs about 3.5 Mbit/s within 10 s.
-- `auth.toolScopes` cannot name this route, since it is no operation. `rest.requiredScopes` and the
-  source's `scopes` apply.
-- The places for [large bodies](#data) count per client, so they are not used here.
-- One request holds a [compute worker](mcp.md#configuration) while its answer is written. Keep
-  `concurrency` below `compute.workers`, so reports still find a worker. `check-config` warns
-  otherwise.
-- The whole request, reading and writing, must end within `compute.timeMs`, and the writing within
-  `writeMs`. A slow reader's answer is cut off then, and the connection ends without the closing
-  bracket.
-- The answer has no `Content-Length`. Read it to its end, then parse it.
-
-### A host backend fetches the rows { #records-host }
-
-A page shows a live report over a source that only pivotkit-server can reach, such as an HTTP source
-with a token exchange. The page's own backend fetches the rows for the person who opens it. The
-page hands them to the report.
-
-The operator sets up pivotkit-server once:
-
-1. A profile names the source in `records`. The fields that may leave are `show` for it.
-2. The profile is bound to the people, for example with `auth.defaultProfile` or
-   `auth.groupProfiles`.
-3. With OAuth, the backend sends the person's access token from your application's own sign-in.
-   pivotkit-server must be an intended audience of it: list your application's audience in
-   `rest.audience`, beside the REST resource. The token needs the scopes of `rest.requiredScopes`
-   and of the source (`sources.<id>.scopes`).
-4. Or your application signs a token for the person ([tokens from another
-   system](#external-issuers)). Such a token cannot read a source with a token
-   exchange.
-
-```json
-{
-  "rest": { "audience": ["https://reports.example.com/api/v1", "host-app"], "requiredScopes": ["pivotkit"] },
-  "policy": { "profiles": { "staff": { "records": ["vms"], "default": "hide", "fields": { "Name": "show", "Cpu": "show" } } } },
-  "auth": { "mode": "oauth", "issuer": "https://login.example.com", "resource": "https://reports.example.com/mcp", "defaultProfile": "staff" }
-}
-```
-
-The backend forwards the answer as text, and the page encodes it:
-
-```js
-// the host application's backend, for the signed-in person
-const answer = await fetch("https://reports.example.com/api/v1/sources/records", {
-    method: "POST",
-    headers: { authorization: `Bearer ${personAccessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({ source: "vms", params: { customer: "acme" } })
-});
-if (!answer.ok) throw new Error((await answer.json()).detail);
-// pass the text on as it is: no objects of your own in between
-response.setHeader("content-type", "application/json");
-response.setHeader("cache-control", "no-store");
-response.end(await answer.text());
-```
-
-```js
-// the page: the columnar answer is what <pivot-report> takes as data
-const { columns, types, data } = await (await fetch("/my-app/report-rows")).json();
-document.querySelector("pivot-report").data = { columns, types, data };
-```
-
-- On an error, the problem's `code` says what to do: 503 `BUSY` means try again after
-  `Retry-After` seconds; `notShown` names the fields to leave out.
-- An answer that does not parse was cut off (an idle or slow reader, `compute.timeMs`). Ask again.
-- A backend short of memory can pipe `answer.body` to its own answer instead of reading the text.
-- The answer is the person's rows. Keep `Cache-Control: no-store` on your own answer.
-- The page holds every row. The browser is not access control: send only what the person may see.
-- The rows' memory: [sizing](#records-sizing).
-
-### What the log says { #records-log }
-
-Every answer that started ends with a `records` line: the source, the rows and columns, the profile,
-`client` and `ms`, how long the answer took to read. With `audit.subject` it names the person too.
-It never holds a value. An answer cut off has `outcome: "error"` and `reason`: `idle`, `slow` (not
-read within `writeMs`), `client` (the reader left), `timeout` or `error`.
-
-### Sizing { #records-sizing }
-
-By default the route serves one request at a time, server-wide: `rest.records.concurrency` is 1
-([limits](#records-limits)). Size for the number of people who open live reports at the same moment.
-
-An answer holds every row of the source. Three places hold it.
-
-- **The browser.** The components encode the rows and compute every view there. The
-  [browser benchmark](../concepts/limits.md#measured-in-the-browser) measured about 10 MB for the
-  data and 13 MB for the report at 100,000 rows of 9 columns. A rows answer of 50,000 rows takes
-  about half of that, as an estimate: it was not measured with the rows route.
-- **The host application's server.** It receives the whole answer, then passes it to the page as
-  text. Pass it on as text, never as objects of your own: objects of its own language take more
-  memory than the text. The answer's size is in the table below.
-- **pivotkit-server.** It reads the source as for a report and keeps it in a worker. It writes the
-  answer in pieces of about 256 KiB, one piece per read. The main thread holds at most one piece of
-  an answer.
-
-Measured in pivotkit-server with `npm run bench:records -w pivotkit-server`. Node 26 on an Apple M4
-with 10 cores. A CSV source of 8 columns, the REST handler in one process without sockets, each
-answer read to its end. Cold: a fresh server reads the file. Warm: the worker kept the data. RSS
-counts the main thread and the workers. The render is a pivot of the same source as csv, through
-the [file route](#downloads).
-
-| Rows | Answer | CPU rows, cold / warm | CPU render, cold / warm | RSS rows, cold / warm | RSS render, cold / warm | Main heap rows, warm |
-| --- | --- | --- | --- | --- | --- | --- |
-| 10,000 | 0.8 MiB | 197 ms / 18 ms | 205 ms / 7 ms | 43 MiB / 11 MiB | 45 MiB / 0 MiB | 0 MiB |
-| 50,000 | 4.2 MiB | 427 ms / 61 ms | 403 ms / 7 ms | 101 MiB / 9 MiB | 98 MiB / 1 MiB | 0 MiB |
-| 100,000 | 8.3 MiB | 694 ms / 118 ms | 617 ms / 25 ms | 134 MiB / 5 MiB | 142 MiB / 2 MiB | 0 MiB |
-
-- 50,000 rows is the default row limit. The 100,000 row run raised `rest.records.maxRows`.
-- Reading the source costs most. Once the worker keeps the data, a rows request costs more CPU in
-  pivotkit-server than a render of the same source. The pivoting then happens in the browser.
-- The main thread's heap does not grow with the answer.
-- These are numbers of one machine and one run. Measure your own data before you raise a limit.
+`POST /api/v1/sources/records` gives the rows of a source to a person who signed in, where a profile
+allows it. [Rows of a source](records.md) says how to turn it on, its limits and its sizing.
 
 ## Sign-in { #auth }
 
-The modes are the [MCP server's](mcp.md#auth), from the same `auth` settings:
+<span id="sign-in-cli"></span><span id="sign-in-cli-operator"></span><span id="sign-in-cli-manual"></span>
 
-| Mode | How | 401 answers with |
-| --- | --- | --- |
-| `none` | No check. Loopback only unless `auth.allowUnauthenticated` | - |
-| `token` | `Authorization: Bearer <token>`: `$PIVOTKIT_TOKEN`, named tokens in `auth.tokens` (from a variable or a file read on every request), a [signed token](#signed-tokens) the server issued, or a [token from another system](#external-issuers) | `WWW-Authenticate: Bearer realm="pivotkit"` |
-| `oauth` | A JWT access token of the issuer for the REST resource | `WWW-Authenticate: Bearer error="invalid_token", ..., resource_metadata="..."` |
-
-The server reads only the `Authorization` header. It refuses a token in the address
-(`?access_token=`), two `Authorization` headers, Basic and cookies. Static tokens and their scopes
-work on both endpoints.
-
-With OAuth, the REST service is a protected resource of its own:
-
-- Its resource is `rest.resource`. The default is the origin of `auth.resource` with `/api/v1`, for
-  example `https://reports.example.com/api/v1`.
-- Its metadata ([RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728)) is at
-  `/.well-known/oauth-protected-resource/api/v1`.
-- A token must carry its audience. REST refuses a token issued for the MCP endpoint, and the MCP
-  endpoint refuses one issued for REST.
-- `auth.audience` applies to `/mcp` only. REST checks `rest.audience`.
-- A REST caller may hold a token issued to another application. Providers such as Authentik put
-  that application's client ID into `aud`. List that client ID in `rest.audience`, as for the
-  [command line's](#sign-in-cli-operator) client ID.
-- `rest.audience` replaces the default. Keep `rest.resource` in the list if tokens issued for it
-  should still work:
-  `"rest": { "audience": ["https://reports.example.com/api/v1", "<other client id>"] }`.
-- The issuer's settings are the MCP endpoint's ([OAuth 2.1](mcp.md#oauth)), including
-  `auth.intranet` for an issuer on a private address.
-- `auth.mode: "oauth"` needs `auth.resource`, also when only REST is on. `rest.resource` takes its
-  default from it.
-
-A token without the required scopes gets 403 `INSUFFICIENT_SCOPE` with
-`WWW-Authenticate: Bearer error="insufficient_scope", scope="..."` naming them.
-
-A person whose token does not carry their groups gets 403 `NOT_ALLOWED` without a challenge, since
-signing in again with more scopes would not help. This applies with `auth.groupProfiles` and no
-`auth.defaultProfile` ([groups](mcp.md#groups)). The `refused` log line of a 403 for groups names
-the client.
-
-The metadata lists the required scopes, and the sources' scopes with `auth.offerSourceScopes: true`
-([which scopes](mcp.md#scopes)). An empty `GET /sources` for a token without the sources' scopes has
-a `hint`.
-
-Set `auth.requireTyp: "at+jwt"` where the provider marks its access tokens so (RFC 9068). The server
-then refuses an ID token with the right audience.
-
-The output directory holds at most `output.maxFiles` files and `output.maxMb` MiB that
-pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them, so any
-token that may render can push other callers' older reports out. A link to such a report
-(`output.baseUrl`) then answers 404, and one of the server's own links answers 410 `LINK_EXPIRED`.
-
-Schedule drafts are never deleted this way. They may take at most half of `output.maxFiles` (none at
-1) and half of `output.maxMb`. A draft over that answers 409 `NO_OUTPUT`, while reports keep
-working. `output.maxAgeDays` does not delete a draft that waits for approval either.
-`output.draftMaxAgeDays` does, where you set it. So give `draft_schedule` a scope of its own too,
-and remove the drafts nobody approved. A file you name with `.pivotkit-out.` yourself counts as
-pivotkit's and may be deleted.
-
-A quota per caller was the other choice. It was not taken because a caller is no stable owner: with
-auth `none` every caller is the same, and files written before a restart have none. The directory
-would also still need a total that, once reached, refuses everyone again. So:
-
-- Set `output.maxFiles` well above what your callers render between two clean-ups.
-- Give `render_view` a scope of its own (`auth.toolScopes`) when not every caller needs it.
-- Keep the per-caller rate limit ([limits](#limits)).
-- Keep `output.maxAgeDays` on (30 days by default).
-- Run one server process per output directory, since the count is kept within a process.
-
-When the server is killed during a write, the write leaves its temporary file
-(`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). The server neither counts it nor deletes it to
-make room. With `output.maxAgeDays: 0`, it stays until you remove it.
-
-The server holds at most 256 connections. It keeps 16 of them for loopback clients, such as the
-health check or a proxy on the same host. A client has 5 seconds to send its headers
-([MCP](mcp.md#http) has the details). One address may hold at most 32 connections
-(`http.maxConnectionsPerAddress`). With `http.trustProxy` there is no such bound by default. On a
-network you do not trust, put a reverse proxy in front.
-
-With `auth.mode: oauth` and neither required scopes nor `auth.toolScopes`, the start warns. Any token
-of the issuer for the REST audience then gets everything its profile allows.
-
-Scopes per operation (`auth.toolScopes`, for example `{ "render_view": ["pivotkit:render"] }`) and
-per source (`sources.<id>.scopes`) hold as for MCP. A source the caller may not use answers as a
-missing one (404 `SOURCE_NOT_FOUND`).
-
-| Key | Default | What it is |
-| --- | --- | --- |
-| `rest.resource` | origin of `auth.resource` + `/api/v1` | The REST service's resource (OAuth) |
-| `rest.audience` | `[rest.resource]` | The `aud` values a REST token may carry |
-| `rest.requiredScopes` | `auth.requiredScopes` | Scopes every REST call needs |
-| `rest.signIn.clientId` | none | The public client `pivotkit login` signs in with, published in the metadata (OAuth only). Not `output.downloads.signIn.clientId` |
-
-## Sign in from the command line { #sign-in-cli }
-
-With `auth.mode: oauth`, a person gets a REST token from the sign-in provider with a code in the
-browser. This is the OAuth 2.0 device authorization grant
-([RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)). The token goes from the provider to the
-person. The server takes no part in the sign-in. It only publishes its metadata.
-
-=== "pivotkit"
-
-    ```bash
-    pivotkit login --url https://reports.example.com/api/v1
-    pivotkit token | sed 's/^/Authorization: Bearer /' | curl -H @- https://reports.example.com/api/v1/sources
-    ```
-
-    curl reads the header from stdin (`-H @-`), so the token is in no argument. Other users of the
-    machine can read arguments in the process list.
-
-=== "PowerShell"
-
-    ```powershell
-    pivotkit login --url https://reports.example.com/api/v1
-    Invoke-RestMethod https://reports.example.com/api/v1/sources -Headers @{ Authorization = "Bearer $(pivotkit token)" }
-    ```
-
-`pivotkit login` prints an address and a code. Open the address, enter the code and sign in.
-It takes the client ID the server publishes. Where the server publishes none, give it with
-`--client-id`.
-`pivotkit token` then prints a fresh access token whenever you need one.
-[pivotkit-cli](cli.md#sign-in) describes both commands and where they keep the refresh token.
-
-### What the operator sets up { #sign-in-cli-operator }
-
-1. Create a client at the provider for the command line:
-    - It is a public client. `pivotkit login` sends no client secret.
-    - It may use the device authorization grant.
-    - It may get refresh tokens. Authentik and Entra ID give one only with the scope `offline_access`.
-2. Make its access tokens fit the REST service, as for any other client ([Sign-in](#auth)):
-    - their `aud` is in `rest.audience`
-    - they carry `rest.requiredScopes`
-3. Publish the client ID, so users need only the server's address:
-
-    ```json
-    { "rest": { "signIn": { "clientId": "pivotkit-cli" } } }
-    ```
-
-    The server then names it in its metadata as `pivotkit_client_id`, next to the fields of
-    [RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728). `check-config` shows it.
-    The field is pivotkit's own extension, which other clients ignore. RFC 9728 says in section 2:
-    "Additional protected resource metadata parameters MAY also be used." Section 3.2 adds: "any
-    metadata parameters that are not understood MUST be ignored."
-    Without the setting, tell the users the client ID. They pass it with `--client-id` or
-    `PIVOTKIT_CLIENT_ID`. Either pins the ID: `login` then never takes the published one.
-    This client is not the browser client of a download link's sign-in
-    ([`output.downloads.signIn.clientId`](delivery.md#configuration)).
-
-!!! warning "Publish a public client only"
-
-    Anyone can read the metadata, without a token. Publish only a public client: one the provider
-    lets sign in without a secret. A client with a secret does not work with `pivotkit login`, and
-    its ID tells others which client to attack. The setting has no field for a secret.
-
-The command line asks for the scopes in the server's metadata. It adds `offline_access` when the
-provider lists it or lists no scopes. `--scope` replaces both.
-
-=== "Authentik"
-
-    - Its discovery names the device endpoint
-      ([source](https://github.com/goauthentik/authentik/blob/version/2026.8.5/authentik/providers/oauth2/views/provider.py)).
-    - Set a **Device code flow** on the brand. Without it, Authentik offers no device code
-      ([device code flow](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/device_code/),
-      [brands](https://docs.goauthentik.io/customize/branding/)).
-    - The device endpoint is `/application/o/device/`, the same for every application.
-      The issuer stays the application's: `https://auth.example.com/application/o/<slug>/`
-      ([OAuth2 provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)).
-    - Add the `offline_access` scope mapping to the provider. Without it, there is no refresh
-      token ([OAuth2 provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)).
-    - Authentik puts the client ID into `aud`. List the command line's client ID in `rest.audience`.
-      Keep `rest.resource` in the list if tokens issued for it should still work
-      ([Sign-in with Authentik](../getting-started/kubernetes.md#oauth)).
-
-=== "Keycloak"
-
-    - Under **Capability config**, turn on the device authorization grant
-      ([client settings](https://github.com/keycloak/keycloak/blob/main/docs/documentation/server_admin/topics/clients/oidc/con-basic-settings.adoc)).
-      Turn off client authentication, which makes it a public client.
-    - The device endpoint is `/realms/<realm>/protocol/openid-connect/auth/device`. The realm's
-      discovery names it only while the device flow feature of the server is on
-      ([source](https://github.com/keycloak/keycloak/blob/main/services/src/main/java/org/keycloak/protocol/oidc/OIDCWellKnownProvider.java)).
-    - Keycloak returns refresh tokens by default
-      ([server administration guide](https://www.keycloak.org/docs/latest/server_admin/index.html)).
-      When the realm lists `offline_access`, `pivotkit login` asks for it too. Give `--scope`
-      without it if users should not get that scope.
-    - An **Audience** mapper puts the REST resource into `aud`
-      ([audience support](https://github.com/keycloak/keycloak/blob/main/docs/documentation/server_admin/topics/clients/oidc/con-audience.adoc)).
-
-=== "Microsoft Entra ID"
-
-    - The device code endpoint is `https://login.microsoftonline.com/<tenant>/oauth2/v2.0/devicecode`
-      ([device code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code)).
-      The server's issuer names the tenant, as for the [MCP endpoint](mcp.md#oauth).
-    - Set **Allow public client flows** to **Yes** under the app registration's advanced settings
-      ([desktop app registration](https://learn.microsoft.com/en-us/entra/identity-platform/scenario-desktop-app-registration)).
-    - Ask for the API's `.default` scope and `offline_access`:
-      `--scope "api://<application id>/.default offline_access"`
-      ([scopes](https://learn.microsoft.com/en-us/entra/identity-platform/scopes-oidc)).
-      Entra gives a refresh token only with `offline_access`.
-    - Set `requestedAccessTokenVersion` to `2` in the API's manifest. Its tokens then have the issuer
-      `https://login.microsoftonline.com/<tenant id>/v2.0`
-      ([manifest](https://learn.microsoft.com/en-us/entra/identity-platform/reference-app-manifest)).
-    - A Conditional Access policy can block the device code flow. Microsoft recommends blocking it
-      where it is not used. Check your tenant's policies
-      ([authentication flows](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-authentication-flows)).
-    - A person in more than 200 groups gets no `groups` claim, only a marker
-      ([claims](https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference)).
-      See [groups](mcp.md#groups).
-
-Labels and defaults change between releases of the providers. These notes follow their
-documentation and source code as of November 2026. Decode an access token of your own to see what
-your setup issues.
-
-### Without the command line { #sign-in-cli-manual }
-
-The same steps work with curl or PowerShell:
-
-1. Read the server's metadata at `/.well-known/oauth-protected-resource/api/v1`. Check that its
-   `resource` is the address you use. Its `authorization_servers` names the issuer.
-2. Read the issuer's metadata ([RFC 8414](https://www.rfc-editor.org/rfc/rfc8414)) at
-   `/.well-known/oauth-authorization-server` before the issuer's path. Where that fails, read
-   `<issuer>/.well-known/openid-configuration`. Check that its `issuer` is the one the server named.
-   It names the `device_authorization_endpoint` and the `token_endpoint`. Both must be https.
-3. Post `client_id` and `scope` to the device endpoint. The answer has the `verification_uri`, the
-   `user_code`, the `device_code` and the `interval`.
-4. Check that the address is on your sign-in provider's site. Open it and enter the code.
-5. Post `grant_type=urn:ietf:params:oauth:grant-type:device_code`, the `device_code` and the
-   `client_id` to the token endpoint every `interval` seconds:
-    - `authorization_pending` (HTTP 400): ask again.
-    - `slow_down` (HTTP 400): wait 5 seconds longer from now on.
-    - Any other error ends the sign-in.
-    - HTTP 200 holds the `access_token`.
-
-The token endpoint answers 400 while it waits. So `curl -f` fails there, and `Invoke-RestMethod`
-throws. The scripts below handle that, and they check the addresses as steps 1 and 2 say.
-
-=== "PowerShell"
-
-    Save it as `Get-PivotkitToken.ps1`. It needs no module.
-
-    ```powershell
-    <#
-    .SYNOPSIS
-    Signs in to a pivotkit REST service with a device code and returns an access token.
-    .EXAMPLE
-    $token = ./Get-PivotkitToken.ps1 -Api https://reports.example.com/api/v1 -ClientId pivotkit-cli
-    Invoke-RestMethod "https://reports.example.com/api/v1/sources" -Headers @{ Authorization = "Bearer $token" }
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)] [uri] $Api,
-        [Parameter(Mandatory)] [string] $ClientId,
-        [string] $Scope
-    )
-    $ErrorActionPreference = 'Stop'
-    function Assert-Https([string] $Address, [string] $What) {
-        if (([uri]$Address).Scheme -ne 'https') { throw "$What is no https:// address: $Address" }
-    }
-    $base = $Api.AbsoluteUri.TrimEnd('/')
-    Assert-Https $base 'The server'
-    $resource = Invoke-RestMethod ($Api.GetLeftPart([UriPartial]::Authority) + '/.well-known/oauth-protected-resource' + $Api.AbsolutePath.TrimEnd('/'))
-    if ($resource.resource.TrimEnd('/') -ne $base) { throw "The server's metadata is for $($resource.resource), not $base." }
-    $issuerName = $resource.authorization_servers[0]
-    Assert-Https $issuerName 'The issuer'
-    $issuerUri = [uri]$issuerName
-    $issuer = $null
-    foreach ($at in @(($issuerUri.GetLeftPart([UriPartial]::Authority) + '/.well-known/oauth-authorization-server' + $issuerUri.AbsolutePath.TrimEnd('/')), ($issuerName.TrimEnd('/') + '/.well-known/openid-configuration'))) {
-        try { $issuer = Invoke-RestMethod $at -MaximumRedirection 0; break } catch { $issuer = $null }
-    }
-    if (-not $issuer -or $issuer.issuer -ne $issuerName) { throw "The issuer's metadata cannot be read, or names another issuer." }
-    Assert-Https $issuer.device_authorization_endpoint 'The device endpoint'
-    Assert-Https $issuer.token_endpoint 'The token endpoint'
-    if (-not $Scope) {
-        $Scope = (@($resource.scopes_supported | Where-Object { $_ }) + 'offline_access') -join ' '
-    }
-    $start = Invoke-RestMethod $issuer.device_authorization_endpoint -Method Post -Body @{ client_id = $ClientId; scope = $Scope }
-    Assert-Https $start.verification_uri 'The code page'
-    Write-Host "Sign in at $($issuerUri.Host). Open $($start.verification_uri) and enter the code $($start.user_code)"
-    $interval = if ($start.interval) { [int]$start.interval } else { 5 }
-    $deadline = (Get-Date).AddSeconds([int]$start.expires_in)
-    while ((Get-Date) -lt $deadline) {
-        Start-Sleep -Seconds $interval
-        try {
-            $body = @{ grant_type = 'urn:ietf:params:oauth:grant-type:device_code'; device_code = $start.device_code; client_id = $ClientId }
-            return (Invoke-RestMethod $issuer.token_endpoint -Method Post -Body $body).access_token
-        } catch {
-            $answer = $_.ErrorDetails.Message | ConvertFrom-Json
-            switch ($answer.error) {
-                'authorization_pending' { }
-                'slow_down' { $interval += 5 }
-                default { throw "The sign-in did not finish: $($answer.error)" }
-            }
-        }
-    }
-    throw 'The code expired before the sign-in finished.'
-    ```
-
-=== "curl"
-
-    It needs [jq](https://jqlang.org/) to read the JSON answers. The device code and the token go to
-    curl on stdin (`@-`), never as an argument, since other users of the machine can read arguments
-    in the process list.
-
-    ```bash
-    set -eu
-    API=https://reports.example.com/api/v1
-    CLIENT_ID=pivotkit-cli
-    https() { case "$1" in https://*) ;; *) echo "$2 is no https:// address: $1" >&2; exit 1 ;; esac; }
-    https "$API" "The server"
-    ORIGIN=${API%/api/v1}
-    PRM=$(curl -fsS "$ORIGIN/.well-known/oauth-protected-resource/api/v1")
-    [ "$(echo "$PRM" | jq -r '.resource | rtrimstr("/")')" = "$API" ] || { echo "The server's metadata is for another address" >&2; exit 1; }
-    ISSUER=$(echo "$PRM" | jq -r '.authorization_servers[0]')
-    https "$ISSUER" "The issuer"
-    ISSUER_ORIGIN=$(echo "$ISSUER" | sed -E 's#^(https://[^/]+).*#\1#')
-    ISSUER_PATH=${ISSUER#"$ISSUER_ORIGIN"}
-    META=$(curl -fsS "$ISSUER_ORIGIN/.well-known/oauth-authorization-server${ISSUER_PATH%/}" || curl -fsS "${ISSUER%/}/.well-known/openid-configuration")
-    [ "$(echo "$META" | jq -r .issuer)" = "$ISSUER" ] || { echo "The issuer's metadata names another issuer" >&2; exit 1; }
-    DEVICE_URL=$(echo "$META" | jq -r .device_authorization_endpoint); https "$DEVICE_URL" "The device endpoint"
-    TOKEN_URL=$(echo "$META" | jq -r .token_endpoint); https "$TOKEN_URL" "The token endpoint"
-    SCOPE=$(echo "$PRM" | jq -r '(.scopes_supported // []) + ["offline_access"] | join(" ")')
-    START=$(curl -fsS -d "client_id=$CLIENT_ID" --data-urlencode "scope=$SCOPE" "$DEVICE_URL")
-    https "$(echo "$START" | jq -r .verification_uri)" "The code page"
-    echo "$START" | jq -r --arg host "${ISSUER_ORIGIN#https://}" '"Sign in at \($host). Open \(.verification_uri) and enter the code \(.user_code)"'
-    INTERVAL=$(echo "$START" | jq -r '.interval // 5')
-    while :; do
-      sleep "$INTERVAL"
-      ANSWER=$(echo "$START" | jq -j .device_code | curl -sS -d grant_type=urn:ietf:params:oauth:grant-type:device_code \
-        -d "client_id=$CLIENT_ID" --data-urlencode device_code@- "$TOKEN_URL")
-      case "$(echo "$ANSWER" | jq -r '.error // "done"')" in
-        done) break ;;
-        authorization_pending) ;;
-        slow_down) INTERVAL=$((INTERVAL + 5)) ;;
-        *) echo "The sign-in did not finish: $(echo "$ANSWER" | jq -r .error)" >&2; exit 1 ;;
-      esac
-    done
-    echo "$ANSWER" | jq -r '"Authorization: Bearer \(.access_token)"' | curl -fsS -H @- "$API/sources"
-    ```
-
-Both scripts keep no refresh token. Run them again when the access token expires, or use
-`pivotkit login`, which keeps the refresh token for you.
+[Sign-in to the REST service](sign-in.md) has the sign-in modes, OAuth with the REST resource and
+its scopes, and the command line's sign-in with `pivotkit login`.
 
 ## CORS { #cors }
 
@@ -1156,7 +569,7 @@ refusals say `limit: clientRate` and `limit: clientShare` on the log line:
 | `rest.inline` | false | csv and json results inline in the answer, where the policy allows |
 | `rest.data.maxBytes` | 10485760 (10 MiB) | The body of a caller that may [send data](#data). Everyone else gets 2 MiB |
 
-The [rows route](#records-limits) has limits of its own (`rest.records`).
+The [rows route](records.md#records-limits) has limits of its own (`rest.records`).
 
 Over a limit, the answer is 429 `RATE_LIMITED` with `Retry-After`. The MCP endpoint has the same
 limits with counts of its own (`mcp.rateLimit`, `mcp.concurrency`, see [MCP](mcp.md#configuration)).
@@ -1165,6 +578,39 @@ limits with counts of its own (`mcp.rateLimit`, `mcp.concurrency`, see [MCP](mcp
 - The counts live in the memory of one process. Two instances behind a load balancer count on their
   own.
 - The address is the socket's, or with `http.trustProxy` the last one in `X-Forwarded-For`.
+
+The server holds at most 256 connections. It keeps 16 of them for loopback clients, such as the
+health check or a proxy on the same host. A client has 5 seconds to send its headers
+([MCP](mcp.md#http) has the details). One address may hold at most 32 connections
+(`http.maxConnectionsPerAddress`). With `http.trustProxy` there is no such bound by default. On a
+network you do not trust, put a reverse proxy in front.
+
+### The output directory { #output-limits }
+
+The output directory holds at most `output.maxFiles` files and `output.maxMb` MiB that
+pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them, so any
+token that may render can push other callers' older reports out. A link to such a report
+(`output.baseUrl`) then answers 404, and one of the server's own links answers 410 `LINK_EXPIRED`.
+
+Schedule drafts are never deleted this way. They may take at most half of `output.maxFiles` (none at
+1) and half of `output.maxMb`. A draft over that answers 409 `NO_OUTPUT`, while reports keep
+working. `output.maxAgeDays` does not delete a draft that waits for approval either.
+`output.draftMaxAgeDays` does, where you set it. So give `draft_schedule` a scope of its own too,
+and remove the drafts nobody approved. A file you name with `.pivotkit-out.` yourself counts as
+pivotkit's, and the server may delete it.
+
+The cap counts all callers together. A caller is no stable owner: with auth `none` every caller is
+the same, and files written before a restart have none. So:
+
+- Set `output.maxFiles` well above what your callers render between two clean-ups.
+- Give `render_view` a scope of its own (`auth.toolScopes`) when not every caller needs it.
+- Keep the per-caller rate limit ([limits](#limits)).
+- Keep `output.maxAgeDays` on (30 days by default).
+- Run one server process per output directory, since each process keeps its own count.
+
+When the server stops hard during a write, the write leaves its temporary file
+(`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). The server neither counts it nor deletes it to
+make room. With `output.maxAgeDays: 0`, it stays until you remove it.
 
 ## Errors { #errors }
 
@@ -1200,7 +646,7 @@ when, where it is known.
   403 or 404 for a source with parameters.
 - `UPLOAD_FAILED`: as the store's failure is.
 - 503 `BUSY` for a [large body](#data) while two are read already, for a parameter's pattern that
-  could not be checked in time, or for a [rows request](#records-limits) beyond the limit: `true`.
+  could not be checked in time, or for a [rows request](records.md#records-limits) beyond the limit: `true`.
 
 Every other error carries no `retryable`. This includes a limit of a source's settings
 (`LIMIT_EXCEEDED`, `http.maxBytes` or `http.maxPages`).
@@ -1221,15 +667,15 @@ Rows go by status, then by code. The answers of the download links come last.
 | 403 | <a id="error-forbidden-host"></a>`FORBIDDEN_HOST` | A `Host` the server does not answer to (DNS rebinding protection; `http.allowHosts`, `http.publicUrl`) |
 | 403 | <a id="error-forbidden-origin"></a>`FORBIDDEN_ORIGIN` | A browser origin not in `rest.cors.origins` |
 | 403 | <a id="error-insufficient-scope"></a>`INSUFFICIENT_SCOPE` | The token lacks a scope the service or the operation needs |
-| 403 | <a id="error-not-allowed"></a>`NOT_ALLOWED` | The file route without `results: true`; `inline:` data from a caller without `data: true`; a code source that refuses the caller (its `SourceError`); `save: false` where the result may not come back inline; the [rows route](#records) for a caller without a person or the right, or for a field below `show` (with `notShown`) |
-| 404 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`, [code sources](sources.md#code-errors)); an HTTP source's backend answered 401, 403 or 404 for the values given ([HTTP sources](sources.md#http-errors)) |
+| 403 | <a id="error-not-allowed"></a>`NOT_ALLOWED` | The file route without `results: true`; `inline:` data from a caller without `data: true`; a code source that refuses the caller (its `SourceError`); `save: false` where the result may not come back inline; the [rows route](records.md#records) for a caller without a person or the right, or for a field below `show` (with `notShown`) |
+| 404 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`, [code sources](code-sources.md#code-errors)); an HTTP source's backend answered 401, 403 or 404 for the values given ([HTTP sources](sources.md#http-errors)) |
 | 404 | <a id="error-file-not-available"></a>`FILE_NOT_AVAILABLE` | The source's file is missing or changed while read |
 | 404 | <a id="error-not-found"></a>`NOT_FOUND` | No such route. With REST on, the `detail` names the REST service and the OpenAPI document |
 | 404 | <a id="error-source-not-found"></a>`SOURCE_NOT_FOUND` | No such source, or one the caller lacks the scopes for |
 | 405 | <a id="error-method-not-allowed"></a>`METHOD_NOT_ALLOWED` | GET for a POST route or the other way round (`Allow` names the method) |
 | 409 | <a id="error-no-link"></a>`NO_LINK`, <a id="error-not-schedulable"></a>`NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a source that cannot have one: a `file:` source, data sent in the request, a source with a token exchange or a parameter bound to a claim ([backend sign-in](sources.md#http-claims)) |
 | 409 | <a id="error-no-output"></a>`NO_OUTPUT` | No output directory for a file, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
-| 413 | <a id="error-body-too-large"></a>`BODY_TOO_LARGE`, <a id="error-limit-exceeded"></a>`LIMIT_EXCEEDED` | The body over 2 MiB (over `rest.data.maxBytes` for a caller that may send data); a file, the data sent, a view or the work over a limit; with `save: false`, a result over the `inline` limits; [rows](#records-limits) over `rest.records` |
+| 413 | <a id="error-body-too-large"></a>`BODY_TOO_LARGE`, <a id="error-limit-exceeded"></a>`LIMIT_EXCEEDED` | The body over 2 MiB (over `rest.data.maxBytes` for a caller that may send data); a file, the data sent, a view or the work over a limit; with `save: false`, a result over the `inline` limits; [rows](records.md#records-limits) over `rest.records` |
 | 415 | <a id="error-unsupported-media-type"></a>`UNSUPPORTED_MEDIA_TYPE`, <a id="error-unsupported-format"></a>`UNSUPPORTED_FORMAT` | A POST whose `Content-Type` is not `application/json` (curl's `-d` alone sends a form) nor, where data may be sent, `multipart/form-data`; a file sent in no data format; a source file in no data format |
 | 422 | <a id="error-data-mismatch"></a>`DATA_MISMATCH` | [Data sent in the request](#data) whose `rowCount` differs from the rows sent, or a file whose SHA-256 differs from `sha256` |
 | 422 | <a id="error-invalid-file"></a>`INVALID_FILE`, <a id="error-not-regular-file"></a>`NOT_REGULAR_FILE`, <a id="error-hard-link"></a>`HARD_LINK`, <a id="error-invalid-template"></a>`INVALID_TEMPLATE` | The source's file cannot be used, or its print template (`sources.<id>.template` or `output.template`, a [print template](print-template.md) whose `--pk-*` colours reach the chart, [options](mcp.md)) holds what the parser refuses |
@@ -1238,7 +684,7 @@ Rows go by status, then by code. The answers of the download links come last.
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else. The details are only in the log, with `--log debug` |
 | 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running. An html render whose print template the server cannot read. `detail` is one of pivotkit's fixed texts: not available right now, the source's backend refused this server's access, the source is not set up correctly, or the server's print template is not available now. `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
 | 502 | <a id="error-upload-failed"></a>`UPLOAD_FAILED` | The report was made but could not be stored in the [operator's store](delivery.md#upload) (`retryable` says whether trying again may help); the report stays in the output directory |
-| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, two [large bodies](#data) read already, a parameter's pattern not checked in time, or too many [rows requests](#records-limits); starting or stopping; the OAuth issuer not loaded yet |
+| 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, two [large bodies](#data) read already, a parameter's pattern not checked in time, or too many [rows requests](records.md#records-limits); starting or stopping; the OAuth issuer not loaded yet |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
 | 400, 403, 409, 410, 503 | <a id="error-link-expired"></a>`LINK_EXPIRED`, <a id="error-link-used"></a>`LINK_USED`, <a id="error-link-not-yours"></a>`LINK_NOT_YOURS`, <a id="error-sign-in-failed"></a>`SIGN_IN_FAILED`, <a id="error-sign-in-not-ready"></a>`SIGN_IN_NOT_READY` | Answers of the server's own [download links](delivery.md#answers) (`/downloads/`), not of `/api/v1` |
 
@@ -1249,7 +695,7 @@ to a CORS preflight (`OPTIONS`), which carries no body:
 
 | Header | Value | Why |
 | --- | --- | --- |
-| `Cache-Control` | `no-store` | No proxy or browser keeps an answer. The [rows](#records) are a person's |
+| `Cache-Control` | `no-store` | No proxy or browser keeps an answer. The [rows](records.md#records) are a person's |
 | `X-Content-Type-Options` | `nosniff` | A browser takes the type as sent |
 | `Referrer-Policy` | `no-referrer` | No address leaves with a link |
 | `X-Request-Id` | the request's id | The same id as `requestId` and the [log lines](#logging) |
@@ -1295,14 +741,14 @@ breaking change of the operations' contracts, which is a breaking change for MCP
 | `pivotkit-server mcp [flags]` | [pivotkit-mcp](mcp.md)'s runner (stdio by default) |
 | `pivotkit-server cli <command> ...` | The [command line](cli.md) `pivotkit`, when pivotkit-cli is installed beside pivotkit-server. The container image has it. Without it, exit 2 with "npm install pivotkit-cli" (or `--global` for a global install) |
 | `pivotkit-server healthcheck [url] [--port <port>]` | Exit 0 when `GET /healthz` answers, else 1, also for a usage error such as a url and `--port` together. Without a url it asks `http://127.0.0.1:<port>/healthz`. The port: `--port`, then `http.port` of `$PIVOTKIT_CONFIG`'s file, then `$PIVOTKIT_PORT`, then 3333 |
-| `pivotkit-server token new [--file <path>] [--config <file> --add]` | Make a static token: on stdout, or into a file with mode 0600, and with `--add` into `auth.tokens` ([tokens and keys](#credentials)) |
+| `pivotkit-server token new [--file <path>] [--config <file> --add]` | Make a static token: on stdout, or into a file with mode 0600, and with `--add` into `auth.tokens` ([tokens and keys](tokens.md#credentials)) |
 | `pivotkit-server token show <name>` | Print the value of a token of `auth.tokens`, as the server reads it. Exit 1 when it is missing or cannot be used, 2 for a name that is not there |
-| `pivotkit-server token issue [--expires 1h] [--name <n>] [--profile <p>] [--scope <s>]` | Issue a [signed token](#signed-tokens) that expires |
-| `pivotkit-server token list` | List every token: ID, name, kind, profile, expiry and status, never a value ([list, revoke, remove](#token-list)) |
+| `pivotkit-server token issue [--expires 1h] [--name <n>] [--profile <p>] [--scope <s>]` | Issue a [signed token](tokens.md#signed-tokens) that expires |
+| `pivotkit-server token list` | List every token: ID, name, kind, profile, expiry and status, never a value ([list, revoke, remove](tokens.md#token-list)) |
 | `pivotkit-server token revoke <id or name>` | Refuse a signed token from the next request on |
 | `pivotkit-server token remove <id or name>` | Take a static token out of `auth.tokens`, or revoke a signed one and take it off the list |
-| `pivotkit-server key new --for downloads\|audit [--file <path>] [--config <file> --add]` | Make a key for `output.downloads.key` or `audit.key` ([tokens and keys](#credentials)) |
-| `pivotkit-server key new --for signing`, `key remove <key id> --for signing` | Add or remove a key that signs tokens ([rotation](#signed-keys)) |
+| `pivotkit-server key new --for downloads\|audit [--file <path>] [--config <file> --add]` | Make a key for `output.downloads.key` or `audit.key` ([tokens and keys](tokens.md#credentials)) |
+| `pivotkit-server key new --for signing`, `key remove <key id> --for signing` | Add or remove a key that signs tokens ([rotation](tokens.md#signed-keys)) |
 | `pivotkit-server --version` | The version |
 
 ### Reading check-config { #check-config }
@@ -1469,7 +915,7 @@ location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|downloads/|healthz$|read
 ```
 
 Without containers, on Windows next to PowerShell Universal, `pivotkit-server serve` runs as a
-service with a service manager of your choice. [PowerShell Universal](../getting-started/mcp.md#psu)
+service with a service manager of your choice. [PowerShell Universal](../getting-started/powershell-universal.md#psu)
 has the steps: an account of its own, its file rights, the token from a PSU secret, a rotated log,
 and IIS with ARR in front. CI runs the server's tests on Linux, macOS and Windows. Its tests of
 file modes, owners, FIFOs, symbolic links and the stop on SIGTERM run on Linux and macOS only.
@@ -1477,406 +923,11 @@ file modes, owners, FIFOs, symbolic links and the stop on SIGTERM run on Linux a
 
 ### Tokens and keys { #credentials }
 
-`pivotkit-server` makes the secrets the server needs, so you need no other tool. A token is 32
-random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
-
-=== "bash"
-
-    ```bash
-    # a token in a file only you can read, added to auth.tokens of pivotkit.json (a backup pivotkit.json.bak first)
-    npx -y pivotkit-server token new --file secrets/reports.token --config pivotkit.json --add --name reports
-    # the key of the download links
-    npx -y pivotkit-server key new --for downloads --file secrets/download.key
-    # a token on stdout, for a variable
-    export SCRIPTS_TOKEN="$(npx -y pivotkit-server token new)"
-    ```
-
-=== "PowerShell"
-
-    ```powershell
-    npx -y pivotkit-server token new --file secrets/reports.token --config pivotkit.json --add --name reports
-    npx -y pivotkit-server key new --for downloads --file secrets/download.key
-    $env:SCRIPTS_TOKEN = npx -y pivotkit-server token new
-    ```
-
-    Let the command write the file (`--file`): PowerShell 5.1's `>` writes UTF-16, which the server
-    cannot read as a token.
-
-| Option | What it does |
-| --- | --- |
-| `--file <path>` | Write the value to this file: one line ending in LF, mode 0600, never through a symbolic link, never into a directory that is not there. The value is not printed (`--print` prints it too) |
-| `--if-missing` | Keep a file that is there and exit 0, if the server can use its value. Otherwise exit 1. [Below](#credentials-if-missing) |
-| `--force` | Replace a file that is there, atomically. [Below](#credentials-force) |
-| `--config <file>` | `token new`: check `--profile` against `policy.profiles`, refuse a file inside `output.dir`, and use `http.publicUrl` in the hints. `token new` and `key new` read no configuration without it, not even `$PIVOTKIT_CONFIG`. `token show` reads `$PIVOTKIT_CONFIG` by default |
-| `--state-dir <dir>` | `token show`: the server's [state directory](#first-start) (default `$PIVOTKIT_STATE_DIR`). With it, `token show admin` prints the token the server made at its first start, without a configuration. Before that start, it exits 1 (`NOT_CREATED`) and makes nothing. `token show token` prints `$PIVOTKIT_TOKEN` where the server uses it, or `$PIVOTKIT_MCP_TOKEN` where only that one is set (pivotkit-mcp, `pivotkit-server mcp`) |
-| `--add` | `token new`: add the token to `auth.tokens` of `--config`. `key new`: name the key as `output.downloads.key` or `audit.key`. Both need `--file`. [Below](#credentials-add) |
-| `--name`, `--profile`, `--scope` | The token's name (default: the file's name without extension), its [profile](#profiles) and its scopes (`--scope` once per scope) |
-| `--expires <when>` | `token new`: when the token stops working, written as `auth.tokens[].expires`. A date (`2027-01-31` means 00:00 UTC that day), a date-time with a zone (`2027-01-31T08:00:00Z`), or a time from now (`90d`, `12h`, `30m`). [Expiry](#token-expires) |
-| `--for downloads\|audit` | `key new`: the key of the [download links](delivery.md) (`output.downloads.key`, at least 32 bytes) or of the [audit](mcp.md#logging) hash (`audit.key`) |
-| `--json` | One object on stdout, as [pivotkit's](cli.md): `{ "ok", "exitCode", "command", "name", "file", "created", "replaced", "config", "configured", "backup", "token" or "key", "warnings", "error": { "kind", "code", "message" } }`. It holds the value only where it would be printed |
-
-#### What `--if-missing` does { #credentials-if-missing }
-
-- It reads the file and checks the value by the server's rules. A value it cannot use is exit 1.
-- A file of yours that everyone may read loses those bits. It says so.
-- A file a group may read keeps that bit, since a group may share it on purpose. It warns you.
-- A file of another user than you or root is kept too, with a warning.
-- A symbolic link, such as a mounted Kubernetes Secret, is only read through. Nothing behind it is
-  changed, and `--print` is refused there. `token show` prints a configured token.
-- Several runs at once end with one value.
-
-#### What `--force` does { #credentials-force }
-
-- It writes the new value to a temporary file and renames it over the old one. A reader never sees
-  half a value.
-- It keeps the old file's owner and group where it may. As root it keeps both. As another user it
-  keeps the group when you are in it, and the owner is yours.
-- With the old group kept, the group's read bit stays. A write bit never does, nor any bit for
-  everyone else.
-- It warns you of an owner, group or read bit it could not keep. Then check that the server's user
-  can still read the file.
-- Clients that still send the old token get 401 from then on. The server reads a token's file on
-  every request and the download key within a second, so neither needs a restart.
-- A file mounted on its own (a bind mount of one file, a Kubernetes `subPath`) cannot be replaced
-  (`MOUNTED`). Change it where it comes from.
-
-#### What `--add` does { #credentials-add }
-
-- It writes `{ "name", "file", "scopes", "profile" }` into `auth.tokens`, or `{ "file" }` as the key.
-  The file's path is relative to the configuration when the file lies below it.
-- It checks the new configuration first. A name that is there, a key that is set, an unknown
-  profile, `auth.mode` `none` or `oauth` stop it before anything is written.
-- It sets `auth.mode` to `token` when the file has none, and says so.
-- Once `auth.tokens` lists a token, `$PIVOTKIT_TOKEN` is no longer read. The first `--add` warns
-  you.
-- With `--if-missing`, an entry with the same name, file, scopes and profile counts as done: the
-  run exits 0 and writes nothing.
-- It keeps the old configuration byte for byte as `<file>.bak-<UTC time>`, one per run, readable by
-  you only. Remove old backups when you
-  no longer need them.
-- It writes the configuration again as pretty-printed JSON. The indentation and the file's mode
-  stay. A compact one-line object is spread over lines.
-- It reads the configuration, writes the secret's file, then replaces the configuration. Right
-  before the replace it reads the configuration again. If someone changed it in between, it does
-  not replace it and says so. Run it again with `--if-missing`. This is a best effort, not a lock:
-  an edit saved in the moment between that last read and the rename is lost. Do not run `--add`
-  while someone edits the file.
-- The new configuration keeps the old one's owner and group where it may, as `--force` does. Where
-  it cannot (you are not root and not in its group), it is yours and readable by you only, and a
-  warning says so: check that the server's user can still read it.
-- It refuses a configuration that is a symbolic link (a mounted ConfigMap) or in a folder it
-  cannot write.
-- Restart the server afterwards: it reads the list of tokens and the audit key at start.
-
-Without `--file`, the value is the only line on stdout. On a terminal, the commands write on stderr
-what to add to the configuration and how to try the token with curl, PowerShell and
-`claude mcp add --header`.
-
-The exit codes:
-
-- 0 when done.
-- 1 for a file that is there, missing or not usable (`EXISTS`, `NOT_REGULAR_FILE`, `NO_DIRECTORY`,
-  `READ_ONLY`, `MOUNTED`, `UNUSABLE`).
-- 2 for a usage or configuration error.
-
-No message holds a value. These commands, `check-config` and the start say so when a file is in
-UTF-16, which is what PowerShell 5.1's `>` writes. They also say so when a token or key file is not a
-regular file or is longer than 4096 bytes. They never wait for such a file. When you stop the
-command (Ctrl+C) during a write, it removes its temporary file.
-
-On Windows, the mode does not apply: the file takes the permissions of its folder. To keep the file
-to your account, run in PowerShell:
-`icacls secrets\reports.token /inheritance:r /grant:r "${env:USERNAME}:F"`. This gives full control
-to you alone, so `--force` can still replace the file. `/inheritance:r` also takes away SYSTEM and
-Administrators. A server that runs as a service then needs its own grant (`/grant "<account>:R"`).
-
-#### When a static token expires { #token-expires }
-
-`auth.tokens[].expires` ends a static token at a date. Add it by hand, or with `token new --expires`.
-
-```json
-{ "name": "contractor", "file": "secrets/contractor.token", "expires": "2027-01-31" }
-```
-
-- A date alone means 00:00 UTC of that day. A date-time needs a zone (`Z` or `+01:00`).
-- From then on, a request with the token gets 401 "this token expired".
-- The start logs a warning for a token that has expired.
-- `check-config` warns a week ahead, and again once the token has expired.
-- The server reads the list of tokens at start. A new `expires` needs a restart.
-
-### Signed tokens { #signed-tokens }
-
-The server can issue tokens that expire on their own. You need no sign-in provider for them.
-
-```bash
-pivotkit-server token issue --expires 8h --name laptop --profile staff
-docker exec pivotkit pivotkit-server token issue --expires 7d --scope pivotkit:sales
-```
-
-The token is printed once, on stdout. It works on REST and MCP at once, without a restart. Only
-after you set or change `auth.signedTokens` does the server need a restart, since it reads `auth` at
-start.
-
-- It is a JWT signed with Ed25519 (`EdDSA`), of the type `pivotkit+jwt`. Clients send it like any
-  bearer token.
-- The default lifetime is one hour. `--expires` takes `15m`, `8h`, `7d` or a date.
-- `auth.signedTokens.maxDays` caps the lifetime (default 30, at most 365). The server refuses a token
-  that lives longer, even with a valid signature.
-- `--profile` and `--scope` work as for static tokens. Without `--scope`, it holds every scope.
-- A token whose profile is no longer in `policy.profiles` gets 401.
-- The log names the token by its ID, never by its value or its name. Rate limits count per token.
-- Clocks may differ by `auth.clockTolerance` seconds (default 30), at both ends of the lifetime.
-- Signed tokens work with `auth.mode` `"token"` only. A static token is still needed, as for
-  `token new`. With a state directory and no `auth.mode` written, the server makes `admin`
-  ([first start](#first-start)).
-- `--scope` takes one word per scope, without spaces. A token over 2048 characters is refused at
-  issue, since the server would not take it: give fewer or shorter scopes.
-
-The files live in `auth.signedTokens.dir`. With a [state directory](#first-start), the default is
-`<state>/secrets/signed`. Without either, `token issue` says what to set. The first `token issue`
-makes the directory:
-
-| What | Where |
-| --- | --- |
-| The signing keys, one line each, mode 0600 | `keys/<key id>.key` |
-| One record per token: ID, name, key, profile, scopes, issued and expiry. No value | `issued/<id>.json` |
-| The deny list, one entry per revoked token | `revoked/<id>.json` |
-
-Keep this directory on a volume, like the other secrets. Never copy it to another server. Every
-server signs with the same issuer and no audience, so servers with the same keys take each other's
-tokens. Run `pivotkit-server key new --for signing` on each server instead.
-
-The server uses a key file only when it is a file of its own, has mode 0600 and belongs to the user
-the server runs as. A planted key therefore never signs. On Windows, mode and owner are not checked.
-
-!!! warning "A key file with a wider mode is skipped"
-
-    A restore with another umask, or some bind mounts, can leave a key file with mode 0640 or 0644.
-    The server then skips the key, and every token it signed gets 401. The log and `check-config`
-    name the file and the fix: `chmod 600 <file>`. `token list` shows its tokens as `key unusable`.
-    A key that should not be there goes with `pivotkit-server key remove <key id> --for signing`.
-
- `token issue` removes records and entries of
-tokens that expired, at most once an hour. `check-config` prints the keys and counts the active and revoked tokens under
-`Signed tokens`, once the directory is there.
-
-| Key | Default | What it is |
-| --- | --- | --- |
-| `auth.signedTokens.dir` | `<state>/secrets/signed` | Where the keys, records and the deny list live. Not inside `output.dir` |
-| `auth.signedTokens.maxDays` | 30 | The longest lifetime of a signed token, in days (1 to 365) |
-
-#### Rotating the signing key { #signed-keys }
-
-Every key in `keys/` verifies tokens. The newest key signs new ones. So a new key breaks no client:
-
-1. Run `pivotkit-server key new --for signing`. It prints the new key's ID, never the key.
-2. New tokens are signed with it. Tokens of the older key keep working.
-3. Once those have expired, run `pivotkit-server key remove <old key id> --for signing`.
-
-`token list` shows a token of a removed key as `key removed`, and one of a skipped key file as
-`key unusable`. Both get 401.
-
-`key remove` exits 1 while tokens of that key still work, and names when the last one expires.
-`--force` removes it anyway, and those tokens get 401 from the next request on. A key file is never
-printed, and `key new --for signing` refuses `--file`, `--print` and `--add`.
-
-### Tokens from another system { #external-issuers }
-
-Another system can issue short-lived tokens for the person signed in there. PowerShell Universal is
-one example. The server checks them with that system's public key. It never holds a key that could
-make such a token.
-
-The other system is a sign-in provider, not an operator. Its tokens never get more than you allow
-it: the scopes and profiles of its entry.
-
-```json
-{
-  "policy": { "profiles": { "staff": { "default": "show" } } },
-  "auth": {
-    "mode": "token",
-    "tokens": [{ "name": "ops", "file": "/run/secrets/ops" }],
-    "externalIssuers": [{
-      "issuer": "psu",
-      "typ": "psu+jwt",
-      "maxMinutes": 15,
-      "scopes": ["pivotkit:read"],
-      "profiles": ["staff"],
-      "profile": "staff",
-      "keys": [{ "kid": "psu-2026-11", "publicKey": { "file": "keys/psu.pub" } }]
-    }]
-  }
-}
-```
-
-The issuer's tokens work with `auth.mode` `"token"` only. That mode needs a token of the server's own
-too: one in `auth.tokens`, as `ops` here, or `$PIVOTKIT_TOKEN`. Each profile the entry names must be
-in `policy.profiles`. Without `auth.mode` written, the server runs without auth on loopback and
-never checks the issuer's tokens. The start and `check-config` then warn. Off loopback, a state
-directory makes the mode `"token"`.
-
-What a token gets:
-
-- **Scopes**: the token's `scope`, cut to the entry's `scopes`. A token without `scope` gets exactly
-  `scopes`, never every scope. `scopes` is required. An empty list gives no scope.
-- **Profile**: a token may name a profile of the entry's `profiles`. Any other gets 401. Without
-  `profiles`, a token may name none.
-- A token without `profile` gets the entry's `profile`, else `auth.defaultProfile`. One of the two
-  must be set, or the server does not start. The sources' own policy never applies to these tokens.
-- `check-config` warns when that default is not in the entry's `profiles`. A token without
-  `profile` then gets it, but a token that names it gets 401.
-
-The keys:
-
-- The key is an Ed25519 public key in PEM (`-----BEGIN PUBLIC KEY-----`), from a file or a variable.
-  A private key, an encrypted one, another kind of key or a file the server cannot read stops the
-  start.
-- The server reads the keys at start. A new key takes a restart.
-- One or two keys per issuer. Add the new key next to the old one, restart, and remove the old one
-  once its tokens have expired.
-
-The rest:
-
-- `issuer` and `typ` belong to that system alone. The server refuses its own `pivotkit-server` and
-  `pivotkit+jwt`. It also refuses an `issuer` that names a token in `auth.tokens`, since the log
-  names both the same way.
-- `maxMinutes` caps a token's lifetime (default 60, at most 1440). A token that lives longer gets
-  401, even with a valid signature.
-- There is no deny list. A token works until it expires.
-- The tokens work on REST and MCP alike.
-- At most 8 issuers.
-
-!!! warning "What a leak costs"
-
-    - A leaked token works until its `exp`, at most `maxMinutes`. Nothing revokes it earlier.
-    - It carries no audience. Every pivotkit-server that trusts the same key accepts it.
-    - A stolen private key of the issuer makes tokens for any person, within the entry's `scopes`
-      and `profiles`.
-
-    Keep `maxMinutes` low, for example 15. Give the entry only the scopes and profiles that system
-    needs. [Decision record 0014](../decisions/0014-external-token-issuers.md) has the reasons.
-
-A token the server takes is at most 2048 characters long:
-
-| Part | Holds |
-| --- | --- |
-| header `alg` | `EdDSA` |
-| header `kid` | the ID of one of the issuer's keys |
-| header `typ` | the issuer's `typ` |
-| `iss` | the issuer's `issuer` |
-| `sub` | the person: 1 to 256 characters, no spaces, no control, format, surrogate, private-use or unassigned characters. Without it, 401. Compared in Unicode NFC |
-| `jti` | the token's ID: letters, digits, `.`, `_` and `-`, at most 128 |
-| `iat`, `exp` | when the issuer made it and when it expires, in seconds since 1970 |
-| `nbf` | optional: not before this time |
-| `profile` | optional: one of the entry's `profiles` |
-| `scope` | optional: scopes separated by spaces, cut to the entry's `scopes` |
-
-- The log names the issuer as the client. It names the person only as `audit.subject` says, as for
-  OAuth ([logging](#logging)).
-- A refused token gets an `info` line with the issuer and the reason, at most once a minute per
-  reason. The line never holds the token.
-- Each person is an identity of their own for caches and limits: the issuer and `sub` together.
-- A link or upload bound to a sign-in (`signIn`) never goes to such a person. They signed in
-  elsewhere, so the server's own sign-in cannot check them.
-- `check-config` lists each issuer under `External token issuers`: its type, keys, lifetime,
-  scopes, profiles and the profile without one. A key it cannot use is a PROBLEM.
-
-| Key | Default | What it is |
-| --- | --- | --- |
-| `auth.externalIssuers[].issuer` | - | The other system's name, as its tokens carry it in `iss` |
-| `auth.externalIssuers[].typ` | - | The type its tokens carry in their header, such as `psu+jwt` |
-| `auth.externalIssuers[].keys` | - | One or two keys: `kid` and `publicKey` (`{ "file" }` or `{ "env" }`) |
-| `auth.externalIssuers[].scopes` | - | Required. The scopes its tokens may get |
-| `auth.externalIssuers[].profiles` | none | The profiles its tokens may name |
-| `auth.externalIssuers[].profile` | `auth.defaultProfile` | The profile of a token that names none. This or `auth.defaultProfile` is required |
-| `auth.externalIssuers[].maxMinutes` | 60 | The longest lifetime of its tokens, in minutes (1 to 1440) |
-
-### List, revoke and remove tokens { #token-list }
-
-```bash
-pivotkit-server token list
-pivotkit-server token revoke laptop
-pivotkit-server token remove contractor
-```
-
-!!! warning "After a leak: `token remove` alone does not stop a static token"
-
-    The running server reads `auth.tokens` at start. After `token remove`, it still accepts the
-    static token until it restarts. The command says so in its first line. Restart the server now,
-    or delete the token's file. A signed token is refused from the next request on.
-
-`token list` shows every token. It never shows a value.
-
-```text
-ID                NAME     KIND    PROFILE  EXPIRES               STATUS
-admin             admin    static  -        never                 active
-3f2a1b0c9d8e7f60  laptop   signed  staff    2026-11-17 06:00 UTC  active
-```
-
-- A static token's ID is its name. A signed token's ID is the one the log shows.
-- The commands take an ID or a name. A name that two tokens share is refused with both IDs.
-- `token revoke` puts a signed token on the deny list. The server refuses it from the next request
-  on. It also takes an ID that is not in the list, for example one from the log.
-- `token remove` takes a static token out of `auth.tokens` of the configuration file. It keeps the
-  old file as a backup first, as `--add` does.
-    - The token's file is deleted where the server made it (`"create": true`, or in the state
-      directory). The token is then refused from the next request on.
-    - Otherwise the file stays, and the token works until the next restart (see the warning above).
-    - It refuses the last token of `auth.tokens`, and `admin`. Give `admin` a new value with
-      `token new --file <its file> --force`.
-- `token remove` on a signed token revokes it and takes it off the list.
-- `token revoke` on a static token is refused. Use `token remove`.
-
-They read the configuration as `token show` does: `--config` or `$PIVOTKIT_CONFIG`, and
-`--state-dir` or `$PIVOTKIT_STATE_DIR`. In the container image, they need no flag.
-
-### Made at the first start { #first-start }
-
-You set the state directory with `--state-dir <dir>` or `$PIVOTKIT_STATE_DIR`. The
-[container image](container.md) sets `/var/lib/pivotkit`. With a state directory, the server makes
-what is missing there when it starts over HTTP, so a start without any setup has a token and links
-that survive a restart:
-
-| What | Where | When |
-| --- | --- | --- |
-| `auth.mode` `"token"` | | `auth.mode` is not set, the address is not loopback and `auth.allowUnauthenticated` is not set (such a start is refused without a state directory) |
-| The token `admin` (every scope, no profile) | `<dir>/secrets/admin.token` | `auth.mode` is not written, so the row above sets `"token"`, `auth.tokens` is empty and `$PIVOTKIT_TOKEN` (pivotkit-mcp: `$PIVOTKIT_MCP_TOKEN`) is not set. A written `auth.mode` `"token"` without a token is refused (below) |
-| The key of the [download links](delivery.md) | `<dir>/secrets/downloads.key` | Links are on and `output.downloads.key` is not set |
-| The [audit](mcp.md#logging) key | `<dir>/secrets/audit.key` | `audit.subject` is `"hash"` and `audit.key` is not set |
-| The [signed tokens'](#signed-tokens) directory | `<dir>/secrets/signed/` | The first `token issue`, not the start |
-
-- The server never makes the state directory itself. It makes only these in it:
-    - `secrets/` (mode 0700), for the files above
-    - `out/` (mode 0700), when `output.dir` is `<dir>/out`, as in the image's built-in example
-- Each file is one line with mode 0600. A file that is there is read and never written.
-- The start logs `created the token "admin" in <path>` once. It never logs a value.
-- Every start with the token `admin` logs the command that prints it. In Docker or Podman that is
-  `docker exec <container> pivotkit-server token show admin`. In Kubernetes it names the namespace
-  and the pod: `kubectl -n <namespace> exec <pod> -- pivotkit-server token show admin` (add
-  `-c <container>` in a pod with more than one). Elsewhere it is
-  `pivotkit-server token show admin --state-dir <dir>`.
-- `admin` is made only where the configuration leaves auth to the server. A written `auth.mode`
-  `"token"` (or `--auth token`) with neither `auth.tokens` nor the variable is refused. Set the
-  variable, list tokens, or remove `auth.mode` to use `admin`. A misspelt variable never becomes a
-  token with every scope.
-- When the token cannot be made, the start is refused. It never serves without auth instead. The
-  message says what helps: a writable volume in a container, else the directory itself.
-- A key that cannot be made is a warning. The key is then a random one per process.
-- Over stdio nothing is made.
-- `check-config` says under `Credentials` whether each file is there, will be made, or cannot be. It
-  makes nothing.
-
-Several processes that start at once on one directory end with one value each (the first one's).
-Run one replica, or several on one shared volume. Replicas with a volume each would each make their
-own token. `output.dir` may not be the state directory or hold its `secrets/`.
-
-`"create": true` on a file reference asks for the same where you name the file:
-
-- `auth.tokens[]`: `{ "name": "bot", "file": "bot.token", "create": true }`
-- `output.downloads.key` and `audit.key`: `{ "file": "download.key", "create": true }`
-
-The file is made where it is missing, also without a state directory. Its directory must be there.
-pivotkit refuses `create` with `env`, since it cannot set a variable. It also refuses `create` on a
-secret another system issues: a sign-in's `clientSecret`, a backend's header or client secret.
+<span id="credentials-if-missing"></span><span id="credentials-force"></span><span id="credentials-add"></span><span id="token-expires"></span><span id="signed-tokens"></span><span id="signed-keys"></span><span id="external-issuers"></span><span id="token-list"></span><span id="first-start"></span>
+
+[Tokens and keys](tokens.md) has `token new` and `key new`, tokens that expire, signed tokens,
+tokens from another system, how to list, revoke and remove tokens, and what the server makes at its
+first start.
 
 ## Logging { #logging }
 
@@ -1906,129 +957,14 @@ default. It is personal data. `log.address: "off"` leaves it out.
 
 ## In your own server { #embed }
 
-`pivotkit-server` is a library too. `createContext(options)` checks the options and starts the
-workers. `createRestHandler(context)` from `pivotkit-server/rest` returns a fetch handler (a
-`Request` in, a `Response` out) for any server that speaks them:
-
-```js
-import { createContext, serveFetch } from "pivotkit-server";
-import { createRestHandler } from "pivotkit-server/rest";
-
-// your data, and a value that changes when the data does
-let rows = [{ Region: "North", Revenue: 120 }, { Region: "South", Revenue: 80 }];
-let rowsVersion = 1;
-
-const context = await createContext({
-    sources: { sales: { load: async () => rows, version: () => rowsVersion, cacheShared: true, policy: { fields: { Region: "show" } } } },
-    output: { dir: "/srv/reports" },
-    auth: { mode: "token" } // the token is $PIVOTKIT_TOKEN, or list several in auth.tokens
-});
-const rest = await createRestHandler(context, { env: process.env, loopback: true });
-
-// on node:http with the checks of this page (body cap, slow clients, a graceful stop):
-const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes: 2_097_152 });
-// or in a framework: return rest.fetch(request, { address });
-```
-
-Create `/srv/reports` first, or point `output.dir` at a directory you own. Run it with a token of at
-least 32 characters in `PIVOTKIT_TOKEN`:
-
-```bash
-PIVOTKIT_TOKEN="$(npx -y pivotkit-server token new)" node server.js
-```
-
-Without a token, `createRestHandler` throws a `ConfigError` that says how to make one.
-
-- `bodyBytes` is a number, or `(request, info) => number`. A function is called once per request,
-  after the precheck. There `peekSignIn(info)` gives the sign-in the precheck kept (`{ caller }`, or
-  undefined). A function gives a caller who is not signed in at most `BODY_BYTES` (2 MiB) and a
-  signed-in one at most `MAX_BODY_BYTES` (64 MiB). `bodyBytesOf(options)` is the server's own:
-  `rest.data.maxBytes` for a REST caller that may [send data](#data), else 2 MiB.
-- Each request runs inside `withRequestId(id, fn)`. `requestId()` gives its id anywhere in its work,
-  a code source's `load` included, for the host's own log lines. Every log line written inside it
-  names the id. `errorDetails({ retryable, retryAfter })` builds an `OperationError`'s details with
-  that id. `callerFields(caller)` is what a log line may hold of a caller: the client, and `subject`
-  where `audit.subject` named the person when the token was verified.
-- The handlers (`createRestHandler`, `createServerHandler`, pivotkit-mcp's `createHttpHandler`) run
-  each request in its scope and set `X-Request-Id` on every answer. The scope comes from
-  `requestScopeFor(request, info, { trustProxy })`: its id, the trace id of a valid `traceparent`, a
-  checked `X-Request-Id`, `info.address` and, with `http.trustProxy`, the forwarded client as
-  `address`. `serveFetch` does the same for any handler (pass its `trustProxy`). The context's runtime
-  takes `service` (`{ name, version }`, the program on every line) and `env` (where `NO_COLOR` is
-  read).
-- With `auth.groupProfiles`, answer a verified token whose groups are unknown before you make its
-  caller. `groupRefusal(options.auth, authInfo)` gives the text of the 403, or null. `callerOf`
-  throws `NOT_ALLOWED` for such a token, so it never gets the sources' own policy.
-- A secret in your options is a reference, `{ "env": "NAME" }` or `{ "file": "path" }`
-  (`SECRET_REF`). `readSecret(ref, options, env)` reads it on every use, so a rotated file works
-  without a restart. It trims one trailing newline and refuses a value with another line break or a
-  NUL. Its error names the reference, never the value.
-
-A configured source may be an operator's backend, an [HTTP source](sources.md#http)
-(`sources.<id>.http`, with typed `params`), or, for a library host, a function instead of a file, a
-[code source](sources.md#code):
-
-- `load(params, { caller, signal })` returns an array of row objects, `{ rows, asOf }`, or columnar
-  data `{ columns, types, data }` with one array per column. It does not return `encode()`'s result,
-  so hidden fields can be dropped.
-- `load` runs in the host's thread. Its `signal` is aborted after `timeMs` (30 s by default).
-- The report over its data is computed in a worker under `compute.timeMs` and `compute.memoryMb`
-  ([where it runs](sources.md#code-thread)).
-- pivotkit keeps one copy of the data for each combination of caller, parameter values and policy
-  levels. The caller counts with its client, scopes, groups and claims.
-    - With `cacheShared: true`, one copy serves all callers.
-    - A caller without an identity (an OAuth token without a usable subject) gets nothing kept.
-    - A kept copy is reused while `version(params, { caller })` gives the same value, or for `ttl`
-      seconds.
-- Parallel calls share one load.
-- After a transient failure, the last good data stands in for up to `maxStale` seconds, with `stale`
-  in the result.
-- A `SourceError` answers its code with its `publicMessage`. Anything else `load` throws answers 502
-  `SOURCE_UNAVAILABLE` with a fixed text. Its class goes into the log, its message with
-  `log: "debug"`.
-
-More about the handler:
-
-- The one static token without `auth.tokens` is `$PIVOTKIT_TOKEN`. Set while auth is `none`, it gets
-  a warning at start and in `check-config`, over HTTP only: "PIVOTKIT_TOKEN is set but auth is none;
-  use --auth token (or auth.mode token)". A written `auth.mode: "none"` gives no warning.
-  `createContext(options, { tokenEnv })` names another. Tokens are read from `env` of
-  `createRestHandler`.
-- `loopback` says whether the server listens on loopback only. It decides whether `auth: none` is
-  allowed, so it must match the address you listen on.
-- `rest.fetch(request, { address })` takes the client's address for the limit on refused tokens.
-  Without it, refused tokens are not limited, and a warning says so once.
-- The Host check reads the request's `Host` header. For a `Request` built in code without one, it
-  reads its URL's host. It accepts `localhost`, `127.0.0.1`, `[::1]`, the host of `http.publicUrl`
-  and `http.allowHosts`.
-- `createServerHandler(options, { env, stderr, loopback })` is the handler of
-  `pivotkit-server serve`. It serves REST and, when pivotkit-mcp is installed, MCP over one context,
-  with `/healthz` and `/readyz`. Hand it to `serveFetch` or your own server.
-- To combine them yourself, build the context with pivotkit-mcp's `createMcpContext`, since its
-  `createHttpHandler` needs the MCP server factory it adds. Give that context to both
-  `createHttpHandler` and `createRestHandler`.
-- From `pivotkit-server/rest`, `openApiDocument(options)` builds the OpenAPI document and
-  `REST_ROUTES` lists the routes.
-- From `pivotkit-server`, `present(context, operation, input, caller)` runs an operation for a
-  caller (`callerOf("none")` without sign-in). It gives `{ text, result }` as both endpoints do.
-- `serve(options, { env, stderr })` is `pivotkit-server serve` in code.
+`pivotkit-server` is a library too: `createContext` and `createRestHandler` put the REST service into
+a server of your own. [In your own server](service-exports.md#embed) has the example.
 
 ## PowerShell Universal { #psu }
 
-A PowerShell Universal script, endpoint or app calls the REST service with `Invoke-RestMethod`
-instead of running Node on the PSU server:
-
-- Keep the token in a PSU secret.
-- Call `POST /api/v1/views/render/file` with a token whose profile has `results: true`, and hand the
-  file to the user.
-- Or call `POST /api/v1/views/render` to save the file in the service's output directory.
-
-See [Getting started: REST service](../getting-started/rest.md#powershell) for the calls in
-PowerShell, and [Getting started: MCP server](../getting-started/mcp.md#psu) for running the service
-next to PSU.
-
-The PSU module's report pages load their data from the PSU app, with the person's own rights. The
-REST service's policy does not apply to them.
+PSU scripts, endpoints and apps call the REST service with `Invoke-RestMethod`.
+[Services next to PowerShell Universal](../getting-started/powershell-universal.md#psu-rest) has
+the calls and the setup.
 
 ## Security { #security }
 
