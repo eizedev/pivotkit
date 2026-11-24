@@ -8,6 +8,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- The formula guard of the CSV export and the clipboard copies also reads the full-width and small
+  forms of `=`, `@`, `+` and `-` (such as `＝` U+FF1D). Text that starts with one gets a leading `'`,
+  as text that starts with the ASCII character does.
 - "Show values as" rank and running total take time in proportion to the cells. Each walked all the
   cell's siblings, so a view with 20,000 row items took about 15 seconds, and more items took
   minutes: a view from outside could hold a server's CPU that long. Each group's running sums and

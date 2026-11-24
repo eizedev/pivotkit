@@ -157,6 +157,20 @@ test("CSV formula guard looks past invisible characters to the first visible one
     assert.equal(neutralizeFormula("\u200b-5"), "\u200b-5");
 });
 
+test("CSV formula guard reads full-width and small formula characters as their ASCII forms", () => {
+    // \uff1d \uff20 \uff0b \uff0d and the small forms \ufe66 \ufe6b \ufe62 \ufe63, alone and after invisible characters
+    for (const s of ["\uff1d1+1", "\uff20SUM(A1)", "\uff0b1+1", "\uff0d2+3", "\ufe661+1", "\ufe6bx", "\ufe621+1", "\ufe632+3", "\u200b\uff1d1", " \uff1dcmd|' /C calc'!A0"]) {
+        assert.equal(neutralizeFormula(s), `'${s}`, JSON.stringify(s));
+    }
+    // a number in full-width digits and signs stays data, as its ASCII form does
+    for (const s of ["\uff0d\uff15", "\uff0b\uff11\uff10%", "a\uff1d1", "\uff21\uff11"]) {
+        assert.equal(neutralizeFormula(s), s, JSON.stringify(s));
+    }
+    const d = encode([{ k: "\uff1dcmd|' /C calc'!A0", v: 1 }]);
+    const csv = toCsv(toGrid(computePivot(d, { rows: ["k"], values: [{ field: "v", agg: "sum" }] }), { locale: "en-US" }));
+    assert.ok(csv.includes("'\uff1dcmd|' /C calc'!A0,1"), csv);
+});
+
 test("CSV bytes start with a byte order mark unless switched off", () => {
     const g = toGrid(computePivot(data, { values: [{ agg: "count" }] }));
     const b = toCsvBytes(g);

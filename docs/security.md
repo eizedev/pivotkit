@@ -217,9 +217,9 @@ link is shown only for an absolute `https:` URL, and it opens with `rel="noopene
 
 - **CSV**: text that a spreadsheet would run as a formula gets a leading `'`. That is:
     - text starting with a tab or a carriage return
-    - text whose first visible character is `=` or `@`. Spaces, line breaks, control characters and
-      invisible characters such as a zero-width space do not count as visible.
-    - text starting with `+` or `-`, unless it is a number as a locale writes it (`-5%`, `-1.234,5`, `-1’234.5`, `-5,3 %`, `-€1.50`) or a
+    - text whose first visible character is `=` or `@`, also in full-width form (`＝`, `＠`). Spaces, line
+      breaks, control characters and invisible characters such as a zero-width space do not count as visible.
+    - text starting with `+` or `-` (`＋`, `－`), unless it is a number as a locale writes it (`-5%`, `-1.234,5`, `-1’234.5`, `-5,3 %`, `-€1.50`) or a
       number range such as the bin label `-10 – 0`
 
     Characters that change the direction of text are left out, as the import leaves them out:
