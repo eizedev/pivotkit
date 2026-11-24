@@ -7,7 +7,13 @@ hide:
 
 # Live demo
 
-The playground below is `<PivotReport>` from pivotkit-react. It has five real public data sets:
+The playground below is `<PivotReport>` from pivotkit-react. Try it here or full screen.
+
+<p><a class="md-button md-button--primary" href="playground/" target="_blank" rel="noopener">Open the playground full screen</a> <a class="md-button" href="playground/examples/element/" target="_blank" rel="noopener">Open the web component example</a></p>
+
+<iframe class="pk-demo" src="playground/?data=weather&height=720" title="pivotkit playground" loading="lazy" style="width: 100%; height: 860px; border: 1px solid var(--md-default-fg-color--lightest); border-radius: 8px;"></iframe>
+
+The playground has five real public data sets:
 
 - the daily weather of 14 cities
 - population, GDP and CO2 per country
@@ -25,10 +31,6 @@ The Views menu lists the shared views. These are the questions, and for endoflif
 of its OpenAPI document, a demo extension. Views you save stay in this browser
 (`templateStore="browser"`). The playground lets you publish a view as a shared view, which is kept
 in this browser too. See [Templates and shared views](concepts/templates.md).
-
-<p><a class="md-button md-button--primary" href="playground/" target="_blank" rel="noopener">Open the playground full screen</a> <a class="md-button" href="playground/examples/element/" target="_blank" rel="noopener">Open the web component example</a></p>
-
-<iframe class="pk-demo" src="playground/?data=weather&height=720" title="pivotkit playground" loading="lazy" style="width: 100%; height: 860px; border: 1px solid var(--md-default-fg-color--lightest); border-radius: 8px;"></iframe>
 
 The playground's header picks the data set, a start template, the language and the theme. For a
 generated data set, it also picks the number of rows: 2,000, 4,000 or 100,000. Its footer shows the

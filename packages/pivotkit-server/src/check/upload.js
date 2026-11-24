@@ -21,6 +21,7 @@ import { OUTPUT_DEFAULTS } from "../config.js";
 import { addressText, uploadMaxBytes, uploadSettingsOf } from "../options/upload.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
 import { resolveRefusal } from "./host.js";
+import { bytesText } from "../text.js";
 
 /** What a PROBLEM of the upload target does: the server starts, uploads fail. */
 const FAILS = { effect: "the server starts; every upload fails (UPLOAD_FAILED)" };
@@ -51,10 +52,6 @@ async function hostItem(host, intranet, key) {
     return problem(`${key}: ${said}, a loopback or private address, which uploads refuse without output.upload.intranet: true`, FAILS);
 }
 
-
-/** A size in MiB (or KiB, or bytes) for a line. */
-const sizeText = (bytes) => (bytes >= 1_048_576 ? `${+(bytes / 1_048_576).toFixed(1)} MiB` : bytes >= 1024 ? `${+(bytes / 1024).toFixed(1)} KiB` : `${bytes} bytes`);
-
 /** What the server itself gives a report over a closed source that is not uploaded (check/downloads.js says the details). */
 function ownDelivery(options, runtime) {
     const downloads = downloadSettingsOf(options);
@@ -78,9 +75,13 @@ export async function section(options, registry, runtime) {
     const open = sources.filter((s) => !s.closed).map((s) => s.id);
     const items = [heading("Upload:")];
     items.push(plain(settings.presign ? `target: presigned via ${addressText(settings.presign.url)}` : `target: ${addressText(/** @type {string} */ (settings.template))}`));
-    if (settings.presign) items.push(plain(`uploads to ${settings.presign.allowOrigins.join(", ")}`, 2));
-    items.push(plain(`${settings.method}, up to ${sizeText(uploadMaxBytes(settings, options.output?.maxMb ?? OUTPUT_DEFAULTS.maxMb))}, ${+(settings.timeMs / 1000).toFixed(1)} s`, 2));
-    if (settings.intranet) items.push(plain("may reach loopback and private addresses (intranet)", 2));
+    if (settings.presign) {
+        items.push(plain(`uploads to ${settings.presign.allowOrigins.join(", ")}`, 2));
+    }
+    items.push(plain(`${settings.method}, up to ${bytesText(uploadMaxBytes(settings, options.output?.maxMb ?? OUTPUT_DEFAULTS.maxMb))}, ${+(settings.timeMs / 1000).toFixed(1)} s`, 2));
+    if (settings.intranet) {
+        items.push(plain("may reach loopback and private addresses (intranet)", 2));
+    }
     // the hosts requests go to, checked as a request checks them
     const hosts = settings.presign ? [[new URL(settings.presign.url).hostname, "output.upload.presign.url"], ...settings.presign.allowOrigins.map((o) => [new URL(o).hostname, "output.upload.presign.allowOrigins"])] : [[new URL(/** @type {string} */ (settings.template).replace(/\{(id|name|format)\}/g, "x")).hostname, "output.upload.url"]];
     for (const [host, key] of hosts) {

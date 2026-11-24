@@ -7,10 +7,6 @@ chart, filters, drill-down, undo, saved and shared views, export.
 
 ![A line chart of monthly revenue per category](https://pivotkit.eize.dev/assets/screenshots/chart-light.png)
 
-Dates say what they cover: the footer gives the data's date range, and a grouping such as "Month
-of year" says which years it combines. See
-[dates](https://pivotkit.eize.dev/use/values/#dates-and-number-ranges).
-
 ## Install
 
 ```bash
@@ -41,9 +37,12 @@ npm install pivotkit-element
 ```js
 // report.js
 const report = document.querySelector("pivot-report");
-report.data = rows;                        // an array of objects, property only
+// an array of objects, property only
+report.data = rows;
 report.templates = [{ name: "By region", view: { rows: ["Region"] } }];
-report.addEventListener("pivot-view-change", (e) => localStorage.setItem("view", JSON.stringify(e.detail.view)));
+report.addEventListener("pivot-view-change", (e) =>
+  localStorage.setItem("view", JSON.stringify(e.detail.view))
+);
 ```
 
 ## How it works

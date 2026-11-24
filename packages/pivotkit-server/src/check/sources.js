@@ -26,10 +26,9 @@ import { closest, encode } from "pivotkit-core";
 import { readSafe, readTable } from "pivotkit-node/files";
 import { findingText } from "pivotkit-report/operations";
 import { serverLimitsOf } from "../config.js";
-import { autoValuesOf, autoValuesOption, fieldKey, levelInfo, resolvePolicy, withStats } from "../policy.js";
+import { autoValuesOf, autoValuesOption, fieldKey, fieldStatsOf, levelInfo, resolvePolicy, withStats } from "../policy.js";
 import { sourceStats } from "../stats.js";
-import { quotedBreakOf } from "../data.js";
-import { allShown } from "../data.js";
+import { allShown, quotedBreakOf } from "../data.js";
 import { checkTemplates } from "../print-template.js";
 import { HTTP_HEADING } from "./http.js";
 import { docsLink, docsOf } from "../options/branding.js";
@@ -110,9 +109,12 @@ export async function section(options, registry, runtime) {
         if (Boolean(s.policy.inline) !== Boolean(server.inline) || (s.policy.inline && server.inline && s.policy.inline.cells !== server.inline.cells)) {
             items.push(plain(s.policy.inline ? `results inline in the tool answer: up to ${s.policy.inline.cells} cells` : "results inline in the tool answer: off", 2));
         }
-        if (s.scopes.length) items.push(plain(`scopes: ${s.scopes.join(" ")}`, 2));
-        if (s.link) items.push(plain(`link: ${s.link}`, 2));
-        if (s.link) items.push(...linkParamsItems(s.id, written, docsOf(options)));
+        if (s.scopes.length) {
+            items.push(plain(`scopes: ${s.scopes.join(" ")}`, 2));
+        }
+        if (s.link) {
+            items.push(plain(`link: ${s.link}`, 2), ...linkParamsItems(s.id, written, docsOf(options)));
+        }
         // the print template, read and parsed as the start does: what the parser refuses stops the
         // start; a file that is not there is like a missing source file (its html reports fail)
         const template = templates.get(s.id);
@@ -169,12 +171,16 @@ export async function section(options, registry, runtime) {
     if (registry.allow.length) {
         const filePolicy = resolvePolicy(options.policy, options.files?.policy);
         items.push(heading(`Files by path: allowed in ${registry.allow.join(", ")}`));
-        if (options.files?.list) items.push(plain("listed by list_sources"));
+        if (options.files?.list) {
+            items.push(plain("listed by list_sources"));
+        }
         items.push(plain(`policy: ${filePolicy.default} by default`));
         if (filePolicy.default === "show" && [...filePolicy.fields.values()].includes("hide")) {
             items.push(warning(denyListText("files.policy")));
         }
-        if (options.files?.hardLinks) items.push(plain("hard links: read"));
+        if (options.files?.hardLinks) {
+            items.push(plain("hard links: read"));
+        }
     } else {
         items.push(heading("Files by path: off"));
     }
@@ -198,7 +204,7 @@ function fieldLevelItems(id, resolved, names, stats, sourcePolicy, serverPolicy)
     const looking = [];
     const levels = names.map((name) => {
         const info = levelInfo(policy, name);
-        const looks = info.level === "values" && !info.auto ? (stats.fields[fieldKey(name)]?.looks ?? []) : [];
+        const looks = info.level === "values" && !info.auto ? (fieldStatsOf(stats, fieldKey(name))?.looks ?? []) : [];
         if (looks.length) {
             looking.push(warning(`sources.${id}: the values field ${nameText(name)} holds a value that looks like ${looks.join(", ")}`));
         }

@@ -26,8 +26,10 @@ const CALLS = [
     { tool: "draft_schedule", args: { source: "sales", view: BY_REGION, name: "Weekly", formats: ["csv"], every: { unit: "day", at: "06:00" }, recipients: ["Team"] }, route: "POST /schedules/draft" }
 ];
 
-/** What may differ: the words, and the name a written file got (each call writes its own). */
-// each answer names its own request id (results.test.js checks it)
+/**
+ * What may differ: the words, the name a written file got (each call writes its own), and the
+ * request id each answer names (results.test.js checks it).
+ */
 const comparable = (body) => JSON.parse(JSON.stringify({ ...body, requestId: undefined, message: undefined, output: body.output ? { ...body.output, name: undefined, filename: undefined, url: undefined, expiresAt: undefined } : body.output, draft: body.draft ? { ...body.draft, created: undefined } : body.draft }));
 
 test("every operation: the MCP tool's structured content and the REST answer are the same", async () => {

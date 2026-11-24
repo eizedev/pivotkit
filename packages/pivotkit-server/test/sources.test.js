@@ -410,6 +410,7 @@ test("error codes: the new ones with their status; details a person can act on, 
     assert.equal(requestId(), null);
     const id = newRequestId();
     const error = await withRequestId(id, async () => {
+        // a timer between: the request id must survive an await
         await new Promise((resolve) => setTimeout(resolve, 5));
         return new OperationError("SOURCE_UNAVAILABLE", "not available right now; try again later", errorDetails({ retryable: true, retryAfter: 30 }));
     });
@@ -512,8 +513,9 @@ async function withMatchMeans(means, fn) {
 }
 
 test("params at start (#528, real vm): a pattern too slow for a request's limit is refused, so the start never takes a pattern requests refuse", () => {
-    // about 250 ms on "1" x 63 + "!" even once V8 has compiled it: over MATCH_MS on every try
-    const problems = declaredProblems({ x: { type: "string", pattern: "\\d*\\d*\\d*\\d*\\d*\\d*x", maxLength: 64 } });
+    // eight \d* in a row on "1" x 63 + "!" take far longer than MATCH_MS on any machine (each more
+    // \d* multiplies the work by about ten); the check cuts every try at MATCH_MS, so it stays quick
+    const problems = declaredProblems({ x: { type: "string", pattern: `${"\\d*".repeat(8)}x`, maxLength: 64 } });
     assert.match(problems.join(), /takes too long on some values \(over 75 ms, a request's limit\)/);
 });
 

@@ -18,8 +18,10 @@ import { readSecret } from "../secrets.js";
 
 import { keyProblem } from "../secret-rules.js";
 
-/** How long the same browser may repeat a one-time download, and how long a sign-in may take, in seconds. */
+/** How long the same browser may repeat a one-time download, in seconds. */
 export const REPEAT_SECONDS = 120;
+
+/** How long a sign-in may take, in seconds. */
 export const SIGN_IN_SECONDS = 600;
 
 /** The most entries the cookie holds (parallel sign-ins and repeats); the oldest go first. */

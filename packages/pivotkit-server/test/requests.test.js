@@ -3,6 +3,9 @@
 // decided after the sign-in, and the scopes the metadata offers.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { request } from "node:http";
+import { connect } from "node:net";
+import { EventEmitter } from "node:events";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { OperationError } from "pivotkit-report/operations";
 import { serveFetch } from "pivotkit-server";
@@ -99,7 +102,7 @@ test("problems: an error with details carries requestId, retryable and Retry-Aft
     assert.deepEqual([upload.detail, upload.requestId, upload.retryable], ["the report was made but could not be stored; give the operator the request id", "BBBBBBBBBBB", false]);
     const noRetryAfter = problemOf(new OperationError("SOURCE_UNAVAILABLE", "x", { requestId: "CCCCCCCCCCC", retryable: false }));
     assert.equal(noRetryAfter.headers.get("retry-after"), null);
-    // without details: byte for byte what problem() gives, as before
+    // without details: byte for byte what problem() gives
     const plain = problemOf(new OperationError("SOURCE_NOT_FOUND", 'no source "x"'));
     assert.equal(await plain.text(), await problem("SOURCE_NOT_FOUND", 'no source "x"').text());
     assert.equal(problemOf(new OperationError("BUSY", "busy")).headers.get("retry-after"), "5");
@@ -182,7 +185,6 @@ test("body size: a streamed body far over the cap (as a proxy forwards an HTTP/2
     };
     const listening = await serveFetch(handler, { host: "127.0.0.1", port: 0, bodyBytes: 1024 });
     try {
-        const { request } = await import("node:http");
         // 64 KiB in 1 KiB chunks, no Content-Length: past 4 x the cap the server cuts the connection
         const answer = await new Promise((resolve) => {
             const req = request({ host: "127.0.0.1", port: listening.port, path: "/x", method: "POST", headers: { "transfer-encoding": "chunked" } }, (res) => {
@@ -260,7 +262,7 @@ test("body size: a cap given as a function is decided after the precheck signed 
     }
 });
 
-test("body size: a function that gives no usable number falls back to BODY_BYTES; the number form works as before", async () => {
+test("body size: a function that gives no usable number falls back to BODY_BYTES; the number form works too", async () => {
     for (const odd of [NaN, 0, -1, "100", 1.5, Infinity]) {
         const listening = await serveFetch({ fetch: async (request) => Response.json({ bytes: (await request.text()).length }) }, { host: "127.0.0.1", port: 0, bodyBytes: () => /** @type {any} */ (odd) });
         try {
@@ -285,13 +287,13 @@ test("body size: a cap function gives a stranger at most BODY_BYTES, a signed-in
     assert.equal(bodyCapOf(1024, head, {}), 1024);
 });
 
-test("body size: the REST service refuses a body over 2 MiB with and without a token, as before", async () => {
+test("body size: the REST service refuses a body over 2 MiB with and without a token", async () => {
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "bot", env: "BOT" }] }, baseDir: dir }, { env: { BOT: TOKEN } });
     try {
         const big = JSON.stringify({ source: "sales", view: BY_REGION, pad: "x".repeat(BODY_BYTES) });
         const length = { "content-length": String(Buffer.byteLength(big)) };
-        // declared: refused before the sign-in, as before
+        // declared: refused before the sign-in
         for (const headers of [length, { ...length, authorization: `Bearer ${TOKEN}` }]) {
             const answer = await raw(`${server.api}/views/validate`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: big });
             assert.equal(answer.status, 413, JSON.stringify(headers));
@@ -318,7 +320,6 @@ test("scopes: what the metadata offers is scopesSupported, else the surface's re
 });
 
 test("body size: a client that stops sending after its 413 leaves one refused line, not a second one of the HTTP parser", async () => {
-    const { connect } = await import("node:net");
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir });
     try {
@@ -350,7 +351,6 @@ test("body size: a client that stops sending after its 413 leaves one refused li
 });
 
 test("body size: the wait for a refused body's end is over at once for a request already destroyed or complete (its events are past)", async () => {
-    const { EventEmitter } = await import("node:events");
     for (const state of [{ destroyed: true, complete: false }, { destroyed: false, complete: true }]) {
         const req = Object.assign(new EventEmitter(), state);
         const started = Date.now();
@@ -387,7 +387,6 @@ test("serveFetch: a handler that throws gets a 500 with no error text and one in
 });
 
 test("serveFetch: a malformed request pipelined right after a refused body that was sent whole is still the parser's refusal", async () => {
-    const { connect } = await import("node:net");
     const told = [];
     const handler = {
         precheck: async () => new Response("no", { status: 401 }),
@@ -497,7 +496,6 @@ test("serveFetch: a 500 always has an error line, also after the request logged 
 });
 
 test("serveFetch: CONNECT gets a 400 with an id and one line, never a closed socket without an answer", async () => {
-    const { connect } = await import("node:net");
     const told = [];
     const listening = await serveFetch({ fetch: async () => Response.json({ ok: true }) }, { host: "127.0.0.1", port: 0, bodyBytes: 1024, onClientError: (entry) => told.push(entry) });
     try {
@@ -520,7 +518,6 @@ test("serveFetch: CONNECT gets a 400 with an id and one line, never a closed soc
 });
 
 test("serveFetch: a CONNECT client that never closes its side does not keep its socket: the slot is free again and the server stops", async () => {
-    const { connect } = await import("node:net");
     // one connection in all: a socket left open would refuse the next one
     const listening = await serveFetch({ fetch: async () => Response.json({ ok: true }) }, { host: "127.0.0.1", port: 0, bodyBytes: 1024, limits: { total: 1 } });
     const socket = connect({ port: listening.port, host: "127.0.0.1", allowHalfOpen: true });

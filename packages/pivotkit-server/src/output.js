@@ -24,8 +24,10 @@ const pruned = new Map();
 
 /**
  * The part of a written file's name that marks it as pivotkit's: "sales-by-region.pivotkit-out.xlsx",
- * "weekly.pivotkit-out.report.json" (a schedule draft; the name before it is fileSlug's; ".pivotkit.json" is a view file), after 22 random characters with output.baseUrl or a download link.
- * Only such files are counted, cleaned up and deleted to make room; an operator's own files are not.
+ * "weekly.pivotkit-out.report.json" (a schedule draft; the name before it is fileSlug's;
+ * ".pivotkit.json" is a view file), after 22 random characters with output.baseUrl or a download
+ * link. Only such files are counted, cleaned up and deleted to make room; an operator's own files
+ * are not.
  */
 export const OUTPUT_MARK = "pivotkit-out";
 

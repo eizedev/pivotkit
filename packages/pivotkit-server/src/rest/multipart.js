@@ -79,7 +79,7 @@ export function uploadFormatOf(file) {
 
 /**
  * A multipart body as the operation's input and the file it carries. Throws OperationError
- * (INVALID_INPUT, DATA_MISMATCH) or an error with `problem` UNSUPPORTED_MEDIA_TYPE.
+ * (INVALID_INPUT, DATA_MISMATCH) or a BodyError (UNSUPPORTED_MEDIA_TYPE).
  * @param {Uint8Array} bytes  the body, read under the caller's cap
  * @param {string} contentType  the request's Content-Type, with its boundary
  * @param {string} operation

@@ -63,8 +63,8 @@ const DEFAULT_TEXT = Object.freeze({
  * texts the caller reads (SOURCE_REASONS: "refused", the backend refused this server's access;
  * "setup", the source is not set up correctly; none: not available right now). A refusal (the other
  * codes) is never transient.
+ * @extends {CodedError<"NOT_ALLOWED" | "INVALID_INPUT" | "DATA_NOT_AVAILABLE" | "SOURCE_UNAVAILABLE", undefined>}
  */
-/** @extends {CodedError<"NOT_ALLOWED" | "INVALID_INPUT" | "DATA_NOT_AVAILABLE" | "SOURCE_UNAVAILABLE", undefined>} */
 export class SourceError extends CodedError {
     /**
      * @param {"NOT_ALLOWED" | "INVALID_INPUT" | "DATA_NOT_AVAILABLE" | "SOURCE_UNAVAILABLE"} code
@@ -325,7 +325,7 @@ export function createLoadRunner(parts = {}) {
         let version = null;
         if (how.version) {
             try {
-                // called as it always was, at once: a promise is no version (it would never change)
+                // called at once, never awaited: a promise is no version (it would never change)
                 const given = how.version();
                 if (given !== null && typeof given === "object" && typeof (/** @type {any} */ (given).then) === "function") {
                     // its rejection is handled here, or it would end the process as unhandled

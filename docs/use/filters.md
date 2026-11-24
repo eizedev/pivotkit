@@ -103,8 +103,8 @@ range. **Years combined** shows one switch per year instead. Switch 2023 off, an
 2024 and 2025. It shows for two to twelve years in the data; the last year that is on stays on. A rule
 of your own on the grouping ("is from Jun") stays when you switch a year.
 
-![The Filter level of Date by month of year on the weather data: Years combined with 2023, 2024 and 2025, the summary saying 2023–2025 combined, and the months to pick](../assets/screenshots/filter-cyclic-light.png#only-light)
-![The Filter level of Date by month of year on the weather data: Years combined with 2023, 2024 and 2025, the summary saying 2023–2025 combined, and the months to pick](../assets/screenshots/filter-cyclic-dark.png#only-dark)
+![The Filter level of Date by month of year on the weather data: Years combined with 2024 and 2025 ticked and 2023 not, the summary saying 2024–2025 combined, Pick items folded with all 12 picked, and the rule the quick choice made](../assets/screenshots/filter-cyclic-light.png#only-light)
+![The Filter level of Date by month of year on the weather data: Years combined with 2024 and 2025 ticked and 2023 not, the summary saying 2024–2025 combined, Pick items folded with all 12 picked, and the rule the quick choice made](../assets/screenshots/filter-cyclic-dark.png#only-dark)
 
 ## Add rules { #value-filter }
 

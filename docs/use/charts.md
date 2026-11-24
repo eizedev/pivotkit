@@ -107,8 +107,8 @@ type you pick stays.
 
 ## Display settings
 
-**Chart settings** lists the chart types first. Below them is one row per **Display** topic:
-Value labels, Legend, Title, Axis, Tooltip, Series and Layout. Each row shows what is set and opens
+**Chart settings** lists the chart types first. Below them is one row per topic: Value labels,
+Legend, Title, Axis, Tooltip, Reference lines, Series and Layout. Each row shows what is set and opens
 a level. **Back**, Escape or the left arrow goes back to the row. A topic the chart has nothing for
 is left out: a pie has no Axis, a heatmap no Series.
 
@@ -117,25 +117,25 @@ settings stay with the report: in saved views, links and the chart image. They a
 chart type changes. An **i** explains Group labels, Tooltip, Zoom slider, Series, Stacked to 100 % and the
 labels of a pie.
 
-![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Series and Layout](../assets/screenshots/chart-display-light.png#only-light)
-![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Series and Layout](../assets/screenshots/chart-display-dark.png#only-dark)
+![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series and Layout](../assets/screenshots/chart-display-light.png#only-light)
+![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series and Layout](../assets/screenshots/chart-display-dark.png#only-dark)
 
 | Setting | Path | Choices | Default |
 | --- | --- | --- | --- |
-| Value labels | Display › Value labels | Automatic, Off, Value. A pie and a donut also offer Percent and Value and percent. | Automatic: a pie names its slices. A heatmap writes the numbers while there are 200 cells or fewer. Bars and lines write nothing. |
-| Legend | Display › Legend | Automatic, Bottom, Right, Off | Automatic: above the chart when there is more than one series. A pie and a donut always have one. |
-| Title | Display › Title | Any text. The × removes it at once. | none |
-| Axis labels | Display › Axis | Automatic, All (slanted), Every n-th | Automatic |
-| Group labels | Display › Axis | Automatic, On, Off. With two or more fields in Rows. | Automatic: shown while the chart has room for them |
-| Zoom slider | Display › Axis | Automatic, On, Off | Automatic: more than 20 categories, or an axis that would leave out 3 names or more between two |
-| Tooltip | Display › Tooltip | Automatic, All series | Automatic: the element under the pointer |
-| Share in the tooltip | Display › Tooltip | on, off. Not for a heatmap. | off |
-| Series | Display › Series | A switch per series, or per slice of a pie or a donut, with its colour beside it. One series is listed for its colour. | all shown, in the palette or the colours your app sets |
-| Stacked to 100 % | Display › Layout | on, off. Stacked bars and areas of sums and counts. | off |
-| Reference lines | Display › Reference lines | Average, Trend, High and low points, Target. Bars, lines and areas. See [below](#reference-lines). | none |
-| Smooth lines | Display › Layout | on, off. Lines and areas. | off |
-| Labels of a pie | Display › Layout | Outside, Inside. Not while value labels are Off. | Outside |
-| Groups of Rows | Display › Layout | **Show each Country**, **Show Region only**, named by the fields. See below. | each item shown |
+| Value labels | Chart settings › Value labels | Automatic, Off, Value. A pie and a donut also offer Percent and Value and percent. | Automatic: a pie names its slices. A heatmap writes the numbers while there are 200 cells or fewer. Bars and lines write nothing. |
+| Legend | Chart settings › Legend | Automatic, Bottom, Right, Off | Automatic: above the chart when there is more than one series. A pie and a donut always have one. |
+| Title | Chart settings › Title | Any text. The × removes it at once. | none |
+| Axis labels | Chart settings › Axis | Automatic, All (slanted), Every n-th | Automatic |
+| Group labels | Chart settings › Axis | Automatic, On, Off. With two or more fields in Rows. | Automatic: shown while the chart has room for them |
+| Zoom slider | Chart settings › Axis | Automatic, On, Off | Automatic: more than 20 categories, or an axis that would leave out 3 names or more between two |
+| Tooltip | Chart settings › Tooltip | Automatic, All series | Automatic: the element under the pointer |
+| Share in the tooltip | Chart settings › Tooltip | on, off. Not for a heatmap. | off |
+| Series | Chart settings › Series | A switch per series, or per slice of a pie or a donut, with its colour beside it. One series is listed for its colour. | all shown, in the palette or the colours your app sets |
+| Stacked to 100 % | Chart settings › Layout | on, off. Stacked bars and areas of sums and counts. | off |
+| Reference lines | Chart settings › Reference lines | Average, Trend, High and low points, Target. Bars, lines and areas. See [below](#reference-lines). | none |
+| Smooth lines | Chart settings › Layout | on, off. Lines and areas. | off |
+| Labels of a pie | Chart settings › Layout | Outside, Inside. Not while value labels are Off. | Outside |
+| Groups of Rows | Chart settings › Layout | **Show each Country**, **Show Region only**, named by the fields. See below. | each item shown |
 
 ??? info "Groups of Rows in a chart"
     With two or more fields in Rows, a collapsed group is one category of the chart. Layout names
@@ -228,10 +228,10 @@ labels of a pie.
 ## Many slices without a legend { #many-slices }
 
 With the legend **Off**, the labels are the only names of the slices. When they have no room, the
-smallest slices go into one grey slice, such as "Other (14)".
+smallest slices go into one grey slice, such as "Other (12)".
 
-![A donut of 20 countries on a phone: the six largest with their names, the rest as one grey slice "Other (14)"](../assets/screenshots/donut-other-light.png#only-light){ width="300" }
-![A donut of 20 countries on a phone: the six largest with their names, the rest as one grey slice "Other (14)"](../assets/screenshots/donut-other-dark.png#only-dark){ width="300" }
+![A donut of 20 countries on a phone: the eight largest with their names, the rest as one grey slice "Other (12)"](../assets/screenshots/donut-other-light.png#only-light){ width="300" }
+![A donut of 20 countries on a phone: the eight largest with their names, the rest as one grey slice "Other (12)"](../assets/screenshots/donut-other-dark.png#only-dark){ width="300" }
 
 - The number says how many slices it holds. Its size is their sum.
 - Point at it, or tap it on a phone, to see each slice it holds with its value, the largest first.
@@ -262,18 +262,18 @@ The slider works by keyboard too. Press Tab until it has the focus ring.
 - Page Up and Page Down move it by its own width. Home and End go to the first and last categories.
 - A screen reader hears what it shows: "Categories 12 to 30 of 40".
 
-Display › Axis › Zoom slider › Off draws every category instead. Then the axis may name only every
-n-th one. The chart image, the SVG, the HTML report and a print always show every category.
+Chart settings › Axis › Zoom slider › Off draws every category instead. Then the axis may name only
+every n-th one. The chart image, the SVG, the HTML report and a print always show every category.
 
 ![Bars of 40 countries on a phone: the zoom slider under the axis, each country in its window named](../assets/screenshots/chart-zoom-light.png#only-light){ width="300" }
 ![Bars of 40 countries on a phone: the zoom slider under the axis, each country in its window named](../assets/screenshots/chart-zoom-dark.png#only-dark){ width="300" }
 
 Click a series in the legend to hide it. Click it again to show it. A screen reader hears "Software
-hidden" or "Software shown". The view keeps it, and **Undo** takes it back. Display › Series has a
+hidden" or "Software shown". The view keeps it, and **Undo** takes it back. Chart settings › Series has a
 switch per series, or per slice of a pie, for the keyboard. It lists every series; a long list
 scrolls.
 
-Display › Layout › Stacked to 100 % makes each stack as high as the axis. It is offered for stacked
+Chart settings › Layout › Stacked to 100 % makes each stack as high as the axis. It is offered for stacked
 bars and areas of sums and counts, the values that add up. An area is stacked by it.
 
 - Each part shows its share, in the value labels too. A part of 0 shows "0.0%".
@@ -296,8 +296,8 @@ target you set. High and low points mark the highest and the lowest value of eac
    click **Apply**. **Remove the target** or the **×** removes it.
 5. **Back** or Escape returns one level.
 
-![Chart settings open at Display › Reference lines: Average and Trend switched on, the Target row with 500000](../assets/screenshots/chart-lines-level-light.png#only-light)
-![Chart settings open at Display › Reference lines: Average and Trend switched on, the Target row with 500000](../assets/screenshots/chart-lines-level-dark.png#only-dark)
+![Chart settings open at Chart settings › Reference lines: Average and Trend switched on, the Target row with 500000](../assets/screenshots/chart-lines-level-light.png#only-light)
+![Chart settings open at Chart settings › Reference lines: Average and Trend switched on, the Target row with 500000](../assets/screenshots/chart-lines-level-dark.png#only-dark)
 
 ![A line of monthly revenue with its average dashed, its trend dotted and a target as a solid line](../assets/screenshots/chart-lines-light.png#only-light)
 ![A line of monthly revenue with its average dashed, its trend dotted and a target as a solid line](../assets/screenshots/chart-lines-dark.png#only-dark)
@@ -320,10 +320,10 @@ target you set. High and low points mark the highest and the lowest value of eac
 
 ### High and low points
 
-**High and low points** puts a dot on the highest and the lowest value of each series.
+**High and low points** marks the highest and lowest value of each series: a dot, ▲ or ▼ and the value.
 
-![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and its value](../assets/screenshots/chart-points-light.png#only-light)
-![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and its value](../assets/screenshots/chart-points-dark.png#only-dark)
+![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and a label with ▲ or ▼ and its value](../assets/screenshots/chart-points-light.png#only-light)
+![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and a label with ▲ or ▼ and its value](../assets/screenshots/chart-points-dark.png#only-dark)
 
 - The dot has the series' colour. Its label starts with ▲ for the highest value or ▼ for the
   lowest, in the same colour, then the value as the table writes it.
@@ -439,7 +439,7 @@ Click a bar, a point, a slice or a heatmap cell, and a small menu opens at it:
   filter.
 
 ??? info "The share in the tooltip"
-    Display › Tooltip › Share in the tooltip adds each value's share after it, such as
+    Chart settings › Tooltip › Share in the tooltip adds each value's share after it, such as
     "Software 30 50.0%". On a 100 % stack the tooltip shows the share anyway.
 
     - With several series, it is the share of the category's total. A category with only one value
@@ -449,7 +449,7 @@ Click a bar, a point, a slice or a heatmap cell, and a small menu opens at it:
     - Only sums and counts get a share, on a pie too, and only when no part is below zero.
 
 ??? info "Fixed colours"
-    In Display › Series, the swatch beside each series or slice shows the colour the chart draws.
+    In Chart settings › Series, the swatch beside each series or slice shows the colour the chart draws.
     Pick another colour there. A chart of one series lists it too, for its colour. The series keeps
     the colour in every chart of the view, whatever else the chart shows. **Default** gives back the
     colour it had. A colour for a name the chart no longer shows is listed at the end with
@@ -459,7 +459,7 @@ Click a bar, a point, a slice or a heatmap cell, and a small menu opens at it:
     names too, one per theme if it likes. A colour you pick wins over those.
 
 ??? info "Every series in the tooltip"
-    Display › Tooltip › All series lists every series at the pointer's category,
+    Chart settings › Tooltip › All series lists every series at the pointer's category,
     wherever the pointer is. The series under the pointer comes first, its name in bold. Stacked bars
     and areas add the total. The setting stays with the view.
 

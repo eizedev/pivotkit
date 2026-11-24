@@ -23,6 +23,7 @@ A new zlib in a Node 24 release can move the numbers too, by up to about 0.6 KiB
 - Every bundled package is an exact devDependency. The package has no runtime dependency.
 - `build.js` writes `dist/THIRD_PARTY_LICENSES.txt` through `scripts/third-party-licenses.js`.
 - `SIZE_BUDGET_KIB` in `build.js` sets a gzip budget for each load group.
+- A new lazy chunk needs an entry in `CHUNK_GROUPS` and a budget, or the build fails.
 
 ## First load and groups
 

@@ -40,6 +40,8 @@ export const BODY_BYTES = 2_097_152;
 /** How long close() waits for running requests by default. */
 export const GRACE_MS = 25_000;
 
+/** @typedef {{ total: number, perAddress: number, loopback: number, headersMs: number, requestMs: number, checkMs: number }} ConnectionLimits */
+
 /**
  * The bounds on connections: open at once in all; from one address other than loopback, counted by
  * the socket's peer (0: no bound; defaultPerAddress says when none applies by default); the ones
@@ -47,9 +49,8 @@ export const GRACE_MS = 25_000;
  * network, not against a local process); and how long a client may take for its
  * headers and for its whole request (checked every checkMs: node:http's default, 30 seconds, would
  * let a stalled client stay six times as long).
+ * @type {Readonly<ConnectionLimits>}
  */
-/** @typedef {{ total: number, perAddress: number, loopback: number, headersMs: number, requestMs: number, checkMs: number }} ConnectionLimits */
-/** @type {Readonly<ConnectionLimits>} */
 export const CONNECTION_LIMITS = Object.freeze({ total: 256, perAddress: 32, loopback: 16, headersMs: 5_000, requestMs: 30_000, checkMs: 1_000 });
 
 /**
@@ -276,7 +277,23 @@ function readBody(req, max) {
  */
 export const peekSignIn = (info) => (Object.hasOwn(info, SIGNED_IN) ? info[SIGNED_IN] : undefined);
 
-/** The most a cap function may give a signed-in caller: a larger cap is cut to it. */
+/**
+ * A Response's headers for node:http's writeHead. Object.fromEntries keeps only the last Set-Cookie;
+ * every one is kept here, as the list writeHead takes.
+ * @param {Headers} headers
+ * @returns {Record<string, string | string[]>}
+ */
+function nodeHeadersOf(headers) {
+    /** @type {Record<string, string | string[]>} */
+    const out = Object.fromEntries(headers);
+    const cookies = headers.getSetCookie();
+    if (cookies.length > 1) {
+        out["set-cookie"] = cookies;
+    }
+    return out;
+}
+
+/** The largest body a signed-in caller may send: a larger cap is cut to it. */
 export const MAX_BODY_BYTES = 67_108_864;
 
 /**
@@ -332,7 +349,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             // "OPTIONS *", "CONNECT host:443": no resource of this server
             const scope = requestScopeFor(null, info, { trustProxy });
             const answer = withRequestIdHeader(withRequestScope(scope, () => problem(400, "/", info)), scope.id);
-            res.writeHead(answer.status, { ...Object.fromEntries(answer.headers), connection: "close" });
+            res.writeHead(answer.status, { ...nodeHeadersOf(answer.headers), connection: "close" });
             res.end(Buffer.from(await answer.arrayBuffer()));
             return;
         }
@@ -383,7 +400,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 // a body still coming: what the parser says of its rest while it is drained (the client
                 // stopping halfway) is not another refusal
                 markMidBody(req);
-                res.writeHead(early.status, { ...Object.fromEntries(early.headers), "x-request-id": inScope.id });
+                res.writeHead(early.status, { ...nodeHeadersOf(early.headers), "x-request-id": inScope.id });
                 // a small body is in the socket's buffers already: the answer ends at once, so a request
                 // pipelined after it is read as before
                 const declared = Number(req.headers["content-length"]);
@@ -405,7 +422,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             phase = "handler";
             const request = new Request(url, { method: req.method, headers, body, signal: abort.signal });
             const response = await withRequestScope(inScope, () => handler.fetch(request, info));
-            res.writeHead(response.status, { ...Object.fromEntries(response.headers), "x-request-id": inScope.id });
+            res.writeHead(response.status, { ...nodeHeadersOf(response.headers), "x-request-id": inScope.id });
             if (response.body && req.method === "HEAD") {
                 // the body is not sent: given up, so whatever waits for its end (a caller's slot) is freed
                 await response.body.cancel().catch(() => undefined);
@@ -475,7 +492,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             const answer = withRequestScope(failed, () => problem(tooLarge ? 413 : 400, req.url ?? "/", info));
             const bytes = Buffer.from(await answer.arrayBuffer());
             markMidBody(req);
-            res.writeHead(answer.status, { ...Object.fromEntries(answer.headers), connection: "close", "content-length": String(bytes.length), "x-request-id": failed.id });
+            res.writeHead(answer.status, { ...nodeHeadersOf(answer.headers), connection: "close", "content-length": String(bytes.length), "x-request-id": failed.id });
             if (tooLarge && !req.complete) {
                 // a body found too large while it streams (no Content-Length, as a proxy forwards an
                 // HTTP/2 body): the answer goes out at once, complete by its length, so a client or proxy

@@ -129,3 +129,11 @@ test("a reader's limit error is a limit: LIMIT_EXCEEDED, and INVALID_FILE with r
     const damaged = asCliError(new PivotkitError("INVALID_FILE", '"book.xlsx": damaged', { reason: "DAMAGED", file: "book.xlsx" }), "book.xlsx");
     assert.deepEqual([damaged.kind, damaged.code], ["io", "DAMAGED"]);
 });
+
+test("every reader note code of pivotkit-core is sorted as info or as a warning: a new code is a decision here", async () => {
+    const { IMPORT_NOTE_CODES } = await import("pivotkit-core/import");
+    const { INFO_NOTES } = await import("pivotkit-node/files");
+    // the notes that say the data differs from the file
+    const WARNINGS = ["LINES_SKIPPED", "COLUMN_RENAMED", "COLUMNS_RENAMED_MORE", "COLUMN_DROPPED", "COLUMNS_ADDED", "TEXT_CUT", "CHARACTERS_REMOVED", "DATE_ORDER", "DECIMAL_MARK", "VALUES_NOT_CONVERTED", "NUMBERS_TOO_LARGE", "NUMBERS_ROUNDED", "JSON_PROPERTY", "ERROR_CELLS"];
+    assert.deepEqual([...INFO_NOTES, ...WARNINGS].sort(), [...IMPORT_NOTE_CODES].sort());
+});

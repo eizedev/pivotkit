@@ -258,10 +258,18 @@ export function declaredProblems(declared) {
         }
         const text = p.type === "string";
         const numeric = p.type === "integer" || p.type === "number";
-        if (p.required !== undefined && typeof p.required !== "boolean") fail("required must be true or false");
-        if (p.description !== undefined && (typeof p.description !== "string" || p.description.length > 500)) fail("description must be a text of at most 500 characters");
-        if (p.claim !== undefined && (typeof p.claim !== "string" || !p.claim || p.claim.length > CLAIM_NAME_MAX)) fail(`claim must be a claim's name (at most ${CLAIM_NAME_MAX} characters)`);
-        if (p.format !== undefined && !(text && p.format === "date")) fail('format is "date", for a string parameter');
+        if (p.required !== undefined && typeof p.required !== "boolean") {
+            fail("required must be true or false");
+        }
+        if (p.description !== undefined && (typeof p.description !== "string" || p.description.length > 500)) {
+            fail("description must be a text of at most 500 characters");
+        }
+        if (p.claim !== undefined && (typeof p.claim !== "string" || !p.claim || p.claim.length > CLAIM_NAME_MAX)) {
+            fail(`claim must be a claim's name (at most ${CLAIM_NAME_MAX} characters)`);
+        }
+        if (p.format !== undefined && !(text && p.format === "date")) {
+            fail('format is "date", for a string parameter');
+        }
         if (p.pattern !== undefined) {
             if (!text || typeof p.pattern !== "string") {
                 fail("pattern is a regular expression, for a string parameter");
@@ -287,10 +295,14 @@ export function declaredProblems(declared) {
             }
         }
         for (const key of ["minLength", "maxLength"]) {
-            if (p[key] !== undefined && (!text || !Number.isSafeInteger(p[key]) || p[key] < 0 || p[key] > PARAM_LIMITS.length)) fail(`${key} is a whole number from 0 to ${PARAM_LIMITS.length}, for a string parameter`);
+            if (p[key] !== undefined && (!text || !Number.isSafeInteger(p[key]) || p[key] < 0 || p[key] > PARAM_LIMITS.length)) {
+                fail(`${key} is a whole number from 0 to ${PARAM_LIMITS.length}, for a string parameter`);
+            }
         }
         for (const key of ["minimum", "maximum"]) {
-            if (p[key] !== undefined && (!numeric || typeof p[key] !== "number" || !Number.isFinite(p[key]))) fail(`${key} is a number, for an integer or number parameter`);
+            if (p[key] !== undefined && (!numeric || typeof p[key] !== "number" || !Number.isFinite(p[key]))) {
+                fail(`${key} is a number, for an integer or number parameter`);
+            }
         }
         if (p.enum !== undefined && (!Array.isArray(p.enum) || !p.enum.length || p.enum.length > 100)) {
             fail("enum is a list of 1 to 100 values");
@@ -475,8 +487,12 @@ function valueOf(name, p, value, budget = { left: Infinity }) {
         if (!Number.isFinite(n) || (p.type === "integer" && !Number.isSafeInteger(n))) {
             fail(`must be ${p.type === "integer" ? "a whole number" : "a number"}`);
         }
-        if (p.minimum !== undefined && n < p.minimum) fail(`must be at least ${p.minimum}`);
-        if (p.maximum !== undefined && n > p.maximum) fail(`must be at most ${p.maximum}`);
+        if (p.minimum !== undefined && n < p.minimum) {
+            fail(`must be at least ${p.minimum}`);
+        }
+        if (p.maximum !== undefined && n > p.maximum) {
+            fail(`must be at most ${p.maximum}`);
+        }
         out = n;
     } else {
         // a text as text: a number or a boolean is a caller's mistake about the type, not a value
@@ -486,22 +502,32 @@ function valueOf(name, p, value, budget = { left: Infinity }) {
             fail("must be a text without lone surrogates (not well-formed Unicode)");
         }
         const max = p.maxLength ?? PARAM_LIMITS.defaultLength;
-        if (text.length > max) fail(`must have at most ${max} characters`);
-        if (p.minLength !== undefined && text.length < p.minLength) fail(`must have at least ${p.minLength} characters`);
+        if (text.length > max) {
+            fail(`must have at most ${max} characters`);
+        }
+        if (p.minLength !== undefined && text.length < p.minLength) {
+            fail(`must have at least ${p.minLength} characters`);
+        }
         // whatever the pattern allows: never a path step up, a line break or another control character
         if (text.includes("..") || /\p{Cc}/u.test(text)) {
             fail("may not hold .. or control characters");
         }
         if (p.format === "date") {
             const day = DATE.test(text) ? new Date(`${text}T00:00:00Z`) : null;
-            if (!day || Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== text) fail("must be a date (YYYY-MM-DD)");
+            if (!day || Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== text) {
+                fail("must be a date (YYYY-MM-DD)");
+            }
         } else if (p.regex) {
             // an operator's pattern, anchored, runs on at most PARAM_LIMITS.length characters (maxLength holds)
             // tried twice: the value fits maxLength and the pattern passed the start's check under the
             // same limit, so a busy server is the likely cause
             const matched = matchTried(p.regex, text, 2, budget);
-            if (matched === null) throw busyCheck();
-            if (!matched) fail("is not in the expected form");
+            if (matched === null) {
+                throw busyCheck();
+            }
+            if (!matched) {
+                fail("is not in the expected form");
+            }
         } else if (!p.enum && !SAFE_TEXT.test(text)) {
             fail('may hold letters, digits and . _ ~ - only (the operator sets a pattern for other values)');
         }

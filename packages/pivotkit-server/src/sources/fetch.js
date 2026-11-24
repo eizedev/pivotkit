@@ -46,6 +46,7 @@ import https from "node:https";
 import { isIP } from "node:net";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 import { ipBytes, isLoopback, networkCodeOf, networkFailureOf } from "pivotkit-node/net";
+import { headerValueOf } from "../options/headers.js";
 
 /** The functions createGuardedFetch made. */
 const guardedFetches = new WeakSet();
@@ -62,8 +63,8 @@ const METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]);
 /** A header's name (RFC 9110 token). */
 const TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 
-/** A header's value: Latin-1 without control characters but tab. */
-const HEADER_VALUE = /^[\t\x20-\x7e\x80-\xff]*$/;
+/** A header's value of any length (options/headers.js headerValueOf). */
+const HEADER_VALUE = headerValueOf(0);
 
 /**
  * A request guardedFetch refused or could not finish. `code` is one of BAD_URL, NOT_HTTPS, USERINFO,

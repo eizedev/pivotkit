@@ -50,7 +50,7 @@ test("REST accepts a token of a configured issuer; the log names the issuer, nev
         const token = await mint(privateKey);
         const answer = await call(`${server.api}/views/validate`, { token, body: { source: "sales", view: BY_REGION } });
         assert.equal(answer.status, 200, JSON.stringify(answer.data));
-        const line = server.log.find((l) => l.msg === "call" || l.operation === "validate_view");
+        const line = server.log.find((l) => l.event === "request" && l.operation === "validate_view");
         assert.ok(line, JSON.stringify(server.log));
         assert.equal(line.client, "psu");
         assert.ok(!JSON.stringify(server.log).includes(token), "the log holds the token");
@@ -164,8 +164,8 @@ test("the MCP endpoint shares the check: it accepts the same token and refuses o
 test("with the server's own signed tokens on: each kind passes only its own verifier, never the other's", async () => {
     const { privateKey, options, dir } = setup({ auth: { signedTokens: { dir: "signed" } } });
     const config = join(dir, "pivotkit.json");
-    const { baseDir, ...written } = options;
-    void baseDir;
+    const written = { ...options };
+    delete written.baseDir;
     writeFileSync(config, `${JSON.stringify(written, null, 2)}\n`);
     const issued = runBin(["token", "issue", "--config", config, "--name", "ci", "--expires", "10m", "--json"], { env: { OPS: TOKEN } });
     assert.equal(issued.status, 0, issued.stderr);
@@ -273,7 +273,7 @@ test("claims and header: a future nbf or iat, alg none or HS256, a missing typ, 
             "sub a number": await mint(privateKey, { claims: { sub: 42 } }),
             "sub with a control character": await mint(privateKey, { sub: "alice\u0007" }),
             "sub with a space": await mint(privateKey, { sub: "alice smith" }),
-            "sub with a bidi control": await mint(privateKey, { sub: "alice‮" })
+            "sub with a bidi control": await mint(privateKey, { sub: "alice\u202E" })
         };
         for (const [name, token] of Object.entries(cases)) {
             assert.equal((await of(token)).refused, 401, name);
@@ -437,13 +437,13 @@ test("sub: surrogates, private-use and unassigned characters get 401; a subject 
     const { privateKey, options } = setup();
     const { core, of } = await callerWith(options);
     try {
-        for (const [name, sub] of [["a lone surrogate", "alice\uD800"], ["private use", "alice"], ["unassigned", "alice͸"]]) {
+        for (const [name, sub] of [["a lone surrogate", "alice\uD800"], ["private use", "alice\uE000"], ["unassigned", "alice\u0378"]]) {
             assert.equal((await of(await mint(privateKey, { sub }))).refused, 401, name);
         }
-        const composed = await of(await mint(privateKey, { sub: "rené" }));
-        const decomposed = await of(await mint(privateKey, { sub: "rené" }));
-        assert.equal(composed.subject, "rené");
-        assert.equal(decomposed.subject, "rené", "normalised to NFC");
+        const composed = await of(await mint(privateKey, { sub: "ren\u00E9" }));
+        const decomposed = await of(await mint(privateKey, { sub: "rene\u0301" }));
+        assert.equal(composed.subject, "ren\u00E9");
+        assert.equal(decomposed.subject, "ren\u00E9", "normalised to NFC");
         assert.equal(identityKey(composed), identityKey(decomposed));
     } finally {
         core.close();

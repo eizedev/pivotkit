@@ -149,21 +149,10 @@ The element sends no event for the store's saves and deletes.
 
 Type: `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }`.
 
-Per field, these keys set:
-
-- `agg` and `format`: the aggregator and format the field gets in Values. Another aggregator in the
-  value's menu keeps the format while the result is in the field's unit. A count does not keep it.
-- `drillFormat`: the format of its values in the drill-down, else `format`. `"text"` shows an
-  identifier as it is.
-- `order`: the field's custom order of items on Rows or Columns, also in a view without a sort entry
-  for it. Its menu offers it as "Custom order" and "Custom order, reversed".
-- `label`, `description`, `href` and `type`: the field's display name, its description behind an
-  "i", a "Learn more" link (https) and its column type. See [Field descriptions and
-  names](../concepts/fields.md).
-
-Some number fields are identifiers. The report counts them and shows them as they are. This applies
-to a field with whole numbers named ID, …Id, …_id, Nr, No, Number, Key or #, when none of `agg`,
-`format` and `drillFormat` is set. See [Identifier fields](../concepts/fields.md#identifier-fields).
+The keys work as in pivotkit-react's [`fieldDefaults`](react.md#prop-fielddefaults). They set the
+aggregator and formats a field gets, its order of items, its display name, description, link and
+column type. A number field without `agg`, `format` and `drillFormat` can be an
+[identifier field](../concepts/fields.md#identifier-fields).
 
 ### `height` { #prop-height }
 
@@ -563,8 +552,8 @@ They are approximate and change with every dependency update.
 CI runs the same command on Node 24 and measures the same numbers. It fails when a group is over
 `SIZE_BUDGET_KIB` in `build.js`:
 
-- The first load's budget is 182 KiB. It is a hard line: a feature that needs room there makes it by
-  moving something out of the first load.
+- The first load's budget is a hard line: a feature that needs room there makes it by moving
+  something out of the first load.
 - The budgets of the groups loaded later leave a little room above what CI measures.
 - A Node with the system's zlib, such as Homebrew's, measures other sizes. The command says so.
 

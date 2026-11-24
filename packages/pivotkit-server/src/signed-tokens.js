@@ -20,8 +20,9 @@
  *
  * Every key verifies; the newest (kids sort by their UTC time) signs, so a new key rotates without
  * breaking tokens of the old one. One file per token: two commands at once lose nothing, and need
- * no lock. The server only reads: the keys at most once a second (at once for an unknown key, at
- * most once a second), the deny list on every request. The commands write and prune.
+ * no lock. The server only reads: the keys when their directory changed (one stat per request) or
+ * the last read is a second old (keyring), the deny list on every request. The commands write and
+ * prune.
  *
  * createSignedVerifier is the verifier on its own: the keys come from a function, so a key held
  * elsewhere (an issuer's public key) can be verified the same way.
@@ -330,11 +331,11 @@ export function signedStore(dir, { now = Date.now } = {}) {
             }
             try {
                 const record = JSON.parse(await readFile(join(part("issued"), name), "utf8"));
-                if (record?.id === id && typeof record.expiresAt === "string") {
+                if (record?.id === id && typeof record.expiresAt === "string" && typeof record.issuedAt === "string") {
                     out.push(record);
                 }
             } catch {
-                // a record cut by a crash: the token still verifies, it is only not listed
+                // a record cut by a crash or edited by hand: the token still verifies, it is only not listed
             }
         }
         return out.sort((a, b) => a.issuedAt.localeCompare(b.issuedAt));
@@ -381,7 +382,7 @@ export function signedStore(dir, { now = Date.now } = {}) {
         loadKeys,
         keysStamp,
         /** Whether the keys directory changed since `stamp` (NaN: never read, or not there then). */
-        keysChanged: (stamp) => keysStamp().then((now) => !Object.is(now, stamp), () => true),
+        keysChanged: (stamp) => keysStamp().then((current) => !Object.is(current, stamp), () => true),
         issued,
         revokedIds,
         ensureDirs,

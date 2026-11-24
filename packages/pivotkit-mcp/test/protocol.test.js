@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { OPERATION_NAMES, VIEW_GUIDE } from "pivotkit-report/operations";
 import { BY_REGION, SALES_CSV, call, httpClient, httpServer, stdioClient, workspace } from "./helpers.js";
 
-/** The tools in the table's order: a new tool is a change of this list, seen in review. */
+/** The tools in the table's order, named on purpose: a new tool changes this list, so a review sees it. */
 const TOOL_NAMES = ["list_sources", "describe_source", "suggest_view", "get_view_guide", "validate_view", "describe_view", "render_view", "create_link", "draft_schedule"];
 
 /** The workflow a model runs, checked step by step. */

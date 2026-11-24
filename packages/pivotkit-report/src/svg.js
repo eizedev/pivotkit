@@ -24,6 +24,14 @@ const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 /** Whether XML 1.0 allows a character (Char): a numeric reference to any other makes the SVG unreadable. */
 const xmlChar = (code) => code === 0x9 || code === 0xa || code === 0xd || (code >= 0x20 && code <= 0xd7ff && code !== 0x7f) || (code >= 0xe000 && code <= 0xfffd) || (code >= 0x10000 && code <= 0x10ffff);
 
+/** Where the end tag of the <style> element that starts at `lt` begins: the first one after it; -1 for none. */
+function styleEnd(svg, lt) {
+    const close = /<\/style\s*>/gi;
+    close.lastIndex = lt;
+    const found = close.exec(svg);
+    return found ? found.index : -1;
+}
+
 /** Whether a numeric reference stays: a character XML allows that is no bidi control. */
 const keptReference = (code) => xmlChar(code) && !Number.isNaN(code) && !String.fromCodePoint(code).match(BIDI_CONTROLS);
 
@@ -67,8 +75,8 @@ export function cleanSvg(svg) {
         // ECharts writes the hover states of its marks as a <style> of CSS classes: a static image has
         // no hover, and an SVG shown under a strict Content-Security-Policy may hold no <style>
         if (/^<style[\s>]/i.test(svg.slice(lt, lt + 7))) {
-            const end = svg.search(/<\/style\s*>/i);
-            if (end === -1 || end < lt) {
+            const end = styleEnd(svg, lt);
+            if (end === -1) {
                 throw unsafe("a <style> element that is not closed");
             }
             i = svg.indexOf(">", end) + 1;
@@ -160,8 +168,8 @@ export function chartSvg(result, { echarts, style, width, height, locale, labels
     const readColor = typeof parse === "function" ? (/** @type {string} */ c) => (parse(c.trim()) ? c : null) : undefined;
     const marked = (/** @type {((v: number) => number) | undefined} */ pixelOf) => {
         // axisEvery is the report's own note, not ECharts'
-        const { axisEvery, ...decorated } = decorateOption(option, style, { width, height, categoryNames: series.categories, axisLabels: view.chart.axisLabels, readColor, pixelOf });
-        void axisEvery;
+        const decorated = decorateOption(option, style, { width, height, categoryNames: series.categories, axisLabels: view.chart.axisLabels, readColor, pixelOf });
+        delete decorated.axisEvery;
         return decorated;
     };
     const surface = style.getPropertyValue("--pk-surface").trim() || LIGHT_TOKENS["--pk-surface"];

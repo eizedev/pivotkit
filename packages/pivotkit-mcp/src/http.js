@@ -278,7 +278,7 @@ export async function createHttpHandler(context, runtime = {}) {
         async close() {
             downloads.close();
             limits.close();
-            auth.close?.();
+            // the OAuth core is the context's: context.close() ends it, not this handler
             await handler.close();
         }
     };

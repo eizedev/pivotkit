@@ -11,27 +11,9 @@ import { join } from "node:path";
 import { SignJWT, generateKeyPair } from "jose";
 import { CONNECTION_LIMITS, connectionGate, connectionLimitsOf, refusedText } from "../src/listen.js";
 import { checkConfig, serveFetch } from "pivotkit-server";
-import { call, factsOf, restServer, TOKEN, untilReady, workspace, runBin } from "./helpers.js";
+import { call, factsOf, rawExchange, restServer, TOKEN, untilReady, workspace, runBin } from "./helpers.js";
 import { localIssuer, signingKey } from "./auth/local-issuer.js";
 import { until } from "../../../tests/until.js";
-
-/** Sends raw bytes and gives back what the server answers (until it closes or `ms` pass). */
-function rawExchange(port, text, ms = 3000) {
-    return new Promise((resolve) => {
-        let got = "";
-        const socket = connect(port, "127.0.0.1", () => socket.write(text));
-        socket.on("data", (c) => {
-            got += c.toString("latin1");
-        });
-        const done = () => resolve(got);
-        socket.on("close", done);
-        socket.on("error", done);
-        setTimeout(() => {
-            socket.destroy();
-            done();
-        }, ms).unref();
-    });
-}
 
 test("CONNECTION_LIMITS: the defaults", () => {
     assert.deepEqual({ ...CONNECTION_LIMITS }, { total: 256, perAddress: 32, loopback: 16, headersMs: 5_000, requestMs: 30_000, checkMs: 1_000 });
@@ -447,4 +429,42 @@ test("check-config says which per-address bound applies: the default without and
     assert.deepEqual(await lineOf({ maxConnectionsPerAddress: 0 }), ["  connections per address: no bound (http.maxConnectionsPerAddress is 0)"]);
     // behind a trusted proxy the bound counts the proxy's address: every client shares it
     assert.deepEqual(await lineOf({ trustProxy: true, maxConnectionsPerAddress: 64 }), ["  connections per address: at most 64 (http.maxConnectionsPerAddress)", "    it counts the proxy's address, so all clients behind it share these 64"]);
+});
+
+test("serveFetch: an answer with two Set-Cookie headers reaches the client with both", async () => {
+    const listening = await serveFetch(
+        {
+            fetch: async () => {
+                const headers = new Headers({ "content-type": "text/plain" });
+                headers.append("set-cookie", "a=1; Path=/");
+                headers.append("set-cookie", "b=2; Path=/");
+                return new Response("ok", { headers });
+            }
+        },
+        { host: "127.0.0.1", port: 0, bodyBytes: 1024 }
+    );
+    try {
+        const cookies = await new Promise((resolve, reject) => {
+            httpRequest({ host: "127.0.0.1", port: listening.port, path: "/" }, (res) => {
+                res.resume();
+                res.on("end", () => resolve(res.headers["set-cookie"]));
+            })
+                .on("error", reject)
+                .end();
+        });
+        assert.deepEqual(cookies, ["a=1; Path=/", "b=2; Path=/"]);
+    } finally {
+        await listening.close();
+    }
+});
+
+test("serveFetch: a client whose headers came but whose body never ends is cut after requestMs", async () => {
+    const listening = await serveFetch({ fetch: async (request) => Response.json({ got: (await request.text()).length }) }, { host: "127.0.0.1", port: 0, bodyBytes: 1024, limits: { total: 8, loopback: 0, perAddress: 8, headersMs: 300, requestMs: 800, checkMs: 100 } });
+    try {
+        // 10 of the 100 bytes it declared, then nothing: the headers came in time, so only requestMs ends it
+        const answer = await rawExchange(listening.port, `POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n${"x".repeat(10)}`, 4000);
+        assert.match(answer, /^HTTP\/1\.1 408/, JSON.stringify(answer));
+    } finally {
+        await listening.close();
+    }
 });

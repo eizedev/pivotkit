@@ -172,7 +172,8 @@ async function serve(service, request, info) {
     const url = new URL(request.url);
     const path = url.pathname.length > 1 ? url.pathname.replace(/\/$/, "") : url.pathname;
     if (path === PRM_PATH) {
-        return discovery.resourceMetadata();
+        // the metadata is read, never written (RFC 9728); serveFetch drops a HEAD answer's body
+        return request.method === "GET" || request.method === "HEAD" ? discovery.resourceMetadata() : problem("METHOD_NOT_ALLOWED", "use GET or HEAD", { headers: { allow: "GET, HEAD" } });
     }
     if (path === OPENAPI_PATH) {
         return serveOpenApi(service, request, address);
@@ -221,8 +222,11 @@ async function serve(service, request, info) {
  */
 async function serveOpenApi({ rest, problem, signIn, discovery }, request, address) {
     const shown = rest.openapi ?? "auth";
-    if (shown === "off" || request.method !== "GET") {
-        return problem(request.method !== "GET" && shown !== "off" ? "METHOD_NOT_ALLOWED" : "NOT_FOUND", "no such route");
+    if (shown === "off") {
+        return problem("NOT_FOUND", "no such route");
+    }
+    if (request.method !== "GET" && request.method !== "HEAD") {
+        return problem("METHOD_NOT_ALLOWED", "use GET or HEAD", { headers: { allow: "GET, HEAD" } });
     }
     if (shown === "auth") {
         const who = await signIn.authenticate(request, address);

@@ -21,6 +21,8 @@ for (const format of ["csv", "json", "html"]) {
             writeFileSync(file, r.body);
         }
         assert.equal(r.text, new TextDecoder().decode(readFileSync(file)), `${format} differs from test/golden/report.${format}`);
+        // the bytes too: decoding drops a leading BOM, so the text alone could not pin the CSV's
+        assert.deepEqual(Buffer.from(r.body), readFileSync(file), `${format}: the bytes differ from test/golden/report.${format}`);
     });
 }
 

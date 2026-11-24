@@ -24,6 +24,12 @@ import { define } from "./element.js";
  * @typedef {import("./element.js").TemplateSave} TemplateSave
  * @typedef {import("./element.js").TemplateDelete} TemplateDelete
  * @typedef {import("./element.js").TemplatePublish} TemplatePublish
+ * @typedef {import("./element.js").TipDismiss} TipDismiss
+ * @typedef {import("./element.js").DataLoad} DataLoad
+ * @typedef {import("./element.js").SourceEntry} SourceEntry
+ * @typedef {import("./element.js").SourceSwitch} SourceSwitch
+ * @typedef {import("./element.js").ReaderPlugin} ReaderPlugin
+ * @typedef {import("./element.js").ColumnarData} ColumnarData
  * @typedef {import("./global.js").PivotReportEventMap} PivotReportEventMap
  */
 

@@ -20,6 +20,7 @@ export const NAME = "log";
 /** The schema of `log`: a level, or the object. */
 const LOG = Object.freeze({ or: [{ enum: LOG_LEVELS }, { object: { level: { enum: LOG_LEVELS }, format: { enum: LOG_FORMATS }, address: { enum: LOG_ADDRESS } } }] });
 
+/** @type {Readonly<Partial<Record<import("./shared.js").Slot, Record<string, any>>>>} */
 export const KEYS = Object.freeze({ top: { log: LOG } });
 
 /** The schema says it all. */

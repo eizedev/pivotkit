@@ -72,7 +72,7 @@ export function slugOf(name) {
  */
 
 /**
- * What a PNG file's bytes are not, or null for a PNG within the cap; its size from the IHDR chunk.
+ * Whether bytes are a PNG within the cap: its size from the IHDR chunk, or the problem.
  * @param {Buffer} bytes
  * @returns {{ problem: string } | { width: number, height: number }}
  */

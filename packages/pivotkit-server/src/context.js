@@ -161,8 +161,8 @@ export async function createContext(options, runtime = {}) {
         if (insideAllowed(dir)) {
             throw new ConfigError(`output.dir: ${OUTPUT_INSIDE_ALLOWED}`);
         }
-        // old reports are deleted by their extension (.csv, .json, ...): never where the operator's
-        // own files lie, which have such names too
+        // an age limit deletes only files with the output mark (reportsIn in output.js); where the
+        // operator's own files lie, it is refused all the same, so no sweep runs beside them
         const shared = (await ownFileDirs(options)).includes(dir);
         for (const key of /** @type {const} */ (["maxAgeDays", "draftMaxAgeDays"])) {
             if (options.output[key] && shared) {

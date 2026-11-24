@@ -28,8 +28,9 @@ function attributes(tag) {
 
 /** The start tags of elements named `local` (any namespace prefix). */
 function tags(xml, local) {
-    // [^<>]: a tag never holds "<", so each attempt ends at the next one: linear, also for "<sheet" repeated without ">"
-    return [...xml.matchAll(new RegExp(`<(?:[\\w.-]+:)?${local}\\b([^<>]*)>`, "g"))].map((m) => attributes(m[1]));
+    // a quoted value may hold ">" (name="A>B" is legal XML), never "<": each attempt still ends at the next
+    // "<", so the scan stays linear, also for "<sheet" repeated without ">"
+    return [...xml.matchAll(new RegExp(`<(?:[\\w.-]+:)?${local}\\b((?:[^<>"']|"[^<"]*"|'[^<']*')*)>`, "g"))].map((m) => attributes(m[1]));
 }
 
 /** "worksheets/sheet1.xml" relative to xl/ (or "/xl/..." absolute) -> "xl/worksheets/sheet1.xml" */

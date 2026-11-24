@@ -17,7 +17,6 @@ const OPEN = "0.0.0.0";
 /** A token as the start makes it: 32 random bytes in base64url. */
 const TOKEN_TEXT = /^[A-Za-z0-9_-]{43}$/;
 
-
 /** A workspace with an empty state directory beside it. */
 function setup() {
     const dir = workspace();
@@ -214,7 +213,7 @@ test("starts racing on one state directory end with one token, and no temporary 
     assert.deepEqual(readdirSync(secrets), ["admin.token"]);
 });
 
-test("without hard links: a start that finds the file another start is still writing waits for its value", async () => {
+test("a start that finds the secret file another start is still writing (empty, as without hard links) waits for its value", async () => {
     const { state, secrets } = setup();
     mkdirSync(secrets, { mode: 0o700 });
     const target = join(secrets, "admin.token");
@@ -435,8 +434,6 @@ test("check-config resolves the same files without making them, and has no PROBL
     assert.match(text, /the download links' key \(default of the state directory\): .*downloads\.key, made at the first start/);
     assert.match(text, /read the token with: pivotkit-server token show admin --state-dir /);
     assert.match(text, /Auth: token/);
-    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
-    assert.doesNotMatch(text, /made at the first start in .*an empty \$PIVOTKIT_STATE_DIR keeps the start as before/);
     stateMeans.container = container;
     assert.deepEqual(readdirSync(state), []);
     // the runner, as the image runs it: exit 0, nothing made

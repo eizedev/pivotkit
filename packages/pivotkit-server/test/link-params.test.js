@@ -53,7 +53,7 @@ test("an allowed parameter lands in the page's query string; the view stays in t
         assert.equal(result.ok, true, JSON.stringify(result.findings));
         assert.match(result.url, /^https:\/\/reports\.example\.test\/tickets\?customer=acme#pivot=1\./);
         assert.deepEqual(queryOf(result.url), [["customer", "acme"]], "a default (size) and a claim (tenant) stay out");
-        // the fragment holds the view as before: the source's id, no params
+        // the fragment holds the view: the source's id, no params
         const fragment = linkFragment(new URL(result.url).hash, null);
         assert.ok(fragment?.startsWith("1."));
         // the value written again by the server: a number in a text is a number
@@ -108,7 +108,7 @@ test("the server refuses a parameter the list leaves out, an unknown one and a c
         const claimed = await errorOf(present(context, "create_link", { source: "tickets", view: VIEW, params: { tenant: "t-2" } }, PERSON));
         assert.equal(claimed.code, "INVALID_INPUT");
         assert.match(claimed.message, /params\.tenant is set by the server from your sign-in; leave it out/);
-        // the other operations take every declared parameter, as before
+        // the other operations take every declared parameter
         const described = await present(context, "describe_source", { source: "tickets", params: { region: "north" } }, PERSON);
         assert.ok(described.result.fields.length > 0);
     } finally {
@@ -148,7 +148,7 @@ test("a source the caller may not use answers the same with params as a missing 
     }
 });
 
-test("without linkParams create_link works as before: the params are checked and read, the link carries none", async () => {
+test("without linkParams create_link works as it does for any source: the params are checked and read, the link carries none", async () => {
     const context = await contextOf({ sources: { tickets: { load, params: PARAMS, link: PAGE, policy: { default: "show" } } } });
     try {
         const { result } = await present(context, "create_link", { source: "tickets", view: VIEW, params: { customer: "acme", region: "north" } }, PERSON);

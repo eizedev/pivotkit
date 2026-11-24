@@ -153,7 +153,6 @@ switch ($action) {
 const windowsTarget = (account) => `${KEYCHAIN_SERVICE}:${account}`;
 
 /**
-/**
  * @typedef {{ name: string, missing: string, write(account: string, secret: string): Promise<{ code: number | null, missing?: boolean }>, read(account: string): Promise<string | null>, remove(account: string): Promise<void> }} Keychain
  *   missing: what to install when the tool is not there
  */

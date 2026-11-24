@@ -44,7 +44,7 @@ The input:
 | --- | --- | --- |
 | `source` | yes | A source id whose entry in `GET /sources` has `records: true` |
 | `params` | no | The source's parameters, as on the other routes |
-| `fields` | no | The fields to answer, in this order. Names match without case |
+| `fields` | no | The fields to answer, in this order. Names match as the policy matches them: case, Unicode form and extra spaces do not count |
 | `view` | no | A view, or its JSON text. Only the fields it uses are answered |
 
 Give `fields` or `view`, not both. Without either, every field at `show` is answered.
@@ -137,8 +137,6 @@ limit wins.
 | `rest.records.idleMs` | 30000 | A reader that reads nothing for this long loses its place (1000 to 600000) |
 | `rest.records.writeMs` | 10000, at most `compute.timeMs` | A reader that has not read the whole answer within this time loses its place (1000 to 600000, not above `compute.timeMs`) |
 | `sources.<id>.records.maxRows` | `rest.records.maxRows` | A lower row limit for one source. It cannot be higher than the server's |
-
-The defaults are a first guess. Real row counts will set them better.
 
 - Over a row or cell limit, the answer is 413 `LIMIT_EXCEEDED`, for example "this source has too
   many rows to open here (60,000, the limit is 50,000); filter it with a parameter or ask the

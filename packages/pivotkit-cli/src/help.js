@@ -88,6 +88,7 @@ export function completionScript(shell) {
                 lines.push(`complete -c pivotkit -n ${sh(`__fish_seen_subcommand_from ${c.name}`)} -l ${o.name}${o.short ? ` -s ${o.short}` : ""}${values}`);
             }
             if (c.args[0]?.complete === "shell") lines.push(`complete -c pivotkit -n ${sh("__fish_seen_subcommand_from completion")} -a ${sh(SHELLS.join(" "))}`);
+            if (c.args[0]?.complete === "command") lines.push(`complete -c pivotkit -n ${sh(`__fish_seen_subcommand_from ${c.name}`)} -a ${sh(names)}`);
             if (c.args[0]?.complete === "example") lines.push(`complete -c pivotkit -n ${sh(`__fish_seen_subcommand_from ${c.name}`)} -a ${sh(exampleNames().join(" "))}`);
             if (c.args[0]?.complete === "file") lines.push(`complete -c pivotkit -n ${sh(`__fish_seen_subcommand_from ${c.name}`)} -F`);
         }
@@ -113,6 +114,7 @@ Register-ArgumentCompleter -Native -CommandName pivotkit -ScriptBlock {
         $previous = if ($wordToComplete) { $words[-2] } else { $words[-1] }
         if ($entry.choices.ContainsKey($previous)) { $candidates = $entry.choices[$previous] }
         elseif ($words[1] -eq 'completion') { $candidates = @(${SHELLS.map(ps).join(", ")}) }
+        elseif ($words[1] -eq 'help' -and -not ($wordToComplete -like '-*')) { $candidates = @(${commands.map((c) => ps(c.name)).join(", ")}) }
         elseif ($words[1] -eq 'example' -and -not ($wordToComplete -like '-*')) { $candidates = @(${exampleNames().map(ps).join(", ")}) }
         elseif ($wordToComplete -like '-*') { $candidates = $entry.options }
         else { return }

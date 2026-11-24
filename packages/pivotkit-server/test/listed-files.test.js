@@ -3,8 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { createRequire, syncBuiltinESMExports } from "node:module";
 import { join } from "node:path";
 import { callerOf, createContext, present } from "pivotkit-server";
+import { LISTED_FILES } from "../src/registry.js";
 import { BY_REGION, SALES_CSV, call, restServer, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
@@ -25,6 +27,30 @@ test("list_sources lists the files of every allowed directory by name: no server
         const read = await present(ctx, "describe_source", { source: "file:b.csv" }, LOCAL);
         assert.ok(read.result.rows > 0);
     } finally {
+        await ctx.close();
+    }
+});
+
+test("list_sources lists the first files of a directory by name, whatever order the file system keeps", async () => {
+    const dir = workspace();
+    mkdirSync(join(dir, "many"));
+    const names = Array.from({ length: LISTED_FILES + 1 }, (_, i) => `f${String(i).padStart(3, "0")}.csv`);
+    for (const name of names) {
+        writeFileSync(join(dir, "many", name), SALES_CSV);
+    }
+    // a file system that lists the names last first (APFS and NTFS list them sorted, ext4 does not)
+    const fsPromises = createRequire(import.meta.url)("node:fs/promises");
+    const readdir = fsPromises.readdir;
+    fsPromises.readdir = async (...args) => (await readdir(...args)).toReversed();
+    syncBuiltinESMExports();
+    const ctx = await createContext({ log: "off", files: { allowDirs: [join(dir, "many")], list: true } });
+    try {
+        const { result } = await present(ctx, "list_sources", {}, LOCAL);
+        const ids = result.sources.filter((s) => s.kind === "file").map((s) => s.id);
+        assert.deepEqual(ids, names.slice(0, LISTED_FILES).map((n) => `file:${n}`));
+    } finally {
+        fsPromises.readdir = readdir;
+        syncBuiltinESMExports();
         await ctx.close();
     }
 });

@@ -350,12 +350,14 @@ export function createComputer(options = {}, internal = {}) {
             }
             try {
                 worker.postMessage(sending);
-            } catch {
-                // an input the structured clone cannot copy (nested thousands of levels deep): the
-                // worker never got it, so it is free at once rather than after compute.timeMs
+            } catch (e) {
+                // an input the structured clone cannot copy: nested thousands of levels deep (a
+                // RangeError), or a value it cannot clone at all, such as a function in a host's own
+                // table (a DataCloneError). The worker never got it, so it is free at once rather
+                // than after compute.timeMs
                 end();
                 release(slot);
-                how.fail(new OperationError("INVALID_INPUT", "the input is nested too deeply"));
+                how.fail(new OperationError("INVALID_INPUT", e instanceof RangeError ? "the input is nested too deeply" : "the input holds a value that cannot be sent to a worker"));
                 return;
             }
             sent[full ? "tables" : "cached"] += key !== null ? 1 : 0;

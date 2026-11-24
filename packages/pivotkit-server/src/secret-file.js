@@ -66,7 +66,6 @@ export function newSecret(bytes, usable = () => null) {
     throw new SecretFileError("UNUSABLE", `no usable secret of ${bytes} random bytes in ${NEW_SECRET_DRAWS} draws`);
 }
 
-
 /** The mode of a secret file: its owner reads and writes it, nobody else. */
 export const SECRET_MODE = 0o600;
 
@@ -211,7 +210,8 @@ async function createWith(path, bytes, mode, label, owner = null, groupBits = 0)
         await handle.close();
         return after ? { uid: after.uid, gid: after.gid, mode: after.mode & 0o777 } : null;
     } catch (e) {
-        await handle.close();
+        // the close may be the step that failed: the file still goes, and the first error is the one told
+        await handle.close().catch(() => undefined);
         await unlink(path).catch(() => undefined);
         throw e;
     }
@@ -389,7 +389,7 @@ async function readSettled(target, label, usable, kind, throughLink = false) {
  */
 export async function placeSecret(path, value, { replace = false, keep = false, usable = () => null, kind = "secret", label = path } = {}) {
     const { dir, target } = await targetOf(resolve(path), label);
-    if (keep && (await lstat(target).catch(() => null))?.isSymbolicLink()) {
+    if (keep && (await secretFileMeans.lstat(target).catch(() => null))?.isSymbolicLink()) {
         // a mounted Secret: checked through the link, never written
         return { path: target, ...(await readSettled(target, label, usable, kind, true)), created: false, replaced: false, throughLink: true };
     }

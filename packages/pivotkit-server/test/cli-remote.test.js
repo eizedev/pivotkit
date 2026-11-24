@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { OTHER_TOKEN, TOKEN, restServer, workspace } from "./helpers.js";
+import { OTHER_TOKEN, POSIX, TOKEN, binEnv, restServer, workspace } from "./helpers.js";
 
 const CLI = join(dirname(createRequire(import.meta.url).resolve("pivotkit-cli/package.json")), "bin", "pivotkit.js");
 const VIEW = JSON.stringify({ rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] });
@@ -15,7 +15,7 @@ const VIEW = JSON.stringify({ rows: ["Region"], values: [{ field: "Sales", agg: 
 /** pivotkit with its arguments, the token in PIVOTKIT_TOKEN. */
 function pivotkit(args, { cwd, token }) {
     return new Promise((resolve, reject) => {
-        const child = spawn(process.execPath, [CLI, ...args], { cwd, env: { PATH: process.env.PATH, HOME: process.env.HOME, PIVOTKIT_TOKEN: token }, stdio: ["ignore", "pipe", "pipe"] });
+        const child = spawn(process.execPath, [CLI, ...args], { cwd, env: binEnv({ PIVOTKIT_TOKEN: token }), stdio: ["ignore", "pipe", "pipe"] });
         const out = [];
         const err = [];
         child.stdout.on("data", (c) => out.push(c));
@@ -68,7 +68,7 @@ test("pivotkit --url: a plain token validates, describes and lists; render needs
         const rendered = await pivotkit(["render", "view.json", ...remote, "-o", "out.csv"], exporter);
         assert.equal(rendered.code, 0, rendered.stderr);
         assert.match(readFileSync(join(dir, "out.csv"), "utf8"), /^\uFEFF?Region,Sum of Sales\r?\n/);
-        if (process.platform !== "win32") {
+        if (POSIX) {
             assert.equal(statSync(join(dir, "out.csv")).mode & 0o777, 0o600);
         }
         // a view using the hidden field: the server's findings, exit 1, no file
@@ -121,15 +121,14 @@ test("pivotkit --param against the service: a text, a whole number and a true/fa
         assert.match(readFileSync(join(dir, "out.csv"), "utf8"), /north-2026/);
         assert.ok(seen.length > 0);
         assert.ok(seen.every((p) => p.team === "north" && p.year === 2026 && p.open === true), JSON.stringify(seen));
-        // a value of the wrong form: the server's words, in one line
+        // a refused value: the server's words in one line, then the flag that fixes it
         const wrong = await pivotkit(["sources", "team", "--url", server.api, "--param", "team=north", "--param", "year=soon"], as);
         assert.equal(wrong.code, 2);
-        assert.match(wrong.stderr, /params\.year must be a whole number/);
+        assert.match(wrong.stderr, /\npivotkit: the server answered 400 INVALID_INPUT: params\.year must be a whole number; fix it with --param year=<value>\n$/);
         // left out: the flag that gives it
         const missing = await pivotkit(["sources", "team", "--url", server.api], as);
+        assert.equal(missing.code, 2);
         assert.match(missing.stderr, /\npivotkit: the server answered 400 INVALID_INPUT: the source team needs params\.team \(a string\); re-run with --param team=<value>\n$/);
-        // a refused value: the server's words in one parenthesis, then the flag that fixes it
-        assert.match(wrong.stderr, /\npivotkit: the server answered 400 INVALID_INPUT: params\.year must be a whole number; fix it with --param year=<value>\n$/);
     } finally {
         await server.close();
     }

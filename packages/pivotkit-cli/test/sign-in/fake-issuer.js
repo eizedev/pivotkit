@@ -116,11 +116,11 @@ export function tokenFile(dir) {
     return join(dir, "pivotkit", "tokens", files[0]);
 }
 
-/** Runs main() in this process with sign-ins in `dir`. */
-export async function inProcess(args, dir) {
+/** Runs main() in this process with sign-ins in `dir`, and `env` over the environment of envOf. */
+export async function inProcess(args, dir, env = {}) {
     const out = [];
     const err = [];
-    const code = await main(args, { stdin: (async function* () {})(), stdout: { write: (c) => out.push(String(c)) }, stderr: { write: (c) => err.push(String(c)) }, env: envOf(dir), cwd: dir });
+    const code = await main(args, { stdin: (async function* () {})(), stdout: { write: (c) => out.push(String(c)) }, stderr: { write: (c) => err.push(String(c)) }, env: { ...envOf(dir), ...env }, cwd: dir });
     return { code, stdout: out.join(""), stderr: err.join("") };
 }
 

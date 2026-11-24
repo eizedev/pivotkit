@@ -8,9 +8,14 @@
 pivotkit is Excel's PivotTable for web applications and the command line. People load their data,
 build a report by dragging fields and take it to Excel. The same report renders again in CI.
 
-<a href="https://pivotkit.eize.dev/demo/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/report-dark.png"><img src="docs/assets/screenshots/report-light.png" alt="The pivot report: average temperature of 14 cities by month as a colour scale" width="100%"></picture></a>
+<a href="https://pivotkit.eize.dev/demo/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/report-dark.png">
+  <img src="docs/assets/screenshots/report-light.png" width="100%"
+    alt="The pivot report: average temperature of 14 cities by month as a colour scale">
+</picture></a>
 
-**[Try the live demo](https://pivotkit.eize.dev/demo/)** · [Documentation](https://pivotkit.eize.dev/) · [Comparison](https://pivotkit.eize.dev/compare/) · [Releases](#releases-and-changelogs)
+**[Try the live demo](https://pivotkit.eize.dev/demo/)** · [Documentation](https://pivotkit.eize.dev/) ·
+[Comparison](https://pivotkit.eize.dev/compare/) · [Releases](#releases-and-changelogs)
 
 [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/pivotkit-react?label=pivotkit-react)](https://www.npmjs.com/package/pivotkit-react)
@@ -44,11 +49,13 @@ Every feature: [feature list](https://pivotkit.eize.dev/features/).
 
 The report in the browser computes on the rows the host passes and fetches no data. The services fetch
 data from the sources you configure. pivotkit sends nothing home:
-[network requests](https://pivotkit.eize.dev/security/#network). [Security](docs/security.md) ·
-[Security policy](SECURITY.md) · [Measured performance](docs/concepts/limits.md#measured-in-the-browser)
+[network requests](https://pivotkit.eize.dev/security/#network). [Security](https://pivotkit.eize.dev/security/) ·
+[Security policy](SECURITY.md) ·
+[Measured performance](https://pivotkit.eize.dev/concepts/limits/#measured-in-the-browser)
 
 The report runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4:
-[browser support](docs/browser-support.md). The engine, the command line and the services run in Node 24 or later.
+[browser support](https://pivotkit.eize.dev/browser-support/). The engine, the command line and the services
+run in Node 24 or later.
 [What works with pivotkit](https://pivotkit.eize.dev/compatibility/) lists sign-in providers, MCP clients,
 data sources and platforms, and how each was tested.
 
@@ -66,7 +73,8 @@ data sources and platforms, and how each was tested.
 - [pivotkit-cli](packages/pivotkit-cli/): the [command line](https://pivotkit.eize.dev/reference/cli/) `pivotkit`.
   `npm install --global pivotkit-cli`
 - [pivotkit-server](packages/pivotkit-server/): the [REST service](https://pivotkit.eize.dev/reference/rest/),
-  also as a [container image](https://pivotkit.eize.dev/reference/container/). `npm install --global pivotkit-server pivotkit-mcp`
+  also as a [container image](https://pivotkit.eize.dev/reference/container/).
+  `npm install --global pivotkit-server pivotkit-mcp`
 - [pivotkit-mcp](packages/pivotkit-mcp/): the [MCP server](https://pivotkit.eize.dev/reference/mcp/),
   over stdio or HTTP. `npx -y pivotkit-mcp`
 
@@ -98,8 +106,10 @@ its first start. Step by step:
 [server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/).
 
 ```bash
-docker run -d --name pivotkit -p 127.0.0.1:3333:3333 -v pivotkit:/var/lib/pivotkit ghcr.io/eizedev/pivotkit:0.4.0
-curl -H "Authorization: Bearer $(docker exec pivotkit pivotkit-server token show admin)" http://127.0.0.1:3333/api/v1/sources
+docker run -d --name pivotkit -p 127.0.0.1:3333:3333 \
+  -v pivotkit:/var/lib/pivotkit ghcr.io/eizedev/pivotkit:0.4.0
+curl -H "Authorization: Bearer $(docker exec pivotkit pivotkit-server token show admin)" \
+  http://127.0.0.1:3333/api/v1/sources
 ```
 
 The package READMEs are short npm pages that link to the [documentation](https://pivotkit.eize.dev/).
@@ -127,7 +137,8 @@ Each package has releases of its own. The [GitHub releases](https://github.com/e
 list them with their notes. Each package keeps a `CHANGELOG.md`:
 [core](packages/pivotkit-core/CHANGELOG.md), [react](packages/pivotkit-react/CHANGELOG.md),
 [element](packages/pivotkit-element/CHANGELOG.md), [xlsx](packages/pivotkit-xlsx/CHANGELOG.md),
-[report](packages/pivotkit-report/CHANGELOG.md), [node](packages/pivotkit-node/CHANGELOG.md), [cli](packages/pivotkit-cli/CHANGELOG.md),
+[report](packages/pivotkit-report/CHANGELOG.md), [node](packages/pivotkit-node/CHANGELOG.md),
+[cli](packages/pivotkit-cli/CHANGELOG.md),
 [server](packages/pivotkit-server/CHANGELOG.md), [mcp](packages/pivotkit-mcp/CHANGELOG.md).
 Before you update, read [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/).
 [Versioning](https://pivotkit.eize.dev/versioning/) says which releases may break things.
@@ -141,7 +152,8 @@ The icon, header and social preview in `assets/` and `docs/assets/icon.svg` come
 [eizedev/brand](https://github.com/eizedev/brand). Their licence is
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-The screenshot shows weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).
-It contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data.
+The screenshot shows weather data by [Open-Meteo.com](https://open-meteo.com/)
+([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). It contains modified Copernicus Climate
+Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data.
 The playground's real data sets keep the licences of their sources.
 [examples/playground/data/SOURCES.md](examples/playground/data/SOURCES.md) lists them.

@@ -396,9 +396,9 @@ restart.
     ```
 
     Microsoft Entra ID does not offer this exchange. Its per-person tokens need the On-Behalf-Of
-    flow, which pivotkit does not speak yet
-    ([#484](https://github.com/eizedev/pivotkit/issues/484), open for help). Until then, use a service
-    account with client credentials.
+    flow, which pivotkit does not speak
+    ([#484](https://github.com/eizedev/pivotkit/issues/484), open for help). Use a service account
+    with client credentials.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
