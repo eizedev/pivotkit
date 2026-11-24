@@ -70,6 +70,7 @@ nav = [
     { "Container image" = "reference/container.md" },
     { "Operations and logs" = "reference/operations.md" },
     { "Kubernetes" = "getting-started/kubernetes.md" },
+    { "Next to PowerShell Universal" = "getting-started/powershell-universal.md" },
     { "JavaScript exports" = "reference/service-exports.md" },
   ] },
   { "Reference" = [

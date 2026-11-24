@@ -1469,7 +1469,7 @@ location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|downloads/|healthz$|read
 ```
 
 Without containers, on Windows next to PowerShell Universal, `pivotkit-server serve` runs as a
-service with a service manager of your choice. [PowerShell Universal](../getting-started/mcp.md#psu)
+service with a service manager of your choice. [PowerShell Universal](../getting-started/powershell-universal.md#psu)
 has the steps: an account of its own, its file rights, the token from a PSU secret, a rotated log,
 and IIS with ARR in front. CI runs the server's tests on Linux, macOS and Windows. Its tests of
 file modes, owners, FIFOs, symbolic links and the stop on SIGTERM run on Linux and macOS only.
@@ -2015,20 +2015,9 @@ More about the handler:
 
 ## PowerShell Universal { #psu }
 
-A PowerShell Universal script, endpoint or app calls the REST service with `Invoke-RestMethod`
-instead of running Node on the PSU server:
-
-- Keep the token in a PSU secret.
-- Call `POST /api/v1/views/render/file` with a token whose profile has `results: true`, and hand the
-  file to the user.
-- Or call `POST /api/v1/views/render` to save the file in the service's output directory.
-
-See [Getting started: REST service](../getting-started/rest.md#powershell) for the calls in
-PowerShell, and [Getting started: MCP server](../getting-started/mcp.md#psu) for running the service
-next to PSU.
-
-The PSU module's report pages load their data from the PSU app, with the person's own rights. The
-REST service's policy does not apply to them.
+PSU scripts, endpoints and apps call the REST service with `Invoke-RestMethod`.
+[Services next to PowerShell Universal](../getting-started/powershell-universal.md#psu-rest) has
+the calls and the setup.
 
 ## Security { #security }
 

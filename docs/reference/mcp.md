@@ -714,7 +714,7 @@ Behind a reverse proxy:
 The server reads no `X-Forwarded-Proto` or `X-Forwarded-Host`: its own origin is `--public-url`. It
 reads `X-Forwarded-For` only with `http.trustProxy`, for the client's address in its limits and the
 log ([REST service](rest.md#running)). Without it, client addresses are in the proxy's log. For IIS
-with ARR, see [PowerShell Universal](../getting-started/mcp.md#psu-iis). For nginx:
+with ARR, see [PowerShell Universal](../getting-started/powershell-universal.md#psu-iis). For nginx:
 
 ```nginx
 location ~ ^/(mcp|\.well-known/|downloads/|healthz$|$) {

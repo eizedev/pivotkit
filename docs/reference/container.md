@@ -332,5 +332,6 @@ from the repository's lock file. The base images are pinned by digest
 ## Without containers { #windows }
 
 The same service runs from npm. Install it with `npm install --global pivotkit-server pivotkit-mcp`,
-then run `pivotkit-server serve --config pivotkit.json`. You can run it as a Windows service next to
-PowerShell Universal, for example. See [Running it](rest.md#running).
+then run `pivotkit-server serve --config pivotkit.json`. See [Running it](rest.md#running).
+[Services next to PowerShell Universal](../getting-started/powershell-universal.md) runs it as a
+Windows service.
