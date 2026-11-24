@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import * as esbuild from "esbuild";
-import { SIZE_NODE, bundledPackages, loadGroups, options, shadowStyleRuns, zlibNote } from "../build.js";
+import { CHUNK_GROUPS, SIZE_BUDGET_KIB, SIZE_NODE, bundledPackages, loadGroups, options, shadowStyleRuns, zlibNote } from "../build.js";
 import { hostStyles } from "../src/host-css.js";
 import { options as reactOptions } from "../../pivotkit-react/build.js";
 
@@ -79,6 +79,10 @@ test("the chart chunks hold the chart types pivotkit-react's echarts.js imports,
     const drawn = new Set(inputsOf(groups.chart).flatMap((i) => /echarts[\\/]lib[\\/]chart[\\/](\w+)[\\/]install\.js$/.exec(i)?.[1] ?? []));
     assert.deepEqual([...drawn].sort(), [...new Set(imported)].sort());
     assert.deepEqual([...drawn].sort(), ["bar", "heatmap", "line", "pie", "treemap"]);
+});
+
+test("every load group has a budget and every budget a group: SIZE_BUDGET_KIB is initial and CHUNK_GROUPS, in one order", () => {
+    assert.deepEqual(Object.keys(SIZE_BUDGET_KIB), ["initial", ...CHUNK_GROUPS.map(([group]) => group)]);
 });
 
 test("a chunk loaded on demand that belongs to no load group fails the build instead of counting nowhere", () => {

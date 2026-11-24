@@ -29,17 +29,17 @@ const FORMS = {
         command: (c) => new RegExp(`^ {4}${literal(c)}\\)$`, "m"),
         // within the command's own case: no other "    name)" line between
         option: (c, o) => new RegExp(`^ {4}${literal(c)}\\)\\n(?:(?!^ {4}[\\w-]+\\)$)[\\s\\S])*?compgen -W '[^']*--${literal(o)}(?:[ ']|$)`, "m"),
-        help: /^ {4}help\)\n(?:(?!^ {4}[\w-]+\)$)[\s\S])*?compgen -W 'render validate/m
+        help: (names) => new RegExp(`^ {4}help\\)\\n(?:(?!^ {4}[\\w-]+\\)$)[\\s\\S])*?compgen -W '${literal(names.join(" "))}'`, "m")
     },
     fish: {
         command: (c) => new RegExp(`^complete -c pivotkit -n __fish_use_subcommand -a '${literal(c)}' `, "m"),
         option: (c, o) => new RegExp(`^complete -c pivotkit -n '__fish_seen_subcommand_from ${literal(c)}' -l ${literal(o)}(?: |$)`, "m"),
-        help: /^complete -c pivotkit -n '__fish_seen_subcommand_from help' -a 'render validate/m
+        help: (names) => new RegExp(`^complete -c pivotkit -n '__fish_seen_subcommand_from help' -a '${literal(names.join(" "))}'$`, "m")
     },
     powershell: {
         command: (c) => new RegExp(`^ {4}'${literal(c)}' = @\\{`, "m"),
         option: (c, o) => new RegExp(`^ {4}'${literal(c)}' = @\\{ options = @\\([^)]*'--${literal(o)}'`, "m"),
-        help: /\$words\[1\] -eq 'help' .*\$candidates = @\('render', 'validate'/
+        help: (names) => new RegExp(`\\$words\\[1\\] -eq 'help' .*\\$candidates = @\\(${literal(names.map((n) => `'${n}'`).join(", "))}\\)`)
     }
 };
 FORMS.zsh = FORMS.bash;
@@ -53,7 +53,7 @@ for (const shell of Object.keys(CHECKS)) {
             assert.match(r.stdout, forms.command(command), command);
             for (const option of Object.keys(optionsOf(command))) assert.match(r.stdout, forms.option(command, option), `${command} --${option}`);
         }
-        assert.match(r.stdout, forms.help);
+        assert.match(r.stdout, forms.help(Object.keys(COMMANDS)));
     });
 }
 

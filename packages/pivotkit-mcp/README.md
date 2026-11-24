@@ -14,7 +14,7 @@ claude mcp add pivotkit -- npx -y pivotkit-mcp --source sales=/path/to/sales.csv
 
 - Node 24 or later.
 - It brings the official MCP TypeScript SDK and pivotkit-server. pivotkit-server brings
-  pivotkit-report, pivotkit-node's file handling, pivotkit-xlsx, ECharts, and jose.
+  pivotkit-report, pivotkit-node's file handling, pivotkit-xlsx, ECharts and jose.
 - `pivotkit-server serve` runs it next to the REST service on one port.
 
 ## Example

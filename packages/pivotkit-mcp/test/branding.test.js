@@ -92,3 +92,11 @@ test("listen with http.page.url: / and a browser's /mcp go to the operator's pag
         await server.close();
     }
 });
+
+test("the page escapes the icon's address like every other value", async () => {
+    const { quickStartPage } = await import("../src/page.js");
+    const branding = { name: "Reports", slug: "reports", docs: null, icon: { src: 'data:image/png;base64,AA"><script>x&y', width: 1, height: 1 } };
+    const page = quickStartPage({ endpoint: "http://127.0.0.1:3333/mcp", version: "0.0.0", auth: "none", issuer: null, sources: null, branding: /** @type {any} */ (branding) });
+    assert.ok(page.includes('<link rel="icon" type="image/png" href="data:image/png;base64,AA&quot;&gt;&lt;script&gt;x&amp;y">'), page.slice(0, 400));
+    assert.ok(!page.includes("<script>"));
+});
