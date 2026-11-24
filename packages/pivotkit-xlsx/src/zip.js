@@ -194,7 +194,7 @@ const CRC_TABLE = (() => {
 })();
 
 /** CRC-32 of bytes, continued from `crc` (start with 0). */
-export function crc32(bytes, crc = 0, from = 0, to = bytes.length) {
+function crc32(bytes, crc = 0, from = 0, to = bytes.length) {
     let c = ~crc;
     for (let i = from; i < to; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
     return ~c >>> 0;
@@ -255,11 +255,6 @@ export function createStoredZip(initial = 1 << 20) {
                     central.push({ name, crc, size, offset: header });
                 }
             };
-        },
-        add(path, bytes) {
-            const part = this.begin(path);
-            part.write(bytes);
-            part.end();
         },
         /** The finished ZIP (a view of the buffer). */
         finish() {
