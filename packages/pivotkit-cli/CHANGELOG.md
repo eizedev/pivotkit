@@ -10,7 +10,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Fixed
 
-- `pivotkit examples` and `writeNew` of `pivotkit-cli/files` write to file systems without hard
+- `pivotkit example` and `writeNew` of `pivotkit-cli/files` write to file systems without hard
   links, such as FAT, exFAT and some SMB mounts. They failed there.
 - With `--strict` and warnings only, the note says that `--strict` counts the warnings as errors. It
   said "the view has errors", which the view did not have.
