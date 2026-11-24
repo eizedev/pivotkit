@@ -43,7 +43,7 @@ import { json } from "./problem.js";
  * @property {boolean} trustProxy
  * @property {string} noRoute  the 404's detail (config.js noRouteDetail)
  * @property {number} ceiling  the largest body anyone may send
- * @property {{ take(client: string): (() => void) | null }} largeBodies
+ * @property {{ take(client: string): (() => void) | null, held(): number }} largeBodies
  * @property {ReturnType<typeof import("../limits.js").createLimits>} limits
  * @property {ReturnType<typeof import("./sign-in.js").createRestSignIn>} signIn
  * @property {ReturnType<typeof import("./discovery.js").createDiscovery>} discovery
@@ -147,6 +147,7 @@ export async function precheck(service, request, info) {
             return withCors(problem("BUSY", "", { headers: { "retry-after": "2" }, extra: { retryable: true } }), origin);
         }
         info[LARGE_PLACE] = give;
+        context.log.debug("REST: a large body holds one of the places for large bodies", { held: largeBodies.held() });
     }
     return null;
 }

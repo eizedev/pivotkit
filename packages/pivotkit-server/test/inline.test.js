@@ -17,6 +17,7 @@ import { BODY_BYTES, MAX_BODY_BYTES } from "../src/listen.js";
 import { MCP_DATA_CAP, REST_DATA_BYTES } from "../src/sources/inline.js";
 import { BIN, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspace } from "./helpers.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
+import { until } from "../../../tests/until.js";
 
 const LOCAL = callerOf("none", undefined);
 const BY_REGION = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
@@ -265,6 +266,9 @@ const restOptions = (dir, more = {}) => ({
     ...more
 });
 const restEnv = { env: { ETL_TOKEN: TOKEN, PLAIN_TOKEN: OTHER_TOKEN } };
+
+/** The places for large bodies the server's log says are held (its debug line), once `count` are. */
+const untilPlacesHeld = (server, count) => until(() => server.log.some((l) => l.msg === "REST: a large body holds one of the places for large bodies" && l.held === count), { message: `${count} places for large bodies held` });
 
 /** A multipart request: the parts as FormData, sent with fetch. */
 async function multipart(url, token, parts) {
@@ -605,7 +609,7 @@ test("the large body: only on a route that takes a source, and at most two at on
     // three callers that may send data: each may hold one place, two places in all
     const THIRD_TOKEN = "a-third-test-token-that-is-long-enough-42";
     const tokens = [TOKEN, OTHER_TOKEN, THIRD_TOKEN];
-    const server = await restServer(restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }, { name: "etl2", env: "PLAIN_TOKEN", profile: "etl" }, { name: "etl3", env: "THIRD_TOKEN", profile: "etl" }] } }), { env: { ...restEnv.env, THIRD_TOKEN } });
+    const server = await restServer(restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } }, log: "debug", auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }, { name: "etl2", env: "PLAIN_TOKEN", profile: "etl" }, { name: "etl3", env: "THIRD_TOKEN", profile: "etl" }] } }), { env: { ...restEnv.env, THIRD_TOKEN } });
     const size = 3 * 1_048_576;
     try {
         // (a request that declares a size it never sends gets a connection of its own: one kept alive
@@ -624,7 +628,7 @@ test("the large body: only on a route that takes a source, and at most two at on
             req.write("{");
             open.push(req);
         }
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await untilPlacesHeld(server, 2);
         const third = await raw(`${server.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${THIRD_TOKEN}`, "content-length": String(size), connection: "close" } });
         assert.equal(third.status, 503);
         assert.equal(third.data.code, "BUSY");
@@ -636,9 +640,9 @@ test("the large body: only on a route that takes a source, and at most two at on
         for (const req of open) {
             req.destroy();
         }
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        // a complete body: it takes a place only when one is free, else it is BUSY at once
         const big = { columns: ["Region", "Note"], rows: Array.from({ length: 25_000 }, (_, i) => [["North", "South"][i % 2], "n".repeat(90)]), rowCount: 25_000 };
-        assert.equal((await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: big } })).status, 200);
+        await until(async () => (await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: big } })).status === 200, { message: "the places were given back" });
     } finally {
         await server.close();
     }
@@ -697,7 +701,7 @@ test("a cell full of brackets is data, not nesting: only a view or layout given 
 });
 
 test("one place for a large body per caller: its second gets 503 BUSY while another caller still gets one", async () => {
-    const options = restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } }, policy: { profiles: { etl: { data: true }, etl2: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }, { name: "etl2", env: "PLAIN_TOKEN", profile: "etl2" }] } });
+    const options = restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } }, log: "debug", policy: { profiles: { etl: { data: true }, etl2: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }, { name: "etl2", env: "PLAIN_TOKEN", profile: "etl2" }] } });
     const server = await restServer(options, restEnv);
     const size = 3 * 1_048_576;
     const { request } = await import("node:http");
@@ -706,7 +710,7 @@ test("one place for a large body per caller: its second gets 503 BUSY while anot
         const held = request({ agent: false, host: url.hostname, port: url.port, path: url.pathname, method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}`, "content-length": String(size) } });
         held.on("error", () => undefined);
         held.write("{");
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await untilPlacesHeld(server, 1);
         const second = await raw(`${server.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}`, "content-length": String(size), connection: "close" } });
         assert.equal(second.status, 503);
         assert.equal(second.data.code, "BUSY");
@@ -714,8 +718,8 @@ test("one place for a large body per caller: its second gets 503 BUSY while anot
         const big = { columns: ["Region", "Note"], rows: Array.from({ length: 25_000 }, (_, i) => [["North", "South"][i % 2], "n".repeat(90)]), rowCount: 25_000 };
         assert.equal((await call(`${server.api}/sources/describe`, { token: OTHER_TOKEN, body: { source: "inline:", data: big } })).status, 200, "another caller takes the other place");
         held.destroy();
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        assert.equal((await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: big } })).status, 200, "its place is free again once it left");
+        // a complete body: it takes a place only when one is free, else it is BUSY at once
+        await until(async () => (await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: big } })).status === 200, { message: "its place is free again once it left" });
     } finally {
         await server.close();
     }
