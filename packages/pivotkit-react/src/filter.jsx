@@ -7,8 +7,9 @@
  * the report as it was.
  */
 
-import React, { useMemo, useState } from "react";
-import { LIMITS, fieldItems, fieldLabel } from "pivotkit-core";
+import React, { useContext, useMemo, useState } from "react";
+import { LIMITS, fieldLabel } from "pivotkit-core";
+import { LimitsContext, itemsOf } from "./limits-context.js";
 import { ClearInput } from "./clear-input.jsx";
 import { useFormName } from "./dom.js";
 import { Icon } from "./icons.jsx";
@@ -124,7 +125,8 @@ export function FilterBody({ view: current, base, field, encoded, locale, labels
     // the view the filter applies to: the report's, or a draft with the field placed in Filters
     const view = base ?? current;
     const formName = useFormName();
-    const info = useMemo(() => fieldItems(encoded, field, { view, locale, labels: labels.core }), [encoded, field, view, locale, labels]);
+    const limits = useContext(LimitsContext);
+    const info = useMemo(() => itemsOf(encoded, field, { view, locale, labels: labels.core, limits }), [encoded, field, view, locale, labels, limits]);
     const all = useMemo(() => (info ? info.items.map((i) => i.value) : []), [info]);
     const [selected, setSelected] = useState(() => new Set(selectedItems(view, field, all).map(keyOf)));
     const label = filtersOf(view, field, ["text"])[0];
