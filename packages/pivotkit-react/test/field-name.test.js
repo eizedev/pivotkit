@@ -3,15 +3,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { encode, normalize, withFieldLabels } from "pivotkit-core";
-import { LABELS } from "../src/labels.js";
-import { en as menuEn } from "../src/menu-labels.js";
 import { axisTopics, filterZoneTopics } from "../src/menu-topics.js";
 import { sourceFieldName } from "../src/names.js";
 import { removeAt, setFieldLabel } from "../src/view-ops.js";
+import { MENU } from "./helpers.js";
 
 const data = encode([{ cn: "Berlin", Date: new Date("2025-01-02"), Revenue: 3 }]);
 const types = new Map([["cn", "string"], ["date", "date"], ["revenue", "number"]]);
-const labels = { ...LABELS.en, ...menuEn };
+const labels = MENU.en;
 const base = normalize({ rows: ["cn"], filters: [{ field: "Date", type: "in", items: [], not: true }], values: [{ field: "Revenue", agg: "sum" }] }, data).view;
 
 test("Name sets the field's own name, trims it, and an empty one takes it away", () => {

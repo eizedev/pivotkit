@@ -3,12 +3,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { MAX_DATE_MS, computePivot, encode, normalize } from "pivotkit-core";
-import { LABELS } from "../src/labels.js";
-import { en as menuEn } from "../src/menu-labels.js";
 import { combinedYearsText, dateFromInput, dateInputValue, dayOnOrBefore, yearRules } from "../src/menu-ops.js";
 import { compareText, isoDay, periodText, rangeShare, wholeYears, yearText } from "../src/names.js";
+import { MENU } from "./helpers.js";
 
-const L = { ...LABELS.en, ...menuEn };
+const L = MENU.en;
 // today for the data's share of a range: long after the data of years around 0, long before 10000
 const TODAY = "2026-11-17";
 /** Wall-clock ms of a day in any year. */

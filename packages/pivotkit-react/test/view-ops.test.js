@@ -17,6 +17,7 @@ import "../src/deferred.js";
 import { en as menuEn } from "../src/menu-labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "../src/chart-types.js";
+import { MENU } from "./helpers.js";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3, Date: "2026-01-05" },
@@ -25,7 +26,6 @@ const data = encode([
 ]);
 const norm = (v) => normalize(v, data).view;
 // the labels the menus see (menuLabels): the first load's with the menus' own texts
-const MENU = { en: { ...LABELS.en, ...menuEn }, de: { ...LABELS.de, ...menuDe } };
 const empty = norm({});
 
 test("adding a field: an axis takes it from the other axis, Values adds a value, Filters an empty filter", () => {

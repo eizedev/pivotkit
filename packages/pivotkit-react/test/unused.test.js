@@ -14,9 +14,9 @@ import { de } from "../src/unused-texts-de.js";
 import { en, unusedItem, unusedItems } from "../src/unused-texts.js";
 import { UNUSED_TEXTS_OF, loadUnused, unusedNow, unusedTexts } from "../src/unused-load.js";
 import { partOf, stillApplies, unusedNotes } from "../src/unused-keep.js";
+import { keys } from "./helpers.js";
 
 const data = encode(SALES);
-const keys = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" && !Array.isArray(v) ? keys(v, `${p}${k}.`) : [`${p}${k}`])).sort();
 /** What unused.jsx gives a line of the report's: its labels, fill and the names of fields and values. */
 const ctxOf = (labels) => ({ labels, fill, field: (name) => fieldLabel(name, labels.core), value: (spec) => valueLabel(spec, labels) });
 /** An issue's parts in the texts of `lang` (null: English) with the host's texts of `labels`. */

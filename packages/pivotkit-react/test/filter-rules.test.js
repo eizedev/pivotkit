@@ -4,15 +4,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PivotkitError, computePivot, encode, normalize, relativeDateRange } from "pivotkit-core";
 import { belowLimits } from "../src/limits-context.js";
-import { LABELS, fill, plural } from "../src/labels.js";
+import { fill, plural } from "../src/labels.js";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../src/deferred.js";
-import { en as menuEn } from "../src/menu-labels.js";
-import { de as menuDe } from "../src/menu-labels-de.js";
 import { QUICK_UNITS, RULES_MAX, RULE_TYPES, conditionKind, filterState, itemTotals, keepsBlanks, rowsInRange, setRuleBlanks, setTopFilter, setLabelFilter, textOn, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, yearRules } from "../src/menu-ops.js";
 import { axisTopics, filterZoneTopics, searchEntries, searchHits } from "../src/menu-topics.js";
 import { compareText, itemRuleText, namedUntil, rangeShare, rangeText, relativeText } from "../src/names.js";
 import { addField, dateSpan, filterZoneFields, filtersOf, groupField, selectedItems } from "../src/view-ops.js";
+import { MENU } from "./helpers.js";
 
 const data = encode([
     { Region: "North", Units: 3, Price: 10, Released: "2019-05-01" },
@@ -20,7 +19,6 @@ const data = encode([
     { Region: "West", Units: 1, Price: 30, Released: "2025-12-20" }
 ]);
 const norm = (v) => normalize(v, data).view;
-const MENU = { en: { ...LABELS.en, ...menuEn }, de: { ...LABELS.de, ...menuDe } };
 const types = new Map([["region", "string"], ["units", "number"], ["price", "number"], ["released", "date"]]);
 const byYear = norm(groupField(norm({ rows: ["Released"] }), "Released", "year", { name: "Released (Year)" }).view);
 const byMonth = norm(groupField(norm({ rows: ["Released"] }), "Released", "yearMonth", { name: "Released (Month)" }).view);

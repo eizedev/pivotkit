@@ -12,6 +12,7 @@ import { LABELS, errorText, fill, hostFailure, plural, removedLabels, resolveLab
 import "../src/deferred.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { addMenuTexts, en as menuEn, menuLabels } from "../src/menu-labels.js";
+import { keys } from "./helpers.js";
 
 /** The menus' texts of both languages (German is a chunk of its own in the package). */
 const MENU_LABELS = { en: menuEn, de: menuDe };
@@ -24,7 +25,6 @@ test("labels: the locale picks the language, partial labels merge deeply, en and
     const custom = resolveLabels("de-DE", { zones: { rows: "Reihen" }, core: { grandTotal: "Summe" } });
     assert.deepEqual([custom.zones.rows, custom.zones.cols, custom.core.grandTotal, custom.core.blank], ["Reihen", "Spalten", "Summe", "(Leer)"]);
     assert.equal(resolveLabels("en", JSON.parse('{"__proto__": {"polluted": 1}}')).polluted, undefined);
-    const keys = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" && !Array.isArray(v) ? keys(v, `${p}${k}.`) : [`${p}${k}`])).sort();
     assert.deepEqual(keys(LABELS.de), keys(LABELS.en));
     // the menus' texts (loaded with the menus): the same keys too, none of them in the first load's
     assert.deepEqual(keys(MENU_LABELS.de), keys(MENU_LABELS.en));

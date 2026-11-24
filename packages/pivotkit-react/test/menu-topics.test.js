@@ -3,13 +3,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { encode, normalize } from "pivotkit-core";
-import { LABELS } from "../src/labels.js";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../src/deferred.js";
-import { en as menuEn } from "../src/menu-labels.js";
-import { de as menuDe } from "../src/menu-labels-de.js";
 import { setItemFilter, setTopFilter, setValueFilter } from "../src/menu-ops.js";
 import { afterDelete, axisTopics, entryIds, formatLabel, moreTopics, rowFoldTexts, rowName, searchEntries, searchHits, SEARCH_HITS, stepIndex, tableTopics, TOP_COUNTS, topText, typeAheadIndex, valueTopics } from "../src/menu-topics.js";
+import { MENU } from "./helpers.js";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3, Date: "2026-01-05" },
@@ -17,7 +15,6 @@ const data = encode([
     { Region: "West", Product: "A", Units: 1, Date: "2026-02-20" }
 ]);
 const norm = (v) => normalize(v, data).view;
-const MENU = { en: { ...LABELS.en, ...menuEn }, de: { ...LABELS.de, ...menuDe } };
 const types = new Map([["region", "string"], ["product", "string"], ["units", "number"], ["date", "date"]]);
 const byId = (topics, id) => topics.find((t) => t.id === id);
 const choice = (topic, id) => topic.groups.flatMap((g) => g.choices).find((c) => c.id === id);
