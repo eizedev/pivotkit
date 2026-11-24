@@ -27,10 +27,17 @@ export function createDiscovery(context, { core, mode, resource, requiredScopes,
     /** The OpenAPI document, made once. */
     const openapi = () => (document ??= openApiDocument({ branding, auth: authOptions, publicUrl: publicOriginOf(options) ?? undefined, issuer: core.metadata?.() ?? null, resource: resource.href, requiredScopes, offers: context.offers?.rest }));
 
-    /** The Protected Resource Metadata: not found without OAuth, AUTH_NOT_READY until the issuer is loaded. */
-    function resourceMetadata() {
+    /**
+     * The Protected Resource Metadata: not found without OAuth for every method, read only (GET or HEAD,
+     * RFC 9728), AUTH_NOT_READY until the issuer is loaded.
+     * @param {string} method  the request's method
+     */
+    function resourceMetadata(method) {
         if (mode !== "oauth") {
             return problem("NOT_FOUND", "no such route");
+        }
+        if (method !== "GET" && method !== "HEAD") {
+            return problem("METHOD_NOT_ALLOWED", "use GET or HEAD", { headers: { allow: "GET, HEAD" } });
         }
         const metadata = core.metadata();
         if (!metadata) {

@@ -172,8 +172,8 @@ async function serve(service, request, info) {
     const url = new URL(request.url);
     const path = url.pathname.length > 1 ? url.pathname.replace(/\/$/, "") : url.pathname;
     if (path === PRM_PATH) {
-        // the metadata is read, never written (RFC 9728); serveFetch drops a HEAD answer's body
-        return request.method === "GET" || request.method === "HEAD" ? discovery.resourceMetadata() : problem("METHOD_NOT_ALLOWED", "use GET or HEAD", { headers: { allow: "GET, HEAD" } });
+        // serveFetch drops a HEAD answer's body
+        return discovery.resourceMetadata(request.method);
     }
     if (path === OPENAPI_PATH) {
         return serveOpenApi(service, request, address);
