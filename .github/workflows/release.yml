@@ -68,12 +68,13 @@ jobs:
           PACKAGE: ${{ steps.package.outputs.name }}
         run: node scripts/check-release.js "$PACKAGE" --published
       - name: CI passed for the tagged commit
-        # the browser matrix runs in ci.yml only; a release needs its green run for this commit
+        # a push run of ci.yml: only that one holds the browser matrix (browser.yml); a pull request
+        # run does not. A release needs its green run for this commit
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          runs="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success&per_page=1" --jq '.total_count')"
+          runs="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&event=push&status=success&per_page=1" --jq '.total_count')"
           test "$runs" -gt 0 || { echo "no successful CI run for $GITHUB_SHA"; exit 1; }
       - name: Install
         run: npm ci --no-audit --no-fund --ignore-scripts

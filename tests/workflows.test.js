@@ -4,7 +4,7 @@
 // text, and the checks of commands read it line by line.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { GUARD_NAMES } from "../scripts/growth.js";
 import { commandsOf, stringsOf, workflow, workflowFiles } from "./workflow.js";
 
@@ -188,7 +188,7 @@ test("the browser jobs cover every engine and every shard on React 18 and 19", a
     const { default: config } = await import("../playwright.config.js");
     const projects = config.projects.map((project) => project.name);
     assert.deepEqual(projects, ["chromium", "firefox", "webkit"]);
-    const job = jobOf("ci.yml", "browser");
+    const job = jobOf("browser.yml", "browser");
     assert.deepEqual(job.strategy.matrix.react, ["18", "19"]);
     const targets = job.strategy.matrix.target;
     for (const browser of projects) {
@@ -210,11 +210,60 @@ test("the browser jobs cover every engine and every shard on React 18 and 19", a
     assert.ok(minutes > 0 && minutes <= 15, `browser job timeout ${minutes} minutes`);
 });
 
+// The browser matrix (browser.yml) is most of CI's runner time (#820). A pull request starts it on its
+// own and skips it when it changes only paths the browser jobs never read; ci.yml calls it on every
+// push to main, so the green ci.yml run that release.yml and image.yml need holds the browser tests
+const BROWSER_IGNORED = ["docs/**", "**.md", "examples/angular/**"];
+
+test("a pull request runs the browser matrix unless it changes only docs, Markdown or the Angular example; main always runs it", () => {
+    const browser = workflow("browser.yml");
+    assert.deepEqual(Object.keys(browser.on).sort(), ["pull_request", "workflow_call"]);
+    assert.deepEqual(browser.on.pull_request, { "paths-ignore": BROWSER_IGNORED });
+    assert.notEqual(browser.concurrency.group, workflow("ci.yml").concurrency.group, "one concurrency group for both workflows: one run cancels the other");
+    const ci = workflow("ci.yml");
+    assert.ok("push" in ci.on && "pull_request" in ci.on, "ci.yml runs on push and pull_request");
+    assert.ok(ci.on.push.branches?.includes("main"), "ci.yml does not run on a push to main, so main's browser jobs never run");
+    assert.equal(ci.on.pull_request?.paths ?? ci.on.pull_request?.["paths-ignore"], undefined, "ci.yml's test, platforms and angular jobs run on every pull request");
+    assert.deepEqual(jobOf("ci.yml", "browser"), {
+        if: "github.event_name == 'push'",
+        uses: "./.github/workflows/browser.yml"
+    });
+    // a pull request's run of ci.yml has no browser jobs: a release and the image take a push run only
+    for (const [file, job] of [["release.yml", "build"], ["image.yml", "publish"]]) {
+        const queries = jobOf(file, job).steps.flatMap(commandsOf).filter((line) => line.includes("actions/workflows/ci.yml/runs?"));
+        assert.equal(queries.length, 1, `${file}: one query for the CI run of the tagged commit`);
+        assert.match(queries[0], /[?&]event=push(&|")/, `${file} accepts a pull request's CI run, which has no browser tests`);
+        assert.match(queries[0], /[?&]status=success(&|")/, `${file} accepts a CI run that did not succeed`);
+        assert.match(queries[0], /[?&]head_sha=\$GITHUB_SHA(&|")/, `${file} accepts a CI run of another commit`);
+    }
+});
+
+// what the browser jobs build, serve and test names no ignored path: a string such as "docs/x.md",
+// "../README.md", `${root}docs/`, join(root, "docs") or "examples/angular/..." in their code would
+// make a change there untested. It looks for such strings, so a path built another way escapes it.
+// Comment lines are skipped; a URL ("https://host/docs/") is not a repository path. A package.json
+// names its README and CHANGELOG for npm pack, which ci.yml's test job checks, not the browser jobs
+test("the code of the browser jobs names no path their pull request filter ignores", () => {
+    const read = ["playwright.config.js", "tests/browser", "tests/react19", "examples/playground", "packages", "scripts/site-url.js"];
+    const files = read.flatMap((path) => {
+        const url = new URL(path, root);
+        if (/\.[a-z]+$/.test(path)) return [path];
+        return readdirSync(url, { recursive: true }).map((name) => `${path}/${name.replaceAll("\\", "/")}`);
+    }).filter((path) => /\.(c?m?js|jsx|html|json)$/.test(path) && !/(^|\/)package(-lock)?\.json$/.test(path) && !/(^|\/)(node_modules|dist|types|test)\//.test(path) && !/\/data\//.test(path));
+    assert.ok(files.length > 100, `only ${files.length} files read`);
+    const ignored = /["'`}](?:\.{1,2}\/)*(?:docs\/|examples\/angular\/)|["'`][^"'`\s]*\.md["'`]|["'`](?:docs|angular)["'`]\s*[,)]/;
+    const found = files.flatMap((path) => readFileSync(new URL(path, root), "utf8").split("\n")
+        .map((line, i) => ({ line: line.trim(), at: `${path}:${i + 1}` }))
+        .filter(({ line }) => !/^(\/\/|\*|\/\*)/.test(line) && ignored.test(line))
+        .map(({ at }) => at));
+    assert.deepEqual(found, [], "the browser jobs read a path that browser.yml's paths-ignore skips: narrow the ignore list");
+});
+
 // PWTEST_SHARD_WEIGHTS is not in Playwright's docs: an update that drops it would quietly bring back
 // shards of equal test counts, so the installed Playwright must still read it
 test("the installed Playwright still reads PWTEST_SHARD_WEIGHTS", () => {
     const cli = readFileSync(new URL("node_modules/playwright/lib/cli/testActions.js", root), "utf8");
-    assert.match(cli, /process\.env\.PWTEST_SHARD_WEIGHTS/, "Playwright no longer reads PWTEST_SHARD_WEIGHTS: balance the WebKit shards in ci.yml another way (#672)");
+    assert.match(cli, /process\.env\.PWTEST_SHARD_WEIGHTS/, "Playwright no longer reads PWTEST_SHARD_WEIGHTS: balance the WebKit shards in browser.yml another way (#672)");
 });
 
 /**
