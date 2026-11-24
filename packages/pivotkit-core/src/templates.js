@@ -101,7 +101,9 @@ export function parseTemplates(input) {
             issue(`[${i}]`, `${read.issues.at(-1)?.message ?? "no view"}; left out`);
             continue;
         }
-        // a bare view names itself; fromViewFile reads the name of an envelope and of { name, view }
+        // a bare view names itself; fromViewFile reads the name of an envelope and of { name, view }.
+        // fromViewFile returns a bare view as the object it was given, which tells the two apart:
+        // a copy there would leave every bare view without its name (templates.test.js reads one)
         const bare = read.view === entry;
         const name = plainText(bare ? (Object.hasOwn(read.view, "name") ? read.view.name : undefined) : read.name, VIEW_FILE_LIMITS.name);
         if (!name) {

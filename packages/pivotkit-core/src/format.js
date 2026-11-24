@@ -185,11 +185,12 @@ function plain(value) {
  */
 export function formatterFor(spec, locale) {
     const f = parseFormat(spec) || { name: "number", arg: undefined, decimals: undefined };
-    const nf = (options) => {
+    // `per`: the value's unit in what Intl formats (percent100's 25 is 0.25)
+    const nf = (options, per = 1) => {
         const fmt = numberFormat(locale, { ...SIGN, ...options });
         return (v) => {
             const n = toNumber(v);
-            return Number.isNaN(n) ? plain(v) : fmt.format(n);
+            return Number.isNaN(n) ? plain(v) : fmt.format(n / per);
         };
     };
     switch (f.name) {
@@ -201,10 +202,8 @@ export function formatterFor(spec, locale) {
             return nf({ style: "currency", currency: (f.arg || "EUR").toUpperCase() });
         case "percent":
             return nf({ style: "percent", ...fractionDigits(f.decimals, 1) });
-        case "percent100": {
-            const p = nf({ style: "percent", ...fractionDigits(f.decimals, 1) });
-            return (v) => p(toNumber(v) / 100);
-        }
+        case "percent100":
+            return nf({ style: "percent", ...fractionDigits(f.decimals, 1) }, 100);
         case "compact":
             return nf({ notation: "compact", maximumFractionDigits: 1 });
         case "bytes":

@@ -7,7 +7,7 @@
 
 import { DEFAULT_THEME } from "./defaults.js";
 import { DEFAULT_LABELS } from "./labels.js";
-import { ringLabelsFit } from "./chart-layout.js";
+import { CATEGORY_LABEL_WIDTH, ringLabelsFit } from "./chart-layout.js";
 import { labelLine, longestWidth, radiusPx, textWidth } from "./chart-measure.js";
 
 /** ECharts' line from a slice to its outside label, px: its two parts (ECharts' defaults), and shorter ones for a narrow chart. */
@@ -336,7 +336,7 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
     const high = Math.max(...all);
     const span = high - low || 1;
     // the plot along the value axis, less the category labels' line, a fifth smaller for the nice ticks
-    const plot = Math.max(40, (horizontal ? width - left - right - CATEGORY_LABEL_ROOM : height - top - bottom - line - AXIS_LABEL_ROOM) * PLOT_SHARE);
+    const plot = Math.max(40, (horizontal ? width - left - right - CATEGORY_LABEL_WIDTH : height - top - bottom - line - AXIS_LABEL_ROOM) * PLOT_SHARE);
     // a label's room along the value axis: its distance, half the dot and its height (or width)
     const room = (/** @type {typeof items[number]} */ i) => (typeof i.d.label?.distance === "number" ? i.d.label.distance : POINT_LABEL_DISTANCE) + POINT_DOT + (horizontal ? textWidth(i.text, fontSize) : line);
     const unit = span / plot;
@@ -423,9 +423,6 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
     const out = series.map((s) => (s.markPoint ? { ...s, markPoint: { ...s.markPoint, data: s.markPoint.data.map((/** @type {any} */ d) => (moves.has(d) ? { ...d, label: { ...d.label, ...moves.get(d) } } : d)) } } : s));
     return { series: out, dataMin, dataMax };
 }
-
-/** Room (px) the category labels take beside horizontal bars, at most (chart-layout's CATEGORY_LABEL_WIDTH). */
-const CATEGORY_LABEL_ROOM = 120;
 
 /** The arc (in lines of text) a slice needs at the pie's edge to keep its label outside, without a legend. */
 const OTHER_ARC = 0.5;

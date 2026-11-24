@@ -10,7 +10,7 @@ import { readFile } from "../src/import.js";
 const ROWS = [
     { Name: "=HYPERLINK(\"x\")", Amount: 1234.5678912, Tiny: 1e-7, Huge: 1.5e21, Day: "2026-07-03", At: "2026-07-03T08:15:00Z", Ok: true, Code: "007" },
     { Name: "Plain, with comma", Amount: -2, Tiny: 0.1 + 0.2, Huge: -3, Day: "2026-07-04", At: "2026-07-04T00:00:00.250Z", Ok: false, Code: "12" },
-    { Name: "line\nbreak ‮and bidi", Amount: null, Tiny: null, Huge: null, Day: null, At: null, Ok: null, Code: "A-1" }
+    { Name: "line\nbreak \u202eand bidi", Amount: null, Tiny: null, Huge: null, Day: null, At: null, Ok: null, Code: "A-1" }
 ];
 const data = encode(ROWS);
 

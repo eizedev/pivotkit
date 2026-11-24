@@ -67,7 +67,8 @@ export function parseIso(text) {
     if (mo < 1 || mo > 12 || d < 1 || h > 23 || mi > 59 || s > 59) {
         return null;
     }
-    const ms = utc(y, mo, d, h, mi, s, frac ? Math.round(Number(`0.${frac}`) * 1000) : 0);
+    // cut to whole milliseconds as Date.parse does: rounding .9996 up would roll the second, even the day
+    const ms = utc(y, mo, d, h, mi, s, frac ? Math.floor(Number(`0.${frac}`) * 1000) : 0);
     // rejects 2026-02-30, which Date.UTC would roll over into March
     if (new Date(ms).getUTCDate() !== d) {
         return null;

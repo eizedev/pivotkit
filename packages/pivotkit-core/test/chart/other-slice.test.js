@@ -3,7 +3,7 @@
 // the SVG and the printed report follow the same rule.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, toEChartsOption } from "pivotkit-core";
+import { computePivot, encode, reportLabels, toEChartsOption } from "pivotkit-core";
 import { decorateOption } from "pivotkit-core/chart";
 
 /** 20 countries with populations from 2,000 down to 100 (thousands). */
@@ -44,9 +44,14 @@ test("a kept slice keeps its colour: the palette's colour of its place, or its f
     assert.equal(d[2].itemStyle.color, "#333333");
 });
 
-test("German: 'Andere (n)'; a host's word through the labels", () => {
-    const de = decorateOption(toEChartsOption(donut(), { labels: { otherSlices: "Andere ({count})" } }), style, PHONE);
+test("German: 'Andere (n)' from the built-in German labels", () => {
+    const de = decorateOption(toEChartsOption(donut(), { labels: reportLabels("de-DE") }), style, PHONE);
     assert.match(slices(de).at(-1).name, /^Andere \(\d+\)$/);
+});
+
+test("a host's word for the slice through the labels", () => {
+    const own = decorateOption(toEChartsOption(donut(), { labels: { otherSlices: "Rest: {count}" } }), style, PHONE);
+    assert.match(slices(own).at(-1).name, /^Rest: \d+$/);
 });
 
 test("nothing merged where every label has room, with the legend on, inside labels, or few slices", () => {

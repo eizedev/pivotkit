@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, emptyView, encode, migrate, normalize, toGrid, validate, VIEW_ISSUE_CODES, VIEW_VERSION } from "../src/index.js";
-import { SALES } from "./fixtures.js";
+import { SALES, random } from "./fixtures.js";
 import { ISSUE_CASES, issuesOf } from "./issue-cases.js";
-import { VIEW_ISSUES } from "../src/view.js";
+import { VIEW_ISSUES, runMigrations } from "../src/view.js";
 
 const data = encode(SALES);
 /** The normalized view alone; the issues are checked through validate(). */
@@ -124,8 +124,16 @@ test("filter, sort and collapsed entries are checked against the field types", (
         sort: [{ field: "Region", by: "value", value: { field: "Region", agg: "sum" } }],
         collapsed: { rows: [["North"], ["North", "A"], "North"] }
     }, data);
-    const messages = errors.map((e) => `${e.path}: ${e.message}`);
-    assert.equal(messages.length, 8, messages.join("\n"));
+    assert.deepEqual(errors.map((e) => [e.path, e.code]), [
+        ["filters[0].items", "itemType"],
+        ["filters[1]", "filterCount"],
+        ["filters[2]", "filterValue"],
+        ["filters[3]", "filterText"],
+        ["filters[4]", "unknownFilterType"],
+        ["sort[0].value", "aggregatorType"],
+        ["collapsed.rows", "collapsedPath"],
+        ["collapsed.rows", "collapsedPath"]
+    ]);
     const n = norm({ filters: [{ field: "Units", type: "include", items: ["abc", 3, "4"] }] }, data);
     assert.deepEqual(n.filters[0].items, [3, 4]);
 });
@@ -139,7 +147,8 @@ test("derived fields cannot shadow columns or chain", () => {
             { name: "B", field: "Units", by: "bin", size: 0 }
         ]
     }, data);
-    assert.equal(errors.length, 3);
+    // Y alone is fine: a column's name taken, a grouping of a grouping and a bin of size 0 are not
+    assert.deepEqual(errors.map((e) => [e.path, e.code]), [["derived[0]", "groupingNameTaken"], ["derived[2]", "groupingNoSource"], ["derived[3]", "binSize"]]);
 });
 
 test("computePivot normalizes what it gets, so a hostile view cannot break it", () => {
@@ -160,8 +169,7 @@ test("a newer version is refused, never read as an older one", () => {
     assert.deepEqual(norm({ rows: ["Region"] }).rows, ["Region"]);
 });
 
-test("migrate runs one step per version up to the current one", async () => {
-    const { runMigrations } = await import("../src/view.js");
+test("migrate runs one step per version up to the current one", () => {
     // a made-up history: version 1 named the rows "rowFields", version 2 the columns "colFields"
     const steps = {
         1: ({ rowFields, ...v }) => ({ ...v, rows: rowFields }),
@@ -204,22 +212,11 @@ test("one locale precedence: the view, then the options, then en-US", () => {
     assert.equal(text(decimal), "15.88");
     assert.equal(text(decimal, { locale: "de-DE" }), "15,88");
     assert.equal(text(decimal, {}, { locale: "de-DE" }), "15,88");
-    assert.equal(text({ ...decimal, formatting: { locale: "fr-CH" } }, { locale: "de-DE" }, { locale: "de-DE" }), "15,88");
+    // the view's en-GB writes a point, the options' de-DE a comma: the view wins in the text too
+    assert.equal(text({ ...decimal, formatting: { locale: "en-GB" } }, { locale: "de-DE" }, { locale: "de-DE" }), "15.88");
     assert.equal(toGrid(computePivot(data, { ...decimal, formatting: { locale: "en-GB" } }), { locale: "de-DE" }).locale, "en-GB");
     assert.equal(toGrid(computePivot(data, decimal)).locale, "en-US");
 });
-
-/** A deterministic random generator (mulberry32). */
-function random(seed) {
-    let a = seed >>> 0;
-    return () => {
-        a = (a + 0x6d2b79f5) >>> 0;
-        let t = a;
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-}
 
 test("fuzz: normalize never throws, its output is valid and normalizes to itself", () => {
     const rnd = random(7);
@@ -283,7 +280,7 @@ test("a switch that is not true or false and a section that is not an object are
 test("chart display settings: value labels, legend, title and smooth lines, checked against fixed lists", () => {
     assert.deepEqual(emptyView().chart, { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside", tooltip: "auto", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null, extremes: false }, colors: [], tooltipShare: false });
     const chart = { type: "pie", valueLabels: "both", legend: "right", title: "  Units by region ", smooth: true, labelPosition: "inside", tooltip: "axis" };
-    assert.deepEqual(norm({ chart }).chart, { type: "pie", stacked: false, horizontal: false, valueLabels: "both", legend: "right", title: "Units by region", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside", tooltip: "axis", zoom: "auto", stackPercent: false, hidden: [], referenceLines: { average: false, trend: false, target: null, extremes: false }, colors: [], tooltipShare: false });
+    assert.deepEqual(norm({ chart }).chart, { ...emptyView().chart, type: "pie", valueLabels: "both", legend: "right", title: "Units by region", smooth: true, labelPosition: "inside", tooltip: "axis" });
     assert.equal(norm({ chart: { type: "donut" } }).chart.type, "donut");
     assert.deepEqual(validate({ chart }, data), { valid: true, errors: [], warnings: [] });
     // unknown settings fall back to their defaults and are reported

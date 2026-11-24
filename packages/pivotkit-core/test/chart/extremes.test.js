@@ -222,7 +222,8 @@ test("decorateOption: more than eight series keep every dot, but only the chart'
     // eight series: every label
     const eight = computePivot(rows, { rows: ["Month"], cols: ["City"], values: [{ field: "T", agg: "sum" }], filters: [{ field: "City", type: "in", items: ["c0", "c1", "c2", "c3", "c4", "c5", "c6", "c7"] }], chart: { type: "line", referenceLines: ON } });
     const all = decorateOption(toEChartsOption(eight), style, { width: 1200, height: 480 }).series.flatMap((s) => s.markPoint?.data ?? []);
-    assert.ok(all.filter((d) => d.label.show !== false).length > 2);
+    assert.equal(all.length, 16, "a dot for each series' highest and lowest");
+    assert.equal(all.filter((d) => d.label.show !== false).length, 16);
 });
 
 test("toEChartsOption's chart option sets the reference lines over the view's: a whole referenceLines, a key left out is off", () => {

@@ -37,12 +37,55 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   included. Template names and imported files lose the same ones: one list serves all three. The
   joiners U+200C and U+200D stay. A field's name keeps its inner spaces, so it still matches the
   data's, and the reader cuts a source's id at 256 characters, without "…".
+- A time with more than three decimals of a second counts whole milliseconds, as `Date.parse` does.
+  `"2026-01-30T23:59:59.9996"` rounded up into the next day and made its whole column text.
+- The format `percent100` writes a blank or a text as it is, as `number` does. It wrote "NaN".
+- `createHistory`: `push`, `undo`, `redo` and `reset` work when taken off the object. A `limit` that
+  is no number throws `INVALID_OPTION`. Before, `NaN` kept every step without a word. `Infinity`
+  keeps every step, as before.
+- `toXlsx` names "an Excel sheet" for a grid larger than a sheet, not a setting
+  `limits.xlsxRows` that does not exist. `details.limit` stays `xlsxRows` or `xlsxColumns`.
+- A row field sorted by a value in one column takes time in proportion to the rows. Each row
+  searched the column again: 40,000 rows and columns took about 14 seconds.
+- `fieldItems` makes the labels of the listed values only, not of every value before the cut.
+- The zoom slider lays out the window's labels for its widest names as the layout measures them:
+  four CJK characters are wider than six Latin letters.
+- `normalize()` refuses a chart colour given as a list, such as `["#fff"]`, like any other value
+  that is no colour.
+- `describeView` writes a comparison with `=` as "Year is 5". It wrote the word "is" twice.
+- `groupingName` keeps `{size}` and `{unit}` in a field's name as they are.
+- `fieldDefaultsFromSchema` stops after merging 100,000 properties of `allOf` parts
+  (`SCHEMA_CAPS.merged`), with an issue: a small document could ask for millions of copies. A
+  `$ref` of an anchor (`#name`) names nothing, where it named the whole document, and a path is
+  percent-decoded (`#/$defs/a%20b`). A path with a broken percent-encoding, such as `#/$defs/a%zz`,
+  names nothing too, with the issue that the reference is not in the document. Before, every path
+  was read as written: a key with a `%` of its own is reached as `%25` now.
+- The view schema refuses a blank value label or field name, as `normalize()` does (`badLabel`): a
+  value's `label` and a name in `fieldLabels` need a character that is no space
+  (`pattern: "\\S"`). Affected: a host that validates stored view files against the published
+  schemas `view-2.json` or `view-file-2.json`. A stored view with a blank label no longer passes
+  there; `normalize()` reported it before as now, and dropped the label.
+- `encodeViewLink` counts the view in bytes, as `decodeViewLink` does: a view of many non-ASCII
+  characters gave a link that `decodeViewLink` refused. The messages say "bytes".
+- `viewFromLayout` throws `INVALID_ARGUMENT` for a filter with a cycle or a BigInt, not a `TypeError`.
+- Reading a file:
+  - The readers read UTF-16 big endian without a byte order mark, as they read little endian.
+  - Zero characters at the end of a file are padding and go. Several of them refused the file.
+  - The reader ignores a `separator` that is a quote or a line break and finds one itself.
+  - A `Blob` has no name to pick a reader by: the message says to read a `File` or pass `reader`.
+  - `plugins` that is no list throws `INVALID_OPTION`, not a `TypeError`.
+  - `readFile` calls a plugin's `load()` on the plugin, so a plugin that is an instance of a class
+    works.
 
 ### Changed
 
 - English groups of three digits are numbers: a file's `1,234.5` reads as 1234.5. Existing
   comma-separated files with `"1,234"` read as 1234 where they read as 1.234, with the note
   `DECIMAL_MARK`. A German locale or a semicolon file still reads 1.234.
+- **Breaking:** `toViewFile` throws `PivotkitError` `INVALID_ARGUMENT` for a view that is no
+  object, as every function does for a programmer's error. It threw a `TypeError`. Affected: a host
+  that catches `TypeError` from `toViewFile`. What to do: catch `PivotkitError` (code
+  `INVALID_ARGUMENT`) instead.
 - `PivotkitError` extends `CodedError` of `pivotkit-core/internal`, the base of every error class
   of pivotkit's packages. Its members stay the same.
 
@@ -92,6 +135,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   ([#662](https://github.com/eizedev/pivotkit/issues/662)).
 
 ### Changed
+
+- `computePivot` counts the `groups` limit while it groups the rows and stops at the first group
+  too many. The `LIMIT_EXCEEDED` error's `details.value` is now that first count over the limit,
+  at most `details.max` + 1, not the number of groups the view would have made. Affected: a host
+  that shows `details.value` to people, such as "800,000 groups exceed the limit of 500,000". It
+  now reads "500,001 groups exceed the limit of 500,000". `details.limit` and `details.max` stay.
 
 - **Breaking:** needs Node 24 or later. Node 22 is no longer supported
   ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#node-24), [#519](https://github.com/eizedev/pivotkit/issues/519)).
@@ -170,6 +219,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 
 ### Changed
+
+- `computePivot` counts the `groups` limit while it groups the rows and stops at the first group
+  too many. The `LIMIT_EXCEEDED` error's `details.value` is now that first count over the limit,
+  at most `details.max` + 1, not the number of groups the view would have made. Affected: a host
+  that shows `details.value` to people, such as "800,000 groups exceed the limit of 500,000". It
+  now reads "500,001 groups exceed the limit of 500,000". `details.limit` and `details.max` stay.
 
 - A value that is in the view twice is told apart: the second is "Sum of Units (2)" in the grid's
   `valueNames`, its header, the exports and the chart's series
@@ -266,6 +321,12 @@ The [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a
 
 ### Changed
 
+- `computePivot` counts the `groups` limit while it groups the rows and stops at the first group
+  too many. The `LIMIT_EXCEEDED` error's `details.value` is now that first count over the limit,
+  at most `details.max` + 1, not the number of groups the view would have made. Affected: a host
+  that shows `details.value` to people, such as "800,000 groups exceed the limit of 500,000". It
+  now reads "500,001 groups exceed the limit of 500,000". `details.limit` and `details.max` stay.
+
 - A year before 1 AD is written with its era in every date label: `year` "2 BC", `yearQuarter`
   "Q1 2 BC" (was "Q1 -1"), `yearWeek` "2 BC-W02", a date and the `date` and `datetime` formats
   "Jan 11, 2 BC" (was "Jan 11, 2", the same as 2 AD), as `yearMonth` already did ("Jan 2 BC")
@@ -324,6 +385,12 @@ The [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a
 
 ### Changed
 
+- `computePivot` counts the `groups` limit while it groups the rows and stops at the first group
+  too many. The `LIMIT_EXCEEDED` error's `details.value` is now that first count over the limit,
+  at most `details.max` + 1, not the number of groups the view would have made. Affected: a host
+  that shows `details.value` to people, such as "800,000 groups exceed the limit of 500,000". It
+  now reads "500,001 groups exceed the limit of 500,000". `details.limit` and `details.max` stay.
+
 - An unknown aggregator named as other tools name it gets ours as the hint: `avg` and `mean`
   ("did you mean average?"), `cnt` (count), `total` (sum), `distinct` (countUnique), `stddev`
   (stdev); they are still refused. `describeSource` counts in the singular for one row or field
@@ -332,6 +399,12 @@ The [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a
 ## [0.5.0] - 2026-11-13
 
 ### Changed
+
+- `computePivot` counts the `groups` limit while it groups the rows and stops at the first group
+  too many. The `LIMIT_EXCEEDED` error's `details.value` is now that first count over the limit,
+  at most `details.max` + 1, not the number of groups the view would have made. Affected: a host
+  that shows `details.value` to people, such as "800,000 groups exceed the limit of 500,000". It
+  now reads "500,001 groups exceed the limit of 500,000". `details.limit` and `details.max` stay.
 
 - npm keyword `excel`, as the repository's topics.
 - The chart writes its axes, legend and labels at 14 px (`DEFAULT_THEME.textSize`), the 14 px
@@ -563,6 +636,12 @@ The [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a
   type `IssueParams`.
 
 ### Changed
+
+- `computePivot` counts the `groups` limit while it groups the rows and stops at the first group
+  too many. The `LIMIT_EXCEEDED` error's `details.value` is now that first count over the limit,
+  at most `details.max` + 1, not the number of groups the view would have made. Affected: a host
+  that shows `details.value` to people, such as "800,000 groups exceed the limit of 500,000". It
+  now reads "500,001 groups exceed the limit of 500,000". `details.limit` and `details.max` stay.
 
 - The README, the package's page on npm, is a short landing page: what pivotkit-core is, one screenshot,
   install, one example and a table of links into the

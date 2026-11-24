@@ -23,8 +23,11 @@ function utcDay(year, month, day) {
     return d.getTime();
 }
 
-/** The remainder of a key's period ("Q1" of 20261, but also of -9, the first quarter of 2 BC). */
-const periodOf = (key, base) => key - Math.floor(key / base) * base;
+/**
+ * `key`'s place in its period: the month of a yearMonth (base 100), the quarter of a yearQuarter (10).
+ * "Q1" of 20261, but also of -9, the first quarter of 2 BC.
+ */
+export const periodOf = (key, base) => key - Math.floor(key / base) * base;
 
 /** 400 Gregorian years: after them weekdays and leap days repeat. */
 const CYCLE_MS = 146_097 * MS_PER_DAY;
@@ -81,12 +84,12 @@ const weekdayName = (weekday, locale) =>
  * @property {(v: number, locale: string) => string} [label]  number results: the display label
  */
 
-/** @type {Readonly<Record<string, DerivedUnit>>} */
 /** Date units along the time line (each value one period of one year: "Jan 2025"). */
 export const TIMELINE_UNITS = Object.freeze(["year", "yearQuarter", "yearMonth", "yearWeek", "day"]);
 /** Date units that repeat every year or day ("Jan" of every year): categories, for comparing periods. */
 export const CYCLIC_UNITS = Object.freeze(["quarter", "month", "week", "weekday", "hour"]);
 
+/** @type {Readonly<Record<string, DerivedUnit>>} */
 export const DERIVED = Object.freeze({
     year: { source: "date", type: "number", value: (d) => d.getUTCFullYear(), label: yearText },
     quarter: { source: "date", type: "number", value: (d) => Math.floor(d.getUTCMonth() / 3) + 1, label: (v) => `Q${v}` },

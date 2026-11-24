@@ -3,17 +3,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chartThemeFrom, computePivot, emptyView, encode, normalize, referenceLineRules, toEChartsOption, toSeries, valueAddsUp } from "pivotkit-core";
-import { referenceLineChecks, referenceLines } from "pivotkit-core/chart";
+import { decorateOption, referenceLineChecks, referenceLines } from "pivotkit-core/chart";
 import { MONTH, MONTHLY } from "./fixtures.js";
 
 const data = encode(MONTHLY);
 const pivot = (view) => computePivot(data, { derived: [MONTH], rows: ["Month"], cols: ["Product"], values: [{ field: "Revenue", agg: "sum" }], formatting: { locale: "en-US" }, ...view });
 const close = (a, b) => Math.abs(a - b) < 1e-9;
-/** The lines as [kind, series, numbers...], rounded to 9 places. */
-/** A label's text without its line sample ("{s|— —} Average 25" is "Average 25"). */
+/** A label's text without its line sample ("{s|– –} Average 25" is "Average 25"). */
 const words = (label) => label.formatter().replace(/^\{s\|[^}]*\} /, "");
 /** The three switches of referenceLineRules, without its notes. */
 const flags = ({ average, trend, target }) => ({ average, trend, target });
+/** The lines as [kind, series, numbers...], rounded to 9 places. */
 const brief = (lines) => lines.map((l) => [l.kind, l.series, ...(l.kind === "trend" ? [l.from, l.to] : [l.value])].map((x) => (typeof x === "number" ? Math.round(x * 1e9) / 1e9 : x)));
 
 test("chart.referenceLines: off by default; average, trend and a target as a number are kept; anything else is reported", () => {
@@ -243,7 +243,8 @@ test("a value shown as a share: the lines are shares, written as the value is", 
     const r = pivot({ cols: [], values: [{ field: "Revenue", agg: "sum", showAs: { type: "percentOfGrandTotal" } }], chart: { type: "bar", referenceLines: { average: true, trend: false, target: 0.3 } } });
     const lines = referenceLines(r);
     assert.deepEqual(brief(lines), [["average", 0, 0.25], ["target", null, 0.3]]);
-    assert.match(lines[1].format(0.3), /^30(\.0)?%$/);
+    // the value's format: a share with one decimal, en-US
+    assert.equal(lines[1].format(0.3), "30.0%");
 });
 
 test("a target over values in different units has nothing to measure: refused, with a note", () => {
@@ -281,8 +282,7 @@ test("the labels write the value as the axis does, short", () => {
     assert.equal(referenceLines(r).at(-1).format(1234567), "€1,234,567.00");
 });
 
-test("decorateOption: the labels of lying lines right of the plot, kept apart, with room; a narrow chart writes the names only", async () => {
-    const { decorateOption } = await import("pivotkit-core/chart");
+test("decorateOption: the labels of lying lines right of the plot, kept apart, with room; a narrow chart writes the names only", () => {
     const style = { getPropertyValue: () => "" };
     // A's average 25 and a target of 26: two labels at nearly the same height
     const r = pivot({ chart: { type: "line", referenceLines: { average: true, trend: true, target: 26 } } });
@@ -332,8 +332,7 @@ test("a trend over the categories' order (no real time) is one straight segment"
     assert.equal(timed[0].byTime, true);
 });
 
-test("decorateOption with the lines' real places (pixelOf): labels at their lines, a line apart; a narrow chart drops what cannot sit near", async () => {
-    const { decorateOption } = await import("pivotkit-core/chart");
+test("decorateOption with the lines' real places (pixelOf): labels at their lines, a line apart; a narrow chart drops what cannot sit near", () => {
     const style = { getPropertyValue: () => "" };
     // A's average 25, B's average 5, a target of 26: 4 px a unit, 0 at y 400
     const r = pivot({ chart: { type: "line", referenceLines: { average: true, trend: false, target: 26 } } });

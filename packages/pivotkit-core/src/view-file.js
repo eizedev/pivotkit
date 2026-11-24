@@ -9,18 +9,21 @@
  *   const read = fromViewFile(text, { data, sourceId: "sales" });
  *   // read.view: the view (not normalized), read.failed: why nothing can be used, read.compatible: ...
  *
- * Reading follows these rules: unknown keys are ignored (a later minor version may add some); a
- * document is an envelope when its `format` is "pivotkit-view", else it is a bare view (or a template
- * { name, view }); a newer `formatVersion` or a newer `view.version` is refused, never read as an older
- * one (format version 2 carries views of version 2, which an older pivotkit-core refuses the same way); the text is capped before it is parsed; every key is read as an own property; names and
- * descriptions are plain text. The view in the result is still user input: normalize() it against the
- * data before it is shown.
+ * Reading follows these rules:
+ * - Unknown keys are ignored: a later minor version may add some.
+ * - A document is an envelope when its `format` is "pivotkit-view", else it is a bare view (or a
+ *   template { name, view }).
+ * - A newer `formatVersion` or a newer `view.version` is refused, never read as an older one. Format
+ *   version 2 carries views of version 2, which an older pivotkit-core refuses the same way.
+ * - The text is capped before it is parsed, and every key is read as an own property.
+ * - Names and descriptions are plain text.
+ * The view in the result is still user input: normalize() it against the data before it is shown.
  */
 
 import { LIMITS, resolveLimits } from "./limits.js";
 import { VIEW_VERSION, emptyView } from "./view.js";
-import { PivotkitError } from "./errors.js";
-import { isPlainObject, plainText } from "./util.js";
+import { PivotkitError, expect } from "./errors.js";
+import { get, isPlainObject, plainText } from "./util.js";
 
 /** The value of `format` that marks an envelope. */
 export const VIEW_FILE_FORMAT = "pivotkit-view";
@@ -82,8 +85,6 @@ const textOrEmpty = (value, max) => plainText(value, max) ?? "";
 /** An identifier or a field's name as plain text: cut, never changed by an ellipsis; "" when there is none. */
 const idOrEmpty = (value, max) => plainText(value, max, { id: true }) ?? "";
 
-/** An own property of a plain object, else undefined. */
-const own = (obj, key) => (isPlainObject(obj) && Object.hasOwn(obj, key) ? obj[key] : undefined);
 
 /**
  * Every place a view names a field, in the order a reader meets them: rows, columns, values, filters
@@ -104,13 +105,13 @@ function mapFieldRefs(view, visit, copy = false) {
     }
     const out = copy ? JSON.parse(JSON.stringify(view)) : view;
     const list = (key) => {
-        const v = own(out, key);
+        const v = get(out, key);
         return Array.isArray(v) ? v : [];
     };
-    const groupings = new Set(list("derived").map((d) => own(d, "name")).filter((n) => typeof n === "string").map((n) => n.toLowerCase()));
+    const groupings = new Set(list("derived").map((d) => get(d, "name")).filter((n) => typeof n === "string").map((n) => n.toLowerCase()));
     const kindOf = (name) => (groupings.has(name.toLowerCase()) ? "grouping" : "field");
     const at = (obj, key) => {
-        const name = Array.isArray(obj) ? obj[key] : own(obj, key);
+        const name = Array.isArray(obj) ? obj[key] : get(obj, key);
         if (typeof name === "string" && name !== "") {
             visit(name, kindOf(name), (next) => {
                 obj[key] = next;
@@ -124,14 +125,14 @@ function mapFieldRefs(view, visit, copy = false) {
     list("values").forEach((v) => at(v, "field"));
     for (const f of list("filters")) {
         at(f, "field");
-        if (isPlainObject(own(f, "by"))) at(f.by, "field");
+        if (isPlainObject(get(f, "by"))) at(f.by, "field");
     }
     for (const s of list("sort")) {
         at(s, "field");
-        if (isPlainObject(own(s, "value"))) at(s.value, "field");
+        if (isPlainObject(get(s, "value"))) at(s.value, "field");
     }
     for (const d of list("derived")) {
-        const name = own(d, "field");
+        const name = get(d, "field");
         if (typeof name === "string" && name !== "") {
             visit(name, "source", (next) => {
                 d.field = next;
@@ -139,7 +140,7 @@ function mapFieldRefs(view, visit, copy = false) {
         }
     }
     // the keys of the fields' own names (#158): a renamed field keeps its name
-    const names = own(out, "fieldLabels");
+    const names = get(out, "fieldLabels");
     if (isPlainObject(names)) {
         // read every label before writing one: in a swap { A: "B", B: "A" } A's label must not overwrite B's first
         const moved = [];
@@ -163,10 +164,10 @@ function mapFieldRefs(view, visit, copy = false) {
  */
 export function viewFileFields(view) {
     const derived = new Map();
-    const list = own(view, "derived");
+    const list = get(view, "derived");
     for (const d of Array.isArray(list) ? list : []) {
-        const name = own(d, "name");
-        const field = own(d, "field");
+        const name = get(d, "name");
+        const field = get(d, "field");
         if (typeof name === "string" && typeof field === "string") {
             derived.set(name.toLowerCase(), field);
         }
@@ -278,9 +279,9 @@ function newerChartKeys(view, back) {
     // within the reference lines too: a reader of 0.8 knows average, trend and target
     const lines = next.referenceLines;
     if (isPlainObject(lines)) {
-        const own = /** @type {Record<string, unknown>} */ (defaults.referenceLines);
-        const keep = Object.entries(lines).filter(([key, value]) => back || !NEWER_LINE_KEYS.includes(key) || JSON.stringify(value) !== JSON.stringify(own[key]));
-        const put = back ? NEWER_LINE_KEYS.filter((key) => !Object.hasOwn(lines, key)).map((key) => [key, own[key]]) : [];
+        const lineDefaults = /** @type {Record<string, unknown>} */ (defaults.referenceLines);
+        const keep = Object.entries(lines).filter(([key, value]) => back || !NEWER_LINE_KEYS.includes(key) || JSON.stringify(value) !== JSON.stringify(lineDefaults[key]));
+        const put = back ? NEWER_LINE_KEYS.filter((key) => !Object.hasOwn(lines, key)).map((key) => [key, lineDefaults[key]]) : [];
         next.referenceLines = Object.fromEntries([...keep, ...put]);
     }
     return { ...view, chart: next };
@@ -299,9 +300,7 @@ function newerChartKeys(view, back) {
  * @returns {Record<string, unknown>}
  */
 export function toViewFile(view, meta = {}, options = {}) {
-    if (!isPlainObject(view)) {
-        throw new TypeError("toViewFile(view): view must be an object");
-    }
+    expect(isPlainObject(view), "toViewFile(view): view must be an object");
     view = newerChartKeys(view, false);
     const name = textOrEmpty(meta.name, VIEW_FILE_LIMITS.name);
     const sourceId = idOrEmpty(meta.source?.id, VIEW_FILE_LIMITS.name);
@@ -401,11 +400,11 @@ export function fromViewFile(input, options = {}) {
     }
     const issue = (path, message) => read.issues.push({ path, message });
     let view;
-    if (own(doc, "format") === VIEW_FILE_FORMAT) {
+    if (get(doc, "format") === VIEW_FILE_FORMAT) {
         read.envelope = true;
         // an integer this package reads; anything else that is not missing is refused, never read as
         // an older version: a newer or unknown version (3, 2.5, "2") could mean what this one does not
-        const version = own(doc, "formatVersion");
+        const version = get(doc, "formatVersion");
         if (version === undefined || version === null) {
             issue("formatVersion", "missing; read as 1");
         } else if (!READS.includes(/** @type {number} */ (version))) {
@@ -415,25 +414,25 @@ export function fromViewFile(input, options = {}) {
                 : fail("notView", `format version ${JSON.stringify(version)} is not one of ${READS.join(", ")}`);
         }
         read.formatVersion = /** @type {number} */ (version ?? 1);
-        view = own(doc, "view");
-        read.name = textOrEmpty(own(doc, "name"), VIEW_FILE_LIMITS.name);
-        read.description = textOrEmpty(own(doc, "description"), VIEW_FILE_LIMITS.description);
-        const created = own(doc, "createdAt");
+        view = get(doc, "view");
+        read.name = textOrEmpty(get(doc, "name"), VIEW_FILE_LIMITS.name);
+        read.description = textOrEmpty(get(doc, "description"), VIEW_FILE_LIMITS.description);
+        const created = get(doc, "createdAt");
         read.createdAt = typeof created === "string" && !Number.isNaN(Date.parse(created)) ? created.slice(0, 64) : null;
         if (created !== undefined && read.createdAt === null) {
             issue("createdAt", "not a date and time");
         }
-        const generator = own(doc, "generator");
-        if (isPlainObject(generator) && typeof own(generator, "name") === "string") {
-            read.generator = { name: textOrEmpty(own(generator, "name"), VIEW_FILE_LIMITS.name), version: textOrEmpty(own(generator, "version"), VIEW_FILE_LIMITS.name) };
+        const generator = get(doc, "generator");
+        if (isPlainObject(generator) && typeof get(generator, "name") === "string") {
+            read.generator = { name: textOrEmpty(get(generator, "name"), VIEW_FILE_LIMITS.name), version: textOrEmpty(get(generator, "version"), VIEW_FILE_LIMITS.name) };
         }
-        read.source = readSource(own(doc, "source"), issue, resolveLimits(options));
+        read.source = readSource(get(doc, "source"), issue, resolveLimits(options));
     } else {
         // a bare view, or a template { name, view }
-        const inner = own(doc, "view");
-        if (isPlainObject(inner) && typeof own(doc, "name") === "string") {
+        const inner = get(doc, "view");
+        if (isPlainObject(inner) && typeof get(doc, "name") === "string") {
             view = inner;
-            read.name = textOrEmpty(own(doc, "name"), VIEW_FILE_LIMITS.name);
+            read.name = textOrEmpty(get(doc, "name"), VIEW_FILE_LIMITS.name);
         } else {
             view = doc;
         }
@@ -441,7 +440,7 @@ export function fromViewFile(input, options = {}) {
     if (!isPlainObject(view)) {
         return fail("notView", "no view object");
     }
-    const viewVersion = own(view, "version");
+    const viewVersion = get(view, "version");
     if (typeof viewVersion === "number" && viewVersion > VIEW_VERSION) {
         return fail("newerView", `view version ${viewVersion} is newer than ${VIEW_VERSION}`);
     }
@@ -462,7 +461,7 @@ export function fromViewFile(input, options = {}) {
  * @param {(path: string, message: string) => void} issue
  * @returns {Record<string, string> | null}
  */
-export function paramsOf(raw, limits, issue) {
+function paramsOf(raw, limits, issue) {
     if (raw === undefined || raw === null) {
         return null;
     }
@@ -477,7 +476,7 @@ export function paramsOf(raw, limits, issue) {
         issue("source.params", `more than ${limits.srcParams} parameters; the rest left out`);
     }
     for (const key of keys.slice(0, limits.srcParams)) {
-        const value = own(raw, key);
+        const value = get(raw, key);
         if (key === "" || key.length > limits.srcParamLength || typeof value !== "string" || value.length > limits.srcParamLength) {
             issue(`source.params.${key.slice(0, 100)}`, `a parameter is a name and a text of at most ${limits.srcParamLength} characters`);
         } else {
@@ -498,19 +497,19 @@ function readSource(raw, issue, limits) {
     }
     /** @type {ViewFileSource} */
     const source = {};
-    const id = idOrEmpty(own(raw, "id"), VIEW_FILE_LIMITS.name);
-    const name = textOrEmpty(own(raw, "name"), VIEW_FILE_LIMITS.name);
+    const id = idOrEmpty(get(raw, "id"), VIEW_FILE_LIMITS.name);
+    const name = textOrEmpty(get(raw, "name"), VIEW_FILE_LIMITS.name);
     if (id) {
         source.id = id;
     }
     if (name) {
         source.name = name;
     }
-    const params = paramsOf(own(raw, "params"), limits, issue);
+    const params = paramsOf(get(raw, "params"), limits, issue);
     if (params && Object.keys(params).length) {
         source.params = params;
     }
-    const fields = own(raw, "fields");
+    const fields = get(raw, "fields");
     if (fields !== undefined) {
         if (!Array.isArray(fields)) {
             issue("source.fields", "not a list");
@@ -520,8 +519,8 @@ function readSource(raw, issue, limits) {
             }
             source.fields = [];
             fields.slice(0, VIEW_FILE_LIMITS.fields).forEach((f, i) => {
-                const fieldName = idOrEmpty(own(f, "name"), VIEW_FILE_LIMITS.name);
-                const type = own(f, "type");
+                const fieldName = idOrEmpty(get(f, "name"), VIEW_FILE_LIMITS.name);
+                const type = get(f, "type");
                 if (!fieldName) {
                     issue(`source.fields[${i}]`, "no name");
                 } else if (!FIELD_TYPES.includes(type)) {

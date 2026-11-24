@@ -4,7 +4,10 @@
 // them: the rows each view keeps, and the links of LINK_CASES decoded to the same view.
 import { SALES } from "./fixtures.js";
 
-/** Dates with blanks in every column, names with a no-break space (U+00A0) and odd case. */
+/**
+ * Dates with blanks in every column, names with a no-break space (U+00A0) and odd case. relative.test.js
+ * counts its rows too: a change here changes the golden file's cases and that test's counts.
+ */
 export const DATED = Object.freeze([
     { Name: "Alpha Server", Created: "2024-11-30", Score: 3, Active: true, Note: "ok" },
     { Name: "alpha\u00A0server", Created: "2025-01-15", Score: 10, Active: false, Note: null },

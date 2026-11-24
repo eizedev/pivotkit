@@ -185,15 +185,20 @@ test("the extent of horizontal bars reads a value given as an item object too", 
 test("#230 horizontal bars keep the room of their longest value label on the right", () => {
     const view = { rows: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", horizontal: true, valueLabels: "value" } };
     const bars = decorated(SALES, view, { width: 330, height: 376 });
-    // "34,880" (6 characters at 14 px, estimated) and 5 px from the bar's end, past the 24 px margin
-    assert.equal(bars.grid.right, 24 + Math.ceil(6 * fontSize * 0.55 + 5));
-    assert.equal(valueLabelRoom(bars.series, fontSize), Math.ceil(6 * fontSize * 0.55 + 5));
-    // without value labels, or with them inside stacked bars, nothing changes
-    assert.equal(decorated(SALES, { ...view, chart: { type: "bar", horizontal: true } }, { width: 330, height: 376 }).grid.right, 24);
-    assert.equal(decorated(SALES, { ...view, chart: { type: "bar", horizontal: true, stacked: true, valueLabels: "value" } }, { width: 330, height: 376 }).grid.right, 24);
+    const margin = decorated(SALES, { ...view, chart: { type: "bar", horizontal: true } }, { width: 330, height: 376 }).grid.right;
+    // the longest label, "34,880", fits with room between it and the bar's end; the margin comes on top
+    const room = valueLabelRoom(bars.series, fontSize);
+    assert.ok(room > textWidth("34,880", fontSize), `${room} px`);
+    assert.ok(room < textWidth("34,880", fontSize) + fontSize, "no more than a gap");
+    assert.equal(bars.grid.right, margin + room);
+    // with value labels inside stacked bars, nothing changes
+    assert.equal(decorated(SALES, { ...view, chart: { type: "bar", horizontal: true, stacked: true, valueLabels: "value" } }, { width: 330, height: 376 }).grid.right, margin);
     // a legend on the right keeps its room, the labels' comes on top
-    const legend = decorated(SALES, { ...view, cols: ["Region"], chart: { type: "bar", horizontal: true, valueLabels: "value", legend: "right" } }, { width: 1060, height: 426 });
-    assert.equal(legend.grid.right, 168 + valueLabelRoom(legend.series, fontSize));
+    const legendView = { ...view, cols: ["Region"], chart: { type: "bar", horizontal: true, valueLabels: "value", legend: "right" } };
+    const legend = decorated(SALES, legendView, { width: 1060, height: 426 });
+    const legendOnly = decorated(SALES, { ...legendView, chart: { ...legendView.chart, valueLabels: "off" } }, { width: 1060, height: 426 });
+    assert.ok(legendOnly.grid.right > margin, "the legend takes room");
+    assert.equal(legend.grid.right, legendOnly.grid.right + valueLabelRoom(legend.series, fontSize));
 });
 
 test("#230 a narrow value axis writes fewer, even ticks so its labels do not collide; a wide one keeps ECharts' own", () => {

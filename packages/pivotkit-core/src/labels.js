@@ -189,10 +189,10 @@ export const GROUPING_NAMES = Object.freeze({
 export function groupingName(field, unit, options = {}) {
     const names = String(options.locale ?? "").split("-")[0].toLowerCase() === "de" ? GROUPING_NAMES.de : GROUPING_NAMES.en;
     if (unit === "bin") {
-        return names.bins.replace("{field}", () => field).replace("{size}", () => String(options.size));
+        return fill(names.bins, { field, size: options.size });
     }
-    const inName = Object.hasOwn(names.units, unit) ? names.units[unit] : unit;
-    return names.name.replace("{field}", () => field).replace("{unit}", () => inName);
+    // one pass: a field's own name may hold "{unit}" or "{size}" and stays as it is
+    return fill(names.name, { field, unit: Object.hasOwn(names.units, unit) ? names.units[unit] : unit });
 }
 
 // their nested tables too: a report shares them, nobody may change them in place

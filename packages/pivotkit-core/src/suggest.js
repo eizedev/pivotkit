@@ -189,7 +189,7 @@ export function suggestLayout(description, options) {
         picks.push({ part: "values", code: "countRows", agg: "count", others: [], text: "count of rows: the data has no number field that is no identifier" });
     }
     /** @type {LayoutNote[]} */
-    const notes = layout.rows.length === 0 ? [{ code: "noSuggestion", message: fields.length ? "no text field with 2 to 50 values that repeat, and no date" : "the data has no fields" }] : [];
+    const notes = layout.rows.length === 0 ? [{ code: "noSuggestion", message: fields.length ? `no text field with 2 to ${SUGGEST_LIMITS.rows} values that repeat, and no date` : "the data has no fields" }] : [];
     if (!layout.groups.length) {
         delete layout.groups;
     }
@@ -235,8 +235,17 @@ function checkLayout(layout) {
         expect(v.size === undefined || typeof v.size === "number", `viewFromLayout: ${where}.size is a number`);
     });
     list("filters", (v, where) => expect(isPlainObject(v), `viewFromLayout: ${where} is a filter object`));
-    if (layout.filters !== undefined && JSON.stringify(layout.filters).length > OUTSIDE_LIMITS.json) {
-        throw new PivotkitError("LIMIT_EXCEEDED", "viewFromLayout: the filters are larger than a view may be", { limit: "json", max: OUTSIDE_LIMITS.json });
+    if (layout.filters !== undefined) {
+        let length;
+        try {
+            length = JSON.stringify(layout.filters).length;
+        } catch {
+            // a cycle or a BigInt: no JSON, so no view can hold it
+            throw new PivotkitError("INVALID_ARGUMENT", "viewFromLayout: the filters are no JSON");
+        }
+        if (length > OUTSIDE_LIMITS.json) {
+            throw new PivotkitError("LIMIT_EXCEEDED", "viewFromLayout: the filters are larger than a view may be", { limit: "json", max: OUTSIDE_LIMITS.json });
+        }
     }
     if (layout.chart !== undefined) {
         text(layout.chart, "chart");

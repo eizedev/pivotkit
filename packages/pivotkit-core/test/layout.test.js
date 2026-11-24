@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, findNode, toGrid } from "../src/index.js";
+import { computePivot, encode, findNode, toGrid, toSeries } from "../src/index.js";
 import { SALES, bodyRow, texts } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -214,8 +214,7 @@ test("labels and locale can be replaced", () => {
     assert.ok(bodyRow(g, "Gesamtergebnis"));
 });
 
-test("collapsed column groups show one total column and plot as one series", async () => {
-    const { toSeries } = await import("../src/index.js");
+test("collapsed column groups show one total column and plot as one series", () => {
     const r = computePivot(data, { cols: ["Product", "Region"], values: [{ field: "Units", agg: "sum" }], collapsed: { cols: [["A"]] } });
     const g = toGrid(r, { locale: "en-US" });
     const a = g.rows[0].find((c) => c && c.text === "A");
@@ -227,11 +226,14 @@ test("collapsed column groups show one total column and plot as one series", asy
 test("many fields with large dictionaries fall back to text group keys", () => {
     const rows = [];
     for (let i = 0; i < 3000; i++) {
-        rows.push({ a: `a${i}`, b: `b${i}`, c: `c${i}`, d: `d${i}`, e: `e${i % 2}`, v: 1 });
+        rows.push({ a: `a${i}`, b: `b${i}`, c: `c${i}`, d: `d${i}`, e: `e${i}`, v: 1 });
     }
+    // five fields of 3,000 items and a blank each: 3,001^5 keys do not fit a double exactly
+    assert.ok(3001 ** 5 > 2 ** 52);
     const d = encode(rows);
     const r = computePivot(d, { rows: ["a", "b", "c", "d", "e"], values: [{ field: "v", agg: "sum" }] });
     assert.equal(r.rowRoot.children.length, 3000);
     assert.equal(r.value(r.rowRoot, r.colRoot, 0), 3000);
-    assert.equal(r.value(findNode(r, "rows", ["a7", "b7", "c7", "d7", "e1"]), r.colRoot, 0), 1);
+    assert.equal(r.value(findNode(r, "rows", ["a7", "b7", "c7", "d7", "e7"]), r.colRoot, 0), 1);
+    assert.equal(findNode(r, "rows", ["a7", "b7", "c7", "d7", "e8"]), null);
 });

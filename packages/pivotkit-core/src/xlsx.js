@@ -151,8 +151,9 @@ export function toXlsx(grid, options) {
     expect(isGrid(grid), "toXlsx(grid): grid must come from toGrid()");
     const asOf = options.dataAsOf;
     expect(asOf === undefined || isDataAsOf(asOf), "toXlsx: dataAsOf must be a time like 2026-11-15T08:00:00Z");
-    checkLimit("xlsxRows", grid.rows.length, EXCEL_MAX_ROWS, "rows (an Excel sheet)");
-    checkLimit("xlsxColumns", grid.columnCount, EXCEL_MAX_COLUMNS, "columns (an Excel sheet)");
+    // Excel's size is fixed: the message names no setting of `limits`; details.limit names the bound
+    checkLimit("xlsxRows", grid.rows.length, EXCEL_MAX_ROWS, "rows", "an Excel sheet");
+    checkLimit("xlsxColumns", grid.columnCount, EXCEL_MAX_COLUMNS, "columns", "an Excel sheet");
     const theme = { ...DEFAULT_THEME, ...(options.theme || {}) };
     const locale = grid.locale;
     // Styles: one cellXfs entry per (number format, bold, top) triple, created as cells need them.

@@ -46,7 +46,7 @@ test("rowsToXlsx: typed cells, the panel's number formats, a frozen bold header,
     assert.doesNotMatch(sheetXml, /<f>/);
     const formats = strFromU8(parts["xl/styles.xml"]);
     // up to 6 decimals as the panel shows a number without a format; the date as the locale writes it
-    assert.match(formats, /formatCode="#,##0.000000"/);
+    assert.ok(formats.includes('formatCode="#,##0.000000"'), formats);
     assert.match(formats, /formatCode="mmm d&quot;,&quot; yyyy"/);
     const sheet = await readSheet(Buffer.from(bytes));
     assert.deepEqual(sheet[0], ["Name", "Amount", "Price", "Day", "At", "Ok", "Id"]);

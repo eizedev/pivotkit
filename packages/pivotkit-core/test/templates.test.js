@@ -62,7 +62,7 @@ test("parseTemplates leaves out what it cannot use, with an issue, and never thr
 
 test("parseTemplates: names are plain text, never markup or controls; names need not be unique", () => {
     const { templates } = parseTemplates([
-        { name: "<b>Bold</b>\u0000‮evil", view: VIEW },
+        { name: "<b>Bold</b>\u0000\u202eevil", view: VIEW },
         { name: "Same", view: VIEW },
         { name: "Same", view: VIEW },
         { name: "x".repeat(1000), view: VIEW }

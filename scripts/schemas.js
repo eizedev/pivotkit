@@ -2,8 +2,10 @@
 // schema can never describe a view the engine reads otherwise:
 //   schema/view-2.json       a view (FILTERS' keys and required keys, the enum tables, LIMITS)
 //   schema/view-file-2.json  the view file: the envelope (VIEW_FILE_LIMITS, source.params by LIMITS) with the view
-// tests/view-file-schema.test.js checks that the committed files are what this script builds (run it
-// after changing a table) and that the schema refuses every issue case VIEW_ISSUES marks `schema`.
+// tests/schemas.test.js checks that the committed files are what this script builds (run it after
+// changing a table) and that the schema refuses every issue case VIEW_ISSUES marks `schema`.
+// schema/view-file-1.json, for files of format version 1, is kept by hand and never rebuilt:
+// tests/view-file-schema.test.js checks it with a version-1 file.
 //
 //   node scripts/schemas.js
 import { writeFileSync } from "node:fs";
@@ -11,6 +13,7 @@ import { AGGREGATOR_NAMES } from "../packages/pivotkit-core/src/aggregators.js";
 import { DERIVE_UNITS, MIN_BIN_SIZE } from "../packages/pivotkit-core/src/derive.js";
 import { COMPARE_OPS, COMPARE_PRECISIONS, FILTERS, FILTER_BLANKS, RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, TEXT_ON, TEXT_OPS, TOP_TIES } from "../packages/pivotkit-core/src/filters.js";
 import { ITEM_LENGTH, LIMITS } from "../packages/pivotkit-core/src/limits.js";
+import { AXES, COLOR_SCALE_MAX, SORT_ORDERS } from "../packages/pivotkit-core/src/view.js";
 import { SHOW_AS_NAMES } from "../packages/pivotkit-core/src/show-as.js";
 import { MATCH_CASES, MATCH_WHITESPACE } from "../packages/pivotkit-core/src/text-match.js";
 import { FIELD_TYPES, VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION } from "../packages/pivotkit-core/src/view-file.js";
@@ -29,8 +32,12 @@ export const SCHEMA_BASE = `${siteUrl()}/schema/`;
 const object = (properties, required = [], extra = {}) => ({ type: "object", additionalProperties: false, ...(required.length ? { required } : {}), properties, ...extra });
 const list = (items, maxItems, extra = {}) => ({ type: "array", maxItems, items, ...extra });
 const text = (maxLength) => ({ type: "string", maxLength });
+/** A name a view gives (a value's label, a field's name of the report's own): text that is not blank, as normalize() reads it. */
+const label = (maxLength) => ({ type: "string", maxLength, pattern: "\\S" });
 const nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
 const ref = (name) => ({ $ref: `#/$defs/${name}` });
+/** Every aggregator but a row count needs a field. */
+const NEEDS_FIELD = { if: { properties: { agg: { not: { const: "count" } } } }, then: { required: ["field"], properties: { field: ref("fieldName") } } };
 /** A date as a view writes one: "2025-06-30", with a time "2025-06-30T18:00", a year beyond 9999 with its sign. */
 const ISO_DATE = "^[+-]?\\d{4,6}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:?\\d{2})?)?$";
 
@@ -147,43 +154,39 @@ function viewParts() {
             }),
             formatting: object({ locale: nullable({ type: "string" }), timeZone: nullable({ type: "string" }), weekStart: { type: "integer", minimum: 1, maximum: 7 } }),
             fieldLabels: {
-                description: "Names of the report's own for fields, by the field's name: shown instead of the field's name in the headers, the chart and the exports. Optional; pivotkit 0.8 does not know it.",
+                description: "Names of the report's own for fields, by the field's name: shown instead of the field's name in the headers, the chart and the exports. Optional.",
                 type: "object",
                 maxProperties: LIMITS.columns,
                 propertyNames: { minLength: 1, maxLength: LIMITS.name },
-                additionalProperties: text(LIMITS.name)
+                additionalProperties: label(LIMITS.name)
             }
         }),
         $defs: {
             fieldName: { type: "string", minLength: 1, maxLength: LIMITS.name, pattern: "\\S" },
             item: { type: ["string", "number", "boolean"], maxLength: ITEM_LENGTH },
-            valueRef: object({ field: nullable(ref("fieldName")), agg: { enum: [...AGGREGATOR_NAMES] } }, ["agg"], {
-                // every aggregator but a row count needs a field
-                if: { properties: { agg: { not: { const: "count" } } } },
-                then: { required: ["field"], properties: { field: ref("fieldName") } }
-            }),
+            valueRef: object({ field: nullable(ref("fieldName")), agg: { enum: [...AGGREGATOR_NAMES] } }, ["agg"], NEEDS_FIELD),
             value: object(
                 {
                     field: nullable(ref("fieldName")),
                     agg: { enum: [...AGGREGATOR_NAMES] },
                     format: nullable({ type: "string" }),
-                    label: nullable(text(LIMITS.name)),
-                    showAs: nullable({ anyOf: [{ enum: [...SHOW_AS_NAMES] }, object({ type: { enum: [...SHOW_AS_NAMES] }, axis: { enum: ["rows", "cols"] } }, ["type"])] }),
+                    label: nullable(label(LIMITS.name)),
+                    showAs: nullable({ anyOf: [{ enum: [...SHOW_AS_NAMES] }, object({ type: { enum: [...SHOW_AS_NAMES] }, axis: { enum: [...AXES] } }, ["type"])] }),
                     conditional: nullable({
                         oneOf: [
-                            object({ type: { const: "colorScale" }, colors: { type: "array", items: { type: "string", pattern: COLOR.source }, anyOf: [{ maxItems: 0 }, { minItems: 2, maxItems: 3 }] } }, ["type"]),
+                            object({ type: { const: "colorScale" }, colors: { type: "array", items: { type: "string", pattern: COLOR.source }, anyOf: [{ maxItems: 0 }, { minItems: 2, maxItems: COLOR_SCALE_MAX }] } }, ["type"]),
                             object({ type: { const: "dataBar" }, color: nullable({ type: "string", pattern: COLOR.source }) }, ["type"])
                         ]
                     })
                 },
                 ["agg"],
-                { if: { properties: { agg: { not: { const: "count" } } } }, then: { required: ["field"], properties: { field: ref("fieldName") } } }
+                NEEDS_FIELD
             ),
             derived: object({ name: ref("fieldName"), field: ref("fieldName"), by: { enum: [...DERIVE_UNITS] }, size: { type: "number", minimum: MIN_BIN_SIZE }, origin: { type: "number" } }, ["name", "field", "by"], {
                 if: { properties: { by: { const: "bin" } } },
                 then: { required: ["size"] }
             }),
-            sort: object({ field: ref("fieldName"), by: { enum: [...SORT_BY] }, order: { enum: ["asc", "desc"] }, items: list(ref("item"), LIMITS.items), value: ref("valueRef"), column: list(ref("item"), LIMITS.axisFields, { minItems: 1 }) }, ["field"], {
+            sort: object({ field: ref("fieldName"), by: { enum: [...SORT_BY] }, order: { enum: [...SORT_ORDERS] }, items: list(ref("item"), LIMITS.items), value: ref("valueRef"), column: list(ref("item"), LIMITS.axisFields, { minItems: 1 }) }, ["field"], {
                 if: { properties: { by: { const: "custom" } }, required: ["by"] },
                 then: { required: ["items"] }
             })

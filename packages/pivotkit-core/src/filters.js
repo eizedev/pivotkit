@@ -25,8 +25,9 @@
  *   it); a field off the axes is grouped on its own. They run outer levels first, each on the rows
  *   the previous one left.
  *
- * Top N keeps exactly N groups per parent. Ties are broken by the order of first appearance in the
- * data, so a tie at the cut keeps the group seen first (Excel may keep all tied items).
+ * Top N keeps exactly N groups per parent, unless `ties` is "all". Ties are broken by the order of
+ * first appearance in the data, so a tie at the cut keeps the group seen first (Excel may keep all
+ * tied items).
  */
 
 import { labelOf } from "./labels.js";
@@ -256,16 +257,22 @@ export function readItem(f, item, path, ctx) {
 
 // ---- normalizers: (raw entry, spec so far, field, path, ctx, view) -> spec or undefined ----
 
+/** A filter's `not`: true or false (default false); anything else is an error, and false is used. */
+function readNot(flt, path, ctx) {
+    const not = get(flt, "not");
+    if (not !== undefined && typeof not !== "boolean") {
+        ctx.issue(`${path}.not`, "not must be true or false", "filterNot", { value: shown(not) });
+    }
+    return not === true;
+}
+
 /**
  * `not` and `blanks` of an item filter into its spec: `not` a boolean (default false), `blanks` of
  * FILTER_BLANKS (default "exclude"; validate() warns when a filter leaves it out). Each that is not
  * one of them is an error and its default is used.
  */
 function notAndBlanks(flt, spec, path, ctx) {
-    const not = get(flt, "not");
-    if (not !== undefined && typeof not !== "boolean") {
-        ctx.issue(`${path}.not`, "not must be true or false", "filterNot", { value: shown(not) });
-    }
+    const not = readNot(flt, path, ctx);
     const blanks = get(flt, "blanks");
     if (blanks === undefined) {
         if (ctx.strict) {
@@ -274,7 +281,7 @@ function notAndBlanks(flt, spec, path, ctx) {
     } else if (!FILTER_BLANKS.includes(/** @type {string} */ (blanks))) {
         ctx.issue(`${path}.blanks`, `unknown blanks ${JSON.stringify(blanks)}`, "filterBlanks", { value: shown(blanks), ...ctx.suggest(blanks, FILTER_BLANKS) });
     }
-    return Object.assign(spec, { not: not === true, blanks: FILTER_BLANKS.includes(/** @type {string} */ (blanks)) ? blanks : "exclude" });
+    return Object.assign(spec, { not, blanks: FILTER_BLANKS.includes(/** @type {string} */ (blanks)) ? blanks : "exclude" });
 }
 
 /** `in`: the items to keep (with `not`, to drop); a blank is `blanks`, never an item. */
@@ -305,11 +312,7 @@ function normalizeIn(flt, spec, f, path, ctx) {
 
 /** `blank`: the blank items (with `not`, every other). */
 function normalizeBlank(flt, spec, _f, path, ctx) {
-    const not = get(flt, "not");
-    if (not !== undefined && typeof not !== "boolean") {
-        ctx.issue(`${path}.not`, "not must be true or false", "filterNot", { value: shown(not) });
-    }
-    return Object.assign(spec, { not: not === true });
+    return Object.assign(spec, { not: readNot(flt, path, ctx) });
 }
 
 /**
@@ -518,11 +521,8 @@ function normalizeValue(flt, spec, _f, path, ctx, view) {
         const hint = op || opIn === undefined ? {} : { value: shown(opIn), ...ctx.suggest(opIn, COMPARE_OPS) };
         return ctx.issue(path, "needs an operator and a number", "filterValue", hint);
     }
-    const not = get(flt, "not");
-    if (not !== undefined && typeof not !== "boolean") {
-        ctx.issue(`${path}.not`, "not must be true or false", "filterNot", { value: shown(not) });
-    }
-    Object.assign(spec, { by, op, value, not: not === true });
+    const not = readNot(flt, path, ctx);
+    Object.assign(spec, { by, op, value, not });
     if (op === "between") {
         const value2 = finite(get(flt, "value2"));
         if (value2 === null) {

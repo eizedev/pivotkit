@@ -18,6 +18,7 @@ test("reportLabels: German for a German locale, English for any other", () => {
     for (const lang of ["en", "de"]) {
         for (const key of Object.keys(DEFAULT_LABELS)) assert.ok(key in REPORT_LABELS[lang], `${lang}.${key}`);
         for (const key of Object.keys(DEFAULT_LABELS.aggregators)) assert.equal(typeof REPORT_LABELS[lang].aggregators[key], "string", `${lang}.aggregators.${key}`);
+        for (const key of Object.keys(DEFAULT_LABELS.showAs)) assert.equal(typeof REPORT_LABELS[lang].showAs[key], "string", `${lang}.showAs.${key}`);
     }
 });
 
@@ -27,17 +28,6 @@ test("toGrid with the German report labels: German totals and value names", () =
     const texts = grid.rows.flat().filter(Boolean).map((c) => c.text);
     assert.ok(texts.includes("Summe von U"));
     assert.ok(texts.includes("Gesamtergebnis"));
-});
-
-test("an aggregator named as other tools name it is not accepted, but hinted: avg, mean, cnt", async () => {
-    const { normalize } = await import("../src/index.js");
-    const data = encode([{ R: "a", U: 1 }]);
-    for (const [given, hint] of [["avg", "average"], ["Mean", "average"], ["cnt", "count"]]) {
-        const { issues, view } = normalize({ rows: ["R"], values: [{ field: "U", agg: given }] }, data);
-        const issue = issues.find((i) => i.code === "unknownAggregator");
-        assert.equal(issue?.params.suggestion, hint, given);
-        assert.equal(view.values.length, 0, given);
-    }
 });
 
 test("pluralForm: the language's form, English rules for a language Intl has none for, never the runtime's; no forms give nothing", () => {

@@ -52,6 +52,16 @@ test("Excel's sep= line names the separator and is not the header", async () => 
     assert.equal(t.rowCount, 110);
 });
 
+test("a separator that is a quote or a line break is not used: the reader finds one itself", async () => {
+    for (const separator of ["\n", '"', ",,"]) {
+        const t = await readFile(text("a.csv", "a,b\n1,2\n"), { separator });
+        assert.deepEqual([t.columns, t.notes.find((n) => n.code === "SEPARATOR").params.separator], [["a", "b"], ","], JSON.stringify(separator));
+    }
+    const hinted = await readFile(text("q.csv", 'sep="\na;b\n1;2\n'));
+    assert.deepEqual(hinted.columns, ["a", "b"]);
+    assert.equal((await readFile(text("t.csv", "a|b\n1|2\n"), { separator: "|" })).columns.length, 2);
+});
+
 test("charging points register: quotes with semicolons and line breaks, decimals, postcodes; UTF-8 and Windows-1252 read alike", async () => {
     const utf8 = await readFile(fileOf("ladesaeulen-bnetza.csv"));
     const cp1252 = await readFile(fileOf("ladesaeulen-bnetza-1252.csv"));
@@ -306,6 +316,25 @@ test("an unclosed quote names its line; files that are no text are refused with 
     const xls = new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0]);
     await rejects(readFile(fileOf("old.csv", xls)), (e) => e.details.reason === "WRONG_TYPE" && /\.xls/.test(e.message));
     await rejects(readFile(fileOf("bin.txt", new Uint8Array([65, 0, 0, 0, 66, 67, 0, 1, 2]))), (e) => e.details.reason === "BINARY");
+    // a long run of zeros before a character is refused in time: each zero is looked at once
+    const cpu = cpuClock();
+    await rejects(readFile(fileOf("zeros.csv", new Uint8Array([...new Uint8Array(400_000), 120]))), (e) => e.details.reason === "BINARY");
+    assert.ok(cpu() < 2_000, `${Math.round(cpu())} ms of CPU`);
+});
+
+test("text encodings: UTF-16 big endian without a byte order mark, zeros as padding at the end, a byte order mark is final", async () => {
+    const ascii = new TextEncoder().encode("Name,Units\nNorth,3\n");
+    const be = new Uint8Array(ascii.length * 2);
+    ascii.forEach((b, i) => (be[i * 2 + 1] = b));
+    const utf16be = await readFile(fileOf("be.csv", be));
+    assert.equal(utf16be.notes[0].message, "Read as UTF-16 (big endian).");
+    // the table is columnar: one list of values per column
+    assert.deepEqual([utf16be.columns, utf16be.data], [["Name", "Units"], [["North"], [3]]]);
+    const padded = await readFile(text("pad.csv", "Name,Units\nNorth,3\n\0\0\0"));
+    assert.deepEqual(padded.data, [["North"], [3]]);
+    // after a UTF-8 byte order mark a byte that is no UTF-8 becomes U+FFFD; the file is not read as Windows-1252
+    const marked = await readFile(fileOf("bom.csv", new Uint8Array([0xef, 0xbb, 0xbf, 0x41, 0xe4, 0x0a, 0x31, 0x0a])));
+    assert.deepEqual([marked.notes[0].message, marked.columns], ["Read as UTF-8.", ["A\ufffd"]]);
 });
 
 test("limits: the file size before reading, rows, columns and cells while reading; each message names the file and the limit", async () => {
@@ -352,6 +381,27 @@ test("plugins: the contract is checked, another API version is refused with both
     const plugin = { apiVersion: 1, kind: "reader", name: "demo", label: "Demo", accept: [".demo", "application/x-demo"], load: async () => ({ read: async () => ({ columns: [] }) }) };
     assert.equal(validatePlugin(plugin).name, "demo");
     assert.ok(Object.isFrozen(validatePlugin(plugin)));
+    // a plugin that is an instance of a class: load() is called on it, so it reads its own fields
+    class ClassPlugin {
+        apiVersion = 1;
+        kind = "reader";
+        name = "class-demo";
+        label = "Class demo";
+        accept = [".cdemo"];
+        module = { read: async () => ({ columns: [] }) };
+        async load() {
+            return this.module;
+        }
+    }
+    const instance = new ClassPlugin();
+    assert.equal(await loadReader(instance), instance.module);
+    // the load() that was checked is the one that runs: one set on the plugin later is not
+    const swapped = { ...plugin, name: "swapped" };
+    const checked = validatePlugin(swapped);
+    swapped.load = () => {
+        throw new Error("not the checked load");
+    };
+    assert.equal(typeof (await checked.load()).read, "function");
     assert.throws(() => validatePlugin({ ...plugin, apiVersion: 2 }), (e) => e.code === "INVALID_ARGUMENT" && e.message === 'plugin "demo" uses plugin API version 2; this pivotkit-core supports version 1. Use a version of the plugin made for API 1, or update pivotkit.');
     assert.throws(() => validatePlugin({ ...plugin, kind: "chart" }), /kind "chart"/);
     assert.throws(() => validatePlugin({ ...plugin, name: "Bad Name" }), /name/);
@@ -364,7 +414,11 @@ test("plugins: the contract is checked, another API version is refused with both
     assert.equal(readerFor({ name: "x.demo" }, [plugin]).name, "demo");
     assert.equal(readerFor({ name: "noext", type: "application/x-demo" }, [plugin]).name, "demo");
     assert.equal(readerFor({ name: "a.xlsx" }), undefined);
-    await rejects(readFile(text("a.xlsx", "x")), (e) => e.details.reason === "NO_READER");
+    await rejects(readFile(text("a.xlsx", "x")), (e) => e.details.reason === "NO_READER" && e.message === '"a.xlsx": no reader for this kind of file.');
+    // a Blob has no name to pick a reader by; options.name only names it in messages
+    await rejects(readFile(new Blob(["a\n1\n"]), { name: "x.csv" }), (e) => e.details.reason === "NO_READER" && /read a File, or pass options\.reader/.test(e.message));
+    assert.equal((await readFile(new Blob(["a\n1\n"]), { name: "x.csv", reader: csvReader })).columns[0], "a");
+    await rejects(readFile(text("a.csv", "a\n1\n"), { plugins: null }), (e) => e.code === "INVALID_OPTION");
     // a module without read() is refused when loaded
     await assert.rejects(loadReader({ ...plugin, name: "empty", load: async () => ({}) }), /read\(file, options\)/);
     // what a plugin's read() returns is checked
@@ -386,9 +440,12 @@ test("a plugin's hand-built table (columns, types, data, notes) gets the rest fr
     assert.equal(read.rowCount, 2);
     assert.deepEqual(read.raw, MINIMAL.data);
     assert.deepEqual(read.detected, ["string", "string"]);
-    // the hints createTable takes: "." and the locale's order of day and month (month first for en-US and without a locale)
+    // the hints createTable takes: "." and the locale's order of day and month: month first for en-US
+    // and without a locale, day first for every other locale
     assert.deepEqual(read.hints, { decimal: ".", dateOrder: "mdy" });
+    assert.deepEqual((await readMini(MINIMAL, { locale: "en-us" })).hints, { decimal: ".", dateOrder: "mdy" });
     assert.deepEqual((await readMini(MINIMAL, { locale: "de-DE" })).hints, { decimal: ".", dateOrder: "dmy" });
+    assert.deepEqual((await readMini(MINIMAL, { locale: "en-GB" })).hints, { decimal: ".", dateOrder: "dmy" });
     // a hint left out is derived
     assert.deepEqual((await readMini({ ...MINIMAL, hints: { decimal: "," } }, { locale: "de-DE" })).hints, { decimal: ",", dateOrder: "dmy" });
     assert.deepEqual((await readMini({ ...MINIMAL, hints: { decimal: ",", dateOrder: "mdy", textNumbers: false } })).hints, { decimal: ",", dateOrder: "mdy", textNumbers: false });
@@ -470,7 +527,7 @@ test("encode: columnar input is checked, typed and selected like rows", () => {
     assert.equal(encode({ columns: [], data: [] }).length, 0);
 });
 
-// findings of the security review of the readers
+// what a hostile file can make a reader allocate or keep
 
 test("a wide row late in a long file is refused before a column of every row is allocated", async () => {
     const lines = "A\n" + "1\n".repeat(300_000) + Array.from({ length: 1_000 }, (_, i) => i).join(",") + "\n";
@@ -498,10 +555,11 @@ test("a JSON key in a note is cleaned and cut", async () => {
 test("file names capped at 256 units keep complete Unicode characters", () => {
     for (const prefix of [254, 255, 256]) {
         const name = "a".repeat(prefix) + "😀.csv";
-        const expected = prefix === 254 ? "a".repeat(254) + "😀" : "a".repeat(Math.min(prefix, 256));
+        // 254 units and the emoji's two make 256; from 255 on the emoji would be cut in half, so it goes
+        const expected = prefix === 254 ? "a".repeat(254) + "😀" : "a".repeat(prefix);
         assert.equal(fileName({ name }), expected);
         assert.equal(fileName(null, { name }), expected);
-        assert.equal(new TextDecoder().decode(new TextEncoder().encode(expected)), expected);
+        assert.ok(fileName({ name }).isWellFormed(), "no lone surrogate");
     }
     assert.equal(fileName({ name: "" }), "file");
 });

@@ -98,3 +98,13 @@ test("a field name of only spaces is refused by the schema as by validate()", ()
     assert.equal(validator.validate({ version: 2, rows: ["  "] }).valid, false);
     assert.deepEqual(validate({ version: 2, rows: ["  "] }, data).errors.map((e) => e.code), ["unknownField"]);
 });
+
+test("a blank name is refused by the schema as normalize() refuses it (badLabel)", () => {
+    const validator = new Validator(viewSchema, "2020-12", false);
+    for (const blank of ["", "   "]) {
+        for (const view of [{ values: [{ agg: "count", label: blank }] }, { fieldLabels: { Region: blank } }]) {
+            assert.ok(normalize(view, data).issues.some((i) => i.code === "badLabel"), JSON.stringify(view));
+            assert.equal(validator.validate(view).valid, false, JSON.stringify(view));
+        }
+    }
+});

@@ -63,27 +63,25 @@ const option = toEChartsOption(result, { chart: { type: "bar", stacked: true } }
 
 ## Where in the docs
 
-| Topic | Page |
-| --- | --- |
-| Getting started: rows to a table, drawing the grid, on a server | [Getting started with the engine](https://pivotkit.eize.dev/getting-started/engine/) |
-| Loading CSV and JSON files, Excel files with a plugin, writing the data as a file again (`dataToCsv`) | [Loading files](https://pivotkit.eize.dev/reference/import/), [Plugins](https://pivotkit.eize.dev/reference/plugins/) |
-| Every function, constant and type | [pivotkit-core reference](https://pivotkit.eize.dev/reference/core/): [data](https://pivotkit.eize.dev/reference/core/#data), [views](https://pivotkit.eize.dev/reference/core/#views), [pivot](https://pivotkit.eize.dev/reference/core/#pivot), [output and export](https://pivotkit.eize.dev/reference/core/#output), [helpers](https://pivotkit.eize.dev/reference/core/#helpers), [types](https://pivotkit.eize.dev/reference/core/#types) |
-| The view and every key | [Views and saved views](https://pivotkit.eize.dev/concepts/views/#a-complete-view) |
-| Aggregators, show as, formats | [Values](https://pivotkit.eize.dev/concepts/values/) |
-| Date grouping and number ranges | [Dates and number ranges](https://pivotkit.eize.dev/concepts/dates/) |
-| Filters, top N, sorting | [Filters, top N and sorting](https://pivotkit.eize.dev/concepts/filters/) |
-| Chart options | [Charts](https://pivotkit.eize.dev/concepts/charts/) |
-| View files, links, templates | [View file format](https://pivotkit.eize.dev/reference/view-file/), [Sharing](https://pivotkit.eize.dev/concepts/sharing/), [Templates](https://pivotkit.eize.dev/concepts/templates/) |
-| Locale and time zones | [Locale](https://pivotkit.eize.dev/concepts/limits/#locale), [Time zones](https://pivotkit.eize.dev/concepts/limits/#time-zones) |
-| Labels and chart colours | [Localisation](https://pivotkit.eize.dev/reference/localisation/), [Chart colours](https://pivotkit.eize.dev/reference/theming/#chart-colours) |
-| Limits and errors | [Limits](https://pivotkit.eize.dev/concepts/limits/#limits), [Errors](https://pivotkit.eize.dev/concepts/limits/#errors) |
-| Performance | [Benchmark](https://pivotkit.eize.dev/reference/core/#performance) |
-| Security: views as input, safe exports | [Security](https://pivotkit.eize.dev/security/) |
-| Browser and Node support | [Browser support](https://pivotkit.eize.dev/browser-support/) |
-| Recipes | [Recipes](https://pivotkit.eize.dev/embed/recipes/) |
-| For the people who use a report | [Use a report](https://pivotkit.eize.dev/use/) |
-| Try it | [Live demo](https://pivotkit.eize.dev/demo/), [feature list](https://pivotkit.eize.dev/features/), [FAQ](https://pivotkit.eize.dev/faq/) |
-| Changes | [CHANGELOG](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-core/CHANGELOG.md) |
+- [Getting started with the engine](https://pivotkit.eize.dev/getting-started/engine/): rows to a table, drawing the grid, on a server
+- [Loading files](https://pivotkit.eize.dev/reference/import/) and [Plugins](https://pivotkit.eize.dev/reference/plugins/): CSV and JSON files, Excel files with a plugin, writing the data as a file again with `dataToCsv`
+- [pivotkit-core reference](https://pivotkit.eize.dev/reference/core/): every function, constant and type, in the sections [data](https://pivotkit.eize.dev/reference/core/#data), [views](https://pivotkit.eize.dev/reference/core/#views), [pivot](https://pivotkit.eize.dev/reference/core/#pivot), [output and export](https://pivotkit.eize.dev/reference/core/#output), [helpers](https://pivotkit.eize.dev/reference/core/#helpers) and [types](https://pivotkit.eize.dev/reference/core/#types)
+- [Views and saved views](https://pivotkit.eize.dev/concepts/views/#a-complete-view): the view and every key
+- [Values](https://pivotkit.eize.dev/concepts/values/): aggregators, show as, formats
+- [Dates and number ranges](https://pivotkit.eize.dev/concepts/dates/): date grouping and number ranges
+- [Filters, top N and sorting](https://pivotkit.eize.dev/concepts/filters/)
+- [Charts](https://pivotkit.eize.dev/concepts/charts/): chart options
+- [View file format](https://pivotkit.eize.dev/reference/view-file/), [Sharing](https://pivotkit.eize.dev/concepts/sharing/) and [Templates](https://pivotkit.eize.dev/concepts/templates/): view files, links, templates
+- [Locale](https://pivotkit.eize.dev/concepts/limits/#locale) and [Time zones](https://pivotkit.eize.dev/concepts/limits/#time-zones)
+- [Localisation](https://pivotkit.eize.dev/reference/localisation/) and [Chart colours](https://pivotkit.eize.dev/reference/theming/#chart-colours): labels and chart colours
+- [Limits](https://pivotkit.eize.dev/concepts/limits/#limits) and [Errors](https://pivotkit.eize.dev/concepts/limits/#errors)
+- [Performance](https://pivotkit.eize.dev/reference/core/#performance): the benchmark
+- [Security](https://pivotkit.eize.dev/security/): views as input, safe exports
+- [Browser support](https://pivotkit.eize.dev/browser-support/): browsers and Node
+- [Recipes](https://pivotkit.eize.dev/embed/recipes/)
+- [Use a report](https://pivotkit.eize.dev/use/): for the people who use a report
+- Try it: [Live demo](https://pivotkit.eize.dev/demo/), [feature list](https://pivotkit.eize.dev/features/), [FAQ](https://pivotkit.eize.dev/faq/)
+- Changes: [CHANGELOG](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-core/CHANGELOG.md)
 
 ## License
 

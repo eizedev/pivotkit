@@ -1,8 +1,8 @@
-// One view per issue code of VIEW_ISSUE_CODES, against encode(SALES): issuesOf() gives what
-// normalize() reports for it (computePivot() for "timeZoneMismatch"; "noMigration", which no view of
-// this version can reach yet, from the migration pipeline with a step missing). Strict-only warnings
-// come from validate(). view.test.js checks
-// the codes; pivotkit-react's tests use the same cases for the texts that say them in plain words.
+// One view per issue code of VIEW_ISSUE_CODES, against encode(SALES). issuesOf() gives what
+// normalize() reports for it, with three exceptions: computePivot() for "timeZoneMismatch", the
+// migration pipeline with a step missing for "noMigration" (no view of this version can reach it yet)
+// and validate() for the warnings that only strict reading gives. view.test.js checks the codes;
+// pivotkit-react's tests use the same cases for the texts that say them in plain words.
 import { computePivot, normalize, validate } from "../src/index.js";
 import { runMigrations } from "../src/view.js";
 

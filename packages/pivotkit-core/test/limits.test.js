@@ -1,13 +1,14 @@
 import { test } from "node:test";
-import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
-import { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, PivotkitError, validate, computePivot, encode, normalize, outsideLimits, toEChartsOption, toGrid, toSeries } from "../src/index.js";
+import { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, PivotkitError, validate, computePivot, describeSource, encode, normalize, outsideLimits, toEChartsOption, toGrid, toSeries, toViewFile, viewFromLayout } from "../src/index.js";
 import { encodeViewLink } from "../src/link.js";
 import { limitText } from "../src/internal.js";
 import { toCsv, toXlsx } from "../src/export.js";
 import { derivedColumn } from "../src/derive.js";
 import { ITEM_LENGTH } from "../src/limits.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
+import { random } from "./fixtures.js";
 
 const isError = (code, limit) => (e) => e instanceof PivotkitError && e.code === code && (limit === undefined || e.details.limit === limit);
 
@@ -19,10 +20,11 @@ function square(n) {
 test("limitText: one wording of a limit for every package, numbers in en-US whatever the runtime's locale", () => {
     assert.equal(limitText(1001, 1000, "rows", "limits.rows"), "1,001 rows exceed the limit of 1,000 (limits.rows)");
     assert.equal(limitText(2_500_000, 2_000_000, "grid cells", "limits.cells"), "2,500,000 grid cells exceed the limit of 2,000,000 (limits.cells)");
-    // the view link says it alike
-    // names that do not compress: the deflated link runs over LINK_LIMITS.text
-    const long = { rows: Array.from({ length: 1000 }, () => randomBytes(32).toString("base64")) };
-    assert.throws(() => encodeViewLink(long), (e) => e instanceof PivotkitError && /^[\d,]+ characters of the (view|link) exceed the limit of [\d,]+ \(LINK_LIMITS\)$/.test(e.message));
+    // the view link says it alike: names that do not compress make the deflated link run over LINK_LIMITS.text
+    const rnd = random(1);
+    const name = () => Array.from({ length: 43 }, () => String.fromCharCode(33 + Math.floor(rnd() * 94))).join("");
+    const long = { rows: Array.from({ length: 1000 }, name) };
+    assert.throws(() => encodeViewLink(long), (e) => e instanceof PivotkitError && /^[\d,]+ (bytes of the view|characters of the link) exceed the limit of [\d,]+ \(LINK_LIMITS\)$/.test(e.message));
 });
 
 test("a 5k x 5k pivot is refused before the dense grid is allocated", () => {
@@ -32,15 +34,16 @@ test("a 5k x 5k pivot is refused before the dense grid is allocated", () => {
     assert.throws(() => toGrid(result), isError("LIMIT_EXCEEDED", "cells"));
     assert.throws(() => toSeries(result), isError("LIMIT_EXCEEDED", "cells"));
     assert.throws(() => toEChartsOption(result), isError("LIMIT_EXCEEDED", "cells"));
-    // nothing of the 25 million cells was built
-    assert.ok(cpu() < 1000);
-    assert.ok(process.memoryUsage().heapUsed - before < 200e6);
+    // nothing of the 25 million cells was built: they would take seconds and gigabytes
+    assert.ok(cpu() < 1000, `${Math.round(cpu())} ms of CPU`);
+    assert.ok(process.memoryUsage().heapUsed - before < 200e6, `${Math.round((process.memoryUsage().heapUsed - before) / 1e6)} MB`);
 });
 
 test("the cell limit is configurable and names itself in the error", () => {
     const result = computePivot(square(30), { rows: ["A"], cols: ["W"], values: [{ agg: "count" }] });
     // (2 header rows + 31 body rows) x (1 label column + 31 value columns)
-    assert.equal(toGrid(result).rows.length * toGrid(result).columnCount, 33 * 32);
+    const grid = toGrid(result);
+    assert.equal(grid.rows.length * grid.columnCount, 33 * 32);
     assert.throws(() => toGrid(result, { limits: { cells: 1000 } }), (e) => {
         assert.ok(isError("LIMIT_EXCEEDED", "cells")(e));
         assert.deepEqual(e.details, { limit: "cells", value: 1056, max: 1000 });
@@ -60,15 +63,13 @@ test("a hostile view of many high-cardinality fields is refused quickly, with bo
     const data = wide(50_000);
     const fields = Array.from({ length: 16 }, (_, j) => `f${j}`);
     const view = { rows: fields.slice(0, 8), cols: fields.slice(8), values: [{ agg: "count" }] };
-    globalThis.gc?.();
     const before = process.memoryUsage().heapUsed;
     const cpu = cpuClock();
     // without the limits this builds 800,000 nodes and 4 million cells (gigabytes) and returns
     assert.throws(() => computePivot(data, view), isError("LIMIT_EXCEEDED", "groups"));
     assert.ok(cpu() < 3000, `${Math.round(cpu())} ms of CPU`);
     // up to the 500,000 nodes the limit allows (about 200 MB of trees) plus what the build leaves to
-    // the garbage collector, which runs when it likes (about 260 MB in Node 26, 350 MB measured in CI
-    // with coverage before the trees shared one child map)
+    // the garbage collector, which runs when it likes; the gigabytes of an unbounded build stay far above
     assert.ok(process.memoryUsage().heapUsed - before < 400e6, `${Math.round((process.memoryUsage().heapUsed - before) / 1e6)} MB`);
 });
 
@@ -127,15 +128,16 @@ test("many low-cardinality fields with many medians are refused before any work"
     assert.ok(process.memoryUsage().heapUsed - before < 50e6, `${Math.round((process.memoryUsage().heapUsed - before) / 1e6)} MB`);
 });
 
-test("the default limits fit a browser tab", () => {
-    assert.equal(LIMITS.rows, 1_000_000);
-    assert.equal(LIMITS.groups, 500_000);
-    assert.equal(LIMITS.pivotCells, 2_000_000);
-    assert.equal(LIMITS.cacheEntries, 16);
-    assert.equal(LIMITS.axisFields, 8);
-    assert.equal(LIMITS.values, 16);
-    assert.equal(LIMITS.work, 100_000_000);
-    // cell keys (row node id x column count + column node id) stay exact under the highest groups limit
+test("the limits page states every default as LIMITS holds it", () => {
+    // docs/concepts/limits.md owns the numbers and why they are what they are; a change edits both
+    const page = readFileSync(new URL("../../../docs/concepts/limits.md", import.meta.url), "utf8");
+    const documented = new Map([...page.matchAll(/^\| `(\w+)` \| ([\d,]+)/gm)].map((m) => [m[1], Number(m[2].replaceAll(",", ""))]));
+    for (const [name, value] of Object.entries(LIMITS)) {
+        assert.equal(documented.get(name), value, name);
+    }
+});
+
+test("limits.groups is at most 2^27, where cell keys (row node id x column count + column node id) stay exact", () => {
     const half = 2 ** 27 / 2;
     assert.ok(half * half + half < Number.MAX_SAFE_INTEGER);
     assert.throws(() => computePivot(square(2), {}, { limits: { groups: 2 ** 27 + 1 } }), isError("INVALID_OPTION"));
@@ -163,6 +165,8 @@ test("XLSX: more columns or rows than an Excel sheet holds is a clear error", ()
     // a grid of 1,048,577 rows; sparse, so the test needs no memory
     const tall = { ...wide, rows: new Array(1_048_577), columnCount: 1 };
     assert.throws(() => toXlsx(tall), isError("LIMIT_EXCEEDED", "xlsxRows"));
+    // Excel's size is no setting: the message names none
+    assert.throws(() => toXlsx(tall), { message: "1,048,577 rows exceed the limit of 1,048,576 (an Excel sheet)" });
 });
 
 test("wrong arguments throw PivotkitError, not a TypeError deep inside", () => {
@@ -176,7 +180,14 @@ test("wrong arguments throw PivotkitError, not a TypeError deep inside", () => {
         "toEChartsOption(undefined)": () => toEChartsOption(undefined),
         "toXlsx({})": () => toXlsx({}),
         "toCsv(null)": () => toCsv(null),
-        "encode({ length: 4e9 })": () => encode({ length: 4e9 })
+        "encode({ length: 4e9 })": () => encode({ length: 4e9 }),
+        "toViewFile(null)": () => toViewFile(null),
+        "viewFromLayout with a filter in a cycle": () => {
+            const filter = { field: "A", type: "in", items: [] };
+            filter.self = filter;
+            return viewFromLayout({ rows: ["A"], filters: [filter] }, describeSource(data));
+        },
+        "viewFromLayout with a BigInt in a filter": () => viewFromLayout({ rows: ["A"], filters: [{ field: "A", type: "in", items: [1n] }] }, describeSource(data))
     };
     for (const [name, fn] of Object.entries(cases)) {
         assert.throws(fn, isError("INVALID_ARGUMENT"), name);

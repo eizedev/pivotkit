@@ -90,7 +90,10 @@ export function validatePlugin(plugin) {
         fail('needs accept: file name extensions (".xlsx") and media types ("text/csv"), in lower case');
     }
     if (typeof p.load !== "function") fail("needs load(): a function that imports the reader");
-    return Object.freeze({ apiVersion: p.apiVersion, kind: p.kind, name: p.name, label: p.label, accept: [...p.accept], load: p.load });
+    // load is taken once, as checked, and called on the plugin itself, so a plugin object whose
+    // load() reads `this` works and a later change of the plugin's load is not run
+    const load = p.load;
+    return Object.freeze({ apiVersion: p.apiVersion, kind: p.kind, name: p.name, label: p.label, accept: [...p.accept], load: () => load.call(p) });
 }
 
 /** The CSV, TSV and text reader of pivotkit-core. */
@@ -179,9 +182,14 @@ export async function readFile(file, options = {}) {
     if (file && typeof file === "object" && typeof (/** @type {any} */ (file).size) === "number" && /** @type {any} */ (file).size > limits.fileBytes) {
         throw limitError("fileBytes", /** @type {any} */ (file).size, limits.fileBytes, name, "bytes");
     }
+    if (options.plugins !== undefined && !Array.isArray(options.plugins)) {
+        throw new PivotkitError("INVALID_OPTION", "readFile: options.plugins must be an array of reader plugins");
+    }
     const plugin = options.reader ?? readerFor(/** @type {any} */ (file), options.plugins);
     if (!plugin) {
-        throw fileError("NO_READER", name, "no reader for this kind of file.");
+        // a Blob has no name, and options.name only names the file in messages: say how to pick a reader
+        const unnamed = typeof (/** @type {any} */ (file)?.name) !== "string";
+        throw fileError("NO_READER", name, unnamed ? "no reader for this kind of file: it has no name to pick one by; read a File, or pass options.reader." : "no reader for this kind of file.");
     }
     const reader = await loadReader(plugin);
     const readOptionsOnly = { ...options };

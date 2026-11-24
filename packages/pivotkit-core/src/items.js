@@ -69,9 +69,14 @@ export function fieldItems(data, field, options) {
         }
     }
     codes.sort((a, b) => ranks[a] - ranks[b]);
-    const items = codes.map((code) => ({ value: column.dict[code], label: labelOf(column, column.dict[code], locale, labels), count: counts[code + 1], kept: keeps(code) }));
+    // blank (-1) last; labels only for the values listed
     if (counts[0] > 0) {
-        items.push({ value: null, label: labelOf(column, null, locale, labels), count: counts[0], kept: keeps(-1) });
+        codes.push(-1);
     }
-    return { field: column.name, type: column.type, items: items.slice(0, limits.items), truncated: items.length > limits.items };
+    const listed = codes.slice(0, limits.items);
+    const items = listed.map((code) => {
+        const value = code === -1 ? null : column.dict[code];
+        return { value, label: labelOf(column, value, locale, labels), count: counts[code + 1], kept: keeps(code) };
+    });
+    return { field: column.name, type: column.type, items, truncated: codes.length > limits.items };
 }

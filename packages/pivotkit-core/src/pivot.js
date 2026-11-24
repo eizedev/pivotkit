@@ -374,14 +374,10 @@ export function computePivot(data, viewInput, options) {
 
     const sortOf = new Map(view.sort.map((s) => [s.field, s]));
     // a row field sorted by a value in one column (its items, outermost first): that column's node,
-    // null when the data has no such column (every row then sorts last, by label)
-    const columnNode = (path) => {
-        let node = colTree.root;
-        for (const key of path) {
-            node = node?.children.find((c) => c.key === key);
-        }
-        return node ?? null;
-    };
+    // false when the data has no such column (every row then sorts last, by label). Found once per
+    // sort entry, not per row: a search per row would cost rows x columns
+    const found = new Map();
+    const columnNode = (path) => found.get(path) ?? found.set(path, path.reduce((node, key) => node && node.children.find((c) => c.key === key), colTree.root) || false).get(path);
     sortAxis(rowTree, view.rows, rowColumns, sortOf, (n, ref, column) => {
         const col = column ? columnNode(column) : colTree.root;
         return col ? num(measureValue(n, col, measureIndex.get(refKey(ref)))) : null;

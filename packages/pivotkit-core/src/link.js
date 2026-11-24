@@ -22,7 +22,7 @@ import { PivotkitError, expect, limitText } from "./errors.js";
 import { linkFragment } from "./link-fragment.js";
 import { resolveLimits } from "./limits.js";
 import { isPlainObject } from "./util.js";
-import { fromViewFile, paramsOf } from "./view-file.js";
+import { fromViewFile } from "./view-file.js";
 
 /**
  * The codes of a link's issues: an empty text, one too long, no pivotkit view link, damaged data, a
@@ -35,7 +35,8 @@ const PREFIX = "1.";
 
 /**
  * The most a link may hold: `text` characters of the encoded view (browsers and servers handle URLs
- * of this length; a larger view belongs in a file), `json` characters of the view once inflated.
+ * of this length; a larger view belongs in a file), `json` bytes of the view's JSON in UTF-8, as it is
+ * written and once inflated.
  */
 export const LINK_LIMITS = Object.freeze({ text: 32_000, json: 1_000_000 });
 
@@ -69,12 +70,14 @@ function fromBase64Url(text) {
  */
 export function encodeViewLink(view) {
     expect(isPlainObject(view), "encodeViewLink(view): view must be an object");
-    const json = JSON.stringify(view);
+    // the view's bytes, as decodeViewLink counts them once inflated: a view of many non-ASCII
+    // characters is larger in bytes than in characters
+    const json = strToU8(JSON.stringify(view));
     const tooLong = (value, max, what) => new PivotkitError("LIMIT_EXCEEDED", limitText(value, max, what, "LINK_LIMITS"), { limit: "link", value, max });
     if (json.length > LINK_LIMITS.json) {
-        throw tooLong(json.length, LINK_LIMITS.json, "characters of the view");
+        throw tooLong(json.length, LINK_LIMITS.json, "bytes of the view");
     }
-    const text = PREFIX + toBase64Url(deflateSync(strToU8(json), { level: 9 }));
+    const text = PREFIX + toBase64Url(deflateSync(json, { level: 9 }));
     if (text.length > LINK_LIMITS.text) {
         throw tooLong(text.length, LINK_LIMITS.text, "characters of the link");
     }
@@ -108,7 +111,7 @@ export function decodeViewLink(text) {
     try {
         const out = inflateCapped(fromBase64Url(payload), LINK_LIMITS.json);
         if (out.bytes === null) {
-            return fail(`view larger than ${LINK_LIMITS.json} characters`, "linkTooLarge");
+            return fail(`view larger than ${LINK_LIMITS.json} bytes`, "linkTooLarge");
         }
         json = strFromU8(out.bytes);
     } catch {
@@ -168,7 +171,8 @@ export function readViewLink(hash, key, options = {}) {
     const issues = [...file.issues];
     /** @type {Record<string, string>} */
     const params = {};
-    for (const [name, value] of Object.entries(paramsOf(file.source?.params, limits, () => {}) ?? {})) {
+    // fromViewFile read the parameters with the same limits (paramsOf): only the allowed ones are kept here
+    for (const [name, value] of Object.entries(file.source?.params ?? {})) {
         if (allowed.has(name)) {
             // defined, not assigned: a name such as "__proto__" is a parameter like any other
             Object.defineProperty(params, name, { value, enumerable: true, writable: true, configurable: true });

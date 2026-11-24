@@ -3,8 +3,9 @@
 // draw it) and in decorateOption's slider.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CATALOG, computePivot, emptyView, encode, normalize, validate } from "../../src/index.js";
+import { CATALOG, computePivot, emptyView, encode, fromViewFile, normalize, toViewFile, validate } from "../../src/index.js";
 import { decorateOption, toEChartsOption } from "pivotkit-core/chart";
+import { longestNames } from "../../src/chart-zoom.js";
 import { REVENUE } from "./fixtures.js";
 
 const NO_TOKENS = { getPropertyValue: () => "" };
@@ -55,6 +56,8 @@ test("hidden legend entries: unselected in the legend, also while the legend is 
     // a hidden legend leaves the pie's labels as without a legend: every slice keeps its label
     const drawn = decorateOption(toEChartsOption(pivot({ type: "pie", legend: "off", hidden: ["North"] })), NO_TOKENS, { width: 390, height: 360 });
     assert.equal(drawn.legend.show, false);
+    assert.deepEqual(drawn.series[0].data.map((d) => d.name), ["East", "North", "South"]);
+    assert.ok(drawn.series[0].data.every((d) => d.label?.show !== false), "each slice keeps its label");
 });
 
 test("100 % stacked bars: each category's parts as shares of its stack, the value kept for the tooltip", () => {
@@ -142,6 +145,13 @@ test("zoom: a slider under a long axis it cannot label, labels laid out for the 
     assert.equal(decorateOption(toEChartsOption(computePivot(COUNTRIES, { ...LONG_AXIS, chart: { type: "pie" } })), NO_TOKENS, { width: 390, height: 360, zoom: "on" }).dataZoom, undefined);
 });
 
+test("zoom: the window's labels are laid out for its widest names as the layout measures them, not the most characters", () => {
+    // four CJK characters take 4 em, six small Latin letters 3.3 em; the internal helper, since
+    // decorateOption shows only the layout that follows from it
+    assert.deepEqual(longestNames(["abcdef", "日本語版", "abc"], 1), ["日本語版"]);
+    assert.deepEqual(longestNames(["abc", "abcdef", "ab"], 2), ["abcdef", "abc"]);
+});
+
 test("zoom \"auto\" is conservative: 20 categories or fewer only when the axis would leave out 3 labels or more", () => {
     const some = (n) => toEChartsOption(computePivot(encode(Array.from({ length: n }, (_, i) => ({ Country: `Country number ${String(i + 1).padStart(2, "0")}`, Units: i + 1 }))), { ...LONG_AXIS, chart: { type: "bar" } }));
     // 16 long names in a small chart: every 3rd label (2 left out between) is no reason; a slider only with "on"
@@ -183,8 +193,7 @@ test("zoom with group labels drives both category axes", () => {
     assert.deepEqual(drawn.dataZoom[0].xAxisIndex, [0, 1]);
 });
 
-test("a view file leaves out the chart keys newer than 0.7 at their defaults, so 0.7 readers take it without a warning", async () => {
-    const { toViewFile, fromViewFile } = await import("../../src/index.js");
+test("a view file leaves out the chart keys newer than 0.7 at their defaults, so 0.7 readers take it without a warning", () => {
     const view = normalize({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar" } }, SALES).view;
     const file = toViewFile(view, { name: "Revenue" });
     assert.deepEqual(Object.keys(file.view.chart), ["type", "stacked", "horizontal", "valueLabels", "legend", "title", "smooth", "axisLabels", "groupLabels", "labelPosition"]);

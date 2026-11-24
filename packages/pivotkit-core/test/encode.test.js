@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PivotkitError, encode } from "../src/index.js";
 import { toWallMs, wallClock } from "../src/time.js";
+import { random } from "./fixtures.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
 
 const utc = wallClock("UTC");
@@ -105,16 +106,15 @@ test("numeric text is recognised in linear time, and very long text is no number
     assert.equal(encode([{ v: "1".repeat(100) }], { inferNumbers: true }).column("v").type, "number");
 });
 
-test("numeric text: the same strings count as numbers as with the previous pattern", () => {
-    // the previous, ambiguous pattern as the reference (fine for short strings)
+test("numeric text: random short strings count as numbers exactly when a plain number pattern matches them", () => {
+    // a simple, ambiguous pattern as the reference: fine for short strings, slow on long ones
     const reference = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
     const alphabet = ["0", "1", "9", ".", "+", "-", "e", "E", " ", "x"];
-    let seed = 7;
-    const random = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+    const rnd = random(7);
     const strings = ["", ".", "1.", ".5", "1.e5", "1e", "+.e1", "-0.0E-0", "1..2", "1e5.5"];
     for (let i = 0; i < 20_000; i++) {
-        const length = 1 + Math.floor(random() * 8);
-        strings.push(Array.from({ length }, () => alphabet[Math.floor(random() * alphabet.length)]).join(""));
+        const length = 1 + Math.floor(rnd() * 8);
+        strings.push(Array.from({ length }, () => alphabet[Math.floor(rnd() * alphabet.length)]).join(""));
     }
     for (const s of strings) {
         const isNumber = encode([{ v: s }], { inferNumbers: true }).column("v")?.type === "number";

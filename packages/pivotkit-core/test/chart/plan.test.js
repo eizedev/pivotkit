@@ -2,7 +2,7 @@
 // screen (pivotkit-react) and a file (pivotkit-report); decorateOption's marks from a map of tokens.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_THEME, chartPlan, chartThemeFrom, computePivot, encode, normalize, swapAxes, toEChartsOption } from "pivotkit-core";
+import { CATALOG, DEFAULT_THEME, chartPlan, chartThemeFrom, computePivot, emptyView, encode, normalize, swapAxes, toEChartsOption } from "pivotkit-core";
 import { categoryLabelLayout, columnLabelLayout, decorateOption, heatmapCellLabels, ringLabelsFit, rowLabelInterval } from "pivotkit-core/chart";
 import { SALES } from "../fixtures.js";
 
@@ -148,8 +148,7 @@ test("the room of the title, the legend and the group labels grows with the text
     assert.deepEqual(at({ titleSize: 24, textSize: 20 }), { gridTop: 16 + 40 + 30, legendTop: 40, groupOffset: 32 });
 });
 
-test('chart.tooltip: "auto" (the element under the pointer) by default, "axis" (every series); an unknown mode is reported', async () => {
-    const { CATALOG, emptyView } = await import("pivotkit-core");
+test('chart.tooltip: "auto" (the element under the pointer) by default, "axis" (every series); an unknown mode is reported', () => {
     assert.deepEqual(CATALOG.chartTooltips, ["auto", "axis"]);
     assert.equal(emptyView().chart.tooltip, "auto");
     assert.equal(view({ chart: { tooltip: "axis" } }).chart.tooltip, "axis");
@@ -176,8 +175,7 @@ test("the tooltip's marks: a bar lights up alone, the axis position lights up no
     }
 });
 
-test("CATALOG.additiveAggregators: the aggregators whose values add up (a stack's total means something)", async () => {
-    const { CATALOG } = await import("pivotkit-core");
+test("CATALOG.additiveAggregators: the aggregators whose values add up (a stack's total means something)", () => {
     assert.deepEqual(CATALOG.additiveAggregators, ["count", "sum"]);
     // shown as: shares of the grand or the row total, a difference and a running total still add up
     // across a category's series; a rank, a percent difference or a share of another base does not

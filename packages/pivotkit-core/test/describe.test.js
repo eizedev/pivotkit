@@ -98,3 +98,17 @@ test("describeView names a date item of a sort's column as its day, other items 
     assert.equal(at(day + 3600000), "Region by sum of Units in the column 2026-01-05T01:00, ascending");
     assert.equal(at(1e20), "Region by sum of Units in the column 100000000000000000000, ascending");
 });
+
+test("describeView: a comparison and a text rule in words for each operator, with not", () => {
+    const data = encode(SALES);
+    const text = (filter) => describeView({ version: 2, filters: [{ blanks: "exclude", ...filter }] }, data).filters[0].text;
+    assert.equal(text({ field: "Units", type: "compare", op: "=", value: 5 }), "Units is 5 (blanks dropped)");
+    assert.equal(text({ field: "Units", type: "compare", op: "=", value: 5, not: true }), "Units is not 5 (blanks dropped)");
+    assert.equal(text({ field: "Units", type: "compare", op: ">=", value: 5 }), "Units is at least 5 (blanks dropped)");
+    assert.equal(text({ field: "Units", type: "compare", op: "<", value: 5, not: true }), "Units is not less than 5 (blanks dropped)");
+    assert.equal(text({ field: "Units", type: "compare", op: "between", value: 1, value2: 9 }), "Units is between 1 and 9 (blanks dropped)");
+    assert.equal(describeView({ version: 2, filters: [{ field: "Region", type: "value", op: "=", value: 5, by: { field: "Units", agg: "sum" } }] }, data).filters[0].text, "Region where sum of Units is 5");
+    assert.equal(text({ field: "Rep", type: "text", op: "beginsWith", value: "A" }), 'Rep begins with "A", case insensitive, whitespace collapse (blanks dropped)');
+    assert.equal(text({ field: "Rep", type: "text", op: "endsWith", value: "n", not: true }), 'Rep does not end with "n", case insensitive, whitespace collapse (blanks dropped)');
+    assert.equal(text({ field: "Rep", type: "text", op: "equals", value: "Ann", not: true }), 'Rep does not equal "Ann", case insensitive, whitespace collapse (blanks dropped)');
+});
