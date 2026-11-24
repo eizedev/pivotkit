@@ -53,27 +53,6 @@ export async function labelsOnTop(page, popover) {
     return out;
 }
 
-/**
- * Opens the zones of one report of several when they are folded, once the report has settled (as
- * openZones does for a page of one: the layout read twice, apart, before).
- */
-export async function openZonesIn(report) {
-    const root = report.locator(".pk-root");
-    let last = "";
-    await expect
-        .poll(async () => {
-            const now = String(await root.getAttribute("data-pk-layout"));
-            const same = now === last;
-            last = now;
-            return same;
-        }, { intervals: [250, 250, 250, 500] })
-        .toBe(true);
-    if (last === "compact") {
-        await report.getByTestId("layout-summary").click();
-    }
-    await expect(report.locator(".pk-zone").first()).toBeVisible();
-}
-
 /** Every form field of a report: its name, id and whether it has a label. */
 export const formFields = (report) =>
     report.locator("input, select, textarea").evaluateAll((els) =>

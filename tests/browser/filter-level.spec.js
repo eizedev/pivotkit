@@ -391,7 +391,7 @@ test.describe("the Filter level on data that reach today (endoflife)", () => {
     });
 });
 
-// What the owner's hands-on test and the review found on the rebuilt Filter level (weather, to Dec 31, 2025).
+// What a hands-on test and a review found on the Filter level (weather, to Dec 31, 2025).
 test.describe("the Filter level: findings of the hands-on test (weather)", () => {
     const rule = (op, value, extra = {}) => ({ field: CYCLIC, type: "compare", op, value, ...extra });
     const wholeYear = (y) => rule("between", `${y}-01-01`, { value2: `${y}-12-31` });

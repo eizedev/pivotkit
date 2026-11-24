@@ -178,13 +178,14 @@ let watching = false;
  * otherwise end it without the exit event (Ctrl-C, the timeout of a spawning test). A signal the
  * process handles itself (a server's graceful stop, Playwright's worker) is left to that handler,
  * whether it was added before or after the first tempDir(); the exit event removes the directories
- * once it is done, and a handler that has not ended the process after GRACE_MS ends it here. Only without such a handler does the signal end the process here, as it would
- * without one (exit code 128 + the signal's number).
+ * once it is done, and a handler that has not ended the process after GRACE_MS ends it here.
+ * Only without such a handler does the signal end the process here, as it would without one (exit
+ * code 128 + the signal's number). The handlers come first, the sweep of other processes' leftovers
+ * after them: a sweep that failed would not leave this process without its cleanup.
  */
 function watch() {
     if (watching) return;
     watching = true;
-    removeOrphans();
     process.on("exit", removeTempDirs);
     for (const [signal, number] of /** @type {const} */ ([["SIGINT", 2], ["SIGTERM", 15], ["SIGHUP", 1]])) {
         const end = () => {
@@ -196,6 +197,7 @@ function watch() {
         };
         process.prependListener(signal, end);
     }
+    removeOrphans();
 }
 
 /**

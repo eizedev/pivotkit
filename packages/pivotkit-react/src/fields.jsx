@@ -28,7 +28,6 @@ import { SLOTS, opensMenu, roveTarget } from "./rove.js";
 import { MenuButton, Option } from "./popover.jsx";
 import { ZONES } from "./view-ops.js";
 
-
 function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, source, info, showInfo, stop }) {
     const { setNodeRef, isDragging, itemProps, handleProps } = useDragSource(`field:${field.name}`, { kind: "field", field: field.name, type: field.type, label: name });
     const item = useRef(/** @type {HTMLLIElement | null} */ (null));

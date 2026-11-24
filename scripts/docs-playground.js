@@ -1,12 +1,9 @@
 // The built playground as the docs generators open it: docs-screenshots.js takes pictures of it,
 // docs-clips.js records videos of it. Both start its server, open a page at a view and wait until the
 // report has its data, in the same way, so a picture and a clip of the same view look alike.
-import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink as encodeLink } from "pivotkit-core/link";
-
-const root = new URL("../", import.meta.url);
+import { startPlayground as startServer } from "../tests/playground-server.js";
 
 /** A view as the playground's links carry it: the link profile of a view file. */
 export const encodeViewLink = (view) => encodeLink(toViewFile(view, {}, { link: true }));
@@ -15,13 +12,13 @@ export const encodeViewLink = (view) => encodeLink(toViewFile(view, {}, { link: 
 export const hideToasts = (page) => page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
 
 /**
- * Starts the playground's server on `PLAYGROUND_PORT` (default `port`). Call `stop()` when done.
+ * Starts the playground's server on `PLAYGROUND_PORT` (default `port`) and waits until it listens.
+ * Fails when the port is taken, rather than take pictures of another server. Call `stop()` when done.
  * @param {number} port
  */
-export function startPlayground(port) {
-    const at = Number(process.env.PLAYGROUND_PORT ?? port);
-    const server = spawn(process.execPath, [fileURLToPath(new URL("examples/playground/serve.js", root)), String(at)], { stdio: "ignore" });
-    return { base: `http://127.0.0.1:${at}/`, stop: () => server.kill() };
+export async function startPlayground(port) {
+    const { base, child } = await startServer({ port: Number(process.env.PLAYGROUND_PORT ?? port) });
+    return { base, stop: () => child.kill() };
 }
 
 /**
@@ -35,16 +32,8 @@ export function startPlayground(port) {
 export async function openPlayground(page, base, { query, hash, theme }) {
     const own = /(^|&)import(=|&|$)/.test(query) ? query : `${query}&import=off`;
     const url = `${base}?${own}&theme=${theme}${hash ? `#pivot-playground=${hash}` : ""}`;
-    // the server needs a moment on the first request
-    for (let i = 0; ; i++) {
-        try {
-            await page.goto(url);
-            break;
-        } catch (error) {
-            if (i > 20) throw error;
-            await page.waitForTimeout(250);
-        }
-    }
+    // startPlayground() has waited until the server listens
+    await page.goto(url);
     await page.locator(".pk-root").waitFor();
     // a real data set loads first: the skeleton goes when the report has its data
     await page.getByTestId("skeleton").waitFor({ state: "detached" });

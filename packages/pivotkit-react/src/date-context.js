@@ -1,6 +1,10 @@
-import { isDateMs } from "pivotkit-core";
-// Date context is display-only: never rename a saved derived field or change its grouping keys.
-import { CATALOG, fieldLabel, monthName } from "pivotkit-core";
+/*
+ * The data's dates in words for the first load: the footer's date range, which years a grouping such
+ * as "Month of year" combines, and the date formatters they share (bounded by locale and options).
+ * Date context is display-only: never rename a saved derived field or change its grouping keys.
+ */
+
+import { CATALOG, fieldLabel, isDateMs, monthName } from "pivotkit-core";
 import { dateSpan, filterZoneFields, sourceOf } from "./view-ops.js";
 import { yearText } from "./names.js";
 import { fill } from "./labels.js";

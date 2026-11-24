@@ -6,7 +6,7 @@
  * and the theme apply, also inside a shadow root, and from there into the browser's top layer
  * (popover="manual" with showPopover(), where the Popover API is there): above the host page's own
  * layout whatever its z-indexes and stacking contexts (a fixed navigation drawer), never clipped,
- * placed against the window. "manual" leaves closing to this module, as before: no light dismiss,
+ * placed against the window. "manual" leaves closing to this module: no light dismiss,
  * Escape through dom.js. Without the API the layer is stacked by --pk-layer-z (styles.css). A
  * popover keeps the mouse wheel to itself: what it cannot scroll further never scrolls the table or
  * the page behind it (wheelStays).

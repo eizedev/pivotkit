@@ -3,7 +3,7 @@
 // only); pie, donut and heatmap keep their item tooltip. The Display setting "All series" (#106,
 // chart.tooltip "axis") shows every series wherever the pointer is. Real pointer input: the positions
 // come from the chart's own layout (getItemLayout, convertToPixel), not from fixed fractions.
-import { test, expect } from "../fixtures.js";
+import { expect, test, untilStable } from "../fixtures.js";
 import { ROWS, VIEW, EAST, NORTH, HARDWARE, SERVICES, SOFTWARE, VALUES, mount, pointOf, barMiddle, between, linePoint, sliceMiddle, cellMiddle, hover, settled, tooltipOf } from "./report.js";
 
 /** The visual states of a bar (ECharts' "emphasis" when it lights up, "blur" when it fades). */
@@ -462,30 +462,24 @@ for (const { name, chart, view = {}, rows, check } of CSP_CASES) {
         });
         // drawn and settled: the chart draws again when its box settles (the report lays itself out),
         // so the sweep waits until two reads of the canvas, a few frames apart, are the same picture
-        let last = "";
-        await expect.poll(async () => {
-            const now = await chartEl.locator("canvas").first().evaluate(async (c) => {
-                await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-                // a small copy to read from (reading the chart's own canvas again and again makes
-                // Chromium warn): enough to see a mark move
-                const copy = document.createElement("canvas");
-                copy.width = 240;
-                copy.height = 120;
-                const ctx = copy.getContext("2d", { willReadFrequently: true });
-                ctx.drawImage(c, 0, 0, copy.width, copy.height);
-                const { data } = ctx.getImageData(0, 0, copy.width, copy.height);
-                let sum = 0;
-                let marks = 0;
-                for (let i = 3; i < data.length; i += 4) {
-                    sum = (sum * 31 + data[i - 3] + data[i - 2] * 7 + data[i - 1] * 13 + data[i]) % 1_000_000_007;
-                    marks += data[i] > 0 ? 1 : 0;
-                }
-                return marks ? `${c.width}x${c.height}:${sum}` : "";
-            });
-            const same = now !== "" && now === last;
-            last = now;
-            return same;
-        }, { intervals: [100, 100, 200, 200, 400] }).toBe(true);
+        await untilStable(() => chartEl.locator("canvas").first().evaluate(async (c) => {
+            await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+            // a small copy to read from (reading the chart's own canvas again and again makes
+            // Chromium warn): enough to see a mark move
+            const copy = document.createElement("canvas");
+            copy.width = 240;
+            copy.height = 120;
+            const ctx = copy.getContext("2d", { willReadFrequently: true });
+            ctx.drawImage(c, 0, 0, copy.width, copy.height);
+            const { data } = ctx.getImageData(0, 0, copy.width, copy.height);
+            let sum = 0;
+            let marks = 0;
+            for (let i = 3; i < data.length; i += 4) {
+                sum = (sum * 31 + data[i - 3] + data[i - 2] * 7 + data[i - 1] * 13 + data[i]) % 1_000_000_007;
+                marks += data[i] > 0 ? 1 : 0;
+            }
+            return marks ? `${c.width}x${c.height}:${sum}` : "";
+        }), { ready: (now) => now !== "", intervals: [100, 100, 200, 200, 400] });
         const box = await chartEl.boundingBox();
         for (const fy of rows) {
             const y = box.y + box.height * fy;

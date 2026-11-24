@@ -1,4 +1,4 @@
-// The findings of the UI and UX review before 0.1.0: the chart type the data suggests, one tip at a
+// The findings of a UI and UX review: the chart type the data suggests, one tip at a
 // time, the toolbar by priority, the phone's More sheet and row labels, pies of many slices, the
 // filter by field type, the field list as one stop for the keyboard, the help switches, the names of
 // date groupings, the status notes in view, long field names and touch targets. Every test here fails

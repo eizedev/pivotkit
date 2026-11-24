@@ -220,16 +220,58 @@ test("styles.css: corner radii, font families and ring geometry only from --pk-*
     assert.deepEqual(found, [], `use a --pk-* token (docs/reference/theming.md) instead of:\n${found.join("\n")}`);
 });
 
-test("styles.css: every --pk-* token a rule uses is declared in the token block", () => {
+test("styles.css: every --pk-* token a rule uses has a default in the token block, a rule of its own, or is set from code or by the host", () => {
     const declared = new Set(declarations(css).filter((d) => d.selector === ":where(.pk-root)").map((d) => d.prop));
-    // tokens a host may add, or set by the report from code (a cell's colour, a bar's length)
-    const optional = new Set(["--pk-font", "--pk-scale-mid"]);
+    // tokens a rule of styles.css sets for its part (the result's least height, a label's width); a
+    // token of the dark block alone has no default
+    const byRule = new Set(declarations(css).filter((d) => !TOKEN_BLOCKS.has(d.selector) && d.prop.startsWith("--pk-")).map((d) => d.prop));
+    // tokens the report sets from code (a cell's colour, a bar's length, a swatch, the split) and the
+    // one a host may set (--pk-font: unset, the report inherits the page's font)
+    const fromCode = ["--pk-swatch", "--pk-row-cols", "--pk-row-room", "--pk-cell-bg", "--pk-bar-color", "--pk-bar", "--pk-split"];
+    const byHost = ["--pk-font"];
+    const code = readdirSync(new URL("../src/", import.meta.url))
+        .filter((f) => /\.jsx?$/.test(f))
+        .map((f) => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8"))
+        .join("\n");
+    for (const name of fromCode) {
+        assert.ok(code.includes(`"${name}"`) || code.includes(`\`${name}`), `${name} is listed as set from code, but no module sets it`);
+    }
     const used = new Set([...css.matchAll(/var\((--pk-[a-z0-9-]+)/g)].map((m) => m[1]));
     for (const name of used) {
-        if (/^--pk-(radius|font-mono|focus-|ring-|chart-title|chart-text)/.test(name) && !optional.has(name)) {
-            assert.ok(declared.has(name), `${name} is used but has no default in :where(.pk-root)`);
-        }
+        assert.ok(declared.has(name) || byRule.has(name) || fromCode.includes(name) || byHost.includes(name), `${name} is used but has no default in :where(.pk-root) and nothing sets it`);
     }
+});
+
+/**
+ * Animations and transitions whose length is not --pk-duration, as "line n: prop: value". The length
+ * is the first time of each comma-separated part; it must be var(--pk-duration), a calc() of it, or
+ * 0s (a switch, not a motion: visibility after a slide). A delay (the second time, animation-delay)
+ * only staggers and is not checked: at 0ms nothing moves.
+ */
+const ownDurations = (text) => {
+    // the length of one part: its first time, with --pk-duration and its calc() read as "D"
+    const lengthOf = (part) =>
+        part
+            .replace(/calc\(var\(--pk-duration\)[^()]*\)|var\(--pk-duration\)/g, " D ")
+            .replace(/var\([^()]*\)|cubic-bezier\([^()]*\)/g, " ")
+            .match(/(?<![\w.-])(D|\d*\.?\d+m?s)(?![\w.-])/)?.[1];
+    return declarations(text)
+        .filter((d) => /^(animation|transition)(-duration)?$/.test(d.prop) && !/^none\b/.test(d.value))
+        .filter((d) => d.value.split(/,(?![^(]*\))/).some((part) => !/^(D|0m?s)$/.test(lengthOf(part) ?? "")))
+        .map((d) => `line ${d.line}: ${d.prop}: ${d.value}`);
+};
+
+test("the duration check finds a literal length and passes --pk-duration and none; a delay is not checked", () => {
+    assert.deepEqual(ownDurations(".pk-x { animation: pk-flash 600ms ease; transition: color 0.2s; }"), ["line 1: animation: pk-flash 600ms ease", "line 1: transition: color 0.2s"]);
+    // a literal length before --pk-duration (as a delay) is still a literal length
+    assert.deepEqual(ownDurations(".pk-x { animation: pk-flash 1s var(--pk-duration); }"), ["line 1: animation: pk-flash 1s var(--pk-duration)"]);
+    assert.deepEqual(ownDurations(".pk-x { transition: color var(--pk-duration), opacity 0.3s; }"), ["line 1: transition: color var(--pk-duration), opacity 0.3s"]);
+    assert.deepEqual(ownDurations(".pk-x { animation: pk-flash calc(var(--pk-duration) * 3) ease 0.4s 3; transition: none; animation-delay: 0.8s; }"), []);
+    assert.deepEqual(ownDurations(".pk-x { transition: transform var(--pk-duration), visibility 0s linear var(--pk-duration); }"), []);
+});
+
+test("styles.css: every animation and transition takes its length from --pk-duration, so a host's 0ms or reduced motion stops it", () => {
+    assert.deepEqual(ownDurations(css), []);
 });
 
 test("styles.css: every --pk-weight-* a rule uses is declared in the token block", () => {

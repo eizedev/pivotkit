@@ -1,15 +1,20 @@
 // Export → Source data: every row of the data behind the report as a file (the playground turns it on
-// with exportData), set apart from the table's exports; and the owner's case end to end: the view and
-// the data downloaded from the report, rendered by the command line, give the table on the screen.
+// with exportData), set apart from the table's exports; and the round trip of a report built in the
+// browser: the view and the data downloaded from it, rendered by the command line, give the table on
+// the screen.
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { removeTempDirs, tempDir } from "../temp-dir.js";
 import { expect, tableRows, test, toolbar, watchConsole } from "./fixtures.js";
 import { fieldNames, fileOf, pickThroughMenu } from "./import-helpers.js";
 
 const CLI = fileURLToPath(new URL("../../packages/pivotkit-cli/bin/pivotkit.js", import.meta.url));
 const run = promisify(execFile);
+
+test.afterAll(removeTempDirs);
 
 /** The test ids of the Export menu's entries. */
 const TABLE_EXPORTS = ["export-xlsx", "export-csv", "export-html", "export-print", "export-copy-table", "export-copy-json"];
@@ -65,7 +70,7 @@ test.describe("Export → Source data", () => {
         expect(new Set(rows.map((r) => r.Status)).size).toBeGreaterThan(3);
     });
 
-    test("the owner's case: the view and the data downloaded from the report, rendered by the CLI, give the table on the screen", async ({ page, context }) => {
+    test("the view and the data downloaded from the report, rendered by the CLI, give the table on the screen", async ({ page, context }) => {
         await page.goto("?data=weather");
         // the snapshot loads as a chunk of its own: the table of the 14 cities first
         await expect.poll(async () => (await tableRows(page)).length).toBe(14);
@@ -74,11 +79,12 @@ test.describe("Export → Source data", () => {
         const [view] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-view").click()]);
         await toolbar(page, "export");
         const [data] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-data-csv").click()]);
-        const dir = fileURLToPath(new URL(".", `file://${await view.path()}`));
-        const viewFile = `${await view.path()}`;
-        const dataFile = `${await data.path()}.csv`;
+        const dir = tempDir("source-data");
+        const viewFile = join(dir, "weather.pivotkit.json");
+        const dataFile = join(dir, "weather.csv");
+        await view.saveAs(viewFile);
         await data.saveAs(dataFile);
-        const out = `${dir}weather-report.html`;
+        const out = join(dir, "weather-report.html");
         const { stdout } = await run(process.execPath, [CLI, "render", viewFile, "--data", dataFile, "-o", out, "--strict", "--json"]);
         expect(JSON.parse(stdout).ok).toBe(true);
         // the report's table opened as a page: its body rows as the screen shows them

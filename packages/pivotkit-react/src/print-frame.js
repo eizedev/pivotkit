@@ -35,6 +35,7 @@ function removeFrame(frame) {
     listeners.get(frame)?.abort();
     frame.remove();
 }
+
 /** How long the frame may take to load before printing is given up as blocked (ms). */
 export const PRINT_LOAD_TIMEOUT = 5_000;
 

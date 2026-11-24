@@ -162,11 +162,11 @@ function LeftOut({ out, row, searching, labels, locale }) {
     );
 }
 
-/** A foldable section of the level: a header button with its state, an action beside it, its body. */
 /**
+ * A foldable section of the level: a header button with its state, an action beside it, its body.
  * @param {{ id: string, title: string, state?: React.ReactNode, open: boolean, onToggle: () => void, action?: React.ReactNode, children: React.ReactNode }} props
  */
-function Section({ id, title, state, open, onToggle, action, children }) {
+function FoldSection({ id, title, state, open, onToggle, action, children }) {
     const bodyId = useId();
     return (
         <section className="pk-fsection" data-testid={`fsection-${id}`}>
@@ -1015,6 +1015,8 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     const timeZone = encoded.timeZone;
     const noun = nounOf(fk, labels);
     const lang = { lang: labels.lang, locale };
+    // the memos below follow the view by its content: the rules, the quick choice and the measures are
+    // read from it, so they are left out of the dependencies (the exhaustive-deps disables)
     const keyOfView = JSON.stringify(view);
     // what the table shows of the field, and the totals the rules on totals compare: pivots of the
     // field alone (its Grand Total scope), with the view's other filters
@@ -1032,7 +1034,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
             perRule.set(r, { totals: plain.totals, kept: kept.totals.size });
         }
         return { shown: all.totals, rows: all.rows, perRule, by };
-    }, [encoded, keyOfView, field, info]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [encoded, keyOfView, field, info, limits]); // eslint-disable-line react-hooks/exhaustive-deps
     // what each rule on the items keeps, by itself
     const itemResults = useMemo(() => {
         const out = new Map();
@@ -1046,7 +1048,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
             out.set("quick", new Set(kept ? kept.items.filter((i) => !i.kept).map((i) => keyOf(i.value)) : []));
         }
         return out;
-    }, [encoded, keyOfView, field, locale, labels]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [encoded, keyOfView, field, locale, labels, limits]); // eslint-disable-line react-hooks/exhaustive-deps
     if (!info || !totals) {
         return null;
     }
@@ -1186,11 +1188,11 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
         <div ref={box} className="pk-filter pk-filter-level">
             <Summary ctx={ctx} state={summary} />
             {quickSection ? (
-                <Section id={quickSection.id} title={quickSection.title} state={quickWords && !openQuick ? quickWords : null} open={openQuick} onToggle={() => setOpenQuick(!openQuick)}>
+                <FoldSection id={quickSection.id} title={quickSection.title} state={quickWords && !openQuick ? quickWords : null} open={openQuick} onToggle={() => setOpenQuick(!openQuick)}>
                     {quickSection.body}
-                </Section>
+                </FoldSection>
             ) : null}
-            <Section
+            <FoldSection
                 id="picks"
                 title={labels.pickItems}
                 state={unpicked ? fill(labels.picksState, { picked: number(picked.length), total: number(all.length) }) : fill(labels.picksAll, { total: number(all.length) })}
@@ -1208,8 +1210,8 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
                     note={labels.appliesAtOnce}
                     tail={anyRule ? { isOut: outOf, render: (out, row, searching) => <LeftOut out={out} row={row} searching={searching} labels={labels} locale={locale} /> } : undefined}
                 />
-            </Section>
-            <Section
+            </FoldSection>
+            <FoldSection
                 id="rules"
                 title={labels.rulesTitle}
                 state={
@@ -1226,7 +1228,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
                 action={<SectionAction text={labels.removeAll} label={labels.removeRules} disabled={!rules.length} onClick={() => act(removeRules(view, field, quick.filters), "section-rules")} testId="filter-remove-rules" />}
             >
                 <RuleEditor ctx={ctx} rules={rules} focusFirst={hint === "conditions"} quickLine={quickWords} results={results} blanks={blanks} />
-            </Section>
+            </FoldSection>
         </div>
     );
 }

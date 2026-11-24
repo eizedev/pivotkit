@@ -3,7 +3,7 @@
  * data…, Back to original data), the overlay while a file is dragged over the report, the dialog that
  * reads the file (progress, Cancel) and previews it before it replaces the data (the sheet of a
  * workbook, the first rows, a type per column, the readers' notes), and the source line under the
- * result. Loaded on first use (lazy-import.jsx), with its texts (import-labels.js); the report itself
+ * result. Loaded on first use (lazy-import.js), with its texts (import-labels.js); the report itself
  * keeps only the button, the drop handlers and the file input.
  *
  * The preview reads the file once; another type for a column is pivotkit-core's retype() of the

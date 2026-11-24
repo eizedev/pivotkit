@@ -7,9 +7,10 @@
 //   node build.js --watch    rebuild on change
 import * as esbuild from "esbuild";
 import { isMain } from "../../scripts/is-main.js";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-const pkg = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./package.json", import.meta.url), "utf8"));
+const pkg = JSON.parse(await readFile(new URL("./package.json", import.meta.url), "utf8"));
 const externals = [...Object.keys(pkg.peerDependencies ?? {}), ...Object.keys(pkg.dependencies ?? {})];
 
 /** chart.jsx's import("./echarts.js") stays an import of dist/echarts.js, a file of its own. */
@@ -40,7 +41,7 @@ export const options = {
     // a chunk of its own (splitting), so both use one copy of each module (one React context each)
     // labels.js (the package's "./labels"): every text, for hosts; not part of the report's first load
     // menu-texts-de.js: the menus' German texts, loaded with the menus for a German report only
-    // import-ui.js: loading data (allowImport), loaded on its first use (lazy-import.jsx)
+    // import-ui.js: loading data (allowImport), loaded on its first use (lazy-import.js)
     // import-worker.js: the module worker a host may start to read CSV and JSON off the page (importWorker)
     // deferred.js: German texts and the tips' table at once; deferred-late.js: the same loaded later,
     // for pivotkit-element (deferredFile)
@@ -57,7 +58,6 @@ export const options = {
     jsx: "transform",
     jsxFactory: "React.createElement",
     jsxFragment: "React.Fragment",
-    loader: { ".js": "jsx" },
     legalComments: "none",
     // the version for the view files' `generator` (src/version.js), from package.json
     define: { __PIVOTKIT_REACT_VERSION__: JSON.stringify(pkg.version) },

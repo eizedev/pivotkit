@@ -8,13 +8,12 @@
  * with the menus (menus.js).
  */
 
-import { CATALOG, COLOR_SCALES, aggregatorsFor, fieldLabel, formatter, isFormat } from "pivotkit-core";
+import { CATALOG, COLOR_SCALES, aggregatorsFor, fieldLabel, formatter, isFormat, valueAddsUp } from "pivotkit-core";
 import { fill, plural } from "./labels.js";
 import { dateRangeText, dateDisplayLocale } from "./date-context.js";
 import { calendarDays, groupHint, groupStats } from "./group-context.js";
 import { columnText, groupingName, refLabel, relativeText, sortText, valueLabels } from "./names.js";
 import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, hiddenAfter, isFiltered, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
-import { valueAddsUp } from "pivotkit-core";
 import { CHART_TYPES, SLICE_TYPES } from "./chart-types.js";
 import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind, setQuickRange, setRule, setTopFilter, totalNoEffect, updateValue, withMeasure } from "./menu-ops.js";
 
@@ -77,6 +76,7 @@ function offeredAs(format, example) {
     }
     return /^currency:/i.test(format) && example(format) === example("currency") ? "currency" : format;
 }
+
 /** The calculations offered first; the others are under "More calculations". */
 const COMMON_SHOW_AS = CATALOG.showAs.filter((s) => ["percentOfGrandTotal", "percentOfRowTotal", "percentOfColumnTotal"].includes(s));
 /** The number a format's example shows, by the kind of number the format is for. */
