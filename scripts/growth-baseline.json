@@ -32,7 +32,7 @@
             "packages/pivotkit-core/src/filters.js Function 'relativeDateRange'": [30],
             "packages/pivotkit-core/src/import-csv.js Function 'splitRows'": [29],
             "packages/pivotkit-core/src/import-json.js Async function 'read'": [29],
-            "packages/pivotkit-core/src/import-table.js Function 'inferText'": [42],
+            "packages/pivotkit-core/src/import-table.js Function 'inferText'": [33],
             "packages/pivotkit-core/src/import.js Function 'checkTable'": [41],
             "packages/pivotkit-core/src/view-file.js Function 'fromViewFile'": [29],
             "packages/pivotkit-core/src/view-file.js Function 'toViewFile'": [33],

@@ -61,6 +61,8 @@ Release packages in this order. It follows their run-time dependencies.
 - Two more files carry a version. Their package's tests check them:
   - `docs/openapi.json`. Run `node scripts/openapi.js`.
   - `packages/pivotkit-mcp/.claude-plugin/plugin.json`
+- Write the release summary for the maintainer: every user-visible change, with a screenshot where
+  it shows. The maintainer reads it before the tag.
 - Merge the pull request.
 
 ### 3. Tag

@@ -20,7 +20,7 @@
 import { LIMITS, resolveLimits } from "./limits.js";
 import { VIEW_VERSION, emptyView } from "./view.js";
 import { PivotkitError } from "./errors.js";
-import { isPlainObject } from "./util.js";
+import { isPlainObject, plainText } from "./util.js";
 
 /** The value of `format` that marks an envelope. */
 export const VIEW_FILE_FORMAT = "pivotkit-view";
@@ -77,14 +77,10 @@ export const FIELD_TYPES = Object.freeze(["string", "number", "date", "boolean",
  * @property {string[]} needs  every field the view uses
  */
 
-/** Plain text of at most `max` characters: control characters become spaces, ends trimmed. */
-function plainText(value, max) {
-    if (typeof value !== "string") {
-        return "";
-    }
-    // eslint-disable-next-line no-control-regex
-    return value.replace(/[\u0000-\u001F\u007F]+/g, " ").trim().slice(0, max);
-}
+/** plainText (util.js), "" when there is none. */
+const textOrEmpty = (value, max) => plainText(value, max) ?? "";
+/** An identifier or a field's name as plain text: cut, never changed by an ellipsis; "" when there is none. */
+const idOrEmpty = (value, max) => plainText(value, max, { id: true }) ?? "";
 
 /** An own property of a plain object, else undefined. */
 const own = (obj, key) => (isPlainObject(obj) && Object.hasOwn(obj, key) ? obj[key] : undefined);
@@ -145,12 +141,14 @@ function mapFieldRefs(view, visit, copy = false) {
     // the keys of the fields' own names (#158): a renamed field keeps its name
     const names = own(out, "fieldLabels");
     if (isPlainObject(names)) {
+        // read every label before writing one: in a swap { A: "B", B: "A" } A's label must not overwrite B's first
+        const moved = [];
         for (const key of Object.keys(names)) {
-            visit(key, kindOf(key), (next) => {
-                const text = names[key];
-                delete names[key];
-                Object.defineProperty(names, next, { value: text, enumerable: true, writable: true, configurable: true });
-            });
+            visit(key, kindOf(key), (next) => moved.push([key, next, names[key]]));
+        }
+        for (const [key] of moved) delete names[key];
+        for (const [, next, text] of moved) {
+            Object.defineProperty(names, next, { value: text, enumerable: true, writable: true, configurable: true });
         }
     }
     return out;
@@ -305,8 +303,8 @@ export function toViewFile(view, meta = {}, options = {}) {
         throw new TypeError("toViewFile(view): view must be an object");
     }
     view = newerChartKeys(view, false);
-    const name = plainText(meta.name, VIEW_FILE_LIMITS.name);
-    const sourceId = plainText(meta.source?.id, VIEW_FILE_LIMITS.name);
+    const name = textOrEmpty(meta.name, VIEW_FILE_LIMITS.name);
+    const sourceId = idOrEmpty(meta.source?.id, VIEW_FILE_LIMITS.name);
     const params = sourceId ? paramsOf(meta.source?.params, LIMITS, () => {}) : null;
     const withParams = params && Object.keys(params).length ? { params } : {};
     if (options.link) {
@@ -318,11 +316,11 @@ export function toViewFile(view, meta = {}, options = {}) {
             view
         };
     }
-    const description = plainText(meta.description, VIEW_FILE_LIMITS.description);
+    const description = textOrEmpty(meta.description, VIEW_FILE_LIMITS.description);
     const when = meta.createdAt instanceof Date ? meta.createdAt : typeof meta.createdAt === "string" && meta.createdAt ? new Date(meta.createdAt) : null;
     const created = when && !Number.isNaN(when.getTime()) ? when.toISOString() : null;
-    const generator = meta.generator && typeof meta.generator.name === "string" ? { name: plainText(meta.generator.name, VIEW_FILE_LIMITS.name), version: plainText(meta.generator.version, VIEW_FILE_LIMITS.name) } : null;
-    const sourceName = plainText(meta.source?.name, VIEW_FILE_LIMITS.name);
+    const generator = meta.generator && typeof meta.generator.name === "string" ? { name: textOrEmpty(meta.generator.name, VIEW_FILE_LIMITS.name), version: textOrEmpty(meta.generator.version, VIEW_FILE_LIMITS.name) } : null;
+    const sourceName = textOrEmpty(meta.source?.name, VIEW_FILE_LIMITS.name);
     const schema = meta.schemaUrl === undefined ? VIEW_FILE_SCHEMA : typeof meta.schemaUrl === "string" ? meta.schemaUrl.trim() : "";
     const known = fieldsOf(meta.data);
     const fields = meta.data
@@ -418,8 +416,8 @@ export function fromViewFile(input, options = {}) {
         }
         read.formatVersion = /** @type {number} */ (version ?? 1);
         view = own(doc, "view");
-        read.name = plainText(own(doc, "name"), VIEW_FILE_LIMITS.name);
-        read.description = plainText(own(doc, "description"), VIEW_FILE_LIMITS.description);
+        read.name = textOrEmpty(own(doc, "name"), VIEW_FILE_LIMITS.name);
+        read.description = textOrEmpty(own(doc, "description"), VIEW_FILE_LIMITS.description);
         const created = own(doc, "createdAt");
         read.createdAt = typeof created === "string" && !Number.isNaN(Date.parse(created)) ? created.slice(0, 64) : null;
         if (created !== undefined && read.createdAt === null) {
@@ -427,7 +425,7 @@ export function fromViewFile(input, options = {}) {
         }
         const generator = own(doc, "generator");
         if (isPlainObject(generator) && typeof own(generator, "name") === "string") {
-            read.generator = { name: plainText(own(generator, "name"), VIEW_FILE_LIMITS.name), version: plainText(own(generator, "version"), VIEW_FILE_LIMITS.name) };
+            read.generator = { name: textOrEmpty(own(generator, "name"), VIEW_FILE_LIMITS.name), version: textOrEmpty(own(generator, "version"), VIEW_FILE_LIMITS.name) };
         }
         read.source = readSource(own(doc, "source"), issue, resolveLimits(options));
     } else {
@@ -435,7 +433,7 @@ export function fromViewFile(input, options = {}) {
         const inner = own(doc, "view");
         if (isPlainObject(inner) && typeof own(doc, "name") === "string") {
             view = inner;
-            read.name = plainText(own(doc, "name"), VIEW_FILE_LIMITS.name);
+            read.name = textOrEmpty(own(doc, "name"), VIEW_FILE_LIMITS.name);
         } else {
             view = doc;
         }
@@ -500,8 +498,8 @@ function readSource(raw, issue, limits) {
     }
     /** @type {ViewFileSource} */
     const source = {};
-    const id = plainText(own(raw, "id"), VIEW_FILE_LIMITS.name);
-    const name = plainText(own(raw, "name"), VIEW_FILE_LIMITS.name);
+    const id = idOrEmpty(own(raw, "id"), VIEW_FILE_LIMITS.name);
+    const name = textOrEmpty(own(raw, "name"), VIEW_FILE_LIMITS.name);
     if (id) {
         source.id = id;
     }
@@ -522,7 +520,7 @@ function readSource(raw, issue, limits) {
             }
             source.fields = [];
             fields.slice(0, VIEW_FILE_LIMITS.fields).forEach((f, i) => {
-                const fieldName = plainText(own(f, "name"), VIEW_FILE_LIMITS.name);
+                const fieldName = idOrEmpty(own(f, "name"), VIEW_FILE_LIMITS.name);
                 const type = own(f, "type");
                 if (!fieldName) {
                     issue(`source.fields[${i}]`, "no name");
