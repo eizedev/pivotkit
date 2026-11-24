@@ -4,13 +4,16 @@
 // REST and the other way round.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, mkdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { REQUEST_LIMITS } from "../../src/limits.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { checkConfig, validateOptions } from "pivotkit-server";
-import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, untilReady, workspace } from "../helpers.js";
+import { checkConfig, validateOptions, callerOf } from "pivotkit-server";
+import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, untilReady, workspace, mcpInitialize, tempDir } from "../helpers.js";
+import { until } from "../../../../tests/until.js";
 import { localIssuer, signingKey } from "./local-issuer.js";
+import { createAuthCore } from "../../src/auth.js";
+import { createLimits, limitKeyOf } from "pivotkit-server/internal";
 
 const MCP_RESOURCE = "https://pk.example.com/mcp";
 const REST_RESOURCE = "https://pk.example.com/api/v1";
@@ -151,10 +154,10 @@ test("oauth: the REST resource's metadata names it and the issuer; a token for t
         const ok = await call(`${server.api}/sources`, { token: forRest });
         assert.equal(ok.status, 200);
         // and the MCP endpoint refuses the REST token
-        const init = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } });
-        const mcp = await fetch(`${server.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${forRest}` }, body: init });
+        const mcp = await mcpInitialize(server, forRest);
+        await mcp.body?.cancel();
         assert.equal(mcp.status, 401);
-        const mcpOk = await fetch(`${server.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${await jwt({ aud: MCP_RESOURCE })}` }, body: init });
+        const mcpOk = await mcpInitialize(server, await jwt({ aud: MCP_RESOURCE }));
         assert.equal(mcpOk.status, 200);
         await mcpOk.body?.cancel();
     } finally {
@@ -234,7 +237,7 @@ test("oauth: a person's subject, groups and other claims never reach a log line,
     }
 });
 
-test("F3: the request limits count per person, not per OAuth client: two people of one client each get their own bucket, on REST and MCP", async () => {
+test("limits: the request limits count per person, not per OAuth client: two people of one client each get their own bucket, on REST and MCP", async () => {
     const dir = workspace();
     const limited = await restServer({ sources: SOURCES, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, rest: { rateLimit: { perMinute: 1, burst: 2 } }, mcp: { rateLimit: { perMinute: 1, burst: 2 } }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir }, { enable: ["rest", "mcp"] });
     try {
@@ -244,8 +247,11 @@ test("F3: the request limits count per person, not per OAuth client: two people 
         assert.equal((await call(`${limited.api}/sources`, { token: ana })).status, 200);
         assert.equal((await call(`${limited.api}/sources`, { token: ana })).status, 429, "ana's bucket is empty");
         assert.equal((await call(`${limited.api}/sources`, { token: ben })).status, 200, "ben of the same client has his own");
-        const init = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } });
-        const mcp = async (token) => (await fetch(`${limited.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${token}` }, body: init })).status;
+        const mcp = async (token) => {
+            const res = await mcpInitialize(limited, token);
+            await res.body?.cancel();
+            return res.status;
+        };
         const anaMcp = await jwt({ sub: "ana", aud: MCP_RESOURCE });
         const benMcp = await jwt({ sub: "ben", aud: MCP_RESOURCE });
         assert.deepEqual([await mcp(anaMcp), await mcp(anaMcp), await mcp(anaMcp)], [200, 200, 429]);
@@ -259,13 +265,16 @@ test("limits: the people of one OAuth client together are held to concurrency x 
     const dir = workspace();
     let open;
     const gate = new Promise((resolve) => (open = resolve));
-    const server = await restServer({ sources: { slow: { load: async () => (await gate, [{ Region: "North" }]), policy: { default: "show" } }, slow2: { load: async () => (await gate, [{ Region: "North" }]), policy: { default: "show" } } }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, rest: { concurrency: 1 }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir }, { enable: ["rest", "mcp"] });
+    // the loads started: each one's request holds its place
+    let started = 0;
+    const slow = { load: async () => (started++, await gate, [{ Region: "North" }]), policy: { default: "show" } };
+    const server = await restServer({ sources: { slow, slow2: { ...slow } }, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, rest: { concurrency: 1 }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir }, { enable: ["rest", "mcp"] });
     try {
         const people = await Promise.all(Array.from({ length: REQUEST_LIMITS.clientShare + 1 }, (_, i) => jwt({ sub: `person-${i}` })));
         // four loads of one source run at once: the held requests spread over two
         const held = people.slice(0, -1).map((token, i) => call(`${server.api}/sources/describe`, { token, body: { source: i % 2 ? "slow2" : "slow" } }));
         // the held requests take their places before the last one is sent
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await until(() => started === people.length - 1, { message: "every held request's load started" });
         const refused = await call(`${server.api}/sources/describe`, { token: people.at(-1), body: { source: "slow" } });
         assert.equal(refused.status, 429, JSON.stringify(refused.data));
         assert.ok(server.log.some((l) => l.event === "refused" && l.reason === "rate_limited" && l.limit === "clientShare"), JSON.stringify(server.log.filter((l) => l.event === "refused")));
@@ -325,4 +334,110 @@ test("rest.signIn: OAuth only, a client ID of the right form, and never a secret
     assert.throws(() => validateOptions({ ...base, rest: { signIn: { clientId: "two words" } } }), /rest\.signIn\.clientId: the public client's ID/);
     assert.throws(() => validateOptions({ ...base, rest: { signIn: {} } }), /rest\.signIn\.clientId: the public client's ID/);
     assert.throws(() => validateOptions({ ...base, rest: { signIn: { clientId: "pivotkit-cli", clientSecret: { env: "S" } } } }), /clientSecret/);
+});
+
+test("limits: limitKeyOf names the person, else the client; a client's people together run at most concurrency x clientShare requests", () => {
+    const oauth = (subject) => callerOf("oauth", { token: "jwt", clientId: "claude", scopes: [], expiresAt: 0, extra: { subject, issuer: "https://auth.example.test/" } });
+    assert.notEqual(limitKeyOf(oauth("ana")), limitKeyOf(oauth("ben")));
+    assert.equal(limitKeyOf(oauth("ana")), limitKeyOf(oauth("ana")));
+    assert.equal(limitKeyOf(oauth(undefined)), "client:claude", "a token without a person counts for its client");
+    assert.match(limitKeyOf(callerOf("none")), /^person:/);
+    const limits = createLimits({ concurrency: 1 });
+    try {
+        const cap = REQUEST_LIMITS.clientShare;
+        for (let i = 0; i < cap; i++) {
+            assert.equal(limits.enter(`person:${i}`, "claude"), true);
+        }
+        assert.equal(limits.enter("person:one-more", "claude"), false, "the client's cap");
+        assert.equal(limits.enter("person:other", "other-client"), true, "another client is not held by it");
+        assert.equal(limits.enter("person:0", "claude"), false, "a person's own concurrency");
+        limits.leave("person:0", "claude");
+        assert.equal(limits.enter("person:one-more", "claude"), true, "a place given back");
+    } finally {
+        limits.close();
+    }
+});
+
+test("auth token: a token file emptied or removed after the start refuses with 401 and writes one warning per minute naming the token, never a value", async () => {
+    const dir = tempDir();
+    const file = join(dir, "bot.token");
+    writeFileSync(file, `${TOKEN}\n`);
+    const warnings = [];
+    const log = { warn: (msg, fields) => warnings.push({ msg, ...fields }), info() {}, debug() {} };
+    const core = await createAuthCore({ auth: { mode: "token", tokens: [{ name: "bot", file }] } }, { env: {}, log, loopback: true });
+    const ask = () => core.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } }));
+    assert.equal((await ask()).clientId, "bot");
+    writeFileSync(file, "");
+    await assert.rejects(ask(), (e) => e.status === 401);
+    await assert.rejects(ask(), (e) => e.status === 401);
+    assert.equal(warnings.length, 1, JSON.stringify(warnings));
+    assert.match(warnings[0].msg, /auth: the token "bot" cannot be used \(its file is empty\)/);
+    // the cause, each in its words: a file cut short, a file gone (another core: the warning is per minute)
+    const again = async (content) => {
+        const seen = [];
+        writeFileSync(file, `${TOKEN}\n`);
+        const other = await createAuthCore({ auth: { mode: "token", tokens: [{ name: "bot", file }] } }, { env: {}, log: { ...log, warn: (msg) => seen.push(msg) }, loopback: true });
+        if (content === null) unlinkSync(file);
+        else writeFileSync(file, content);
+        await assert.rejects(other.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } })));
+        return seen.join("\n");
+    };
+    assert.match(await again("short-token-12345"), /\(its file has 17 characters\)/);
+    assert.match(await again(null), /\(its file is missing\)/);
+    // a character no bearer token holds: the same rule as at the start (secret-rules.js tokenFault)
+    assert.match(await again("a token with spaces that is long enough 0123456789"), /\(its file holds a token that has characters a bearer token cannot carry/);
+    // rotated to a token too easy to guess: refused like a short one, even when a request sends it
+    const weak = "x".repeat(40);
+    const seen = [];
+    writeFileSync(file, `${TOKEN}\n`);
+    const rotated = await createAuthCore({ auth: { mode: "token", tokens: [{ name: "bot", file }] } }, { env: {}, log: { ...log, warn: (msg) => seen.push(msg) }, loopback: true });
+    writeFileSync(file, `${weak}\n`);
+    for (let i = 0; i < 2; i++) {
+        await assert.rejects(rotated.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${weak}` } })), (e) => e.status === 401);
+    }
+    assert.match(seen.join("\n"), /\(its file holds a token too easy to guess \(1 different character, at least 8\)\)/);
+    assert.ok(!JSON.stringify(warnings).includes(TOKEN.slice(0, 12)), "never the token");
+    assert.ok(!JSON.stringify(warnings).includes(dir), "never the file's path either");
+});
+
+test("REST: a token in the address is refused 401 and logged with reason token_in_address, on a GET and on a POST (its precheck)", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token" }, baseDir: dir }, { env: { PIVOTKIT_TOKEN: TOKEN } });
+    try {
+        assert.equal((await call(`${server.api}/sources?access_token=${TOKEN}`)).status, 401);
+        assert.equal((await call(`${server.api}/views/validate?access_token=${TOKEN}`, { body: { source: "sales", view: { rows: ["Region"] } } })).status, 401);
+        const reasons = server.log.filter((l) => l.event === "refused").map((l) => l.reason);
+        assert.deepEqual(reasons, ["token_in_address", "token_in_address"]);
+        assert.ok(!JSON.stringify(server.log).includes(TOKEN), "the token is never logged");
+    } finally {
+        await server.close();
+    }
+});
+
+test("limits: one client's people together take at most clientShare times perMinute: a person cannot open buckets without end", () => {
+    let now = 0;
+    const limits = createLimits({ rateLimit: { perMinute: 1, burst: 1 } }, () => now);
+    try {
+        for (let i = 0; i < REQUEST_LIMITS.clientShare; i++) {
+            assert.equal(limits.take(`person:${i}`, "claude"), 0, `person ${i}`);
+        }
+        assert.ok(limits.take("person:new", "claude") > 0, "the client's own bucket is empty");
+        assert.equal(limits.take("person:other", "other-client"), 0, "another client is not held by it");
+        now += 60_000;
+        assert.equal(limits.take("person:new", "claude"), 0, "it fills again");
+    } finally {
+        limits.close();
+    }
+});
+
+test("auth token: a token file that cannot be read (a directory in its place) is said so, not called empty", async () => {
+    const dir = tempDir();
+    const file = join(dir, "bot.token");
+    writeFileSync(file, `${TOKEN}\n`);
+    const seen = [];
+    const core = await createAuthCore({ auth: { mode: "token", tokens: [{ name: "bot", file }] } }, { env: {}, log: { warn: (msg) => seen.push(msg), info() {}, debug() {} }, loopback: true });
+    unlinkSync(file);
+    mkdirSync(file);
+    await assert.rejects(core.check(new Request("http://127.0.0.1/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } })));
+    assert.match(seen.join("\n"), /\(its file cannot be read\)/);
 });

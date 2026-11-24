@@ -39,7 +39,7 @@ import { createGuardedFetch } from "../../src/sources/fetch.js";
 import { httpMeans, loadFor } from "../../src/sources/http.js";
 import { loadCode } from "../../src/sources/code.js";
 import { COMPUTE_HOOKS } from "../../src/compute.js";
-import { tempDir } from "../helpers.js";
+import { fakeLookup, tempDir } from "../helpers.js";
 
 const ROWS = 2000;
 /** The sources: kind, and whether a signed-in person calls it (else a caller without an identity). */
@@ -252,7 +252,7 @@ const backend = createServer({ key: readFileSync(join(dir, "key.pem")), cert }, 
     res.end(body);
 });
 await new Promise((resolve) => backend.listen(0, "127.0.0.1", resolve));
-httpMeans.fetch = createGuardedFetch({ ca: cert, lookup: (_host, options, callback) => callback(null, options?.all ? [{ address: "127.0.0.1", family: 4 }] : "127.0.0.1", 4) });
+httpMeans.fetch = createGuardedFetch({ ca: cert, lookup: fakeLookup() });
 
 // HTTP sources: hidden by the default, memo by its own rule too; code sources: by each field's rule
 const httpPolicy = { default: "hide", fields: { ...Object.fromEntries(SHOWN.map((c) => [c, "show"])), memo: "hide" } };

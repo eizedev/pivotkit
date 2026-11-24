@@ -89,15 +89,16 @@ test("every example passes its input check and its output schema; the view schem
     assert.ok(withComponents.validate({ source: "sales", view: { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] } }).valid);
 });
 
-test("every route of the document is answered by the server (no 404 or 405), and the server has no route the document lacks", async () => {
+test("every route of the document is answered by the server (no 404 or 405), a method it does not give a path is 405, and paths it does not list are 404", async () => {
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv", link: "https://reports.example.com/" } }, policy: { results: true }, output: { dir: "out" }, baseDir: dir });
     try {
         const doc = openApiDocument();
+        // as a client builds it: the server's URL, then the path
+        const urlOf = (path) => `${new URL(doc.servers[0].url, server.url).href.replace(/\/$/, "")}${path.replace("{id}", "sales")}`;
         for (const [path, methods] of Object.entries(doc.paths)) {
             for (const [method, op] of Object.entries(methods)) {
-                // as a client builds it: the server's URL, then the path
-                const url = `${new URL(doc.servers[0].url, server.url).href.replace(/\/$/, "")}${path.replace("{id}", "sales")}`;
+                const url = urlOf(path);
                 const example = op.requestBody?.content["application/json"].example;
                 const res = await call(url, { method: method.toUpperCase(), body: example });
                 assert.ok(![404, 405].includes(res.status), `${method} ${path}: ${res.status} ${JSON.stringify(res.data).slice(0, 200)}`);
@@ -105,6 +106,20 @@ test("every route of the document is answered by the server (no 404 or 405), and
             }
         }
         assert.equal(Object.values(doc.paths).reduce((n, m) => n + Object.keys(m).length, 0), REST_ROUTES.length);
+        // the server's side: a method the document does not give a path is 405, a path it does not
+        // list is 404, so the server serves nothing under /api/v1 that the document lacks
+        for (const [path, methods] of Object.entries(doc.paths)) {
+            for (const method of ["GET", "POST", "PUT", "PATCH", "DELETE"].filter((m) => !Object.hasOwn(methods, m.toLowerCase()))) {
+                const res = await call(urlOf(path), { method, body: method === "GET" ? undefined : {} });
+                assert.equal(res.status, 405, `${method} ${path}`);
+            }
+        }
+        for (const path of ["", "/", "/admin", "/sources/sales/rows/extra", "/views", "/openapi.json"]) {
+            for (const method of ["GET", "POST"]) {
+                const res = await call(`${server.api}${path}`, { method, body: method === "GET" ? undefined : {} });
+                assert.equal(res.status, 404, `${method} ${path}: ${res.status}`);
+            }
+        }
     } finally {
         await server.close();
     }
