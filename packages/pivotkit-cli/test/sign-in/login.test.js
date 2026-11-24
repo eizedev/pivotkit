@@ -5,7 +5,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { main } from "pivotkit-cli";
 import { run, tempDir } from "../helpers.js";
 import { accountOf } from "../../src/credential-store.js";
 import { scopeOf } from "../../src/sign-in.js";
@@ -21,7 +20,7 @@ test("login runs the device code flow, keeps the refresh token in a file only it
         assert.match(r.stderr, /^Sign in at 127\.0\.0\.1:\d+, the sign-in provider of 127\.0\.0\.1:\d+\.\nOpen /, "the issuer's host comes before the code");
         assert.match(r.stderr, new RegExp(`Open ${fake.origin}/activate and enter the code ${USER_CODE}`));
         assert.match(r.stderr, process.platform === "win32" ? /The refresh token is in .*, a file in your user profile\./ : /Signed in to .*\/api\/v1\. The refresh token is in .*, a file only you can read \(mode 0600\)\./);
-        assertClean({ ...r, stderr: r.stderr });
+        assertClean(r);
         assert.ok(!r.stderr.includes(ACCESS[0]));
         const device = fake.requests.find((q) => q.url === "/device");
         assert.deepEqual(device.body, { client_id: CLIENT, scope: "pivotkit.read offline_access" });
@@ -208,10 +207,8 @@ test("PIVOTKIT_CLIENT_ID wins over the published client ID", async () => {
         const fake = await fakeIssuer({ published: "reports-cli" });
         const dir = tempDir();
         try {
-            const out = [];
-            const err = [];
-            const code = await main(["login", "--url", fake.url, "--store", "file"], { stdin: (async function* () {})(), stdout: { write: (c) => out.push(String(c)) }, stderr: { write: (c) => err.push(String(c)) }, env: { ...envOf(dir), PIVOTKIT_CLIENT_ID: "from-env" }, cwd: dir });
-            assert.equal(code, 0, err.join(""));
+            const r = await inProcess(["login", "--url", fake.url, "--store", "file"], dir, { PIVOTKIT_CLIENT_ID: "from-env" });
+            assert.equal(r.code, 0, r.stderr);
             assert.equal(fake.requests.find((q) => q.url === "/device").body.client_id, "from-env");
         } finally {
             await fake.close();

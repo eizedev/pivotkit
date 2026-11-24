@@ -25,6 +25,7 @@ import { resolve } from "node:path";
 import { RENDER_FORMATS } from "pivotkit-report";
 import { CliError, asCliError, printable, readSafe, shortName } from "pivotkit-node/files";
 import { RemoteError } from "./errors.js";
+import { REMOTE_TIMEOUT } from "./commands.js";
 import { networkCodeOf, networkFailureOf, retryAfterSeconds } from "pivotkit-node/net";
 import { PROBLEM_CODES, REST_BASE, SOURCE_ID, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT, isLoopback } from "pivotkit-node/rest";
 
@@ -247,7 +248,7 @@ export function checkTls(server, env) {
  */
 export function createClient({ server, values, ctx, userAgent }) {
     const env = ctx.io.env;
-    const timeoutMs = timeoutOf(values) ?? 30_000;
+    const timeoutMs = timeoutOf(values) ?? REMOTE_TIMEOUT * 1000;
     /** The token of the last request, to take out of what the server says. */
     let lastToken = null;
     const warnings = new Set();

@@ -1,5 +1,5 @@
-// What a person reads when something is wrong or right, as found by a usability review of the CLI:
-// the owner's case (the table's own CSV given as --data), the fields a view needs and the data has,
+// What a person reads when something is wrong or right: the table's own CSV given as --data in
+// place of the data, the fields a view needs and the data has,
 // what --lenient did, an output name that contradicts --format, a line that says what was written,
 // --verbose, the value that made a column text, where a view is not JSON, the way to the help, the
 // options a command's help lists, a missing directory, --limit, --version --json and the report's
@@ -11,8 +11,8 @@ import { join } from "node:path";
 import { main } from "../src/cli.js";
 import { run, tempDir } from "./helpers.js";
 
-/** The weather example and the table's own CSV of its view (Export → Table as CSV), as the owner had them. */
-async function ownerDir() {
+/** The weather example and the table's own CSV of its view (Export → Table as CSV), side by side. */
+async function tableCsvDir() {
     const dir = tempDir();
     assert.equal((await run(["example", "weather", "-q"], { cwd: dir })).code, 0);
     assert.equal((await run(["render", "weather.pivotkit.json", "--data", "weather.csv", "-o", "pivotkit-weather.csv", "-q"], { cwd: dir })).code, 0);
@@ -20,7 +20,7 @@ async function ownerDir() {
 }
 
 test("the table's own CSV as --data: one error first, the view's fields and the data's, what the file looks like and what to use", async () => {
-    const dir = await ownerDir();
+    const dir = await tableCsvDir();
     const r = await run(["render", "weather.pivotkit.json", "--data", "pivotkit-weather.csv", "-o", "out.html"], { cwd: dir });
     assert.equal(r.code, 1);
     const lines = r.stderr.trimEnd().split("\n");
@@ -156,7 +156,7 @@ test("a command's help lists only the options it uses", async () => {
     assert.ok(!validate.includes("--now"));
     assert.ok(validate.includes("--time-zone"));
     assert.ok((await run(["help", "render"])).stdout.includes("--now"));
-    // still accepted where they do nothing, as before (scripts pass them to every command)
+    // accepted where they do nothing: scripts pass them to every command
     assert.equal((await run(["validate", '{"rows":[]}', "--now", "2026-01-01", "--data", "-", "--data-format", "csv"], { input: "A\n1\n" })).code, 0);
 });
 
@@ -189,7 +189,7 @@ test("--version --json: the versions and the environment a bug report needs", as
     assert.equal(v.environment.limits.rows, 1_000_000);
     const odd = JSON.parse((await run(["--version", "--json"], { env: { PIVOTKIT_TIME_ZONE: "Mars/Olympus" } })).stdout);
     assert.equal(odd.environment.timeZone.known, false);
-    // without --json: one line, as before
+    // without --json: one line
     assert.match((await run(["--version"])).stdout, /^pivotkit-cli \S+ \(pivotkit-report \S+, pivotkit-core \S+\)\n$/);
 });
 
@@ -235,7 +235,7 @@ test("a field of the view file missing, one new field of its type in the data: r
 });
 
 test("--lenient over a data mismatch: every error counted, and that the report cannot show the data", async () => {
-    const dir = await ownerDir();
+    const dir = await tableCsvDir();
     const r = await run(["render", "weather.pivotkit.json", "--data", "pivotkit-weather.csv", "-o", "out.html", "--lenient"], { cwd: dir });
     assert.equal(r.code, 1);
     assert.match(r.stderr, /^wrote out\.html despite 4 errors \(--lenient\): the data lacks the view's fields, so the report shows none of them$/m);

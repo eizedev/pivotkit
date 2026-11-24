@@ -329,7 +329,7 @@ test("help and completions name the layout flags", async () => {
     assert.match(bash.stdout, /--chart-type\) COMPREPLY=\( \$\(compgen -W 'auto bar line area pie donut heatmap combo treemap'/);
 });
 
-test("what the review found: no file content in a --filter error, -o never over the data, UTF-16 filter files, x:bin:month", async () => {
+test("no file content in a --filter error, -o never over the data, UTF-16 filter files, x:bin:month", async () => {
     const dir = files();
     writeFileSync(join(dir, "f.json"), "secret-token-abc123 not json");
     const leak = await run(["render", "sales.csv", "--rows", "Region", "--filter", "@f.json"], { cwd: dir });

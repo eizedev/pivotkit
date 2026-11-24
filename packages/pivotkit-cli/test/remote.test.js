@@ -679,6 +679,19 @@ test("a draft's names over 200 characters are written whole; only what is printe
     }
 });
 
+test("the next: line of a remote draft quotes a file name with a space, as the local one does", async () => {
+    const DRAFT = { format: "pivotkit-view", formatVersion: 2, name: "Draft", view: { version: 2, rows: ["Region"], values: [{ agg: "count" }] } };
+    const server = await fakeServer((req, res) => json(res, { ok: true, findings: [], view: DRAFT, name: "Draft", picks: [] }));
+    try {
+        const cwd = workdir();
+        const r = await remote(server, ["describe", "--source", "sales", "--suggest", "-o", "my draft.pivotkit.json"], { cwd });
+        assert.equal(r.code, 0, r.stderr);
+        assert.match(r.stderr, /^next: pivotkit render "my draft\.pivotkit\.json" --source sales -o "my draft\.html" \(with the same server\)$/m);
+    } finally {
+        await server.close();
+    }
+});
+
 test("render with a token that may not validate (auth.toolScopes): the file still comes, with a note", async () => {
     const server = await fakeServer((req, res) => {
         if (req.url.endsWith("/views/validate")) return problem(res, req, 403, "INSUFFICIENT_SCOPE", { detail: "validate_view needs the scopes reports:check" });
