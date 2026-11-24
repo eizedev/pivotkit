@@ -33,8 +33,7 @@ another type.
 
 pivotkit-core's `autoChartType(view, data)` says what "auto" stands for. It is `"line"` when a date
 runs along the time line on Rows, else `"bar"`. `toEChartsOption()` draws it. The UI swaps the axes
-for dates on Columns: pivotkit-react computes the chart from the swapped view (`chartPlan` in
-`chart-types.js`).
+for dates on Columns: pivotkit-react computes the chart from the swapped view.
 
 A pie and a donut differ only in the hole:
 

@@ -181,9 +181,9 @@ The token is then on that command line. While the command runs, other users of t
 it in the process list. Your shell keeps it in its history. Claude Code stores it in its
 configuration either way.
 
-For sign-in with your identity provider, see [OAuth](../reference/mcp.md#oauth). That works with
-Authentik, Keycloak, Microsoft Entra ID and any OAuth 2.1 / OpenID Connect provider. Scopes then
-decide who sees which source and who may use which tool.
+For sign-in with your identity provider, see [OAuth](../reference/mcp.md#oauth). It was tested
+with Authentik and is documented for Keycloak, Microsoft Entra ID and other OAuth 2.1 / OpenID
+Connect providers. Scopes then decide who sees which source and who may use which tool.
 [What works with pivotkit](../compatibility.md#sign-in) says how each provider was tested.
 
 Some providers, Authentik for example, have no dynamic client registration. There you create a

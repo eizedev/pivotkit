@@ -220,18 +220,10 @@ Settings per field, by key:
   so a template keeps it. A field on Rows or Columns of a view or template without a sort entry for
   it is sorted this way too. The field's menu offers "Custom order" and "Custom order, reversed".
   "A to Z" stays a sort entry of its own. Items not listed follow by label.
-- `label`: the name the report shows for the field. It appears on chips and headers, in value names
-  such as "Sum of Net revenue", in the drill-down, the chart and the exported files. Views and
-  templates keep the field's own name.
-- `description`: plain text, at most 1,000 characters. It shows behind an "i" next to the field and
-  on its chips, behind the "i" at the top of its chip menu, and on its table headers.
-- `href`: an https link. It adds "Learn more".
-- `type`: reads the field's column as `"number"`, `"date"`, `"string"` or `"boolean"`, as the
-  `types` option of pivotkit-core's `encode` does.
-
-A field without `description` and `href` looks as it does without `fieldDefaults`.
-pivotkit-core's `fieldDefaultsFromSchema` builds all of it from a JSON Schema or an OpenAPI
-document: [Field descriptions and names](../concepts/fields.md).
+- `label`, `description`, `href` and `type`: the field's display name, its description behind an
+  "i", a "Learn more" link (https) and its column type. [Field descriptions and
+  names](../concepts/fields.md) says what the report does with each, and how pivotkit-core's
+  `fieldDefaultsFromSchema` builds them from a JSON Schema or an OpenAPI document.
 
 #### Identifier fields { #identifier-fields-react }
 
@@ -308,8 +300,8 @@ The start state of the zones: open, or folded to the heading row "Fields in the 
 - A new value from the host sets the start state again.
 - The report ignores another value, with a console warning.
 
-The web component's attribute is `zones`. The PowerShell Universal module will pass it as
-`-Zones`. That module lives in its own repository.
+The web component's attribute is `zones`. The PowerShell Universal module passes it as `-Zones`.
+That module lives in its own repository.
 
 ### `limits` { #prop-limits }
 

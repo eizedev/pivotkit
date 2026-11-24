@@ -74,8 +74,9 @@ This catches a typo such as `pivotkit.jsn`.
 | `/run/secrets/` | Token files of your own, readable by the user 10001 ([managed secrets](#managed-secrets)) |
 | `/tmp` | A tmpfs: the root file system stays read-only |
 
-Set the port with `PIVOTKIT_PORT` or `http.port` in the file. The health check reads both. The server reads a token file on every request, so a new token works without a
-restart:
+Set the port with `PIVOTKIT_PORT` or `http.port` in the file. The health check reads both.
+
+The server reads a token file on every request, so a new token works without a restart:
 `docker exec pivotkit pivotkit-server token new --file /var/lib/pivotkit/secrets/admin.token --force`.
 
 [docker/compose.example.yml](https://github.com/eizedev/pivotkit/blob/main/docker/compose.example.yml)

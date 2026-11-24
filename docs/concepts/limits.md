@@ -409,7 +409,7 @@ A million rows is the default `rows` limit and the largest size measured. For mo
 | `code` | When |
 | --- | --- |
 | `INVALID_ARGUMENT` | A wrong argument, for example `computePivot(null)` or `toGrid({})`. |
-| `INVALID_OPTION` | An unknown locale or time zone in the options, an unknown or invalid limit. |
+| `INVALID_OPTION` | A malformed locale tag or an unknown time zone in the options, an unknown or invalid limit. |
 | `INVALID_VIEW` | `computePivot` with `strict: true` and a view with an error issue. `error.details.issues` holds them. |
 | `LIMIT_EXCEEDED` | A limit. `error.details` is `{ limit, value, max }`, with `file` for a file being loaded. |
 | `INVALID_FILE` | A file that cannot be read ([Loading files](../reference/import.md#errors)). `error.details` is `{ reason, file }`. |

@@ -24,8 +24,8 @@ The toolbar holds what applies to the whole report: Undo, Redo, Start over, Data
 
 "More" is always the toolbar's last button. Help is its first entry. Toolbar buttons move into
 "More", below Help, by a fixed priority (`OVERFLOW_ORDER`): Data, then Start over, and Views last.
-Only the buttons the room left cannot hold move (`overflowHidden` in `overflow.js`). The first ones
-in the order go until the rest fits. Then each of them that the room left still holds comes back.
+Only the buttons the room left cannot hold move. The first ones in the order go until the rest
+fits. Then each of them that the room left still holds comes back.
 
 - The report measures each button's room with the texts of the report's labels, in the font the
   toolbar is drawn in (`toolbarRoom`). A shorter language keeps more buttons.
@@ -78,7 +78,7 @@ In every layout:
 The report starts in the compact layout when it is lower than a threshold. It measures the border
 box before the first paint:
 
-- below 600 px of height (`COMPACT_HEIGHT` in `use-report-size.js`)
+- below 600 px of height (`COMPACT_HEIGHT`)
 - below 820 px in the narrow layout, where the zones stack (`COMPACT_HEIGHT_NARROW`)
 
 The zones sit in a section between two rules (`--pk-section-rule`), under the toolbar and above the

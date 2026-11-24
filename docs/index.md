@@ -14,7 +14,7 @@ hide:
 
 <p class="hero-lead">Excel's PivotTable for your web application. People load their data, drag fields into rows, columns and values, and take the result to Excel. The same report runs again on the command line.</p>
 
-MIT · the report runs in the browser, nothing uploaded · React, web component, Node, command line, REST, MCP
+MIT · the report runs in the browser, nothing uploaded
 
 [I build reports](use/index.md){ .md-button .md-button--primary title="For the people who build reports in an application: load data, fields, filters, charts, export" }
 [I embed or automate pivotkit](embed/index.md){ .md-button .md-button--primary title="For developers: React, web component, engine, reports, the command line, REST and MCP" }
@@ -54,9 +54,10 @@ MIT · the report runs in the browser, nothing uploaded · React, web component,
    of a workbook. pivotkit reads German numbers and dates, title lines above the header and leading
    zeros ("01067") correctly. Undo brings the application's data back. Nothing is uploaded. See
    [load your own data](use/load-data.md).
-2. **Table and chart, each with its settings.** Table and Chart are tabs, each with its own settings. A wide report shows both side by side. "+ Add" puts
-   a field into a zone without dragging. Charts zoom along a long axis, hide series from the legend,
-   stack to 100 % and draw an average, a trend, a target or the high and low points. See [charts](use/charts.md).
+2. **Table and chart, each with its settings.** Table and Chart are tabs, each with its own
+   settings. A wide report shows both side by side. "+ Add" puts a field into a zone without
+   dragging. Charts zoom along a long axis, hide series from the legend, stack to 100 % and draw an
+   average, a trend, a target or the high and low points. See [charts](use/charts.md).
 3. **Filters that say what they keep.** Pick items from a list that shows each item's row count.
    Take a range such as "last 3 months" or "this quarter" that stays right over time. Take a top 10
    with ties, or a rule on a total ("Sum of Revenue > 1,000"). Each filter says how many items it

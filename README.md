@@ -98,8 +98,10 @@ its first start. Step by step:
 [server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/).
 
 ```bash
-docker run -d --name pivotkit -p 127.0.0.1:3333:3333 -v pivotkit:/var/lib/pivotkit ghcr.io/eizedev/pivotkit:0.4.0
-curl -H "Authorization: Bearer $(docker exec pivotkit pivotkit-server token show admin)" http://127.0.0.1:3333/api/v1/sources
+docker run -d --name pivotkit -p 127.0.0.1:3333:3333 \
+  -v pivotkit:/var/lib/pivotkit ghcr.io/eizedev/pivotkit:0.4.0
+curl -H "Authorization: Bearer $(docker exec pivotkit pivotkit-server token show admin)" \
+  http://127.0.0.1:3333/api/v1/sources
 ```
 
 The package READMEs are short npm pages that link to the [documentation](https://pivotkit.eize.dev/).

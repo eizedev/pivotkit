@@ -8,6 +8,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- The README, the package's page on npm, no longer carries a paragraph on dates that says nothing
+  about the web component.
 - Headers that wrap between words only, one note above the result at a time on a phone and a
   clearer tip on an empty report. See pivotkit-react's changelog.
 - The chart's point menu without a tooltip over it, the fade of a cut-off menu and the euro listed
