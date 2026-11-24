@@ -178,8 +178,8 @@ labels of a pie.
 
     A pie writes its share as your language writes percentages: "35.7%" or "35,7 %".
 
-    ![A donut with the numbers on its slices, Chart settings open at Labels](../assets/screenshots/donut-labels-light.png#only-light)
-    ![A donut with the numbers on its slices, Chart settings open at Labels](../assets/screenshots/donut-labels-dark.png#only-dark)
+    ![A donut with the numbers on its slices and the region names in the legend above it](../assets/screenshots/donut-labels-light.png#only-light)
+    ![A donut with the numbers on its slices and the region names in the legend above it](../assets/screenshots/donut-labels-dark.png#only-dark)
 
 ??? info "Legend and title"
     On a chart narrower than 480 px, such as on a phone, a legend set to **Right** goes to the

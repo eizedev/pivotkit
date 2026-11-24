@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { OperationError } from "pivotkit-report/operations";
 import { CODE_DEFAULTS, ConfigError, SourceError, callerOf, checkConfig, createContext, present, validateOptions } from "pivotkit-server";
 import { serverTextOf } from "pivotkit-server/internal";
+import { RECORDS_JOB } from "../src/data.js";
 import { LOAD_CACHE, createLoadCache, encodedBytes } from "../src/sources/cache.js";
 import { LOAD_HOOKS, LOAD_LIMITS, createLoadRunner, isTransient, loadRunner, ownError, sourceFailure } from "../src/sources/run.js";
 import { createComputer } from "../src/compute.js";
@@ -1260,6 +1261,13 @@ test("the pool: a worker that asks again for a table it was just sent is a fault
         );
         assert.equal(error?.code, "INTERNAL");
         assert.deepEqual(computer.sent(), { tables: 2, cached: 0 }, "the table once more, then no more");
+        // a streamed rows job shares the same handshake (compute.js attach): a fault too, and the worker is free again
+        const rows = await computer.run(RECORDS_JOB, { source: "t" }, { spec: JOB_SPEC, table: smallKinds(3), tableKey: "k2", asOf: null }).then(
+            () => null,
+            (e) => e
+        );
+        assert.equal(rows?.code, "INTERNAL");
+        assert.equal((await computer.run("describe_source", { source: "t" }, { spec: JOB_SPEC, table: smallKinds(3), tableKey: null, asOf: null }).catch((e) => e))?.code, "INTERNAL", "the worker took the next job");
     } finally {
         await computer.close();
     }
