@@ -53,6 +53,16 @@ export function workspace(files = { "sales.csv": SALES_CSV }) {
     return dir;
 }
 
+/** A directory as workspace() makes it, with the given print templates (or other files) beside data/sales.csv. */
+export const withTemplates = (files = {}) => workspace({ "sales.csv": SALES_CSV, ...files });
+
+/** A print template as an operator writes one: its own header, a typo on line 7; and the parser's message for it. */
+export const TYPO_TEMPLATE = ["<!doctype html>", "<html>", "<head>", "<title>{{title}}</title>", "</head>", "<body>", "<h1>{{titel}}</h1>", "{{table}}", "</body>", "</html>"].join("\n");
+export const TYPO = "unknown placeholder {{titel}} (line 7); did you mean {{title}}?";
+
+/** A text as a regular expression's source that matches it as it is. */
+export const literal = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
  * check-config's text with each wrapped fact joined back into one line (check/format.js: a wrapped
  * line goes on four spaces further in than the fact it continues), so a test can match a fact

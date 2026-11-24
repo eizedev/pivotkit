@@ -8,23 +8,13 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ConfigError, checkConfig, createContext } from "pivotkit-server";
-import { factsOf, workspace, runBin } from "./helpers.js";
+import { factsOf, runBin, withTemplates, TYPO_TEMPLATE, TYPO, literal } from "./helpers.js";
 
-/** A print template as an operator writes one: its own header, a typo on line 7. */
-const BRAND = ["<!doctype html>", "<html>", "<head>", "<title>{{title}}</title>", "</head>", "<body>", "<h1>{{titel}}</h1>", "{{table}}", "</body>", "</html>"].join("\n");
-const TYPO = "unknown placeholder {{titel}} (line 7); did you mean {{title}}?";
-
-/** A workspace with data/sales.csv and the template file data/brand.html. */
-function withTemplate(text) {
-    const dir = workspace();
-    if (text !== undefined) {
-        writeFileSync(join(dir, "data", "brand.html"), text);
-    }
-    return dir;
-}
+/** A workspace with data/sales.csv and the template file data/brand.html (none for undefined). */
+const withTemplate = (text) => withTemplates(text === undefined ? {} : { "brand.html": text });
 
 test("check-config lists each source's print template and reports the parser's message as a PROBLEM", async () => {
-    const dir = withTemplate(BRAND);
+    const dir = withTemplate(TYPO_TEMPLATE);
     const result = await checkConfig({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: dir }, { http: false, name: "pivotkit-server" });
     const lines = factsOf(result.text).split("\n");
     assert.equal(lines[0], "pivotkit-server: the server does not start with this configuration.");
@@ -35,7 +25,7 @@ test("check-config lists each source's print template and reports the parser's m
 });
 
 test("check-config: a template the parser accepts is listed with no PROBLEM; a missing one a PROBLEM the server starts with, an oversized one a PROBLEM that stops it", async () => {
-    const good = withTemplate(BRAND.replace("{{titel}}", "{{title}}"));
+    const good = withTemplate(TYPO_TEMPLATE.replace("{{titel}}", "{{title}}"));
     const ok = await checkConfig({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: good }, { http: false });
     assert.match(ok.text, /^ {4}template: data\/brand\.html$/m);
     assert.doesNotMatch(ok.text, /PROBLEM/);
@@ -54,11 +44,11 @@ test("check-config: a template the parser accepts is listed with no PROBLEM; a m
     const big = withTemplate(`<p>{{title}}</p>${"x".repeat(1_048_577)}`);
     const large = await checkConfig({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: big }, { http: false });
     assert.match(factsOf(large.text), /^PROBLEM: sources\.sales\.template: brand\.html: [\d,]+ bytes exceed the limit of 1,048,576 \(limits\.template\) -> the server does not start$/m);
-    assert.doesNotMatch(factsOf(large.text).split("\n").find((l) => l.startsWith("PROBLEM")) ?? "", new RegExp(big.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.doesNotMatch(factsOf(large.text).split("\n").find((l) => l.startsWith("PROBLEM")) ?? "", /x{100}/, "the template's text is not in the line");
 });
 
 test("the start refuses a source's broken print template like any other configuration error", async () => {
-    const dir = withTemplate(BRAND);
+    const dir = withTemplate(TYPO_TEMPLATE);
     await assert.rejects(
         createContext({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: dir }),
         (e) => e instanceof ConfigError && e.message === `sources.sales.template: ${TYPO}`
@@ -73,7 +63,7 @@ test("the start refuses a source's broken print template like any other configur
         said.join("")
     );
     // a good template starts
-    const good = withTemplate(BRAND.replace("{{titel}}", "{{title}}"));
+    const good = withTemplate(TYPO_TEMPLATE.replace("{{titel}}", "{{title}}"));
     const context = await createContext({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } }, baseDir: good });
     await context.close();
 });
@@ -91,7 +81,7 @@ test("the start reads the template through the safe reader: a FIFO and a directo
 });
 
 test("pivotkit-server serve and check-config from the command line: the template's message, exit 2 and 1", () => {
-    const dir = withTemplate(BRAND);
+    const dir = withTemplate(TYPO_TEMPLATE);
     const config = join(dir, "pivotkit.json");
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv", template: "data/brand.html" } } }));
     const serve = runBin(["serve", "--config", config, "--port", "0"], { cwd: dir });
@@ -101,5 +91,5 @@ test("pivotkit-server serve and check-config from the command line: the template
     assert.deepEqual([said.level, said.code, said.msg], ["error", "CONFIG", `sources.sales.template: ${TYPO}`]);
     const check = runBin(["check-config", "--config", config], { cwd: dir });
     assert.equal(check.status, 1, check.stderr);
-    assert.match(factsOf(check.stdout), new RegExp(`PROBLEM: sources\\.sales\\.template: ${TYPO.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} -> the server does not start`));
+    assert.match(factsOf(check.stdout), new RegExp(`PROBLEM: sources\\.sales\\.template: ${literal(TYPO)} -> the server does not start`));
 });
