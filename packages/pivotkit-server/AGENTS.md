@@ -10,6 +10,7 @@ npm test -w pivotkit-server    # the service over HTTP: hostile inputs, tokens, 
 npx pivotkit-server serve --source sales=data.csv --output out   # http://127.0.0.1:3333
 node scripts/openapi.js        # write docs/openapi.json after a route or operation change
 PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-server   # rewrite the options table's and check-config's golden files; review the diff
+npm run bench:records -w pivotkit-server   # memory and CPU of the rows route, for the sizing section of docs/reference/rest.md
 ```
 
 ## Options
