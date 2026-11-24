@@ -359,10 +359,11 @@ load it with the chart, not with the first load.
 | `maxCategories` | both | Plots the first categories in the view's order. `toSeries` reports `categoryCount`, the number before the cut. |
 | `series` | `toEChartsOption` | The `toSeries` result of the same result and options, when the caller has it already. |
 
-`chart.type` `"auto"` is the view's default. It draws what `autoChartType(view, data)` says: `"line"`
-when a date or a grouping of one along the time line is on Rows, else `"bar"`. Weekday, hour and
-month of year are not along the time line. A pie writes its share as the locale writes a percentage.
-A heatmap writes its colour scale (`visualMap.formatter`) in the value's number format.
+`toSeries` gives `categories`, each whole path such as "Asia / Japan". It also gives `categoryLevels`,
+its label per level such as `["Asia", "Japan"]`, and `categoryPaths`, `series` and `totals`.
+
+`chart.type` `"auto"`, the view's default, draws what `autoChartType` below says. A pie writes its
+share as the locale writes a percentage. A heatmap writes its colour scale, `visualMap.formatter`, in the value's number format.
 
 ### `autoChartType(view, data)`
 
@@ -393,11 +394,9 @@ What a chart draws, the same on the screen, in an SVG and in a printed report.
 
 `chartPlan` gives `{ auto, swap, chart: { type, stacked, horizontal } }`:
 
-- A type the view chose stays as it is.
-- For `"auto"`: lines when a date is on Rows.
-- For `"auto"`: lines with `swap: true` when a date is on Columns only. Draw from the pivot of
-  `swapAxes(view)`, so the dates run along the axis.
-- For `"auto"` otherwise: bars.
+- A type the view chose stays as it is. `"auto"` takes `autoChartType`'s.
+- One exception: for `"auto"` with a date on Columns only, lines with `swap: true`. Draw from the
+  pivot of `swapAxes(view)`, so the dates run along the axis.
 
 `swapAxes` returns a copy of a normalized view with Rows and Columns swapped. Their collapsed groups
 move with them. A "show values as" that names an axis turns to the other one, so every number stays
@@ -422,8 +421,6 @@ It also reads a workbook's colours, as CSS writes them. Make them `#rrggbb` for 
 A token that is missing or not readable keeps `DEFAULT_THEME`'s value. `CHART_COLORS` is 8.
 
 ### The chart's marks: `pivotkit-core/chart` { #chart-marks }
-
-This entry point exports `toEChartsOption` too, so a bundle loads the option with the chart.
 
 `referenceLines(result, { chart, series, words, locale })` gives the reference lines as numbers, in
 the order a chart draws them: the averages, the trends, the target. Each line has:
@@ -456,10 +453,21 @@ stack's reference lines and pivotkit-react's tip on stacks use it.
 `stacksToPercent(chart)` says whether a view's `chart` is drawn stacked to 100 %: stacked bars or an
 area with `stackPercent`.
 
-`decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter, readColor })` puts
-a report's marks on `toEChartsOption`'s option:
+`decorateOption(option, style, options)` puts a report's marks on `toEChartsOption`'s option.
+`style` gives the `--pk-*` tokens through `getPropertyValue`: a computed style or a map. Options:
 
-- The theme's colours from the `--pk-*` tokens of `style`.
+| Option | What |
+| --- | --- |
+| `width`, `height` | The chart's size in px. The defaults are 800 and 480. |
+| `categoryNames` | The categories' whole names: the tooltip's title where the axis writes them shorter. |
+| `axisLabels` | The view's `chart.axisLabels`. |
+| `tooltipFormatter` | Builds the tooltip's formatter. Leave it out for a chart without a tooltip, such as an SVG. |
+| `readColor` | `(color) => color \| null`: a heatmap colour as ECharts can mix it. ECharts reads hex, `rgb()`, `hsl()` and some names only, and another form, such as `oklch()`, turns the cells black. An end with `null` takes `DEFAULT_THEME.colorScale`'s colour. |
+| `zoom`, `zoomAt`, `timeline`, `touch` | The zoom slider of a chart on a screen. See below. |
+| `pixelOf` | `(value) => px`: a value's height in the drawn chart, such as ECharts' `convertToPixel` after a first draw. The labels of the reference lines then sit at their lines. |
+
+It adds the theme's colours from the tokens, and:
+
 - Bars and pie slices with `--pk-radius-chart` corners in px. A heatmap's cells get three quarters of
   it. The default is `DEFAULT_THEME.markRadius`, 4.
 - A tooltip with `--pk-radius-card` corners, default 8 px.
@@ -477,10 +485,6 @@ a report's marks on `toEChartsOption`'s option:
 - A heatmap's row names and cell numbers where its cells have room.
 - A treemap's labels in `--pk-text` or `--pk-surface`, whichever has the higher contrast on the tile
   (`labelColorOn(fill, candidates)`). Below 4.5:1, the label gets an outline in the other one.
-- With `readColor`, a heatmap's colours as ECharts can mix them. ECharts' own parser reads hex,
-  `rgb()`, `hsl()` and some names only. Another form, such as `oklch()`, turns the cells black.
-  `readColor(color)` returns a colour ECharts reads, or `null`. An end with `null` takes
-  `DEFAULT_THEME.colorScale`'s colour.
 
 pivotkit-react adds its DOM tooltip through `tooltipFormatter`. Its `readColor` turns any colour the
 browser reads into `#rrggbb`. pivotkit-report's keeps the colours ECharts reads. Any other one
@@ -510,17 +514,16 @@ px of the chart that are not cells, beside them (`x`) and above and below them (
 is a heatmap of pivotkit-core with straight column names. `categoryLabelLayout` takes `reserved` in
 its box: the px of the height that are neither plot nor category labels.
 
-`decorateOption` takes `zoom`, the view's `chart.zoom`, for a chart on a screen. With it, bars, lines
-and areas get an ECharts `dataZoom` slider when the axis cannot write every label, or always for
-`"on"`. The labels are laid out for the categories the slider shows first. Without `zoom`, as in an
-SVG, every category is drawn. The entry imports nothing, so a report's first load does not
-carry it.
+`zoom` is the view's `chart.zoom`. With it, bars, lines and areas get an ECharts `dataZoom` slider
+when the axis cannot write every label, or always for `"on"`. The layout fits the labels to the
+categories the slider shows first. Without `zoom`, as in an SVG, the chart draws every category. The
+other three options steer the slider:
 
-`toSeries` gives these members:
+- `zoomAt`, `{ start, end }`: the slider's window from the last draw, kept on a redraw.
+- `timeline: true`: the categories run along a time line, and the first window shows the latest.
+- `touch: true`: a finger points, and the slider takes `--pk-target-touch`.
 
-- `categories`: the whole path of each category, "Asia / Japan".
-- `categoryLevels`: its label per level, `["Asia", "Japan"]`.
-- `categoryPaths`, `series` and `totals`.
+The entry imports nothing, so a report's first load does not carry it.
 
 The view's display settings are part of the option:
 
@@ -543,9 +546,6 @@ The view's display settings are part of the option:
   separator tick where a group starts. It needs `chart.groupLabels` (`"auto"` or `"on"`) and two or
   more row fields. The UI hides `"auto"` ones in a small chart. `xAxis` or `yAxis` is then a list of
   two.
-
-Where to write the category labels (`chart.axisLabels`) depends on the chart's size, so the UI
-decides it (`categoryLabelLayout` of [pivotkit-core/chart](#chart-marks)).
 
 ### Links: `pivotkit-core/link`
 
