@@ -33,8 +33,9 @@ jobs:
         # no install scripts: nothing here needs one, and a hijacked dependency could run one
         run: npm ci --no-audit --no-fund --ignore-scripts
       - name: Registry signatures
-        # every installed package carries the registry's signature (and its attestation where it has one)
-        run: npm audit signatures
+        # every installed package carries the registry's signature (and its attestation where it has one);
+        # an answer of the registry that cannot be read is tried again (scripts/audit-signatures.js)
+        run: node scripts/audit-signatures.js
       - name: Lint
         run: npm run lint
       # The growth guards (scripts/growth.js): a ratchet on scripts/growth-baseline.json, one step

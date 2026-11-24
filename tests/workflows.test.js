@@ -64,13 +64,14 @@ test("CI's test job runs every growth guard in a step of its own", () => {
 });
 
 // npm audit signatures checks the registry signatures of what npm ci installed: the step right after
-// the install, in CI's test job and in the release's build job
+// the install, in CI's test job and in the release's build job, through scripts/audit-signatures.js
+// (tried again only when the registry's answer cannot be read)
 test("CI's test job and the release build verify the registry signatures right after npm ci", () => {
     for (const [file, name] of [["ci.yml", "test"], ["release.yml", "build"]]) {
         const steps = jobOf(file, name).steps;
         const install = stepRunning(steps, "npm ci --no-audit");
         assert.ok(install !== -1, `${file} ${name}: no npm ci`);
-        assert.deepEqual(commandsOf(steps[install + 1]), ["npm audit signatures"], `${file} ${name}: npm audit signatures is the step right after the install`);
+        assert.deepEqual(commandsOf(steps[install + 1]), ["node scripts/audit-signatures.js"], `${file} ${name}: the signature check is the step right after the install`);
     }
 });
 
@@ -129,7 +130,7 @@ test("the release workflow runs check-release for the tagged package before it p
 test("the release packs and uploads the tarball before lint and tests, and publish checks its integrity", () => {
     const build = jobOf("release.yml", "build");
     const steps = build.steps;
-    const signatures = stepRunning(steps, "npm audit signatures");
+    const signatures = stepRunning(steps, "node scripts/audit-signatures.js");
     const pack = steps.findIndex((step) => step.name === "Pack");
     const upload = steps.findIndex((step) => String(step.uses).startsWith("actions/upload-artifact@"));
     const checks = stepRunning(steps, "npm run lint");
