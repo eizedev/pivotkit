@@ -10,6 +10,14 @@ body:
         - pivotkit-core
         - pivotkit-react
         - pivotkit-element
+        - pivotkit-xlsx
+        - pivotkit-report
+        - pivotkit-cli
+        - pivotkit-server
+        - pivotkit-mcp
+        - pivotkit-node
+        - the container image
+        - the docs
     validations:
       required: true
   - type: input

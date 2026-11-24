@@ -280,13 +280,6 @@ jobs:
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "$GITHUB_SHA is not on main"; exit 1; }
           runs="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success&per_page=1" --jq '.total_count')"
           test "$runs" -gt 0 || { echo "no successful CI run for $GITHUB_SHA"; exit 1; }
-      - name: The version is not published yet
-        # a release is never replaced: a tag pushed again would move <version> and <major>.<minor>
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          version="${TAG#pivotkit-server@}"
-          if docker buildx imagetools inspect "$IMAGE:$version" > /dev/null 2>&1; then echo "$IMAGE:$version exists already"; exit 1; fi
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -301,6 +294,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
+      - name: The version is not published yet
+        # a release is never replaced: a tag pushed again would move <version> and <major>.<minor>.
+        # Signed in, so a private package answers too; only "not found" means not published, any other
+        # failure of the registry stops the job rather than overwrite the tags
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#pivotkit-server@}"
+          if out="$(docker buildx imagetools inspect "$IMAGE:$version" 2>&1)"; then echo "$IMAGE:$version exists already"; exit 1; fi
+          if ! grep -qiE 'not found|manifest unknown' <<< "$out"; then echo "the registry did not say whether $IMAGE:$version exists: $out"; exit 1; fi
       - name: Build and push (linux/amd64, linux/arm64) with provenance and SBOM
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
