@@ -55,7 +55,7 @@ export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
     filterCompareValue: "error",
     filterRelativeDirection: "error schema", filterRelativeUnit: "error schema", filterRelativeCount: "error schema", filterRelativeAnchor: "error schema",
     sortNoItems: "error schema", sortedTwice: "error", sortColumn: "warning",
-    badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", badTitle: "error schema",
+    badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", notSwitch: "error schema", notSection: "error schema", badTitle: "error schema",
     unknownLocale: "error", unknownTimeZone: "error", timeZoneMismatch: "error", tooManyIssues: "warning",
     labelTwice: "warning", labelTaken: "warning"
 });
@@ -284,8 +284,36 @@ function oneOf(value, allowed, fallback) {
     return typeof value === "string" && allowed.includes(value) ? value : fallback;
 }
 
-function bool(value, fallback) {
-    return typeof value === "boolean" ? value : fallback;
+/** oneOf, and a value given but not allowed is reported (null counts as not given). */
+function choice(value, allowed, fallback, ctx, path) {
+    const out = oneOf(value, allowed, fallback);
+    if (value !== undefined && value !== null && out !== value) {
+        ctx.issue(path, `unknown ${path.split(".").pop()} ${JSON.stringify(value)}`, "unknownSetting", { value: shown(value) });
+    }
+    return out;
+}
+
+/** A switch: true or false; anything else given is reported and the fallback used (null counts as not given). */
+function bool(value, fallback, ctx, path) {
+    if (typeof value === "boolean") {
+        return value;
+    }
+    if (value !== undefined && value !== null) {
+        ctx.issue(path, "not true or false", "notSwitch", { value: shown(value) });
+    }
+    return fallback;
+}
+
+/** Whether a section given at `path` is an object; another value is reported (null counts as not given). */
+function sectionObject(value, path, ctx) {
+    if (value === undefined || value === null) {
+        return false;
+    }
+    if (!isPlainObject(value)) {
+        ctx.issue(path, "not an object", "notSection", { value: shown(value) });
+        return false;
+    }
+    return true;
 }
 
 /** Accepts an encoded data set, a schema { fields } or an array of fields. */
@@ -437,7 +465,7 @@ function showAsOf(showAs, ref, path, ctx) {
         ctx.issue(path, `${type} needs an aggregator that adds up (sum or count), not ${ref.agg}`, "showAsNotAdditive", { value: type, agg: ref.agg });
         return null;
     }
-    return { type, axis: oneOf(get(s, "axis"), ["rows", "cols"], "rows") };
+    return { type, axis: choice(get(s, "axis"), ["rows", "cols"], "rows", ctx, `${path}.axis`) };
 }
 
 function valuesSection(raw, view, ctx) {
@@ -563,8 +591,8 @@ function sortSection(raw, view, ctx) {
         if (!f || seen.has(f.name)) {
             return f ? ctx.issue(path, `"${f.name}" is sorted twice`, "sortedTwice", { field: f.name }) : ctx.unknownField(path, get(s, "field"));
         }
-        const by = oneOf(get(s, "by"), SORT_BY, "label");
-        const spec = { field: f.name, by, order: oneOf(get(s, "order"), ["asc", "desc"], "asc") };
+        const by = choice(get(s, "by"), SORT_BY, "label", ctx, `${path}.by`);
+        const spec = { field: f.name, by, order: choice(get(s, "order"), ["asc", "desc"], "asc", ctx, `${path}.order`) };
         if (by === "custom") {
             const items = customItems(get(s, "items"), f, `${path}.items`, ctx);
             if (!items) {
@@ -601,12 +629,15 @@ function totalsSection(raw, view, ctx) {
     }
     ctx.keys(totals, VIEW_KEYS.totals, "totals");
     for (const key of Object.keys(view.totals)) {
-        view.totals[key] = bool(get(totals, key), view.totals[key]);
+        view.totals[key] = bool(get(totals, key), view.totals[key], ctx, `totals.${key}`);
     }
 }
 
 /** Collapsed groups: key paths of fields on the axis. */
 function collapsedSection(raw, view, ctx) {
+    if (!sectionObject(get(raw, "collapsed"), "collapsed", ctx)) {
+        return;
+    }
     ctx.keys(get(raw, "collapsed"), VIEW_KEYS.collapsed, "collapsed");
     for (const axis of ["rows", "cols"]) {
         const types = view[axis].map((name) => ctx.fields.get(name.toLowerCase()).type);
@@ -653,36 +684,27 @@ const nameOf = (/** @type {unknown} */ name) => (typeof name === "string" && nam
 
 function displaySection(raw, view, ctx) {
     const display = get(raw, "display");
-    view.display = oneOf(display, DISPLAY_MODES, view.display);
-    if (display !== undefined && view.display !== display) {
-        ctx.issue("display", `unknown display ${JSON.stringify(display)}`, "unknownSetting", { value: shown(display) });
-    }
+    view.display = choice(display, DISPLAY_MODES, view.display, ctx, "display");
     const chart = get(raw, "chart");
-    ctx.keys(chart, VIEW_KEYS.chart, "chart");
-    if (chart !== undefined) {
-        const own = (key, allowed, fallback) => {
-            const value = get(chart, key);
-            const out = oneOf(value, allowed, fallback);
-            if (value !== undefined && out !== value) {
-                ctx.issue(`chart.${key}`, `unknown ${key} ${JSON.stringify(value)}`, "unknownSetting", { value: shown(value) });
-            }
-            return out;
-        };
+    if (sectionObject(chart, "chart", ctx)) {
+        ctx.keys(chart, VIEW_KEYS.chart, "chart");
+        const flag = (key) => bool(get(chart, key), false, ctx, `chart.${key}`);
+        const own = (key, allowed, fallback) => choice(get(chart, key), allowed, fallback, ctx, `chart.${key}`);
         const title = get(chart, "title");
         view.chart = {
             type: own("type", CHART_TYPES, view.chart.type),
-            stacked: bool(get(chart, "stacked"), false),
-            horizontal: bool(get(chart, "horizontal"), false),
+            stacked: flag("stacked"),
+            horizontal: flag("horizontal"),
             valueLabels: own("valueLabels", CHART_VALUE_LABELS, "auto"),
             legend: own("legend", CHART_LEGENDS, "auto"),
             title: title === undefined || title === null ? null : ctx.text(title),
-            smooth: bool(get(chart, "smooth"), false),
+            smooth: flag("smooth"),
             axisLabels: own("axisLabels", CHART_AXIS_LABELS, "auto"),
             groupLabels: own("groupLabels", CHART_GROUP_LABELS, "auto"),
             labelPosition: own("labelPosition", CHART_LABEL_POSITIONS, "outside"),
             tooltip: own("tooltip", CHART_TOOLTIPS, "auto"),
             zoom: own("zoom", CHART_ZOOMS, "auto"),
-            stackPercent: bool(get(chart, "stackPercent"), false),
+            stackPercent: flag("stackPercent"),
             hidden: listOnce(raw, "chart.hidden", ctx, (n) => (nameOf(n) === null ? null : { id: /** @type {string} */ (n), value: n })),
             referenceLines: referenceLinesOf(get(chart, "referenceLines"), ctx),
             colors: listOnce(raw, "chart.colors", ctx, (c, path) => {
@@ -695,7 +717,7 @@ function displaySection(raw, view, ctx) {
                 ctx.keys(c, VIEW_KEYS.color, path);
                 return { id: name.toLowerCase(), value: { name, color } };
             }),
-            tooltipShare: bool(get(chart, "tooltipShare"), false)
+            tooltipShare: flag("tooltipShare")
         };
         if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {
             ctx.issue("chart.title", `not a text up to ${ctx.limits.name} characters`, "badTitle", { max: ctx.limits.name });
@@ -708,9 +730,14 @@ function displaySection(raw, view, ctx) {
  * a target as a finite number or null.
  */
 function referenceLinesOf(lines, ctx) {
-    ctx.keys(lines, VIEW_KEYS.referenceLines, "chart.referenceLines");
-    const target = get(lines, "target");
-    const out = { average: bool(get(lines, "average"), false), trend: bool(get(lines, "trend"), false), target: finite(target), extremes: bool(get(lines, "extremes"), false) };
+    const path = "chart.referenceLines";
+    const given = sectionObject(lines, path, ctx);
+    if (given) {
+        ctx.keys(lines, VIEW_KEYS.referenceLines, path);
+    }
+    const target = given ? get(lines, "target") : undefined;
+    const flag = (key) => (given ? bool(get(lines, key), false, ctx, `${path}.${key}`) : false);
+    const out = { average: flag("average"), trend: flag("trend"), target: finite(target), extremes: flag("extremes") };
     if (target !== undefined && target !== null && out.target === null) {
         ctx.issue("chart.referenceLines.target", `not a number ${JSON.stringify(shown(target))}`, "unknownSetting", { value: shown(target) });
     }
@@ -719,6 +746,9 @@ function referenceLinesOf(lines, ctx) {
 
 function formattingSection(raw, view, ctx) {
     const formatting = get(raw, "formatting");
+    if (!sectionObject(formatting, "formatting", ctx)) {
+        return;
+    }
     ctx.keys(formatting, VIEW_KEYS.formatting, "formatting");
     const locale = get(formatting, "locale");
     if (locale !== undefined && locale !== null) {
