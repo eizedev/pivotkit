@@ -121,8 +121,8 @@ hidden series does not count in a 100 % stack.
 The palette colours series and slices in turn, so a category's colour depends on what else the chart
 shows. A fixed colour per name keeps it the same in every chart.
 
-- The view's `chart.colors` lists `{ name, color }` entries. People set them in Display › Series, with
-  the colour beside each series.
+- The view's `chart.colors` lists `{ name, color }` entries. People set them in
+  Chart settings › Series, with the colour beside each series.
 - The host's `colorMap` prop (`colorMap` property of the web component) sets them for every view:
   `{ Failed: "#e3000f", Success: ["#287233", "#4caf50"] }`. A list of two is one colour for the light
   theme and one for the dark.

@@ -15,8 +15,8 @@ can show a clearer name and say what the field means:
 | `href` | An https link to more about the field, shown as **Learn more** with the description (`target="_blank"`, `rel="noopener noreferrer"`). Any other link is dropped. |
 | `type` | The column type pivotkit reads the field as: `"number"`, `"date"`, `"string"` or `"boolean"` (pivotkit-core's `encode` `types`). Use it, for example, for numbers that arrive as text. |
 
-The other entries of `fieldDefaults` set a field's aggregator, formats and order of items:
-[`fieldDefaults`](../reference/react.md#prop-fielddefaults).
+The other entries of `fieldDefaults` set a field's aggregator, formats and order of items. The
+[React reference](../reference/react.md#prop-fielddefaults) lists them.
 
 Two fields may share a label, or a label may be another field's own name. Then the label gets the
 field's name in parentheses ("Name (product_name)"). So no two fields look the same in the list, on

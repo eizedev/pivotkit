@@ -478,6 +478,6 @@ A schedule draft that waits for approval (`status` `"draft"`) does not expire un
 (500 by default) and half of `output.maxMb` (512 MiB by default). The server never deletes them to
 make room. Once they reach the cap, the server refuses new drafts until a person approves or
 removes drafts. Renders keep working, unless drafts written under larger limits fill the directory
-alone. So approve or reject drafts by changing their `status`, or remove them. A host may also delete or move a draft instead of rewriting its `status`.
-A draft file that cannot be read or parsed, is over 1 MiB, or has no `status` that is a string
+alone. So approve or reject drafts by changing their `status`, or remove them. A host may also
+delete or move a draft instead of rewriting its `status`. A draft file that cannot be read or parsed, is over 1 MiB, or has no `status` that is a string
 counts as waiting.
