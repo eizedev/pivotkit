@@ -1,6 +1,6 @@
 ---
 title: pivotkit-react reference
-description: Every prop of <PivotReport>, the package's exports, its layout at every width and its performance.
+description: Every prop of <PivotReport>, the package's exports and its performance. Its layout and menus have a page of their own.
 ---
 
 # pivotkit-react reference

@@ -19,7 +19,7 @@
  *
  *   New in this version:
  *     at most 32 connections per address (http.maxConnectionsPerAddress)
- *       -> https://pivotkit.eize.dev/getting-started/upgrading/#per-address
+ *       -> https://pivotkit.eize.dev/reference/container/#per-address
  *
  * Three markers: PROBLEM (counted; keeps the server from starting, or a source or feature from
  * working, and says which), WARNING (counted, not an error) and plain. The verdict and the counts

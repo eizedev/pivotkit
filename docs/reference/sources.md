@@ -1,6 +1,6 @@
 ---
 title: Data sources
-description: The kinds of data source pivotkit-server and pivotkit-mcp read - files, HTTP sources the operator configures with typed parameters, and code sources of a library host, with a time limit, coalescing, kept data and last good data.
+description: The kinds of data source pivotkit-server and pivotkit-mcp read - files and HTTP sources the operator configures with typed parameters. Code sources of a library host have a page of their own.
 ---
 
 # Data sources

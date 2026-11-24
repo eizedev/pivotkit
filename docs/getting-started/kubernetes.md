@@ -1,6 +1,6 @@
 ---
 title: Kubernetes
-description: Run pivotkit-server with the REST service and the MCP server on Kubernetes - how data files reach /data (a CronJob on a ReadWriteMany volume, or a sidecar), memory and workers, volumes, Service, Ingress, NetworkPolicy, sign-in with Authentik, and a complete example manifest.
+description: Run pivotkit-server with the REST service and the MCP server on Kubernetes - how data files reach /data (a CronJob on a ReadWriteMany volume, or a sidecar), volumes, Service, Ingress, NetworkPolicy and a complete example manifest.
 ---
 
 # Kubernetes

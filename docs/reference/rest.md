@@ -1,6 +1,6 @@
 ---
 title: pivotkit-server (REST)
-description: The pivotkit REST service - routes, the OpenAPI 3.1 document, sign-in with tokens or OAuth 2.1, policy profiles, downloads, CORS, limits, errors as problem details, logging, and embedding pivotkit-server in your own Node server.
+description: The pivotkit REST service - routes, the OpenAPI 3.1 document, policy profiles, downloads, CORS, limits, errors as problem details and logging. Sign-in, tokens and the rows route have pages of their own.
 ---
 
 # pivotkit-server (REST)

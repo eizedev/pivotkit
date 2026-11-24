@@ -38,7 +38,8 @@ download them from there.
 ![The rows behind the grand total, enlarged, with the Export menu open: Copy, Copy as JSON, Download CSV, Download Excel, and the note that it holds the first 1,000 of 4,000 rows](../assets/screenshots/drill-export-light.png#only-light)
 ![The rows behind the grand total, enlarged, with the Export menu open: Copy, Copy as JSON, Download CSV, Download Excel, and the note that it holds the first 1,000 of 4,000 rows](../assets/screenshots/drill-export-dark.png#only-dark)
 
-The panel has an **Export** menu with two groups, **Copy** and **Download**:
+Where the application allows it, the panel has an **Export** menu with two groups, **Copy** and
+**Download**. Without it, the panel shows the rows only:
 
 | Entry | Gives |
 | --- | --- |

@@ -40,7 +40,7 @@ and what changed. In the report itself, **More**, **Help**, **Keyboard shortcuts
     - the whole value condition
     - the sort
 
-??? info "Menus, headers, the chart and messages"
+???+ info "Menus, headers, the chart and messages"
     - In a chip's menu, each row says what is set and whether it is the default: "Filter, 3 of 4,
       changed". A level's title names the field, such as "Month › Group". A level with fields is a group
       with that heading. A level of choices is a menu. The Filter level says how many items it keeps as
@@ -57,7 +57,7 @@ and what changed. In the report itself, **More**, **Help**, **Keyboard shortcuts
 
 A menu or a panel takes the focus when it opens and gives it back when it closes.
 
-??? info "Where the focus goes"
+???+ info "Where the focus goes"
     - A menu takes the focus on its first entry when it opens, with or without reduced motion. It gives
       the focus back to its button when it closes. A level of a chip's menu takes the focus on its choice
       in use, or on its first field. It gives the focus back to the row it came from.

@@ -1,6 +1,6 @@
 ---
 title: Getting started with the MCP server
-description: Let an AI client (Claude Code, Claude Desktop, VS Code and others) build pivot reports over your data with pivotkit-mcp - local over stdio, for a team over HTTP with a token or OAuth, and inside PowerShell Universal.
+description: Let an AI client (Claude Code, Claude Desktop, VS Code and others) build pivot reports over your data with pivotkit-mcp - local over stdio, and for a team over HTTP with a token or OAuth.
 ---
 
 # Getting started with the MCP server

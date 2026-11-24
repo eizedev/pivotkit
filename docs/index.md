@@ -118,7 +118,7 @@ of life. Or [load your own](use/load-data.md). Every task has its page under
 | Reports for programs over HTTP, such as scripts, PowerShell or schedulers, with an OpenAPI document | [REST service](getting-started/rest.md): `pivotkit-server serve`, the [container image](reference/container.md) or [Kubernetes](getting-started/kubernetes.md) |
 | Reports from an AI client such as Claude or VS Code, without the model reading the data | [MCP server](getting-started/mcp.md): `npx -y pivotkit-mcp`; [what reaches the model](model-data.md) |
 | The REST service and the MCP server running for a team, on your own data | [Server in 5 minutes](getting-started/server-in-5-minutes.md): one `docker run` |
-| A PowerShell Universal app | [PowerShell Universal](getting-started/react.md#powershell-universal): `New-UDPivotReport` |
+| A PowerShell Universal app | [PowerShell Universal](getting-started/react.md#powershell-universal): `New-UDPivotReport`; the REST and MCP services beside it: [services next to PowerShell Universal](getting-started/powershell-universal.md) |
 
 [Embed pivotkit](embed/index.md) says which package fits and what a host switches on, and has the
 recipes. [What works with pivotkit](compatibility.md) lists the hosts, sign-in providers, MCP clients

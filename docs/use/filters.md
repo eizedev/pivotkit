@@ -167,6 +167,9 @@ or by the value you pick there.
 ![The Top items level of Country: Off, Top 3 (checked, the template's), Top 5, Top 10 and Top N…, by Sum of Population, Also show items with the same value as the last one, and the items shown](../assets/screenshots/top-items-light.png#only-light)
 ![The Top items level of Country: Off, Top 3 (checked, the template's), Top 5, Top 10 and Top N…, by Sum of Population, Also show items with the same value as the last one, and the items shown](../assets/screenshots/top-items-dark.png#only-dark)
 
+With a field above it on Rows, a top N keeps N items per group, and the group totals count only
+those items.
+
 ??? info "Per group, ties and Reset"
     - **Per group.** With Region and Country on Rows, "top 3 countries" keeps three countries per
       region, as in Excel. A region's total is then the total of its three countries, and percentages

@@ -39,7 +39,8 @@ Your browser cannot play this video. The caption below says what it shows.
 <figcaption id="clip-drag-field">Video without sound: the pointer drags Region from the field list into Rows. Rows takes the drop, and the table lists the regions.</figcaption>
 </figure>
 
-All four give the same result.
+All four give the same result. A field that is in Values already can go there a second time:
+its menu has **Add to Values again**.
 
 ??? info "More about adding fields"
     - A click on a field in Columns or Filters moves it to Rows. A field that is in that zone already
