@@ -72,7 +72,9 @@ export const same = (a, b) => typeof a === "string" && typeof b === "string" && 
 
 /**
  * The items of a picker whose label holds what was typed: as text filters compare (pivotkit-core's
- * foldText), so case and runs of whitespace, a no-break space among them, do not matter.
+ * foldText), so case and runs of whitespace, a no-break space among them, do not matter. Without a
+ * search (nothing or only white space typed) it gives `items` itself: filter.jsx tells by that
+ * whether a search is on.
  * @param {Array<{ label: string } & Record<string, any>>} items
  * @param {string} query
  */
