@@ -226,7 +226,7 @@ The behaviour is described in [Load your own data](../use/load-data.md) and for 
 #### The import worker { #the-import-worker }
 
 The element reads CSV and JSON files in a worker of its own, `dist/import-worker.js`. It holds
-pivotkit-core's readers in one file, about 10 KiB gzip. The element starts it from its chunk by
+pivotkit-core's readers in one file, about 12 KiB gzip. The element starts it from its chunk by
 relative URL, so serve it with `dist/`.
 
 The worker is a file of the page's origin, never a `blob:` URL. So `script-src 'self'` (or

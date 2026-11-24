@@ -129,7 +129,6 @@ layout, and new options.
 | **Breaking:** header values refuse the control characters U+0080 to U+009F | a header value in your configuration or secret holds one of them | remove the character. The start or the log names the header |
 | **Breaking:** reports are written with mode 0600 | another user reads the output directory without `output.baseUrl`, such as a backup job | run that reader as the server's user, or set `output.baseUrl`; `chmod 600` older reports to match |
 | [Versions move together](#update) | you list pivotkit-core, pivotkit-report or pivotkit-xlsx yourself | update them to the release of pivotkit-react 0.10: core 0.10.0, report 0.6.0, xlsx 0.7.0 |
-| New view schema of the MCP tools | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients. A blank field name or value label no longer passes the schema |
 
 #### pivotkit-server no longer brings pivotkit-cli { #server-without-cli }
 
