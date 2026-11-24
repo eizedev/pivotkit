@@ -6,6 +6,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-24
+
 ### Added
 
 - At `log.level` `debug`, a REST request whose large body takes one of the places for large bodies
@@ -88,6 +90,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.10.0`, `pivotkit-report` `^0.6.0` and `pivotkit-xlsx` `^0.7.0`.
 - **Breaking:** a header value refuses the C1 control characters U+0080 to U+009F, as it refuses the
   other control characters. This holds for `http.headers`, the upload store's headers, a backend's
   sign-in header and the headers a presign service asks for. A configured value with such a character
@@ -1150,7 +1153,8 @@ First release.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.4.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.5.0...HEAD
+[0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.4.0...pivotkit-server@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.2...pivotkit-server@0.4.0
 [0.3.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.1...pivotkit-server@0.3.2
 [0.3.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.0...pivotkit-server@0.3.1

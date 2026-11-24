@@ -6,16 +6,19 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-24
+
 ### Changed
 
+- Bundles pivotkit-core 0.10.0, pivotkit-react 0.10.0 and pivotkit-report 0.6.0.
 - **Breaking:** the theme token `--pk-knob` and the label `settingsShort` are gone, as in
   pivotkit-react. A page that sets either removes it; see
   [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/).
 - The README, the package's page on npm, no longer carries a paragraph on what dates say. It said
   nothing about the web component, and the docs describe dates.
-- The first load grows by about 1.3 KiB gzip with pivotkit-core's and pivotkit-react's fixes of this
-  release: 181.9 KiB measured on a Mac, in 13 files instead of 12. Its budget goes to 182.5 KiB,
-  the import group's to 23.2 KiB, the unused group's to 6.5 KiB and the report group's to 24.5 KiB
+- The first load grows with pivotkit-core's and pivotkit-react's fixes of this release: 182.3 KiB
+  gzip on an official Node 24 build, in 13 files instead of 12. Its budget goes to 182.5 KiB, the
+  import group's to 23.2 KiB, the unused group's to 6.5 KiB and the report group's to 24.5 KiB
   ([#782](https://github.com/eizedev/pivotkit/pull/782), [#786](https://github.com/eizedev/pivotkit/pull/786),
   [#796](https://github.com/eizedev/pivotkit/pull/796)).
 
@@ -624,7 +627,8 @@ First release.
   thousands separators, CSV percentages and calculations as the table shows them, heatmaps without
   grey empty cells.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.9.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.10.0...HEAD
+[0.10.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.9.0...pivotkit-element@0.10.0
 [0.9.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.2...pivotkit-element@0.9.0
 [0.8.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.1...pivotkit-element@0.8.2
 [0.8.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.0...pivotkit-element@0.8.1

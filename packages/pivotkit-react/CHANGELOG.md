@@ -6,6 +6,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-24
+
 ### Added
 
 - English and German texts for the import notes `DECIMAL_MARK`, `NUMBERS_TOO_LARGE` and
@@ -14,6 +16,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.10.0` (was `^0.9.0`) and `pivotkit-report` `^0.6.0` (was
+  `^0.5.0`): a host that also lists pivotkit-core updates both together, or it gets two copies.
 - **Breaking:** the theme token `--pk-knob` is gone, as announced for 0.9.0: nothing draws a switch.
   A page that sets it keeps its value unused; remove it.
 - **Breaking:** the label `settingsShort` is gone: no text uses it. TypeScript code that sets it in
@@ -1458,7 +1462,8 @@ First release.
   weather (Open-Meteo), countries (World Bank), earthquakes (USGS), Nobel laureates and the release
   cycles of software products (endoflife.date).
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.9.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.10.0...HEAD
+[0.10.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.9.0...pivotkit-react@0.10.0
 [0.9.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.2...pivotkit-react@0.9.0
 [0.8.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.1...pivotkit-react@0.8.2
 [0.8.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.0...pivotkit-react@0.8.1

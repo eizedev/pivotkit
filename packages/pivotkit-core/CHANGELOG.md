@@ -6,6 +6,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-24
+
 ### Fixed
 
 - The formula guard of the CSV export and the clipboard copies also reads the full-width and small
@@ -90,7 +92,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   `DECIMAL_MARK`. A German locale or a semicolon file still reads 1.234.
 - **Breaking:** `toViewFile` throws `PivotkitError` `INVALID_ARGUMENT` for a view that is no
   object, as every function does for a programmer's error
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#next)). It threw a `TypeError`.
+  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-9)). It threw a `TypeError`.
   Affected: a host that catches `TypeError` from `toViewFile`. What to do: catch `PivotkitError`
   (code `INVALID_ARGUMENT`) instead.
 - `PivotkitError` extends `CodedError` of `pivotkit-core/internal`, the base of every error class
@@ -740,7 +742,8 @@ First release.
   a cell, so a UI can leave a blank cell without rows unclickable.
 - `grid.showAs`: per value its "show values as" type, or null.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.9.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.10.0...HEAD
+[0.10.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.9.0...pivotkit-core@0.10.0
 [0.9.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.8.0...pivotkit-core@0.9.0
 [0.8.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.7.0...pivotkit-core@0.8.0
 [0.7.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.6.1...pivotkit-core@0.7.0

@@ -6,6 +6,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-24
+
 ### Fixed
 
 - `pivotkit examples` and `writeNew` of `pivotkit-cli/files` write to file systems without hard
@@ -20,6 +22,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.10.0`, `pivotkit-report` `^0.6.0` and `pivotkit-xlsx` `^0.7.0`.
 - The command line's code moved from one file into modules of one concept each. Commands, options,
   messages, exit codes and output stay the same.
 - **Breaking:** `--strict` refuses a view with a setting that pivotkit-core now reports as a warning:
@@ -327,7 +330,8 @@ First release.
   usage error instead of HTML in a `.pdf`.
 - An option that does nothing in the chosen format (`--width` with `csv`) is a warning `ignoredOption`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.5.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.6.0...HEAD
+[0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.5.0...pivotkit-cli@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.4.0...pivotkit-cli@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.3.0...pivotkit-cli@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.1...pivotkit-cli@0.3.0
