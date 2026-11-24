@@ -9,7 +9,7 @@
  */
 
 import { CALLBACK_PATH, DOWNLOADS_PATH } from "../downloads.js";
-import { KEY_MIN_BYTES } from "../downloads/tokens.js";
+import { keyProblem } from "../secret-rules.js";
 import { makeKey } from "../auth.js";
 import { EXPIRES_MINUTES, insecurePublicHost, insecureUrlText, settingsOf } from "../options/downloads.js";
 import { uploadSettingsOf } from "../options/upload.js";
@@ -217,8 +217,9 @@ async function links(options, registry, runtime) {
         if (!(await madeAtStart(settings.key, options))) {
             try {
                 const value = await readSecret(settings.key, options, runtime.env);
-                if (Buffer.byteLength(value) < KEY_MIN_BYTES) {
-                    items.push(problem(`output.downloads.key is shorter than ${KEY_MIN_BYTES} bytes; make one with: ${makeKey("downloads")}`, noLinks));
+                const why = keyProblem("downloads")(value);
+                if (why) {
+                    items.push(problem(`output.downloads.key is ${why}; make one with: ${makeKey("downloads")}`, noLinks));
                 }
             } catch (e) {
                 items.push(problem(`output.downloads.key: ${String(/** @type {any} */ (e)?.message ?? e)}`, noLinks));
