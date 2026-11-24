@@ -77,12 +77,17 @@ export function decodeText(bytes, file) {
         }
     }
     // a zero character does not occur in text: the file is binary (or in an encoding not read here);
-    // zeros at the end are padding and go
-    const end = text.replace(/\0+$/, "");
-    if (end.includes("\0")) {
+    // zeros at the end are padding and go. A scan from the end, not a regular expression: /\0+$/
+    // would try every zero of a long run again
+    let end = text.length;
+    while (end > 0 && text.charCodeAt(end - 1) === 0) {
+        end--;
+    }
+    const zero = text.indexOf("\0");
+    if (zero !== -1 && zero < end) {
         throw fileError("BINARY", file, "this file holds binary data, not text.");
     }
-    return { text: end, encoding: ENCODING_NAMES[encoding] };
+    return { text: end === text.length ? text : text.slice(0, end), encoding: ENCODING_NAMES[encoding] };
 }
 
 const ENCODING_NAMES = { "utf-8": "UTF-8", "utf-16le": "UTF-16 (little endian)", "utf-16be": "UTF-16 (big endian)", "windows-1252": "Windows-1252" };

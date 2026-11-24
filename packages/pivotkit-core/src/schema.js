@@ -147,6 +147,9 @@ function resolve(ctx, schema, path, depth = 0) {
         const properties = {};
         for (const p of [...parts, s]) {
             const props = get(p, "properties");
+            if (ctx.merged < 0) {
+                break;
+            }
             if (isPlainObject(props)) {
                 const keys = Object.keys(props);
                 ctx.merged -= keys.length;

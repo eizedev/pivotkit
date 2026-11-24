@@ -13,16 +13,15 @@ import { AGGREGATOR_NAMES } from "../packages/pivotkit-core/src/aggregators.js";
 import { DERIVE_UNITS, MIN_BIN_SIZE } from "../packages/pivotkit-core/src/derive.js";
 import { COMPARE_OPS, COMPARE_PRECISIONS, FILTERS, FILTER_BLANKS, RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, TEXT_ON, TEXT_OPS, TOP_TIES } from "../packages/pivotkit-core/src/filters.js";
 import { ITEM_LENGTH, LIMITS } from "../packages/pivotkit-core/src/limits.js";
+import { AXES, COLOR_SCALE_MAX, SORT_ORDERS } from "../packages/pivotkit-core/src/view.js";
 import { SHOW_AS_NAMES } from "../packages/pivotkit-core/src/show-as.js";
 import { MATCH_CASES, MATCH_WHITESPACE } from "../packages/pivotkit-core/src/text-match.js";
 import { FIELD_TYPES, VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION } from "../packages/pivotkit-core/src/view-file.js";
-import { AXES, CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TOOLTIPS, CHART_TYPES, CHART_VALUE_LABELS, CHART_ZOOMS, COLOR, COLOR_SCALE_MAX, DISPLAY_MODES, SORT_BY, SORT_ORDERS, VIEW_VERSION, emptyView } from "../packages/pivotkit-core/src/view.js";
+import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TOOLTIPS, CHART_TYPES, CHART_VALUE_LABELS, CHART_ZOOMS, COLOR, DISPLAY_MODES, SORT_BY, VIEW_VERSION, emptyView } from "../packages/pivotkit-core/src/view.js";
 import { isMain } from "./is-main.js";
 
-/** Where the schemas are published (the site copies schema/ there, scripts/docs-demo.js): the folder of VIEW_FILE_SCHEMA. */
-export const SCHEMA_BASE = new URL(".", VIEW_FILE_SCHEMA).href;
-/** The docs site, where the schemas' descriptions point to. */
-const SITE = new URL("/", VIEW_FILE_SCHEMA).href;
+/** Where the schemas are published (the site copies schema/ there, scripts/docs-demo.js). */
+export const SCHEMA_BASE = "https://pivotkit.eize.dev/schema/";
 
 /** An object of exactly these properties, `required` of them. */
 const object = (properties, required = [], extra = {}) => ({ type: "object", additionalProperties: false, ...(required.length ? { required } : {}), properties, ...extra });
@@ -108,7 +107,7 @@ export function viewSchema() {
         $id: `${SCHEMA_BASE}view-${VIEW_VERSION}.json`,
         title: `pivotkit view, version ${VIEW_VERSION}`,
         description:
-            `A pivotkit view: the report's layout as JSON. Names are resolved against the data by pivotkit-core's normalize(), which also checks what a schema cannot (a field's name and type, an aggregator for a field). Built by scripts/schemas.js from pivotkit-core's tables. See ${SITE}concepts/views/`,
+            "A pivotkit view: the report's layout as JSON. Names are resolved against the data by pivotkit-core's normalize(), which also checks what a schema cannot (a field's name and type, an aggregator for a field). Built by scripts/schemas.js from pivotkit-core's tables. See https://pivotkit.eize.dev/concepts/views/",
         ...body,
         $defs
     };
@@ -201,7 +200,7 @@ export function viewFileSchema() {
         $schema: DRAFT,
         $id: VIEW_FILE_SCHEMA,
         title: `pivotkit view file, format version ${VIEW_FILE_VERSION}`,
-        description: `A pivotkit view (the report's layout as JSON) with what a person and another pivotkit need to know about it. Readers ignore keys of the envelope they do not know; a newer formatVersion or view.version is refused. Built by scripts/schemas.js. See ${SITE}reference/view-file/`,
+        description: `A pivotkit view (the report's layout as JSON) with what a person and another pivotkit need to know about it. Readers ignore keys of the envelope they do not know; a newer formatVersion or view.version is refused. Built by scripts/schemas.js. See https://pivotkit.eize.dev/reference/view-file/`,
         type: "object",
         required: ["format", "formatVersion", "view"],
         properties: {

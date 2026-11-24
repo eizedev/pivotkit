@@ -316,6 +316,10 @@ test("an unclosed quote names its line; files that are no text are refused with 
     const xls = new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0]);
     await rejects(readFile(fileOf("old.csv", xls)), (e) => e.details.reason === "WRONG_TYPE" && /\.xls/.test(e.message));
     await rejects(readFile(fileOf("bin.txt", new Uint8Array([65, 0, 0, 0, 66, 67, 0, 1, 2]))), (e) => e.details.reason === "BINARY");
+    // a long run of zeros before a character is refused in time: each zero is looked at once
+    const cpu = cpuClock();
+    await rejects(readFile(fileOf("zeros.csv", new Uint8Array([...new Uint8Array(400_000), 120]))), (e) => e.details.reason === "BINARY");
+    assert.ok(cpu() < 2_000, `${Math.round(cpu())} ms of CPU`);
 });
 
 test("text encodings: UTF-16 big endian without a byte order mark, zeros as padding at the end, a byte order mark is final", async () => {

@@ -15,7 +15,7 @@ export function createHistory(startView, options) {
     options = optionsOf(options, "createHistory");
     const limit = Math.max(1, Math.floor(options.limit ?? 100));
     if (!Number.isFinite(limit)) {
-        throw new PivotkitError("INVALID_OPTION", "createHistory: limit must be a number");
+        throw new PivotkitError("INVALID_OPTION", "createHistory: limit must be a finite number");
     }
     const start = JSON.stringify(startView);
     /** @type {string[]} */

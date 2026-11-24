@@ -41,7 +41,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   `"2026-01-30T23:59:59.9996"` rounded up into the next day and made its whole column text.
 - The format `percent100` writes a blank or a text as it is, as `number` does. It wrote "NaN".
 - `createHistory`: `push`, `undo`, `redo` and `reset` work when taken off the object. A `limit` that
-  is no number throws `INVALID_OPTION`. Before, it kept every step.
+  is no finite number throws `INVALID_OPTION`. Before, `NaN` kept every step.
 - `toXlsx` names "the size of an Excel sheet" for a grid larger than a sheet, not a setting
   `limits.xlsxRows` that does not exist. `details.limit` stays `xlsxRows` or `xlsxColumns`.
 - A row field sorted by a value in one column takes time in proportion to the rows. Each row
@@ -57,7 +57,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   that is no colour. An issue's message quotes a value at most 100 characters long, as its `params`
   do: a value of 900,000 characters made a message as long.
 - A name cut at its limit, and a value an issue quotes, never end in half a character.
-- `describeView` writes a comparison with `=` as "Year is 5", not "Year is is 5".
+- `describeView` writes a comparison with `=` as "Year is 5". It wrote the word "is" twice.
 - `groupingName` keeps `{size}` and `{unit}` in a field's name as they are.
 - `fieldDefaultsFromSchema` stops after merging 100,000 properties of `allOf` parts
   (`SCHEMA_CAPS.merged`), with an issue: a small document could ask for millions of copies. A
@@ -81,9 +81,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - English groups of three digits are numbers: a file's `1,234.5` reads as 1234.5. Existing
   comma-separated files with `"1,234"` read as 1234 where they read as 1.234, with the note
   `DECIMAL_MARK`. A German locale or a semicolon file still reads 1.234.
-- `toViewFile` throws `PivotkitError` `INVALID_ARGUMENT` for a view that is no object, as every
-  function does for a programmer's error. It threw a `TypeError`. A host that caught `TypeError`
-  there catches `PivotkitError` now.
+- **Breaking:** `toViewFile` throws `PivotkitError` `INVALID_ARGUMENT` for a view that is no
+  object, as every function does for a programmer's error. It threw a `TypeError`. Affected: a host
+  that catches `TypeError` from `toViewFile`. What to do: catch `PivotkitError` (code
+  `INVALID_ARGUMENT`) instead.
 - `PivotkitError` extends `CodedError` of `pivotkit-core/internal`, the base of every error class
   of pivotkit's packages. Its members stay the same.
 
