@@ -14,6 +14,9 @@
  * - "flag-or-json": present = true, "false" off, a JSON object that object (Source data's
  *   `{ "columns": [...] }`); any other text is off, so a mistake hands out nothing, and said once
  *   in the console.
+ * - "on-off": "on" or "off" (any case, trimmed); anything else, or no attribute, leaves the report's
+ *   default.
+ * - "session": "session" (any case, trimmed) keeps the view for the tab; anything else is off.
  * - "json": the attribute is parsed into the property (a view); setting the property does not write
  *   the attribute back, since a view is an object.
  */

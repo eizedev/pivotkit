@@ -81,6 +81,19 @@ test("the chart chunks hold the chart types pivotkit-react's echarts.js imports,
     assert.deepEqual([...drawn].sort(), ["bar", "heatmap", "line", "pie", "treemap"]);
 });
 
+test("a chunk loaded on demand that belongs to no load group fails the build instead of counting nowhere", () => {
+    const metafile = /** @type {any} */ ({
+        outputs: {
+            "dist/index.js": { imports: [{ path: "dist/chunks/export-AAAA.js", kind: "dynamic-import" }, { path: "dist/chunks/charts2-BBBB.js", kind: "dynamic-import" }] },
+            "dist/chunks/export-AAAA.js": { imports: [] },
+            "dist/chunks/charts2-BBBB.js": { imports: [] }
+        }
+    });
+    assert.throws(() => loadGroups(metafile), /dist\/chunks\/charts2-BBBB\.js loads on demand but belongs to no load group/);
+    metafile.outputs["dist/index.js"].imports.pop();
+    assert.deepEqual(Object.fromEntries(loadGroups(metafile).map((g) => [g.group, g.files])).export, ["dist/chunks/export-AAAA.js"]);
+});
+
 test("a page loads React, the report and the core first; ECharts, the export and the menus only on demand", () => {
     const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
     const initial = inputsOf(groups.initial);

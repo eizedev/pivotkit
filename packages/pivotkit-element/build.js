@@ -178,279 +178,36 @@ async function licenses(metafile) {
 }
 
 /**
- * The most a page may load per group, gzip, in KiB, one measurement on one Mac each time it was set.
- * Set at about 10 % over what was measured (initial 123.5, chart 200.3, export 7.7). Raised since, with
- * less headroom: initial to 138 for the tips and the field descriptions (134.8 measured), then to 152
- * for the chart's display settings with axis and group labels, sharing a view, the skeleton, the
- * clear buttons, the zone explanations, the help switches and the filter states (148.1 measured,
- * about 3 % headroom). fflate is a chunk the export and the link share: export 10 (9.3 measured),
- * link 7 (6.7 measured). The menus' panels (the chip menus, chart type, Options, Views, the filter
- * and the drill-down) load on demand, right after the report's first render (pivotkit-react's
- * menus.js, issue #34): with the view files, the explanations, Enlarge and Full screen the first load
- * is 151.2 measured, the menus 9.3 (budget 11). The texts only the menus show load with them
- * (pivotkit-react's menu-labels.js), which made room in the first load for the automatic chart type,
- * the field list's keys and the touch targets; then the explanations of the settings too (gzip on Node 24 measured the first
- * load 0.3 higher than on 22): first load 151.0 measured, the menus 13.8, their budget raised to 15
- * for the texts moved there. The Export menu with its texts and the export's work (export-run.js) then
- * moved out of the first load into the menus, with the copies of the table and the drill-down's
- * Enlarge and Export menu: first load 151.0 measured (no more than before), the menus 16.4, budget
- * 17.5; the export (now loaded from the menus, so the groups follow dynamic imports of the chunks
- * too) with the rows export, TSV and JSON 10.6, budget 11.5. Both load on demand, never first.
- * The templates (shared and my views, publish, the browser store with pivotkit-core/templates) load
- * with the menus, with the texts and actions of save and delete; the check of chartOptions and the
- * marks on the chart's option (chart-decorate.js with the tooltip) moved to the chart
- * (dist/echarts.js), which made room for the collapsible field list: first load 150.3 measured
- * (Node 26), the chart 203.5, the menus 18.9 with the Export menu and the templates both, budget 20
- * (about 5 % over). Save, Save as with its question before a name is replaced, New and the export's
- * entries off for an empty report brought the menus to 20.4 (first load 151.4), budget 21. The menus
- * load right after the first render, before a menu opens, so they count against every page that shows
- * a report; the first load stays at its budget. Sorting with a click on a table header (#55: the
- * header buttons, their state and the texts; the table renders first, so it cannot wait for the
- * menus) took the first load to 152.2 measured, budget 152.5. The menus' German texts then became a
- * chunk of their own, loaded with the menus for a German report only ("texts", 4.0 measured, budget
- * 4.5; a German page loads it on top of the menus), and the menus' sections moved out of the first
- * load into the menus (#73): first load 152.2, the menus 17.9 measured; the budgets stay as they were:
- * the menus' headroom was kept for the chip menu's sections (issue #57). With them (each setting in
- * one line, the folded sections' states, Reset menu sections) the menus are 18.9 measured, the first
- * load unchanged at 152.2 (the CSS they need stays in the one stylesheet; it was made smaller to fit),
- * so the menus' budget went down to 19.5. A review then gave the value condition a line of its own,
- * the menus a head row with the field's name and its "i", the folded titles their spoken ", changed"
- * and Reset menu sections its focus and status: 19.3 measured, CI some 0.3 more, budget 20.
- * Then what runs only after a click left the first load (#73): the menus' view changes and the
- * filter's summary (menu-ops.js), sharing's copy, download and load (share-actions.js), the
- * drill-down's table (drill-table.js) and the texts only those show went to the menus, the chart's
- * label layout (chart-layout.js) to the chart. Measured on a Mac: first load 147.8 (152.2 before),
- * chart 204.4, export 10.7, link 6.7, menus 22.8, German texts 4.4. Since then one rule for every
- * loaded group: the budget is 3 to 5 % above what CI measures (the Mac's number plus about 0.3),
- * rounded: chart 211, export 11.5, link 7.3, menus 24, texts 4.9. The first load is the exception:
- * every page pays it, so its budget stays about 1 KiB above what CI measures (149 over 148.1), and a
- * feature that needs more raises it on purpose.
- * A view's unused parts in plain words (#56): pivotkit-core's issues got a code and the texts' params
- * (0.6 KiB in the first load, the core is bundled whole) and the report the warning's frame (its
- * title, fold, live region and line layout, 0.5 KiB); the words themselves are the group "unused"
- * (English and German), loaded only when a view has such parts. First load 148.9 measured on a Mac
- * (CI about 149.2), so its budget went to 150. A review then capped the open warning at its first
- * lines with "Show N more", moved the focus after its x to what follows and told apart lines of one
- * name: first load 149.4 (CI about 149.7, within 150), "unused" 4.2 (CI about 4.5, budget 4.7).
- * The chip menus and Options in levels (a first level that says what is set, a level per topic, the
- * search over all levels, every choice at once; levels.jsx, menu-topics.js) took the menus to 27.6
- * measured on a Mac (CI about 27.9, budget 29) and their German texts to 4.7 (CI about 5.0, budget
- * 5.2); the levels' rules in the one stylesheet, less the folds and forms they replace, took the
- * first load from 149.5 to 149.6 (CI about 149.9), so its budget went to 151. Views in levels, no
- * folding anywhere and the review's findings (the Filter level's folded conditions, the search's
- * words, a format not offered, popovers that keep their side) took the menus to 28.5 (CI about 28.8,
- * budget 30) and their German texts to 4.8 (CI about 5.1, budget 5.3); the first load is 149.4 (the
- * folding's code and rules left it).
- * The filter rules (#89, #90): pivotkit-core's item comparisons and relative date ranges (the core
- * is bundled whole) and the chips' words for them ("last 5 years (2022–2026)", "from 2022", which the
- * first render shows) took the first load to 151.2 measured on a Mac (CI about 151.5), so its budget
- * went to 152.5; the Filter level's quick choices and rule editor took the menus to 31.7 (CI about
- * 32.0, budget 33.5), their German texts to 5.0 (CI about 5.3, budget 5.5) and the unused parts'
- * texts of the new issue codes to 4.5 (CI about 4.8, budget 5). The review's fixes (a rule on names
- * in words on the chip, so the label operators load first; the chip's cut rule; the field list's
- * touch hit areas) took the first load to 151.8 (CI about 152.1), budget 153.
- * The Filter level rebuilt (the summary card, quick choices with the data's share and the reference
- * date, Years combined, the tail of items left out, rules with an "i" and a result line, the item
- * picker): the core's anchor and source-day comparison and the chips' words for the data's share
- * ("last 2 years (2025; 2026 has no data)", "last 12 months to Dec 2025"), which the first render
- * shows, took the first load to 153.7 measured on a Mac (CI about 154.0), budget 155; the level
- * itself took the menus to 39.1 (CI about 39.4, budget 41) and their German texts to 6.2 (CI about
- * 6.5, budget 6.8).
- * The fixes of the PowerShell Universal test (#110-#115, #82, #83): popovers in the top layer with
- * Tab moved inside them, a name for every form field, the row label column measured once, the
- * identifier rule, the unused-parts warning for the host's view and its lines that follow the view
- * shown took the first load to 155.5 measured on a Mac (CI about 155.8), budget 157.
- * Start over (a menu of Reset and New with their reasons, first-load texts), the one group style of
- * every menu (popover.jsx's Group, first load as More draws its groups) and the toolbar's measured
- * overflow took the first load from 155.9 to 156.8 measured on a Mac; with pivotkit-core's readers
- * (#123) 157.4 (CI about 157.7), budget 158.5.
- * Loading data in the browser (#44, allow-import): the import UI, its texts and pivotkit-core/import
- * with its readers are the group "import", loaded on the first use of the Data menu, a drop or the
- * empty report's button: 19.1 measured on a Mac, then 19.8 with the review's fixes (a worker's
-answers checked, a plugin's minimal table completed, failed sheets, the host's errors; CI about
-20.1), budget 21. The first load keeps the
- * Data button, the drop handler, the data steps' state in the report, the empty report's line and the
- * rules of the overlay and the preview (one stylesheet): about 1.9 KiB more code, and 0.6 KiB more
- * because esbuild splits the modules the import UI shares with the first load into two more files,
- * each compressed on its own. First load 160.0 measured on a Mac (CI about 160.3), budget 161.5;
- * the menus 39.7 with the Data menu's panel, within 41.
- * View version 2 (#165): normalize() reads every view through migrate() from version 1, checks keys
- * inside each part with did-you-mean hints, folds text for the filters, and the report reads and
- * writes the new filter shape: first load 163.8 measured on a Mac; with the words of the new relative
- * ranges a chip shows for a loaded view (English and German, labels.js) 165.8, budget 167.5. The
- * plain words of a view's unused parts grow with the new issue codes: 5.1, budget 5.5. With the
- * describe, precision and ties steps, the cap on a view's issues and the check of long items the first
- * load is 167.7 measured on a Mac (CI about 0.3 more), budget 169; the unused words 5.4.
- * The Filter level edits what view version 2 can say: "does not begin with" and "does not end with",
- * "Also keep items without a value", a date's quick choices with a unit (This, Last, Next, Before the
- * last, the current period, rolling, counted from the first record or a date) under More choices,
- * Top items with the items tied with the last one: the menus from 40.0 to 41.8 measured on a Mac (CI
- * about 0.3 more), budget 43; the first load 168.0 (the chips' words for quarters, weeks and "this").
- * CI measures the first load about 0.5 more than a Mac, not 0.3: 168.8 in CI run 43332518926
- * (de76a55) against 168.3 on a Mac (#198). With the tip on column subtotals and its button (English
- * and German), the subtotal column's edge and title (#156) the first load is 168.6 on a Mac (CI about
- * 169.1), budget 170.5. The link is 7.2 on both, 0.1 below its old budget: 7.5.
- * The HTML report, the chart as SVG and printing (#165): pivotkit-report with ECharts' SVG renderer is
- * the group "report", loaded on the first of these exports, counted as what it adds to the chart group
- * it loads first: 19.9 measured on a Mac, budget 21. Two things go elsewhere because esbuild assigns a
- * module to the chunks of every entry whose imports reach it, even through a barrel module that only
- * re-exports it: zrender's SVG painter (ECharts' renderers barrel, shared with the chart) lands in the
- * chart group, 215.8 measured (204.4 before), budget 222.5; and pivotkit-core's describe.js (behind the
- * core's index.js) with chartPlan, now pivotkit-core's, in the first load: 170.0 measured (168.3 before),
- * budget 171.5. The Export menu's three entries and the report's export and print code took the menus
- * to 43.6 (42.3 before), budget 45. Together with the column subtotals' tip (#156) and the report's
- * closest() hints: first load 170.7 on a Mac (CI about 171.2), budget 172; menus 43.8; report 20.2.
- * The chart's text size as a token (#221: textSize, the layout's fontSize, the room of title and legend
- * from the sizes, in pivotkit-core's chart option of the first load): 171.9 on a Mac (CI 172.5, at
- * the budget of 172.5), budget 173.
- * Bidi controls left out of the HTML report and the SVG (pivotkit-report) and the CSV and XLSX
- * (pivotkit-core): report 21.0 on a Mac (CI 21.1, 20.9 before), budget 21.5.
- * A view from field names (#253): the one walk over the places a view names a field
- * (pivotkit-core's mapFieldRefs, shared by viewFileFields of the first load and renameFields) and the
- * grouping names and identifier rule now in pivotkit-core: first load 172.9 on a Mac (172.5 before;
- * CI about 173.5), budget 174. The layout code itself stays out (its constants are marked pure).
- * The Filter level's rules (#203, #244, #245: one radio that takes the focus on a click, an emptied
- * value that takes its rule off, a second rule added while the first one waits): the menus 45.96 on a
- * Mac (45.87 before; CI 46.0, over the budget of 46 that had about 0.1 left), budget 47 (2 % above
- * CI, below the rule's 3 % to keep the menus in check).
- * After the encode issue codes (#261) main's first load is 173.36 on a Mac, about 173.95 in CI (CI
- * measured 174.0 for 173.4 on a Mac in run 43604441863): at the budget of 174 already. The element's
- * importWorkerUrl with its origin check (#194) adds about 0.2. Budget 175, about 1 KiB above what CI
- * measures, the first load's rule.
- * Years before 1 and after 9999 in the Filter level (#351: Years combined and its summary written as the
- * table writes years, the reference date's field for years after 9999, days compared by their ms; in
- * menu-ops.js, so the first load stays as it is): the menus 46.9 on a Mac (CI about 47.0, at the budget
- * of 47 after #339 and #355), budget 48 (2 % above CI, below the rule's 3 %).
- * The HTML report on a dark screen (#370): the dark rules under the root's data-pk-theme guard, for the
- * system's dark theme and for a root that asks for dark, and the colour scale's dark colour mixed by
- * one rule per half from each cell's place: report 21.9 on a Mac (21.6 before; CI 22.0, at the budget),
- * and with the template's colours for the chart (#369) about 22.1 to 22.3: budget 22.5.
- * A print template's own colours for the chart (#369): pivotkit-report reads and resolves a
- * template's CSS in a module of its own, template-style.js, loaded only for a template of the host's
- * (it imports nothing, so no module of the report becomes a chunk of its own); the element's Export
- * menu renders with the default template and never loads it: the group "template", 2.5 on a Mac,
- * budget 3, counted as what it adds to the report group. What stays in the report group (a token
- * that names another one followed, a heatmap colour ECharts cannot mix left out): report 21.9 on a
- * Mac (21.6 before); with the dark-screen rules (#370): 22.1 on a Mac, within 22.5.
- * When the data is from in the files (#331): the workbook's document property DataAsOf in
- * pivotkit-core's XLSX writer (its part, content type and relationship) took the export group to 12.0
- * on a Mac (11.7 before), budget 12.3; "Data as of" in the HTML report's details, its placeholder and
- * the check that the time exists took the report group to 22.7 on a Mac (22.3 before), budget 23
- * (both within the rule's 3 %).
- * The chart's grid margins (pivotkit-core's GRID_TOP and HEATMAP_GRID_BOTTOM, defined once and shared
- * by the first load's toEChartsOption and the chart's label layout) add 40 bytes to the first load:
- * a chunk cannot inline a constant another chunk imports. 174.38 to 174.41 on a Mac; CI measured
- * main at 175.0, so initial goes to 175.1.
- * Why CI measured more than a Mac (#546): Homebrew's Node uses the system's zlib, CI's official Node
- * the zlib bundled in it. An official Node 24 on a Mac measures what CI does (zlibNote, SIZE_NODE); the
- * numbers from here on are its. The ECharts option (pivotkit-core's chart.js, toEChartsOption) then
- * left the first load for the chart (chartOffBarrel): first load 175.1 to 173.4, chart 218.8 to
- * 220.8. The budgets stay.
- * Inline results that round as the view shows (#478): the report group carries the shown-number CSV and
- * JSON writer, 23.07 on a Mac with Homebrew's zlib; report goes to 23.3. The same writer is in the
- * export group (the browser's Table as CSV): CI measured 12.3 against 12.3; export goes to 12.6.
- * The HTML report's row count in plural forms and the rows its filters keep, with ROW_COUNT_TEXTS
- * and pluralForm shared with pivotkit-core (#547): report 23.0 with Homebrew's zlib (22.8 before);
- * with #478's writer 23.3, at that budget: report goes to 23.5.
- * The zoom slider, the legend toggle and 100 % stacks (#36): ECharts' slider component (dataZoom)
- * takes the chart group to 231.1 with Homebrew's zlib (221.5 before), and the slider's keyboard
- * control (#575, chart-legend.js zoomKeyProps) to 231.7. CI's zlib measured 232.5 on the merged
- * head (about 0.7 more than a Mac): chart goes to 233. It is a lazy group, loaded with the first chart. The
- * Display settings in levels (#106: chartTopics, the Axis, Tooltip, Series and Layout levels) with
- * the zoom slider, 100 % switch and series list take menus to 48.5 (47.6 before) and the German menu
- * texts to 7.3 (7.0): menus goes to 49, texts to 7.5. The first load grows 0.6 to 174.36 (the view
- * keys, a view file's newer keys, the legend's announcement); the zoom and legend logic stays in the
- * chart group (chart-legend.js).
- * A chart's reference lines (#48): ECharts' markLine component draws them, 5.9 KiB of the chart group
- * alone; with pivotkit-core's numbers, the checks with their reasons, the labels at their lines and
- * the tooltip's lines the chart group was 230.7 on a Mac before #36. MarkLine in a chunk of its own,
- * loaded with the first line, was measured too: esbuild split ECharts' shared modules into more
- * chunks, and the chart group grew with it; so markLine stays in the chart's chunk. The SVG draws
- * twice to place the labels at their lines: the report group 23.46 with Homebrew's zlib, budget 23.8.
- * With #36 merged, CI's zlib (an official Node 24.22.3) measures the two features adding up: the
- * chart group 222.2 before both, 231.4 with #48 alone, 232.5 with #36 alone, 241.6 with both (no
- * second copy of anything); budget 242.6. The menus with the Reference lines level 49.6, budget 50.5;
- * their German texts 7.6, budget 7.8.
- * The first load with both is 175.6 on CI's zlib (174.9 before #48): the view key, the rules of which
- * chart draws which line (0.17 of it) and the words of the lines. The rules cannot leave the first
- * load cleanly: the menus need them from pivotkit-core's main entry, and a new entry point would be
- * one more bare import for a host's import map. The maintainer raised the budget for 0.8.0, about
- * 0.5 KiB above CI: 176.1; the split of the first load is #546 (0.9.0).
- * Fixed colours, the share in the tooltip and the chart image on the clipboard (#54), measured
- * before #48 with Homebrew's zlib: the colours and the share in the chart's option take the chart
- * group 0.8 up; the colour beside each series, the share switch and Copy chart image take the menus
- * 1.3 and the German menu texts 0.2 up; two words for unused parts take unused to 5.5. The first
- * load grows 0.19 (the view's colours through the same list check as the hidden series, one memo for
- * chartOptions and colorMap); the report group gets render's colorMap and the light colour of a pair.
- * With #48 and #54 together, CI's zlib measures: initial 175.85, chart 242.45, menus 51.04, texts
- * 7.80, unused 5.53, report 23.70. The first load may grow in 0.8.0, its split is #546 (0.9.0):
- * initial goes to 176.4, CI's measure plus about 0.5 KiB; chart to 243.5, menus to 52, texts to 8,
- * unused to 6 and report to 24.
- * Row labels that keep their width while the table fits (#584): the table measures whether it fits
- * its box before the first paint (table.jsx fitLabels, label-room.js). CI's zlib measures the first
- * load at 176.5 (176.0 on main before): initial goes to 177, CI's measure plus about 0.5 KiB; its
- * split is #546 (0.9.0).
- * Tabs for Table and Chart, the zones' section with its heading row and "i", the always-present More
- * and the warning on label keys no longer shown (#580), together with #584: CI's zlib measures the
- * first load at 177.13; initial goes to 177.6, CI's measure plus about 0.5 KiB. The split is still
- * #546 (0.9.0).
- * The zones as shelves with "+ Add" in each zone (#581): the button, its focus and status after a
- * pick and the shelves' styles load first, the menu with the menus. CI's zlib measures the first
- * load at 177.9 (177.1 on main before) and the menus at 52.5 (51.7 before): initial goes to 178.4,
- * CI's measure plus about 0.5 KiB, and menus to 53. The review round adds the zone limits in "+ Add",
- * the empty report's open zones, the status line's repeat and the numbered repeated values: CI's
- * zlib measures the first load at 178.3, so initial goes to 178.8. The split is still #546 (0.9.0).
- * The date range in the footer and the years a grouping combines (#109): the first load gets the
- * date context (the axis titles, one year's items, the footer's range), the menus the Group level's
- * first line and its hints from the data. On top of #581, CI's zlib measures the first load at
- * 180.6 (178.3 before) and the menus at 53.6 (52.5 before): initial goes to 181 and menus to 54,
- * CI's measure plus about 0.5 KiB. The split of the first load is still #546 (0.9.0).
- * High and low points on a chart (#574): ECharts' markPoint component draws the dots and their labels
- * (0.6 KiB of the chart group alone), with pivotkit-core's points (extremePoints), the layout that
- * keeps their labels inside the plot and apart (chart-fit.js pointLabels) and their sentence in the
- * text alternative, the outline and the label budget for many series (2.3 together). The chart group
- * goes from 241.5 to 244.4 with Homebrew's zlib; CI's zlib measures about 0.7 more: chart goes to 246.
- * The menus' German texts reach 8.0 with the switch's words (they were at the budget of 8): texts goes
- * to 8.5. The first load grows by the view key and the rule only, 180.2 to 180.3 on a Mac, within 181.
- * The split of the first load (#546). The first load's budget is a hard line at 181 KiB: a feature
- * that needs room there makes it by moving something out, not by raising the budget. Three parts left
- * it (pivotkit-react's deferred-late.js, src/css-split.js): the German first-load texts (group
- * "lang", 5.9 on CI's zlib, budget 6.2), loaded before a German report renders; the tips' rows
- * (group "tips", 1.5, budget 1.8), loaded after the first render, while the notices that the result
- * is cut or empty stay first (notices.js); and the style rules only the menus' code writes, which
- * now load inside the menus' chunk. With #574 merged, CI's zlib measures the first load at 174.8
- * (180.9 before #574) and the menus at 57.0 (53.6 before). The menus carry the rules they took over, so
- * their budget goes to 57.5, CI's measure plus about 0.5 KiB.
- * Two chart types (#518): a combo of bars and lines and a treemap. ECharts' treemap is about 12 KiB of
- * the chart group (measured for the 0.9.0 concepts, 12.0); the combo needs no ECharts part of its own.
- * The maintainer took the treemap into 0.9.0 with that cost. It loads with the chart, never first: the
- * chart group goes from 244.9 to 258.0 with Homebrew's zlib; CI's zlib measures about 0.7 more: chart
- * goes to 259.5. The first load gets the two names of the picker only.
- * Colour scales to pick in the value menu (#95): the Colours level with its strips and the names of the
- * scales (English with the menus, German in the menus' texts) take the menus to 57.6 on CI's zlib
- * (57.0 before), over their budget of 57.5. With #690 and #691 merged, CI's zlib measures the menus
- * at 58.0: menus goes to 58.5, CI's measure plus about 0.5 KiB.
- * The menu at a clicked point of the chart (#53) loads with the menus: about 0.6 KiB. With #695
- * merged, CI's zlib measures the menus at 58.6: menus goes to 59.1, CI's measure plus about 0.5 KiB.
- * The fade of a menu a low window cuts off (levels.jsx useMoreBelow), the chart's tooltip held while a
- * point's menu is open and the plainer filter and format menus (#759) take the menus a little over
- * 59.1 on a Mac's zlib: menus goes to 59.6, about 0.5 KiB over that measure.
- * pivotkit-core's rank and running total per group (#782) take the first load to about 181.2 on CI's
- * zlib. Moving the unused-parts warning out made it larger (more files, 181.3), so the maintainer took
- * the budget to 181.5; #772 makes room again.
- * The import notes on numbers a file changed (DECIMAL_MARK, NUMBERS_TOO_LARGE, NUMBERS_ROUNDED) with
- * their English and German texts take import to 22.7 on CI's zlib: import goes to 23.2. Their unused-part texts (notSwitch, notSection, the names of the switches) take
- * unused to 6.1: unused goes to 6.5.
- * Reporting every setting normalize() drops and one list of hidden characters for every text from
- * outside (#786) take the first load to 181.6 on CI's zlib: the maintainer took the budget to 182.0;
- * #772 makes room again.
- * The menus that count with the host's limits (#796) read the limits on the first load: 181.9 on a
- * Mac's zlib, about 0.3 more on CI's. The budget goes to 182.5; #772 makes room again.
- * Before moving code out of the first load, measure a probe build with `--size`: more chunk files can
- * make the first load larger.
- * `--size` fails above it; raise it on purpose, with the reason in the commit.
+ * The most a page may load per group, gzip, in KiB, as CI's official Node build measures it.
+ * - The first load ("initial") is a hard line. A feature that needs room there makes it by moving
+ *   something out of the first load. Only the maintainer raises it; #772 brings it down again.
+ * - The groups loaded later keep about 0.5 KiB above what CI measures.
+ * - A change that takes a group over its budget raises it on purpose, with the measure and the reason
+ *   in the commit and the CHANGELOG. The commits that raised each budget: `git log -p -- build.js`.
+ * - Before moving code out of the first load, measure a probe build with `--size`: more chunk files
+ *   can make the first load larger.
+ * `--size` fails above it.
  */
 export const SIZE_BUDGET_KIB = { initial: 182.5, chart: 259.5, export: 12.6, link: 7.5, menus: 59.6, texts: 8.5, unused: 6.5, import: 23.2, report: 24, template: 3, lang: 6.2, tips: 1.8 };
+
+/**
+ * The load group of each chunk a page loads on demand, by its file name (esbuild's `[name]-[hash]`),
+ * in the order of `SIZE_BUDGET_KIB`. `loadGroups` fails on a chunk that matches none.
+ * @type {ReadonlyArray<[string, RegExp]>}
+ */
+export const CHUNK_GROUPS = Object.freeze([
+    ["chart", /^echarts-/],
+    ["export", /^export-/],
+    ["link", /^link-/],
+    ["menus", /^menus-/],
+    ["texts", /^menu-texts-/],
+    ["unused", /^unused-texts-/],
+    ["import", /^import-(?:ui|csv|json)-/],
+    ["report", /^report-run-/],
+    ["template", /^template-style-/],
+    ["lang", /^labels-[a-z]+-/],
+    ["tips", /^tips-/]
+]);
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
@@ -496,10 +253,17 @@ export function loadGroups(metafile) {
         }
     };
     scan(initial);
-    const groupOf = (file) =>
-        /[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]report-run-[^\\/]+$/.test(file) ? "report" : /[\\/]template-style-[^\\/]+$/.test(file) ? "template" : /[\\/]import-(?:ui|csv|json)-[^\\/]+$/.test(file) ? "import" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : /[\\/]menu-texts-[^\\/]+$/.test(file) ? "texts" : /[\\/]unused-texts-[^\\/]+$/.test(file) ? "unused" : /[\\/]labels-[a-z]+-[^\\/]+$/.test(file) ? "lang" : /[\\/]tips-[^\\/]+$/.test(file) ? "tips" : "export";
+    // a chunk loaded on demand that no pattern names fails the build: its bytes would count nowhere
+    const groupOf = (file) => {
+        const name = file.split(/[\\/]/).pop() ?? file;
+        const found = CHUNK_GROUPS.find(([, pattern]) => pattern.test(name));
+        if (!found) {
+            throw new Error(`build.js: ${file} loads on demand but belongs to no load group; add it to CHUNK_GROUPS`);
+        }
+        return found[0];
+    };
     const groups = [{ group: "initial", files: [...initial] }];
-    for (const name of ["chart", "export", "link", "menus", "texts", "unused", "import", "report", "template", "lang", "tips"]) {
+    for (const [name] of CHUNK_GROUPS) {
         const files = [...closure(dynamic.filter((f) => groupOf(f) === name))].filter((f) => !initial.has(f));
         groups.push({ group: name, files });
     }
