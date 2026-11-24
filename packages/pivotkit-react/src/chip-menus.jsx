@@ -9,8 +9,9 @@
  * and Escape in a field gives back what applies. Remove field is the menu's last item.
  */
 
-import React, { useId, useMemo, useState } from "react";
+import React, { useContext, useId, useMemo, useState } from "react";
 import { computePivot, fieldLabel } from "pivotkit-core";
+import { LimitsContext } from "./limits-context.js";
 import { ClearInput } from "./clear-input.jsx";
 import { useFormName } from "./dom.js";
 import { FilterLevel } from "./filter-level.jsx";
@@ -32,11 +33,21 @@ import { binProblem, setTopFilter, updateValue } from "./menu-ops.js";
  * its axis; else, with the ties, that a group can show more). A choice applies at once, the count a
  * moment after the typing stops.
  */
+/** How many items of the field the report shows on `axis`, with its limits; null over one (the report says why). */
+function itemsShown(encoded, view, axis, limits) {
+    try {
+        return computePivot(encoded, view, { limits })[axis].children.length;
+    } catch {
+        return null;
+    }
+}
+
 function TopLevel({ view, field, types, labels, locale, commit, back, encoded }) {
     const top = filtersOf(view, field, ["top"])[0];
     // the items the top shows: the field's items of the result, when it is the first on its axis (not one per group above it)
     const axis = view.rows[0]?.toLowerCase() === field.toLowerCase() ? "rowRoot" : view.cols[0]?.toLowerCase() === field.toLowerCase() ? "colRoot" : null;
-    const shown = useMemo(() => (top && axis && encoded ? computePivot(encoded, view)[axis].children.length : null), [top, axis, encoded, view]);
+    const limits = useContext(LimitsContext);
+    const shown = useMemo(() => (top && axis && encoded ? itemsShown(encoded, view, axis, limits) : null), [top, axis, encoded, view, limits]);
     const { choices, names } = measuresOf(view, types, labels, top?.by);
     const [by, setBy] = useState(() => choiceIndex(choices, top?.by));
     const quick = top && !top.bottom && TOP_COUNTS.includes(top.count) ? top.count : null;

@@ -615,3 +615,16 @@ test("the condition on the labels by the field's type, none for dates and yes/no
     assert.equal(conditionKind(data, view, "Day by month"), null, "a grouping of a date is a date");
     assert.equal(conditionKind(data, view, "Done"), null);
 });
+
+// The rules on totals compare what itemTotals counts: with the host's limits, as the report computes,
+// and over a limit no totals instead of an error the menu cannot catch.
+test("itemTotals counts with the host's limits; over a limit it gives no totals, never an error", async () => {
+    const { itemTotals } = await import("../src/menu-ops.js");
+    const rows = Array.from({ length: 50 }, (_, i) => ({ Item: `i${i}`, Units: i }));
+    const data = encode(rows);
+    const view = normalize({ rows: ["Item"], values: [{ field: "Units", agg: "sum" }] }, data).view;
+    const by = { field: "Units", agg: "sum" };
+    assert.equal(itemTotals(data, view, "Item", by, [], { groups: 10 }).totals.size, 0);
+    assert.equal(itemTotals(data, view, "Item", by, [], { groups: 10 }).rows, 0);
+    assert.equal(itemTotals(data, view, "Item", by, []).totals.size, 50);
+});

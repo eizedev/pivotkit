@@ -4,7 +4,8 @@
  * what a click on a field of the field list does, and the zones folded into one line, in words.
  */
 
-import { MAX_DATE_MS, fieldItems, fieldLabel, formatter, numberRepeats, relativeDateRange } from "pivotkit-core";
+import { MAX_DATE_MS, fieldLabel, formatter, numberRepeats, relativeDateRange } from "pivotkit-core";
+import { itemsOf } from "./limits-context.js";
 import { fill, plural } from "./labels.js";
 import { hiddenNot, ruleOp } from "./view-ops.js";
 
@@ -76,7 +77,7 @@ export function refLabel(view, ref, labels) {
 export function columnText(view, column, encoded, labels, locale) {
     return column
         .map((key, i) => {
-            const items = fieldItems(encoded, view.cols[i], { view, locale, labels: labels.core })?.items ?? [];
+            const items = itemsOf(encoded, view.cols[i], { view, locale, labels: labels.core })?.items ?? [];
             return items.find((item) => item.value === key)?.label ?? String(key);
         })
         .join(" › ");

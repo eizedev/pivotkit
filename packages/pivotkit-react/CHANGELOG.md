@@ -6,7 +6,17 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- The menus count with the host's `limits`, as the report does: a field's items in the Filter level,
+  the totals its rules compare and the items a Top N shows. With a raised `limits.groups` or
+  `limits.cells`, a view the report showed could stop the menu with an error nothing caught. Over a
+  limit, a menu now leaves its counts out; the report says what is over it.
+
 ### Changed
+
+- **Breaking:** the theme token `--pk-knob` is gone, as announced for 0.9.0: nothing draws a switch.
+  A page that sets it keeps its value unused; remove it.
 
 - **Breaking:** the label `settingsShort` is gone: no text uses it. TypeScript code that sets it in
   `labels` no longer compiles; remove it.
