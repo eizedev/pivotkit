@@ -21,8 +21,10 @@
 
 import { CodedError } from "pivotkit-core/internal";
 
-/** A body the reader refuses: no JSON, no UTF-8, nested too deeply. Its message is for the debug log. */
-/** @extends {CodedError<undefined, undefined>} */
+/**
+ * A body the reader refuses: no JSON, no UTF-8, nested too deeply. Its message is for the debug log.
+ * @extends {CodedError<undefined, undefined>}
+ */
 export class AnswerShapeError extends CodedError {
     name = "AnswerShapeError";
 
@@ -45,8 +47,8 @@ const BOM = [0xef, 0xbb, 0xbf];
 /** JSON's whitespace. */
 const isSpace = (b) => b === 0x20 || b === 0x0a || b === 0x0d || b === 0x09;
 
-/** A list index as JSON Pointer writes it (pointerValue's rule). */
-const INDEX = /^(?:0|[1-9]\d{0,8})$/;
+/** A list index as JSON Pointer writes it, at most nine digits: the rows' pointer and pointerValue's (http.js). */
+export const INDEX = /^(?:0|[1-9]\d{0,8})$/;
 
 /**
  * Where the reader is: outside the rows (the body's own structure), in the rows' list between rows,

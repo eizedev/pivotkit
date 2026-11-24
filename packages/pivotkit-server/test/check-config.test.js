@@ -1,7 +1,7 @@
 // check-config's verdict against what serve really does: a PROBLEM that stops the start is one serve
-// refuses, any other PROBLEM is one serve starts with (and says what does not work). The checks of
-// #424: missing secrets of the download links' sign-in client, a backend's authentication no source
-// uses, an unreachable issuer (a WARNING), no sources, file secrets by their full path, stdio.
+// refuses, any other PROBLEM is one serve starts with (and says what does not work). Among them:
+// missing secrets of the download links' sign-in client, a backend's authentication no source uses,
+// an unreachable issuer (a WARNING), no sources, file secrets by their full path, stdio.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -103,12 +103,15 @@ test("an http:// issuer under download sign-in names the key the operator set: a
 test("check-config: an output directory the server cannot write is a PROBLEM the server starts with", { skip: (process.platform === "win32" || process.getuid?.() === 0) && "file modes" }, async () => {
     const dir = workspace();
     chmodSync(join(dir, "out"), 0o500);
-    const options = { sources: { sales }, output: { dir: "out" }, baseDir: dir };
-    const result = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server" });
-    assert.match(factsOf(result.text), /PROBLEM: output\.dir is not writable by the user \d+ the server runs as -> the server starts; every report fails with NO_OUTPUT/);
-    assert.equal(result.stops, 0);
-    assert.equal(await starts(options, {}), true);
-    chmodSync(join(dir, "out"), 0o700);
+    try {
+        const options = { sources: { sales }, output: { dir: "out" }, baseDir: dir };
+        const result = await checkConfig(options, { http: true, env: {}, name: "pivotkit-server" });
+        assert.match(factsOf(result.text), /PROBLEM: output\.dir is not writable by the user \d+ the server runs as -> the server starts; every report fails with NO_OUTPUT/);
+        assert.equal(result.stops, 0);
+        assert.equal(await starts(options, {}), true);
+    } finally {
+        chmodSync(join(dir, "out"), 0o700);
+    }
 });
 
 test("check-config: a backend's authentication no source uses is a WARNING, its missing secret too, never a PROBLEM", async () => {
@@ -247,7 +250,7 @@ test("check-config: the REST section names the service's and the OpenAPI documen
     assert.ok(!named.concat(unnamed, off).some((l) => l.includes("/api/v1/openapi.json")));
 });
 
-test("check-config and serve name every value out of its range at once, each on a line of its own; one alone reads as before", async () => {
+test("check-config and serve name every value out of its range at once, each on a line of its own; one alone gives one line", async () => {
     const { run } = await import("../src/runner.js");
     const dir = workspace();
     const config = (options) => {

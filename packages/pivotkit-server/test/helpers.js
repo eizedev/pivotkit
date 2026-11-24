@@ -5,11 +5,12 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { request as httpRequest } from "node:http";
+import { connect } from "node:net";
 import { createServer as createHttpsServer } from "node:https";
 import { fileURLToPath } from "node:url";
 import { tempDir as sharedTempDir } from "../../../tests/temp-dir.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { serve } from "pivotkit-server";
+import { callerOf, serve } from "pivotkit-server";
 import { createGuardedFetch } from "../src/sources/fetch.js";
 import { until } from "../../../tests/until.js";
 
@@ -120,6 +121,24 @@ export async function call(url, { method, body, token, headers = {} } = {}) {
     const type = response.headers.get("content-type") ?? "";
     const data = type.includes("json") ? await response.json() : new Uint8Array(await response.arrayBuffer());
     return { status: response.status, headers: response.headers, data };
+}
+
+/** Sends raw bytes to a port on loopback and gives back what the server answers, until it closes or `ms` pass. */
+export function rawExchange(port, text, ms = 3000) {
+    return new Promise((resolve) => {
+        let got = "";
+        const socket = connect(port, "127.0.0.1", () => socket.write(text));
+        socket.on("data", (c) => {
+            got += c.toString("latin1");
+        });
+        const done = () => resolve(got);
+        socket.on("close", done);
+        socket.on("error", done);
+        setTimeout(() => {
+            socket.destroy();
+            done();
+        }, ms).unref();
+    });
 }
 
 /** A raw HTTP request with any headers (repeated ones as arrays) and body. */
@@ -237,3 +256,8 @@ export const BY_REGION = Object.freeze({ rows: ["Region"], values: [{ field: "Sa
 
 /** Every field of the sales data shown. */
 export const ALL_SHOWN = Object.freeze({ default: "show" });
+
+/** A static token's caller: an identity of its own. */
+export const token = (name) => callerOf("token", { token: "", clientId: name, scopes: [], expiresAt: 0, extra: { allScopes: true } });
+/** An OAuth caller without a usable subject: no identity. */
+export const nobody = () => callerOf("oauth", { token: "jwt", clientId: "bot", scopes: [], expiresAt: 0, extra: { subject: null, issuer: "https://issuer.example" } });

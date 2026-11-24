@@ -221,6 +221,7 @@ before(async () => {
         if (path === "/rows") {
             res.writeHead(200, { "content-type": "application/json" });
             res.write('{"items":[{"a":1},');
+            // the end later: the body arrives in two pieces on the wire
             setTimeout(() => res.end('{"a":2}]}'), 20);
         } else if (path === "/gzip") {
             res.writeHead(200, { "content-encoding": "gzip" });
@@ -248,7 +249,7 @@ before(async () => {
 });
 after(() => new Promise((resolve) => server.close(resolve)));
 
-test("guardedFetch's consume: the body's pieces go to the consumer, decoded, counted as size; none is kept; other answers are kept as before", async () => {
+test("guardedFetch's consume: the body's pieces go to the consumer, decoded, counted as size; none is kept; other answers are kept whole", async () => {
     const pieces = [];
     const statuses = [];
     const answer = await local(`${base}/rows`, { consume: (status) => (statuses.push(status), (piece) => pieces.push(Buffer.from(piece))) });

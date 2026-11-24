@@ -9,7 +9,7 @@
 
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
 import { PARAM_LIMITS } from "./params.js";
-import { INLINE_ID, dataListEntry, mcpCapOf, restDataOffered } from "./inline.js";
+import { INLINE_ID, NAME_TEXT, dataListEntry, mcpCapOf, restDataOffered } from "./inline.js";
 
 /** The `params` input: values for the source's parameters. */
 export const PARAMS_INPUT = Object.freeze({
@@ -34,7 +34,7 @@ export const DATA_INPUT = Object.freeze({
     required: ["columns", "rows", "rowCount"],
     additionalProperties: false,
     properties: {
-        name: { type: "string", maxLength: 200, description: "What the data is, for the report's title." },
+        name: { type: "string", maxLength: NAME_TEXT, description: "What the data is, for the report's title." },
         columns: { type: "array", minItems: 1, maxItems: DATA_COLUMNS, items: { type: "string", minLength: 1, maxLength: 256 }, description: "The column names, each once." },
         rows: { type: "array", items: { type: "array", items: { type: ["string", "number", "boolean", "null"], maxLength: DATA_CELL_TEXT } }, description: "The rows, each a list of one value per column, in the columns' order; numbers as JSON numbers, not texts; null for none." },
         rowCount: { type: "integer", minimum: 0, description: "How many rows the whole table has: it must equal the number of rows you send, so send the whole table; a table cut short is refused." },

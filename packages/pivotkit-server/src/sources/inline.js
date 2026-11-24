@@ -43,8 +43,8 @@ export const UPLOAD_FORMATS = Object.freeze({
     xlsx: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
 });
 
-/** The longest name of the data, in characters (the `data` schema's name). */
-const NAME_TEXT = 200;
+/** The longest name of the data, in characters: the `data` input's name (input.js). */
+export const NAME_TEXT = 200;
 
 /**
  * The cap of MCP inline data in force, or false when it is off (mcp.data: false).
@@ -287,6 +287,7 @@ const UPLOAD_MESSAGE = 300;
  */
 export async function uploadError(error, upload, limits) {
     if (!(error instanceof PivotkitError) || error.code !== "INVALID_FILE") {
+        // loaded here, not imported: data.js imports this module (a cycle at load time)
         const { asOperationError } = await import("../data.js");
         return asOperationError(error, INLINE_NAME);
     }

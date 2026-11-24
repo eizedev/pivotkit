@@ -1,7 +1,7 @@
 /*
  * The checks of an HTTP request before it reaches a front end, protocol-free (each front end words
- * its own refusal): the Host header against the names the server answers to (DNS rebinding), and a
- * browser's Origin against an allow list.
+ * its own refusal): the Host header against the names the server answers to (DNS rebinding), and the
+ * caller's address. A browser's Origin is checked by pivotkit-mcp (http.allowOrigins), not here.
  */
 
 import { refusalReason } from "./log.js";

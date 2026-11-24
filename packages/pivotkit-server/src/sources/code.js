@@ -15,6 +15,13 @@
  */
 
 import { randomBytes } from "node:crypto";
+import { callerView, identityKey } from "../auth.js";
+import { codeTable } from "../data.js";
+import { CODE_DEFAULTS } from "../options/code.js";
+import { packedBytes } from "../packed.js";
+import { OWNER_SHARE } from "./cache.js";
+import { canonicalJson, privatePart, tableKeyOf } from "./keys.js";
+import { loadRunner } from "./run.js";
 
 /**
  * Who calls, as a code source sees it: a frozen copy without any token. `scopes` is null when the
@@ -37,13 +44,6 @@ import { randomBytes } from "node:crypto";
 /** @typedef {(params: SourceParams, how: { caller: null, signal: AbortSignal }) => LoadResult | Promise<LoadResult>} SharedSourceLoad  load of a source with cacheShared: true */
 /** @typedef {(params: SourceParams, how: { caller: SourceCaller }) => unknown} SourceVersion  a value (not a promise) that changes when the data changes */
 /** @typedef {(params: SourceParams, how: { caller: null }) => unknown} SharedSourceVersion */
-import { callerView, identityKey } from "../auth.js";
-import { codeTable } from "../data.js";
-import { CODE_DEFAULTS } from "../options/code.js";
-import { packedBytes } from "../packed.js";
-import { OWNER_SHARE } from "./cache.js";
-import { canonicalJson, privatePart, tableKeyOf } from "./keys.js";
-import { loadRunner } from "./run.js";
 
 /** What a source without params gets as its params. */
 const NO_PARAMS = Object.freeze({});

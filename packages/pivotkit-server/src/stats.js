@@ -74,8 +74,9 @@ export const LOOKS_LIKE = Object.freeze({
  * @returns {SourceStats}
  */
 export function sourceStats(data) {
-    /** @type {Record<string, FieldStats>} */
-    const fields = {};
+    // a Map: a column's name is data, and a plain object would take "__proto__" as its prototype
+    /** @type {Map<string, FieldStats>} */
+    const fields = new Map();
     const shared = new Set();
     for (const field of data.schema.fields) {
         const column = data.column(field.name);
@@ -83,8 +84,8 @@ export function sourceStats(data) {
         if (!column || shared.has(key)) {
             continue;
         }
-        if (Object.hasOwn(fields, key)) {
-            delete fields[key];
+        if (fields.has(key)) {
+            fields.delete(key);
             shared.add(key);
             continue;
         }
@@ -104,7 +105,8 @@ export function sourceStats(data) {
             const short = texts.filter((t) => t.length <= LOOKS_LENGTH).map(looksText);
             out.looks = Object.keys(LOOKS_LIKE).filter((kind) => short.some((t) => LOOKS_LIKE[kind](t)));
         }
-        fields[key] = out;
+        fields.set(key, out);
     }
-    return { rows: data.length, fields };
+    // a plain object, as a worker sends it; Object.fromEntries makes "__proto__" an own key
+    return { rows: data.length, fields: Object.fromEntries(fields) };
 }

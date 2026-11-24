@@ -1,14 +1,18 @@
 /*
- * A compute worker: runs one operation of pivotkit-report's table over a file source, a table the
- * main thread loaded (an HTTP or code source's) or a file handed in (a table job) at a time, with its own cache of data sets
- * (data.js). The main thread gives it the operation, its input and what it needs (the source's spec,
- * the link target, the template text, the table) and gets back the outcome with when the data is
- * from, or an error's code and message; the policy is applied in the main thread. A run over its time is ended by
- * terminating the worker (compute.js). A table job may come without its table (`cached`) when this
- * worker kept its data under the job's key; a worker that no longer holds it answers `need`, and the
- * main thread sends the table. A read job (data.js READ_JOB) only reads an HTTP source's CSV answer
- * into a packed table without the hidden columns and gives it back, for the main thread to keep; it
- * keeps the data set by the job's key, as an operation's job would.
+ * A compute worker. It runs one job at a time, with its own cache of data sets (data.js):
+ *
+ * - An operation of pivotkit-report's table over a file source, a table the main thread loaded (an
+ *   HTTP or code source's) or a file handed in (a table job). The main thread gives it the operation,
+ *   its input and what it needs (the source's spec, the link target, the template text, the table).
+ *   It gets back the outcome with when the data is from, or an error's code and message. The policy
+ *   is applied in the main thread.
+ * - A table job may come without its table (`cached`) when this worker kept its data under the job's
+ *   key. A worker that no longer holds it answers `need`, and the main thread sends the table.
+ * - A read job (data.js READ_JOB) only reads an HTTP source's CSV answer into a packed table without
+ *   the hidden columns and gives it back, for the main thread to keep. It keeps the data set by the
+ *   job's key, as an operation's job would.
+ *
+ * A run over its time is ended by terminating the worker (compute.js).
  */
 
 import { parentPort, workerData } from "node:worker_threads";
@@ -133,7 +137,8 @@ parentPort?.on("message", async (job) => {
         }
         const seen = { hidden: 0, stats: null, asOf: null };
         const outcome = await OPERATIONS[op].run(input, envOf(job, seen));
-        // a file's bytes go over as a buffer of their own (transferred, not copied)
+        // a file's bytes go over as a buffer of their own: copied once here, then transferred, so the
+        // message does not copy them again
         if (outcome.file) {
             outcome.file.bytes = outcome.file.bytes.slice();
         }

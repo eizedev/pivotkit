@@ -23,6 +23,9 @@ const threadOf = async (computer) => (await computer.run("echo", null, {})).outc
 /** A regression fails within this, instead of waiting out a queueMs or timeMs of minutes. */
 const FAST = { timeout: 20_000 };
 
+/** How long one host may run before the test fails it: a host whose run waits for a dead worker. */
+const HOST_MS = 15_000;
+
 /** What a run that fails threw; null when it did not fail. */
 const failureOf = (promise) =>
     promise.then(
@@ -104,6 +107,19 @@ test("the pool: an input the structured clone cannot copy is INVALID_INPUT, and 
     }
 });
 
+test("the pool: a value the structured clone cannot copy at all is INVALID_INPUT with its own words", FAST, async () => {
+    const computer = createComputer({ workers: 1, timeMs: 120_000, queueMs: 0 }, { worker: PROBE });
+    try {
+        const before = await threadOf(computer);
+        const error = await failureOf(computer.run("echo", { value: () => 1 }, {}));
+        assert.equal(error?.code, "INVALID_INPUT", String(error));
+        assert.equal(error.message, "the input holds a value that cannot be sent to a worker");
+        assert.equal(await threadOf(computer), before, "the same worker, free without waiting");
+    } finally {
+        await computer.close();
+    }
+});
+
 test("a host's script that waits on the pool runs to its end: a worker that dies while it starts, then a run", FAST, () => {
     // nothing but the pool holds the process, and an idle worker is unref'd: the run must keep its
     // worker ref'd, or Node 22 ends the script while it waits (an unsettled top-level await)
@@ -116,7 +132,8 @@ test("a host's script that waits on the pool runs to its end: a worker that dies
         const next = await computer.run("echo", null, {});
         console.log(JSON.stringify([failed?.code, typeof next.outcome.threadId]));
     `);
-    const result = spawnSync(process.execPath, [join(dir, "host.mjs")], { cwd: dir, encoding: "utf8" });
+    // a time limit of its own: the test's own limit cannot stop a synchronous spawn
+    const result = spawnSync(process.execPath, [join(dir, "host.mjs")], { cwd: dir, encoding: "utf8", timeout: HOST_MS });
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout.trim()), ["INTERNAL", "number"]);
 });
@@ -126,7 +143,7 @@ test("workerExecArgv: drops --input-type in both spellings and keeps every other
     assert.deepEqual(workerExecArgv(["--input-type=module", "-e", script]), ["-e", script]);
     assert.deepEqual(workerExecArgv(["--input-type", "commonjs", "--eval", script]), ["--eval", script]);
     assert.deepEqual(workerExecArgv(["--conditions=dev", "--input-type=module", "-p", script, "--max-old-space-size=4096"]), ["--conditions=dev", "-p", script, "--max-old-space-size=4096"]);
-    // without --input-type the worker inherits as before: no list of our own
+    // without --input-type the worker inherits the host's flags: no list of our own
     assert.equal(workerExecArgv(["--max-old-space-size=4096", "-e", script]), undefined);
     assert.equal(workerExecArgv([]), undefined);
 });
@@ -170,9 +187,6 @@ const RENDER_HOST = `
         await context.close();
     }
 `;
-
-/** How long one host may run before the test fails it: a host whose run waits for a dead worker. */
-const HOST_MS = 15_000;
 
 /**
  * Runs RENDER_HOST with these node flags in front: as a file, as a string (`-e`) or from standard

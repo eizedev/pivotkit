@@ -11,7 +11,7 @@
  *    token in the address is never read), the REST audience and required scopes (OAuth): sign-in.js;
  * 5. the caller's rate limit and concurrency, the operation's scopes (auth.toolScopes);
  * 6. the body: JSON (body.js) or, for a caller that may send data, multipart/form-data with a file
- *    (multipart.js), capped (2 MiB; rest.data.maxBytes for a caller that may send data, limits.js),
+ *    (multipart.js), capped (the server's body limit; rest.data.maxBytes for a caller that may send data, limits.js),
  *    checked against the operation's input schema;
  * 7. present() (policy, output, inline), for the file route the file itself (answer-file.js), or
  *    for the rows route the source's rows, written in pieces (records.js).
@@ -123,7 +123,9 @@ const handles = (path) => path === REST_BASE || path.startsWith(`${REST_BASE}/`)
  * The route family of a request, for a refused line written by logUnanswered: /api/v1 or /openapi.json.
  * @param {Request} request
  */
-function routeFamily(request) {
-    const path = new URL(request.url).pathname;
-    return path.startsWith(REST_BASE) ? { path: REST_BASE } : path.startsWith(OPENAPI_PATH) ? { path: OPENAPI_PATH } : {};
+export function routeFamily(request) {
+    const { pathname } = new URL(request.url);
+    // whole segments, as handles() reads them: /api/v1x is no REST path; a trailing slash as serve() reads it
+    const path = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    return path === REST_BASE || path.startsWith(`${REST_BASE}/`) ? { path: REST_BASE } : path === OPENAPI_PATH ? { path: OPENAPI_PATH } : {};
 }

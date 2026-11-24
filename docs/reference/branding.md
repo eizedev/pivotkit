@@ -95,8 +95,8 @@ With `http.page.url`, `/` answers 302 to your address. This also holds for a RES
 (`http.enable: ["rest"]`). A browser that opens `/mcp` goes straight there.
 
 - The address is absolute, `http://` or `https://`.
-- `http.page.url` and `http.page.sources` exclude each other: the server shows no page to list
-  sources on.
+- `http.page.url` and `http.page.sources: true` exclude each other: the server shows no page to list
+  sources on. `sources: false` beside `url` is fine.
 - Without `http.page.url`, a REST-only server answers `/` with a 404 problem as before.
 
 Behind a reverse proxy, forward `/` and `/icon.png` too ([behind a reverse proxy](rest.md#running)).

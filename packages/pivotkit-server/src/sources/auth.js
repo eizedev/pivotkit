@@ -30,6 +30,7 @@ import { requestId } from "../request-id.js";
 import { GuardedFetchError, guardedFetch, upstreamCauseOf } from "./fetch.js";
 import { canonicalJson } from "./keys.js";
 import { SourceError } from "./run.js";
+import { headerValueOf } from "../options/headers.js";
 
 /** The limits of the sign-in's requests and of the token cache. */
 export const TOKEN_LIMITS = Object.freeze({
@@ -58,8 +59,8 @@ const ERROR_CODE = /^[A-Za-z0-9_.-]{1,40}$/;
 /** An access token as a header's value: printable ASCII without spaces, at most 16 KiB. */
 const TOKEN_TEXT = /^[\x21-\x7e]{1,16384}$/;
 
-/** A header's value: printable Latin-1 and tab (no CR, LF or NUL). */
-const HEADER_VALUE = /^[\t\x20-\x7e\x80-\xff]{1,16384}$/;
+/** A header's value from a backend's sign-in answer (options/headers.js headerValueOf), at most 16 KiB. */
+const HEADER_VALUE = headerValueOf(1, 16384);
 
 /** RFC 8693's token type of an access token. */
 const ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";

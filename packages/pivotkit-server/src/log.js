@@ -3,7 +3,8 @@
  * (logfmt, in the style of Go's slog TextHandler), with the same fields. `log.format` "auto" writes
  * text to a terminal and JSON otherwise; "text" and "json" force one. Every line has `time`, `level`
  * (debug, info, warn, error), `severity` (the RFC 5424 number: 7, 6, 4, 3), `event`, `msg`, `service`
- * and `version`; a line written inside a request adds the request's scope (request-id.js):
+ * and `version`; a JSON line of an info, warn or debug message repeats `msg` as `message` (the field
+ * many log collectors read; the text format leaves it out); a line written inside a request adds the request's scope (request-id.js):
  * `requestId`, `traceId`, `upstreamRequestId` (a valid incoming X-Request-Id) and, unless
  * `log.address` is "off", `address` (the client as best known: behind a trusted proxy the forwarded
  * one, else the socket's peer) and `peerAddress` (the socket's peer where it differs: the proxy).
@@ -18,6 +19,7 @@
  */
 
 import { createHmac } from "node:crypto";
+import { requestScope, withRequestScope } from "./request-id.js";
 
 /** The caller's fields a log line may hold; a person's groups, claims or issuer never, the subject only as audit gives it (callerFields). */
 export const CALLER_LOG_FIELDS = Object.freeze(["client"]);
@@ -78,9 +80,6 @@ export function callerFields(caller) {
     const subject = caller && typeof caller === "object" ? audited.get(caller) : undefined;
     return subject ? { ...fields, subject } : fields;
 }
-
-
-import { requestScope, withRequestScope } from "./request-id.js";
 
 /** The levels of `log.level`, least to most severe; "off" writes nothing. */
 export const LOG_LEVELS = Object.freeze(["debug", "info", "warn", "error", "off"]);

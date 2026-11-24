@@ -6,12 +6,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT } from "jose";
 import { checkConfig, loadConfig, validateOptions } from "pivotkit-server";
 import { createSignedVerifier, SIGNED_TOKEN } from "../../src/signed-tokens.js";
-import { BY_REGION, POSIX, TOKEN, call, factsOf, restServer, runBin, workspace, mcpToolWorks } from "../helpers.js";
+import { BY_REGION, OTHER_TOKEN, POSIX, TOKEN, call, factsOf, restServer, runBin, workspace, mcpToolWorks } from "../helpers.js";
 
 /** A signed token as the server makes it: three base64url parts. */
 const JWT_TEXT = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
@@ -312,12 +312,12 @@ test("a static token with expires in the past gets 401; one in the future works"
     const dir = workspace();
     const past = new Date(Date.now() - 60_000).toISOString();
     const future = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
-    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "old", env: "OLD", expires: past }, { name: "new", env: "NEW", expires: future }] }, baseDir: dir }, { env: { OLD: TOKEN, NEW: "another-test-token-long-enough-9876543210" } });
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "old", env: "OLD", expires: past }, { name: "new", env: "NEW", expires: future }] }, baseDir: dir }, { env: { OLD: TOKEN, NEW: OTHER_TOKEN } });
     try {
         const old = await call(`${server.api}/sources`, { token: TOKEN });
         assert.equal(old.status, 401);
         assert.match(JSON.stringify(old.data), /expired/);
-        assert.equal((await call(`${server.api}/sources`, { token: "another-test-token-long-enough-9876543210" })).status, 200);
+        assert.equal((await call(`${server.api}/sources`, { token: OTHER_TOKEN })).status, 200);
         assert.ok(server.log.some((l) => l.level === "warn" && /token "old" expired/.test(l.msg)), JSON.stringify(server.log));
     } finally {
         await server.close();
@@ -339,7 +339,7 @@ test("check-config warns of a static token that expires within a week or has exp
     assert.equal(runBin(["token", "issue", "--config", config]).status, 0);
     const options = await loadConfig(config);
     options.auth.tokens = [{ name: "ops", env: "OPS_TOKEN", expires: new Date(Date.now() + 3 * 86_400_000).toISOString() }, { name: "gone", env: "GONE_TOKEN", expires: "2020-01-01" }];
-    const { text } = await checkConfig(options, { http: true, env: { OPS_TOKEN: TOKEN, GONE_TOKEN: "another-test-token-long-enough-9876543210" }, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true, mcp: false });
+    const { text } = await checkConfig(options, { http: true, env: { OPS_TOKEN: TOKEN, GONE_TOKEN: OTHER_TOKEN }, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true, mcp: false });
     const facts = factsOf(text);
     assert.match(facts, /WARNING \(Auth\): the token ops expires on \d{4}-\d{2}-\d{2}/);
     assert.match(facts, /WARNING \(Auth\): the token gone expired on 2020-01-01/);
@@ -387,9 +387,22 @@ test("key new: a key made in the same millisecond, or with the clock set back, s
     assert.equal(JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString()).kid, kids[2]);
 });
 
+test("token list: a record edited without its issue time is left out, and the others are still listed", async () => {
+    const { signedStore } = await import("../../src/signed-tokens.js");
+    const dir = join(workspace(), "signed");
+    const store = signedStore(dir);
+    await store.ensureDirs();
+    const expiresAt = Math.floor(Date.now() / 1000) + 600;
+    const kept = (await store.issue({ name: "kept", profile: null, scopes: null, expiresAt })).record;
+    const edited = (await store.issue({ name: "edited", profile: null, scopes: null, expiresAt })).record;
+    const without = { ...edited };
+    delete without.issuedAt;
+    writeFileSync(join(dir, "issued", `${edited.id}.json`), JSON.stringify(without));
+    assert.deepEqual((await store.issued()).map((r) => r.id), [kept.id]);
+});
+
 test("with a state directory and no configuration of its own: token issue --state-dir makes the key in secrets/signed, and the server takes the token", async () => {
     const { serve } = await import("pivotkit-server");
-    const { mkdirSync } = await import("node:fs");
     const dir = workspace();
     const state = join(dir, "state");
     mkdirSync(state);
@@ -466,7 +479,6 @@ test("rate limits count per signed token: one token over its limit does not slow
 });
 
 test("keys that cannot be read refuse every signed token, and say so on the log at most once a minute", { skip: !POSIX || process.getuid?.() === 0 }, async () => {
-    const { chmodSync } = await import("node:fs");
     const { config, signed } = setup();
     const token = JSON.parse(runBin(["token", "issue", "--config", config, "--json"]).stdout).token;
     const server = await serverOf(config);
@@ -484,7 +496,7 @@ test("keys that cannot be read refuse every signed token, and say so on the log 
 });
 
 // ---------------------------------------------------------------------------------------------
-// Findings of the security review
+// Signed tokens under hostile or odd input
 
 test("token issue: many scopes round-trip through the server; a token over the server's length limit is refused at issue", async () => {
     const { config } = setup();
@@ -538,9 +550,10 @@ test("token revoke of a well-formed ID the register does not know says so", () =
 });
 
 test("key loading refuses a symlinked key file and a key file others may read; token issue warns and signs with a good key", { skip: !POSIX }, async () => {
-    const { chmodSync, copyFileSync, symlinkSync } = await import("node:fs");
     const { config, signed } = setup();
-    const first = JSON.parse(runBin(["token", "issue", "--config", config, "--json"]).stdout);
+    // the first issue makes the signing key the planted ones copy
+    const first = runBin(["token", "issue", "--config", config, "--json"]);
+    assert.equal(first.status, 0, first.stderr);
     const keys = join(signed, "keys");
     const [good] = readdirSync(keys);
     // a planted key with a newer kid, readable by the group, and one behind a symbolic link
@@ -559,7 +572,6 @@ test("key loading refuses a symlinked key file and a key file others may read; t
     const options = await loadConfig(config);
     const { text } = await checkConfig(options, { http: true, env: { OPS_TOKEN: TOKEN }, name: "pivotkit-server", tokenEnv: "PIVOTKIT_TOKEN", rest: true, mcp: false });
     assert.match(factsOf(text), /k99990101000000000-aaaa.*readable/);
-    assert.ok(first.token);
 });
 
 test("a refused revoked token is logged at info, by its ID, at most once a minute", async () => {
@@ -586,7 +598,6 @@ test("verifier: the token ID's rule is a parameter, for an issuer with IDs of it
 });
 
 test("token issue prunes expired records at most once an hour", async () => {
-    const { utimesSync } = await import("node:fs");
     const { config, signed } = setup();
     assert.equal(runBin(["token", "issue", "--config", config]).status, 0);
     const stale = join(signed, "issued", "00000000000000aa.json");
@@ -611,7 +622,6 @@ test("token list --json names a static token's file by its base name, never its 
 });
 
 test("the prune marker is never written through a symbolic link, and a marker from the future counts as stale", { skip: !POSIX }, async () => {
-    const { symlinkSync, utimesSync } = await import("node:fs");
     const { dir, config, signed } = setup();
     assert.equal(runBin(["token", "issue", "--config", config]).status, 0);
     const marker = join(signed, ".pruned");
@@ -627,7 +637,6 @@ test("the prune marker is never written through a symbolic link, and a marker fr
     writeFileSync(victim, "keep me\n");
     const old = new Date(Date.now() - 2 * 3_600_000);
     utimesSync(victim, old, old);
-    const { unlinkSync } = await import("node:fs");
     unlinkSync(marker);
     symlinkSync(victim, marker);
     assert.equal(runBin(["token", "issue", "--config", config]).status, 0);
@@ -635,7 +644,6 @@ test("the prune marker is never written through a symbolic link, and a marker fr
 });
 
 test("a key file with a wider mode is skipped: the log, check-config and token list say so and give the fix; key remove takes it away", { skip: !POSIX }, async () => {
-    const { chmodSync } = await import("node:fs");
     const { config, signed } = setup();
     const t = JSON.parse(runBin(["token", "issue", "--config", config, "--json"]).stdout);
     const [file] = readdirSync(join(signed, "keys"));

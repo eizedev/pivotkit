@@ -284,7 +284,7 @@ data item gets `label: { show: false }`. That item setting wins over a series `l
 **Only JSON.** Strings, finite numbers, booleans, `null`, plain objects and arrays pass. The report
 leaves out the following when it draws the chart:
 
-- functions (formatters)
+- functions (formatters), and getters, which it does not call
 - class instances (`Date`, `Map`)
 - symbols and `Infinity`
 - the keys `__proto__`, `constructor` and `prototype`

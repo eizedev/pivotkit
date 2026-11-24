@@ -2,8 +2,9 @@
 // and the inputs a hostile or careless client sends.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { connect } from "node:net";
 import { BY_REGION, SALES_CSV, call, raw, restServer, workspace } from "./helpers.js";
 import { until } from "../../../tests/until.js";
 
@@ -330,7 +331,6 @@ test("the Host check refuses a name the server does not answer to (DNS rebinding
 
 test("output.maxAgeDays: old reports, drafts no longer waiting, and temporary files of killed writes after an hour, go at start (and hourly); drafts waiting for approval, files pivotkit did not write, newer ones and subdirectories stay", async () => {
     const dir = workspace();
-    const { utimesSync } = await import("node:fs");
     const old = new Date(Date.now() - 3 * 86_400_000);
     // a write's temporary file left by a server that was killed during the write: it goes after an
     // hour, not after maxAgeDays; one of a write still running (recent) and one of a file pivotkit
@@ -389,7 +389,6 @@ test("the log names the route, the source and the status; never the view, a valu
 });
 
 test("a client that leaves in the middle of a large download does not keep the server from stopping", async () => {
-    const { connect } = await import("node:net");
     const rows = ["Region,Product,Customer,Sales,OrderDate,Q", ...Array.from({ length: 200_000 }, (_, i) => `R${i},A,C${i},${i},2026-01-01,1`)].join("\n");
     const dir = workspace({ "sales.csv": rows });
     const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { results: true } } }, http: { graceMs: 5000 }, baseDir: dir });
@@ -410,6 +409,7 @@ test("a client that leaves in the middle of a large download does not keep the s
         });
         socket.on("error", reject);
     });
+    // a fixed sleep: the server meets the stalled and closed socket in the middle of its answer first
     await new Promise((r) => setTimeout(r, 200));
     const started = Date.now();
     await server.close();
@@ -548,4 +548,15 @@ test("two rules of one policy that name the same field keep the stricter level, 
     } finally {
         await server.close();
     }
+});
+
+test("a refused line names the REST family by whole segments: /api/v1x is none, /openapi.json/ is the document's", async () => {
+    const { routeFamily } = await import("../src/rest/handler.js");
+    const family = (path) => routeFamily(new Request(`http://localhost${path}`));
+    assert.deepEqual(family("/api/v1"), { path: "/api/v1" });
+    assert.deepEqual(family("/api/v1/sources"), { path: "/api/v1" });
+    assert.deepEqual(family("/api/v1x"), {});
+    assert.deepEqual(family("/openapi.json"), { path: "/openapi.json" });
+    assert.deepEqual(family("/openapi.json/"), { path: "/openapi.json" });
+    assert.deepEqual(family("/openapi.jsonx"), {});
 });

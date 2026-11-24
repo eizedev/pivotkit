@@ -25,6 +25,42 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - A table sent with a request (`inline:`) counts its columns against `limits.columns`. Before, only
   rows and cells counted, so an operator's lower `limits.columns` did not hold for it; the input
   schema's 1,000 columns did.
+- The server refuses a host's table with a value a worker cannot receive, such as a function, with
+  "the input holds a value that cannot be sent to a worker". Before, it said the input was nested
+  too deeply.
+- An answer with more than one `Set-Cookie` header reaches the client with all of them. Before, the
+  server sent only the last one. No route of the server sets two today.
+- The log line of a download sign-in refused for too many callbacks from one address says status 429
+  at `warn`, as the answer does. Before, it said status 500 at `error`.
+- A download sign-in whose token endpoint answers no JSON logs only that at `debug`. Before, the
+  line quoted the start of the answer.
+- The server accepts `http.page` with `url` and `sources: false`. Before, it refused it as if both
+  asked for a page.
+- The rows route matches the names in `fields` as the policy does: case, spaces, and Unicode form.
+  Before, `"Customer  Name"` with two spaces did not find the column the policy calls
+  "Customer Name".
+- `/openapi.json` and the REST resource's metadata answer GET and HEAD, and every other method with
+  405 and `Allow: GET, HEAD`. Before, the metadata answered any method, `/openapi.json` refused
+  HEAD, and its 405 had no `Allow` header.
+- `token list` and the prune of signed tokens leave out a record without its issue time. Before, one
+  such hand-edited record stopped the whole list.
+- A download's file name with a lone surrogate gets a replacement character in `Content-Disposition`.
+  Before, the answer failed.
+- A column named `__proto__` gets its statistics, and a column named like `constructor` never reads an
+  object's built-in member as its statistics.
+- The server reads a pivotkit-mcp's range with `>` or `<=` and a partial version as npm does: `>1.2`
+  means 1.3.0 or later, `<=1.2` means below 1.3.0.
+- A pivotkit-mcp that imports an entry point this pivotkit-server lacks gets the upgrading link of
+  `branding.docsUrl`, or none where it is `null`. Before, it linked pivotkit's site.
+- When the close of a new secret file fails, the server removes the file and reports the first error.
+- `source-from-openapi`:
+  - A property whose name starts with a null character stays a property. Before, it could vanish and
+    set the schema's `items`.
+  - Two path parameters whose names clean to the same name keep a placeholder each. Before,
+    `/x/{a-b}/{a_b}` became `/x/{a_b_2}/{a_b_2}`.
+  - It skips a parameter in a place OpenAPI does not define, with a note.
+  - It leaves out whole scopes beyond 1000 characters, with a note. Before, it cut the last one in
+    the middle.
 
 ### Security
 
@@ -36,10 +72,15 @@ All notable changes to `pivotkit-server` are documented in this file. The format
     0644 without `output.baseUrl`.
   - Reports written before keep their mode. Run `chmod 600` on them, or let the server prune them.
 - Requests to other servers refuse loopback and private addresses unless the `intranet` setting allows
-  them. No configuration changes behaviour.
+  them. This changes no configuration's behaviour: each of the server's requests already passed its
+  `intranet` setting.
 
 ### Changed
 
+- check-config writes every size the same way: `256 KiB` for the issuer's limits, `16 MiB` for the
+  kept loads and the uploads.
+- With `files.list`, list_sources names a directory's files by name order. Before, it took the first
+  100 in the file system's order, which could differ between starts.
 - `http.enable: ["mcp"]` and `pivotkit-server mcp` without pivotkit-mcp name both install commands,
   for a project and a global install.
 - **Breaking:** pivotkit-cli is no longer a dependency. If you installed pivotkit-server from npm and
@@ -240,7 +281,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `http.publicUrl` set they print the whole address, for example
   `https://reports.example.com/openapi.json`. Without it they say that the document sits at the
   root. A 404 no longer points to the document when `rest.openapi` is `"off"`
-  ([The OpenAPI document](https://pivotkit.eize.dev/reference/rest/#openapi), #609).
+  ([The OpenAPI document](https://pivotkit.eize.dev/reference/rest/#openapi), [#609](https://github.com/eizedev/pivotkit/issues/609)).
 
 ## [0.3.1] - 2026-11-18
 
@@ -248,7 +289,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 - `check-config` warns about a token exchange without `scope`. Some providers, Authentik among
   them, then issue a token without scopes
-  ([check-config and check-source](https://pivotkit.eize.dev/reference/sources/#check-source), #603).
+  ([check-config and check-source](https://pivotkit.eize.dev/reference/sources/#check-source), [#603](https://github.com/eizedev/pivotkit/issues/603)).
 - The docs describe Authentik's token exchange for an HTTP source
   ([what the provider must allow](https://pivotkit.eize.dev/reference/sources/#http-auth-provider)).
   The REST sign-in says that a caller with another application's token needs that client ID in
@@ -256,7 +297,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   ([REST sign-in](https://pivotkit.eize.dev/reference/rest/#auth)).
 - The Kubernetes page and its example manifest show `NODE_EXTRA_CA_CERTS` for an internal
   certificate authority, from a ConfigMap
-  ([Kubernetes](https://pivotkit.eize.dev/getting-started/kubernetes/#internal-ca), #603).
+  ([Kubernetes](https://pivotkit.eize.dev/getting-started/kubernetes/#internal-ca), [#603](https://github.com/eizedev/pivotkit/issues/603)).
 
 ## [0.3.0] - 2026-11-18
 
@@ -265,26 +306,26 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - `rest.signIn.clientId` publishes the provider's public client for `pivotkit login` in the REST
   metadata (`pivotkit_client_id`), so people need only the server's address. It works with OAuth
   only, and `check-config` shows it. Publish a public client without a secret
-  ([sign in from the command line](https://pivotkit.eize.dev/reference/rest/#sign-in-cli), #486).
+  ([sign in from the command line](https://pivotkit.eize.dev/reference/rest/#sign-in-cli), [#486](https://github.com/eizedev/pivotkit/issues/486)).
 - `auth.externalIssuers` lets REST and MCP accept short-lived tokens another system issues for its
   signed-in person, such as PowerShell Universal. The server checks them with that system's Ed25519
   public key, issuer name and type. Each issuer's `scopes` (required) and `profiles` cap what its
   tokens get. A private key or an unusable key stops the start, and `check-config` lists each issuer
-  ([tokens from another system](https://pivotkit.eize.dev/reference/rest/#external-issuers), #487).
+  ([tokens from another system](https://pivotkit.eize.dev/reference/rest/#external-issuers), [#487](https://github.com/eizedev/pivotkit/issues/487)).
 - The REST reference describes how people sign in from the command line, with curl or with
   PowerShell at the server's sign-in provider. `resourceMetadataUrlOf` now comes from
   `pivotkit-cli/rest` and is the same function
-  ([sign in from the command line](https://pivotkit.eize.dev/reference/rest/#sign-in-cli), #486).
+  ([sign in from the command line](https://pivotkit.eize.dev/reference/rest/#sign-in-cli), [#486](https://github.com/eizedev/pivotkit/issues/486)).
 - `render_view` (`POST /views/render`) takes `locale`, `numbers` and `flatHeader`. Every answer
   that works carries `requestId` in its body, the id of its log line ([#478](https://github.com/eizedev/pivotkit/issues/478), [#481](https://github.com/eizedev/pivotkit/issues/481)).
 - `token issue` issues a signed token that expires (default one hour, at most
   `auth.signedTokens.maxDays`). REST and MCP accept it without a restart. The log names it by its ID
-  ([signed tokens](https://pivotkit.eize.dev/reference/rest/#signed-tokens), #485).
+  ([signed tokens](https://pivotkit.eize.dev/reference/rest/#signed-tokens), [#485](https://github.com/eizedev/pivotkit/issues/485)).
 - Several signing keys verify at once: `key new --for signing` rotates, `key remove --for signing`
   takes an old key away.
 - `token revoke <id or name>` refuses a signed token from the next request on.
 - `token list` shows every token with its ID, name, profile, expiry and status, never a value.
-  `token remove <id or name>` takes a static token out of `auth.tokens` with a backup (#488).
+  `token remove <id or name>` takes a static token out of `auth.tokens` with a backup ([#488](https://github.com/eizedev/pivotkit/issues/488)).
 - `auth.tokens[].expires` ends a static token at a date. `token new --expires` writes it, and
   `check-config` warns a week ahead.
 - `output.draftMaxAgeDays` deletes schedule drafts that still wait for approval after that many

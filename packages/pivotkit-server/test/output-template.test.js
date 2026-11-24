@@ -121,7 +121,8 @@ test("a missing print template over REST: 502 SOURCE_UNAVAILABLE with the fixed 
         // the operator's line under the same id: the file by its name and the reader's code, no path
         const warned = server.log.filter((l) => l.event === "warning" && l.requestId === answer.data.requestId);
         assert.deepEqual(warned.map((l) => [l.level, l.msg, l.cause]), [["warn", "the print template own.html cannot be read (NOT_FOUND); its html reports fail until it can", "NOT_FOUND"]]);
-        assert.ok(!JSON.stringify(server.log).includes(dir), "no line holds the template's full path");
+        // the path as JSON writes it too: a Windows path's backslashes are doubled there
+        assert.ok(!JSON.stringify(server.log).includes(JSON.stringify(dir).slice(1, -1)), "no line holds the template's full path");
     } finally {
         await server.close();
     }

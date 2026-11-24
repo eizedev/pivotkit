@@ -44,7 +44,7 @@ The input:
 | --- | --- | --- |
 | `source` | yes | A source id whose entry in `GET /sources` has `records: true` |
 | `params` | no | The source's parameters, as on the other routes |
-| `fields` | no | The fields to answer, in this order. Names match without case |
+| `fields` | no | The fields to answer, in this order. Names match as the policy matches them: case, Unicode form and extra spaces do not count |
 | `view` | no | A view, or its JSON text. Only the fields it uses are answered |
 
 Give `fields` or `view`, not both. Without either, every field at `show` is answered.

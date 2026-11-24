@@ -30,7 +30,9 @@ export async function section(options, _registry, runtime) {
             items.push(plain(`sign-in client for pivotkit login: ${signIn} (published; a public client without a secret)`));
         }
     }
-    if (r.inline) items.push(plain("inline results: on"));
+    if (r.inline) {
+        items.push(plain("inline results: on"));
+    }
     items.push(plain(`CORS: ${r.cors?.origins?.length ? r.cors.origins.join(" ") : "off"}`));
     if (!where.openapi) {
         items.push(plain("OpenAPI document: off"));
@@ -38,6 +40,8 @@ export async function section(options, _registry, runtime) {
         const who = (r.openapi ?? "auth") === "auth" ? "needs auth" : "public";
         items.push(plain(`OpenAPI document: ${where.openapi}; ${who}`));
     }
-    if (options.policy?.results) items.push(plain("file downloads: allowed for every caller (policy.results)"));
+    if (options.policy?.results) {
+        items.push(plain("file downloads: allowed for every caller (policy.results)"));
+    }
     return { items, upgrade: [] };
 }

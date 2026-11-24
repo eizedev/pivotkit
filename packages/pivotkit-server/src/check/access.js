@@ -20,6 +20,7 @@
 
 import { pathOf, restResourceOf } from "../config.js";
 import { inertTokensText } from "../auth.js";
+import { issuerSchemeProblem } from "../issuer.js";
 import { TOKEN_MIN, tokenFault } from "../secret-rules.js";
 import { connectionLimitsOf, isLoopback } from "../listen.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, secretFileWarning, secretValue, unreadable } from "../secrets.js";
@@ -82,9 +83,10 @@ export async function section(options, _registry, runtime) {
             items.push(plain(`audience: ${audience}`));
         }
         items.push(plain(`required scopes: ${auth.requiredScopes?.length ? auth.requiredScopes.join(" ") : "none (any token for this audience)"}`));
-        // the start's own test (auth.js createAuthCore): the scheme as a URL reads it, in any case
-        if (URL.canParse(String(auth.issuer)) && new URL(String(auth.issuer)).protocol !== "https:" && !auth.allowInsecureIssuer) {
-            items.push(problem("auth.issuer: must be an https:// address (auth.allowInsecureIssuer is for tests only)", stop));
+        // the start's own test (auth.js createAuthCore)
+        const schemeProblem = issuerSchemeProblem(auth);
+        if (schemeProblem) {
+            items.push(problem(schemeProblem, stop));
         }
     }
     for (const [kind, map] of /** @type {Array<[string, Record<string, string> | undefined]>} */ ([["client", auth.clientProfiles], ["scope", auth.scopeProfiles]])) {

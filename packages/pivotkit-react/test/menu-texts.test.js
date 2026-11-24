@@ -10,8 +10,8 @@ import "../src/deferred.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { addMenuTexts, en as menuEn, hasMenuTexts, menuLabels } from "../src/menu-labels.js";
 import { MENU_TEXTS_OF } from "../src/menu-texts.js";
+import { keys } from "./helpers.js";
 
-const keys = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" && !Array.isArray(v) ? keys(v, `${p}${k}.`) : [`${p}${k}`])).sort();
 
 test("every language of LABELS besides English has its menu texts: a loader and a file of their own in the build", async () => {
     const others = Object.keys(LABELS).filter((lang) => lang !== "en");

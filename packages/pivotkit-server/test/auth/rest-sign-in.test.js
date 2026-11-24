@@ -112,7 +112,7 @@ test("limits: refused tokens per address, requests per caller; 429 with Retry-Af
     } finally {
         await server.close();
     }
-    const second = await restServer({ sources: SOURCES, auth: { mode: "token" }, rest: { rateLimit: { perMinute: 60, burst: 3 } }, baseDir: dir }, { env: { PIVOTKIT_TOKEN: TOKEN } });
+    const second = await restServer({ sources: SOURCES, auth: { mode: "token" }, rest: { rateLimit: { perMinute: 1, burst: 3 } }, baseDir: dir }, { env: { PIVOTKIT_TOKEN: TOKEN } });
     try {
         const statuses = [];
         for (let i = 0; i < 4; i++) {
@@ -126,6 +126,12 @@ test("limits: refused tokens per address, requests per caller; 429 with Retry-Af
 
 test("auth none is refused on an address other than loopback unless allowed", async () => {
     await assert.rejects(restServer({ http: { host: "0.0.0.0" } }), /needs --auth token or oauth/);
+    // allowed: the core starts without a token and warns, so the server binds nothing here
+    const warned = [];
+    const core = await createAuthCore({ auth: { allowUnauthenticated: true } }, { env: {}, log: { warn: (text) => warned.push(text) }, loopback: false });
+    assert.equal(core.mode, "none");
+    assert.deepEqual(warned, ["serving without authentication on an address other than loopback (auth.allowUnauthenticated)"]);
+    core.close();
 });
 
 /** The REST and MCP endpoints on one port, OAuth with each its own resource. */
