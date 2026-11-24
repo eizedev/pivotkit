@@ -13,13 +13,13 @@ import { en as menuEn } from "../../packages/pivotkit-react/src/menu-labels.js";
  * (print-frame.js), so every spec that opens the menu would log it. Errors of the page itself still
  * fail every test.
  */
-export const TRACE_IN_PRINT_FRAME = /^Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set\.$/;
+const TRACE_IN_PRINT_FRAME = /^Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set\.$/;
 
 /**
  * Playwright's Firefox driver (Juggler) logs this from its own script when it opens a page in a mobile
  * context (isMobile): the file is chrome://juggler, not the page. Every spec ignores it.
  */
-export const JUGGLER_FORCED_LAYOUT = /^\[JavaScript Warning: "Layout was forced before the page was fully loaded\. If stylesheets are not yet loaded this may cause a flash of unstyled content\." \{file: "chrome:\/\/juggler\/content\/content\/main\.js" line: \d+\}\]$/;
+const JUGGLER_FORCED_LAYOUT = /^\[JavaScript Warning: "Layout was forced before the page was fully loaded\. If stylesheets are not yet loaded this may cause a flash of unstyled content\." \{file: "chrome:\/\/juggler\/content\/content\/main\.js" line: \d+\}\]$/;
 
 /**
  * Collects what a page logs as an error or a warning, and what it throws, except the harness's

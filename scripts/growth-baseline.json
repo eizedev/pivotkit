@@ -267,7 +267,6 @@
         "packages/pivotkit-react/src/print-frame.js exports printParts",
         "packages/pivotkit-react/src/share.js exports VIEW_TEXT_MAX",
         "packages/pivotkit-react/src/theme.js exports CHART_COLORS",
-        "packages/pivotkit-react/src/toasts.jsx exports SHOWN_MS",
         "packages/pivotkit-react/src/use-theme.js exports hostTheme",
         "packages/pivotkit-react/src/view-ops.js exports fieldAt",
         "packages/pivotkit-react/src/view-ops.js exports isPick",
