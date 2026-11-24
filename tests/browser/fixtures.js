@@ -69,8 +69,9 @@ const strict = (object, path = "TEXTS") =>
     });
 
 /**
- * The report's English texts, the first load's and the menus', by key: a test expects the text a key
- * gives, not a copy of its words, so a change of wording changes no test. `textOf` fills its values.
+ * The report's English texts, the first load's and the menus', by key: a test that expects the text a
+ * key gives, not a copy of its words, breaks on no change of wording. `textOf` fills its values. New
+ * tests use them; most specs still spell the words out (tests/AGENTS.md).
  * The browser tests run the report in English; that every language has every key is
  * pivotkit-react's labels.test.js and menu-texts.test.js.
  */
