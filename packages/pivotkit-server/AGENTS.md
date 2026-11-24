@@ -9,6 +9,7 @@ The root [AGENTS.md](../../AGENTS.md) applies too. Read `docs/privacy.md` before
 npm test -w pivotkit-server    # the service over HTTP: hostile inputs, tokens, OAuth, profiles
 npx pivotkit-server serve --source sales=data.csv --output out   # http://127.0.0.1:3333
 node scripts/openapi.js        # write docs/openapi.json after a route or operation change
+PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-server   # rewrite the options table's and check-config's golden files; review the diff
 ```
 
 ## Options

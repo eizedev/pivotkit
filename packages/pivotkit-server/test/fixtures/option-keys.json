@@ -1,0 +1,766 @@
+{
+  "sources": {
+    "map": {
+      "object": {
+        "file": "string",
+        "load": "function",
+        "version": "function",
+        "title": "string",
+        "description": "string",
+        "sheet": "string",
+        "link": "string",
+        "linkKey": "string",
+        "linkParams": "strings",
+        "template": "string",
+        "scopes": "strings",
+        "policy": {
+          "object": {
+            "default": {
+              "enum": [
+                "show",
+                "values",
+                "summary",
+                "hide"
+              ]
+            },
+            "fields": {
+              "map": {
+                "enum": [
+                  "show",
+                  "values",
+                  "summary",
+                  "hide"
+                ]
+              }
+            },
+            "items": "integer",
+            "rows": "boolean",
+            "counts": "boolean",
+            "inline": {
+              "or": [
+                {
+                  "const": false
+                },
+                {
+                  "object": {
+                    "cells": "integer",
+                    "bytes": "integer"
+                  }
+                }
+              ]
+            },
+            "results": "boolean",
+            "data": "boolean",
+            "records": "strings",
+            "valuesMax": "integer",
+            "autoValues": {
+              "or": [
+                "boolean",
+                {
+                  "object": {
+                    "maxDistinct": "integer",
+                    "minRowsPerValue": "integer",
+                    "minRows": "integer",
+                    "deny": "strings"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "params": {
+          "custom": "fn"
+        },
+        "fields": {
+          "map": {
+            "object": {
+              "description": "string"
+            }
+          }
+        },
+        "ttl": "integer",
+        "maxStale": "integer",
+        "timeMs": "integer",
+        "http": {
+          "object": {
+            "backend": "string",
+            "path": "string",
+            "url": "string",
+            "intranet": "boolean",
+            "query": {
+              "map": "string"
+            },
+            "headers": {
+              "map": "string"
+            },
+            "auth": {
+              "object": {
+                "header": {
+                  "object": {
+                    "name": "string",
+                    "prefix": "string",
+                    "value": {
+                      "custom": "fn"
+                    }
+                  }
+                },
+                "clientCredentials": {
+                  "object": {
+                    "tokenUrl": "string",
+                    "clientId": "string",
+                    "clientSecret": {
+                      "custom": "fn"
+                    },
+                    "assertion": {
+                      "custom": "fn"
+                    },
+                    "scope": "string",
+                    "audience": "string",
+                    "resource": "string",
+                    "intranet": "boolean"
+                  }
+                },
+                "tokenExchange": {
+                  "object": {
+                    "tokenUrl": "string",
+                    "clientId": "string",
+                    "clientSecret": {
+                      "custom": "fn"
+                    },
+                    "audience": "string",
+                    "resource": "string",
+                    "scope": "string",
+                    "maxAgeSeconds": "integer",
+                    "intranet": "boolean"
+                  }
+                }
+              }
+            },
+            "rows": "string",
+            "format": {
+              "enum": [
+                "json",
+                "csv"
+              ]
+            },
+            "asOf": "string",
+            "paging": {
+              "custom": "fn"
+            },
+            "maxPages": "integer",
+            "maxBytes": "integer"
+          }
+        },
+        "cacheShared": "boolean",
+        "perPerson": "boolean",
+        "records": {
+          "object": {
+            "maxRows": "integer"
+          }
+        },
+        "views": {
+          "custom": "fn"
+        },
+        "viewsDir": "string"
+      }
+    }
+  },
+  "files": {
+    "object": {
+      "allowDirs": "strings",
+      "list": "boolean",
+      "hardLinks": "boolean",
+      "scopes": "strings",
+      "policy": {
+        "object": {
+          "default": {
+            "enum": [
+              "show",
+              "values",
+              "summary",
+              "hide"
+            ]
+          },
+          "fields": {
+            "map": {
+              "enum": [
+                "show",
+                "values",
+                "summary",
+                "hide"
+              ]
+            }
+          },
+          "items": "integer",
+          "rows": "boolean",
+          "counts": "boolean",
+          "inline": {
+            "or": [
+              {
+                "const": false
+              },
+              {
+                "object": {
+                  "cells": "integer",
+                  "bytes": "integer"
+                }
+              }
+            ]
+          },
+          "results": "boolean",
+          "data": "boolean",
+          "records": "strings"
+        }
+      }
+    }
+  },
+  "output": {
+    "object": {
+      "dir": "string",
+      "create": "boolean",
+      "baseUrl": "string",
+      "maxFiles": "integer",
+      "maxMb": "integer",
+      "maxAgeDays": "integer",
+      "draftMaxAgeDays": "integer",
+      "template": "string",
+      "downloads": {
+        "object": {
+          "enabled": "boolean",
+          "expiresMinutes": "integer",
+          "bind": {
+            "enum": [
+              "signIn",
+              "once",
+              "none"
+            ]
+          },
+          "key": {
+            "custom": "fn"
+          },
+          "allowInsecureUrl": "boolean",
+          "signIn": {
+            "object": {
+              "clientId": "string",
+              "clientSecret": {
+                "custom": "fn"
+              },
+              "issuer": "string",
+              "scopes": "strings",
+              "tokenUrl": "string"
+            }
+          }
+        }
+      },
+      "upload": {
+        "object": {
+          "url": "string",
+          "headers": {
+            "map": {
+              "or": [
+                "string",
+                {
+                  "object": {
+                    "prefix": "string",
+                    "value": {
+                      "custom": "fn"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "link": "string",
+          "expiresAt": "string",
+          "presign": {
+            "object": {
+              "url": "string",
+              "headers": {
+                "map": {
+                  "or": [
+                    "string",
+                    {
+                      "object": {
+                        "prefix": "string",
+                        "value": {
+                          "custom": "fn"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "uploadUrl": "string",
+              "uploadHeaders": "string",
+              "link": "string",
+              "expiresAt": "string",
+              "allowOrigins": "strings"
+            }
+          },
+          "linkOrigins": "strings",
+          "method": {
+            "enum": [
+              "PUT",
+              "POST"
+            ]
+          },
+          "timeMs": "integer",
+          "maxBytes": "integer",
+          "keepLocal": "boolean",
+          "bind": {
+            "enum": [
+              "none",
+              "once",
+              "signIn"
+            ]
+          },
+          "intranet": "boolean"
+        }
+      }
+    }
+  },
+  "policy": {
+    "object": {
+      "default": {
+        "enum": [
+          "show",
+          "values",
+          "summary",
+          "hide"
+        ]
+      },
+      "fields": {
+        "map": {
+          "enum": [
+            "show",
+            "values",
+            "summary",
+            "hide"
+          ]
+        }
+      },
+      "items": "integer",
+      "rows": "boolean",
+      "counts": "boolean",
+      "inline": {
+        "or": [
+          {
+            "const": false
+          },
+          {
+            "object": {
+              "cells": "integer",
+              "bytes": "integer"
+            }
+          }
+        ]
+      },
+      "results": "boolean",
+      "data": "boolean",
+      "records": "strings",
+      "valuesMax": "integer",
+      "autoValues": {
+        "or": [
+          "boolean",
+          {
+            "object": {
+              "maxDistinct": "integer",
+              "minRowsPerValue": "integer",
+              "minRows": "integer",
+              "deny": "strings"
+            }
+          }
+        ]
+      },
+      "profiles": {
+        "map": {
+          "object": {
+            "default": {
+              "enum": [
+                "show",
+                "values",
+                "summary",
+                "hide"
+              ]
+            },
+            "fields": {
+              "map": {
+                "enum": [
+                  "show",
+                  "values",
+                  "summary",
+                  "hide"
+                ]
+              }
+            },
+            "items": "integer",
+            "rows": "boolean",
+            "counts": "boolean",
+            "inline": {
+              "or": [
+                {
+                  "const": false
+                },
+                {
+                  "object": {
+                    "cells": "integer",
+                    "bytes": "integer"
+                  }
+                }
+              ]
+            },
+            "results": "boolean",
+            "data": "boolean",
+            "records": "strings"
+          }
+        }
+      }
+    }
+  },
+  "limits": {
+    "map": "integer"
+  },
+  "locale": "string",
+  "timeZone": "string",
+  "compute": {
+    "object": {
+      "workers": "integer",
+      "timeMs": "integer",
+      "memoryMb": "integer",
+      "queueMs": "integer"
+    }
+  },
+  "http": {
+    "object": {
+      "host": "string",
+      "port": "integer",
+      "publicUrl": "string",
+      "allowHosts": "strings",
+      "allowOrigins": "strings",
+      "page": {
+        "or": [
+          {
+            "const": false
+          },
+          {
+            "const": true
+          },
+          {
+            "object": {
+              "sources": "boolean",
+              "url": {
+                "custom": "fn"
+              }
+            }
+          }
+        ]
+      },
+      "enable": {
+        "list": {
+          "enum": [
+            "mcp",
+            "rest"
+          ]
+        }
+      },
+      "trustProxy": "boolean",
+      "graceMs": "integer",
+      "maxConnectionsPerAddress": "integer"
+    }
+  },
+  "auth": {
+    "object": {
+      "mode": {
+        "enum": [
+          "none",
+          "token",
+          "oauth"
+        ]
+      },
+      "allowUnauthenticated": "boolean",
+      "tokens": {
+        "list": {
+          "object": {
+            "name": "string",
+            "env": "string",
+            "file": "string",
+            "create": "boolean",
+            "scopes": "strings",
+            "profile": "string",
+            "expires": "string"
+          }
+        }
+      },
+      "issuer": "string",
+      "resource": "string",
+      "audience": "strings",
+      "algorithms": "strings",
+      "jwksUri": "string",
+      "scopesSupported": "strings",
+      "requiredScopes": "strings",
+      "toolScopes": {
+        "map": "strings"
+      },
+      "scopeClaim": "string",
+      "subjectClaim": "string",
+      "clockTolerance": "integer",
+      "requireTyp": "string",
+      "allowInsecureIssuer": "boolean",
+      "clientProfiles": {
+        "map": "string"
+      },
+      "scopeProfiles": {
+        "map": "string"
+      },
+      "groupsClaim": "string",
+      "groupsSeparator": "string",
+      "groupProfiles": {
+        "list": {
+          "object": {
+            "group": "string",
+            "profile": "string"
+          }
+        }
+      },
+      "defaultProfile": "string",
+      "offerSourceScopes": "boolean",
+      "intranet": "boolean",
+      "signedTokens": {
+        "object": {
+          "dir": "string",
+          "maxDays": "integer"
+        }
+      },
+      "externalIssuers": {
+        "list": {
+          "object": {
+            "issuer": "string",
+            "typ": "string",
+            "maxMinutes": "integer",
+            "scopes": "strings",
+            "profiles": "strings",
+            "profile": "string",
+            "keys": {
+              "list": {
+                "object": {
+                  "kid": "string",
+                  "publicKey": {
+                    "custom": "fn"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "mcp": {
+    "object": {
+      "rateLimit": {
+        "object": {
+          "perMinute": "integer",
+          "burst": "integer",
+          "failedAuthPerMinute": "integer"
+        }
+      },
+      "concurrency": "integer",
+      "data": {
+        "or": [
+          {
+            "const": false
+          },
+          {
+            "object": {
+              "rows": "integer",
+              "cells": "integer",
+              "bytes": "integer"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "rest": {
+    "object": {
+      "resource": "string",
+      "audience": "strings",
+      "requiredScopes": "strings",
+      "cors": {
+        "object": {
+          "origins": "strings",
+          "maxAge": "integer"
+        }
+      },
+      "openapi": {
+        "enum": [
+          "auth",
+          "public",
+          "off"
+        ]
+      },
+      "inline": "boolean",
+      "rateLimit": {
+        "object": {
+          "perMinute": "integer",
+          "burst": "integer",
+          "failedAuthPerMinute": "integer"
+        }
+      },
+      "concurrency": "integer",
+      "data": {
+        "object": {
+          "maxBytes": "integer"
+        }
+      },
+      "signIn": {
+        "object": {
+          "clientId": "string"
+        }
+      },
+      "records": {
+        "object": {
+          "maxRows": "integer",
+          "maxCells": "integer",
+          "concurrency": "integer",
+          "idleMs": "integer",
+          "writeMs": "integer"
+        }
+      }
+    }
+  },
+  "baseDir": "string",
+  "httpSources": {
+    "object": {
+      "enabled": "boolean",
+      "allowIpLiterals": "boolean",
+      "backends": {
+        "map": {
+          "object": {
+            "url": "string",
+            "intranet": "boolean",
+            "headers": {
+              "map": "string"
+            },
+            "auth": {
+              "object": {
+                "header": {
+                  "object": {
+                    "name": "string",
+                    "prefix": "string",
+                    "value": {
+                      "custom": "fn"
+                    }
+                  }
+                },
+                "clientCredentials": {
+                  "object": {
+                    "tokenUrl": "string",
+                    "clientId": "string",
+                    "clientSecret": {
+                      "custom": "fn"
+                    },
+                    "assertion": {
+                      "custom": "fn"
+                    },
+                    "scope": "string",
+                    "audience": "string",
+                    "resource": "string",
+                    "intranet": "boolean"
+                  }
+                },
+                "tokenExchange": {
+                  "object": {
+                    "tokenUrl": "string",
+                    "clientId": "string",
+                    "clientSecret": {
+                      "custom": "fn"
+                    },
+                    "audience": "string",
+                    "resource": "string",
+                    "scope": "string",
+                    "maxAgeSeconds": "integer",
+                    "intranet": "boolean"
+                  }
+                }
+              }
+            },
+            "timeMs": "integer",
+            "maxBytes": "integer",
+            "ttl": "integer",
+            "maxStale": "integer"
+          }
+        }
+      }
+    }
+  },
+  "sourceCache": {
+    "object": {
+      "maxMb": "integer"
+    }
+  },
+  "audit": {
+    "object": {
+      "subject": {
+        "enum": [
+          "off",
+          "hash",
+          "plain"
+        ]
+      },
+      "key": {
+        "custom": "fn"
+      }
+    }
+  },
+  "log": {
+    "or": [
+      {
+        "enum": [
+          "debug",
+          "info",
+          "warn",
+          "error",
+          "off"
+        ]
+      },
+      {
+        "object": {
+          "level": {
+            "enum": [
+              "debug",
+              "info",
+              "warn",
+              "error",
+              "off"
+            ]
+          },
+          "format": {
+            "enum": [
+              "auto",
+              "text",
+              "json"
+            ]
+          },
+          "address": {
+            "enum": [
+              "on",
+              "off"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "branding": {
+    "object": {
+      "name": {
+        "custom": "fn"
+      },
+      "docsUrl": {
+        "custom": "fn"
+      },
+      "icon": "string"
+    }
+  }
+}

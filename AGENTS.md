@@ -72,6 +72,7 @@ node scripts/examples.js                                # the CLI's example file
 node scripts/openapi.js                                 # docs/openapi.json
 node scripts/decisions.js                               # docs/decisions/index.md
 PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-report    # golden files; review the diff
+PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-server    # the options table and check-config; review the diff
 ```
 
 Docs site: build and preview commands are in [CONTRIBUTING.md](CONTRIBUTING.md#docs).
