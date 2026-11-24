@@ -320,8 +320,7 @@ target you set. High and low points mark the highest and the lowest value of eac
 
 ### High and low points
 
-**High and low points** puts a dot on the highest and the lowest value of each series, with the
-value and ▲ or ▼ beside it.
+**High and low points** marks the highest and lowest value of each series: a dot, ▲ or ▼ and the value.
 
 ![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and a label with ▲ or ▼ and its value](../assets/screenshots/chart-points-light.png#only-light)
 ![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and a label with ▲ or ▼ and its value](../assets/screenshots/chart-points-dark.png#only-dark)
