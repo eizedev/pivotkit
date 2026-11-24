@@ -46,7 +46,7 @@ holds every part shown below. The sections explain each one.
 
     The server makes the token `admin` and the key of the [download links](../reference/delivery.md)
     on the volume `pivotkit-state`, so both survive a restart. See
-    [made at the first start](../reference/rest.md#first-start). The pod's log names the same
+    [made at the first start](../reference/tokens.md#first-start). The pod's log names the same
     `kubectl exec` command, but never the token. For tokens of your own as Secrets, see
     [managed secrets](#managed-secrets).
 

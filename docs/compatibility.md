@@ -137,7 +137,7 @@ The settings each provider needs:
     PIVOTKIT_TOKEN=... pivotkit-server serve --config pivotkit.json --auth token
     ```
 
-    `pivotkit-server token new` makes a token. See [tokens and keys](reference/rest.md#credentials).
+    `pivotkit-server token new` makes a token. See [tokens and keys](reference/tokens.md#credentials).
 
 === "Authentik"
 

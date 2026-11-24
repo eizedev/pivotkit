@@ -216,15 +216,15 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
 ## REST service and container { #rest }
 
 - `pivotkit-server` ([getting started](getting-started/rest.md), [pivotkit-server](reference/rest.md),
-  [tokens and keys](reference/rest.md#credentials),
+  [tokens and keys](reference/tokens.md#credentials),
   [reading check-config](reference/rest.md#check-config), [security](security.md#rest),
   [privacy](privacy.md)):
     - The same operations for programs over HTTP: list and describe sources, validate, describe
       and render views, links, and schedule drafts.
     - An OpenAPI document and errors as problem documents.
     - Sign-in with tokens or OAuth, tokens that expire on their own
-      ([signed tokens](reference/rest.md#signed-tokens)), and tokens another system issues
-      ([tokens from another system](reference/rest.md#external-issuers)).
+      ([signed tokens](reference/tokens.md#signed-tokens)), and tokens another system issues
+      ([tokens from another system](reference/tokens.md#external-issuers)).
     - Sign-in from the command line with a code in the browser
       ([sign in from the command line](reference/sign-in.md#sign-in-cli)).
     - Policy profiles per caller, with data sent in the request where a profile allows it
@@ -233,7 +233,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
       ([rows route](reference/rest.md#records)).
     - CORS off by default, and limits per caller.
     - A configuration check that says whether the server starts, and commands to make, list and
-      revoke tokens and keys ([list, revoke, remove](reference/rest.md#token-list)).
+      revoke tokens and keys ([list, revoke, remove](reference/tokens.md#token-list)).
 - Sources for both services ([data sources](reference/sources.md)):
     - data files
     - an operator's API as an HTTP source
@@ -251,7 +251,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
       template. The result holds the store's link ([upload](reference/delivery.md#upload)).
 - One container image for the REST service, the MCP server and the command line
   ([server in 5 minutes](getting-started/server-in-5-minutes.md),
-  [made at the first start](reference/rest.md#first-start), [container image](reference/container.md),
+  [made at the first start](reference/tokens.md#first-start), [container image](reference/container.md),
   [Kubernetes](getting-started/kubernetes.md)):
     - Small, non-root, read-only, with health checks.
     - Signed, with provenance and an SBOM.

@@ -380,7 +380,7 @@ one probably meant.
 | `http.publicUrl` | `--public-url url` | none | The server's origin as clients reach it (behind a proxy). No path, user name, password, query or fragment |
 | `http.allowHosts` | `--allow-host name` | localhost names | Host names the server answers to (DNS rebinding protection) |
 | `http.allowOrigins` | `--allow-origin name` | none | Browser origins (host names) allowed to call |
-| - | `--state-dir dir` | `$PIVOTKIT_STATE_DIR` | `--http`: where the server makes, at its first start, the token and keys it needs when none is given ([made at the first start](rest.md#first-start)). Nothing over stdio |
+| - | `--state-dir dir` | `$PIVOTKIT_STATE_DIR` | `--http`: where the server makes, at its first start, the token and keys it needs when none is given ([made at the first start](tokens.md#first-start)). Nothing over stdio |
 | `http.page` | - | on | The quick-start page. `{ "sources": true }` lists source ids on it. `false` turns it off. `{ "url": "https://..." }` sends `/` to your own page instead ([your page](branding.md#page)) |
 | `branding.name`, `.docsUrl`, `.icon` | - | pivotkit's | The name clients and people see, the base of the documentation links or `null` for none, and an icon ([your own name and links](branding.md)) |
 | `http.graceMs` | - | 25000 | How long a stop (SIGTERM or SIGINT, [stopping](rest.md#running)) waits for running requests |
@@ -747,20 +747,20 @@ no warning.
 - A token has at least 32 characters, only those a bearer token can carry: letters, digits,
   `-._~+/`, and `=` at the end. The start refuses another.
 - Make one with `npx -y pivotkit-server token new`, or into a file with `--file <path>`
-  ([tokens and keys](rest.md#credentials)).
+  ([tokens and keys](tokens.md#credentials)).
 - Tokens are compared as SHA-256 digests in constant time and never logged. The server refuses them
   in the address (`?access_token=`) and when a request carries two `Authorization` headers.
 - The token's name is the client in the log.
-- `auth.tokens[].expires` ends a token at a date ([expiry](rest.md#token-expires)).
+- `auth.tokens[].expires` ends a token at a date ([expiry](tokens.md#token-expires)).
 - The server can also issue tokens that expire on their own, with `pivotkit-server token issue`.
-  The MCP endpoint takes them like a static token ([signed tokens](rest.md#signed-tokens)).
+  The MCP endpoint takes them like a static token ([signed tokens](tokens.md#signed-tokens)).
 - It takes tokens another system issues for its signed-in person, checked with that system's
-  public key ([tokens from another system](rest.md#external-issuers)).
+  public key ([tokens from another system](tokens.md#external-issuers)).
 
 With `--http` and a state directory (`--state-dir`, `$PIVOTKIT_STATE_DIR`), a server that has no
 token and listens off loopback makes the token `admin` there at its first start. It does this
 instead of refusing to start: `auth.mode` unset off loopback then means `token`
-([made at the first start](rest.md#first-start)).
+([made at the first start](tokens.md#first-start)).
 
 A token file that is missing, empty or shorter than 32 characters while the server runs refuses
 every request with that token (401). The server then writes a warning naming the token and the

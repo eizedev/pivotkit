@@ -539,7 +539,7 @@ gets at each level, and how to set them per client.
     - Bodies are capped at 2 MiB.
 - **Authentication** is a static token or OAuth 2.1, or off (`auth` `none`):
     - A static token. The server compares it in constant time and never logs it.
-      [`pivotkit-server token new`](reference/rest.md#credentials) makes one: 32 random bytes in a
+      [`pivotkit-server token new`](reference/tokens.md#credentials) makes one: 32 random bytes in a
       file only its owner can read.
     - OAuth 2.1 as the [MCP authorization spec](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)
       describes. The server checks JWT access tokens for signature, issuer, audience (the server
@@ -659,7 +659,7 @@ and the sign-in above hold for it too. What differs:
     refuses a static token with fewer than 32 characters or 8 different characters, or one that
     repeats one piece.
 
-- **Signed tokens** ([signed tokens](reference/rest.md#signed-tokens)) are JWTs signed with the
+- **Signed tokens** ([signed tokens](reference/tokens.md#signed-tokens)) are JWTs signed with the
   server's Ed25519 keys. The server checks:
     - the signature, with `EdDSA` only, and the type `pivotkit+jwt`
     - the expiry and the lifetime, with `auth.clockTolerance` for the clocks
@@ -670,7 +670,7 @@ and the sign-in above hold for it too. What differs:
     symbolic link, or one the group or others may read, is not used. A static token is
     always compared first, so a static token that looks like a JWT keeps working.
 
-- **Tokens from another system** ([external issuers](reference/rest.md#external-issuers)): the
+- **Tokens from another system** ([external issuers](reference/tokens.md#external-issuers)): the
   server checks them like signed tokens, with that issuer's public keys, name and type only. The
   server holds no key that could make them. A private key in the configuration stops the start.
     - The issuer is a sign-in provider, not an operator. A token's scopes are cut to the entry's
@@ -702,7 +702,7 @@ Run it like this:
 It never listens on every address without sign-in.
 
 Without a token of yours, it makes the token `admin` at its first start, in its state volume
-([made at the first start](reference/rest.md#first-start)). It does so only where the configuration
+([made at the first start](reference/tokens.md#first-start)). It does so only where the configuration
 leaves auth to it. A written `auth.mode` `"token"` that resolves no token is refused, so a misspelt
 variable never becomes a token with every scope. The token `admin` holds every scope. Keep it like a
 password. When it leaves the machine, send it over HTTPS only.

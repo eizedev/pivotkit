@@ -249,7 +249,7 @@ service again:
     ```
 
     The token works at once, on REST and MCP. `token list --config pivotkit.json` shows it, and
-    `token revoke laptop --config pivotkit.json` ends it early ([signed tokens](../reference/rest.md#signed-tokens)).
+    `token revoke laptop --config pivotkit.json` ends it early ([signed tokens](../reference/tokens.md#signed-tokens)).
 
 ??? note "A server with a sign-in provider"
 

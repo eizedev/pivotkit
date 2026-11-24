@@ -12,7 +12,7 @@ This page is for the people who run pivotkit-server and connect it to a sign-in 
 - [Authentik step by step](#authentik): a provider for the MCP endpoint and the REST service.
 
 The OAuth keys of the MCP endpoint are in [OAuth 2.1](mcp.md#oauth). The tokens the server makes
-itself are in [Tokens and keys](rest.md#credentials).
+itself are in [Tokens and keys](tokens.md#credentials).
 
 ## Sign-in { #auth }
 
@@ -21,7 +21,7 @@ The modes are the [MCP server's](mcp.md#auth), from the same `auth` settings:
 | Mode | How | 401 answers with |
 | --- | --- | --- |
 | `none` | No check. Loopback only unless `auth.allowUnauthenticated` | - |
-| `token` | `Authorization: Bearer <token>`: `$PIVOTKIT_TOKEN`, named tokens in `auth.tokens` (from a variable or a file read on every request), a [signed token](rest.md#signed-tokens) the server issued, or a [token from another system](rest.md#external-issuers) | `WWW-Authenticate: Bearer realm="pivotkit"` |
+| `token` | `Authorization: Bearer <token>`: `$PIVOTKIT_TOKEN`, named tokens in `auth.tokens` (from a variable or a file read on every request), a [signed token](tokens.md#signed-tokens) the server issued, or a [token from another system](tokens.md#external-issuers) | `WWW-Authenticate: Bearer realm="pivotkit"` |
 | `oauth` | A JWT access token of the issuer for the REST resource | `WWW-Authenticate: Bearer error="invalid_token", ..., resource_metadata="..."` |
 
 The server reads only the `Authorization` header. It refuses a token in the address

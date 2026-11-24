@@ -350,7 +350,7 @@ When the server has a state directory (`/var/lib/pivotkit` in the [container ima
 `--state-dir` elsewhere), it keeps there:
 
 - in `secrets/`, the token `admin`, the key of the download links and the audit key it made at its
-  first start ([made at the first start](rest.md#first-start))
+  first start ([made at the first start](tokens.md#first-start))
 - in `out/`, the reports, where `output.dir` names it
 
 Back the volume up with the rest of the installation. Keep the backup as secret as the tokens: with

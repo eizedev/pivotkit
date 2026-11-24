@@ -68,6 +68,7 @@ nav = [
     { "Download links" = "reference/delivery.md" },
     { "Your own name and links" = "reference/branding.md" },
     { "Sign-in and identity providers" = "reference/sign-in.md" },
+    { "Tokens and keys" = "reference/tokens.md" },
     { "Container image" = "reference/container.md" },
     { "Operations and logs" = "reference/operations.md" },
     { "Kubernetes" = "getting-started/kubernetes.md" },

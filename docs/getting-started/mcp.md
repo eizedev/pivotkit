@@ -201,7 +201,7 @@ Its one static token is `$PIVOTKIT_TOKEN`.
 
 Either server takes `--state-dir <dir>` or `$PIVOTKIT_STATE_DIR`. It then keeps the download links'
 key in that folder. When no token is given and the server listens off loopback, it also makes a
-token of its own there. See [tokens made at the first start](../reference/rest.md#first-start).
+token of its own there. See [tokens made at the first start](../reference/tokens.md#first-start).
 
 ## PowerShell Universal { #psu }
 
