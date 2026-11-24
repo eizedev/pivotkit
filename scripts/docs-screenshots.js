@@ -807,7 +807,7 @@ async function reportShots(browser, only) {
     }
 }
 
-const playground = startPlayground(4174);
+const playground = await startPlayground(4174);
 try {
     await mkdir(out, { recursive: true });
     const browser = await chromium.launch();

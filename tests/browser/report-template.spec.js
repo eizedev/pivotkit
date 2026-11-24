@@ -5,12 +5,13 @@
 // a property the browser computes no value for (a cycle, `initial`) is the reader's default.
 import { DEFAULT_TEMPLATE, LIGHT_TOKENS, render } from "pivotkit-report";
 import { parseTemplate } from "pivotkit-report/template";
+// internals on purpose: the test compares templateTheme(), which no entry exports, with the browser
 import { templateTheme } from "../../packages/pivotkit-report/src/template-style.js";
 import { BASE_TOKENS, REPORT_FONT, TOKEN_LENGTH, cleanTokens } from "../../packages/pivotkit-report/src/tokens.js";
+import { expect, test } from "./fixtures.js";
 
 /** tokens.js's parts, as render() passes them. */
 const KIT = { base: BASE_TOKENS, font: REPORT_FONT, maxLength: TOKEN_LENGTH, clean: cleanTokens };
-import { expect, test } from "./fixtures.js";
 
 /** The default template with the template's own CSS before and after {{style}}. */
 const wrap = (before, after) => DEFAULT_TEMPLATE.replace("{{style}}", `${before}{{style}}${after}`);

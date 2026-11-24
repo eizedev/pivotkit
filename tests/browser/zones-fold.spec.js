@@ -3,7 +3,7 @@
 // zones taller on a phone, more fields in Rows on a desktop, a host's larger font size arriving late,
 // while the host's box keeps its height, so no resize of the report tells it. Normal motion, with the tickets data in a box of the host's height.
 import { encodeViewLink } from "pivotkit-core/link";
-import { expect, test, toolbar } from "./fixtures.js";
+import { expect, test, toolbar, untilStable } from "./fixtures.js";
 
 /**
  * On a desktop the open shelves of the tickets data need less than a low report's 600 px, so that
@@ -24,18 +24,7 @@ const state = (page) =>
     });
 
 /** Waits until the layout reads the same twice, apart (the report settles over its first renders). */
-async function settled(page) {
-    let last = "";
-    await expect
-        .poll(async () => {
-            const now = JSON.stringify(await state(page));
-            const same = now === last;
-            last = now;
-            return same;
-        }, { intervals: [250, 250, 250, 500] })
-        .toBe(true);
-    return JSON.parse(last);
-}
+const settled = (page) => untilStable(() => state(page));
 
 /** A page of the playground with another query parameter (before the fragment). */
 const withParam = (url, param) => url.replace(/(#|$)/, `&${param}$1`);

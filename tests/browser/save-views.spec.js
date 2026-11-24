@@ -9,6 +9,12 @@ const mine = (scope) => scope.getByTestId("topic-myViews").locator('[data-pk-ite
 /** The browser store of the playground's report, parsed. */
 const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("pivotkit:views:playground") ?? "null"));
 
+/** The host's answer to its oldest save still waiting: the test decides when the slow host answers. */
+async function answer(page) {
+    await expect.poll(() => page.evaluate(() => window.__answers.length)).toBeGreaterThan(0);
+    await page.evaluate(() => window.__answers.shift()());
+}
+
 for (const width of [1280, 1440]) {
     test(`a desktop window ${width} px wide: Views stays in the toolbar with a view loaded, next to its name`, async ({ page }) => {
         await page.setViewportSize({ width, height: 900 });
@@ -255,10 +261,11 @@ test("web component, the host's saves: Save and Save as send the name with scope
     await report.locator('[data-testid="pivot-table"]').waitFor();
     await page.evaluate(() => {
         const el = document.getElementById("views");
-        // the host keeps the user's views: its own entry, its answer after 400 ms
+        // the host keeps the user's views: its own entry; it answers when the test says (answer())
         el.saveTemplates = true;
         el.templates = [...el.templates, { name: "Host mine", view: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }, scope: "user", deletable: true }];
-        el.addEventListener("pivot-template-save", (e) => e.detail.respondWith(new Promise((done) => setTimeout(done, 400))));
+        window.__answers = [];
+        el.addEventListener("pivot-template-save", (e) => e.detail.respondWith(new Promise((done) => window.__answers.push(done))));
     });
     await toolbar(report, "views");
     await report.getByTestId("saved-view-Host mine").click();
@@ -269,6 +276,7 @@ test("web component, the host's saves: Save and Save as send the name with scope
     await toolbar(report, "views");
     await report.getByTestId("save-loaded").click();
     await report.getByTestId("show-table").click();
+    await answer(page);
     await expect(report.locator(".pk-toasts")).toContainText("View “Host mine” saved");
     await expect(report.getByTestId("view-changed")).toHaveCount(1);
     // back to what was saved: no mark
@@ -282,6 +290,7 @@ test("web component, the host's saves: Save and Save as send the name with scope
     await report.getByTestId("saved-view-name").fill("Host mine");
     await report.getByTestId("saved-view-name").press("Enter");
     await report.getByTestId("confirm-replace").click();
+    await answer(page);
     await expect.poll(() => page.evaluate(() => window.__events.length)).toBe(2);
     const events = await page.evaluate(() => window.__events);
     expect(events.map((e) => [e.type, e.detail.name, e.detail.scope, e.detail.view.display])).toEqual([
@@ -359,7 +368,9 @@ test("web component: a slow save that answers after New or after another view is
         const el = document.getElementById("views");
         el.saveTemplates = true;
         el.templates = [...el.templates, { name: "Host mine", view: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }, scope: "user" }];
-        el.addEventListener("pivot-template-save", (e) => e.detail.respondWith(new Promise((done) => setTimeout(done, 500))));
+        // the host answers when the test says (answer()), after the next step
+        window.__answers = [];
+        el.addEventListener("pivot-template-save", (e) => e.detail.respondWith(new Promise((done) => window.__answers.push(done))));
     });
     // Save as "Slow", then New before the host answers: the empty report gets no name
     await toolbar(report, "views");
@@ -369,6 +380,7 @@ test("web component: a slow save that answers after New or after another view is
     await page.keyboard.press("Escape");
     await (await startOver(report, "new-report")).click();
     await expect(report.getByTestId("empty-state")).toBeVisible();
+    await answer(page);
     await expect(report.locator(".pk-toasts")).toContainText("View “Slow” saved");
     await expect(report.getByTestId("view-name")).toHaveCount(0);
     // load "Host mine", Save as "Later", then load "Team view" before the answer: it keeps its own name
@@ -380,6 +392,8 @@ test("web component: a slow save that answers after New or after another view is
     await report.getByTestId("saved-view-name").press("Enter");
     await toolbar(report, "views");
     await report.getByTestId("saved-view-Team view").click();
+    await expect(report.getByTestId("view-name")).toHaveText("Team view");
+    await answer(page);
     await expect(report.locator(".pk-toasts")).toContainText("View “Later” saved");
     await expect(report.getByTestId("view-name")).toHaveText("Team view");
     await expect(report.getByTestId("view-changed")).toHaveCount(0);

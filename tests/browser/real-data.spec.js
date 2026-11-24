@@ -62,6 +62,8 @@ test.describe("weather", () => {
         const ranked = Object.entries(Object.groupBy(weather, (x) => x.City))
             .map(([city, list]) => [city, avg(list.map((x) => x["Sunshine h"]))])
             .sort((a, b) => b[1] - a[1]);
+        // the third and the fourth differ: a tie at the cut would make the top 3 depend on the order
+        expect(ranked[2][1]).not.toBe(ranked[3][1]);
         const rows = await tableRows(page);
         expect(rows.map((r) => r[0])).toEqual([...ranked.slice(0, 3).map(([c]) => c), "Grand Total"]);
         expect(rows[0][1]).toBe(one(ranked[0][1]));
@@ -144,6 +146,9 @@ test.describe("earthquakes", () => {
     test("the regions that shook most often, top 10", async ({ page }) => {
         await open(page, "data=earthquakes&preset=1");
         const ranked = Object.entries(Object.groupBy(quakes, (x) => x.Region)).sort((a, b) => b[1].length - a[1].length);
+        // the first is alone at the top, and no tie at the cut of the top 10
+        expect(ranked[0][1].length).toBeGreaterThan(ranked[1][1].length);
+        expect(ranked[9][1].length).toBeGreaterThan(ranked[10][1].length);
         const rows = await tableRows(page);
         expect(rows).toHaveLength(11);
         expect(rows[0]).toEqual([ranked[0][0], int(ranked[0][1].length), one(Math.max(...ranked[0][1].map((x) => x.Magnitude)))]);
@@ -373,6 +378,8 @@ test.describe("learning tasks", () => {
         await page.getByTestId("top-5").check();
         await expect.poll(async () => (await tableRows(page)).length).toBe(6);
         const ranked = Object.entries(Object.groupBy(weather, (x) => x.City)).map(([c, l]) => [c, avg(l.map((x) => x["Sunshine h"]))]).sort((a, b) => b[1] - a[1]);
+        // no tie at the cut
+        expect(ranked[4][1]).not.toBe(ranked[5][1]);
         expect((await tableRows(page)).map((r) => r[0])).toEqual([...ranked.slice(0, 5).map(([c]) => c), "Grand Total"]);
     });
 

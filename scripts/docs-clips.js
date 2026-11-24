@@ -207,7 +207,7 @@ async function record(browser, base, clip) {
 const only = process.env.CLIPS?.split(",");
 const unknown = only?.filter((name) => !CLIPS.some((c) => c.name === name));
 if (unknown?.length) throw new Error(`docs-clips: no clip named ${unknown.join(", ")}`);
-const playground = startPlayground(4175);
+const playground = await startPlayground(4175);
 try {
     await mkdir(out, { recursive: true });
     const browser = await chromium.launch();

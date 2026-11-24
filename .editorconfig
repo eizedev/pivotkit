@@ -11,6 +11,10 @@ indent_size = 4
 [*.{json,yml,yaml}]
 indent_size = 2
 
+# written by scripts/growth.js with 4 spaces: a ratchet's diff stays the lines that changed
+[scripts/growth-baseline.json]
+indent_size = 4
+
 [*.md]
 # Two trailing spaces are a line break in Markdown
 trim_trailing_whitespace = false
