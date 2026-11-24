@@ -222,8 +222,9 @@ test("styles.css: corner radii, font families and ring geometry only from --pk-*
 
 test("styles.css: every --pk-* token a rule uses has a default in the token block, a rule of its own, or is set from code or by the host", () => {
     const declared = new Set(declarations(css).filter((d) => d.selector === ":where(.pk-root)").map((d) => d.prop));
-    // tokens a rule of styles.css sets for its part (the result's least height, a label's width)
-    const byRule = new Set([...css.matchAll(/(--pk-[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+    // tokens a rule of styles.css sets for its part (the result's least height, a label's width); a
+    // token of the dark block alone has no default
+    const byRule = new Set(declarations(css).filter((d) => !TOKEN_BLOCKS.has(d.selector) && d.prop.startsWith("--pk-")).map((d) => d.prop));
     // tokens the report sets from code (a cell's colour, a bar's length, a swatch, the split) and the
     // one a host may set (--pk-font: unset, the report inherits the page's font)
     const fromCode = ["--pk-swatch", "--pk-row-cols", "--pk-row-room", "--pk-cell-bg", "--pk-bar-color", "--pk-bar", "--pk-split"];
@@ -239,6 +240,21 @@ test("styles.css: every --pk-* token a rule uses has a default in the token bloc
     for (const name of used) {
         assert.ok(declared.has(name) || byRule.has(name) || fromCode.includes(name) || byHost.includes(name), `${name} is used but has no default in :where(.pk-root) and nothing sets it`);
     }
+});
+
+/** Animations and transitions whose length is not --pk-duration (none is fine), as "line n: prop: value". */
+const ownDurations = (text) =>
+    declarations(text)
+        .filter((d) => /^(animation|transition)(-duration)?$/.test(d.prop) && !/^none\b/.test(d.value) && !d.value.includes("var(--pk-duration)"))
+        .map((d) => `line ${d.line}: ${d.prop}: ${d.value}`);
+
+test("the duration check finds a literal length and passes --pk-duration and none", () => {
+    assert.deepEqual(ownDurations(".pk-x { animation: pk-flash 600ms ease; transition: color 0.2s; }"), ["line 1: animation: pk-flash 600ms ease", "line 1: transition: color 0.2s"]);
+    assert.deepEqual(ownDurations(".pk-x { animation: pk-flash calc(var(--pk-duration) * 3) ease; transition: none; }"), []);
+});
+
+test("styles.css: every animation and transition takes its length from --pk-duration, so a host's 0ms or reduced motion stops it", () => {
+    assert.deepEqual(ownDurations(css), []);
 });
 
 test("styles.css: every --pk-weight-* a rule uses is declared in the token block", () => {

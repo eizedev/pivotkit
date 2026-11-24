@@ -60,10 +60,24 @@ test("a number for editing: the locale's decimal mark, no grouping", () => {
     }
 });
 
-test("numbers still read right after more locales than the marks' cache keeps (the first one is read anew)", () => {
-    assert.equal(parseNumber("1.000,5", "de-DE"), 1000.5);
-    for (let i = 0; i < 40; i++) {
-        assert.equal(parseNumber("1,000.5", `en-US-x-k${i}`), 1000.5);
+test("the marks of at most 32 locales are kept: the first of 41 locales is read anew, a recent one is not", () => {
+    const Original = Intl.NumberFormat;
+    let constructions = 0;
+    Intl.NumberFormat = function (...args) {
+        constructions++;
+        return new Original(...args);
+    };
+    try {
+        const locales = Array.from({ length: 41 }, (_, i) => `en-US-x-k${i}`);
+        for (const locale of locales) {
+            assert.equal(parseNumber("1,000.5", locale), 1000.5);
+        }
+        const before = constructions;
+        assert.equal(parseNumber("1,000.5", locales[40]), 1000.5);
+        assert.equal(constructions, before, "a recent locale's marks are kept");
+        assert.equal(parseNumber("1,000.5", locales[0]), 1000.5);
+        assert.equal(constructions, before + 1, "the oldest locale's marks were dropped");
+    } finally {
+        Intl.NumberFormat = Original;
     }
-    assert.equal(parseNumber("1.000,5", "de-DE"), 1000.5);
 });

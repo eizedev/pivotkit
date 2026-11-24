@@ -41,7 +41,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   the console warning. Past 2,000 entries the warning has one line for it, not one per object still
   to come.
 - A `fileName` that is a Windows device name before a dot, such as `aux.data`, becomes `pivot`, as
-  `aux` alone did. Windows reserves `AUX.data.csv` too.
+  `aux` alone did. Windows reserves `AUX.data.csv` too, and `COM¹` as `COM1`.
 - Type-ahead in a field's menu and in the settings menus compares letters in the report's `locale`.
 - The help of the chart's zoom says that the arrow keys move the slider. It said the slider could
   not be moved by keyboard yet.

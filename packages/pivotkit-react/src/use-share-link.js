@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { linkNow, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, writeStoredView } from "./share.js";
+import { linkNow, loadLink, readLinkParam, readStoredView, shareBase, writeStoredView } from "./share.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { sessionStore } from "./storage.js";
 
@@ -108,16 +108,9 @@ export function useShareLink(props, report) {
         if (link) {
             openLink(link);
         } else if (persistView === "session") {
-            const raw = readStoredView(storageKey, sessionStore());
-            if (raw) {
-                try {
-                    const loaded = viewFromObject(JSON.parse(raw), encoded, { limits });
-                    if (loaded.view) {
-                        history.restore(loaded.view);
-                    }
-                } catch {
-                    // a stored text that is no JSON (changed by hand): the start view stays
-                }
+            const view = readStoredView(storageKey, sessionStore(), encoded, { limits });
+            if (view) {
+                history.restore(view);
             }
         }
         // once per mounted report: a later change of these props does not bring a stored view back

@@ -6,8 +6,11 @@
 /** Characters no file system takes, path separators and control characters. */
 // eslint-disable-next-line no-control-regex
 const UNSAFE = /[<>:"/\\|?*\u0000-\u001F\u007F]+/g;
-/** Names Windows reserves for devices, with or without an extension ("nul.tar.gz" too): the part before the first dot. */
-const RESERVED = /^(con|prn|aux|nul|com\d|lpt\d)(\.|$)/i;
+/**
+ * Names Windows reserves for devices, also before an extension ("NUL.tar.gz" is NUL), with the
+ * superscript digits it counts as digits (COM¹): Microsoft's "Naming Files, Paths, and Namespaces".
+ */
+const RESERVED = /^(con|prn|aux|nul|com[\d¹²³]|lpt[\d¹²³])(\.|$)/i;
 
 /**
  * A file name without extension from the host's `fileName`: no path, no characters a file system

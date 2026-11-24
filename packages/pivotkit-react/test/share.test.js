@@ -52,27 +52,31 @@ test("the link's address: the page's own for true, the host's base URL, none whe
     }
 });
 
-test("the tab's view: stored per storageKey, quietly nothing when storage is blocked", () => {
+test("the tab's view: stored per storageKey, read back as a normalized view, quietly nothing when storage is blocked", () => {
     const map = new Map();
     const storage = { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => map.set(k, v) };
-    writeStoredView("sales", storage, { rows: ["Region"] });
-    assert.equal(readStoredView("sales", storage), JSON.stringify({ rows: ["Region"] }));
-    assert.equal(readStoredView("ops", storage), null);
+    writeStoredView("sales", storage, { rows: ["region"] });
+    assert.equal(map.get(viewStorageName("sales")), JSON.stringify({ rows: ["region"] }));
+    assert.deepEqual(readStoredView("sales", storage, data)?.rows, ["Region"]);
+    assert.equal(readStoredView("ops", storage, data), null);
     assert.equal(viewStorageName(undefined), "pivotkit:view:");
     const blocked = { getItem: () => { throw new Error("SecurityError"); }, setItem: () => { throw new Error("QuotaExceeded"); } };
-    assert.equal(readStoredView("sales", blocked), null);
+    assert.equal(readStoredView("sales", blocked, data), null);
     assert.doesNotThrow(() => writeStoredView("sales", blocked, {}));
-    assert.equal(readStoredView("sales", null), null);
+    assert.equal(readStoredView("sales", null, data), null);
 });
 
-test("the tab's view: a stored text longer than a view file is not read (storage is outside input)", () => {
-    const fits = JSON.stringify({ rows: ["Region"], note: "x".repeat(VIEW_TEXT_MAX - 30) });
-    const tooLong = JSON.stringify({ rows: ["Region"], note: "x".repeat(VIEW_TEXT_MAX) });
-    const map = new Map([[viewStorageName("fits"), fits], [viewStorageName("big"), tooLong]]);
+test("the tab's view: a stored text that is no view, or longer than a view file, is not read (storage is outside input)", () => {
+    const view = JSON.stringify({ rows: ["Region"] });
+    const map = new Map([
+        [viewStorageName("fits"), view + " ".repeat(VIEW_TEXT_MAX - view.length)],
+        [viewStorageName("big"), view + " ".repeat(VIEW_TEXT_MAX)],
+        [viewStorageName("hand"), "{ rows: Region"]
+    ]);
     const storage = { getItem: (k) => map.get(k) ?? null };
-    assert.ok(fits.length <= VIEW_TEXT_MAX && tooLong.length > VIEW_TEXT_MAX);
-    assert.equal(readStoredView("fits", storage), fits);
-    assert.equal(readStoredView("big", storage), null);
+    assert.deepEqual(readStoredView("fits", storage, data)?.rows, ["Region"]);
+    assert.equal(readStoredView("big", storage, data), null);
+    assert.equal(readStoredView("hand", storage, data), null);
 });
 
 test("a loaded view is normalized against the data; a template file gives its view", () => {

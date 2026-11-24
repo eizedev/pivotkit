@@ -64,18 +64,21 @@ export function shareBase(shareLink, here) {
 export const viewStorageName = (key) => `pivotkit:view:${key ?? ""}`;
 
 /**
- * The stored view of a report (persistView="session") as JSON text, or null (none, no storage, blocked).
+ * The stored view of a report (persistView="session"), read as the text of a view file and normalized
+ * as every view from outside is (viewFromObject: too long a text is not parsed). Null when there is
+ * none, storage is blocked, or the text is no view (changed by hand): the start view stays.
  * @param {string | undefined} key
  * @param {Pick<Storage, "getItem"> | null | undefined} storage
+ * @param {import("pivotkit-core").Encoded} encoded
+ * @param {{ limits?: object }} [options]
+ * @returns {LoadedView["view"]}
  */
-export function readStoredView(key, storage) {
-    if (!storage) {
-        return null;
-    }
+export function readStoredView(key, storage, encoded, options) {
     try {
-        const text = storage.getItem(viewStorageName(key));
-        return text !== null && text.length <= VIEW_TEXT_MAX ? text : null;
+        const text = storage?.getItem(viewStorageName(key));
+        return text ? viewFromObject(text, encoded, options).view : null;
     } catch {
+        // storage blocked, or a text that cannot be read as a view: the start view stays
         return null;
     }
 }
