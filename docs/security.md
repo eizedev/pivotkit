@@ -394,14 +394,8 @@ that may try to steer the model. [What reaches an AI model](model-data.md) shows
 gets at each level, and how to set them per client.
 
 - **Through pivotkit, the model gets what the policy shows.** It gets what the
-  [exposure policy](reference/mcp.md#policy) allows per field:
-
-    | Level | The model gets |
-    | --- | --- |
-    | `summary`, the default | names, types and counts |
-    | `values` | the field's values as a complete list |
-    | `show` | values and results. Only `show` fields give them. |
-    | `hide` | nothing. The field is dropped when the data is read. |
+  [exposure policy](reference/mcp.md#policy) allows per field. [Each level](model-data.md#levels)
+  shows what the model reads.
 
     - A view may touch a field that is not `show`, `values` included. Then its result is written to a
       file. Its row count, size and content are withheld from the model.
@@ -434,14 +428,8 @@ gets at each level, and how to set them per client.
 
     Leave out of the data, or `hide`, what the model must not learn about.
 
-- **Over stdio, the policy is no access control against the client.** A result names the report
-  file by its absolute path. A client with file or shell tools, such as Claude Code or VS Code, can
-  read that file and the source files. The model then reads values the policy keeps back. Give such
-  a client only data its model may see. Or run the server as another user or on another machine,
-  and connect over HTTP, where a result names no path.
-- **Links reach the model.** A sign-in link or a one-time link (`bind: "once"`) is in the result the
-  model reads. A client with a browser tool in the person's signed-in session can open it.
-  [What the policy does not cover](model-data.md#beyond-policy) has both.
+- **Over stdio, the policy is no access control against a client with file tools, and links reach
+  the model.** [What the policy does not cover](model-data.md#beyond-policy) says what follows.
 
 - **Data values are text, never instructions.** Names and values reach the model only inside the
   result's JSON. They are cleaned of control and direction characters and cut at 80 characters. They
@@ -482,8 +470,8 @@ gets at each level, and how to set them per client.
   model, not the operator:
     - No exposure policy applies to it.
     - A report over it is no proof that its content came from the operator's data.
-    - It is capped at 500 rows, 5,000 cells and 256 KiB. The operator may lower the cap or switch it
-      off with `mcp.data`, but never raise it.
+    - It has a fixed cap. The operator may lower the cap or switch it off with `mcp.data`, but never
+      raise it.
     - `rowCount` must match the rows sent.
     - The report is computed in a worker like one over a file. The table is checked in the main
       thread first.

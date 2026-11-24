@@ -92,12 +92,9 @@ A link to a report needs a page that shows reports. You set it as the source's `
 [PowerShell Universal](#psu) has an example.
 
 !!! warning "A client with file tools can read the files"
-    Over stdio, the answer names the report's absolute path. Claude Code, VS Code and other clients
-    with file or shell tools can read that file and your source files. The model then sees values
-    the policy keeps back, and its provider receives them. So over stdio the policy is no access
-    control against such a client. Give it only data its model may see. Or run the server as another
-    user and connect over [HTTP](#4-for-a-team-http).
-    [What the policy does not cover](../model-data.md#beyond-policy) has the details.
+    Claude Code, VS Code and other clients with file or shell tools can read the report and your
+    source files over stdio. The policy of step 3 does not stop them. Read
+    [what the policy does not cover](../model-data.md#beyond-policy) before you add real data.
 
 ## 3. Choose what the model may see
 
@@ -111,8 +108,8 @@ like this:
 | `hide` | fields the model must not know about | Nothing. The server drops them when it reads the data. |
 
 - `"policy": { "autoValues": true }` gives `values` to text fields that look like categories ([rule](../reference/mcp.md#auto-values)).
-- The levels do not cover [data the model sends itself](../reference/mcp.md#data) (`inline:`, up to
-  500 rows). `"mcp": { "data": false }` switches it off.
+- The levels do not cover [data the model sends itself](../reference/mcp.md#data), the source
+  `inline:`. `"mcp": { "data": false }` switches it off.
 
 Give each source a `description`, and explain short or coded field names in
 `fields.<name>.description`: a model chooses and reads sources by these words. In a configuration file:
