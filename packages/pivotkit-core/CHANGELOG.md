@@ -24,8 +24,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   - A column a person makes a number with `retype` reads in the notation its values fit. The notes
     `DECIMAL_MARK` and `DATE_ORDER` belong to a column's type and go when the type changes.
 - `normalize()` reports the settings it dropped without an issue. Each is a warning, so `validate()`
-  still calls such a view valid and a strict render still renders it. `normalize()` uses the
-  default, as before:
+  still calls such a view valid and pivotkit-report's strict render still renders it. The CLI's
+  `--strict` counts warnings as errors, so it now refuses such a view (see pivotkit-cli's changelog).
+  `normalize()` uses the default, as before:
   - A switch that is not `true` or `false` gives the new code `notSwitch`.
   - A `chart`, `formatting`, `collapsed` or `chart.referenceLines` that is not an object gives the
     new code `notSection`.

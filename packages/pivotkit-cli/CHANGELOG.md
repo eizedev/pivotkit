@@ -20,6 +20,11 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 - The command line's code moved from one file into modules of one concept each. Commands, options,
   messages, exit codes and output stay the same.
+- **Breaking:** `--strict` refuses a view with a setting that pivotkit-core now reports as a warning:
+  a switch that is not `true` or `false` (`grandTotalRow: "no"`), a section that is not an object, or
+  a sort's `by` or `order` and a "show values as" `axis` of an unknown kind. It wrote the result
+  before, because pivotkit-core dropped these settings without a word. Fix the setting, or leave out
+  `--strict`.
 - **Breaking:** `render <view> --link <url>` and `describe <data> --data <other data>` are usage
   errors (exit 2). One of the two inputs was left out without a word.
 - pivotkit-server no longer brings pivotkit-cli. To run `pivotkit-server cli` from an npm install,
