@@ -143,11 +143,15 @@ Done once. A new package needs steps 1 and 2 at its first release.
 `npm view <package>` answers E404 when a package is not on npm yet.
 All nine packages publish through staging: their trusted publishers have "Allow npm publish" unchecked.
 
-1. Publish the first version of each package by hand, in publish order:
+1. Create the package on npm by hand with a placeholder version `0.0.0-stage`. It must not be the
+   version in this repository: the release tag stages that one, and npm refuses a version twice.
+   The placeholder is a folder with a `package.json` (`name`, `"version": "0.0.0-stage"`,
+   `"description": "Temporary package placeholder for staged publishing"`, `license`, `repository`
+   with the package's `directory`) and a short README:
 
    ```bash
-   npm ci --ignore-scripts && npm run build && npm pack -w <package>
-   npm publish <tarball> --access public
+   npm pack --pack-destination ..
+   npm publish ../<package>-0.0.0-stage.tgz --access public
    ```
 
    Use an npm account with two-factor authentication.

@@ -48,8 +48,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - A time with more than three decimals of a second counts whole milliseconds, as `Date.parse` does.
   `"2026-01-30T23:59:59.9996"` rounded up into the next day and made its whole column text.
 - The format `percent100` writes a blank or a text as it is, as `number` does. It wrote "NaN".
-- `createHistory`: `push`, `undo`, `redo` and `reset` work when taken off the object. A `limit` that
-  is no number throws `INVALID_OPTION`. Before, `NaN` kept every step without a word. `Infinity`
+- `createHistory`: `push`, `undo`, `redo` and `reset` work when taken off the object.
+  **Breaking:** a `limit` that is no number throws `INVALID_OPTION`. Before, `NaN` kept every step without a word. `Infinity`
   keeps every step, as before.
 - `toXlsx` names "an Excel sheet" for a grid larger than a sheet, not a setting
   `limits.xlsxRows` that does not exist. `details.limit` stays `xlsxRows` or `xlsxColumns`.
@@ -68,20 +68,22 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   percent-decoded (`#/$defs/a%20b`). A path with a broken percent-encoding, such as `#/$defs/a%zz`,
   names nothing too, with the issue that the reference is not in the document. Before, every path
   was read as written: a key with a `%` of its own is reached as `%25` now.
-- The view schema refuses a blank value label or field name, as `normalize()` does (`badLabel`): a
+- **Breaking:** the view schema refuses a blank value label or field name, as `normalize()` does (`badLabel`): a
   value's `label` and a name in `fieldLabels` need a character that is no space
   (`pattern: "\\S"`). Affected: a host that validates stored view files against the published
   schemas `view-2.json` or `view-file-2.json`. A stored view with a blank label no longer passes
-  there; `normalize()` reported it before as now, and dropped the label.
+  there; `normalize()` reported it before as now, and dropped the label. What to do: give the label a
+  character or remove it ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-9)).
 - `encodeViewLink` counts the view in bytes, as `decodeViewLink` does: a view of many non-ASCII
   characters gave a link that `decodeViewLink` refused. The messages say "bytes".
-- `viewFromLayout` throws `INVALID_ARGUMENT` for a filter with a cycle or a BigInt, not a `TypeError`.
+- **Breaking:** `viewFromLayout` throws `INVALID_ARGUMENT` for a filter with a cycle or a BigInt, not a
+  `TypeError`.
 - Reading a file:
   - The readers read UTF-16 big endian without a byte order mark, as they read little endian.
   - Zero characters at the end of a file are padding and go. Several of them refused the file.
   - The reader ignores a `separator` that is a quote or a line break and finds one itself.
   - A `Blob` has no name to pick a reader by: the message says to read a `File` or pass `reader`.
-  - `plugins` that is no list throws `INVALID_OPTION`, not a `TypeError`.
+  - **Breaking:** `plugins` that is no list throws `INVALID_OPTION`, not a `TypeError`.
   - `readFile` calls a plugin's `load()` on the plugin, so a plugin that is an instance of a class
     works.
 
