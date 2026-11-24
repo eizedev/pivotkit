@@ -13,6 +13,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
+- Reports are written to an output directory on a file system without hard links, such as FAT,
+  exFAT and some SMB mounts. Writing them failed there. One-time links still need hard links there.
 - With two or more `files.allowDirs` and `files.list`, list_sources named the files of the second and
   later directories by their absolute path, so every caller with the files scope saw the server's
   directory layout. Every file is listed by its name now; a name an earlier directory has comes once.

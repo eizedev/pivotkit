@@ -6,6 +6,12 @@ All notable changes to `pivotkit-node` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Fixed
+
+- `writeNew` and `writeSafe` with `exclusive` work on file systems without hard links, such as FAT,
+  exFAT and some SMB mounts. There the new file is created exclusively under its own name. It still
+  never replaces a file. A temporary file that cannot be removed after the write no longer fails it.
+
 ### Added
 
 - The first release: the file handling of `pivotkit-cli/files` and the REST contract of
