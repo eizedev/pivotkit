@@ -1,7 +1,8 @@
 // Two chart types (#518) picked in Chart settings by real clicks: bars and lines (the first value as
 // bars, the others as lines on an axis of their own) and a treemap (a tile per category, its label in
 // the token colour that reads on it). The drawn marks come from the chart's own model.
-import { test, expect } from "../fixtures.js";
+import { installContrast } from "../contrast.js";
+import { expect, test } from "../fixtures.js";
 
 /** Revenue and units of five regions: two values of very different sizes. */
 const ROWS = [
@@ -46,30 +47,14 @@ const drawnSeries = (report) =>
         return option.series.map((s) => ({ type: s.type, axis: s.yAxisIndex ?? 0, tiles: s.type === "treemap" ? s.data.map((d) => ({ name: d.name, fill: d.itemStyle?.color, ink: d.label?.color, outline: d.label?.textBorderColor ?? null })) : null, axes: (option.yAxis ?? []).length }));
     });
 
-/** WCAG contrast of two colours the page resolves. */
-const contrast = (page, a, b) =>
-    page.evaluate(
-        ([a, b]) => {
-            const rgb = (c) => {
-                const probe = document.createElement("span");
-                probe.style.color = c;
-                document.body.append(probe);
-                const m = getComputedStyle(probe).color.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
-                probe.remove();
-                return m;
-            };
-            const lum = (c) => {
-                const [r, g, b] = rgb(c).map((v) => {
-                    const s = v / 255;
-                    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-                });
-                return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-            };
-            const [x, y] = [lum(a), lum(b)];
-            return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
-        },
-        [a, b]
-    );
+/** WCAG contrast of two opaque colours the page resolves. */
+async function contrast(page, a, b) {
+    await installContrast(page);
+    return page.evaluate(([a, b]) => {
+        const { parse, ratio } = window.__pkContrast;
+        return ratio(parse(a), parse(b));
+    }, [a, b]);
+}
 
 test("Chart settings offers bars and lines; with one value it is greyed out and says why; with two it draws bars and a line on its own axis", async ({ page }) => {
     let report = await mount(page, { values: [TWO[0]], chart: { type: "bar" } });

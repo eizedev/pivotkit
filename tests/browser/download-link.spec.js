@@ -7,6 +7,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { serve } from "pivotkit-server";
+import { installContrast } from "./contrast.js";
 import { expect, test, watchConsole } from "./fixtures.js";
 import { measure } from "./report-contrast.js";
 import { removeTempDirs, tempDir } from "../temp-dir.js";
@@ -109,7 +110,7 @@ test("the pages, light and dark, wide and at 390 px: details of the file, contra
                     for (const [name, url] of Object.entries(pages)) {
                         await page.goto(url);
                         const where = `${name}, ${colorScheme}, ${width} px`;
-                        const drawn = await page.evaluate(measure);
+                        const drawn = await measure(page);
                         // the scheme's own surface is what is measured against
                         expect(drawn.body, where).toBe(colorScheme === "dark" ? "rgb(13, 17, 23)" : "rgb(255, 255, 255)");
                         for (const t of drawn.texts) {
@@ -138,12 +139,11 @@ test("the pages, light and dark, wide and at 390 px: details of the file, contra
                             await page.keyboard.press("Tab");
                         }
                     }
+                    await installContrast(page);
                     const ring = await button.evaluate((b) => {
-                        const parse = (c) => (c.match(/[\d.]+/g) ?? []).map(Number).slice(0, 3).map((v) => (c.startsWith("color(") ? v * 255 : v));
-                        const lum = (rgb) => rgb.map((v) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+                        const { parse, ratio } = window.__pkContrast;
                         const style = getComputedStyle(b);
-                        const [x, y] = [lum(parse(style.outlineColor)), lum(parse(getComputedStyle(document.body).backgroundColor))].sort((p, q) => q - p);
-                        return { visible: b.matches(":focus-visible"), style: style.outlineStyle, width: parseFloat(style.outlineWidth), ratio: (x + 0.05) / (y + 0.05) };
+                        return { visible: b.matches(":focus-visible"), style: style.outlineStyle, width: parseFloat(style.outlineWidth), ratio: ratio(parse(style.outlineColor), parse(getComputedStyle(document.body).backgroundColor)) };
                     });
                     expect(ring.visible, `${colorScheme} ${width}: focus by keyboard`).toBe(true);
                     expect(ring.style).toBe("solid");
