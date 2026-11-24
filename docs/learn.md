@@ -44,8 +44,8 @@ temperature, rain and sunshine.
 - "Season" is the meteorological season, swapped south of the equator: December in Sydney is
   summer.
 
-![The weather data: the average temperature of each city by month as a colour scale from blue to red](assets/screenshots/learn-weather-light.png#only-light)
-![The weather data: the average temperature of each city by month as a colour scale from blue to red](assets/screenshots/learn-weather-dark.png#only-dark)
+![The weather data: the average temperature of each city by month as a colour scale from blue to red](assets/screenshots/report-light.png#only-light)
+![The weather data: the average temperature of each city by month as a colour scale from blue to red](assets/screenshots/report-dark.png#only-dark)
 
 **How warm is each city, month by month?** Cities on rows, the month on columns, the average of
 "Mean °C" coloured from cold to warm. The month spans all three years: January is every January of
@@ -141,8 +141,8 @@ Population, GDP in current US dollars and CO2 emissions (million tonnes, without
 countries from 2005 to 2024, with the World Bank's region and income group. The data leave out
 aggregates such as "World", so a total over countries is the world. "Year" is a number field.
 
-![The countries data: population of the three largest countries per region in 2024, grouped by region with subtotals](assets/screenshots/learn-countries-light.png#only-light)
-![The countries data: population of the three largest countries per region in 2024, grouped by region with subtotals](assets/screenshots/learn-countries-dark.png#only-dark)
+![The countries data: population of the three largest countries per region in 2024, grouped by region with subtotals](assets/screenshots/tips-light.png#only-light)
+![The countries data: population of the three largest countries per region in 2024, grouped by region with subtotals](assets/screenshots/tips-dark.png#only-dark)
 
 **Where do most people live? Region, then country (2024)** Region and country on rows, the sum of
 population, filtered to 2024 and to the top 3 countries of each region.

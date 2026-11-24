@@ -117,8 +117,8 @@ settings stay with the report: in saved views, links and the chart image. They a
 chart type changes. An **i** explains Group labels, Tooltip, Zoom slider, Series, Stacked to 100 % and the
 labels of a pie.
 
-![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Series and Layout](../assets/screenshots/chart-display-light.png#only-light)
-![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Series and Layout](../assets/screenshots/chart-display-dark.png#only-dark)
+![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series and Layout](../assets/screenshots/chart-display-light.png#only-light)
+![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series and Layout](../assets/screenshots/chart-display-dark.png#only-dark)
 
 | Setting | Path | Choices | Default |
 | --- | --- | --- | --- |
@@ -228,10 +228,10 @@ labels of a pie.
 ## Many slices without a legend { #many-slices }
 
 With the legend **Off**, the labels are the only names of the slices. When they have no room, the
-smallest slices go into one grey slice, such as "Other (14)".
+smallest slices go into one grey slice, such as "Other (12)".
 
-![A donut of 20 countries on a phone: the six largest with their names, the rest as one grey slice "Other (14)"](../assets/screenshots/donut-other-light.png#only-light){ width="300" }
-![A donut of 20 countries on a phone: the six largest with their names, the rest as one grey slice "Other (14)"](../assets/screenshots/donut-other-dark.png#only-dark){ width="300" }
+![A donut of 20 countries on a phone: the eight largest with their names, the rest as one grey slice "Other (12)"](../assets/screenshots/donut-other-light.png#only-light){ width="300" }
+![A donut of 20 countries on a phone: the eight largest with their names, the rest as one grey slice "Other (12)"](../assets/screenshots/donut-other-dark.png#only-dark){ width="300" }
 
 - The number says how many slices it holds. Its size is their sum.
 - Point at it, or tap it on a phone, to see each slice it holds with its value, the largest first.
@@ -322,8 +322,8 @@ target you set. High and low points mark the highest and the lowest value of eac
 
 **High and low points** puts a dot on the highest and the lowest value of each series.
 
-![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and its value](../assets/screenshots/chart-points-light.png#only-light)
-![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and its value](../assets/screenshots/chart-points-dark.png#only-dark)
+![A line for each year of monthly temperatures, each year's highest and lowest month marked with a triangle and its value](../assets/screenshots/chart-points-light.png#only-light)
+![A line for each year of monthly temperatures, each year's highest and lowest month marked with a triangle and its value](../assets/screenshots/chart-points-dark.png#only-dark)
 
 - The dot has the series' colour. Its label starts with ▲ for the highest value or ▼ for the
   lowest, in the same colour, then the value as the table writes it.

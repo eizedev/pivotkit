@@ -9,8 +9,10 @@
 // window size, whether to wait for the chart and what to open before the picture is taken. Each shot is taken in both themes,
 // `<name>-light.png` and `<name>-dark.png`, which the pages show with `#only-light` and `#only-dark`.
 // The generated data has a fixed seed, the real data is a committed snapshot and the browser's clock
-// stands at the snapshot's day (tests/snapshot-day.js), so the numbers are the same on every run,
-// also for filters relative to today. A shot opened from a link hides the toast the link gives.
+// starts at noon of the snapshot's day (tests/snapshot-day.js), so the numbers are the same on every run,
+// also for filters relative to today. The clock runs on from there: a clock that stands still stops
+// ECharts' animations midway, and a chart can show its labels without its slices. A shot opened from
+// a link hides the toast the link gives.
 //
 // One picture is not taken here: xlsx-result-light.png and xlsx-result-dark.png (one image twice,
 // since a workbook has no dark theme). Take it again by hand when the export's look changes:
@@ -28,6 +30,8 @@ import { SNAPSHOT_DAY } from "../tests/snapshot-day.js";
 const out = fileURLToPath(new URL("../docs/assets/screenshots/", import.meta.url));
 
 const WIDE = { width: 1440, height: 900 };
+/** A wide window for a menu longer than WIDE's height. */
+const TALL = { width: 1440, height: 1080 };
 const THEMES = ["light", "dark"];
 const PHONE = { width: 390, height: 844 };
 
@@ -145,6 +149,33 @@ const QUICK_STEPS = [
 async function quick(page, count) {
     for (const step of QUICK_STEPS.slice(0, count)) await step(page);
     await hideToasts(page);
+}
+
+/**
+ * Scrolls an element to the top of a phone's window, so the shot shows the report as a host gives
+ * it and not the playground's own header above it. Room below the page lets a short page scroll.
+ */
+const toTop = (locator) => locator.evaluate((el) => {
+    el.ownerDocument.body.style.paddingBottom = "100vh";
+    el.style.scrollMarginTop = "12px";
+    el.scrollIntoView({ block: "start" });
+});
+
+/**
+ * Waits until the chart's canvas, where one shows, stays the same for 300 ms, at most 5 s: an update after the first
+ * draw (a resize, labels that need room) animates again, and a picture taken during it shows a
+ * half-drawn chart.
+ */
+async function chartSettled(page) {
+    const canvas = page.locator('[data-testid="pivot-chart"] canvas').first();
+    if (!(await canvas.count())) return;
+    let last = "";
+    for (const end = Date.now() + 5000; Date.now() < end;) {
+        const now = await canvas.evaluate((el) => el.toDataURL());
+        if (now === last) return;
+        last = now;
+        await page.waitForTimeout(300);
+    }
 }
 
 /** Clicks a toolbar button, or its entry in "More" when the report is too narrow for it. */
@@ -306,15 +337,13 @@ const SHOTS = [
         name: "phone",
         query: "data=tickets&height=800",
         size: PHONE,
-        open: (page) => page.locator(".pk-root").evaluate((el) => {
-            el.style.scrollMarginTop = "12px";
-            el.scrollIntoView({ block: "start" });
-        })
+        open: (page) => toTop(page.locator(".pk-root"))
     },
     {
         name: "chart-display",
         query: "data=sales&preset=1",
-        size: WIDE,
+        // tall enough for the whole menu, Layout included
+        size: TALL,
         chart: true,
         open: async (page) => {
             // the legend at the bottom (its level), back on the first level: the chart types and the topic rows
@@ -333,7 +362,7 @@ const SHOTS = [
         chart: true,
         open: async (page) => {
             await hideToasts(page);
-            await page.getByTestId("pivot-chart").evaluate((el) => el.scrollIntoView({ block: "end" }));
+            await toTop(page.locator(".pk-root"));
         }
     },
     // a line with its average (dashed), its trend (dotted) and a target (solid)
@@ -384,11 +413,10 @@ const SHOTS = [
         }
     },
     {
-        // Start over open at the start view: Reset greyed out with its reason, New with what it does;
-        // a window of 1920 px, where Start over is in the toolbar with the field list open
+        // Start over open at the start view: Reset greyed out with its reason, New with what it does
         name: "start-over",
         query: "data=sales",
-        size: { width: 1920, height: 900 },
+        size: WIDE,
         open: (page) => page.getByTestId("start-over").click()
     },
     {
@@ -396,13 +424,17 @@ const SHOTS = [
         name: "more-menu",
         query: "data=sales",
         size: PHONE,
-        open: (page) => page.getByTestId("more").click()
+        open: async (page) => {
+            await toTop(page.locator(".pk-root"));
+            await page.getByTestId("more").click();
+        }
     },
     {
         // Shared views (the presets and the views of the OpenAPI document) and My views with one saved
         name: "views-menu",
         query: "data=endoflife",
-        size: WIDE,
+        // tall enough for the whole menu, Share this view included
+        size: TALL,
         open: async (page) => {
             await toolbar(page, "views");
             await page.getByTestId("save-as").click();
@@ -575,6 +607,7 @@ const SHOTS = [
         query: "data=sales",
         size: PHONE,
         open: async (page) => {
+            await toTop(page.locator(".pk-root"));
             await page.getByTestId("layout-summary").click();
             await page.getByTestId("chip-menu-Sum of Revenue").click();
         }
@@ -593,12 +626,7 @@ const SHOTS = [
         hash: encodeViewLink({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "donut", valueLabels: "value", legend: "bottom" } }),
         size: PHONE,
         chart: true,
-        open: async (page) => {
-            await page.getByTestId("pivot-chart").evaluate((el) => {
-                el.style.scrollMarginTop = "12px";
-                el.scrollIntoView({ block: "start" });
-            });
-        }
+        open: (page) => toTop(page.locator(".pk-root"))
     },
     {
         // bars and lines: revenue per month as bars, units as a line on the right axis
@@ -649,12 +677,7 @@ const SHOTS = [
         }),
         size: PHONE,
         chart: true,
-        open: async (page) => {
-            await page.getByTestId("pivot-chart").evaluate((el) => {
-                el.style.scrollMarginTop = "12px";
-                el.scrollIntoView({ block: "start" });
-            });
-        }
+        open: (page) => toTop(page.locator(".pk-root"))
     },
     {
         // Table settings: totals that change nothing say why, an "i" explains each, then Expand all and Collapse all
@@ -748,9 +771,8 @@ const SHOTS = [
         // the note that the view came from the link would cover the last column
         open: (page) => hideToasts(page)
     },
-    // "Learn with real data": one template of each real data set
-    { name: "learn-weather", query: "data=weather&preset=0", size: WIDE },
-    { name: "learn-countries", query: "data=countries&preset=0", size: WIDE },
+    // "Learn with real data": one template of each real data set. Weather and countries show the
+    // shots `report` and `tips`, which open the same templates
     {
         name: "learn-earthquakes",
         query: "data=earthquakes&preset=2",
@@ -815,7 +837,7 @@ try {
     for (const shot of SHOTS.filter((s) => !only || only.includes(s.name))) {
         for (const theme of THEMES) {
             const page = await browser.newPage({ viewport: shot.size, deviceScaleFactor: 1, reducedMotion: "reduce", colorScheme: theme });
-            await page.clock.setFixedTime(SNAPSHOT_DAY);
+            await page.clock.setSystemTime(SNAPSHOT_DAY);
             await openPlayground(page, playground.base, { query: shot.query, hash: shot.hash, theme });
             // "Opened the view from the link" is no part of what a shot shows
             if (shot.hash) await hideToasts(page);
@@ -823,6 +845,7 @@ try {
             if (shot.open) await shot.open(page);
             // fonts, the chart's first frame, the popover's position
             await page.waitForTimeout(600);
+            await chartSettled(page);
             const name = `${shot.name}-${theme}.png`;
             await page.screenshot({ path: `${out}${name}` });
             await page.close();
