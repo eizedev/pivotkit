@@ -21,8 +21,9 @@ npx pivotkit-cli render view.json --data data.csv -o out.html
 - `src/cli.js` holds `main()`. It reads the command and its options, runs it and writes the outcome.
 - Each command has its module: `render.js`, `validate.js`, `describe.js`, `suggest.js` for
   `describe --suggest`, `examples.js`, `sign-in.js` and `remote-commands.js`.
-- The shared parts: `options.js`, `inputs.js` for files and stdin, `view.js`, `data.js`, and
-  `explain.js` for the findings explained for a person. Each file's header says what it holds.
+- The shared parts: `options.js`, `inputs.js` for files and stdin, `view.js`, `data.js`,
+  `view-from-data.js`, `explain.js` for the findings explained for a person, `operation.js`,
+  `render-options.js` and `versions.js`. Each file's header says what it holds.
 
 ## Commands table
 
