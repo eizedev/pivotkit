@@ -743,7 +743,8 @@ const SHOTS = [
             await hideToasts(page);
         }
     },
-    { name: "import-empty", query: "data=sales&empty&import", size: WIDE },
+    // tall enough that the start buttons under the load box are not cut
+    { name: "import-empty", query: "data=sales&empty&import", size: TALL },
     {
         name: "import-phone",
         query: "data=sales&import",
@@ -800,10 +801,13 @@ const SHOTS = [
  * and dark theme: the shots of "Your own corporate design". Corporate is light on every screen
  * (`light: true`): one picture, written as both names.
  */
+/** A window that holds the sales table to its footer line, so no row is cut in half. */
+const REPORT_SIZE = { width: 1000, height: 850 };
+
 const REPORT_SHOTS = [
-    { name: "template-corporate", template: "corporate.template.html", view: "sales.pivotkit.json", size: { width: 1000, height: 760 }, light: true },
-    { name: "template-corporate-chart", template: "corporate.template.html", view: "sales-chart.pivotkit.json", size: { width: 1000, height: 760 }, light: true },
-    { name: "template-minimal", template: "minimal.template.html", view: "sales-chart.pivotkit.json", size: { width: 1000, height: 760 } }
+    { name: "template-corporate", template: "corporate.template.html", view: "sales.pivotkit.json", size: REPORT_SIZE, light: true },
+    { name: "template-corporate-chart", template: "corporate.template.html", view: "sales-chart.pivotkit.json", size: REPORT_SIZE, light: true },
+    { name: "template-minimal", template: "minimal.template.html", view: "sales-chart.pivotkit.json", size: REPORT_SIZE }
 ];
 
 /** Takes the report shots: the HTML report opened as a page of its own, as a reader opens the file. */
