@@ -28,9 +28,9 @@
 import { CodedError } from "pivotkit-core/internal";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { OperationError } from "pivotkit-report/operations";
-import { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-node/rest";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
-import { AUDIT_KEY_MIN, auditText, noteAudit } from "./log.js";
+import { auditText, noteAudit } from "./log.js";
+import { AUDIT_KEY_MIN, TOKEN_DISTINCT_MIN, TOKEN_MIN, TOKEN_SYNTAX, keyProblem, tokenFault } from "./secret-rules.js";
 import { UTF16_TEXT, readSecret, readSecretFile, secretValue, unreadable } from "./secrets.js";
 import { discover, issuerRulesOf, jwksUriOf, remoteKeySet } from "./issuer.js";
 import { guardedFetch, isGuardedFetch } from "./sources/fetch.js";
@@ -39,45 +39,8 @@ import { SIGNED_TOKEN, SignedTokenError, createSignedVerifier, expiryOf, keyring
 import { maxLifetimeOf } from "./options/signed.js";
 import { externalVerifier, loadExternalIssuers } from "./external-issuers.js";
 
-/** The fewest characters of a static token. */
-export const TOKEN_MIN = 32;
-
-/**
- * The fewest different characters of a static token. A random token has far more: `token new`
- * gives 43 characters of 64, and a hex token of 32 characters (openssl rand -hex 16) had at least 8
- * in a million tries.
- */
-export const TOKEN_DISTINCT_MIN = 8;
-
-/**
- * Why a static token is too easy to guess, or null: fewer than TOKEN_DISTINCT_MIN different
- * characters, or one piece repeated (the token repeats with a period of at most half its length,
- * such as abcabc...). The failed-token limit slows guessing per address only, so a token must not be
- * guessable.
- * @param {string} value
- * @returns {string | null}
- */
-export function tokenGuessable(value) {
-    const distinct = new Set(value).size;
-    if (distinct < TOKEN_DISTINCT_MIN) {
-        return `too easy to guess (${distinct} different character${distinct === 1 ? "" : "s"}, at least ${TOKEN_DISTINCT_MIN})`;
-    }
-    // the shortest period: the length less the longest border (Knuth-Morris-Pratt's prefix function)
-    const border = new Int32Array(value.length);
-    for (let i = 1, k = 0; i < value.length; i++) {
-        while (k > 0 && value[i] !== value[k]) {
-            k = border[k - 1];
-        }
-        if (value[i] === value[k]) {
-            k++;
-        }
-        border[i] = k;
-    }
-    return value.length - border[value.length - 1] <= value.length / 2 ? "too easy to guess (one piece repeated)" : null;
-}
-
-/** What a bearer token may hold and why another one does not work: pivotkit-node/rest's, which the CLI checks a token against before it sends it. */
-export { TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "pivotkit-node/rest";
+/** The rules a static token must meet live in secret-rules.js; TOKEN_MIN stays exported here for pivotkit-server/internal. */
+export { TOKEN_MIN } from "./secret-rules.js";
 
 /** The command that makes a token, for the messages. */
 export const MAKE_TOKEN = "pivotkit-server token new (with --file <path> it writes a file only you read)";
@@ -161,15 +124,10 @@ async function staticTokens(auth, env, options, tokenEnv) {
                 throw new ConfigError(`auth: ${which} (${t.file}) cannot be read: ${unreadable(why)}`);
             }
         }
-        if (value.length < TOKEN_MIN) {
-            throw new ConfigError(`auth: ${which} (${t.env ? `$${t.env}` : "its file"}) is missing or shorter than ${TOKEN_MIN} characters; make one with: ${MAKE_TOKEN}`);
-        }
-        if (!TOKEN_SYNTAX.test(value)) {
-            throw new ConfigError(`auth: ${which} (${t.env ? `$${t.env}` : "its file"}) ${TOKEN_SYNTAX_TEXT}; make one with: ${MAKE_TOKEN}`);
-        }
-        const guessable = tokenGuessable(value);
-        if (guessable) {
-            throw new ConfigError(`auth: ${which} (${t.env ? `$${t.env}` : "its file"}) is ${guessable}; make one with: ${MAKE_TOKEN}`);
+        const fault = tokenFault(value);
+        if (fault) {
+            const words = fault.kind === "short" ? `is missing or shorter than ${TOKEN_MIN} characters` : fault.kind === "syntax" ? fault.text : `is ${fault.text}`;
+            throw new ConfigError(`auth: ${which} (${t.env ? `$${t.env}` : "its file"}) ${words}; make one with: ${MAKE_TOKEN}`);
         }
         // validateOptions checked the date: refused from then on
         const expiresAt = t.expires ? expiryOf(t.expires, { durations: false }) : null;
@@ -179,7 +137,7 @@ async function staticTokens(auth, env, options, tokenEnv) {
 }
 
 /**
- * A token file's read with whether its token can be used (TOKEN_MIN, tokenGuessable), judged once
+ * A token file's read with whether its token can be used (secret-rules.js tokenFault), judged once
  * per value the file gives, not on every request that compares it. A variable's token is judged at
  * start.
  * @param {() => Promise<string>} read
@@ -190,10 +148,16 @@ function judged(read) {
     return async () => {
         const value = await read();
         if (value !== last.value) {
-            last = { value, usable: value.length >= TOKEN_MIN && !tokenGuessable(value) };
+            last = { value, usable: tokenFault(value) === null };
         }
         return last;
     };
+}
+
+/** Why a static token's file read after the start cannot be used, in words for the log (never the value). */
+function fileTokenCause(v) {
+    const fault = tokenFault(v);
+    return v === "" ? "its file is empty" : fault?.kind === "short" ? `its file has ${v.length} characters` : fault ? `its file holds a token ${fault.kind === "syntax" ? `that ${fault.text}` : fault.text}` : "its file holds a token that cannot be used";
 }
 
 /** How often a static token's file that cannot be used is said on the log, at most: once a minute. */
@@ -330,7 +294,7 @@ export async function auditOf(options, { env, log }) {
     } catch (e) {
         throw new ConfigError(`audit.key: ${String(e?.message ?? e)}`);
     }
-    if (key.length < AUDIT_KEY_MIN) {
+    if (keyProblem("audit")(key)) {
         throw new ConfigError(`audit.key: at least ${AUDIT_KEY_MIN} characters (a short key lets anyone with the log try names); make one with: ${makeKey("audit")}`);
     }
     return { subject, key: Buffer.from(key, "utf8") };
@@ -537,7 +501,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
                 const cause = await readSecretFile(/** @type {string} */ (t.file)).then(
                     (text) => {
                         const v = secretValue(text, "token");
-                        return v === "" ? "its file is empty" : v.length < TOKEN_MIN ? `its file has ${v.length} characters` : `its file holds a token ${tokenGuessable(v) ?? "that cannot be used"}`;
+                        return fileTokenCause(v);
                     },
                     (e) => (e?.code === "ENOENT" ? "its file is missing" : e?.code === "UTF16" ? `its file ${UTF16_TEXT}` : "its file cannot be read")
                 );

@@ -1,6 +1,7 @@
 // The groups of the toolbar's menus as people see them: each group under a title in the weight of
 // Export's titles, a rule between groups (none above the first), and what each group holds, in order.
 // Table settings, Views, Chart settings, More, a value's menu; the Views menu holds only what persists.
+import { installContrast } from "./contrast.js";
 import { chipMenu, expect, test, toolbar } from "./fixtures.js";
 
 /**
@@ -137,37 +138,15 @@ test("a value's Summarize by: More statistics under its title, a rule above it",
  * @param {import("@playwright/test").Locator} scope
  */
 async function ruleContrasts(scope) {
+    await installContrast(scope.page());
     return scope.locator(".pk-section").evaluateAll((els) => {
-        const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
-        const parse = (c) => {
-            ctx.clearRect(0, 0, 1, 1);
-            ctx.fillStyle = c;
-            ctx.fillRect(0, 0, 1, 1);
-            const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
-            return [r, g, b, a / 255];
-        };
-        const over = (top, below) => [0, 1, 2].map((i) => top[i] * top[3] + below[i] * (1 - top[3])).concat(1);
-        const lum = (c) => {
-            const [r, g, b] = c.slice(0, 3).map((v) => {
-                const s = v / 255;
-                return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-            });
-            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        };
+        const { parse, over, ratio, behind: behindOf } = window.__pkContrast;
         return els
             .filter((el) => parseFloat(getComputedStyle(el).borderTopWidth) >= 1)
             .map((el) => {
-                const layers = [];
-                for (let n = el; n; n = n.parentElement) {
-                    const bg = parse(getComputedStyle(n).backgroundColor);
-                    if (bg[3] > 0) layers.push(bg);
-                    if (bg[3] === 1) break;
-                }
-                let behind = [255, 255, 255, 1];
-                for (const layer of layers.reverse()) behind = over(layer, behind);
+                const behind = behindOf(el);
                 const rule = over(parse(getComputedStyle(el).borderTopColor), behind);
-                const [hi, lo] = [lum(rule), lum(behind)].sort((a, b) => b - a);
-                return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
+                return Math.round(ratio(rule, behind) * 100) / 100;
             });
     });
 }

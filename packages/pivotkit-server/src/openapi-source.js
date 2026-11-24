@@ -29,7 +29,7 @@ import { open, readFile } from "node:fs/promises";
 import { DOCS_SITE, docsLink, docsOf, docsUrlProblems } from "./options/branding.js";
 import { SOURCE_ID } from "pivotkit-node/rest";
 import { FIELD_DESCRIPTION_MAX, TODO_MARK, todoEntries, todoPaths } from "./options/base.js";
-import { SECRET_NAME } from "./options/http.js";
+import { HEADER_NAME, SECRET_NAME } from "./options/headers.js";
 import { ipBytes } from "pivotkit-node/net";
 import { GuardedFetchError, addressRefusal, guardedFetch } from "./sources/fetch.js";
 import { PARAM_LIMITS, PARAM_NAME, PARAM_TYPES, declaredProblems } from "./sources/params.js";
@@ -83,8 +83,6 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** An OAuth scope token (RFC 6749, 3.3). */
 const SCOPE_TOKEN = /^[\x21\x23-\x5b\x5d-\x7e]{1,128}$/;
 
-/** A header's name (RFC 9110 token), as options/http.js takes it. */
-const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/;
 
 /**
  * The headers a document's API key may not name: the connection's own, and those that would carry

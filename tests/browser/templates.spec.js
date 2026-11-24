@@ -123,15 +123,7 @@ test("web component: templates from view files, the browser store, publish and d
     await page.goto("pages/element-views.html");
     const report = page.locator("#views");
     await report.locator('[data-testid="pivot-table"]').waitFor();
-    const openViews = async () => {
-        const views = report.getByTestId("views");
-        if (await views.count()) await views.click();
-        else {
-            await report.getByTestId("more").click();
-            await report.getByTestId("more-views").click();
-        }
-    };
-    await openViews();
+    await toolbar(report, "views");
     // the name of a view file entry is the file's
     expect(await group(report, "sharedViews")).toEqual(["From a view file", "Team view"]);
     // the shared view an admin may delete has a delete button instead of the i
@@ -143,7 +135,7 @@ test("web component: templates from view files, the browser store, publish and d
     await report.getByTestId("saved-view-name").press("Enter");
     await expect(report.locator(".pk-toasts")).toContainText("View “Mine” saved");
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem("pivotkit:views:views-page"))[0].name)).toBe("Mine");
-    await openViews();
+    await toolbar(report, "views");
     await report.getByTestId("publish-view-Mine").click();
     await report.getByTestId("confirm-publish").click();
     await expect(report.locator(".pk-toasts")).toContainText("View “Mine” published");
@@ -166,12 +158,7 @@ test("no i about admins where nobody here can change shared views", async ({ pag
     await page.goto("pages/element-two.html");
     const sales = page.locator("#sales");
     await sales.locator('[data-testid="pivot-table"]').waitFor();
-    const views = sales.getByTestId("views");
-    if (await views.count()) await views.click();
-    else {
-        await sales.getByTestId("more").click();
-        await sales.getByTestId("more-views").click();
-    }
+    await toolbar(sales, "views");
     await expect(sales.locator('[data-testid="topic-sharedViews"] [data-pk-item^="entry:"]').first()).toBeVisible();
     await expect(sales.locator('[data-testid="setting-info-sharedView"]')).toHaveCount(0);
 });

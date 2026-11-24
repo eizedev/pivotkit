@@ -28,8 +28,6 @@ export const AUDIT_PLAIN_TEXT = 128;
 /** What a subject logged as text leaves out: control characters (C0, C1), the bidi controls that turn text around, and U+2028/U+2029, which split a line; never the joiners (ZWJ, ZWNJ) a name may need. */
 const AUDIT_STRIPPED = /[\p{Cc}\p{Zl}\p{Zp}\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu;
 
-/** The least characters of audit.key. */
-export const AUDIT_KEY_MIN = 16;
 
 /** The hex characters of a subject logged as a keyed hash (audit.subject "hash"). */
 export const AUDIT_HASH_TEXT = 16;

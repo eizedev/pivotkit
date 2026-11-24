@@ -40,6 +40,7 @@ import { isPacked, packedBytes } from "../packed.js";
 import { httpSettingsOf } from "../options/http.js";
 import { fieldKey, levelOf } from "../policy.js";
 import { requestId } from "../request-id.js";
+import { jsonDepth } from "../input-depth.js";
 import { asOfText } from "./as-of.js";
 import { backendHeaders, dropToken } from "./auth.js";
 import { guardedFetch, GuardedFetchError, upstreamCauseOf } from "./fetch.js";
@@ -71,36 +72,8 @@ export const BACKEND_TEXT = Object.freeze({
  */
 export const httpMeans = { fetch: guardedFetch, tableBuilder: (/** @type {Parameters<typeof tableBuilder>} */ ...args) => tableBuilder(...args) };
 
-/**
- * How deeply a JSON text is nested, counted until it passes `max` (strings skipped).
- * @param {string} text
- * @param {number} max
- */
-export function jsonDepth(text, max) {
-    let depth = 0;
-    let deepest = 0;
-    let inString = false;
-    for (let i = 0; i < text.length; i++) {
-        const c = text.charCodeAt(i);
-        if (inString) {
-            if (c === 92) {
-                i++;
-            } else if (c === 34) {
-                inString = false;
-            }
-        } else if (c === 34) {
-            inString = true;
-        } else if (c === 91 || c === 123) {
-            deepest = Math.max(deepest, ++depth);
-            if (deepest > max) {
-                return deepest;
-            }
-        } else if (c === 93 || c === 125) {
-            depth--;
-        }
-    }
-    return deepest;
-}
+/** How deeply a JSON text is nested: input-depth.js, the one count of it. */
+export { jsonDepth };
 
 /**
  * The value at a JSON Pointer's keys, own properties only (a key of an object's prototype matches

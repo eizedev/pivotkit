@@ -8,7 +8,7 @@
 // Files are real: CSV and JSON text, workbooks built by pivotkit-xlsx's test generator. A drop is a
 // real DataTransfer holding a File, dispatched as dragenter, dragover and drop.
 import { test as plain } from "@playwright/test";
-import { chips, drag, expect, tableRows, test, toolbar } from "./fixtures.js";
+import { chips, drag, expect, tableRows, test, toolbar, watchConsole } from "./fixtures.js";
 import { makeXlsx } from "../../packages/pivotkit-xlsx/test/make-xlsx.js";
 import { dataMenu, dropFiles, fieldNames, fileOf, nextFileChooser, pickThroughMenu } from "./import-helpers.js";
 
@@ -290,13 +290,9 @@ async function elementPage(page, query = "") {
 
 /** A test of the element's page under a strict CSP: no console error and no violation of the policy. */
 function strict(name, body) {
-    plain(name, async ({ page }) => {
-        const problems = [];
-        page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && problems.push(m.text()));
-        page.on("pageerror", (e) => problems.push(e.message));
+    test(name, async ({ page }) => {
         await body({ page });
         expect(await page.evaluate(() => window.__violations)).toEqual([]);
-        expect(problems).toEqual([]);
     });
 }
 
@@ -327,8 +323,10 @@ strict("the element under a strict CSP: a CSV read in its own worker, a workbook
 });
 
 plain("a policy that refuses workers: the element reads the file on the page and loads it", async ({ page }) => {
-    const problems = [];
-    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && problems.push(m.text()));
+    // the browser's own messages about the refused worker are what this test expects: a message about a
+    // worker and the page's policy (worker-src, Content Security Policy). pivotkit's own warnings, such as
+    // one about importWorkerUrl, name no policy and still fail the test
+    const problems = watchConsole(page, { ignore: [/(Content.Security.Policy|worker-src)[^]*[Ww]orker|[Ww]orker[^]*(Content.Security.Policy|worker-src)/] });
     await page.goto("pages/element-import-noworker.html");
     await page.waitForFunction(() => window.__ready === true);
     const report = page.locator("pivot-report");
@@ -340,7 +338,7 @@ plain("a policy that refuses workers: the element reads the file on the page and
     const violations = await page.evaluate(() => window.__violations);
     expect(violations.some((v) => v.startsWith("worker-src"))).toBe(true);
     expect(violations.filter((v) => !v.startsWith("worker-src"))).toEqual([]);
-    expect(problems.filter((p) => !/worker|Worker/.test(p))).toEqual([]);
+    expect(problems).toEqual([]);
 });
 
 strict("the element's importWorkerUrl: the worker starts from the app's own path, relative to the page (#194)", async ({ page }) => {
@@ -355,9 +353,7 @@ strict("the element's importWorkerUrl: the worker starts from the app's own path
 });
 
 plain("the element's importWorkerUrl of another origin: refused, the file read on the page, said once, no browser error (#194)", async ({ page }) => {
-    const problems = [];
-    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && problems.push(m.text()));
-    page.on("pageerror", (e) => problems.push(e.message));
+    const problems = watchConsole(page);
     let workers = 0;
     page.on("worker", () => workers++);
     const report = await elementPage(page, "?workerurl=https://example.com/import-worker.js");
@@ -366,7 +362,7 @@ plain("the element's importWorkerUrl of another origin: refused, the file read o
     await report.getByTestId("import-apply").click();
     await expect.poll(() => fieldNames(report)).toEqual(["Id", "Team", "Opened", "Hours", "Zip"]);
     expect(workers).toBe(0);
-    expect(problems).toEqual(['pivotkit: importWorkerUrl "https://example.com/import-worker.js" is not of the page\'s origin; files are read on the page']);
+    expect(problems).toEqual(['warning: pivotkit: importWorkerUrl "https://example.com/import-worker.js" is not of the page\'s origin; files are read on the page']);
 });
 
 strict("the element: preventDefault() on pivot-data-load refuses the file, the data stays", async ({ page }) => {

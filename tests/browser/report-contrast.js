@@ -3,6 +3,7 @@
 // download-link.spec.js): every text of the page against what is drawn behind it, WCAG 2.2's
 // contrast, a data bar blended over its cell; the colours of the report's parts; and
 // expectReportColours, the checks the report specs share.
+import { installContrast } from "./contrast.js";
 import { expect } from "./fixtures.js";
 
 const REGIONS = ["North", "South", "East", "West", "Central"];
@@ -48,17 +49,19 @@ const ALWAYS_SHOWN = ["body background", "body text", "header background", "row 
  * the report's parts, each as the set of colours its elements take; the page's surface, text and
  * colour scheme. sRGB colours as the page computes them ("rgb()", "rgba()", "color(srgb ...)").
  */
-export const measure = () => {
+const measureInPage = () => {
+    // contrast.js's helpers, on colours as { r, g, b, a }
+    const kit = window.__pkContrast;
     const parse = (c) => {
-        const n = c.match(/[\d.]+/g).map(Number);
-        return c.startsWith("color(") ? { r: n[0] * 255, g: n[1] * 255, b: n[2] * 255, a: n[3] ?? 1 } : { r: n[0], g: n[1], b: n[2], a: n[3] ?? 1 };
+        const [r, g, b, a] = kit.parse(c);
+        return { r, g, b, a };
     };
-    const lum = ({ r, g, b }) => [r, g, b].map((v) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
-    const ratio = (a, b) => {
-        const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
-        return (x + 0.05) / (y + 0.05);
+    const lum = ({ r, g, b }) => kit.lum([r, g, b]);
+    const ratio = (a, b) => kit.ratio([a.r, a.g, a.b], [b.r, b.g, b.b]);
+    const over = (top, under) => {
+        const [r, g, b] = kit.over([top.r, top.g, top.b, top.a], [under.r, under.g, under.b, 1]);
+        return { r, g, b };
     };
-    const over = (top, under) => ({ r: top.r * top.a + under.r * (1 - top.a), g: top.g * top.a + under.g * (1 - top.a), b: top.b * top.a + under.b * (1 - top.a) });
     const backgroundOf = (el) => {
         for (let e = el; e; e = e.parentElement) {
             const bg = parse(getComputedStyle(e).backgroundColor);
@@ -117,6 +120,16 @@ export const measure = () => {
     return { texts, scale, bars, parts, body: getComputedStyle(document.body).backgroundColor, text: getComputedStyle(document.body).color, colorScheme: getComputedStyle(document.documentElement).colorScheme };
 };
 
+/**
+ * The measure of the page as it is drawn now (measureInPage, with contrast.js's helpers).
+ * @param {import("@playwright/test").Page} page
+ * @returns {Promise<ReturnType<typeof measureInPage>>}
+ */
+export async function measure(page) {
+    await installContrast(page);
+    return page.evaluate(measureInPage);
+}
+
 /** A hex token as the page computes it. */
 export const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ")})`;
 
@@ -128,7 +141,7 @@ export const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i 
  * bar's shortest and longest among them, and a colour scale running from the surface outwards.
  * This checks that the page is wired to its tokens; whether the token values themselves meet WCAG AA
  * on every surface, scale step and bar is held by pivotkit-report's test/contrast.test.js.
- * @param {ReturnType<typeof measure>} seen
+ * @param {Awaited<ReturnType<typeof measure>>} seen
  * @param {{ name: string, tokens: Record<string, string>, light: Record<string, string>, dark: boolean, media: "screen" | "print", shows: string[] }} expected
  *   tokens: the theme the page shows; light: the light theme the chart is drawn in (its card's
  *   surface, its note's colour); dark: a dark screen; shows: what the case must show besides

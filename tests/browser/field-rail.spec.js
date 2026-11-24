@@ -2,7 +2,7 @@
 // buttons, the choice remembered with the tips, a chip dropped on the rail, Enlarge, the phone's
 // drawer, and the host's fieldList (field-list on the element).
 import { test as plain } from "@playwright/test";
-import { chips, drag, expect, test } from "./fixtures.js";
+import { chips, drag, expect, test, watchConsole } from "./fixtures.js";
 
 test("« collapses the field list to a rail and the rail opens it again; the focus stays on the button in its place", async ({ page }) => {
     await page.goto("?data=sales");
@@ -69,11 +69,14 @@ test("while a chip is dragged the rail says it removes it, for the eye and a scr
 plain("a fieldList the report does not know is ignored with one console warning", async ({ page }) => {
     const warnings = [];
     page.on("console", (m) => m.type() === "warning" && warnings.push(m.text()));
+    // nothing else: no error, no other warning
+    const problems = watchConsole(page, { ignore: [/fieldList "sideways" is neither "open" nor "collapsed"/] });
     await page.goto("pages/element-two.html");
     await page.evaluate(() => document.getElementById("tickets").setAttribute("field-list", "sideways"));
     await expect.poll(() => warnings.join("\n")).toContain('fieldList "sideways" is neither "open" nor "collapsed"');
     await expect(page.locator("#tickets").getByTestId("field-list")).toBeVisible();
     expect(warnings.length).toBe(1);
+    expect(problems).toEqual([]);
 });
 
 test("Enlarge hides the rail too; a phone keeps its drawer without «", async ({ page }) => {

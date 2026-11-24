@@ -20,7 +20,8 @@
  * second declaration).
  */
 
-import { HEADER_NAME, HEADER_VALUE, SECRET_NAME, pointerKeys, pointerProblem } from "./http.js";
+import { pointerKeys, pointerProblem } from "./http.js";
+import { CREDENTIAL_HEADERS, HEADER_VALUE, SECRET_NAME, checkHeaderName } from "./headers.js";
 import { ConfigError, SECRET_REF, throwRange } from "./shared.js";
 
 export const NAME = "upload";
@@ -37,11 +38,6 @@ export const UPLOAD_TIME_MS = Object.freeze({ min: 1000, max: 600_000 });
 /** The placeholders an address template may hold. */
 export const TEMPLATE_NAMES = Object.freeze(["id", "name", "format"]);
 
-/** Headers the operator may not set: the connection's own. */
-const CONNECTION_HEADERS = /^(host|content-length|content-type|transfer-encoding|connection|te|trailer|upgrade|keep-alive|accept-encoding|proxy-.*|x-forwarded-.*|forwarded)$/i;
-
-/** Headers that carry a credential: a secret reference only, never a text in the configuration. */
-const CREDENTIAL_HEADERS = /^(authorization|cookie)$/i;
 
 /** A header's value in the configuration: a text, or a secret reference with an optional prefix. */
 const HEADER = { or: ["string", { object: { prefix: "string", value: SECRET_REF } }] };
@@ -168,12 +164,7 @@ function headersOf(headers, path) {
     /** @type {UploadHeaders} */
     const out = {};
     for (const [name, value] of Object.entries(headers ?? {})) {
-        if (!HEADER_NAME.test(name)) {
-            throw new ConfigError(`${path}.${name.slice(0, 60)}: not a header name`);
-        }
-        if (CONNECTION_HEADERS.test(name)) {
-            throw new ConfigError(`${path}.${name}: this header is set by the connection (content-type is the report's)`);
-        }
+        checkHeaderName(name, path, { contentType: true, why: " (content-type is the report's)" });
         if (typeof value === "string") {
             if (CREDENTIAL_HEADERS.test(name) || SECRET_NAME.test(name)) {
                 throw new ConfigError(`${path}.${name}: looks like a credential; give it as { "prefix": "Bearer ", "value": { "env": "NAME" } } (or "file"), never as a text in the configuration`);

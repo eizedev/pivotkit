@@ -19,7 +19,8 @@
  */
 
 import { pathOf, restResourceOf } from "../config.js";
-import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT, inertTokensText, tokenGuessable } from "../auth.js";
+import { inertTokensText } from "../auth.js";
+import { TOKEN_MIN, tokenFault } from "../secret-rules.js";
 import { connectionLimitsOf, isLoopback } from "../listen.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, secretFileWarning, secretValue, unreadable } from "../secrets.js";
 import { personBound } from "../sources/auth.js";
@@ -157,21 +158,23 @@ function expiryWarning(token) {
     return at <= Date.now() ? `the token ${token.name} expired on ${day}: requests with it get 401; remove it (pivotkit-server token remove ${token.name}) or give it a later expires` : `the token ${token.name} expires on ${day}: requests with it get 401 from then on; give it a later expires or make a new token`;
 }
 
-/** Why a token is too easy to guess, named by where it comes from, or null (auth.js tokenGuessable). */
-const guessableText = (where, value) => {
-    const why = tokenGuessable(value);
-    return why ? `(${where}) is ${why}` : null;
-};
+/** Why a value cannot be a static token, as words after "(where) ", or null (secret-rules.js tokenFault). */
+function tokenWords(value, short) {
+    const fault = tokenFault(value);
+    return !fault ? null : fault.kind === "short" ? short : fault.kind === "syntax" ? fault.text : `is ${fault.text}`;
+}
 
 /** Why a static token would keep the server from starting, or null. */
 async function tokenProblem(token, env, options) {
     if (token.env) {
         const value = env[token.env] ?? "";
-        return value.length < TOKEN_MIN ? `($${token.env}) is not set or shorter than ${TOKEN_MIN} characters` : !TOKEN_SYNTAX.test(value) ? `($${token.env}) ${TOKEN_SYNTAX_TEXT}` : guessableText(`$${token.env}`, value);
+        const words = tokenWords(value, `is not set or shorter than ${TOKEN_MIN} characters`);
+        return words && `($${token.env}) ${words}`;
     }
     try {
         const value = secretValue(await readSecretFile(pathOf(options, token.file)), "token");
-        return value.length < TOKEN_MIN ? `(${token.file}) is shorter than ${TOKEN_MIN} characters` : !TOKEN_SYNTAX.test(value) ? `(${token.file}) ${TOKEN_SYNTAX_TEXT}` : guessableText(token.file, value);
+        const words = tokenWords(value, `is shorter than ${TOKEN_MIN} characters`);
+        return words && `(${token.file}) ${words}`;
     } catch (e) {
         return e?.code === "UTF16" ? `(${token.file}) ${UTF16_TEXT}` : `(${token.file}) cannot be read: ${unreadable(e?.code)}`;
     }

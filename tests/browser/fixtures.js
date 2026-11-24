@@ -12,17 +12,36 @@ import { en as menuEn } from "../../packages/pivotkit-react/src/menu-labels.js";
  * (print-frame.js), so every spec that opens the menu would log it. Errors of the page itself still
  * fail every test.
  */
-export const TRACE_IN_PRINT_FRAME = /^Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set\.$/;
+const TRACE_IN_PRINT_FRAME = /^Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set\.$/;
+
+/**
+ * Playwright's Firefox driver (Juggler) logs this from its own script when it opens a page in a mobile
+ * context (isMobile): the file is chrome://juggler, not the page. Every spec ignores it.
+ */
+const JUGGLER_FORCED_LAYOUT = /^\[JavaScript Warning: "Layout was forced before the page was fully loaded\. If stylesheets are not yet loaded this may cause a flash of unstyled content\." \{file: "chrome:\/\/juggler\/content\/content\/main\.js" line: \d+\}\]$/;
+
+/**
+ * Collects what a page logs as an error or a warning, and what it throws, except the harness's
+ * TRACE_IN_PRINT_FRAME and JUGGLER_FORCED_LAYOUT and the messages of `ignore` (each a whole message). A test expects the list
+ * empty at its end. The `page` fixture does this for every test; a page of a context of its own calls it.
+ * @param {import("@playwright/test").Page} page
+ * @param {{ ignore?: RegExp[] }} [options]
+ * @returns {string[]}
+ */
+export function watchConsole(page, { ignore = [] } = {}) {
+    const problems = [];
+    page.on("console", (m) => {
+        if ((m.type() === "error" || m.type() === "warning") && ![TRACE_IN_PRINT_FRAME, JUGGLER_FORCED_LAYOUT, ...ignore].some((re) => re.test(m.text()))) problems.push(`${m.type()}: ${m.text()}`);
+    });
+    page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
+    return problems;
+}
 
 export const test = base.extend({
     /** Console messages a spec expects from the harness, not the page (none by default): each one a whole message. */
     ignoreConsole: [[], { option: true }],
     page: async ({ page, ignoreConsole }, use) => {
-        const problems = [];
-        page.on("console", (m) => {
-            if ((m.type() === "error" || m.type() === "warning") && ![TRACE_IN_PRINT_FRAME, ...ignoreConsole].some((re) => re.test(m.text()))) problems.push(`${m.type()}: ${m.text()}`);
-        });
-        page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
+        const problems = watchConsole(page, { ignore: ignoreConsole });
         await use(page);
         expect(problems, "console errors and warnings").toEqual([]);
     }
@@ -45,8 +64,9 @@ const strict = (object, path = "TEXTS") =>
     });
 
 /**
- * The report's English texts, the first load's and the menus', by key: a test expects the text a key
- * gives, not a copy of its words, so a change of wording changes no test. `textOf` fills its values.
+ * The report's English texts, the first load's and the menus', by key: a test that expects the text a
+ * key gives, not a copy of its words, breaks on no change of wording. `textOf` fills its values. New
+ * tests use them; most specs still spell the words out (tests/AGENTS.md).
  * The browser tests run the report in English; that every language has every key is
  * pivotkit-react's labels.test.js and menu-texts.test.js.
  */
@@ -145,6 +165,13 @@ export async function animationsSettled(page) {
 }
 
 /**
+ * Sets the report's font to Arial, or Liberation Sans on Linux, which has Arial's widths: a test that
+ * measures text in pixels (a chip that must wrap or fit at a width) measures the same on every machine.
+ * @param {import("@playwright/test").Page} page
+ */
+export const pinFont = (page) => page.addStyleTag({ content: '.pk-root { --pk-font: Arial, "Liberation Sans", sans-serif; }' });
+
+/**
  * Waits two frames of the page. The toolbar decides again which buttons stand in "More" as the report
  * lays out (a ResizeObserver, then a render): a test that looks for a button, its own or in More,
  * looks once that has settled.
@@ -154,33 +181,36 @@ export const twoFrames = (page) => page.evaluate(() => new Promise((done) => req
 
 /**
  * Clicks a toolbar action: its own button, or its entry in "More" when the report is too narrow for
- * all buttons. `testId` is the button's ("redo", "views", "more"), an action of Start over
+ * all buttons. `scope` is the page or one report of several (a locator, also a web component's host).
+ * `testId` is the button's ("redo", "views", "more", "export"), an action of Start over
  * ("reset", "new-report": its menu, then the action), "help" (More, then its Help level), or a menu
- * beside the tabs ("table-settings", "chart-settings": its tab is shown first, with a click, when it is
- * not). A menu that is open already (Views stays open after a save) stays open: a click on its button
- * would close it.
+ * beside the tabs ("view-settings"; "table-settings", "chart-settings": its tab is shown first, with a
+ * click, when it is not). A menu that is open already (Views stays open after a save) stays open: a
+ * click on its button would close it.
+ * @param {import("@playwright/test").Page | import("@playwright/test").Locator} scope
  */
-export async function toolbar(page, testId) {
+export async function toolbar(scope, testId) {
+    const page = "goto" in scope ? scope : scope.page();
     // the report has its data (a real data set loads as a chunk of its own) and its toolbar has settled
-    await page.locator('[data-testid="pivot-table"], [data-testid="pivot-chart"], [data-testid="empty-state"]').first().waitFor();
+    await scope.locator('[data-testid="pivot-table"], [data-testid="pivot-chart"], [data-testid="empty-state"]').first().waitFor();
     await twoFrames(page);
     const button = START_OVER.includes(testId) ? "start-over" : testId;
-    const own = page.getByTestId(button);
+    const own = scope.getByTestId(button);
     if (Object.hasOwn(SETTINGS, testId)) {
-        const tab = page.getByTestId(`show-${SETTINGS[testId]}`);
+        const tab = scope.getByTestId(`show-${SETTINGS[testId]}`);
         if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click();
-        const settings = page.getByTestId("view-settings");
+        const settings = scope.getByTestId("view-settings");
         if ((await settings.getAttribute("aria-expanded")) !== "true") await settings.click();
     } else if (testId === "help") {
-        await page.getByTestId("more").click();
-        await page.getByTestId("more-help").click();
-        await expect(page.getByTestId("level-help")).toBeVisible();
+        await scope.getByTestId("more").click();
+        await scope.getByTestId("more-help").click();
+        await expect(scope.getByTestId("level-help")).toBeVisible();
     } else if (await own.count()) {
         if ((await own.getAttribute("aria-expanded")) !== "true") await own.click();
-        if (button !== testId) await page.getByTestId(testId).click();
+        if (button !== testId) await scope.getByTestId(testId).click();
     } else {
-        await page.getByTestId("more").click();
-        await page.getByTestId(`more-${testId}`).click();
+        await scope.getByTestId("more").click();
+        await scope.getByTestId(`more-${testId}`).click();
     }
     // a menu takes the focus a frame after it opens (from More once its panel is there): wait for it,
     // so a test that moves the focus inside does not lose it to that

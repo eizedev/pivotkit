@@ -125,6 +125,7 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
             // the pointer moving onto the tip keeps it open (its link must be reachable)
             const box = await tip.boundingBox();
             await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 });
+            // it does not close a moment later either
             await page.waitForTimeout(400);
             await expect(tip).toBeVisible();
             // and the pointer leaving both closes it, the menu stays
@@ -158,6 +159,7 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
             await expect(tip).toBeVisible();
             // on from there onto the tip: it stays
             await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2, { steps: 3 });
+            // it does not close a moment later either
             await page.waitForTimeout(400);
             await expect(tip).toBeVisible();
             // the gap is no place that keeps the tip for good: leaving through it closes it
@@ -196,6 +198,7 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
             const to = { x: t.x + t.width / 2, y: t.y + t.height / 2 };
             for (let i = 1; i <= 5; i++) {
                 await page.mouse.move(from.x + ((to.x - from.x) * i) / 5, from.y + ((to.y - from.y) * i) / 5);
+                // a slow pointer's pace, as above
                 await page.waitForTimeout(300);
                 await expect(tip, `after step ${i} of 5`).toBeVisible();
             }

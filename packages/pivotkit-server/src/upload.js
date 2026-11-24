@@ -29,7 +29,7 @@ import { createReadStream } from "node:fs";
 import { readSecret } from "./secrets.js";
 import { GuardedFetchError, guardedFetch } from "./sources/fetch.js";
 import { pointerValue } from "./sources/http.js";
-import { HEADER_NAME } from "./options/http.js";
+import { HEADER_NAME } from "./options/headers.js";
 import { uploadMaxBytes, uploadSettingsOf } from "./options/upload.js";
 
 /**

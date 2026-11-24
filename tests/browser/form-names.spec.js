@@ -2,8 +2,8 @@
 // level of the chip menus, Options, Views and Export, and the filter from the field list; two reports
 // on one page share no name (pivotkit-react in one React root, and two web components, each a root
 // of its own).
-import { expect, test } from "./fixtures.js";
-import { NAV_PAGES, everyTopic, formFields, openZonesIn, toolbarIn } from "./host-nav.js";
+import { expect, test, toolbar } from "./fixtures.js";
+import { NAV_PAGES, everyTopic, formFields, openZonesIn } from "./host-nav.js";
 
 test.describe("form fields have names of their own per report (#115)", () => {
     for (const [name, url] of NAV_PAGES) {
@@ -23,7 +23,7 @@ test.describe("form fields have names of their own per report (#115)", () => {
                 await everyTopic(page, report, () => report.getByTestId("chip-menu-Environment").click(), seen);
                 await everyTopic(page, report, () => report.getByTestId("chip-menu-Sum of Cost").click(), seen);
                 for (const menu of ["view-settings", "more", "views", "export"]) {
-                    await everyTopic(page, report, () => toolbarIn(report, menu), seen);
+                    await everyTopic(page, report, () => toolbar(report, menu), seen);
                 }
                 // the filter of a field not in the report, from the field list
                 await report.getByTestId("field-menu-Manufacturer").click();
