@@ -161,7 +161,7 @@ A view is the report as JSON. [Views and saved views](../concepts/views.md) desc
 | Function | Returns | What |
 | --- | --- | --- |
 | `normalize(view, schema, { limits })` | `{ view, issues }` | Resolves names against the schema (or the `Encoded` data) and fixed lists. It drops everything else and reports it as an issue `{ path, message, code, severity, params }` ([Issues](../concepts/views.md#issues-for-developers)). Nothing in a view runs as code. |
-| `validate(view, schema, { limits })` | `{ valid, errors, warnings }` | `errors`: everything `normalize` would drop or change, against the same `limits`. `warnings`: what it uses but may not be what was meant, including the warnings only a strict check gives. `valid` is true without errors. |
+| `validate(view, schema, { limits })` | `{ valid, errors, warnings }` | `errors`: the issues of severity `"error"`, against the same `limits`. `warnings`: the others, including the warnings only a strict check gives. [Issues](../concepts/views.md#issues-for-developers) says which code has which severity. `valid` is true without errors. |
 | `migrate(view)` | `{ view, issues }` | Brings a parsed view to `VIEW_VERSION`. A view without `version` is read as version 1 ([Versions](../concepts/views.md#versions)). It refuses a newer version (`view: null`). `normalize` runs it first. |
 | `emptyView()` | `View` | A new, empty report. |
 | `viewFields(view, schema)` | `[{ name, type, derived? }]` | The fields of the data and the view's derived fields (`derived: true`). A derived field's `type` is `"date"` for a grouping by day, and `"number"` for every other unit and for number ranges. |

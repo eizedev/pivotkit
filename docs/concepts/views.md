@@ -129,7 +129,7 @@ An issue is `{ path, message, code, severity, params }`:
 | `path` | Where in the view: `rows[1]`, `values[0].conditional.colors`, `chart.legend`, `""` for the whole view. |
 | `message` | An English sentence for developers and logs, such as `unknown field "Planet"`. Its wording may change. |
 | `code` | What kind of problem, one of `VIEW_ISSUE_CODES`: a stable name to say it in your own words. |
-| `severity` | `"error"`: pivotkit leaves the part out or replaces it with its default. `"warning"`: pivotkit uses the part as written, but it may not do what was meant. `VIEW_ISSUES[code].severity` gives a code's severity. `unknownKey` is an error at the top of a view and a warning inside a part. `unknownSetting` is a warning for a sort's `by` and `order` and a "show as" `axis`. |
+| `severity` | `"error"`: pivotkit leaves the part out or replaces it with its default. `"warning"`: pivotkit uses the view, but a part may not do what its author meant. `VIEW_ISSUES[code].severity` gives a code's severity. `unknownKey` is an error at the top of a view and a warning inside a part. `unknownSetting` is a warning for a sort's `by` and `order` and a "show as" `axis`. These warnings, `notSwitch` and `notSection` leave the part out or use its default, as earlier versions did without a word, so a view with them stays valid. |
 | `params` | What such a text needs, when there is something: `field` (a field name), `value` (the setting or item as given, as text, at most 100 characters), `agg` (an aggregator), `type` (a field type), `max` (a limit), `zone` (the data's time zone), `suggestion` (the name that was probably meant: the closest field, aggregator, filter type or key, or the data's item). |
 
 | Codes | When |
