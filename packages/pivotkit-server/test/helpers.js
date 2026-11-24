@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { request as httpRequest } from "node:http";
 import { fileURLToPath } from "node:url";
 import { tempDir as sharedTempDir } from "../../../tests/temp-dir.js";
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { serve } from "pivotkit-server";
 import { createGuardedFetch } from "../src/sources/fetch.js";
 import { until } from "../../../tests/until.js";
@@ -142,6 +143,38 @@ export function raw(url, { method = "GET", headers = {}, body } = {}) {
  */
 export async function untilReady(server, tries = 50) {
     await until(async () => (await call(`${server.url}/readyz`)).status === 200, { message: "the server did not get ready", tries, every: 50 });
+}
+
+/** An MCP initialize request's JSON body. */
+export const MCP_INITIALIZE = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } });
+
+/**
+ * An MCP initialize request to the server's /mcp with a bearer token, sent with fetch: its Response.
+ * @param {{ url: string }} server
+ * @param {string} token
+ */
+export const mcpInitialize = (server, token) => fetch(`${server.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${token}` }, body: MCP_INITIALIZE });
+
+/**
+ * An MCP tool call (describe_source of `source`) by an MCP client with a bearer token: whether it was
+ * let in. A refusal of the token (401) is false; any other failure throws.
+ * @param {{ url: string }} server
+ * @param {string} token
+ * @param {string} [source]
+ */
+export async function mcpToolWorks(server, token, source = "sales") {
+    const client = new Client({ name: "pivotkit-server-test", version: "1.0.0" });
+    try {
+        await client.connect(new StreamableHTTPClientTransport(new URL(`${server.url}/mcp`), { requestInit: { headers: { authorization: `Bearer ${token}` } } }));
+        return !(await client.callTool({ name: "describe_source", arguments: { source } })).isError;
+    } catch (e) {
+        if (/401|invalid_token|Unauthorized/i.test(String(e?.message ?? e))) {
+            return false;
+        }
+        throw e;
+    } finally {
+        await client.close().catch(() => undefined);
+    }
 }
 
 /** A guardedFetch that may use plain http to loopback (createGuardedFetch's test means). */

@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { REQUEST_LIMITS } from "../../src/limits.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { checkConfig, validateOptions } from "pivotkit-server";
-import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, untilReady, workspace } from "../helpers.js";
+import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, untilReady, workspace, mcpInitialize } from "../helpers.js";
 import { until } from "../../../../tests/until.js";
 import { localIssuer, signingKey } from "./local-issuer.js";
 
@@ -152,10 +152,10 @@ test("oauth: the REST resource's metadata names it and the issuer; a token for t
         const ok = await call(`${server.api}/sources`, { token: forRest });
         assert.equal(ok.status, 200);
         // and the MCP endpoint refuses the REST token
-        const init = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } });
-        const mcp = await fetch(`${server.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${forRest}` }, body: init });
+        const mcp = await mcpInitialize(server, forRest);
+        await mcp.body?.cancel();
         assert.equal(mcp.status, 401);
-        const mcpOk = await fetch(`${server.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${await jwt({ aud: MCP_RESOURCE })}` }, body: init });
+        const mcpOk = await mcpInitialize(server, await jwt({ aud: MCP_RESOURCE }));
         assert.equal(mcpOk.status, 200);
         await mcpOk.body?.cancel();
     } finally {
@@ -245,8 +245,11 @@ test("F3: the request limits count per person, not per OAuth client: two people 
         assert.equal((await call(`${limited.api}/sources`, { token: ana })).status, 200);
         assert.equal((await call(`${limited.api}/sources`, { token: ana })).status, 429, "ana's bucket is empty");
         assert.equal((await call(`${limited.api}/sources`, { token: ben })).status, 200, "ben of the same client has his own");
-        const init = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } });
-        const mcp = async (token) => (await fetch(`${limited.url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${token}` }, body: init })).status;
+        const mcp = async (token) => {
+            const res = await mcpInitialize(limited, token);
+            await res.body?.cancel();
+            return res.status;
+        };
         const anaMcp = await jwt({ sub: "ana", aud: MCP_RESOURCE });
         const benMcp = await jwt({ sub: "ben", aud: MCP_RESOURCE });
         assert.deepEqual([await mcp(anaMcp), await mcp(anaMcp), await mcp(anaMcp)], [200, 200, 429]);
