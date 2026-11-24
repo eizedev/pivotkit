@@ -23,19 +23,26 @@ function list(items) {
     return el("ul", {}, ...items.map((i) => el("li", {}, i)));
 }
 
+/** Why a text cannot be read as a view, by fromViewFile()'s `failed`. */
+const WHY = {
+    empty: "Nothing to check: paste a view file or choose one.",
+    tooLarge: `Longer than ${VIEW_FILE_LIMITS.text.toLocaleString("en-US")} characters: too large for a view.`,
+    notJson: "Not valid JSON.",
+    notView: "Not a view: a JSON object with a view is needed.",
+    newerFormat: "A newer format version than this pivotkit reads: update pivotkit to open it.",
+    newerView: "A newer view version than this pivotkit reads: update pivotkit to open it."
+};
+
+/** Shows that the input cannot be used, and why. */
+function cannotUse(failed) {
+    out.replaceChildren(el("h2", { className: "vf-bad", textContent: "Cannot be used" }), el("p", { textContent: Object.hasOwn(WHY, failed) ? WHY[failed] : `It cannot be read as a view (${failed}).` }));
+}
+
 function check(input) {
     out.replaceChildren();
     const read = fromViewFile(input);
     if (read.failed) {
-        const why = {
-            empty: "Nothing to check: paste a view file or choose one.",
-            tooLarge: `Longer than ${VIEW_FILE_LIMITS.text.toLocaleString("en-US")} characters: too large for a view.`,
-            notJson: "Not valid JSON.",
-            notView: "Not a view: a JSON object with a view is needed.",
-            newerFormat: "A newer format version than this pivotkit reads: update pivotkit to open it.",
-            newerView: "A newer view version than this pivotkit reads: update pivotkit to open it."
-        }[read.failed];
-        out.append(el("h2", { className: "vf-bad", textContent: "Cannot be used" }), el("p", { textContent: why }));
+        cannotUse(read.failed);
         return;
     }
     const fields = read.source?.fields ?? [];
@@ -73,8 +80,9 @@ document.getElementById("vf-file")?.addEventListener("change", async (e) => {
     const file = input.files?.[0];
     input.value = "";
     if (!file) return;
+    // bytes, at least as many as characters: a file this large is too long without reading it
     if (file.size > VIEW_FILE_LIMITS.text) {
-        check("x".repeat(VIEW_FILE_LIMITS.text + 1));
+        cannotUse("tooLarge");
         return;
     }
     text.value = await file.text();

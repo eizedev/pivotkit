@@ -87,6 +87,10 @@ button,
     font-weight: 600;
 }
 
+.vf-file {
+    position: relative;
+}
+
 .vf-file input {
     position: absolute;
     width: 1px;
