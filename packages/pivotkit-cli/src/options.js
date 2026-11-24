@@ -40,6 +40,12 @@ export function checkChoices(command, values) {
     }
 }
 
+/**
+ * The options of --limit for pivotkit-core: none when none is given.
+ * @param {Record<string, number>} limits
+ */
+export const limitsOption = (limits) => (Object.keys(limits).length ? { limits } : {});
+
 /** --limit key=n, checked against pivotkit-core's LIMITS. */
 export function limitsOf(list) {
     /** @type {Record<string, number>} */

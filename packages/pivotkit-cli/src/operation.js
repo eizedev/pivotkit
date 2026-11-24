@@ -7,12 +7,7 @@
 import { encode } from "pivotkit-core";
 import { OPERATIONS } from "pivotkit-report/operations";
 import { asCliError } from "pivotkit-node/files";
-
-/**
- * The options of --limit for pivotkit-core: none when none is given.
- * @param {Record<string, number>} limits
- */
-export const limitsOption = (limits) => (Object.keys(limits).length ? { limits } : {});
+import { limitsOption } from "./options.js";
 
 /**
  * The environment of pivotkit-report's operations for one command: the data of --data (encoded), or
