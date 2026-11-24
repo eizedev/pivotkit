@@ -278,8 +278,12 @@ test("close() lets a running report finish before the server stops", async () =>
     const running = call(`${server.url}/api/v1/views/validate`, { body: { source: "slow", view: BY_REGION } });
     // the report runs: its load has started
     await until(() => started);
-    const closing = server.close();
-    setTimeout(() => release(), 200);
+    let closed = false;
+    const closing = server.close().then(() => (closed = true));
+    // a fixed sleep that checks nothing happens: close() does not end while the report still runs
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.equal(closed, false, "close() waits for the running report");
+    release();
     const res = await running;
     await closing;
     assert.equal(res.status, 200);
