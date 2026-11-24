@@ -395,6 +395,13 @@ test("plugins: the contract is checked, another API version is refused with both
     }
     const instance = new ClassPlugin();
     assert.equal(await loadReader(instance), instance.module);
+    // the load() that was checked is the one that runs: one set on the plugin later is not
+    const swapped = { ...plugin, name: "swapped" };
+    const checked = validatePlugin(swapped);
+    swapped.load = () => {
+        throw new Error("not the checked load");
+    };
+    assert.equal(typeof (await checked.load()).read, "function");
     assert.throws(() => validatePlugin({ ...plugin, apiVersion: 2 }), (e) => e.code === "INVALID_ARGUMENT" && e.message === 'plugin "demo" uses plugin API version 2; this pivotkit-core supports version 1. Use a version of the plugin made for API 1, or update pivotkit.');
     assert.throws(() => validatePlugin({ ...plugin, kind: "chart" }), /kind "chart"/);
     assert.throws(() => validatePlugin({ ...plugin, name: "Bad Name" }), /name/);

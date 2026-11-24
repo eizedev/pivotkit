@@ -10,7 +10,8 @@ import { referenceLineRules, stacksToPercent } from "./chart-plan.js";
 import { autoChartType, toSeries } from "./chart-series.js";
 import { formatterFor } from "./format.js";
 import { DEFAULT_LABELS } from "./labels.js";
-import { MS_PER_DAY, periodOf, resolveLocale } from "./util.js";
+import { periodOf } from "./derive.js";
+import { MS_PER_DAY, resolveLocale } from "./util.js";
 
 /** A week in ms. */
 const WEEK = 7 * MS_PER_DAY;

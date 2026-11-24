@@ -620,7 +620,7 @@ files contain and where Excel's number formats cannot follow the grid.
 
 | Name | What |
 | --- | --- |
-| `createHistory(startView, { limit })` | Undo, redo and reset for views: `current`, `canUndo`, `canRedo`, `push(view)`, `undo()`, `redo()`, `reset()`. `push` returns whether the view was a step, and an unchanged view is not one. `reset` goes back to the start view as one step that can be undone. `limit` defaults to 100 steps. |
+| `createHistory(startView, { limit })` | Undo, redo and reset for views: `current`, `canUndo`, `canRedo`, `push(view)`, `undo()`, `redo()`, `reset()`. `push` returns whether the view was a step, and an unchanged view is not one. `reset` goes back to the start view as one step that can be undone. `limit` is the number of steps kept, 100 by default. `Infinity` keeps every step, and a limit that is no number throws `PivotkitError` `INVALID_OPTION`. |
 | `formatter(format, { locale })` | A named [format](../concepts/values.md#formats) as a function from a value to text. |
 | `MAX_DATE_MS`, `isDateMs(ms)` | `MAX_DATE_MS`: the most milliseconds from the epoch a `Date` holds either way (`8.64e15`, the years -271821 to 275760). `isDateMs`: whether a value is a number within it. `new Date(ms)` of any other is invalid, and formatting it throws. For a host that builds dates or a `now` of its own. |
 | `isFormat(format)` | Whether a name is a known format. |

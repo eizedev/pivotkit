@@ -91,6 +91,9 @@ test("fieldDefaultsFromSchema: bad input throws, hostile input is capped and nev
     const paths = fieldDefaultsFromSchema({ $defs: { "a b": { title: "AB" } }, properties: { a: { $ref: "#anchor", title: "A" }, b: { $ref: "#/$defs/a%20b" } } });
     assert.deepEqual(paths.defaults, { b: { label: "AB" } });
     assert.deepEqual(paths.issues.map((i) => i.message), ["$ref #anchor is not in the document"]);
+    // a broken percent-encoding names nothing, with the same issue
+    const broken = fieldDefaultsFromSchema({ $defs: { "a%zz": { title: "Z" } }, properties: { z: { $ref: "#/$defs/a%zz" } } });
+    assert.deepEqual([broken.defaults, broken.issues.map((i) => i.message)], [{}, ["$ref #/$defs/a%zz is not in the document"]]);
     // a reference cycle ends
     const cycle = { components: { schemas: { A: { $ref: "#/components/schemas/B" }, B: { $ref: "#/components/schemas/A" } } }, properties: { x: { $ref: "#/components/schemas/A" }, y: { title: "Y" } } };
     assert.deepEqual(fd(cycle), { y: { label: "Y" } });

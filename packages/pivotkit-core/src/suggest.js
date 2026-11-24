@@ -23,7 +23,6 @@ import { groupingName, reportLabels } from "./labels.js";
 import { OUTSIDE_LIMITS } from "./limits.js";
 import { isPlainObject, optionsOf } from "./util.js";
 import { renameFields } from "./view-file.js";
-import { VIEW_VERSION } from "./view.js";
 
 /**
  * @typedef {object} Layout  what a view shows, by field names; every key optional
@@ -397,7 +396,7 @@ export function viewFromLayout(layout, description, options) {
         }
     }
     /** @type {LayoutView} */
-    const view = { version: /** @type {2} */ (VIEW_VERSION), rows, cols, values, ...(derived.length ? { derived } : {}), ...(filters.length ? { filters } : {}) };
+    const view = { version: 2, rows, cols, values, ...(derived.length ? { derived } : {}), ...(filters.length ? { filters } : {}) };
     if (layout.chart !== undefined) {
         view.display = "chart";
         view.chart = { type: layout.chart };

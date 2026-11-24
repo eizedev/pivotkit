@@ -6,12 +6,6 @@ import { PivotkitError } from "./errors.js";
 
 export const MS_PER_DAY = 86_400_000;
 
-/**
- * `key`'s place in its period: the month of a yearMonth (base 100), the quarter of a yearQuarter (10).
- * "Q1" of 20261, but also of -9, the first quarter of 2 BC.
- */
-export const periodOf = (key, base) => key - Math.floor(key / base) * base;
-
 /** The locale used when neither the view nor the options name one. */
 export const DEFAULT_LOCALE = "en-US";
 
@@ -40,9 +34,6 @@ export const get = (obj, key) => (isPlainObject(obj) && Object.hasOwn(obj, key) 
 /** The number, or null for anything that is not a finite number. */
 export const finite = (value) => (typeof value === "number" && Number.isFinite(value) ? value : null);
 
-/** The first `n` UTF-16 units of a text, one fewer where the n-th would split a character in half. */
-const cut = (text, n) => (/[\ud800-\udbff]/.test(text[n - 1] ?? "") ? text.slice(0, n - 1) : text.slice(0, n));
-
 /**
  * A value from a view as an issue's params show it: a text as it is, anything else as JSON, at most
  * 100 characters (an issue quotes user input; it must stay short).
@@ -58,16 +49,8 @@ export function shown(value) {
     }
     // the value goes into an issue a UI shows: no controls, invisible or direction characters
     const clean = text.slice(0, 400).replace(SPACED, " ").replace(HIDDEN_ALL, "");
-    return clean.length > 100 ? `${cut(clean, 99)}…` : clean;
+    return clean.length > 100 ? `${clean.slice(0, 99)}…` : clean;
 }
-
-/**
- * A value from a view as an issue's message quotes it: a text in quotes, anything else as JSON, cut
- * and cleaned as shown() does, so a message stays as short as its params and never throws.
- * @param {unknown} value
- * @returns {string}
- */
-export const quoted = (value) => (typeof value === "string" ? JSON.stringify(shown(value)) : shown(value));
 
 /** "#abc" or "#aabbcc" -> "aabbcc" */
 export function hexDigits(hex) {
@@ -245,5 +228,5 @@ export function plainText(value, max, { id = false } = {}) {
     if (text.length <= max) {
         return text;
     }
-    return id ? cut(text, max) : `${cut(text, max - 1).trimEnd()}…`;
+    return id ? text.slice(0, max) : `${text.slice(0, max - 1).trimEnd()}…`;
 }

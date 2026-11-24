@@ -42,13 +42,23 @@ test("the history keeps copies", () => {
     assert.deepEqual(h.reset().rows, []);
 });
 
-test("the methods work when taken off the object; a limit that is no number is refused", () => {
+test("the methods work when taken off the object; Infinity keeps every step; a limit that is no number is refused", () => {
     const start = emptyView();
     const { push, reset, undo } = createHistory(start);
     push({ ...start, rows: ["a"] });
     assert.deepEqual(reset(), start);
     assert.deepEqual(undo().rows, ["a"]);
-    for (const limit of [Number.NaN, Infinity, "many"]) {
+    const all = createHistory(start, { limit: Infinity });
+    for (let i = 0; i < 150; i++) {
+        all.push({ ...start, rows: [`r${i}`] });
+    }
+    let steps = 0;
+    while (all.canUndo) {
+        all.undo();
+        steps++;
+    }
+    assert.equal(steps, 150, "more than the default 100");
+    for (const limit of [Number.NaN, "many", {}]) {
         assert.throws(() => createHistory(start, { limit }), { code: "INVALID_OPTION" }, String(limit));
     }
 });

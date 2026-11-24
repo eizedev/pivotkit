@@ -151,12 +151,6 @@ export const REPORT_LABELS = Object.freeze({
     })
 });
 
-// their nested tables too: a report shares them, nobody may change them in place
-for (const labels of Object.values(REPORT_LABELS)) {
-    Object.freeze(labels.aggregators);
-    Object.freeze(labels.showAs);
-}
-
 /**
  * The name a grouping of a field gets, as the report names one placed from its field list: "Date by
  * month" (`name`, with the unit as it reads inside a name, `units`), "Revenue (by 500)" for number
@@ -199,6 +193,12 @@ export function groupingName(field, unit, options = {}) {
     }
     // one pass: a field's own name may hold "{unit}" or "{size}" and stays as it is
     return fill(names.name, { field, unit: Object.hasOwn(names.units, unit) ? names.units[unit] : unit });
+}
+
+// their nested tables too: a report shares them, nobody may change them in place
+for (const labels of Object.values(REPORT_LABELS)) {
+    Object.freeze(labels.aggregators);
+    Object.freeze(labels.showAs);
 }
 
 /** The categories of Intl.PluralRules: the keys a count's forms may have. */

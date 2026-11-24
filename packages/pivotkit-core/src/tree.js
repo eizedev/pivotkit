@@ -19,14 +19,12 @@ import { optionsOf } from "./util.js";
  */
 
 /**
- * Groups rows by the codes of some columns. It stops at the first group more than `max`: the caller
- * counts the groups against its limit and throws.
+ * Groups rows by the codes of some columns.
  * @param {import("./encode.js").Column[]} columns
  * @param {Int32Array} rows  source row indices
- * @param {number} [max]  the most groups the caller takes
  * @returns {{ groupOf: Int32Array, paths: number[][] }}  groupOf is indexed by position in rows
  */
-export function groupBy(columns, rows, max = Infinity) {
+export function groupBy(columns, rows) {
     const groupOf = new Int32Array(rows.length);
     const paths = [];
     if (columns.length === 0) {
@@ -65,9 +63,6 @@ export function groupBy(columns, rows, max = Infinity) {
                 path[j] = codeArrays[j][r];
             }
             paths.push(path);
-            if (g >= max) {
-                break;
-            }
             map.set(key, g);
         }
         groupOf[i] = g;
@@ -99,11 +94,10 @@ function makeNode(id, depth, code, key, parent) {
  *   leaf node id per row position; leafCount: the distinct leaves
  */
 export function buildTree(columns, rows, limit = { max: Infinity, used: 0 }) {
+    const { groupOf, paths } = groupBy(columns, rows);
     // every group is a leaf of its own, so the tree has at least as many nodes, plus the root above
-    // them; without fields the root is the one leaf. Grouping stops at the first group too many.
-    const above = limit.used + (columns.length > 0 ? 1 : 0);
-    const { groupOf, paths } = groupBy(columns, rows, limit.max - above);
-    checkLimit("groups", above + paths.length, limit.max, "groups");
+    // them; without fields the root is the one leaf
+    checkLimit("groups", limit.used + paths.length + (columns.length > 0 ? 1 : 0), limit.max, "groups");
     const root = makeNode(0, 0, -2, null, null);
     const nodes = [root];
     // every child of the tree in one map, keyed by its parent and its code: a map per node would

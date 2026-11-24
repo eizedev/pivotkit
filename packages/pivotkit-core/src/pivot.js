@@ -22,7 +22,7 @@ import { DEFAULT_LABELS, labelOf, ranksOf } from "./labels.js";
 import { KEEPS_VALUES_WEIGHT, resolveLimits } from "./limits.js";
 import { SHOW_AS } from "./show-as.js";
 import { buildTree, groupBy } from "./tree.js";
-import { resolveLocale, optionsOf, quoted, shown, unknownOptionLocale } from "./util.js";
+import { resolveLocale, optionsOf, shown, unknownOptionLocale } from "./util.js";
 import { issueOf, normalize } from "./view.js";
 
 /** @typedef {import("./tree.js").PivotNode} PivotNode */
@@ -87,31 +87,8 @@ function columnResolver(encoded, view) {
 
 /** A kernel of an aggregator over a column for `cells` cells. */
 function kernelFor(encoded, ref, column, cells, locale) {
-    const aggregator = aggregatorOf(ref.agg);
-    const ranks = column && aggregator.needsRanks ? ranksOf(column, locale, encoded.cache) : null;
-    return aggregator.create(column, cells, ranks, (code) => labelOf(column, column.dict[code], locale));
-}
-
-/**
- * For a row field sorted by a value in one column (its items, outermost first): that column's node,
- * null when the data has no such column (every row then sorts last, by label). Found once per sort
- * entry, not once per row: a search per row would cost rows x columns.
- * @param {{ root: PivotNode }} colTree
- * @returns {(path: unknown[]) => PivotNode | null}
- */
-function columnFinder(colTree) {
-    /** @type {Map<unknown[], PivotNode | null>} */
-    const found = new Map();
-    return (path) => {
-        if (!found.has(path)) {
-            let node = colTree.root;
-            for (const key of path) {
-                node = node?.children.find((c) => c.key === key);
-            }
-            found.set(path, node ?? null);
-        }
-        return found.get(path);
-    };
+    const ranks = column ? ranksOf(column, locale, encoded.cache) : null;
+    return aggregatorOf(ref.agg).create(column, cells, ranks, (code) => labelOf(column, column.dict[code], locale));
 }
 
 /**
@@ -326,7 +303,7 @@ export function computePivot(data, viewInput, options) {
     const locale = resolveLocale(view.formatting.locale, options.locale);
     // an option's locale the runtime has no data for: the default, said as a warning (the view's own wins)
     if (!view.formatting.locale && unknownOptionLocale(options.locale)) {
-        issues.push(issueOf("locale", `unknown locale ${quoted(options.locale)}; ${locale} is used`, "unknownLocale", { value: shown(options.locale) }, "warning"));
+        issues.push(issueOf("locale", `unknown locale ${JSON.stringify(options.locale)}; ${locale} is used`, "unknownLocale", { value: shown(options.locale) }, "warning"));
     }
     if (view.formatting.timeZone && view.formatting.timeZone !== data.timeZone) {
         issues.push(issueOf("formatting.timeZone", `the view was made for ${view.formatting.timeZone}, the data is encoded in ${data.timeZone}; pass timeZone to encode()`, "timeZoneMismatch", { value: view.formatting.timeZone, zone: data.timeZone }));
@@ -396,7 +373,11 @@ export function computePivot(data, viewInput, options) {
     const { value: measureValue, has: hasRows } = aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree, limits.pivotCells);
 
     const sortOf = new Map(view.sort.map((s) => [s.field, s]));
-    const columnNode = columnFinder(colTree);
+    // a row field sorted by a value in one column (its items, outermost first): that column's node,
+    // false when the data has no such column (every row then sorts last, by label). Found once per
+    // sort entry, not per row: a search per row would cost rows x columns
+    const found = new Map();
+    const columnNode = (path) => found.get(path) ?? found.set(path, path.reduce((node, key) => node && node.children.find((c) => c.key === key), colTree.root) || false).get(path);
     sortAxis(rowTree, view.rows, rowColumns, sortOf, (n, ref, column) => {
         const col = column ? columnNode(column) : colTree.root;
         return col ? num(measureValue(n, col, measureIndex.get(refKey(ref)))) : null;

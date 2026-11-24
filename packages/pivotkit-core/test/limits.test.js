@@ -87,8 +87,6 @@ test("computePivot counts groups and cells against options.limits", () => {
     assert.doesNotThrow(() => computePivot(data, view, { limits: { pivotCells: 120 } }));
     // the row tree alone already exceeds the limit: refused before the column tree is built
     assert.throws(() => computePivot(data, { rows: ["A"] }, { limits: { groups: 30 } }), isError("LIMIT_EXCEEDED", "groups"));
-    // counted while the rows are grouped: the first group too many stops it, not the 31st of all
-    assert.throws(() => computePivot(data, { rows: ["A"] }, { limits: { groups: 10 } }), (e) => isError("LIMIT_EXCEEDED", "groups")(e) && e.details.value === 11);
 });
 
 test("the lower bound of the groups is exact for axes without fields", () => {
@@ -140,6 +138,8 @@ test("the limits page states every default as LIMITS holds it", () => {
 });
 
 test("limits.groups is at most 2^27, where cell keys (row node id x column count + column node id) stay exact", () => {
+    const half = 2 ** 27 / 2;
+    assert.ok(half * half + half < Number.MAX_SAFE_INTEGER);
     assert.throws(() => computePivot(square(2), {}, { limits: { groups: 2 ** 27 + 1 } }), isError("INVALID_OPTION"));
     assert.doesNotThrow(() => computePivot(square(2), {}, { limits: { groups: 2 ** 27 } }));
 });

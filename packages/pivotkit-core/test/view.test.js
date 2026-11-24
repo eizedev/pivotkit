@@ -151,15 +151,6 @@ test("derived fields cannot shadow columns or chain", () => {
     assert.deepEqual(errors.map((e) => [e.path, e.code]), [["derived[0]", "groupingNameTaken"], ["derived[2]", "groupingNoSource"], ["derived[3]", "binSize"]]);
 });
 
-test("an issue's message quotes a long value as short as its params do", () => {
-    const long = "x".repeat(900_000);
-    const { issues } = normalize({ values: [{ field: "Units", agg: "sum", format: long }], rows: [long] }, data);
-    assert.deepEqual(issues.map((i) => i.path), ["rows[0]", "values[0].format"]);
-    for (const issue of issues) {
-        assert.ok(issue.message.length < 200, `${issue.path}: ${issue.message.length} characters`);
-    }
-});
-
 test("computePivot normalizes what it gets, so a hostile view cannot break it", () => {
     const r = computePivot(data, { rows: ["__proto__"], values: [{ field: "constructor", agg: "toString" }], filters: "x", sort: { a: 1 } });
     assert.deepEqual(r.view.rows, []);

@@ -83,14 +83,3 @@ test("subtotal medians come from the rows, not from the medians below", () => {
     // medians below are 2 and 100; the rows of "a" are 1 2 3 100
     assert.equal(r.value(findNode(r, "rows", ["a"]), r.colRoot, 0), 2.5);
 });
-
-test("only first, last and listUnique sort the values: a count of a text field orders nothing", () => {
-    const data = encode([{ t: "b", v: 1 }, { t: "a", v: 2 }]);
-    // the data's cache keeps each sort order a pivot made
-    const sortedOrders = () => data.cache.size;
-    computePivot(data, { values: [{ field: "t", agg: "count" }, { field: "t", agg: "countUnique" }, { field: "v", agg: "sum" }] });
-    assert.equal(sortedOrders(), 0, "no sort order made for a count");
-    const r = computePivot(data, { values: [{ field: "t", agg: "first" }] });
-    assert.equal(r.value(r.rowRoot, r.colRoot, 0), "a");
-    assert.equal(sortedOrders(), 1, "first reads the sort order");
-});

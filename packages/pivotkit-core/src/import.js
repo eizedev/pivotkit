@@ -90,8 +90,10 @@ export function validatePlugin(plugin) {
         fail('needs accept: file name extensions (".xlsx") and media types ("text/csv"), in lower case');
     }
     if (typeof p.load !== "function") fail("needs load(): a function that imports the reader");
-    // load is called on the plugin itself, so a plugin object whose load() reads `this` works
-    return Object.freeze({ apiVersion: p.apiVersion, kind: p.kind, name: p.name, label: p.label, accept: [...p.accept], load: () => p.load() });
+    // load is taken once, as checked, and called on the plugin itself, so a plugin object whose
+    // load() reads `this` works and a later change of the plugin's load is not run
+    const load = p.load;
+    return Object.freeze({ apiVersion: p.apiVersion, kind: p.kind, name: p.name, label: p.label, accept: [...p.accept], load: () => load.call(p) });
 }
 
 /** The CSV, TSV and text reader of pivotkit-core. */

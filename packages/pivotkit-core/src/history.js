@@ -9,13 +9,14 @@ import { optionsOf } from "./util.js";
 /**
  * @template T
  * @param {T} startView  the view "reset" returns to
- * @param {{ limit?: number }} [options]  how many steps are kept (default 100)
+ * @param {{ limit?: number }} [options]  how many steps are kept (default 100; Infinity keeps all)
  */
 export function createHistory(startView, options) {
     options = optionsOf(options, "createHistory");
     const limit = Math.max(1, Math.floor(options.limit ?? 100));
-    if (!Number.isFinite(limit)) {
-        throw new PivotkitError("INVALID_OPTION", "createHistory: limit must be a finite number");
+    // Infinity keeps every step; NaN would too, silently, so a limit that is no number is refused
+    if (Number.isNaN(limit)) {
+        throw new PivotkitError("INVALID_OPTION", "createHistory: limit must be a number");
     }
     const start = JSON.stringify(startView);
     /** @type {string[]} */
