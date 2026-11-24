@@ -126,8 +126,8 @@ Test a plugin on real files of its format:
 - one over each limit
 - one stopped by `signal`
 
-There is no shared conformance test kit for plugins
-([#122](https://github.com/eizedev/pivotkit/issues/122) is open for it).
+There is no shared conformance test kit for plugins.
+[#122](https://github.com/eizedev/pivotkit/issues/122) is open for it.
 
 ## Publish
 

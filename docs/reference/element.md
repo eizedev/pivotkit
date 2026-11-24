@@ -149,10 +149,10 @@ The element sends no event for the store's saves and deletes.
 
 Type: `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }`.
 
-The keys work as in pivotkit-react's [`fieldDefaults`](react.md#prop-fielddefaults): the
+The keys work as in pivotkit-react's [`fieldDefaults`](react.md#prop-fielddefaults). They set the
 aggregator and formats a field gets, its order of items, its display name, description, link and
-column type. Some number fields are [identifier fields](../concepts/fields.md#identifier-fields)
-when none of `agg`, `format` and `drillFormat` is set.
+column type. A number field without `agg`, `format` and `drillFormat` can be an
+[identifier field](../concepts/fields.md#identifier-fields).
 
 ### `height` { #prop-height }
 

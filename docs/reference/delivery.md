@@ -459,6 +459,11 @@ included) carries no `url`, since anyone with the address could open a report wh
 withheld from the model, or another person's data. Such an address works as long as the file is
 there, 30 days by default (`output.maxAgeDays`).
 
+`check-config` prints a `Delivery:` section: where links point, which sources get which link, the
+redirect URI to register, where the key and the sign-in client's secret come from, and the warnings.
+A key or client secret it cannot read is a `PROBLEM` the server starts with. Until it is fixed,
+reports get no links, or download links (signed in) fail after the person signs in.
+
 ## Reports and drafts in the output directory { #output-directory }
 
 Reports stay in the output directory after their link expired, until `output.maxFiles`,
@@ -476,8 +481,3 @@ removes drafts. Renders keep working, unless drafts written under larger limits 
 alone. So approve or reject drafts by changing their `status`, or remove them. A host may also delete or move a draft instead of rewriting its `status`.
 A draft file that cannot be read or parsed, is over 1 MiB, or has no `status` that is a string
 counts as waiting.
-
-`check-config` prints a `Delivery:` section: where links point, which sources get which link, the
-redirect URI to register, where the key and the sign-in client's secret come from, and the warnings.
-A key or client secret it cannot read is a `PROBLEM` the server starts with. Until it is fixed,
-reports get no links, or download links (signed in) fail after the person signs in.
