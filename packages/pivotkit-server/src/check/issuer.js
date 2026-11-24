@@ -15,13 +15,11 @@
 import { ISSUER_LIMITS, issuerRulesOf } from "../issuer.js";
 import { settingsOf as downloadSettingsOf } from "../options/downloads.js";
 import { resolveRefusal } from "./host.js";
+import { bytesText } from "../text.js";
 import { heading, plain, problem, warning } from "./format.js";
 
 /** How long check-config waits for an issuer's metadata. */
 export const ISSUER_MS = 3000;
-
-/** A size in KiB for a line. */
-const kib = (bytes) => `${+(bytes / 1024).toFixed(1)} KiB`;
 
 /** What a PROBLEM of the issuer's host does: the server starts, the sign-in does not work. */
 const NO_SIGN_IN = { effect: "the server starts; callers get 503 until the issuer can be reached" };
@@ -152,15 +150,17 @@ export async function section(options, _registry, runtime) {
     items.push(
         // its warnings are about the sign-in: they carry Auth's name, where the operator looks
         heading("Issuer requests:", "Auth"),
-        plain(`https only, no redirects, metadata up to ${kib(ISSUER_LIMITS.metadataBytes)}, keys up to ${kib(ISSUER_LIMITS.jwksBytes)}`),
+        plain(`https only, no redirects, metadata up to ${bytesText(ISSUER_LIMITS.metadataBytes)}, keys up to ${bytesText(ISSUER_LIMITS.jwksBytes)}`),
         plain(rules.intranet ? "loopback and private addresses: allowed (auth.intranet)" : "loopback and private addresses: refused (set auth.intranet: true for an issuer in your LAN or cluster)")
     );
     // where the download sign-in sends its code (and the client secret)
     if (signIn) {
         items.push(plain(signIn.tokenUrl && URL.canParse(signIn.tokenUrl) ? `download links' token endpoint: on ${new URL(signIn.tokenUrl).host} (output.downloads.signIn.tokenUrl)` : "download links' token endpoint: on the issuer's host only"));
     }
+    let issuerRefused = false;
     for (const [key, text] of /** @type {Array<[string, string | undefined]>} */ ([["auth.issuer", auth.issuer], ["auth.jwksUri", auth.jwksUri], ["output.downloads.signIn.tokenUrl", signIn?.tokenUrl ?? undefined]])) {
         const said = text ? await hostItem(text, key, rules) : null;
+        issuerRefused ||= key === "auth.issuer" && said?.kind === "problem";
         // one cause, one warning: an issuer that cannot be looked up is said by the metadata check
         // below, with the connection's error, where the commands ask it
         if (said && !(said.kind === "warning" && key === "auth.issuer" && typeof runtime.discover === "function")) {
@@ -169,7 +169,7 @@ export async function section(options, _registry, runtime) {
     }
     // whether the metadata loads now (with runtime.discover, the commands'), unless the issuer's
     // address is a problem already
-    if (!items.some((i) => i.kind === "problem" && i.text.startsWith("auth.issuer:"))) {
+    if (!issuerRefused) {
         items.push(...(await reachItems(options, runtime)));
     }
     return { items, upgrade: [] };

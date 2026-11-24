@@ -2,7 +2,8 @@
  * The commands that make the server's credentials, loaded by the runner only for them:
  *
  *   pivotkit-server token new [--file <path>] [--name <n>] [--profile <p>] [--scope <s>]...
- *                             [--if-missing | --force] [--print] [--config <file> [--add]] [--json]
+ *                             [--expires <when>] [--if-missing | --force] [--print]
+ *                             [--config <file> [--add]] [--json]
  *   pivotkit-server token show <name> [--config <file>] [--state-dir <dir>] [--json]
  *   pivotkit-server key new --for downloads|audit [--file <path>] [--if-missing | --force] [--print] [--json]
  *
@@ -37,12 +38,28 @@ import { CONFIG_ENV } from "./flags.js";
 import { DEFAULT_PORT, TOKEN_ENV } from "./serve.js";
 import { MCP_TOKEN_ENV } from "./context.js";
 import { SECRET_BYTES, SecretFileError, newSecret, placeSecret, replaceFile, writeBackup } from "./secret-file.js";
-
+import { DOCS_SITE } from "./options/branding.js";
 
 /** Where the configuration names a key of each use (secret-rules.js KEY_USES), for the hints. */
 const KEY_OPTIONS = Object.freeze({
     downloads: { option: "output.downloads.key", snippet: (file) => `"output": { "downloads": { "key": { "file": ${JSON.stringify(file)} } } }`, after: "The server reads it again within a second: no restart. Links made with an earlier key stop working." },
     audit: { option: "audit.key", snippet: (file) => `"audit": { "subject": "hash", "key": { "file": ${JSON.stringify(file)} } }`, after: "The server reads it at start: restart it." }
+});
+
+/** --json and --help: every command has them. */
+const OUTPUT_FLAGS = Object.freeze({
+    json: { type: "boolean", text: "Write one JSON object on stdout." },
+    help: { type: "boolean", short: "h", text: "Print this help and exit." }
+});
+
+/** --state-dir where it means the server's state directory and nothing more. */
+const STATE_DIR_FLAG = Object.freeze({ type: "string", value: "dir", text: "The server's state directory (default $PIVOTKIT_STATE_DIR)." });
+
+/** The flags of a command that reads the configuration and the state directory as the server does. */
+const ADMIN_FLAGS = Object.freeze({
+    config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG)." },
+    "state-dir": STATE_DIR_FLAG,
+    ...OUTPUT_FLAGS
 });
 
 /** The flags of each command, defined once for the parser and the help. */
@@ -58,42 +75,30 @@ const FLAGS = Object.freeze({
         print: { type: "boolean", text: "Print the token also when it is written to --file." },
         config: { type: "string", value: "file", text: "The server's configuration file: checks the profile, the file's place, and the address in the hints." },
         add: { type: "boolean", text: "Add the token to auth.tokens of --config; needs --file (a backup <file>.bak-<time> first; the file is rewritten as pretty-printed JSON)." },
-        json: { type: "boolean", text: "Write one JSON object on stdout." },
-        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+        ...OUTPUT_FLAGS
     },
     "token show": {
         config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG)." },
         "state-dir": { type: "string", value: "dir", text: "The server's state directory, where it keeps the tokens it made (default $PIVOTKIT_STATE_DIR)." },
-        json: { type: "boolean", text: "Write one JSON object on stdout." },
-        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+        ...OUTPUT_FLAGS
     },
     "token issue": {
         name: { type: "string", value: "name", text: "The token's name in the list (default: none). The log names the token by its ID." },
         profile: { type: "string", value: "profile", text: "The policy profile of the token (a name of policy.profiles)." },
         scope: { type: "string", multiple: true, value: "scope", text: "A scope the token holds (may be given more than once; none: every scope)." },
         expires: { type: "string", value: "when", text: "When it stops working: a time from now (15m, 8h, 7d; default 1h) or a date; at most auth.signedTokens.maxDays (default 30 days)." },
-        config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG)." },
-        "state-dir": { type: "string", value: "dir", text: "The server's state directory (default $PIVOTKIT_STATE_DIR)." },
-        json: { type: "boolean", text: "Write one JSON object on stdout." },
-        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+        ...ADMIN_FLAGS
     },
     "token list": {
-        config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG)." },
-        "state-dir": { type: "string", value: "dir", text: "The server's state directory (default $PIVOTKIT_STATE_DIR)." },
-        json: { type: "boolean", text: "Write one JSON object on stdout." },
-        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+        ...ADMIN_FLAGS
     },
     "token revoke": {
-        config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG)." },
-        "state-dir": { type: "string", value: "dir", text: "The server's state directory (default $PIVOTKIT_STATE_DIR)." },
-        json: { type: "boolean", text: "Write one JSON object on stdout." },
-        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+        ...ADMIN_FLAGS
     },
     "token remove": {
         config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG); a static token is taken out of its auth.tokens (a backup first)." },
-        "state-dir": { type: "string", value: "dir", text: "The server's state directory (default $PIVOTKIT_STATE_DIR)." },
-        json: { type: "boolean", text: "Write one JSON object on stdout." },
-        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+        "state-dir": STATE_DIR_FLAG,
+        ...OUTPUT_FLAGS
     },
     "key new": {
         for: { type: "string", value: "downloads|audit|signing", text: "What the key is for: output.downloads.key, audit.key, or signing tokens (token issue) (required)." },
@@ -104,16 +109,12 @@ const FLAGS = Object.freeze({
         config: { type: "string", value: "file", text: "The server's configuration file: refuses a file inside output.dir." },
         add: { type: "boolean", text: "Name the key as output.downloads.key or audit.key of --config; needs --file (a backup first; pretty-printed JSON)." },
         "state-dir": { type: "string", value: "dir", text: "--for signing: the server's state directory (default $PIVOTKIT_STATE_DIR)." },
-        json: { type: "boolean", text: "Write one JSON object on stdout." },
-        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+        ...OUTPUT_FLAGS
     },
     "key remove": {
         for: { type: "string", value: "signing", text: "The key's use: signing, a key of the signed tokens (required)." },
         force: { type: "boolean", text: "Remove it also while tokens signed with it still work (they get 401 from then on)." },
-        config: { type: "string", value: "file", text: "The configuration file (default $PIVOTKIT_CONFIG)." },
-        "state-dir": { type: "string", value: "dir", text: "The server's state directory (default $PIVOTKIT_STATE_DIR)." },
-        json: { type: "boolean", text: "Write one JSON object on stdout." },
-        help: { type: "boolean", short: "h", text: "Print this help and exit." }
+        ...ADMIN_FLAGS
     }
 });
 
@@ -126,11 +127,13 @@ function helpOf(group) {
     const parts = Object.keys(FLAGS)
         .filter((command) => command.startsWith(group))
         .map((command) => `${USAGE[/** @type {keyof typeof USAGE} */ (command)]}\n${lines(FLAGS[command]).join("\n")}`);
-    return `${parts.join("\n\n")}\n\nWithout --file the value is the only line on stdout. Exit codes: 0 done, 1 a file that is there, missing or not usable, 2 a usage or configuration error.\nDocs: https://pivotkit.eize.dev/reference/rest/#credentials\n`;
+    return `${parts.join("\n\n")}\n\nWithout --file the value is the only line on stdout. Exit codes: 0 done, 1 a file that is there, missing or not usable, 2 a usage or configuration error.\nDocs: ${DOCS_SITE}reference/rest/#credentials\n`;
 }
 
-/** A refusal of the command: its exit code (2 usage, 1 a file), kind and code, as --json gives them. */
-/** @extends {CodedError<string, undefined>} */
+/**
+ * A refusal of the command: its exit code (2 usage, 1 a file), kind and code, as --json gives them.
+ * @extends {CodedError<string, undefined>}
+ */
 export class CommandError extends CodedError {
     /**
      * @param {1 | 2} exitCode
@@ -139,6 +142,7 @@ export class CommandError extends CodedError {
      */
     constructor(exitCode, code, message) {
         super(code, message);
+        this.name = "CommandError";
         this.exitCode = exitCode;
         this.kind = exitCode === 2 ? "usage" : "io";
     }
@@ -419,7 +423,7 @@ function withToken(raw, entry, config, same) {
     }
     if (!tokens.length) {
         // auth.js staticTokens: the variable's token counts only while auth.tokens is empty
-        notes.push(`$${TOKEN_ENV} (pivotkit-mcp: $PIVOTKIT_MCP_TOKEN) is no longer read once auth.tokens lists a token: clients that send it get 401 after the restart; give them a token of auth.tokens`);
+        notes.push(`$${TOKEN_ENV} (pivotkit-mcp: $${MCP_TOKEN_ENV}) is no longer read once auth.tokens lists a token: clients that send it get 401 after the restart; give them a token of auth.tokens`);
     }
     return { next: { ...raw, auth: { ...auth, mode: "token", tokens: [...tokens, entry] } }, notes };
 }

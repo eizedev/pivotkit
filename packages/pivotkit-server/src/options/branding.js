@@ -125,7 +125,7 @@ export const docsLink = (docs, path) => (docs === null ? null : `${docs}${path}`
  */
 export function validate(options) {
     const page = options.http?.page;
-    if (page && typeof page === "object" && page.url !== undefined && page.sources !== undefined) {
+    if (page && typeof page === "object" && page.url !== undefined && page.sources === true) {
         throw new ConfigError("http.page: give url (/ goes to your page) or sources (the built-in page lists them), not both");
     }
 }

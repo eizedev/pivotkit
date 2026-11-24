@@ -157,9 +157,13 @@ async function links(options, registry, runtime) {
     }
     const base = publicUrl ?? `http://${host.includes(":") ? `[${host}]` : host}:${options.http?.port ?? 3333}`;
     items.push(plain(`download links: ${base}${DOWNLOADS_PATH}/<token>`));
-    if (publicUrl) items.push(plain(`route ${DOWNLOADS_PATH} to this service`, 2));
+    if (publicUrl) {
+        items.push(plain(`route ${DOWNLOADS_PATH} to this service`, 2));
+    }
     const insecure = insecurePublicHost(options);
-    if (insecure) items.push(warning(insecureUrlText(insecure)));
+    if (insecure) {
+        items.push(warning(insecureUrlText(insecure)));
+    }
     items.push(plain(`expire after ${settings.expiresMinutes} minute${settings.expiresMinutes === 1 ? "" : "s"}`, 2));
     if (settings.expiresMinutes < EXPIRES_MINUTES.short) {
         items.push(warning(`output.downloads.expiresMinutes is ${settings.expiresMinutes}: a person must read the answer, open the link and sign in within this time; ${EXPIRES_MINUTES.short} minutes or more is safer`));

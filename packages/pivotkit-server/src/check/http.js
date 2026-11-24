@@ -33,9 +33,8 @@ import { backendAuthOf, httpSettingsOf } from "../options/http.js";
 import { addressRefusal } from "../sources/fetch.js";
 import { bytesText } from "../text.js";
 import { paramsList } from "../sources/params.js";
-import { personBound } from "../sources/auth.js";
+import { personBound, secretsOf } from "../sources/auth.js";
 import { secretFileWarning } from "../secrets.js";
-import { secretsOf } from "../sources/auth.js";
 import { heading, plain, problem, secretText, warning } from "./format.js";
 
 /** The section's heading, which check.js's list of sources points to. */
@@ -57,7 +56,6 @@ function paramText(p, declared) {
     const what = p.enum ? p.enum.join("|") : [p.type, d.pattern ? "pattern" : d.format === "date" ? "date" : null, p.required ? "required" : null].filter(Boolean).join(", ");
     return `${p.name} (${what})`;
 }
-
 
 /**
  * How a backend's authentication is made, in words: the first line, then where each secret comes
@@ -157,7 +155,9 @@ export async function section(options, registry, runtime) {
         items.push(plain(s.backend ? `${id}: backend ${s.backend} (${s.backendUrl})` : `${id}:`));
         items.push(plain(`GET ${path}${query}`, 2));
         items.push(plain(s.format === "csv" ? "reads a CSV body" : `rows at ${s.rowsText || "the body"}`, 2));
-        if (s.pagingText) items.push(plain(s.pagingText, 2));
+        if (s.pagingText) {
+            items.push(plain(s.pagingText, 2));
+        }
         items.push(plain(`up to ${s.paging ? `${s.maxPages} pages / ` : ""}${bytesText(bytes)} / ${s.timeMs / 1000} s`, 2));
         items.push(plain(s.ttl > 0 ? `kept ${s.ttl} s per caller` : "loaded on every call (shared while in flight)", 2));
         items.push(plain(`last good data: ${s.maxStale > 0 ? `up to ${s.maxStale} s` : "off"}`, 2));

@@ -253,7 +253,7 @@ export const stateMeans = {
 };
 
 /** A path of the mount table with its escapes (\040 for a space) read back. */
-const unescape = (text) => text.replace(/\\([0-7]{3})/g, (_, n) => String.fromCharCode(parseInt(n, 8)));
+const unescapeMount = (text) => text.replace(/\\([0-7]{3})/g, (_, n) => String.fromCharCode(parseInt(n, 8)));
 
 /**
  * Whether a directory lies on a container's own layer: inside a container (stateMeans.container) on
@@ -270,7 +270,7 @@ export async function onContainerLayer(dir, env) {
     if (!table) {
         return false;
     }
-    const points = table.split("\n").map((line) => line.split(" ")[4]).filter(Boolean).map(unescape);
+    const points = table.split("\n").map((line) => line.split(" ")[4]).filter(Boolean).map(unescapeMount);
     const on = points.filter((p) => isInside(dir, p)).sort((a, b) => b.length - a.length)[0];
     return on === "/";
 }

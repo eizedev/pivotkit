@@ -102,7 +102,7 @@ export async function section(options, registry) {
         }
     } else {
         items.push(plain("when full, the oldest reports are deleted to make room; drafts are kept"));
-        const days = maxAgeDaysOf(options, shared);
+        const days = maxAgeDaysOf(options, false);
         const draftDays = out.draftMaxAgeDays ?? OUTPUT_DEFAULTS.draftMaxAgeDays;
         const reportsLine = days > 0 ? `reports older than ${countText(days, "day")} are deleted` : "no age limit for reports (output.maxAgeDays 0)";
         const draftsLine = draftDays > 0 ? `schedule drafts that wait for approval are deleted after ${countText(draftDays, "day")}` : "schedule drafts stay until a person approves or removes them";

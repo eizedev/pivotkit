@@ -9,6 +9,7 @@
 
 import { CODE_DEFAULTS, sourceCacheOf } from "../options/code.js";
 import { isClosedForDelivery } from "../registry.js";
+import { bytesText } from "../text.js";
 import { heading, plain } from "./format.js";
 
 /**
@@ -27,11 +28,10 @@ export async function section(options, _registry, _runtime) {
     const code = Object.entries(options.sources ?? {}).filter(([, s]) => typeof s.load === "function");
     const loaded = code.length > 0 || Object.values(options.sources ?? {}).some((s) => s.http);
     const { bytes, share } = sourceCacheOf(options);
-    const mb = (n) => `${Math.round((n / 1_048_576) * 10) / 10} MiB`;
     const cache = [
-        heading(`Kept loads: at most ${mb(bytes)} (sourceCache.maxMb)`),
+        heading(`Kept loads: at most ${bytesText(bytes)} (sourceCache.maxMb)`),
         plain("the data code and HTTP sources loaded, kept for their next calls"),
-        plain(`a table over ${mb(share)} (a quarter) is not kept and loads on every call`),
+        plain(`a table over ${bytesText(share)} (a quarter) is not kept and loads on every call`),
         plain("with several contexts in one process, the largest setting applies")
     ];
     if (!code.length) {

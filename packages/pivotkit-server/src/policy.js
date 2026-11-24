@@ -41,8 +41,8 @@ import { findingText } from "pivotkit-report/operations";
  * The levels, from most to least visible. A source's rule for a field replaces the server's, a
  * profile's replaces the source's, except that a field the source's policy hides stays hidden; only
  * two rules of one part for one field (two spellings of its name) keep the stricter of the two.
+ * @type {readonly ["show", "values", "summary", "hide"]}
  */
-/** @type {readonly ["show", "values", "summary", "hide"]} */
 export const POLICY_LEVELS = Object.freeze(/** @type {const} */ (["show", "values", "summary", "hide"]));
 
 /** @typedef {"show" | "values" | "summary" | "hide"} Level */
@@ -165,15 +165,25 @@ export function autoValuesOf(option) {
     if (option === true || option === undefined || option === null) {
         return AUTO_VALUES;
     }
+    // resolvePolicy asks on every request: the deny list is read once per option object
+    const known = autoValuesMade.get(option);
+    if (known) {
+        return known;
+    }
     const { maxDistinct, minRowsPerValue, minRows, deny } = option;
-    return {
+    const made = {
         ...AUTO_VALUES,
         ...(maxDistinct !== undefined ? { maxDistinct } : {}),
         ...(minRowsPerValue !== undefined ? { minRowsPerValue } : {}),
         ...(minRows !== undefined ? { minRows } : {}),
         deny: withDenyRead([...AUTO_VALUES.deny, ...(deny ?? []).map((w) => w.normalize("NFC").toLowerCase().trim()).filter(Boolean)])
     };
+    autoValuesMade.set(option, made);
+    return made;
 }
+
+/** autoValuesOf's result per policy.autoValues object. */
+const autoValuesMade = new WeakMap();
 
 /**
  * The policy.autoValues option that holds for a source: the source's, else the server's, else the
@@ -256,9 +266,20 @@ export function resolvePolicy(server = {}, source = {}, profile = undefined, how
  */
 export const withStats = (policy, stats) => ({ ...policy, stats: stats ?? null });
 
-/** A field name as the policy matches it: Unicode NFC (a file from macOS may write "ö" as two code points), trimmed, lower case. */
-// whitespace counts as one space, whichever kind (a no-break or ideographic space, a doubled one: an
-// Excel header often has them), so a rule on "Customer Name" also matches such a column
+/**
+ * A field's statistics by its key, own keys only: a name such as "constructor" is data, never an
+ * object's inherited member.
+ * @param {import("./stats.js").SourceStats | null | undefined} stats
+ * @param {string} key  fieldKey of the field's name
+ */
+const fieldStatsOf = (stats, key) => (stats?.fields && Object.hasOwn(stats.fields, key) ? stats.fields[key] : undefined);
+
+/**
+ * A field name as the policy matches it: Unicode NFC (a file from macOS may write "ö" as two code
+ * points), trimmed, lower case. Whitespace counts as one space, whichever kind (a no-break or
+ * ideographic space, a doubled one: an Excel header often has them), so a rule on "Customer Name"
+ * also matches such a column.
+ */
 export const fieldKey = (name) => String(name).normalize("NFC").replace(/\s+/gu, " ").trim().toLowerCase();
 
 /** A reader's name for a repeated header ("Email (2)", "email (3)"): the part before it is the first one's name. */
@@ -430,7 +451,7 @@ function listable(policy, key, level, why) {
     if (level !== "values") {
         return { level, why };
     }
-    const stat = policy.stats?.fields?.[key];
+    const stat = fieldStatsOf(policy.stats, key);
     const no = (reason) => ({ level: /** @type {Level} */ ("summary"), why: `values asked, but ${reason}` });
     if (!stat) {
         return no("the data's statistics are missing (or two columns share this name but for case or spaces)");
@@ -478,7 +499,7 @@ export function levelInfo(policy, name) {
     if (base !== undefined && (p.fields.get(base) ?? p.default) === "hide") {
         return { level: "hide", why: "repeats a hidden column's header" };
     }
-    const stat = p.stats?.fields?.[key];
+    const stat = fieldStatsOf(p.stats, key);
     if (p.auto && stat && stat.type !== "string") {
         return listable(p, key, p.default, `a ${stat.type} field (the automatic rule is for text)`);
     }
@@ -516,7 +537,7 @@ export function listsAll(policy, name) {
     if (level === "values") {
         return true;
     }
-    const stat = policy.stats?.fields?.[fieldKey(name)];
+    const stat = fieldStatsOf(policy.stats, fieldKey(name));
     return level === "show" && policy.counts !== false && Boolean(stat) && stat?.type !== "date" && /** @type {any} */ (stat).distinct <= policy.items;
 }
 

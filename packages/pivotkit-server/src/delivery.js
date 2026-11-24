@@ -24,7 +24,7 @@
  *
  * | source | store's links (upload.bind) | caller                         | delivery                         |
  * | open   | any                         | any                            | uploaded, the store's link        |
- * | closed | "once"                      | REST only with results: true   | uploaded, the store's link        |
+ * | closed | "once"                      | MCP; REST with results: true   | uploaded, the store's link        |
  * | closed | "signIn"                    | with a subject; REST as above  | uploaded, the store's link        |
  * | closed | "none"                      | any                            | not uploaded: the table above     |
  *
@@ -254,7 +254,7 @@ async function toStore(context, file, store, subject) {
 /**
  * The MCP resource_link of a delivered report, or null without an address. Its size only for an
  * open source: the size of a report the assistant was not shown is withheld (render_view's withheld "bytes").
- * Its title is the report's own ("Umsatz pro Produkt"), its name the file's ("umsatz-pro-produkt.xlsx").
+ * Its title is the report's own ("Sales by product"), its name the file's ("sales-by-product.xlsx").
  * @param {Delivered | null} output
  * @param {{ bytes: number, closed: boolean, title?: string }} how  title: the report's (the file's name before fileSlug); default the file's name without its extension
  */

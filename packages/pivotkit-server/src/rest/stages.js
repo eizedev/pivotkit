@@ -172,7 +172,8 @@ async function serve(service, request, info) {
     const url = new URL(request.url);
     const path = url.pathname.length > 1 ? url.pathname.replace(/\/$/, "") : url.pathname;
     if (path === PRM_PATH) {
-        return discovery.resourceMetadata();
+        // the metadata is read, never written (RFC 9728)
+        return request.method === "GET" ? discovery.resourceMetadata() : problem("METHOD_NOT_ALLOWED", "use GET", { headers: { allow: "GET" } });
     }
     if (path === OPENAPI_PATH) {
         return serveOpenApi(service, request, address);
@@ -221,8 +222,11 @@ async function serve(service, request, info) {
  */
 async function serveOpenApi({ rest, problem, signIn, discovery }, request, address) {
     const shown = rest.openapi ?? "auth";
-    if (shown === "off" || request.method !== "GET") {
-        return problem(request.method !== "GET" && shown !== "off" ? "METHOD_NOT_ALLOWED" : "NOT_FOUND", "no such route");
+    if (shown === "off") {
+        return problem("NOT_FOUND", "no such route");
+    }
+    if (request.method !== "GET") {
+        return problem("METHOD_NOT_ALLOWED", "use GET", { headers: { allow: "GET" } });
     }
     if (shown === "auth") {
         const who = await signIn.authenticate(request, address);

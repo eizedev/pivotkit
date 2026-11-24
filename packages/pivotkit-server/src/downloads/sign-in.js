@@ -166,7 +166,13 @@ async function exchange({ context, settings, env, signInRules, callbackUrl }, lo
     if (response.status < 200 || response.status > 299) {
         throw new SignInError(`the token endpoint answered ${response.status}`);
     }
-    const doc = JSON.parse(new TextDecoder().decode(response.body));
+    let doc;
+    try {
+        doc = JSON.parse(new TextDecoder().decode(response.body));
+    } catch {
+        // JSON.parse's message quotes the start of the answer, which may hold a token: never logged
+        throw new SignInError("the token endpoint's answer is no JSON");
+    }
     if (typeof doc?.id_token !== "string") {
         throw new SignInError("the token endpoint's answer has no id_token");
     }
@@ -205,8 +211,12 @@ async function idTokenClaims(route, loaded, code, entry) {
     return { claims };
 }
 
-/** A copy of an answer with the cookie's Set-Cookie header. */
-const withCookie = (response, cookie) => new Response(response.body, { status: response.status, headers: { ...Object.fromEntries(response.headers), "set-cookie": cookie } });
+/** A copy of an answer with the cookie's Set-Cookie header in place of any it had. */
+function withCookie(response, cookie) {
+    const headers = new Headers(response.headers);
+    headers.set("set-cookie", cookie);
+    return new Response(response.body, { status: response.status, headers });
+}
 
 /**
  * The sign-in flow of a context's links.
@@ -268,7 +278,7 @@ export function createSignInFlow(route, links) {
         // cannot fill the output directory with them; a callback without its cookie writes none
         const wait = callbacks.take(`address:${requestScope()?.address ?? ""}`);
         if (wait) {
-            log({ bound: "signIn", ok: false, code: "RATE_LIMITED" });
+            log({ bound: "signIn", ok: false, code: ANSWERS.SIGN_IN_TOO_MANY.code, answer: "SIGN_IN_TOO_MANY" });
             return { response: answer(request, "SIGN_IN_TOO_MANY", { "set-cookie": cookie, "retry-after": String(wait) }) };
         }
         if (!(await markStateUsed(markersDir(), stateValue, entry.x))) {
@@ -287,7 +297,7 @@ export function createSignInFlow(route, links) {
         }
         const { entry, cookie } = taken;
         const fail = (code, extra = {}) => {
-            log({ bound: "signIn", ok: false, code: /** @type {{ code?: string }} */ (ANSWERS[code]).code ?? code, ...extra });
+            log({ bound: "signIn", ok: false, code: /** @type {{ code?: string }} */ (ANSWERS[code]).code ?? code, answer: code, ...extra });
             return answer(request, code, { "set-cookie": cookie });
         };
         if (url.searchParams.has("error")) {

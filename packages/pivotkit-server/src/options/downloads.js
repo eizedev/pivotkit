@@ -10,7 +10,7 @@
 
 import { docsLink, docsOf } from "./branding.js";
 import { isLoopback } from "pivotkit-node/rest";
-import { ConfigError, CREATABLE_SECRET_REF, SECRET_REF, throwRange } from "./shared.js";
+import { ConfigError, CREATABLE_SECRET_REF, HTTPS_ISSUER_TEXT, SECRET_REF, throwRange } from "./shared.js";
 
 export const NAME = "downloads";
 
@@ -169,7 +169,7 @@ function validateKeys(options, range) {
         }
         if (!settings.signIn?.issuer || !httpsOrAllowed(settings.signIn.issuer, options.auth?.allowInsecureIssuer === true)) {
             // the key the operator set: signIn.issuer, or auth.issuer it follows when it is left out
-            throw new ConfigError(`${d.signIn.issuer !== undefined ? "output.downloads.signIn.issuer" : "auth.issuer"}: must be an https:// address (auth.allowInsecureIssuer is for tests only)`);
+            throw new ConfigError(`${d.signIn.issuer !== undefined ? "output.downloads.signIn.issuer" : "auth.issuer"}: ${HTTPS_ISSUER_TEXT}`);
         }
         // links are bound to the issuer and subject the MCP or REST token named: the person must sign in at the same issuer
         if (d.signIn.issuer !== undefined && d.signIn.issuer !== options.auth?.issuer) {

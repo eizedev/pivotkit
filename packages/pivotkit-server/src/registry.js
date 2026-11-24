@@ -63,11 +63,10 @@ const DELIVERY_OPEN = new Set(["show", "hide"]);
 
 /**
  * What makes reports over a policy closed for plain links, or null where they are open. A source is
- * open only where nothing new can become visible, for every caller alike (the maintainer's rule,
- * #510):
+ * open only where nothing new can become visible, for every caller alike:
  *
  * - hidden by default, every field it names "show" or "hide" (an allow list); or
- * - every field "show", nothing hidden (open as in pivotkit-server 0.2.0).
+ * - every field "show", nothing hidden.
  *
  * Closed, under the server's policy with the source's or under any profile's: a field or the default
  * at "values" or "summary"; the automatic "values" rule (decided by the data at run time); a field at
@@ -151,7 +150,11 @@ async function listedFiles(allow) {
     const out = [];
     for (const dir of allow) {
         const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-        const data = entries.filter((e) => e.isFile() && DATA_EXTENSIONS.has(extname(e.name).toLowerCase()) && !e.name.startsWith(".")).slice(0, LISTED_FILES);
+        // by name: readdir's order is the file system's, so the first LISTED_FILES would vary
+        const data = entries
+            .filter((e) => e.isFile() && DATA_EXTENSIONS.has(extname(e.name).toLowerCase()) && !e.name.startsWith("."))
+            .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+            .slice(0, LISTED_FILES);
         for (const e of data) {
             if (!listed.has(e.name)) {
                 listed.add(e.name);

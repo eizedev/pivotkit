@@ -81,8 +81,8 @@ export async function readPublicKey(ref, options, env) {
 }
 
 /**
- * Why an issuer's entry gives a token that names no profile none the operator chose, or null: it
- * has no `profile` and auth.defaultProfile is unset. Such a token would fall to the sources' own
+ * Why an issuer's entry has no profile for tokens that name none, or null: the entry has no
+ * `profile` and auth.defaultProfile is unset. Such a token would fall to the sources' own
  * policy, which may show more than any profile. The start refuses it, and check-config says so.
  * @param {import("./config.js").ServerOptions} options
  * @param {number} i  the entry's index

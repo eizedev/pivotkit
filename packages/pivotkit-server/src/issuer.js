@@ -21,6 +21,7 @@
 
 import { isIP } from "node:net";
 import { createGuardedFetch, GuardedFetchError, guardedFetch } from "./sources/fetch.js";
+import { HTTPS_ISSUER_TEXT } from "./options/shared.js";
 
 /** The most bytes and the longest time of each request to the issuer. */
 export const ISSUER_LIMITS = Object.freeze({ metadataBytes: 262_144, metadataMs: 10_000, jwksBytes: 262_144, jwksMs: 5000, tokenBytes: 65_536, tokenMs: 10_000 });
@@ -47,6 +48,17 @@ export const issuerMeans = { fetch: guardedFetch, loopback: createGuardedFetch({
  * @property {boolean} insecure  plain http to a loopback address (auth.allowInsecureIssuer, tests only)
  * @property {string[]} origins  the origins the operator wrote, where an IP address may be the host
  */
+
+/**
+ * Why the start refuses auth.issuer's scheme, or null: plain http without auth.allowInsecureIssuer.
+ * The scheme is read as a URL reads it, in any case.
+ * @param {import("./config.js").AuthOptions} auth
+ * @returns {string | null}
+ */
+export function issuerSchemeProblem(auth) {
+    const issuer = String(auth.issuer);
+    return URL.canParse(issuer) && new URL(issuer).protocol !== "https:" && !auth.allowInsecureIssuer ? `auth.issuer: ${HTTPS_ISSUER_TEXT}` : null;
+}
 
 /**
  * The rules of the requests to the server's issuer.
