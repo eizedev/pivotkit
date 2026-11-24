@@ -1315,7 +1315,7 @@ test("signIn: sign-in callbacks from one address are rate limited (each writes a
     }
 });
 
-test("F1: an http:// http.publicUrl off loopback with download links on is refused unless output.downloads.allowInsecureUrl is set", () => {
+test("download links: an http:// http.publicUrl off loopback with download links on is refused unless output.downloads.allowInsecureUrl is set", () => {
     const base = { sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" } };
     assert.throws(() => validateOptions({ ...base, http: { publicUrl: "http://reports.example.com" } }), /http\.publicUrl \(or --public-url\): an http:\/\/ address .*output\.downloads\.allowInsecureUrl: true .*switch every download link off with output\.downloads\.enabled: false/);
     assert.throws(() => validateOptions({ ...base, output: { dir: "out", downloads: { bind: "once" } }, http: { publicUrl: "http://10.1.2.3:3333" } }), /allowInsecureUrl/);
@@ -1332,7 +1332,7 @@ test("F1: an http:// http.publicUrl off loopback with download links on is refus
     }
 });
 
-test("F1: with the opt-in, check-config and the start warn of links in clear text", async () => {
+test("download links: with the opt-in, check-config and the start warn of links in clear text", async () => {
     const dir = workspace();
     const options = { sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", downloads: { allowInsecureUrl: true } }, http: { publicUrl: "http://reports.example.com" }, baseDir: dir };
     const text = factsOf((await checkConfig(options, { http: true, env: {} })).text);
@@ -1347,7 +1347,7 @@ test("F1: with the opt-in, check-config and the start warn of links in clear tex
     assert.doesNotMatch((await checkConfig({ ...options, output: { dir: "out" }, http: { publicUrl: "https://reports.example.com" } }, { http: true, env: {} })).text, /clear text/);
 });
 
-test("F4: requests with forged tokens do not read the key file or variable each time", async () => {
+test("the download key: requests with forged tokens do not read the key file or variable each time", async () => {
     const dir = workspace();
     let reads = 0;
     const env = new Proxy({ DL_KEY: "a-download-key-for-tests-that-is-long-enough-0123456789" }, { get: (t, k) => (k === "DL_KEY" && reads++, Reflect.get(t, k)) });
@@ -1366,7 +1366,7 @@ test("F4: requests with forged tokens do not read the key file or variable each 
     }
 });
 
-test("F5: sweepMarkers deletes an expired sign-in state's marker and keeps a live one", async () => {
+test("sign-in state: sweepMarkers deletes an expired sign-in state's marker and keeps a live one", async () => {
     const dir = tempDir();
     const old = join(dir, `${randomBytes(16).toString("base64url")}.state`);
     const live = join(dir, `${randomBytes(16).toString("base64url")}.state`);

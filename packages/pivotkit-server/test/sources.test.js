@@ -1,6 +1,7 @@
 // Sources behind one dispatch (file, code, the reserved "inline:"), the params a caller passes with a
 // source, tables computed in a worker (a table job), when the data is from (dataAsOf), the operator's
-// field descriptions, and the error details a person can act on.
+// field descriptions, the sources check-config names for lack of a description, and the error
+// details a person can act on.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { utimesSync, writeFileSync } from "node:fs";

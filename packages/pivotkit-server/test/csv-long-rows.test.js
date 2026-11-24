@@ -14,7 +14,7 @@ import { checkConfig } from "pivotkit-server";
 const STAFF_CSV = ["Name,Team,Office,Grade,Salary", "Ann,a,Berlin,3,51234", "Bob,b,Hamburg,4,62345", "Carl,Jr,c,Munich,5,73456"].join("\n") + "\n";
 const STAFF_POLICY = Object.freeze({ default: "show", fields: { Salary: "hide" } });
 
-test("F2: a column a long row adds is hidden under default show; its values reach neither describe nor a render", async () => {
+test("a column without a header: a column a long row adds is hidden under default show; its values reach neither describe nor a render", async () => {
     const dir = workspace({ "staff.csv": STAFF_CSV });
     const server = await restServer({ sources: { staff: { file: "data/staff.csv", policy: STAFF_POLICY } }, baseDir: dir });
     try {
@@ -32,7 +32,7 @@ test("F2: a column a long row adds is hidden under default show; its values reac
     }
 });
 
-test("F2: an operator's own rule for such a column still holds", async () => {
+test("a column without a header: an operator's own rule for such a column still holds", async () => {
     const dir = workspace({ "staff.csv": STAFF_CSV });
     const server = await restServer({ sources: { staff: { file: "data/staff.csv", policy: { default: "summary", fields: { "Column 6": "show" } } } }, baseDir: dir });
     try {
@@ -43,7 +43,7 @@ test("F2: an operator's own rule for such a column still holds", async () => {
     }
 });
 
-test("F2: check-config prints such a column as hidden and warns of a default show with hidden fields (a deny list)", async () => {
+test("a column without a header: check-config prints such a column as hidden and warns of a default show with hidden fields (a deny list)", async () => {
     const dir = workspace({ "staff.csv": STAFF_CSV });
     const text = factsOf((await checkConfig({ sources: { staff: { file: "data/staff.csv", policy: STAFF_POLICY } }, baseDir: dir }, { http: false, env: {} })).text);
     assert.match(text, /^ {6}Column 6: hide \(the file gives this column no header\)$/m);
@@ -87,7 +87,7 @@ test("#479: a source that hides nothing keeps such a row (its extra values in a 
     }
 });
 
-test("#479: a hidden column in the middle: the shifted salary never shows under the next column (the review's repro)", async () => {
+test("#479: a hidden column in the middle: the shifted salary never shows under the next column", async () => {
     const dir = workspace({ "staff.csv": "Name,Salary,Team,Office\nAnn,51234,a,Berlin\nCarl, Jr,73456,c,Munich\n" });
     const server = await restServer({ sources: { staff: { file: "data/staff.csv", policy: { default: "show", fields: { Salary: "hide" } } } }, baseDir: dir });
     try {
@@ -173,13 +173,13 @@ async function cityAnswers(csv) {
     }
 }
 
-test("#479 probe 1: most rows shifted, each with an empty last cell, among a row of the header's width: no SSN shows", async () => {
+test("#479: most rows shifted, each with an empty last cell, among a row of the header's width: no SSN shows", async () => {
     const got = await cityAnswers("name,ssn,city\nSm,ith,111-SECRET,\nJo,hn,222-SECRET,\nann,33,Berlin\n");
     assert.doesNotMatch(got.text, /SECRET/);
     assert.equal(got.rows, 1);
 });
 
-test("#479 probe 2: a header with a trailing separator counts by its named width: a shifted row that leaves the file uneven is caught", async () => {
+test("#479: a header with a trailing separator counts by its named width: a shifted row that leaves the file uneven is caught", async () => {
     const got = await cityAnswers("name,ssn,city,\nann,11,Berlin,\nSm,ith,999-SECRET,x\n");
     assert.doesNotMatch(got.text, /SECRET/);
 });
@@ -189,7 +189,7 @@ test("#479: a uniform export that ends every line with a separator (the header t
     assert.equal((await cityAnswers("name,ssn,city,\nann,11,Berlin,\ncid,13,Hamburg,\n")).rows, 2);
 });
 
-test("#479 probe 3 and 5: check-config names the CSV limit for a source with a field below show, and no long-row warning where every field is show", async () => {
+test("#479: check-config names the CSV limit for a source with a field below show, and no long-row warning where every field is show", async () => {
     const dir = workspace({ "people.csv": "name,ssn,city\nann,11,Berlin\nbob,12,3,x\n" });
     const closed = factsOf((await checkConfig({ sources: { people: { file: "data/people.csv", policy: { default: "show", fields: { ssn: "hide" } } } }, baseDir: dir }, { http: false, env: {} })).text);
     assert.equal(closed.match(/a value kept back is safe in CSV only when values that hold the separator are quoted/g)?.length, 1, closed);

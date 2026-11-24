@@ -237,7 +237,7 @@ test("oauth: a person's subject, groups and other claims never reach a log line,
     }
 });
 
-test("F3: the request limits count per person, not per OAuth client: two people of one client each get their own bucket, on REST and MCP", async () => {
+test("limits: the request limits count per person, not per OAuth client: two people of one client each get their own bucket, on REST and MCP", async () => {
     const dir = workspace();
     const limited = await restServer({ sources: SOURCES, auth: { mode: "oauth", issuer, resource: MCP_RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, rest: { rateLimit: { perMinute: 1, burst: 2 } }, mcp: { rateLimit: { perMinute: 1, burst: 2 } }, http: { publicUrl: "https://pk.example.com/" }, baseDir: dir }, { enable: ["rest", "mcp"] });
     try {
@@ -336,7 +336,7 @@ test("rest.signIn: OAuth only, a client ID of the right form, and never a secret
     assert.throws(() => validateOptions({ ...base, rest: { signIn: { clientId: "pivotkit-cli", clientSecret: { env: "S" } } } }), /clientSecret/);
 });
 
-test("F3: limitKeyOf names the person, else the client; a client's people together run at most concurrency x clientShare requests", () => {
+test("limits: limitKeyOf names the person, else the client; a client's people together run at most concurrency x clientShare requests", () => {
     const oauth = (subject) => callerOf("oauth", { token: "jwt", clientId: "claude", scopes: [], expiresAt: 0, extra: { subject, issuer: "https://auth.example.test/" } });
     assert.notEqual(limitKeyOf(oauth("ana")), limitKeyOf(oauth("ben")));
     assert.equal(limitKeyOf(oauth("ana")), limitKeyOf(oauth("ana")));
@@ -412,7 +412,7 @@ test("REST: a token in the address is refused 401 and logged with reason token_i
     }
 });
 
-test("F3: one client's people together take at most clientShare times perMinute: a person cannot open buckets without end", () => {
+test("limits: one client's people together take at most clientShare times perMinute: a person cannot open buckets without end", () => {
     let now = 0;
     const limits = createLimits({ rateLimit: { perMinute: 1, burst: 1 } }, () => now);
     try {

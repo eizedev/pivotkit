@@ -1,7 +1,8 @@
 // The output directory as callers fill it, REST and MCP alike (both write through present()): a
 // caller that renders without pause, renders at once, a directory the server cannot write, a
-// directory that holds the operator's own files; and what check-config says about the directory and
-// the policy before the first request.
+// directory that holds the operator's own files; the age sweep (output.maxAgeDays), which never
+// deletes a draft waiting for approval; and what check-config says about the directory and the
+// policy before the first request.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, mkdirSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
@@ -590,8 +591,7 @@ test("output.maxAgeDays: a draft whose status the host changed from \"draft\" no
     const dir = workspace();
     const out = join(dir, "out");
     const old = (Date.now() - 40 * 86_400_000) / 1000;
-    const draft = (status) => JSON.stringify({ format: "pivotkit-report-draft", version: 0, status, name: "Weekly" });
-    const files = { "waiting.pivotkit-out.report.json": draft("draft"), "approved.pivotkit-out.report.json": draft("approved"), "rejected.pivotkit-out.report.json": draft("rejected"), "broken.pivotkit-out.report.json": "{not json", "old.pivotkit-out.csv": "x" };
+    const files = { "waiting.pivotkit-out.report.json": draftJson("draft"), "approved.pivotkit-out.report.json": draftJson("approved"), "rejected.pivotkit-out.report.json": draftJson("rejected"), "broken.pivotkit-out.report.json": "{not json", "old.pivotkit-out.csv": "x" };
     for (const [name, text] of Object.entries(files)) {
         writeFileSync(join(out, name), text);
         utimesSync(join(out, name), old, old);
