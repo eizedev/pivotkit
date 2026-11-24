@@ -13,6 +13,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
+- A request with a view name that does not exist reads at most three view files for its "did you
+  mean" hint: the names are compared first, then only the nearest are read. It read every view file
+  of the source.
 - Reports are written to an output directory on a file system without hard links, such as FAT,
   exFAT and some SMB mounts. Writing them failed there. One-time links still need hard links there.
 - With two or more `files.allowDirs` and `files.list`, list_sources named the files of the second and

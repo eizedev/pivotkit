@@ -6,7 +6,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { createRequire, syncBuiltinESMExports } from "node:module";
+import { join, sep } from "node:path";
 import { encode, toViewFile, viewFileText } from "pivotkit-core";
 import { readViewLink } from "pivotkit-core/link";
 import { ConfigError, checkConfig, createContext, present, validateOptions } from "pivotkit-server";
@@ -387,5 +388,34 @@ test("a name that does not exist suggests the nearest view the caller may know o
         assert.doesNotMatch(typo.data.detail, /by-regiom/);
     } finally {
         await server.close();
+    }
+});
+
+// the hint costs a few file reads, not one per view: the names are compared first, then only the
+// nearest few files are read to learn whether the caller may know of them
+test("a name that does not exist reads at most three view files for its hint", async () => {
+    const dir = workspace();
+    mkdirSync(join(dir, "views"));
+    for (let i = 0; i < 100; i++) {
+        writeFileSync(join(dir, "views", `v${String(i).padStart(3, "0")}.json`), JSON.stringify({ rows: ["Region"] }));
+    }
+    const context = await createContext({ sources: { sales: { file: "data/sales.csv", viewsDir: "views" } }, output: { dir: "out" }, baseDir: dir });
+    const fsPromises = createRequire(import.meta.url)("node:fs/promises");
+    const open = fsPromises.open;
+    let reads = 0;
+    fsPromises.open = async (path, ...rest) => {
+        if (String(path).includes(`${sep}views${sep}`)) reads++;
+        return open(path, ...rest);
+    };
+    syncBuiltinESMExports();
+    try {
+        // "v00x" is one edit from ten views and two from the rest
+        const missing = await present(context, "render_view", { source: "sales", view: "v00x", format: "csv" }, { scopes: null, client: "test" }).catch((e) => e);
+        assert.match(String(missing?.message), /no view "v00x" for the source sales; did you mean "v000"\?/);
+        assert.ok(reads <= 3, `${reads} view files read`);
+    } finally {
+        fsPromises.open = open;
+        syncBuiltinESMExports();
+        await context.close();
     }
 });

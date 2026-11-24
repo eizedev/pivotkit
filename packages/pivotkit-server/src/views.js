@@ -341,6 +341,37 @@ export async function viewListFor(context, id, policy) {
         });
 }
 
+/** The most view files a hint reads: the nearest names are read one at a time until one may be named. */
+const HINT_READS = 3;
+
+/**
+ * The nearest of the names the caller may know of, for a name that is not there. The names are
+ * compared first, without a read; then the nearest is read alone, and the next nearest when the
+ * caller may not know of it, at most HINT_READS. A nearer view the caller may not know of neither
+ * shows up nor takes the place of the hint; when the nearest HINT_READS are such views, there is none.
+ * @param {any} context
+ * @param {string} id
+ * @param {string} name
+ * @param {string[]} names  every view's name
+ * @param {import("./policy.js").Policy} policy
+ * @returns {Promise<string | null>}
+ */
+async function nearestKnown(context, id, name, names, policy) {
+    let others = names.filter((n) => n !== name);
+    for (let read = 0; read < HINT_READS; read++) {
+        const near = closest(name, others);
+        if (near === null) {
+            return null;
+        }
+        const { views } = await viewsOf(context.options, id, { only: near });
+        if (views.some((v) => knownUnder(policy, v))) {
+            return near;
+        }
+        others = others.filter((n) => n !== near);
+    }
+    return null;
+}
+
 /**
  * The view of a name for a caller: one the caller may know of (no field it uses is hidden), read
  * alone. INVALID_INPUT, with the nearest name the caller may know of, for any other name: one that
@@ -359,10 +390,7 @@ export async function findNamedView(context, id, name, policy, how = {}) {
         return found;
     }
     warnOnce(context, id, problems);
-    // the nearest of the names the caller may know of: a nearer view the caller may not know of
-    // neither shows up nor takes the place of the hint (all views read, on this failure only)
-    const known = names.some((n) => n !== name) ? (await viewsOf(context.options, id)).views.filter((v) => v.name !== name && knownUnder(policy, v)).map((v) => v.name) : [];
-    const near = closest(name, known);
+    const near = await nearestKnown(context, id, name, names, policy);
     throw new OperationError("INVALID_INPUT", `no view "${name}" for the source ${id}; ${near ? `did you mean "${near}"? ` : ""}${how.surface === "rest" ? "GET /sources" : "list_sources"} lists the views`);
 }
 
