@@ -27,7 +27,7 @@ It needs Node 24 or later. It brings the official MCP TypeScript SDK
 (`@modelcontextprotocol/server`), which speaks the protocol revision 2026-07-28 and the 2025
 revisions. It also brings [pivotkit-server](rest.md), which holds what it shares with the REST
 service: sources, policy, workers, output, sign-in. pivotkit-server brings
-[pivotkit-report](report.md), pivotkit-node's file handling, pivotkit-xlsx, ECharts 6.1.0 and jose
+[pivotkit-report](report.md), pivotkit-node's file handling, pivotkit-xlsx, ECharts, and jose
 (for OAuth). `pivotkit-server serve` runs this endpoint and the REST service on one port.
 
 ## Tools { #tools }

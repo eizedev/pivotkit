@@ -180,10 +180,10 @@ async function licenses(metafile) {
 /**
  * The most a page may load per group, gzip, in KiB, as CI's official Node build measures it.
  * - The first load ("initial") is a hard line. A feature that needs room there makes it by moving
- *   something out of the first load. Only the maintainer raises it; #772 brings it down again.
+ *   something out of the first load. Only the maintainer raises it; #772 makes room again.
  * - The groups loaded later keep about 0.5 KiB above what CI measures.
  * - A change that takes a group over its budget raises it on purpose, with the measure and the reason
- *   in the commit and the CHANGELOG. The commits that raised each budget: `git log -p -- build.js`.
+ *   in the commit. The commits that raised each budget: `git log -p -- build.js`.
  * - Before moving code out of the first load, measure a probe build with `--size`: more chunk files
  *   can make the first load larger.
  * `--size` fails above it.

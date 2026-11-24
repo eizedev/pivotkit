@@ -8,10 +8,8 @@ pivotkit the client reads only what the operator's policy shows.
 ## Install
 
 ```bash
-npx -y pivotkit-mcp --source sales=/path/to/sales.csv \
-  --output /path/to/reports
-claude mcp add pivotkit -- npx -y pivotkit-mcp \
-  --source sales=/path/to/sales.csv --output /path/to/reports
+npx -y pivotkit-mcp --source sales=/path/to/sales.csv --output /path/to/reports
+claude mcp add pivotkit -- npx -y pivotkit-mcp --source sales=/path/to/sales.csv --output /path/to/reports
 ```
 
 - Node 24 or later.
