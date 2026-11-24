@@ -5,13 +5,7 @@
 // elsewhere, a pick that would change nothing disabled with its reason, Values taking a field again,
 // Filters asking for the field's filter first. After a pick the focus is on the new chip and the zones'
 // status line says what happened. Real pointer and keyboard input, the sales data.
-import { animationsSettled, chips, drag, expect, test } from "./fixtures.js";
-
-/**
- * Arial, or Liberation Sans with Arial's widths on Linux: a test whose shelves must wrap or fit at a
- * given width measures the same chips on every platform.
- */
-const ARIAL = '.pk-root { --pk-font: Arial, "Liberation Sans", sans-serif; }';
+import { animationsSettled, chips, drag, expect, pinFont, test } from "./fixtures.js";
 
 /** The data-testid of the element in focus (inside the report, shadow roots included). */
 const focused = (page) => page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.className);
@@ -449,7 +443,7 @@ test("a chip removed: the shelf that slides under the resting pointer opens no d
     // the chip on its second line moves Values up, its "i" under a pointer that rests there
     await open(page, { width: 1280, height: 1000 });
     await page.addStyleTag({ content: ".pk-root { --pk-shelf-min: 40em; }" });
-    await page.addStyleTag({ content: ARIAL });
+    await pinFont(page);
     // fields until the chips need a second line: the last one stands alone on it
     for (const field of ["Product", "Channel", "Category", "Month"]) {
         await (await addMenu(page, "rows")).getByTestId(`add-pick-${field}`).click();
@@ -492,7 +486,7 @@ test.describe("drag and drop on shelves", () => {
         await open(page);
         // Rows with Region on one line and Country on the next: the drop below lands on the first
         // line's free end
-        await page.addStyleTag({ content: ARIAL });
+        await pinFont(page);
         const from = page.locator('[data-field="Channel"] .pk-handle');
         const to = page.locator('[data-zone="filters"]');
         // each shelf's box and frame width: the same at rest and during the drag, so no drop target moves

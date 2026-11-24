@@ -169,6 +169,13 @@ export async function animationsSettled(page) {
 }
 
 /**
+ * Sets the report's font to Arial, or Liberation Sans on Linux, which has Arial's widths: a test that
+ * measures text in pixels (a chip that must wrap or fit at a width) measures the same on every machine.
+ * @param {import("@playwright/test").Page} page
+ */
+export const pinFont = (page) => page.addStyleTag({ content: '.pk-root { --pk-font: Arial, "Liberation Sans", sans-serif; }' });
+
+/**
  * Waits two frames of the page. The toolbar decides again which buttons stand in "More" as the report
  * lays out (a ResizeObserver, then a render): a test that looks for a button, its own or in More,
  * looks once that has settled.
