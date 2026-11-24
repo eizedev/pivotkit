@@ -14,6 +14,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
+- The command line's code moved from one file into modules of one concept each. Commands, options,
+  messages, exit codes and output stay the same.
 - **Breaking:** `render <view> --link <url>` and `describe <data> --data <other data>` are usage
   errors (exit 2). One of the two inputs was left out without a word.
 - pivotkit-server no longer brings pivotkit-cli. To run `pivotkit-server cli` from an npm install,

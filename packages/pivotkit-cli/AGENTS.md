@@ -16,6 +16,14 @@ npx pivotkit-cli render view.json --data data.csv -o out.html
 - `--json` writes one object on stdout.
 - The contract is documented in `docs/reference/cli.md`. Keep both in step.
 
+## Code
+
+- `src/cli.js` holds `main()`. It reads the command and its options, runs it and writes the outcome.
+- Each command has its module: `render.js`, `validate.js`, `describe.js`, `suggest.js` for
+  `describe --suggest`, `examples.js`, `sign-in.js` and `remote-commands.js`.
+- The shared parts: `options.js`, `inputs.js` for files and stdin, `view.js`, `data.js`, and
+  `explain.js` for the findings explained for a person. Each file's header says what it holds.
+
 ## Commands table
 
 - `src/commands.js` is the one table of commands and options.
