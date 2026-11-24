@@ -394,14 +394,8 @@ that may try to steer the model. [What reaches an AI model](model-data.md) shows
 gets at each level, and how to set them per client.
 
 - **Through pivotkit, the model gets what the policy shows.** It gets what the
-  [exposure policy](reference/mcp.md#policy) allows per field:
-
-    | Level | The model gets |
-    | --- | --- |
-    | `summary`, the default | names, types and counts |
-    | `values` | the field's values as a complete list |
-    | `show` | values and results. Only `show` fields give them. |
-    | `hide` | nothing. The field is dropped when the data is read. |
+  [exposure policy](reference/mcp.md#policy) allows per field. [Each level](model-data.md#levels)
+  shows what the model reads.
 
     - A view may touch a field that is not `show`, `values` included. Then its result is written to a
       file. Its row count, size and content are withheld from the model.
@@ -434,14 +428,8 @@ gets at each level, and how to set them per client.
 
     Leave out of the data, or `hide`, what the model must not learn about.
 
-- **Over stdio, the policy is no access control against the client.** A result names the report
-  file by its absolute path. A client with file or shell tools, such as Claude Code or VS Code, can
-  read that file and the source files. The model then reads values the policy keeps back. Give such
-  a client only data its model may see. Or run the server as another user or on another machine,
-  and connect over HTTP, where a result names no path.
-- **Links reach the model.** A sign-in link or a one-time link (`bind: "once"`) is in the result the
-  model reads. A client with a browser tool in the person's signed-in session can open it.
-  [What the policy does not cover](model-data.md#beyond-policy) has both.
+- **Over stdio, the policy is no access control against a client with file tools, and links reach
+  the model.** [What the policy does not cover](model-data.md#beyond-policy) says what follows.
 
 - **Data values are text, never instructions.** Names and values reach the model only inside the
   result's JSON. They are cleaned of control and direction characters and cut at 80 characters. They
@@ -477,13 +465,13 @@ gets at each level, and how to set them per client.
     - Set `maxFiles` high. Give `render_view` and `draft_schedule` scopes of their own. Keep
       `output.maxAgeDays` on, 30 days by default. It never deletes drafts that wait.
       `output.draftMaxAgeDays` does, where you set it. Keep the rate limits
-      ([REST](reference/rest.md#auth)).
+      ([REST](reference/sign-in.md#auth)).
 - **Data the model sends** (`source` `inline:`, [details](reference/mcp.md#data)) belongs to the
   model, not the operator:
     - No exposure policy applies to it.
     - A report over it is no proof that its content came from the operator's data.
-    - It is capped at 500 rows, 5,000 cells and 256 KiB. The operator may lower the cap or switch it
-      off with `mcp.data`, but never raise it.
+    - It has a fixed cap. The operator may lower the cap or switch it off with `mcp.data`, but never
+      raise it.
     - `rowCount` must match the rows sent.
     - The report is computed in a worker like one over a file. The table is checked in the main
       thread first.
@@ -551,7 +539,7 @@ gets at each level, and how to set them per client.
     - Bodies are capped at 2 MiB.
 - **Authentication** is a static token or OAuth 2.1, or off (`auth` `none`):
     - A static token. The server compares it in constant time and never logs it.
-      [`pivotkit-server token new`](reference/rest.md#credentials) makes one: 32 random bytes in a
+      [`pivotkit-server token new`](reference/tokens.md#credentials) makes one: 32 random bytes in a
       file only its owner can read.
     - OAuth 2.1 as the [MCP authorization spec](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)
       describes. The server checks JWT access tokens for signature, issuer, audience (the server
@@ -634,7 +622,7 @@ and the sign-in above hold for it too. What differs:
     that much of the server's time and memory. Give it to programs you run. Keep
     `rest.data.maxBytes` as small as they need, and keep the rate limits.
 
-- **Rows of a source** ([rows route](reference/rest.md#records)) are off until a profile names a
+- **Rows of a source** ([rows route](reference/records.md#records)) are off until a profile names a
   source in `records`.
     - Only a person gets rows: an OAuth token with a subject, or an external issuer's token with a
       subject. Static and signed tokens and a server without sign-in get 403.
@@ -671,7 +659,7 @@ and the sign-in above hold for it too. What differs:
     refuses a static token with fewer than 32 characters or 8 different characters, or one that
     repeats one piece.
 
-- **Signed tokens** ([signed tokens](reference/rest.md#signed-tokens)) are JWTs signed with the
+- **Signed tokens** ([signed tokens](reference/tokens.md#signed-tokens)) are JWTs signed with the
   server's Ed25519 keys. The server checks:
     - the signature, with `EdDSA` only, and the type `pivotkit+jwt`
     - the expiry and the lifetime, with `auth.clockTolerance` for the clocks
@@ -682,7 +670,7 @@ and the sign-in above hold for it too. What differs:
     symbolic link, or one the group or others may read, is not used. A static token is
     always compared first, so a static token that looks like a JWT keeps working.
 
-- **Tokens from another system** ([external issuers](reference/rest.md#external-issuers)): the
+- **Tokens from another system** ([external issuers](reference/tokens.md#external-issuers)): the
   server checks them like signed tokens, with that issuer's public keys, name and type only. The
   server holds no key that could make them. A private key in the configuration stops the start.
     - The issuer is a sign-in provider, not an operator. A token's scopes are cut to the entry's
@@ -714,7 +702,7 @@ Run it like this:
 It never listens on every address without sign-in.
 
 Without a token of yours, it makes the token `admin` at its first start, in its state volume
-([made at the first start](reference/rest.md#first-start)). It does so only where the configuration
+([made at the first start](reference/tokens.md#first-start)). It does so only where the configuration
 leaves auth to it. A written `auth.mode` `"token"` that resolves no token is refused, so a misspelt
 variable never becomes a token with every scope. The token `admin` holds every scope. Keep it like a
 password. When it leaves the machine, send it over HTTPS only.

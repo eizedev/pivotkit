@@ -573,7 +573,7 @@ Where the refresh token goes (`--store`):
     - A waiting run waits up to 150 seconds, long enough for a keychain unlock dialog. Then it says
       another run holds the lock.
 
-[Sign in from the command line](rest.md#sign-in-cli) has what the operator sets up, and the same
+[Sign in from the command line](sign-in.md#sign-in-cli) has what the operator sets up, and the same
 steps with curl or PowerShell.
 
 ### The token { #token }
