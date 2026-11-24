@@ -149,7 +149,7 @@ An issue is `{ path, message, code, severity, params }`:
 | `sortNoItems` | A custom sort order without items. |
 | `badTotals`, `collapsedPath`, `unknownSetting`, `notSwitch`, `notSection`, `badTitle`, `unknownLocale`, `unknownTimeZone` | Totals, collapsed groups, display and chart settings, formatting. `notSwitch`: a switch that is not `true` or `false`. `notSection`: a part such as `chart` or `formatting` that is not an object. `computePivot` also gives `unknownLocale` as a warning at the path `locale`, for a `locale` option the runtime does not know. |
 | `timeZoneMismatch` | `computePivot` only: the view's time zone is not the data's. |
-| `tooManyIssues` | A warning, last in the list: pivotkit left out the issues beyond `ISSUE_CAP` (100 of one code, 1,000 in all). `params.value` counts them. |
+| `tooManyIssues` | A warning, last in the list: pivotkit left out the issues beyond `ISSUE_CAP` (100 of one code, 1,000 in all). `params.value` counts them. `params.max` is the cap of one code. |
 
 A later version may add codes. Show a general text for a code you do not know.
 

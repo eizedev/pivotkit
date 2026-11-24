@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, normalize } from "pivotkit-core";
+import { cpuClock } from "../../../tests/cpu-time.js";
 
 const rows = [
     { City: "Oslo", Month: "Jan", Year: 2025, Temp: -4 },
@@ -61,4 +62,16 @@ test("normalize: a column path only for a row field sorted by a value; longer th
     const noCols = normalize({ ...base, cols: [], sort: [{ field: "City", by: "value", value: temp, column: ["Jul"] }] }, data);
     assert.equal(noCols.view.sort[0].column, undefined);
     assert.match(noCols.issues[0].message, /only with a field on Columns/);
+});
+
+test("the column is found once per sort, not once per row: many rows and columns sort in time", () => {
+    // 40,000 rows and 40,000 columns on the diagonal; a search of the column per row took seconds
+    const n = 40_000;
+    const wide = encode(Array.from({ length: n }, (_, i) => ({ a: `a${i}`, b: `b${i}`, v: i })));
+    const view = { rows: ["a"], cols: ["b"], values: [{ field: "v", agg: "sum" }], sort: [{ field: "a", by: "value", order: "desc", value: { field: "v", agg: "sum" }, column: [`b${n - 1}`] }] };
+    const cpu = cpuClock();
+    const r = computePivot(wide, view);
+    assert.ok(cpu() < 2_000, `${Math.round(cpu())} ms of CPU`);
+    // the one row with a value in that column first, the rest after it
+    assert.equal(r.rowRoot.children[0].key, `a${n - 1}`);
 });

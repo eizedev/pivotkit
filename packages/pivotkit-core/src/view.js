@@ -19,7 +19,7 @@ import { migrate1 } from "./migrate-1.js";
 import { SHOW_AS } from "./show-as.js";
 import { foldText } from "./text-match.js";
 import { canonicalTimeZone } from "./time.js";
-import { canonicalLocale, finite, get, isPlainObject, optionsOf, shown } from "./util.js";
+import { canonicalLocale, finite, get, isPlainObject, optionsOf, quoted, shown } from "./util.js";
 
 export const VIEW_VERSION = 2;
 
@@ -139,6 +139,14 @@ export const CHART_ZOOMS = Object.freeze(["auto", "on", "off"]);
 
 /** A colour of a conditional format: #rgb or #rrggbb. */
 export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+/** The colours a colour scale names at most: low, middle and high. */
+export const COLOR_SCALE_MAX = 3;
+/** The axes a "show values as" and the collapsed groups name. */
+export const AXES = Object.freeze(["rows", "cols"]);
+/** The orders of a sort. */
+export const SORT_ORDERS = Object.freeze(["asc", "desc"]);
+/** A colour a view may hold: a string of COLOR's form; RegExp.test would read ["#fff"] as "#fff". */
+const isColor = (c) => typeof c === "string" && COLOR.test(c);
 
 /**
  * @typedef {{ field?: string, value?: string | number, agg?: string, type?: string, max?: number, zone?: string, suggestion?: string, allowed?: string }} IssueParams
@@ -199,7 +207,7 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  *   the first day of a week for relative ranges in weeks, 1 (Monday, the default) to 7 (Sunday)
  * @property {Record<string, string>} [fieldLabels]  names of the report's own for fields, by the field's
  *   name: shown instead of the field's name (or a host's display name) in the headers, the chart and
- *   the exports. Only in a view that has one (pivotkit 0.8 does not know the key)
+ *   the exports. Only in a view that has one, so a reader that predates the key reads the others as before
  */
 
 /**
@@ -259,7 +267,7 @@ export function runMigrations(raw, steps, target) {
     }
     const version = get(raw, "version") ?? 1;
     if (!Number.isInteger(version) || version < 1) {
-        return { view: null, issues: [issueOf("version", `unknown version ${JSON.stringify(version)}`, "badVersion", { value: shown(version) })] };
+        return { view: null, issues: [issueOf("version", `unknown version ${quoted(version)}`, "badVersion", { value: shown(version) })] };
     }
     if (version > target) {
         return {
@@ -288,7 +296,7 @@ function oneOf(value, allowed, fallback) {
 function choice(value, allowed, fallback, ctx, path) {
     const out = oneOf(value, allowed, fallback);
     if (value !== undefined && value !== null && out !== value) {
-        ctx.issue(path, `unknown ${path.split(".").pop()} ${JSON.stringify(value)}`, "unknownSetting", { value: shown(value) });
+        ctx.issue(path, `unknown ${path.split(".").pop()} ${quoted(value)}`, "unknownSetting", { value: shown(value) });
     }
     return out;
 }
@@ -345,15 +353,15 @@ function listOf(raw, key, max, ctx, each) {
 
 // ---- sections ----
 
+/** Top-level keys a normalized view has only when they are set (fieldLabels, #158). */
+const OPTIONAL_KEYS = Object.freeze(["fieldLabels"]);
+
 /**
  * The keys each part of a view knows; normalize() reports any other key inside a part as a warning
  * (`unknownKey`), the keys of a filter come from its type's entry in FILTERS.
  */
-/** Top-level keys a normalized view has only when they are set (fieldLabels, #158). */
-const OPTIONAL_KEYS = Object.freeze(["fieldLabels"]);
-
 export const VIEW_KEYS = Object.freeze({
-    // fieldLabels: optional, not in emptyView, so a view without names reads in pivotkit 0.8 as before
+    // fieldLabels: optional, not in emptyView, so a view without names reads as before in a reader that predates the key
     view: Object.freeze([...Object.keys(emptyView()), ...OPTIONAL_KEYS]),
     derived: Object.freeze(["name", "field", "by", "size", "origin"]),
     value: Object.freeze(["field", "agg", "format", "label", "showAs", "conditional"]),
@@ -363,7 +371,7 @@ export const VIEW_KEYS = Object.freeze({
     conditional: Object.freeze({ colorScale: Object.freeze(["type", "colors"]), dataBar: Object.freeze(["type", "color"]) }),
     sort: Object.freeze(["field", "by", "order", "items", "value", "column"]),
     totals: Object.freeze(Object.keys(emptyView().totals)),
-    collapsed: Object.freeze(["rows", "cols"]),
+    collapsed: AXES,
     chart: Object.freeze(Object.keys(emptyView().chart)),
     referenceLines: Object.freeze(Object.keys(emptyView().chart.referenceLines)),
     formatting: Object.freeze(Object.keys(emptyView().formatting))
@@ -409,7 +417,7 @@ function derivedSection(raw, view, ctx) {
 /** Rows and columns: each field once, in one axis only. */
 function axesSection(raw, view, ctx) {
     const placed = new Set();
-    for (const axis of ["rows", "cols"]) {
+    for (const axis of AXES) {
         listOf(raw, axis, ctx.limits.axisFields, ctx, (name, path) => {
             const f = ctx.resolve(name);
             if (!f) {
@@ -431,7 +439,7 @@ function conditionalOf(cond, path, ctx) {
     }
     if (type === "colorScale") {
         const colors = get(cond, "colors");
-        const list = Array.isArray(colors) ? colors.filter((c) => typeof c === "string" && COLOR.test(c)).slice(0, 3) : [];
+        const list = Array.isArray(colors) ? colors.filter(isColor).slice(0, COLOR_SCALE_MAX) : [];
         // an empty list is the theme's scale, as no list is: normalize writes it so, and a normalized
         // view must pass normalize again unchanged
         if (Array.isArray(colors) && colors.length > 0 && (list.length !== colors.length || list.length < 2)) {
@@ -441,13 +449,13 @@ function conditionalOf(cond, path, ctx) {
     }
     if (type === "dataBar") {
         const color = get(cond, "color");
-        const ok = typeof color === "string" && COLOR.test(color);
+        const ok = isColor(color);
         if (color !== undefined && color !== null && !ok) {
             ctx.issue(`${path}.color`, "a colour as #rgb or #rrggbb", "dataBarColor");
         }
         return { type, color: ok ? color : null };
     }
-    ctx.issue(path, `unknown conditional format ${JSON.stringify(type)}`, "unknownConditional", { value: shown(type) });
+    ctx.issue(path, `unknown conditional format ${quoted(type)}`, "unknownConditional", { value: shown(type) });
     return null;
 }
 
@@ -457,7 +465,7 @@ function showAsOf(showAs, ref, path, ctx) {
     const type = get(s, "type");
     const def = typeof type === "string" && Object.hasOwn(SHOW_AS, type) ? SHOW_AS[type] : null;
     if (!def) {
-        ctx.issue(path, `unknown show-as ${JSON.stringify(type)}`, "unknownShowAs", { value: shown(type) });
+        ctx.issue(path, `unknown show-as ${quoted(type)}`, "unknownShowAs", { value: shown(type) });
         return null;
     }
     if (def.additive && !aggregatorOf(ref.agg).additive) {
@@ -465,7 +473,7 @@ function showAsOf(showAs, ref, path, ctx) {
         ctx.issue(path, `${type} needs an aggregator that adds up (sum or count), not ${ref.agg}`, "showAsNotAdditive", { value: type, agg: ref.agg });
         return null;
     }
-    return { type, axis: choice(get(s, "axis"), ["rows", "cols"], "rows", ctx, `${path}.axis`) };
+    return { type, axis: choice(get(s, "axis"), AXES, "rows", ctx, `${path}.axis`) };
 }
 
 function valuesSection(raw, view, ctx) {
@@ -481,7 +489,7 @@ function valuesSection(raw, view, ctx) {
             if (isFormat(format)) {
                 spec.format = format.trim().toLowerCase();
             } else {
-                ctx.issue(`${path}.format`, `unknown format ${JSON.stringify(format)}`, "unknownFormat", { value: shown(format) });
+                ctx.issue(`${path}.format`, `unknown format ${quoted(format)}`, "unknownFormat", { value: shown(format) });
             }
         }
         const label = get(v, "label");
@@ -496,7 +504,7 @@ function valuesSection(raw, view, ctx) {
             if (numericResult) {
                 spec.showAs = showAsOf(showAs, ref, `${path}.showAs`, ctx);
             } else {
-                ctx.issue(`${path}.showAs`, `${ref.agg} has no number to show as ${JSON.stringify(get(showAs, "type") ?? showAs)}`, "showAsNotNumber", { agg: ref.agg });
+                ctx.issue(`${path}.showAs`, `${ref.agg} has no number to show as ${quoted(get(showAs, "type") ?? showAs)}`, "showAsNotNumber", { agg: ref.agg });
             }
         }
         const cond = get(v, "conditional");
@@ -522,7 +530,7 @@ function filtersSection(raw, view, ctx) {
         }
         if (!def) {
             const renamed = typeof type === "string" && Object.hasOwn(FILTER_TYPES_V1, type) ? { suggestion: FILTER_TYPES_V1[type] } : suggest(type, Object.keys(FILTERS));
-            return ctx.issue(path, type === undefined ? `a filter needs a type: one of ${Object.keys(FILTERS).join(", ")}` : `unknown filter type ${JSON.stringify(type)}; the types: ${Object.keys(FILTERS).join(", ")}`, "unknownFilterType", { value: shown(type), ...renamed });
+            return ctx.issue(path, type === undefined ? `a filter needs a type: one of ${Object.keys(FILTERS).join(", ")}` : `unknown filter type ${quoted(type)}; the types: ${Object.keys(FILTERS).join(", ")}`, "unknownFilterType", { value: shown(type), ...renamed });
         }
         ctx.keys(flt, def.keys, path);
         if (!fieldKinds(f, view).some((kind) => def.fields.includes(kind))) {
@@ -592,7 +600,7 @@ function sortSection(raw, view, ctx) {
             return f ? ctx.issue(path, `"${f.name}" is sorted twice`, "sortedTwice", { field: f.name }) : ctx.unknownField(path, get(s, "field"));
         }
         const by = choice(get(s, "by"), SORT_BY, "label", ctx, `${path}.by`);
-        const spec = { field: f.name, by, order: choice(get(s, "order"), ["asc", "desc"], "asc", ctx, `${path}.order`) };
+        const spec = { field: f.name, by, order: choice(get(s, "order"), SORT_ORDERS, "asc", ctx, `${path}.order`) };
         if (by === "custom") {
             const items = customItems(get(s, "items"), f, `${path}.items`, ctx);
             if (!items) {
@@ -639,17 +647,17 @@ function collapsedSection(raw, view, ctx) {
         return;
     }
     ctx.keys(get(raw, "collapsed"), VIEW_KEYS.collapsed, "collapsed");
-    for (const axis of ["rows", "cols"]) {
+    for (const axis of AXES) {
         const types = view[axis].map((name) => ctx.fields.get(name.toLowerCase()).type);
         const seen = new Set();
         listOf(raw, `collapsed.${axis}`, ctx.limits.collapsed, ctx, (p) => {
             // the deepest level has nothing to collapse
             if (!Array.isArray(p) || p.length === 0 || p.length >= types.length) {
-                return ctx.issue(`collapsed.${axis}`, `path ${JSON.stringify(p)} does not fit the ${axis}`, "collapsedPath");
+                return ctx.issue(`collapsed.${axis}`, `path ${quoted(p)} does not fit the ${axis}`, "collapsedPath");
             }
             const converted = p.map((v, level) => itemFor(types[level], v));
             if (converted.includes(undefined)) {
-                return ctx.issue(`collapsed.${axis}`, `path ${JSON.stringify(p)} does not fit the field types`, "collapsedPath");
+                return ctx.issue(`collapsed.${axis}`, `path ${quoted(p)} does not fit the field types`, "collapsedPath");
             }
             const key = JSON.stringify(converted);
             if (!seen.has(key)) {
@@ -710,7 +718,7 @@ function displaySection(raw, view, ctx) {
             colors: listOnce(raw, "chart.colors", ctx, (c, path) => {
                 const name = nameOf(get(c, "name"));
                 const color = get(c, "color");
-                if (name === null || !COLOR.test(color)) {
+                if (name === null || !isColor(color)) {
                     return null;
                 }
                 // a key an entry does not have is said (unknownKey), the entry still used
@@ -739,7 +747,7 @@ function referenceLinesOf(lines, ctx) {
     const flag = (key) => (given ? bool(get(lines, key), false, ctx, `${path}.${key}`) : false);
     const out = { average: flag("average"), trend: flag("trend"), target: finite(target), extremes: flag("extremes") };
     if (target !== undefined && target !== null && out.target === null) {
-        ctx.issue("chart.referenceLines.target", `not a number ${JSON.stringify(shown(target))}`, "unknownSetting", { value: shown(target) });
+        ctx.issue("chart.referenceLines.target", `not a number ${quoted(target)}`, "unknownSetting", { value: shown(target) });
     }
     return out;
 }
@@ -754,7 +762,7 @@ function formattingSection(raw, view, ctx) {
     if (locale !== undefined && locale !== null) {
         view.formatting.locale = canonicalLocale(locale);
         if (view.formatting.locale === null) {
-            ctx.issue("formatting.locale", `unknown locale ${JSON.stringify(locale)}`, "unknownLocale", { value: shown(locale) });
+            ctx.issue("formatting.locale", `unknown locale ${quoted(locale)}`, "unknownLocale", { value: shown(locale) });
         }
     }
     const weekStart = get(formatting, "weekStart");
@@ -769,7 +777,7 @@ function formattingSection(raw, view, ctx) {
     if (timeZone !== undefined && timeZone !== null) {
         view.formatting.timeZone = canonicalTimeZone(timeZone);
         if (view.formatting.timeZone === null) {
-            ctx.issue("formatting.timeZone", `unknown time zone ${JSON.stringify(timeZone)}`, "unknownTimeZone", { value: shown(timeZone) });
+            ctx.issue("formatting.timeZone", `unknown time zone ${quoted(timeZone)}`, "unknownTimeZone", { value: shown(timeZone) });
         }
     }
 }
@@ -898,7 +906,7 @@ function context(schema, limits, add, strict) {
         unknownField: (path, name) =>
             name === undefined
                 ? ctx.issue(path, "names no field", "unknownField", { field: "" })
-                : ctx.issue(path, `unknown field ${JSON.stringify(name)}`, "unknownField", { field: shown(name), ...suggest(name, [...fields.values()].map((f) => f.name)) }),
+                : ctx.issue(path, `unknown field ${quoted(name)}`, "unknownField", { field: shown(name), ...suggest(name, [...fields.values()].map((f) => f.name)) }),
         /** Warns about each key of `obj` (a part of the view) that is not of `allowed`. */
         keys: (obj, allowed, path) => {
             if (!isPlainObject(obj)) {
@@ -922,7 +930,7 @@ function context(schema, limits, add, strict) {
             const match = items && !items.exact.has(item) ? items.byFold.get(foldText(item)) : undefined;
             if (match !== undefined) {
                 // the item meant is the suggestion, which front ends show as their "did you mean"
-                ctx.warn(path, `item ${JSON.stringify(item)} is no item of "${field.name}": the data spells it otherwise`, "itemCase", { field: field.name, value: shown(item), suggestion: match });
+                ctx.warn(path, `item ${quoted(item)} is no item of "${field.name}": the data spells it otherwise`, "itemCase", { field: field.name, value: shown(item), suggestion: match });
             }
         },
         text: (value) => {
@@ -945,7 +953,7 @@ function context(schema, limits, add, strict) {
             const fieldName = get(ref, "field");
             const f = fieldName === null || fieldName === undefined ? null : ctx.resolve(fieldName);
             if (!aggregatorOf(agg)) {
-                ctx.issue(path, `unknown aggregator ${JSON.stringify(agg)}`, "unknownAggregator", { value: shown(agg), ...suggestAggregator(agg) });
+                ctx.issue(path, `unknown aggregator ${quoted(agg)}`, "unknownAggregator", { value: shown(agg), ...suggestAggregator(agg) });
                 return null;
             }
             if (f === undefined) {

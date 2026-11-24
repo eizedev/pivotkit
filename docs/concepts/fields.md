@@ -153,6 +153,7 @@ What it reads, and what it does not:
     - 1,000 enum entries
     - 32 levels of references
     - 20,000 schema objects
+    - 100,000 properties copied while it merges `allOf` parts
 - It leaves out a property with nothing to say.
 - What it cannot read never throws and is never cut silently. `issues` lists it as `{ path, message }`,
   as `normalize()` does for a view:

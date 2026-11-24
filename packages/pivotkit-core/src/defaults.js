@@ -30,12 +30,6 @@ export const DEFAULT_THEME = Object.freeze({
 });
 
 /**
- * The margins (px) of a chart's grid that pivotkit-core sets: above the plot (before the title's and
- * the legend's room), and below a heatmap's cells for its colour scale. Internal: toEChartsOption and
- * the label layout (chart-measure.js) share them. Plain numbers, so a bundler writes them in place and
- * a report's first load does not grow.
- */
-/**
  * The colour scales a report builder picks in the value menu (Highlight › Colour scale), low to high,
  * as a view's `conditional.colors`. The theme's own scale (light to dark in its accent) has no colours.
  * Blue to orange first: the pair that people with red-green colour blindness tell apart. A cell mixes
@@ -47,6 +41,12 @@ export const COLOR_SCALES = Object.freeze({
     redGreen: Object.freeze(["#e34948", "#f2d16b", "#1baf7a"])
 });
 
+/**
+ * The margins (px) of a chart's grid that pivotkit-core sets: above the plot (before the title's and
+ * the legend's room), and below a heatmap's cells for its colour scale. Internal: toEChartsOption and
+ * the label layout (chart-measure.js) share them. Plain numbers, so a bundler writes them in place and
+ * a report's first load does not grow.
+ */
 export const GRID_TOP = 16;
 export const HEATMAP_GRID_BOTTOM = 64;
 

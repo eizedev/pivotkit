@@ -4,6 +4,8 @@
  * chart on a screen asks for it; an SVG and a printed report draw every category.
  */
 
+import { textWidth } from "./chart-measure.js";
+
 /**
  * The slider's thickness and the room between it and the axis labels, in px. decorateOption takes
  * the thickness from the tokens, --pk-target (a control) or --pk-target-touch (a finger), resolved
@@ -53,12 +55,17 @@ export function zoomRange(count, shown, kept, latest) {
 }
 
 /**
- * The `count` longest names: the window's labels are laid out for the longest it can show.
+ * The `count` widest names, measured as the layout measures them (textWidth): the window's labels are
+ * laid out for the widest it can show. Four CJK characters are wider than six Latin ones.
  * @param {string[]} names
  * @param {number} count
  */
 export function longestNames(names, count) {
-    return [...names].sort((a, b) => String(b).length - String(a).length).slice(0, count);
+    return names
+        .map((name) => ({ name, width: textWidth(name, 1) }))
+        .sort((a, b) => b.width - a.width)
+        .slice(0, count)
+        .map((n) => n.name);
 }
 
 /**

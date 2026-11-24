@@ -911,7 +911,7 @@
           }
         },
         "fieldLabels": {
-          "description": "Names of the report's own for fields, by the field's name: shown instead of the field's name in the headers, the chart and the exports. Optional; pivotkit 0.8 does not know it.",
+          "description": "Names of the report's own for fields, by the field's name: shown instead of the field's name in the headers, the chart and the exports. Optional.",
           "type": "object",
           "maxProperties": 1000,
           "propertyNames": {
@@ -920,7 +920,8 @@
           },
           "additionalProperties": {
             "type": "string",
-            "maxLength": 256
+            "maxLength": 256,
+            "pattern": "\\S"
           }
         }
       }
@@ -1046,7 +1047,8 @@
           "anyOf": [
             {
               "type": "string",
-              "maxLength": 256
+              "maxLength": 256,
+              "pattern": "\\S"
             },
             {
               "type": "null"

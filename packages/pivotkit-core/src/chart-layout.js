@@ -7,7 +7,7 @@
  */
 
 import { DEFAULT_THEME } from "./defaults.js";
-import { AXIS_LABEL_MARGIN, SLANT, SLANTED_LABEL_WIDTH, columnsSlanted, heatmapFrame, labelLine, longestWidth, radiusPx, textRow, textWidth } from "./chart-measure.js";
+import { AXIS_LABEL_MARGIN, SLANT, SLANTED_LABEL_WIDTH, categorySlot, columnsSlanted, heatmapFrame, labelLine, longestWidth, radiusPx, textRow, textWidth } from "./chart-measure.js";
 
 export { SLANTED_LABEL_WIDTH };
 
@@ -106,8 +106,6 @@ export function rowLabelInterval(rows, height, fontSize = DEFAULT_THEME.textSize
 
 /** Width (px) a category label of bars, lines and areas takes at most: a longer one ends in "…" (the tooltip has it whole). */
 export const CATEGORY_LABEL_WIDTH = 120;
-/** Room (px) of a chart that is not its category axis: the value axis and the margins. */
-const AXIS_FRAME = { x: 80, y: 60 };
 
 /**
  * How the category axis of bars, lines and areas writes its labels (`chart.axisLabels`):
@@ -129,10 +127,10 @@ export function categoryLabelLayout(names, { width, height, horizontal = false, 
     const result = (rotate, step) => ({ rotate, interval: step - 1, every: step, width: rotate ? slantedLabelWidth(height - reserved, fontSize) : CATEGORY_LABEL_WIDTH, overflow: /** @type {const} */ ("truncate") });
     if (horizontal) {
         // one line of text per row
-        const slot = Math.max(0, height - AXIS_FRAME.y) / n;
+        const slot = categorySlot(n, { width, height, horizontal });
         return result(0, mode === "all" ? 1 : every(slot, textRow(fontSize)));
     }
-    const slot = Math.max(0, width - AXIS_FRAME.x) / n;
+    const slot = categorySlot(n, { width, height });
     const longest = categoryLabelWidth(names, fontSize);
     if (mode === "nth") {
         return result(0, every(slot, longest + 8));
@@ -184,7 +182,6 @@ export function groupLabelsFit(count, groupSize, { width, height, horizontal = f
     if (width < GROUP_LABEL_ROOM.width || height < GROUP_LABEL_ROOM.height) {
         return false;
     }
-    const n = Math.max(1, count);
-    const slot = horizontal ? Math.max(0, height - AXIS_FRAME.y) / n : Math.max(0, width - AXIS_FRAME.x) / n;
+    const slot = categorySlot(count, { width, height, horizontal });
     return slot * Math.max(1, groupSize) >= (horizontal ? GROUP_LABEL_ROOM.across : GROUP_LABEL_ROOM.along);
 }

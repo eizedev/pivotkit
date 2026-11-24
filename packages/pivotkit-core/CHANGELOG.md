@@ -37,12 +37,53 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   included. Template names and imported files lose the same ones: one list serves all three. The
   joiners U+200C and U+200D stay. A field's name keeps its inner spaces, so it still matches the
   data's, and the reader cuts a source's id at 256 characters, without "…".
+- A time with more than three decimals of a second counts whole milliseconds, as `Date.parse` does.
+  `"2026-01-30T23:59:59.9996"` rounded up into the next day and made its whole column text.
+- The format `percent100` writes a blank or a text as it is, as `number` does. It wrote "NaN".
+- `createHistory`: `push`, `undo`, `redo` and `reset` work when taken off the object. A `limit` that
+  is no number throws `INVALID_OPTION`. Before, it kept every step.
+- `toXlsx` names "the size of an Excel sheet" for a grid larger than a sheet, not a setting
+  `limits.xlsxRows` that does not exist. `details.limit` stays `xlsxRows` or `xlsxColumns`.
+- A row field sorted by a value in one column takes time in proportion to the rows. Each row
+  searched the column again: 40,000 rows and columns took about 14 seconds.
+- `count`, `sum` and the other aggregators no longer sort a field's values. Only `first`, `last` and
+  `listUnique` read the order.
+- `computePivot` counts the `groups` limit while it groups the rows: it stops at the first group
+  too many, and `details.value` is that count.
+- `fieldItems` makes the labels of the listed values only, not of every value before the cut.
+- The zoom slider lays out the window's labels for its widest names as the layout measures them:
+  four CJK characters are wider than six Latin letters.
+- `normalize()` refuses a chart colour given as a list, such as `["#fff"]`, like any other value
+  that is no colour. An issue's message quotes a value at most 100 characters long, as its `params`
+  do: a value of 900,000 characters made a message as long.
+- A name cut at its limit, and a value an issue quotes, never end in half a character.
+- `describeView` writes a comparison with `=` as "Year is 5", not "Year is is 5".
+- `groupingName` keeps `{size}` and `{unit}` in a field's name as they are.
+- `fieldDefaultsFromSchema` stops after merging 100,000 properties of `allOf` parts
+  (`SCHEMA_CAPS.merged`), with an issue: a small document could ask for millions of copies. A
+  `$ref` of an anchor (`#name`) names nothing, where it named the whole document, and a path is
+  percent-decoded (`#/$defs/a%20b`).
+- The view schema refuses a blank value label or field name, as `normalize()` does (`badLabel`).
+- `encodeViewLink` counts the view in bytes, as `decodeViewLink` does: a view of many non-ASCII
+  characters gave a link that `decodeViewLink` refused. The messages say "bytes".
+- `viewFromLayout` throws `INVALID_ARGUMENT` for a filter with a cycle or a BigInt, not a `TypeError`.
+- Reading a file:
+  - The readers read UTF-16 big endian without a byte order mark, as they read little endian.
+  - Zero characters at the end of a file are padding and go. Several of them refused the file.
+  - The reader ignores a `separator` that is a quote or a line break and finds one itself.
+  - A `Blob` has no name to pick a reader by: the message says to read a `File` or pass `reader`.
+  - `plugins` that is no list throws `INVALID_OPTION`, not a `TypeError`.
+  - `readFile` calls a plugin's `load()` on the plugin, so a plugin that is an instance of a class
+    works.
 
 ### Changed
 
 - English groups of three digits are numbers: a file's `1,234.5` reads as 1234.5. Existing
   comma-separated files with `"1,234"` read as 1234 where they read as 1.234, with the note
   `DECIMAL_MARK`. A German locale or a semicolon file still reads 1.234.
+- `toViewFile` throws `PivotkitError` `INVALID_ARGUMENT` for a view that is no object, as every
+  function does for a programmer's error. It threw a `TypeError`. A host that caught `TypeError`
+  there catches `PivotkitError` now.
 - `PivotkitError` extends `CodedError` of `pivotkit-core/internal`, the base of every error class
   of pivotkit's packages. Its members stay the same.
 
@@ -158,11 +199,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   digits; a format without plain decimals keeps 12. `toCsv` takes `flatHeader: true` for one header
   row ([#478](https://github.com/eizedev/pivotkit/issues/478)).
 - `AGGREGATOR_ALIASES`: other tools' names of aggregators (`avg`) and the ones they mean
-  (`average`), for "did you mean". A view never accepts them (#508).
+  (`average`), for "did you mean". A view never accepts them ([#508](https://github.com/eizedev/pivotkit/issues/508)).
 - `rowLabelInterval` and `heatmapCellLabels` of `pivotkit-core/chart` take the heatmap's frame as an
   optional last argument; `categoryLabelLayout` takes `reserved` in its box.
 - `toEChartsOption` is also exported from `pivotkit-core/chart`. A bundle that imports it from there
-  loads it with the chart, not first (#546).
+  loads it with the chart, not first ([#546](https://github.com/eizedev/pivotkit/issues/546)).
 - `ROW_COUNT_TEXTS`: the row count in words, English and German ("8 rows", "6 of 8 rows").
   pivotkit-react and pivotkit-report share it ([#547](https://github.com/eizedev/pivotkit/issues/547)).
 - `pluralForm(forms, count, lang)` picks the form of a count's words, and `PLURAL_CATEGORIES` lists
@@ -178,12 +219,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   and `toEChartsOption` sets `axisPointer.triggerEmphasis: false` for them. The category under the
   pointer no longer lights up every bar. Lines keep `focus: "series"`
   ([#376](https://github.com/eizedev/pivotkit/issues/376)).
-
-- `unknownFilterType` lists the filter types for an unknown type too (#508).
-- `filterCompareValue` names the operators and shows a comparison written out (#508).
+- `unknownFilterType` lists the filter types for an unknown type too ([#508](https://github.com/eizedev/pivotkit/issues/508)).
+- `filterCompareValue` names the operators and shows a comparison written out ([#508](https://github.com/eizedev/pivotkit/issues/508)).
 - `itemCase`'s message no longer names the item meant: it is in `suggestion`, as for every other
   finding, so a front end that shows both says it once. A client that shows only `message` should
-  show `suggestion` too (#508).
+  show `suggestion` too ([#508](https://github.com/eizedev/pivotkit/issues/508)).
 - `rowLabelInterval` and `heatmapCellLabels` give other results for the same arguments: the frame
   comes from the grid and the column names (102 px for straight names at 14 px, was 120 px), and a
   row name needs a px more than the text (was 4/3 of it). Every layout function weighs CJK and
@@ -228,20 +268,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   with more values than the header) as they are named (`Column 7`), so a host can treat them apart;
   pivotkit-server hides them. `longRows`: the rows with more cells than the named header, whose
   values may be shifted (none in a uniform file that ends every line with a separator).
-
 - `toXlsx(grid, { dataAsOf })`: when the data is from (`"2026-11-15T08:00:00Z"`) as the workbook's
   custom document property `DataAsOf`, a date ([#331](https://github.com/eizedev/pivotkit/issues/331));
   `isDataAsOf(value)`, the one check of that form (a time that exists), which pivotkit-report shares.
 
 ## [0.6.1] - 2026-11-14
-
-### Upgrading from 0.6.0
-
-The [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1462) has the details.
-
-- Date labels of years before 1 AD carry the era ("Q1 2 BC", was "Q1 -1"); `toCsv` and `toJson`
-  write dates before year 0 or after 9999 in signed ISO form.
-- `isIdentifierName` takes `HTTPId` and `ABCId` as identifiers.
 
 ### Added
 
@@ -265,6 +296,8 @@ The [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a
   `Record<string, any>` ([#300](https://github.com/eizedev/pivotkit/issues/300)).
 
 ### Changed
+
+The [upgrade page](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md?plain=1#L1462) has the details of the changes from 0.6.0.
 
 - A year before 1 AD is written with its era in every date label: `year` "2 BC", `yearQuarter`
   "Q1 2 BC" (was "Q1 -1"), `yearWeek` "2 BC-W02", a date and the `date` and `datetime` formats
@@ -633,7 +666,6 @@ First release.
   removed from the texts.
 - `labels.fields` and `fieldLabel(field, labels)`: display names of fields in the grid's corner
   headers, the value names, the chart's series names and the exports; views keep the field names.
-
 - `suggestDateUnit(data, field)`: the date grouping for a date field from the span of its values (day,
   month, quarter or year), so a UI can group a date as soon as it is placed.
 - `toSeries()` and `toEChartsOption()` take `maxCategories`; `toSeries()` reports `categoryCount`;

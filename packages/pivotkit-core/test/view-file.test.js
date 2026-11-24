@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION, VIEW_VERSION, encode, fromViewFile, normalize, toViewFile, viewFileFields, viewFileName, viewFileText } from "pivotkit-core";
+import { VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION, VIEW_VERSION, emptyView, encode, fromViewFile, normalize, toViewFile, viewFileFields, viewFileName, viewFileText } from "pivotkit-core";
 import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
 import { SALES } from "./fixtures.js";
 
@@ -213,4 +213,14 @@ test("reference lines on: a file leaves out the high and low points while they a
     const on = { ...view, chart: { ...view.chart, referenceLines: { average: false, trend: false, target: null, extremes: true } } };
     assert.equal(toViewFile(on).view.chart.referenceLines.extremes, true);
     assert.deepEqual(fromViewFile(toViewFile(on)).view, on);
+});
+
+test("a name cut at its limit, and a value an issue quotes, never end in half a character", () => {
+    // 254 + 2 emoji: the cut before "…" falls inside the second emoji
+    const name = "a".repeat(254) + "😀😀";
+    const read = fromViewFile({ format: "pivotkit-view", formatVersion: 2, name, view: emptyView() });
+    assert.ok(read.name.isWellFormed(), JSON.stringify(read.name.slice(-3)));
+    assert.ok(read.name.endsWith("…"));
+    const [issue] = normalize({ rows: ["a".repeat(98) + "😀😀"] }, encode([{ a: 1 }])).issues;
+    assert.ok(issue.params.field.isWellFormed(), JSON.stringify(issue.params.field.slice(-3)));
 });

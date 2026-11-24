@@ -375,17 +375,17 @@ export function toEChartsOption(result, options) {
         series: s.series.map((x, i) => {
             // a fixed colour (chart.colors, colorMap) for the bars, or the line and its fill
             const color = colorOf(x.name, i);
-            const type = typeOf(x);
+            const seriesType = typeOf(x);
             return {
-                type,
-                ...(combo && type === "line" ? { yAxisIndex: 1 } : {}),
+                type: seriesType,
+                ...(combo && seriesType === "line" ? { yAxisIndex: 1 } : {}),
                 name: x.name,
                 // a 100 % stack's parts are { value: share, raw: value }
                 data: shares ? shares.data[i] : x.data,
                 ...(stacked ? { stack: "total" } : {}),
-                ...(color ? { itemStyle: { color }, ...(type === "line" ? { lineStyle: { color } } : {}) } : {}),
+                ...(color ? { itemStyle: { color }, ...(seriesType === "line" ? { lineStyle: { color } } : {}) } : {}),
                 ...(chart.type === "area" ? { areaStyle: color ? { color } : {} } : {}),
-                ...(type === "line" ? { connectNulls: false, smooth: Boolean(chart.smooth) } : {}),
+                ...(seriesType === "line" ? { connectNulls: false, smooth: Boolean(chart.smooth) } : {}),
                 ...valueLabel,
                 ...(marks.bySeries[i] ? { markLine: { silent: true, symbol: ["none", "none"], data: marks.bySeries[i] } } : {}),
                 ...(points[i] ? { markPoint: { silent: true, symbol: "circle", symbolSize: POINT_SIZE, data: points[i] } } : {})

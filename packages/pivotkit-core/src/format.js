@@ -203,7 +203,10 @@ export function formatterFor(spec, locale) {
             return nf({ style: "percent", ...fractionDigits(f.decimals, 1) });
         case "percent100": {
             const p = nf({ style: "percent", ...fractionDigits(f.decimals, 1) });
-            return (v) => p(toNumber(v) / 100);
+            return (v) => {
+                const n = toNumber(v);
+                return Number.isNaN(n) ? plain(v) : p(n / 100);
+            };
         }
         case "compact":
             return nf({ notation: "compact", maximumFractionDigits: 1 });

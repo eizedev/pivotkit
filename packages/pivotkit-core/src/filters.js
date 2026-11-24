@@ -25,8 +25,9 @@
  *   it); a field off the axes is grouped on its own. They run outer levels first, each on the rows
  *   the previous one left.
  *
- * Top N keeps exactly N groups per parent. Ties are broken by the order of first appearance in the
- * data, so a tie at the cut keeps the group seen first (Excel may keep all tied items).
+ * Top N keeps exactly N groups per parent, unless `ties` is "all". Ties are broken by the order of
+ * first appearance in the data, so a tie at the cut keeps the group seen first (Excel may keep all
+ * tied items).
  */
 
 import { labelOf } from "./labels.js";
@@ -36,7 +37,7 @@ import { RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNI
 import { PivotkitError } from "./errors.js";
 import { ITEM_LENGTH } from "./limits.js";
 import { isDateMs, resolveTimeZone, toWallMs, wallClock } from "./time.js";
-import { MS_PER_DAY, finite, get, isPlainObject, optionsOf, shown } from "./util.js";
+import { MS_PER_DAY, finite, get, isPlainObject, optionsOf, quoted, shown } from "./util.js";
 
 /** The comparisons of a text filter; `not` inverts each ("does not contain"). */
 export const TEXT_OPS = Object.freeze(["equals", "contains", "beginsWith", "endsWith"]);
@@ -248,7 +249,7 @@ export function readItem(f, item, path, ctx) {
         if (typeof item === "string" && item.length > ITEM_LENGTH) {
             ctx.issue(path, `an item longer than ${ITEM_LENGTH} characters`, "itemTooLong", { max: ITEM_LENGTH });
         } else {
-            ctx.issue(path, `item ${JSON.stringify(item)} does not fit the ${f.type} field`, "itemType", { value: shown(item), type: f.type });
+            ctx.issue(path, `item ${quoted(item)} does not fit the ${f.type} field`, "itemType", { value: shown(item), type: f.type });
         }
     }
     return converted;
@@ -256,25 +257,31 @@ export function readItem(f, item, path, ctx) {
 
 // ---- normalizers: (raw entry, spec so far, field, path, ctx, view) -> spec or undefined ----
 
+/** A filter's `not`: true or false (default false); anything else is an error, and false is used. */
+function readNot(flt, path, ctx) {
+    const not = get(flt, "not");
+    if (not !== undefined && typeof not !== "boolean") {
+        ctx.issue(`${path}.not`, "not must be true or false", "filterNot", { value: shown(not) });
+    }
+    return not === true;
+}
+
 /**
  * `not` and `blanks` of an item filter into its spec: `not` a boolean (default false), `blanks` of
  * FILTER_BLANKS (default "exclude"; validate() warns when a filter leaves it out). Each that is not
  * one of them is an error and its default is used.
  */
 function notAndBlanks(flt, spec, path, ctx) {
-    const not = get(flt, "not");
-    if (not !== undefined && typeof not !== "boolean") {
-        ctx.issue(`${path}.not`, "not must be true or false", "filterNot", { value: shown(not) });
-    }
+    const not = readNot(flt, path, ctx);
     const blanks = get(flt, "blanks");
     if (blanks === undefined) {
         if (ctx.strict) {
             ctx.warn(path, 'says nothing about blank items; "exclude" is used', "blanksUnspecified");
         }
     } else if (!FILTER_BLANKS.includes(/** @type {string} */ (blanks))) {
-        ctx.issue(`${path}.blanks`, `unknown blanks ${JSON.stringify(blanks)}`, "filterBlanks", { value: shown(blanks), ...ctx.suggest(blanks, FILTER_BLANKS) });
+        ctx.issue(`${path}.blanks`, `unknown blanks ${quoted(blanks)}`, "filterBlanks", { value: shown(blanks), ...ctx.suggest(blanks, FILTER_BLANKS) });
     }
-    return Object.assign(spec, { not: not === true, blanks: FILTER_BLANKS.includes(/** @type {string} */ (blanks)) ? blanks : "exclude" });
+    return Object.assign(spec, { not, blanks: FILTER_BLANKS.includes(/** @type {string} */ (blanks)) ? blanks : "exclude" });
 }
 
 /** `in`: the items to keep (with `not`, to drop); a blank is `blanks`, never an item. */
@@ -305,11 +312,7 @@ function normalizeIn(flt, spec, f, path, ctx) {
 
 /** `blank`: the blank items (with `not`, every other). */
 function normalizeBlank(flt, spec, _f, path, ctx) {
-    const not = get(flt, "not");
-    if (not !== undefined && typeof not !== "boolean") {
-        ctx.issue(`${path}.not`, "not must be true or false", "filterNot", { value: shown(not) });
-    }
-    return Object.assign(spec, { not: not === true });
+    return Object.assign(spec, { not: readNot(flt, path, ctx) });
 }
 
 /**
@@ -323,7 +326,7 @@ function normalizeText(flt, spec, f, path, ctx) {
     if (!op) {
         const positive = positiveOf(opIn);
         const hint = positive ? { suggestion: positive } : ctx.suggest(opIn, TEXT_OPS);
-        return ctx.issue(path, `unknown text operator ${JSON.stringify(opIn)}${withNot(positive)}`, "filterTextOp", { value: shown(opIn), ...hint });
+        return ctx.issue(path, `unknown text operator ${quoted(opIn)}${withNot(positive)}`, "filterTextOp", { value: shown(opIn), ...hint });
     }
     if (typeof value !== "string" || value.length > ctx.limits.textValue) {
         return ctx.issue(path, `needs a text value of at most ${ctx.limits.textValue} characters`, "filterText", { max: ctx.limits.textValue });
@@ -331,7 +334,7 @@ function normalizeText(flt, spec, f, path, ctx) {
     const onIn = get(flt, "on");
     const on = onIn === undefined ? "value" : oneOf(onIn, TEXT_ON);
     if (!on) {
-        return ctx.issue(`${path}.on`, `unknown on ${JSON.stringify(onIn)}`, "unknownSetting", { value: shown(onIn) });
+        return ctx.issue(`${path}.on`, `unknown on ${quoted(onIn)}`, "unknownSetting", { value: shown(onIn) });
     }
     if (on === "value" && f.type !== "string") {
         return ctx.issue(path, `compares text: on a ${f.type} field it compares the label (on: "label")`, "filterFieldType", { field: f.name, type: f.type, value: "text", allowed: "string", suggestion: "label" });
@@ -380,7 +383,7 @@ function normalizeCompare(flt, spec, f, path, ctx, view) {
     if (!dated && precisionIn !== undefined) {
         ctx.issue(`${path}.precision`, "a precision compares dates only", "filterPrecision", { value: shown(precisionIn) });
     } else if (!precision) {
-        return ctx.issue(path, `unknown precision ${JSON.stringify(precisionIn)}`, "filterPrecision", { value: shown(precisionIn), ...ctx.suggest(precisionIn, COMPARE_PRECISIONS) });
+        return ctx.issue(path, `unknown precision ${quoted(precisionIn)}`, "filterPrecision", { value: shown(precisionIn), ...ctx.suggest(precisionIn, COMPARE_PRECISIONS) });
     }
     const read = (value) => {
         if (!dated) {
@@ -432,7 +435,7 @@ const withNot = (positive) => (positive ? `; write "${positive}" with not: true`
 /** The issue of a version-1 negated operator in a compare or value filter, naming version 2's. */
 function negatedIssue(opIn, path, code, ctx, params = {}) {
     const positive = /** @type {string} */ (positiveOf(opIn));
-    return ctx.issue(path, `unknown operator ${JSON.stringify(opIn)}${withNot(positive)}`, code, { ...params, value: shown(opIn), suggestion: positive });
+    return ctx.issue(path, `unknown operator ${quoted(opIn)}${withNot(positive)}`, code, { ...params, value: shown(opIn), suggestion: positive });
 }
 
 /**
@@ -444,11 +447,11 @@ function normalizeRelative(flt, spec, _f, path, ctx) {
     const directionIn = get(flt, "direction");
     const direction = directionIn === undefined ? "last" : oneOf(directionIn, RELATIVE_DIRECTIONS);
     if (!direction) {
-        return ctx.issue(path, `unknown direction ${JSON.stringify(directionIn)}`, "filterRelativeDirection", { value: shown(directionIn), ...ctx.suggest(directionIn, RELATIVE_DIRECTIONS) });
+        return ctx.issue(path, `unknown direction ${quoted(directionIn)}`, "filterRelativeDirection", { value: shown(directionIn), ...ctx.suggest(directionIn, RELATIVE_DIRECTIONS) });
     }
     const by = oneOf(get(flt, "unit"), RELATIVE_UNITS);
     if (!by) {
-        return ctx.issue(path, `unknown unit ${JSON.stringify(get(flt, "unit"))}`, "filterRelativeUnit", { value: shown(get(flt, "unit")), ...ctx.suggest(get(flt, "unit"), RELATIVE_UNITS) });
+        return ctx.issue(path, `unknown unit ${quoted(get(flt, "unit"))}`, "filterRelativeUnit", { value: shown(get(flt, "unit")), ...ctx.suggest(get(flt, "unit"), RELATIVE_UNITS) });
     }
     const countIn = get(flt, "count");
     const count = finite(countIn);
@@ -468,7 +471,7 @@ function normalizeRelative(flt, spec, _f, path, ctx) {
     const anchorIn = get(flt, "anchor");
     const anchor = anchorIn === undefined ? "today" : anchorText(anchorIn);
     if (!anchor) {
-        return ctx.issue(path, `unknown anchor ${JSON.stringify(anchorIn)}`, "filterRelativeAnchor", { value: shown(anchorIn), ...ctx.suggest(anchorIn, RELATIVE_ANCHORS) });
+        return ctx.issue(path, `unknown anchor ${quoted(anchorIn)}`, "filterRelativeAnchor", { value: shown(anchorIn), ...ctx.suggest(anchorIn, RELATIVE_ANCHORS) });
     }
     Object.assign(spec, { direction, unit: by }, direction === "this" ? {} : { count }, { calendar: flag("calendar"), includeCurrent: flag("includeCurrent"), anchor });
     return notAndBlanks(flt, spec, path, ctx);
@@ -498,7 +501,7 @@ function normalizeTop(flt, spec, _f, path, ctx, view) {
     const tiesIn = get(flt, "ties");
     const ties = tiesIn === undefined ? "first" : oneOf(tiesIn, TOP_TIES);
     if (!ties) {
-        ctx.issue(`${path}.ties`, `unknown ties ${JSON.stringify(tiesIn)}`, "filterTies", { value: shown(tiesIn), ...ctx.suggest(tiesIn, TOP_TIES) });
+        ctx.issue(`${path}.ties`, `unknown ties ${quoted(tiesIn)}`, "filterTies", { value: shown(tiesIn), ...ctx.suggest(tiesIn, TOP_TIES) });
     }
     return Object.assign(spec, { by, count, bottom: typeof bottom === "boolean" ? bottom : false, ties: ties ?? "first" });
 }
@@ -518,11 +521,8 @@ function normalizeValue(flt, spec, _f, path, ctx, view) {
         const hint = op || opIn === undefined ? {} : { value: shown(opIn), ...ctx.suggest(opIn, COMPARE_OPS) };
         return ctx.issue(path, "needs an operator and a number", "filterValue", hint);
     }
-    const not = get(flt, "not");
-    if (not !== undefined && typeof not !== "boolean") {
-        ctx.issue(`${path}.not`, "not must be true or false", "filterNot", { value: shown(not) });
-    }
-    Object.assign(spec, { by, op, value, not: not === true });
+    const not = readNot(flt, path, ctx);
+    Object.assign(spec, { by, op, value, not });
     if (op === "between") {
         const value2 = finite(get(flt, "value2"));
         if (value2 === null) {

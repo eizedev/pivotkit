@@ -40,7 +40,15 @@ test("the link text and the inflated view are size-capped before anything large 
     // a small link that inflates to a huge text (a deflate bomb) stops at the limit
     const bomb = `1.${b64(deflateSync(strToU8(`{"rows":["${"x".repeat(LINK_LIMITS.json + 10)}"]}`), { level: 9 }))}`;
     assert.ok(bomb.length < LINK_LIMITS.text);
-    assert.deepEqual(decodeViewLink(bomb), { view: null, issues: [{ path: "", message: `view larger than ${LINK_LIMITS.json} characters`, code: "linkTooLarge", severity: "error" }] });
+    assert.deepEqual(decodeViewLink(bomb), { view: null, issues: [{ path: "", message: `view larger than ${LINK_LIMITS.json} bytes`, code: "linkTooLarge", severity: "error" }] });
+});
+
+test("the view's size counts in bytes when written as when read: a view of many non-ASCII characters is refused when written", () => {
+    // 600,000 characters of two bytes each: 1.2 MB once inflated, which decodeViewLink refuses
+    const wide = { fieldLabels: { a: "é".repeat(600_000) } };
+    assert.throws(() => encodeViewLink(wide), (e) => e.code === "LIMIT_EXCEEDED" && e.details.value > LINK_LIMITS.json && /bytes of the view/.test(e.message));
+    const fits = { fieldLabels: { a: "é".repeat(400_000) } };
+    assert.deepEqual(decodeViewLink(encodeViewLink(fits)).view, fits);
 });
 
 test("a view too large for a link throws LIMIT_EXCEEDED; a non-object is a programmer error", () => {

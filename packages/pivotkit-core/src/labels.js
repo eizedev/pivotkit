@@ -151,6 +151,12 @@ export const REPORT_LABELS = Object.freeze({
     })
 });
 
+// their nested tables too: a report shares them, nobody may change them in place
+for (const labels of Object.values(REPORT_LABELS)) {
+    Object.freeze(labels.aggregators);
+    Object.freeze(labels.showAs);
+}
+
 /**
  * The name a grouping of a field gets, as the report names one placed from its field list: "Date by
  * month" (`name`, with the unit as it reads inside a name, `units`), "Revenue (by 500)" for number
@@ -189,16 +195,10 @@ export const GROUPING_NAMES = Object.freeze({
 export function groupingName(field, unit, options = {}) {
     const names = String(options.locale ?? "").split("-")[0].toLowerCase() === "de" ? GROUPING_NAMES.de : GROUPING_NAMES.en;
     if (unit === "bin") {
-        return names.bins.replace("{field}", () => field).replace("{size}", () => String(options.size));
+        return fill(names.bins, { field, size: options.size });
     }
-    const inName = Object.hasOwn(names.units, unit) ? names.units[unit] : unit;
-    return names.name.replace("{field}", () => field).replace("{unit}", () => inName);
-}
-
-// their nested tables too: a report shares them, nobody may change them in place
-for (const labels of Object.values(REPORT_LABELS)) {
-    Object.freeze(labels.aggregators);
-    Object.freeze(labels.showAs);
+    // one pass: a field's own name may hold "{unit}" or "{size}" and stays as it is
+    return fill(names.name, { field, unit: Object.hasOwn(names.units, unit) ? names.units[unit] : unit });
 }
 
 /** The categories of Intl.PluralRules: the keys a count's forms may have. */

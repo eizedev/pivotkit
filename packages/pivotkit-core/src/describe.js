@@ -114,7 +114,8 @@ const itemsText = (items) => {
 };
 
 const BLANKS_TEXT = Object.freeze({ exclude: "blanks dropped", include: "blanks kept", only: "only blanks" });
-const COMPARE_TEXT = Object.freeze({ "=": "is", ">": "is greater than", ">=": "is at least", "<": "is less than", "<=": "is at most", between: "is between" });
+/** The words of a comparison after "is" or "is not": "Year is 2025", "Year is not greater than 5". */
+const COMPARE_TEXT = Object.freeze({ "=": "", ">": "greater than ", ">=": "at least ", "<": "less than ", "<=": "at most ", between: "between " });
 
 /**
  * One filter of a normalized view in words: "Region is one of \"North\", \"South\" (blanks dropped)".
@@ -132,7 +133,7 @@ export function filterText(f) {
         case "text":
             return `${f.field}${f.on === "label" ? " (as shown)" : ""} ${not ? "does not " : ""}${f.op === "equals" ? (not ? "equal" : "equals") : f.op === "contains" ? (not ? "contain" : "contains") : f.op === "beginsWith" ? (not ? "begin with" : "begins with") : not ? "end with" : "ends with"} ${JSON.stringify(f.value)}${f.match ? `, case ${f.match.case}, whitespace ${f.match.whitespace}` : ""}${blanks}`;
         case "compare":
-            return `${f.field} ${not ? "is not" : "is"} ${COMPARE_TEXT[f.op].replace(/^is /, "")} ${f.op === "between" ? between(f.value, f.value2) : JSON.stringify(f.value)}${f.precision && f.precision !== "day" ? ` (by ${f.precision})` : ""}${blanks}`;
+            return `${f.field} ${not ? "is not" : "is"} ${COMPARE_TEXT[f.op]}${f.op === "between" ? between(f.value, f.value2) : JSON.stringify(f.value)}${f.precision && f.precision !== "day" ? ` (by ${f.precision})` : ""}${blanks}`;
         case "relative": {
             const range = f.direction === "this" ? `this ${f.unit}` : `${f.direction} ${f.count} ${f.unit}${f.count === 1 ? "" : "s"}`;
             const how = [f.calendar === false ? "rolling" : null, f.includeCurrent === false ? "current excluded" : null, f.anchor && f.anchor !== "today" ? `from ${f.anchor}` : null].filter(Boolean);
@@ -141,7 +142,7 @@ export function filterText(f) {
         case "top":
             return `${f.bottom ? "bottom" : "top"} ${f.count} ${f.field} by ${refText(f.by)}${f.ties === "all" ? ", ties kept" : ""}`;
         case "value":
-            return `${f.field} where ${refText(f.by)} ${not ? "is not" : "is"} ${COMPARE_TEXT[f.op].replace(/^is /, "")} ${f.op === "between" ? between(f.value, f.value2) : JSON.stringify(f.value)}`;
+            return `${f.field} where ${refText(f.by)} ${not ? "is not" : "is"} ${COMPARE_TEXT[f.op]}${f.op === "between" ? between(f.value, f.value2) : JSON.stringify(f.value)}`;
         default:
             return `${f.field}: ${f.type}`;
     }

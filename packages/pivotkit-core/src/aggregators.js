@@ -23,6 +23,8 @@
  *   totals make sense (sum, count); not true for average, median, countUnique, ...
  * @property {boolean} [keepsValues]  keeps a value per source row and cell (a list or a set), so its
  *   memory grows with the rows, not only with the cells; counts heavier against `limits.work`
+ * @property {boolean} [needsRanks]  reads the values' sort order (`ranks` of `create`); without it
+ *   `ranks` is null, so a pivot does not sort a large dictionary it never reads
  * @property {(columnType: string) => ResultType} resultType
  * @property {(column: import("./encode.js").Column | null, cells: number, ranks: Int32Array | null, labelOf: (code: number) => string) => Kernel} create
  */
@@ -213,6 +215,7 @@ export const AGGREGATORS = Object.freeze({
     listUnique: {
         numeric: false,
         keepsValues: true,
+        needsRanks: true,
         resultType: textResult,
         create: (column, cells, ranks, labelOf) => {
             const u = uniqueSets(column, cells);
@@ -237,8 +240,8 @@ export const AGGREGATORS = Object.freeze({
     stdevp: { numeric: true, resultType: numberResult, create: variance(false, true) },
     var: { numeric: true, resultType: numberResult, create: variance(true, false) },
     varp: { numeric: true, resultType: numberResult, create: variance(false, false) },
-    first: { numeric: false, resultType: sameAsColumn, create: firstLast(false) },
-    last: { numeric: false, resultType: sameAsColumn, create: firstLast(true) }
+    first: { numeric: false, needsRanks: true, resultType: sameAsColumn, create: firstLast(false) },
+    last: { numeric: false, needsRanks: true, resultType: sameAsColumn, create: firstLast(true) }
 });
 
 export const AGGREGATOR_NAMES = Object.freeze(Object.keys(AGGREGATORS));

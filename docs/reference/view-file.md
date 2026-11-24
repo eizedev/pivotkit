@@ -170,7 +170,7 @@ The functions are listed in the [pivotkit-core reference](core.md#view-files).
   count.
 - Names, descriptions, and source names are plain text, cleaned as template names are:
   - Control characters become spaces.
-  - Bidi and zero-width characters go, so `inv‮txt.exe` cannot read as another name.
+  - Bidi and zero-width characters go, so a name with a right-to-left override, such as `inv\u202Etxt.exe`, cannot read as another name.
   - The UI shows them as text, never as markup.
 - The view is user input like any other. `normalize()` checks it against the data before the report
   shows it. It leaves out what does not fit, and the report says so in plain words.

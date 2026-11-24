@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatter, isFormat } from "../src/index.js";
+import { computePivot, encode, formatter, isFormat, toGrid } from "../src/index.js";
 import { parseFormat } from "../src/format.js";
 
 test("known formats with locale", () => {
@@ -15,6 +15,13 @@ test("known formats with locale", () => {
     assert.equal(formatter("date", en)(Date.UTC(2026, 2, 4)), "Mar 4, 2026");
     assert.equal(formatter("text")(null), "");
     assert.match(formatter("currency:usd", en)(5), /\$5\.00/);
+});
+
+test("a blank or text value prints as it is in every number format, never NaN", () => {
+    for (const name of ["number", "integer", "currency", "percent", "percent100", "compact"]) {
+        const f = formatter(name, { locale: "en-US" });
+        assert.deepEqual([f(null), f(undefined), f("n/a")], ["", "", "n/a"], name);
+    }
 });
 
 test("format names are a fixed grammar; anything else is refused", () => {
@@ -44,8 +51,7 @@ test("explicit decimals are exact for number, percent and percent100; up to 20",
     assert.equal(isFormat("number:21"), false);
 });
 
-test("the automatic format has the same decimals in a whole value column", async () => {
-    const { computePivot, encode, toGrid } = await import("../src/index.js");
+test("the automatic format has the same decimals in a whole value column", () => {
     const texts = (rows, agg) => toGrid(computePivot(encode(rows), { rows: ["k"], values: [{ field: "v", agg }], totals: { grandTotalRow: false } })).rows.slice(1).map((r) => r[1].text);
     assert.deepEqual(texts([{ k: "a", v: 3 }, { k: "b", v: 1.5 }, { k: "c", v: 2.25 }], "sum"), ["3.00", "1.50", "2.25"]);
     assert.deepEqual(texts([{ k: "a", v: 3 }, { k: "b", v: 1.5 }], "max"), ["3.0", "1.5"]);

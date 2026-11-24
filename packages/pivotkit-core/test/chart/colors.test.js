@@ -2,8 +2,9 @@
 // and a host's colorMap in the ECharts option (the screen, the SVG and the printed report draw it).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CATALOG, computePivot, emptyView, encode, normalize, validate } from "../../src/index.js";
+import { computePivot, emptyView, encode, fromViewFile, normalize, toViewFile, validate } from "../../src/index.js";
 import { decorateOption, toEChartsOption } from "pivotkit-core/chart";
+import { PLAIN_COLOR } from "../../src/chart-colors.js";
 
 const NO_TOKENS = { getPropertyValue: () => "" };
 const SALES = encode([
@@ -26,10 +27,13 @@ test("the view keeps a colour per name and whether the tooltip shows the share, 
     // a colour is #rgb or #rrggbb; anything else is left out and reported
     const bad = validate({ chart: { colors: [{ name: "North", color: "red; background: url(x)" }, { name: 3, color: "#fff" }, "North"] } }, SALES);
     assert.deepEqual(bad.errors.map((e) => e.path), ["chart.colors[0]", "chart.colors[1]", "chart.colors[2]"]);
+    // a colour in an array is no colour, though RegExp.test reads ["#fff"] as "#fff"
+    const wrapped = normalize({ chart: { colors: [{ name: "North", color: ["#fff"] }] } }, SALES);
+    assert.deepEqual(wrapped.view.chart.colors, []);
+    assert.deepEqual(wrapped.issues.map((i) => i.path), ["chart.colors[0]"]);
     assert.deepEqual(norm({ chart: { colors: { North: "#fff" } } }).chart.colors, []);
     assert.deepEqual(norm({ chart: JSON.parse('{"colors":[{"name":"__proto__","color":"#abc"}]}') }).chart.colors, [{ name: "__proto__", color: "#abc" }]);
-    assert.deepEqual(norm({ chart: { colors: [{ name: "a", color: "#111" }, { name: "b", color: "#222" }, { name: "c", color: "#333" }] } }, { limits: { items: 2 } }).chart.colors.length, 2);
-    assert.ok(Array.isArray(CATALOG.chartTypes));
+    assert.equal(norm({ chart: { colors: [{ name: "a", color: "#111" }, { name: "b", color: "#222" }, { name: "c", color: "#333" }] } }, { limits: { items: 2 } }).chart.colors.length, 2);
 });
 
 test("a series takes its colour by name: from the view, else from the host's colorMap; others keep the palette", () => {
@@ -70,11 +74,11 @@ test("the tooltip's share: a formatter of the locale's percent on every chart bu
     assert.equal(de.tooltip.shareFormatter(25), "25,0 %");
 });
 
-test("a host's colour: hex of 3, 4, 6 or 8 digits, rgb(), hsl() or a colour name; others are left out (#54 review)", async () => {
-    const { PLAIN_COLOR } = await import("../../src/chart-colors.js");
+test("a host's colour: hex of 3, 4, 6 or 8 digits, rgb(), hsl() or a colour name; others are left out (#54 review)", () => {
     for (const ok of ["#abc", "#abcd", "#aabbcc", "#aabbccdd", "rgb(1, 2, 3)", "hsla(10, 20%, 30%, 0.5)", "rebeccapurple"]) assert.ok(PLAIN_COLOR.test(ok), ok);
     for (const bad of ["#abcde", "#aabbccd", "#ab", "url(#x)", "red; x", "expression(1)"]) assert.ok(!PLAIN_COLOR.test(bad), bad);
     // where the runtime knows CSS, a name must be a colour it reads
+    const had = Object.hasOwn(globalThis, "CSS");
     const real = globalThis.CSS;
     globalThis.CSS = { supports: (_property, value) => value !== "notacolour" };
     try {
@@ -82,12 +86,16 @@ test("a host's colour: hex of 3, 4, 6 or 8 digits, rgb(), hsl() or a colour name
         assert.equal(o.series[1].itemStyle.color, "teal");
         assert.notEqual(o.series[0].itemStyle?.color, "notacolour");
     } finally {
-        globalThis.CSS = real;
+        // a runtime without CSS (Node) gets no CSS key back, so later tests see the runtime as it was
+        if (had) {
+            globalThis.CSS = real;
+        } else {
+            delete globalThis.CSS;
+        }
     }
 });
 
-test("a view file leaves out colors and tooltipShare at their defaults and keeps them when set; reading puts them back", async () => {
-    const { toViewFile, fromViewFile } = await import("../../src/index.js");
+test("a view file leaves out colors and tooltipShare at their defaults and keeps them when set; reading puts them back", () => {
     const plain = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }] });
     const file = toViewFile(plain, { name: "Revenue" });
     assert.equal("colors" in file.view.chart, false);

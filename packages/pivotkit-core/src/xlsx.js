@@ -19,7 +19,7 @@
 import { strToU8, zipSync } from "fflate";
 import { BIDI_CONTROLS } from "./csv.js";
 import { DEFAULT_THEME } from "./defaults.js";
-import { checkLimit, expect } from "./errors.js";
+import { PivotkitError, expect, limitText } from "./errors.js";
 import { excelNumberFormat } from "./format.js";
 import { isGrid } from "./grid.js";
 import { MS_PER_DAY, hexDigits, optionsOf } from "./util.js";
@@ -137,6 +137,16 @@ function sqref(cells) {
 }
 
 /**
+ * Throws LIMIT_EXCEEDED for a grid larger than an Excel sheet. Excel's size is fixed, so the message
+ * names no setting of `limits`; `details.limit` names the bound for code.
+ */
+function checkSheetSize(limit, value, max, what) {
+    if (value > max) {
+        throw new PivotkitError("LIMIT_EXCEEDED", limitText(value, max, what, "the size of an Excel sheet"), { limit, value, max });
+    }
+}
+
+/**
  * The grid as an .xlsx workbook.
  * @param {import("./grid.js").Grid} grid  from toGrid()
  * @param {{ sheetName?: string, theme?: { colorScale?: string[], dataBar?: string }, dataAsOf?: string }} [options]
@@ -151,8 +161,8 @@ export function toXlsx(grid, options) {
     expect(isGrid(grid), "toXlsx(grid): grid must come from toGrid()");
     const asOf = options.dataAsOf;
     expect(asOf === undefined || isDataAsOf(asOf), "toXlsx: dataAsOf must be a time like 2026-11-15T08:00:00Z");
-    checkLimit("xlsxRows", grid.rows.length, EXCEL_MAX_ROWS, "rows (an Excel sheet)");
-    checkLimit("xlsxColumns", grid.columnCount, EXCEL_MAX_COLUMNS, "columns (an Excel sheet)");
+    checkSheetSize("xlsxRows", grid.rows.length, EXCEL_MAX_ROWS, "rows");
+    checkSheetSize("xlsxColumns", grid.columnCount, EXCEL_MAX_COLUMNS, "columns");
     const theme = { ...DEFAULT_THEME, ...(options.theme || {}) };
     const locale = grid.locale;
     // Styles: one cellXfs entry per (number format, bold, top) triple, created as cells need them.

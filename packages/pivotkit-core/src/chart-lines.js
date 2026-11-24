@@ -10,21 +10,17 @@ import { referenceLineRules, stacksToPercent } from "./chart-plan.js";
 import { autoChartType, toSeries } from "./chart-series.js";
 import { formatterFor } from "./format.js";
 import { DEFAULT_LABELS } from "./labels.js";
-import { resolveLocale } from "./util.js";
+import { MS_PER_DAY, periodOf, resolveLocale } from "./util.js";
 
-/** A day and a week in ms. */
-const DAY = 86_400_000;
-const WEEK = 7 * DAY;
+/** A week in ms. */
+const WEEK = 7 * MS_PER_DAY;
 
 /** The ms of the Monday of ISO week `week` of `year`: week 1 holds the year's 4 January. */
 function isoWeekStart(year, week) {
     const jan4 = new Date(Date.UTC(2000, 0, 4));
     jan4.setUTCFullYear(year);
-    return jan4.getTime() - ((jan4.getUTCDay() + 6) % 7) * DAY + (week - 1) * WEEK;
+    return jan4.getTime() - ((jan4.getUTCDay() + 6) % 7) * MS_PER_DAY + (week - 1) * WEEK;
 }
-
-/** `key`'s place in its period: the month of a yearMonth (base 100), the quarter of a yearQuarter (10). */
-const periodOf = (key, base) => key - Math.floor(key / base) * base;
 
 /**
  * Each category's place in time, in the unit of its innermost row field (months for months, days for
@@ -49,7 +45,7 @@ function timesOf(view, encoded, paths) {
         yearQuarter: (k) => Math.floor(k / 10) * 4 + periodOf(k, 10),
         yearMonth: (k) => Math.floor(k / 100) * 12 + periodOf(k, 100),
         yearWeek: (k) => isoWeekStart(Math.floor(k / 100), periodOf(k, 100)) / WEEK,
-        day: (k) => k / DAY
+        day: (k) => k / MS_PER_DAY
     };
     if (!by || !Object.hasOwn(place, by)) {
         return null;

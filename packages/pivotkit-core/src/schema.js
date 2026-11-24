@@ -6,7 +6,7 @@
  */
 
 import { expect } from "./errors.js";
-import { plainText } from "./util.js";
+import { get, isPlainObject, plainText } from "./util.js";
 
 /** Caps on what is read from a schema: it may come from anywhere. */
 export const SCHEMA_CAPS = Object.freeze({
@@ -23,11 +23,11 @@ export const SCHEMA_CAPS = Object.freeze({
     /** `$ref` and `allOf` levels followed before giving up */
     depth: 32,
     /** schema objects resolved in one call, however they nest: a document cannot ask for unbounded work */
-    steps: 20000
+    steps: 20000,
+    /** properties copied while `allOf` parts are merged, in one call: a part with many properties named many times */
+    merged: 100000
 });
 
-const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
-const own = (o, k) => (isObject(o) && Object.hasOwn(o, k) ? o[k] : undefined);
 /** A copy of a schema object without some of its keywords. */
 const without = (o, ...keys) => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
 
@@ -55,13 +55,20 @@ export function safeHref(value) {
  * @param {string} ref
  */
 export function pointer(root, ref) {
-    if (typeof ref !== "string" || !ref.startsWith("#")) {
+    // "#" is the document, "#/a/b" a path; "#name" is an anchor, which no path names
+    if (typeof ref !== "string" || (ref !== "#" && !ref.startsWith("#/"))) {
         return undefined;
     }
-    const tokens = ref.slice(1).split("/").slice(1).map((t) => t.replace(/~1/g, "/").replace(/~0/g, "~"));
+    let tokens;
+    try {
+        // a fragment is percent-encoded ("#/c/a%20b" names the key "a b"), then ~1 is "/" and ~0 is "~"
+        tokens = ref.slice(1).split("/").slice(1).map((t) => decodeURIComponent(t).replace(/~1/g, "/").replace(/~0/g, "~"));
+    } catch {
+        return undefined;
+    }
     let at = /** @type {unknown} */ (root);
     for (const token of tokens) {
-        at = Array.isArray(at) && /^\d+$/.test(token) ? at[Number(token)] : own(at, token);
+        at = Array.isArray(at) && /^\d+$/.test(token) ? at[Number(token)] : get(at, token);
         if (at === undefined) {
             return undefined;
         }
@@ -73,9 +80,9 @@ export function pointer(root, ref) {
 const RESOLVING = Symbol("resolving");
 
 /**
- * @typedef {{ root: object, steps: number, refs: Map<string, any>, issues: Array<{ path: string, message: string }>, said: Set<string> }} Context
- *   the document, the schema objects left to read, the resolved `$ref` targets (each read once), what
- *   could not be read
+ * @typedef {{ root: object, steps: number, merged: number, refs: Map<string, any>, issues: Array<{ path: string, message: string }>, said: Set<string> }} Context
+ *   the document, the schema objects left to read, the properties left to copy in merges, the resolved
+ *   `$ref` targets (each read once), what could not be read
  */
 
 /** Notes an issue once per kind and path. @param {Context} ctx */
@@ -99,7 +106,7 @@ function note(ctx, path, message, kind = message) {
  * @returns {Record<string, any> | undefined}
  */
 function resolve(ctx, schema, path, depth = 0) {
-    if (!isObject(schema)) {
+    if (!isPlainObject(schema)) {
         return undefined;
     }
     if (depth > SCHEMA_CAPS.depth) {
@@ -112,7 +119,7 @@ function resolve(ctx, schema, path, depth = 0) {
     }
     ctx.steps -= 1;
     let s = /** @type {Record<string, any>} */ (schema);
-    const ref = own(s, "$ref");
+    const ref = get(s, "$ref");
     if (typeof ref === "string") {
         let target = ctx.refs.get(ref);
         if (target === RESOLVING) {
@@ -134,14 +141,20 @@ function resolve(ctx, schema, path, depth = 0) {
         // keywords next to a $ref (OpenAPI 3.1: a description of this use) win over the target's
         s = { ...target, ...without(s, "$ref") };
     }
-    const allOf = own(s, "allOf");
+    const allOf = get(s, "allOf");
     if (Array.isArray(allOf)) {
         const parts = allOf.slice(0, SCHEMA_CAPS.fields).map((p, i) => resolve(ctx, p, `${path}.allOf[${i}]`, depth + 1)).filter(Boolean);
         const properties = {};
         for (const p of [...parts, s]) {
-            const props = own(p, "properties");
-            if (isObject(props)) {
-                for (const k of Object.keys(props)) {
+            const props = get(p, "properties");
+            if (isPlainObject(props)) {
+                const keys = Object.keys(props);
+                ctx.merged -= keys.length;
+                if (ctx.merged < 0) {
+                    note(ctx, path, `stopped after merging ${SCHEMA_CAPS.merged} properties; the rest is not read`, "merged");
+                    break;
+                }
+                for (const k of keys) {
                     Object.defineProperty(properties, k, { value: props[k], enumerable: true, writable: true, configurable: true });
                 }
             }
@@ -150,9 +163,9 @@ function resolve(ctx, schema, path, depth = 0) {
         s = { ...merged, ...without(s, "allOf"), properties };
     }
     for (const key of ["anyOf", "oneOf"]) {
-        const list = own(s, key);
+        const list = get(s, key);
         if (Array.isArray(list)) {
-            const options = list.slice(0, SCHEMA_CAPS.fields).map((p, i) => resolve(ctx, p, `${path}.${key}[${i}]`, depth + 1)).filter((p) => p && own(p, "type") !== "null");
+            const options = list.slice(0, SCHEMA_CAPS.fields).map((p, i) => resolve(ctx, p, `${path}.${key}[${i}]`, depth + 1)).filter((p) => p && get(p, "type") !== "null");
             if (options.length === 1) {
                 s = { ...options[0], ...without(s, key) };
             }
@@ -163,7 +176,7 @@ function resolve(ctx, schema, path, depth = 0) {
 
 /** The type of a schema without "null": "integer" from ["integer", "null"]. */
 function typeOf(s) {
-    const t = own(s, "type");
+    const t = get(s, "type");
     const list = Array.isArray(t) ? t.filter((x) => x !== "null") : [t];
     return list.length === 1 && typeof list[0] === "string" ? list[0] : undefined;
 }
@@ -180,7 +193,7 @@ export function namedSchema(doc, name, caller = "fieldDefaultsFromSchema") {
     if (name.startsWith("#")) {
         return pointer(doc, name);
     }
-    return own(own(own(doc, "components"), "schemas"), name) ?? own(own(doc, "definitions"), name);
+    return get(get(get(doc, "components"), "schemas"), name) ?? get(get(doc, "definitions"), name);
 }
 
 /**
@@ -208,19 +221,19 @@ export function namedSchema(doc, name, caller = "fieldDefaultsFromSchema") {
  * @returns {{ defaults: Record<string, SchemaFieldDefaults>, issues: Array<{ path: string, message: string }> }}
  */
 export function fieldDefaultsFromSchema(schema, options = {}) {
-    expect(isObject(schema), "fieldDefaultsFromSchema: the schema must be an object");
-    expect(isObject(options), "fieldDefaultsFromSchema: options must be an object");
+    expect(isPlainObject(schema), "fieldDefaultsFromSchema: the schema must be an object");
+    expect(isPlainObject(options), "fieldDefaultsFromSchema: options must be an object");
     const doc = /** @type {Record<string, any>} */ (schema);
-    const isDocument = own(doc, "openapi") !== undefined || own(doc, "swagger") !== undefined;
+    const isDocument = get(doc, "openapi") !== undefined || get(doc, "swagger") !== undefined;
     /** @type {Context} */
-    const ctx = { root: doc, steps: SCHEMA_CAPS.steps, refs: new Map(), issues: [], said: new Set() };
+    const ctx = { root: doc, steps: SCHEMA_CAPS.steps, merged: SCHEMA_CAPS.merged, refs: new Map(), issues: [], said: new Set() };
     let row = resolve(ctx, isDocument || options.schema !== undefined ? namedSchema(doc, options.schema) : doc, "");
     expect(row, `fieldDefaultsFromSchema: no schema ${JSON.stringify(String(options.schema ?? "")).slice(0, 80)} in the document`);
     if (typeOf(row) === "array") {
-        row = resolve(ctx, own(row, "items"), "items");
+        row = resolve(ctx, get(row, "items"), "items");
     }
-    const properties = own(row, "properties");
-    expect(isObject(properties), "fieldDefaultsFromSchema: the schema of a row must have properties");
+    const properties = get(row, "properties");
+    expect(isPlainObject(properties), "fieldDefaultsFromSchema: the schema of a row must have properties");
     /** @type {Record<string, SchemaFieldDefaults>} */
     const out = {};
     const names = Object.keys(properties);
@@ -234,26 +247,26 @@ export function fieldDefaultsFromSchema(schema, options = {}) {
         }
         /** @type {SchemaFieldDefaults} */
         const entry = {};
-        const label = plainText(own(p, "title"), SCHEMA_CAPS.label);
+        const label = plainText(get(p, "title"), SCHEMA_CAPS.label);
         if (label) {
             entry.label = label;
         }
-        const description = plainText(own(p, "description"), SCHEMA_CAPS.description);
+        const description = plainText(get(p, "description"), SCHEMA_CAPS.description);
         if (description) {
             entry.description = description;
         }
-        const href = safeHref(own(own(p, "externalDocs"), "url"));
+        const href = safeHref(get(get(p, "externalDocs"), "url"));
         if (href) {
             entry.href = href;
         }
         const type = typeOf(p);
-        const format = own(p, "format");
+        const format = get(p, "format");
         if (type === "integer" || type === "number") {
             entry.type = "number";
         } else if (type === "string" && (format === "date" || format === "date-time")) {
             entry.type = "date";
         }
-        const list = own(p, "enum");
+        const list = get(p, "enum");
         if (Array.isArray(list)) {
             const order = list.slice(0, SCHEMA_CAPS.order).filter((v) => v === null || ["string", "number", "boolean"].includes(typeof v));
             if (order.length > 0) {

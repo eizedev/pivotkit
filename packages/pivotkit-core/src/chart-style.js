@@ -10,13 +10,13 @@
 import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
 import { POINT_HALO, barExtent, otherSlices, pieLabelFit, pieLabelTexts, pointLabels, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
-import { AXIS_LABEL_MARGIN, LINE_SAMPLES, groupLabelLine, groupLabelOffset, heatmapFrame, lineLabelText, textWidth } from "./chart-measure.js";
+import { AXIS_LABEL_MARGIN, LINE_SAMPLES, categorySlot, groupLabelLine, groupLabelOffset, heatmapFrame, lineLabelText, textWidth } from "./chart-measure.js";
 import { ZOOM_SLIDER, longestNames, zoomRange, zoomSlider, zoomWindow } from "./chart-zoom.js";
+import { contrastOf, labelColorOn } from "./chart-colors.js";
 
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
 export { extremePoints, referenceLineChecks, referenceLines } from "./chart-lines.js";
-import { contrastOf, labelColorOn } from "./chart-colors.js";
 export { labelColorOn };
 
 /** Room (px) beside a combo's plot: the margins and the numbers of its two value axes, estimated. */
@@ -328,7 +328,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
         const offset = groupLabelOffset({ beside: along === "yAxis", slanted: Boolean(layout.rotate), longest, fontSize });
         const main = { ...list[0], axisLabel: { ...list[0].axisLabel, rotate: layout.rotate, interval: layout.interval, width: layout.width, overflow: layout.overflow } };
         // a group's name is cut to the room of its smallest group, so two names never run into each other
-        const slot = (along === "yAxis" ? Math.max(0, height - 60) : Math.max(0, width - 80)) / Math.max(1, names.length);
+        const slot = categorySlot(names.length, { width, height, horizontal: along === "yAxis" });
         const groupWidth = along === "yAxis" ? CATEGORY_LABEL_WIDTH : Math.max(24, Math.round(slot * (list[1]?.groupSize ?? 1)) - 8);
         const rest = list.slice(1).map((a) => (a.groups ? { ...a, offset, axisTick: { ...a.axisTick, length: offset }, axisLabel: { ...a.axisLabel, width: groupWidth, overflow: "truncate" } } : a));
         axes = { ...axes, [along]: rest.length ? [main, ...rest] : main };

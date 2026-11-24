@@ -21,6 +21,7 @@ const grid = toGrid(result);
 console.log(JSON.stringify({ values: [...data.column("d").values], text: grid.rows.map((r) => r.map((c) => c && c.text)) }));
 `;
 
+/** The script in a child process. An LC_ALL of the parent would win over LANG, so both are set. */
 function runIn(env) {
     return execFileSync(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, ...env }, encoding: "utf8" });
 }
@@ -31,7 +32,7 @@ test("pivots do not depend on the machine's time zone or locale", () => {
         { TZ: "America/New_York", LANG: "de_DE.UTF-8" },
         { TZ: "Asia/Kolkata", LANG: "ja_JP.UTF-8" },
         { TZ: "Pacific/Chatham", LANG: "fr_FR.UTF-8" }
-    ].map(runIn);
+    ].map((env) => runIn({ ...env, LC_ALL: env.LANG }));
     for (const out of outputs.slice(1)) {
         assert.equal(out, outputs[0]);
     }
@@ -91,6 +92,12 @@ test("ISO times that do not exist are text; years before 100 are dates", () => {
     assert.equal(encode([{ d: "0050-01-01" }]).column("d").values[0], -60589296000000);
     assert.deepEqual(parseIso("2026-03-04T10:00:00+0530"), { ms: Date.UTC(2026, 2, 4, 10), offsetMinutes: 330 });
     assert.deepEqual(parseIso("2026-03-04 10:00:00.123456789Z"), { ms: Date.UTC(2026, 2, 4, 10, 0, 0, 123), offsetMinutes: 0 });
+});
+
+test("fractions of a millisecond are cut, as Date.parse does, so the last instant of a day stays a date", () => {
+    const text = "2026-01-30T23:59:59.9996";
+    assert.deepEqual(parseIso(text), { ms: Date.parse(`${text}Z`), offsetMinutes: null });
+    assert.equal(encode([{ d: text }]).column("d").type, "date");
 });
 
 test("relative date ranges read today in the data's zone, not the machine's", () => {

@@ -46,6 +46,19 @@ export function longestWidth(texts, fontSize) {
     }
     return longest;
 }
+
+/** Room (px) of a chart that is not its category axis: the value axis and the margins. */
+const AXIS_FRAME = { x: 80, y: 60 };
+
+/**
+ * The px each of `count` categories gets along the category axis: the height of horizontal bars' rows,
+ * else the width of a column.
+ * @param {number} count
+ * @param {{ width: number, height: number, horizontal?: boolean }} box
+ */
+export function categorySlot(count, { width, height, horizontal = false }) {
+    return (horizontal ? Math.max(0, height - AXIS_FRAME.y) : Math.max(0, width - AXIS_FRAME.x)) / Math.max(1, count);
+}
 /** Height (px) of a line of labels at `fontSize` px with the room between two of them: 16 px at 12 px. */
 export const labelLine = (/** @type {number} */ fontSize) => Math.round((fontSize * 4) / 3);
 /** The least height (px) of a row that holds one line of text: a px more than the text. */

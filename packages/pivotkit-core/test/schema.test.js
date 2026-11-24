@@ -87,6 +87,10 @@ test("fieldDefaultsFromSchema: bad input throws, hostile input is capped and nev
     assert.throws(() => fieldDefaultsFromSchema({ type: "object" }), /properties/);
     // remote references are not fetched
     assert.deepEqual(fd({ properties: { a: { $ref: "https://example.org/a.json" }, b: { title: "B" } } }), { b: { label: "B" } });
+    // a $ref is a path: "#name" (an anchor) names nothing; a path is percent-decoded, as a URI fragment is
+    const paths = fieldDefaultsFromSchema({ $defs: { "a b": { title: "AB" } }, properties: { a: { $ref: "#anchor", title: "A" }, b: { $ref: "#/$defs/a%20b" } } });
+    assert.deepEqual(paths.defaults, { b: { label: "AB" } });
+    assert.deepEqual(paths.issues.map((i) => i.message), ["$ref #anchor is not in the document"]);
     // a reference cycle ends
     const cycle = { components: { schemas: { A: { $ref: "#/components/schemas/B" }, B: { $ref: "#/components/schemas/A" } } }, properties: { x: { $ref: "#/components/schemas/A" }, y: { title: "Y" } } };
     assert.deepEqual(fd(cycle), { y: { label: "Y" } });
@@ -96,6 +100,14 @@ test("fieldDefaultsFromSchema: bad input throws, hostile input is capped and nev
     const cpu = cpuClock();
     fieldDefaultsFromSchema(fan);
     assert.ok(cpu() < 5000, "bounded work");
+    // a part of many properties merged many times stops after SCHEMA_CAPS.merged copies, with an issue
+    const many = Object.fromEntries(Array.from({ length: 20_000 }, (_, i) => [`p${i}`, { title: `P${i}` }]));
+    const refs = Array.from({ length: 1000 }, () => ({ $ref: "#/$defs/B" }));
+    const merges = { $defs: { B: { properties: many }, M: { allOf: refs } }, allOf: [{ $ref: "#/$defs/M" }, { $ref: "#/$defs/M" }] };
+    const mergeCpu = cpuClock();
+    const merged = fieldDefaultsFromSchema(merges);
+    assert.ok(mergeCpu() < 2000, `${Math.round(mergeCpu())} ms of CPU`);
+    assert.ok(merged.issues.some((i) => i.message.startsWith(`stopped after merging ${SCHEMA_CAPS.merged} properties`)), JSON.stringify(merged.issues));
     // texts are plain and capped; a property named __proto__ is a field like any other
     const long = "x".repeat(SCHEMA_CAPS.description + 50);
     const proto = JSON.parse('{"properties":{"__proto__":{"title":"Proto"},"t":{"title":"<b>bold</b>\\u0000\\u2028line","description":"' + long + '"}}}');

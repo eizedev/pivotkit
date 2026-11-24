@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PivotkitError, dateUnitFor, describeSource, encode, groupingName, isIdentifierName, renameFields, suggestDateUnit, suggestLayout, validate, viewFileFields, viewFromLayout } from "../src/index.js";
+import { random } from "./fixtures.js";
 
 const day = (d) => new Date(Date.UTC(2025, 0, 1) + d * 86_400_000).toISOString().slice(0, 10);
 
@@ -158,6 +159,9 @@ test("viewFromLayout: groupings replace their field on the axes, in the report's
     assert.deepEqual(named.notes.map((n) => n.code), ["unusedGroup"]);
     assert.equal(groupingName("Date", "weekday", { locale: "de-AT" }), "Date nach Wochentag");
     assert.equal(groupingName("Date", "weekday", { locale: "fr-FR" }), "Date by weekday");
+    // a field's own name is data: a placeholder in it stays as written
+    assert.equal(groupingName("{size}", "bin", { size: 500 }), "{size} (by 500)");
+    assert.equal(groupingName("{unit}", "year"), "{unit} by year");
 });
 
 test("viewFromLayout: a value without an aggregator is summed when it is a number, else counted, as a click in the field list does", () => {
@@ -176,8 +180,7 @@ test("viewFromLayout: unknown names, aggregators and units pass through, so norm
 });
 
 test("viewFromLayout: filters, chart type and map", () => {
-    const rows = SALES.map((r) => ({ ...r, Turnover: r.Revenue, Revenue: undefined }));
-    const data = encode(rows.map(({ Revenue: _r, ...r }) => r));
+    const data = encode(SALES.map(({ Revenue, ...r }) => ({ ...r, Turnover: Revenue })));
     const layout = {
         rows: ["Region"],
         values: [{ field: "Revenue", agg: "sum" }],
@@ -259,8 +262,7 @@ test("isIdentifierName: the one rule pivotkit-react and the suggestions share", 
 });
 
 test("a suggestion on random data normalizes without findings, whatever the columns' order", () => {
-    let seed = 7;
-    const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+    const rnd = random(7);
     for (let n = 0; n < 40; n++) {
         const cols = ["A", "B", "C", "D", "E"].map((name) => ({ name, kind: ["text", "few", "date", "number", "id"][Math.floor(rnd() * 5)] }));
         const rows = Array.from({ length: 30 }, (_, i) =>

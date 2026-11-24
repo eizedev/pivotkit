@@ -147,6 +147,7 @@ A new name is one table entry plus its tests:
 | View key | a section in `view.js`, in `SECTIONS` and `emptyView()` | a migration if old views change |
 
 - An aggregator that stores a value per row sets `keepsValues`. It counts heavier against `work`.
+- An aggregator that reads the order of a field's values sets `needsRanks`. The others get no order.
 - A format without an Excel code: note the gap in `docs/concepts/values.md` (Export).
 - A view key that changes old views raises `VIEW_VERSION` and adds a step to `MIGRATIONS`.
 - After a table change, run `node scripts/schemas.js`.
