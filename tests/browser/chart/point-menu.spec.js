@@ -149,6 +149,7 @@ test.describe("a touch screen", () => {
         const at = await pointOf(chartEl, barMiddle, { series: SOFTWARE, index: NORTH });
         // the first tap shows the tooltip, the second opens the menu
         await page.touchscreen.tap(at.x, at.y);
+        // a person's pace between the taps, no double tap
         await page.waitForTimeout(400);
         await page.touchscreen.tap(at.x, at.y);
         await expect(menu(page)).toBeVisible();

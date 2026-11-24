@@ -197,7 +197,7 @@ test.describe("the chart's tooltip follows the pointer", () => {
             window.__tooltipRoot.render(React.createElement(PivotReport, { key: JSON.stringify(window.__tooltipChart), theme: "dark", data: window.__tooltipRows, height: window.__tooltipHeight, defaultView: window.__tooltipView, onViewChange: (v) => last.push(v) }));
         });
         await expect(page.locator("#tooltip-report .pk-root")).toHaveAttribute("data-pk-theme", "dark");
-        await page.waitForTimeout(600);
+        await settled(chartEl);
         // the tooltip of the old marks goes, or names the segment: never every series
         expect([[], ["North", "Software 30", "Total 60"]]).toContainEqual(await tooltipOf(chartEl));
         // a pixel's move on the segment names it
@@ -318,12 +318,14 @@ test.describe("a touch screen", () => {
         await page.touchscreen.tap(box.x + 6, box.y + 6);
         await page.touchscreen.tap(at.x, at.y);
         await expect.poll(() => tooltipOf(chartEl)).toEqual(tip);
+        // no panel, also a moment later
         await page.waitForTimeout(400);
         await expect(panel).toHaveCount(0);
         // another element first: its tooltip; then a second tap on it opens its rows
         const other = type === "bar" ? await pointOf(chartEl, barMiddle, { series: HARDWARE, index: NORTH }) : await pointOf(chartEl, cellMiddle, { x: HARDWARE, y: NORTH });
         await page.touchscreen.tap(other.x, other.y);
         await expect.poll(async () => (await tooltipOf(chartEl)).join(" ")).toContain("Hardware 20");
+        // no panel, also a moment later
         await page.waitForTimeout(400);
         await expect(panel).toHaveCount(0);
         await page.touchscreen.tap(other.x, other.y);
@@ -347,6 +349,7 @@ test.describe("a touch screen", () => {
         const clicks = () => page.evaluate(() => window.__cellClicks.length);
         await page.touchscreen.tap(at.x, at.y);
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+        // no call, also a moment later
         await page.waitForTimeout(400);
         expect(await clicks()).toBe(0);
         // a tap outside the chart (the page below it), then on the same segment: its tooltip, no rows
@@ -354,6 +357,7 @@ test.describe("a touch screen", () => {
         await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height + 60);
         await page.touchscreen.tap(at.x, at.y);
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30", "Total 60"]);
+        // no rows, also a moment later
         await page.waitForTimeout(400);
         await expect(panel).toHaveCount(0);
         expect(await clicks()).toBe(0);
@@ -363,6 +367,7 @@ test.describe("a touch screen", () => {
         expect(await clicks()).toBe(0);
         await page.getByTestId("point-rows").tap();
         await expect(panel).toBeVisible();
+        // one call, also after the click a phone sends after the tap
         await page.waitForTimeout(400);
         expect(await page.evaluate(() => window.__cellClicks)).toEqual([{ row: ["North"], col: ["Software"], count: 1 }]);
         // a press that starts on the panel and ends on the scrim keeps the panel open
@@ -372,6 +377,7 @@ test.describe("a touch screen", () => {
         await page.mouse.down();
         await page.mouse.move(scrim.x + 4, scrim.y + 4, { steps: 4 });
         await page.mouse.up();
+        // the panel stays, also a moment later
         await page.waitForTimeout(300);
         await expect(panel).toBeVisible();
         await page.keyboard.press("Escape");

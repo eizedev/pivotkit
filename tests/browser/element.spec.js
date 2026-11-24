@@ -4,7 +4,7 @@
 // strict Content-Security-Policy. Playwright's CSS locators reach into open shadow roots.
 import { readFile } from "node:fs/promises";
 import { test as plain } from "@playwright/test";
-import { capturePrint, expect, openSaveAs, test, toolbar, watchConsole } from "./fixtures.js";
+import { capturePrint, expect, openSaveAs, test, toolbar, twoFrames, watchConsole } from "./fixtures.js";
 
 const wanted = process.env.PIVOTKIT_REACT === "19" ? /^19\./ : /^18\./;
 
@@ -355,6 +355,7 @@ test.describe("lifecycle", () => {
         await expect.poll(() => zone(page, "#sales", "rows")).toEqual([]);
         // a new object with the same view: the user's change and the undo history stay
         await page.evaluate((v) => (document.getElementById("sales").defaultView = structuredClone(v)), start);
+        // nothing changes, also a moment later
         await page.waitForTimeout(100);
         expect(await zone(page, "#sales", "rows")).toEqual([]);
         await expect(sales.getByTestId("undo")).toBeEnabled();
@@ -487,7 +488,8 @@ test.describe("lifecycle", () => {
             await expect(page.locator("pivot-report").getByTestId("drill-panel")).toBeVisible();
             const open = await page.evaluate(() => window.__live());
             await page.evaluate(() => document.querySelector("pivot-report").remove());
-            await page.waitForTimeout(100);
+            // the element unmounts in a microtask after its removal; its cleanup is done once the page has drawn again
+            await twoFrames(page);
             return { open, closed: await page.evaluate(() => window.__live()) };
         };
         const first = await cycle();

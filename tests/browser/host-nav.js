@@ -101,7 +101,8 @@ export async function everyTopic(page, report, open, seen) {
             continue;
         }
         await row.click();
-        await page.waitForTimeout(150);
+        // the topic's level is shown (openLevel in fixtures.js)
+        await expect(report.getByTestId(topic.replace(/^topic-/, "level-"))).toBeVisible();
         seen.push(...(await formFields(report)));
         while (await report.locator(".pk-popover").count()) {
             await page.keyboard.press("Escape");

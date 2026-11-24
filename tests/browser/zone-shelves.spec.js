@@ -332,6 +332,7 @@ test("an i closed while the pointer rests on it stays closed until the pointer l
     await expect(pop).toHaveCount(0);
     await page.mouse.move(at.x + 1, at.y + 1);
     await page.mouse.move(at.x - 1, at.y);
+    // it does not show again a moment later either
     await page.waitForTimeout(300);
     await expect(pop).toHaveCount(0);
     // a second click closes the opened one; a move on the i does not show it again
@@ -340,6 +341,7 @@ test("an i closed while the pointer rests on it stays closed until the pointer l
     await page.mouse.click(at.x, at.y);
     await expect(pop).toHaveCount(0);
     await page.mouse.move(at.x + 1, at.y);
+    // it does not show again a moment later either
     await page.waitForTimeout(300);
     await expect(pop).toHaveCount(0);
     // the pointer away and back: it shows again
@@ -477,6 +479,7 @@ test("a chip removed: the shelf that slides under the resting pointer opens no d
     // the engine marks the "i" as hovered after the layout shift. WebKit on macOS was seen to do that
     // after the chips' render, so the 800 ms below are counted from the hover, not from the render
     await expect.poll(() => info.evaluate((el) => el.matches(":hover")), { message: "the resting pointer hovers the \"i\" of Values" }).toBe(true);
+    // the rest, counted from the hover
     await page.waitForTimeout(800);
     await expect(page.locator(".pk-info-pop")).toHaveCount(0);
     // a move over an "i" still shows its description
@@ -509,6 +512,7 @@ test.describe("drag and drop on shelves", () => {
         expect(await geometry()).toEqual(rest);
         await page.mouse.move(b.x + b.width - 39, b.y + b.height / 2, { steps: 2 });
         await page.mouse.up();
+        // dnd-kit swallows clicks for 50 ms after a drag ends; a person is slower
         await page.waitForTimeout(100);
         expect(await chips(page, "filters")).toEqual(["Channel"]);
         // a chip from Columns onto Rows
@@ -533,6 +537,7 @@ test.describe("drag and drop on shelves", () => {
         await page.mouse.move(b.x + b.width - 29, b.y + b.height / 2, { steps: 2 });
         await expect(page.locator('[data-zone="values"]')).toHaveClass(/pk-over/);
         await page.mouse.up();
+        // dnd-kit swallows clicks for 50 ms after a drag ends; a person is slower
         await page.waitForTimeout(100);
         // the section folds again after the drop; opened, it shows the new value
         await page.getByTestId("layout-summary").click();
@@ -548,13 +553,15 @@ test.describe("drag and drop on shelves", () => {
         await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
         await page.mouse.down();
         await page.mouse.move(from.x + 20, from.y + 20, { steps: 6 });
-        // the drawer closes on the drag's start and slides away (a person's hand is slower than this)
-        await page.waitForTimeout(400);
+        // the drawer closes on the drag's start and slides away: the shelf is measured once it has
+        await expect(page.locator(".pk-layout")).not.toHaveClass(/\bpk-drawer-open\b/);
+        await animationsSettled(page);
         const to = await page.locator('[data-zone="filters"]').boundingBox();
         await page.mouse.move(to.x + to.width - 30, to.y + to.height - 12, { steps: 16 });
         await page.mouse.move(to.x + to.width - 29, to.y + to.height - 12, { steps: 2 });
         await expect(page.locator('[data-zone="filters"]')).toHaveClass(/pk-over/);
         await page.mouse.up();
+        // dnd-kit swallows clicks for 50 ms after a drag ends; a person is slower
         await page.waitForTimeout(100);
         expect(await chips(page, "filters")).toEqual(["Channel"]);
     });

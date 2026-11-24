@@ -43,6 +43,7 @@ test.describe("descriptions of the real data", () => {
         const link0 = pop.locator("a");
         const lb = await link0.boundingBox();
         await page.mouse.move(lb.x + lb.width / 2, lb.y + lb.height / 2, { steps: 8 });
+        // it does not close a moment later either
         await page.waitForTimeout(400);
         await expect(link0).toBeVisible();
         await page.mouse.move(5, 5);

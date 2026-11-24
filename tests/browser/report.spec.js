@@ -376,6 +376,7 @@ test("virtual table: a cut row label is shown whole in the status line, for a fo
     await cut.click();
     await expect(page.getByTestId("row-label")).toBeVisible();
     await wrap.evaluate((el) => { el.scrollTop += 2; });
+    // the label stays, also a moment after the scroll
     await page.waitForTimeout(100);
     await expect(page.getByTestId("row-label")).toBeVisible();
     await wrap.evaluate((el) => { el.scrollTop += 2000; });
@@ -429,6 +430,7 @@ test.describe("a result taller than its area scrolls inside it", () => {
             });
         for (let i = 0; i < 40 && !(await inside()); i++) {
             await page.mouse.wheel(0, 200);
+            // a hand's pace between turns; the loop reads where the target is after each
             await page.waitForTimeout(50);
         }
         return inside();

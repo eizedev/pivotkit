@@ -357,6 +357,7 @@ test.describe("chartOptions", () => {
         const box = await canvas.boundingBox();
         for (const x of [0.15, 0.3, 0.45]) {
             await page.mouse.move(box.x + box.width * x, box.y + box.height * 0.7);
+            // the pointer rests long enough for a tooltip; nothing of the markup may run meanwhile
             await page.waitForTimeout(150);
         }
         expect(await page.evaluate(() => /** @type {any} */ (window).__xss)).toBeUndefined();

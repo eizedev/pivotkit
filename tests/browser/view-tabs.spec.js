@@ -503,6 +503,7 @@ plain("labels the report no longer shows are ignored, with one warning that name
     await page.evaluate(() => {
         document.getElementById("sales").labels = { layout: "Felder", options: "Optionen" };
     });
+    // no second warning, also a moment later
     await page.waitForTimeout(300);
     expect(warnings.filter((w) => w.includes("labels.layout"))).toHaveLength(1);
     expect(problems).toEqual([]);

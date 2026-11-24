@@ -2,7 +2,7 @@
 // needs to read the chart ECharts drew: when it has settled, a function run with its instance, where its
 // bars, slices and cells are, the pointer moved onto them, and the tooltip shown. Real pointer input:
 // the positions come from the chart's own layout (getItemLayout, convertToPixel).
-import { expect } from "../fixtures.js";
+import { expect, twoFrames } from "../fixtures.js";
 import { REVENUE } from "../../../packages/pivotkit-core/test/chart/fixtures.js";
 
 /** Revenue per region and category (pivotkit-core's chart fixtures): East sells no hardware. */
@@ -65,7 +65,8 @@ export async function mount(page, chart, { theme = "light", view = {}, rows = RO
         const { getInstanceByDom } = await import("echarts/core");
         return getInstanceByDom(el).getZr().animation.isFinished();
     })).toBe(true);
-    await page.waitForTimeout(100);
+    // and drawn on the canvas
+    await twoFrames(page);
     return chartEl;
 }
 

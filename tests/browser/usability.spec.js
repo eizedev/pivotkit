@@ -274,6 +274,7 @@ test("a low report (520 px) folds its zones under their heading; the heading row
     // released once Filters shows it takes the drop, as drag() in fixtures.js does (#416)
     await expect(filters).toHaveClass(/\bpk-over\b/);
     await page.mouse.up();
+    // dnd-kit swallows clicks for 50 ms after a drag ends; a person is slower
     await page.waitForTimeout(100);
     await expect(page.getByTestId("zones-sub")).toHaveText(/Filters: Channel/);
     // the heading row opens them; it stays, so the focus stays on it (from the keyboard: WebKit does
@@ -324,6 +325,7 @@ test("a report that gets lower while a chip menu is open folds after the menu cl
     await root.evaluate((el) => {
         el.style.height = "500px";
     });
+    // nothing folds while the menu is open, also once the report has measured itself again
     await page.waitForTimeout(400);
     await expect(menu).toBeVisible();
     await expect(page.locator(".pk-zone")).toHaveCount(4);
@@ -348,13 +350,13 @@ test("a pie in a low report is drawn inside its box, labels included", async ({ 
     await page.getByTestId("chart-pie").click();
     const canvas = page.locator('[data-testid="pivot-chart"] canvas');
     await expect(canvas).toBeVisible();
-    await page.waitForTimeout(600);
-    // the canvas is the box, not taller: nothing of the pie is cut at the bottom
-    const [chart, box] = await Promise.all([canvas.boundingBox(), page.locator(".pk-chart-box").boundingBox()]);
-    expect(chart.y + chart.height).toBeLessThanOrEqual(box.y + box.height + 0.5);
-    // the lowest drawn pixel (pie or label) is above the canvas's bottom edge
-    const lowest = await canvas.evaluate((c) => {
-        const ctx = c.getContext("2d");
+    // the lowest drawn pixel (pie or label), once the pie has grown in: the same twice, apart
+    const lowestDrawn = () => canvas.evaluate((c) => {
+        // read from a copy: read again and again, the chart's own canvas would make Chromium warn
+        const copy = document.createElement("canvas");
+        Object.assign(copy, { width: c.width, height: c.height });
+        const ctx = copy.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(c, 0, 0);
         const { data, width, height } = ctx.getImageData(0, 0, c.width, c.height);
         const bg = data.slice(0, 4).join();
         for (let y = height - 1; y >= 0; y--) {
@@ -365,6 +367,19 @@ test("a pie in a low report is drawn inside its box, labels included", async ({ 
         }
         return { y: -1, height };
     });
+    let lowest = { y: -1, height: 0 };
+    await expect
+        .poll(async () => {
+            const now = await lowestDrawn();
+            const same = now.y > 0 && now.y === lowest.y && now.height === lowest.height;
+            lowest = now;
+            return same;
+        }, { intervals: [250, 250, 250, 500] })
+        .toBe(true);
+    // the canvas is the box, not taller: nothing of the pie is cut at the bottom
+    const [chart, box] = await Promise.all([canvas.boundingBox(), page.locator(".pk-chart-box").boundingBox()]);
+    expect(chart.y + chart.height).toBeLessThanOrEqual(box.y + box.height + 0.5);
+    // the lowest drawn pixel is above the canvas's bottom edge
     expect(lowest.y).toBeGreaterThan(0);
     expect(lowest.y).toBeLessThan(lowest.height - 2);
 });
@@ -380,6 +395,7 @@ test("chart tooltips show labels from the data as text: category, series and sli
         const box = await canvas.boundingBox();
         for (const [fx, fy] of points) {
             await page.mouse.move(box.x + box.width * fx, box.y + box.height * fy);
+            // the pointer rests at each point long enough for ECharts to show its tooltip there
             await page.waitForTimeout(120);
             if ((await chart.textContent()).includes(text)) return true;
         }
@@ -488,9 +504,9 @@ test("a fixed 420 px card keeps the report inside: nothing is cut, the result sc
     const root = page.locator(".pk-root");
     await expect(page.getByTestId("layout-summary")).toHaveAttribute("aria-expanded", "false");
     await expect(root).toHaveAttribute("data-pk-fit", "contain");
-    await page.waitForTimeout(300);
+    // the card's height, once the report has laid itself out in it
+    await expect.poll(async () => Math.round((await root.boundingBox()).height)).toBe(420);
     const report = await root.boundingBox();
-    expect(Math.round(report.height)).toBe(420);
     // the status line and the result lie inside the card; the table scrolls inside the result
     for (const part of [".pk-status", ".pk-result", ".pk-toolbar"]) {
         const box = await page.locator(part).boundingBox();

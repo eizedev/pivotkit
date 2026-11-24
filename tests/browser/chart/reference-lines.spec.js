@@ -1,7 +1,7 @@
 // A chart's reference lines (#48): an average and a trend per series, a target, drawn on bars, lines and
 // areas (ECharts' markLine), named in the tooltip and the text alternative, set in Display -> Reference
 // lines. And the high and low points (#574, ECharts' markPoint), set in the same level. Real pointer input; the positions come from the chart's own layout (convertToPixel).
-import { test, expect } from "../fixtures.js";
+import { expect, test, twoFrames } from "../fixtures.js";
 import { barMiddle, hover, pointOf, tooltipOf } from "./report.js";
 
 /**
@@ -54,7 +54,8 @@ async function mount(page, chart, { theme = "light", view = {}, cellClicks = fal
         const chart = getInstanceByDom(el);
         return Boolean(chart?.getOption().series?.length) && chart.getZr().animation.isFinished();
     })).toBe(true);
-    await page.waitForTimeout(100);
+    // and drawn on the canvas
+    await twoFrames(page);
     return chartEl;
 }
 
@@ -216,6 +217,7 @@ test.describe("reference lines", () => {
         // March, high above its bars, right on the target line
         const p = await pointOf(chartEl, atValue, { index: MARCH, value: 80 });
         await page.mouse.click(p.x, p.y);
+        // nothing opens, also a moment later
         await page.waitForTimeout(300);
         expect(await page.evaluate(() => window.__cellClicks)).toEqual([]);
         await expect(page.getByTestId("drill-panel")).toHaveCount(0);
