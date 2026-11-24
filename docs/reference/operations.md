@@ -201,7 +201,7 @@ time=2026-11-15T11:12:45.066Z level=warn event=request msg="describe_source fail
 | `warning` | Something the operator should look at: a backend that failed, refused connections, a setting that does not fit, a static token's file that cannot be used, with the cause (at most once a minute per token) |
 | `info` | Something that changed: the issuer's metadata loaded, old reports deleted (to make room, or by `output.maxAgeDays`: one line per sweep, "reports and schedule drafts no longer waiting older than N days deleted", with the counts `reports` and `drafts` and `maxAgeDays`; or by `output.draftMaxAgeDays`: "schedule drafts still waiting for approval older than N days deleted", with `drafts` and `draftMaxAgeDays`) |
 | `error` | An unexpected error: its class, its message only at `debug`, never its stack |
-| `debug` | Only at `debug`: why a token was refused, what a backend answered |
+| `debug` | Only at `debug`: why a token was refused, what a backend answered, a large body that took one of the [places for large bodies](rest.md#data) (`held`: the number of places taken now) |
 
 `message` repeats `msg`, `ok` repeats `outcome` on `call` lines, and warnings have the event name
 `warning`. Query by `msg`, `outcome` and `level` where you can.

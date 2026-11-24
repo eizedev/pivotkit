@@ -2,34 +2,41 @@
 
 ## Scope
 
-The packages in this repository (`pivotkit-core`, `pivotkit-react`, `pivotkit-element`,
-`pivotkit-xlsx`, `pivotkit-report`, `pivotkit-node`, `pivotkit-cli`, `pivotkit-server`, `pivotkit-mcp`) and the
-container image built from it. A view (report template), the data, a loaded file
-(CSV, JSON, a workbook read by pivotkit-xlsx), a print template and a host's theme tokens can come
-from users; anything that lets them run code, load or read something they should not (a file outside
-the directories `pivotkit-cli --allow-dir` names, a resource from an HTML report), or makes an
-exported CSV, XLSX, HTML report or SVG dangerous to open is in scope.
+These are in scope:
 
-For the REST service (`pivotkit-server`) and the MCP server (`pivotkit-mcp`) the callers, their
-views, parameters and data, and an AI model are untrusted too. In scope are, among others: a request
-the server makes where it should not (SSRF through an HTTP source, a parameter, an upload store or
-the issuer's metadata, past the address rules in [Security](https://pivotkit.eize.dev/security/#http-sources));
-a token, a backend's secret or a download link that leaks into a result, a log line, an error or a
-page; a download link that someone other than the person it is bound to can open, or that works after
-it expired or was used; and a field's values or rows that reach a caller or a model above the level
-the policy gives them.
+- the packages in this repository: `pivotkit-core`, `pivotkit-react`, `pivotkit-element`,
+  `pivotkit-xlsx`, `pivotkit-report`, `pivotkit-node`, `pivotkit-cli`, `pivotkit-server` and
+  `pivotkit-mcp`
+- the container image built from it
 
-A view cannot run code, but it decides how much work the engine does. The limits in `LIMITS`
-([Limits](https://pivotkit.eize.dev/concepts/limits/#limits) on the documentation site) bound it: the size of a view (fields per axis, values), the rows
-`encode` accepts, the cell updates `computePivot` does (rows x subtotal levels x values, heavier for
-medians and unique counts), the nodes of its key trees and the cells it aggregates, and the cells of
-the dense grid and chart. Each is counted before the memory it guards is allocated, or while it grows. The defaults are sized
-for a browser tab: a pivot at the defaults can still take seconds and up to about 1.5 GB of memory,
-and the data itself (rows x columns) is the host's to bound, since only its rows are limited. A host
-that takes views or data from untrusted users should lower the limits to what its reports need and
-catch `PivotkitError`. A way to exhaust memory or CPU around the limits, or far beyond what the
-documentation site says the defaults allow, is in scope. Vulnerabilities in a dependency (for example Apache
-ECharts or fflate) belong to that project; tell us too if a package ships an affected version.
+pivotkit treats these as untrusted: a view, also called a report template, the data, a loaded CSV,
+JSON or workbook file, a print template and a host's theme tokens. For the REST service and the MCP
+server also the callers, their views, parameters and data, and an AI model.
+
+Report a way to:
+
+- run code from any of them
+- load or read what a user should not, such as a file outside the directories
+  `pivotkit-cli --allow-dir` names, or a resource from an HTML report
+- make an exported CSV, XLSX, HTML report or SVG dangerous to open
+- make the server send a request it should not, known as SSRF, past the address rules in
+  [Security](https://pivotkit.eize.dev/security/#http-sources): through an HTTP source, a parameter,
+  an upload store or the issuer's metadata
+- leak a token, a backend's secret or a download link into a result, a log line, an error or a page
+- open a download link as someone other than the person it belongs to, after it expired, or a second
+  time
+- get a field's values or rows above the level the policy gives a caller or a model
+- exhaust memory or CPU around the limits, or far beyond what the
+  [Limits](https://pivotkit.eize.dev/concepts/limits/#limits) page says the defaults allow
+
+A view cannot run code, but it decides how much work the engine does. The limits in `LIMITS` count
+that work before the memory it guards is allocated, or while it grows. The defaults suit a browser
+tab: a pivot at the defaults can still take seconds and up to about 1.5 GB. The data itself, rows
+times columns, is the host's to bound: only its rows are limited. A host that takes views or data from
+untrusted users lowers the limits to what its reports need and catches `PivotkitError`.
+
+A vulnerability in a dependency, such as Apache ECharts or fflate, belongs to that project. Tell us
+too if a package ships an affected version.
 
 ## Reporting a vulnerability
 

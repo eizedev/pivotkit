@@ -6,7 +6,6 @@
 // environment; and no token, value, path or claim on any line in either format.
 import { test, mock } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { connect } from "node:net";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -17,7 +16,7 @@ import { uploadCauseOf } from "../src/delivery.js";
 import { requestScopeFor } from "../src/request-id.js";
 import { GuardedFetchError } from "../src/sources/fetch.js";
 import { upstreamCauseOf } from "../src/sources/http.js";
-import { BIN, BY_REGION, call, OTHER_TOKEN, raw, TOKEN, untilReady, workspace } from "./helpers.js";
+import { BY_REGION, call, OTHER_TOKEN, raw, TOKEN, untilReady, workspace, runBin } from "./helpers.js";
 import { localIssuer, signingKey } from "./auth/local-issuer.js";
 
 /** A log on a kept stream: its raw text lines. */
@@ -343,14 +342,14 @@ test("redaction: no token, value, claim or path on any line, in JSON and in text
 });
 
 test("serve's start error follows the log's rule: JSON where stderr is no terminal or json is asked for, text when text is asked for", () => {
-    const json = spawnSync(process.execPath, [BIN, "serve", "--config", "/nonexistent/pivotkit.json"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "", PIVOTKIT_LOG_FORMAT: "json" } });
+    const json = runBin(["serve", "--config", "/nonexistent/pivotkit.json"], { env: { PIVOTKIT_LOG_FORMAT: "json" } });
     assert.equal(json.status, 2);
     const line = JSON.parse(json.stderr);
     assert.deepEqual([line.level, line.severity, line.event, line.service, line.code], ["error", 3, "error", "pivotkit-server", "CONFIG"]);
     assert.match(line.msg, /pivotkit\.json/);
-    const auto = spawnSync(process.execPath, [BIN, "serve", "--config", "/nonexistent/pivotkit.json"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" } });
+    const auto = runBin(["serve", "--config", "/nonexistent/pivotkit.json"]);
     assert.equal(JSON.parse(auto.stderr).code, "CONFIG", "auto on a pipe: JSON");
-    const text = spawnSync(process.execPath, [BIN, "serve", "--log-format", "text", "--config", "/nonexistent/pivotkit.json"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "", PIVOTKIT_LOG_FORMAT: "json" } });
+    const text = runBin(["serve", "--log-format", "text", "--config", "/nonexistent/pivotkit.json"], { env: { PIVOTKIT_LOG_FORMAT: "json" } });
     assert.match(text.stderr, /^pivotkit-server: .*pivotkit\.json/, "the flag wins over the variable");
     assert.equal(startErrorLine("text", "x", { service: "s", version: "1" }), null);
 });
