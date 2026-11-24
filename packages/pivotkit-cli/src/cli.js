@@ -289,8 +289,7 @@ function failure(e, { command, findings }, io, { json, program, say }) {
     const failed = /** @type {any} */ (e)?.exitCode === 3 ? 3 : 2;
     // a usage error ends with the way to the command's help, in the form every program of pivotkit uses
     if (error.kind === "usage" && Object.hasOwn(COMMANDS, command) && command !== "help" && !/ help"| --help"/.test(error.message)) {
-        // a message that ends a sentence (Node's own parse errors end with ".") loses the full stop before the "; "
-        error.message = error.message.endsWith("?") ? `${error.message} run "${program} ${command} --help"` : `${error.message.replace(/\.$/, "")}; run "${program} ${command} --help"`;
+        error.message = `${error.message}${error.message.endsWith("?") ? " " : "; "}run "${program} ${command} --help"`;
     }
     if (json) {
         // a server's error: its HTTP status (null without an answer) and the seconds it asks to wait
