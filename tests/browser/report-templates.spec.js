@@ -47,7 +47,7 @@ for (const [name, { template, own, theme }] of Object.entries(TEMPLATES)) {
                     const report = await render(view, rows, { format: "html", echarts, template, source: "sales.csv", now: "2026-11-13T10:00:00Z", ...options });
                     expect(report.ok).toBe(true);
                     await page.setContent(report.text);
-                    const seen = await page.evaluate(measure);
+                    const seen = await measure(page);
                     expect(seen.body, `${viewName}: the page's surface`).toBe(rgb(tokens["--pk-surface"]));
                     expect(seen.text, `${viewName}: the page's text`).toBe(rgb(tokens["--pk-text"]));
                     // paper: dark text on white (Corporate's surface is white too)

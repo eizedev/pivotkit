@@ -149,6 +149,7 @@ test("desktop: zones folded by a tall warning open again once the warning folds 
     expect(after.result).toBeGreaterThanOrEqual(after.least);
     // nothing flips: the layout stays open over a second
     for (let i = 0; i < 5; i++) {
+        // a look every 250 ms
         await page.waitForTimeout(250);
         expect((await state(page)).layout).toBe("open");
     }

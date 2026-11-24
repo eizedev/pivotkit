@@ -1,8 +1,8 @@
 // Chart extras (#54) with real pointer input: the chart image on the clipboard, a fixed colour per
 // series or slice (the host's colorMap and the view's colours from Display), and the share of the total
 // in the tooltip. Positions come from the chart's own layout.
-import { test, expect } from "../fixtures.js";
-import { barMiddle, hover, inChart, pointOf, ROWS, settled, sliceMiddle, tooltipOf, VIEW } from "./report.js";
+import { expect, test, toolbar } from "../fixtures.js";
+import { barMiddle, chartOf, hover, inChart, mountReport, pointOf, ROWS, settled, sliceMiddle, tooltipOf, VIEW } from "./report.js";
 
 /** navigator.clipboard.write that keeps the types and the first bytes of what it was given (every engine, no permission). */
 async function captureImageClipboard(page) {
@@ -20,33 +20,10 @@ async function captureImageClipboard(page) {
     });
 }
 
-/** Mounts a report at the top of the host page; mount again to change it. */
+/** Mounts a report of ROWS with `chart` over `view`, 560 px high; mount again to change it. */
 async function mount(page, chart, { theme = "light", colorMap, view = VIEW } = {}) {
-    await page.evaluate(
-        async ({ view, theme, colorMap, rows }) => {
-            const React = await import("react");
-            const { createRoot } = await import("react-dom/client");
-            const { PivotReport } = await import("pivotkit-react");
-            if (!window.__colorRoot) {
-                const el = document.createElement("section");
-                el.id = "color-report";
-                document.body.prepend(el);
-                window.__colorRoot = createRoot(el);
-            }
-            window.__colorRoot.render(null);
-            await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-            window.__colorViews = [];
-            window.__exports = [];
-            window.__colorRoot.render(
-                React.createElement(PivotReport, { key: JSON.stringify({ view, theme }), theme, data: rows, height: 560, defaultView: view, colorMap, onViewChange: (v) => window.__colorViews.push(v), onExport: (f) => void window.__exports.push({ kind: f.kind, fileName: f.fileName, type: f.blob.type }) })
-            );
-        },
-        { view: { ...view, chart }, theme, colorMap, rows: ROWS }
-    );
-    const chartEl = page.locator("#color-report").getByTestId("pivot-chart");
-    await expect(chartEl.locator("canvas").first()).toBeVisible();
-    await settled(chartEl);
-    return chartEl;
+    await mountReport(page, { id: "color-report", rows: ROWS, view: { ...view, chart }, theme, height: 560, exports: true, props: { colorMap } });
+    return chartOf(page, "color-report");
 }
 
 /** The colour ECharts draws each series with (bars), or each slice with (a pie). */
@@ -59,18 +36,7 @@ const drawnColors = (chart) => {
     }
     return Object.fromEntries(model.getSeries().map((s) => [s.name, s.getData().getVisual("style").fill]));
 };
-/** Opens a menu of the report: its button (the toolbar's, or "view-settings" beside the tabs), or its entry in "More" on a narrow report. */
-async function menu(report, testId) {
-    const own = report.getByTestId(testId);
-    if (await own.isVisible()) {
-        await own.click();
-    } else {
-        await report.getByTestId("more").click();
-        await report.getByTestId(`more-${testId}`).click();
-    }
-    await expect(report.locator(".pk-popover")).toBeVisible();
-}
-const lastChart = (page) => page.evaluate(() => window.__colorViews.at(-1)?.chart);
+const lastChart = (page) => page.evaluate(() => window.__views.at(-1)?.chart);
 
 test.describe("chart extras (#54)", () => {
     test.beforeEach(async ({ page }) => {
@@ -82,7 +48,7 @@ test.describe("chart extras (#54)", () => {
     test("Export, Copy chart image puts a PNG of the chart on the clipboard, after the host's onExport", async ({ page }) => {
         await mount(page, { type: "bar" });
         const report = page.locator("#color-report");
-        await menu(report, "export");
+        await toolbar(report, "export");
         await report.getByTestId("export-copy-chart").click();
         await expect.poll(() => page.evaluate(() => window.__images)).toEqual([expect.objectContaining({ type: "image/png", head: [137, 80, 78, 71] })]);
         expect(await page.evaluate(() => window.__images[0].size)).toBeGreaterThan(1000);
@@ -109,7 +75,7 @@ test.describe("chart extras (#54)", () => {
     test("Display › Series: the colour beside a series, picked, stays in the view and wins over the host's; Default gives it back", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar" }, { colorMap: { Hardware: "#e3000f" } });
         const report = page.locator("#color-report");
-        await menu(report, "view-settings");
+        await toolbar(report, "view-settings");
         await report.getByTestId("topic-series").click();
         const level = report.getByTestId("level-series");
         // each series: its switch, then its colour, as items of the menu
@@ -141,7 +107,7 @@ test.describe("chart extras (#54)", () => {
             };
         });
         const report = page.locator("#color-report");
-        await menu(report, "export");
+        await toolbar(report, "export");
         await report.getByTestId("export-copy-chart").click();
         const toast = report.locator(".pk-toasts");
         await expect(toast).toContainText("This page does not allow copying the image.");
@@ -156,7 +122,7 @@ test.describe("chart extras (#54)", () => {
         // is stopped there so no picker opens
         const chartEl = await mount(page, { type: "line" }, { view: { ...VIEW, cols: [] } });
         const report = page.locator("#color-report");
-        await menu(report, "view-settings");
+        await toolbar(report, "view-settings");
         // one series: listed for its colour, its switch always on
         await report.getByTestId("topic-series").click();
         const level = report.getByTestId("level-series");
@@ -183,7 +149,7 @@ test.describe("chart extras (#54)", () => {
     test("Display › Series: each colour starts as the chart draws it; a view's colour for a name not shown can be removed", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar", colors: [{ name: "Gone", color: "#123456" }] });
         const report = page.locator("#color-report");
-        await menu(report, "view-settings");
+        await toolbar(report, "view-settings");
         await expect(report.getByTestId("topic-state-series")).toContainText("3 of 3 shown");
         await report.getByTestId("topic-series").click();
         const level = report.getByTestId("level-series");
@@ -201,7 +167,7 @@ test.describe("chart extras (#54)", () => {
         const report = page.locator("#color-report");
         await hover(page, await pointOf(chartEl, barMiddle, { series: 2, index: 1 }));
         await expect.poll(() => tooltipOf(chartEl)).toEqual(["North", "Software 30"]);
-        await menu(report, "view-settings");
+        await toolbar(report, "view-settings");
         await report.getByTestId("topic-tooltip").click();
         await report.getByTestId("chart-tooltip-share").click();
         await expect.poll(() => lastChart(page).then((c) => c?.tooltipShare)).toBe(true);
@@ -232,7 +198,7 @@ test("Chromium: Copy chart image leaves a PNG on the real clipboard", async ({ p
     await page.goto("pages/host.html");
     await mount(page, { type: "bar" });
     const report = page.locator("#color-report");
-    await menu(report, "export");
+    await toolbar(report, "export");
     await report.getByTestId("export-copy-chart").click();
     await expect(report.locator(".pk-toasts")).toContainText("Chart copied as an image");
     const read = await page.evaluate(async () => {

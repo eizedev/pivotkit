@@ -8,7 +8,7 @@
 // playground. The fields go into the zones through their menus, as a person does it. The report's
 // font is Arial, or Liberation Sans, which has Arial's widths (Linux CI): the widths the cases are
 // sized for are the same on every machine.
-import { chips, expect, test } from "./fixtures.js";
+import { chips, expect, pinFont, test } from "./fixtures.js";
 import { dropFiles } from "./import-helpers.js";
 
 const SERVICES = ["paymentGateway", "customerPortal", "inventorySync", "notificationHub", "identityProvider", "searchIndex"];
@@ -39,7 +39,7 @@ const ROWS = ["serviceName", "productNumber", "deploymentRegion", "environmentTy
 /** Loads the CSV into the playground and puts the fields into Rows, Columns and Values by their menus. */
 async function report(page, csv, { rows = ROWS, cols = [], values = ["monthlyCost"] } = {}) {
     await page.goto("?data=sales&import");
-    await page.addStyleTag({ content: '.pk-root { --pk-font: Arial, "Liberation Sans", sans-serif; }' });
+    await pinFont(page);
     await expect(page.getByTestId("pivot-table")).toBeVisible();
     await dropFiles(page, page.getByTestId("pivot-table"), [{ name: "services.csv", type: "text/csv", text: csv }]);
     await page.getByTestId("import-apply").click();

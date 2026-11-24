@@ -42,7 +42,7 @@ for (const [templateName, { template, own, ownDark = {}, theme }] of Object.entr
                 for (const [name, { view, rows, options, shows }] of Object.entries(CASES)) {
                     const report = await render(view, rows, { format: "html", echarts, template, now: "2026-11-13T10:00:00Z", ...options });
                     await page.setContent(report.text);
-                    const seen = await page.evaluate(measure);
+                    const seen = await measure(page);
                     expect(seen.body, `${name}: the page's surface`).toBe(rgb(tokens["--pk-surface"]));
                     expect(seen.text, `${name}: the page's text`).toBe(rgb(tokens["--pk-text"]));
                     // paper: dark text on white, unless the template sets a surface of its own
@@ -91,7 +91,7 @@ test.describe("a host's dark colours (#385)", () => {
             for (const [viewName, view] of Object.entries(VIEWS)) {
                 const report = await render(view, ROWS, { format: "html", echarts, template, tokens: HOST, darkTokens: HOST_DARK, now: "2026-11-13T10:00:00Z" });
                 await page.setContent(report.text);
-                const seen = await page.evaluate(measure);
+                const seen = await measure(page);
                 expect(seen.body, `${viewName}: the page's surface`).toBe(rgb(expected["--pk-surface"]));
                 const tokens = await page.evaluate((names) => Object.fromEntries(names.map((n) => [n, getComputedStyle(document.documentElement).getPropertyValue(n).trim()])), Object.keys(expected));
                 expect(tokens, viewName).toEqual(expected);

@@ -74,18 +74,6 @@ export async function openZonesIn(report) {
     await expect(report.locator(".pk-zone").first()).toBeVisible();
 }
 
-/** Opens a menu of one report of several: its button (the toolbar's, or "view-settings" beside the tabs), or its entry in "More" (toolbar() for a page of one). */
-export async function toolbarIn(report, testId) {
-    const own = report.getByTestId(testId);
-    if (await own.count()) {
-        await own.click();
-    } else {
-        await report.getByTestId("more").click();
-        await report.getByTestId(`more-${testId}`).click();
-    }
-    await expect(report.locator(".pk-popover")).toHaveCount(1);
-}
-
 /** Every form field of a report: its name, id and whether it has a label. */
 export const formFields = (report) =>
     report.locator("input, select, textarea").evaluateAll((els) =>
@@ -113,7 +101,8 @@ export async function everyTopic(page, report, open, seen) {
             continue;
         }
         await row.click();
-        await page.waitForTimeout(150);
+        // the topic's level is shown (openLevel in fixtures.js)
+        await expect(report.getByTestId(topic.replace(/^topic-/, "level-"))).toBeVisible();
         seen.push(...(await formFields(report)));
         while (await report.locator(".pk-popover").count()) {
             await page.keyboard.press("Escape");

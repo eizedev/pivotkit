@@ -2,7 +2,7 @@
 // render of a German report, the tips' table after the first render, the rules only the menus match
 // with the menus. Each spec holds the chunk back (page.route) to see the report while it waits.
 import { test as plain } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { expect, test, watchConsole } from "./fixtures.js";
 
 /**
  * Holds back the requests whose path matches `pattern` until release() is called; `requests` counts
@@ -91,9 +91,14 @@ test("a report that changes its language keeps the old texts until the new ones 
     expect(words.filter((w) => ENGLISH.test(w) && /\b(Zeilen|Spalten|Pivot-Bericht)\b/.test(w))).toEqual([]);
 });
 
+/** What a browser logs for the request this test aborts: Chromium's words, Firefox's. */
+const ABORTED = /^Failed to load resource: net::ERR_FAILED$|^\[JavaScript Warning: "Loading failed for the module with source “[^”]+\/labels-de-[^”]+\.js”\."/;
+
 plain("when the German texts cannot load, the German report shows in English and says so once", async ({ page }) => {
     const warnings = [];
     page.on("console", (m) => m.type() === "warning" && warnings.push(m.text()));
+    // nothing else: no error, no other warning
+    const problems = watchConsole(page, { ignore: [/the de texts did not load, English stands in/, ABORTED] });
     await page.route(/\/chunks\/labels-de-[^/]+\.js$/, (route) => route.abort());
     await page.goto("pages/element-two.html", { waitUntil: "domcontentloaded" });
     const tickets = page.locator("#tickets");
@@ -102,6 +107,7 @@ plain("when the German texts cannot load, the German report shows in English and
     // the report says which language its texts are in
     await expect(tickets.locator(".pk-root")).toHaveAttribute("lang", "en");
     expect(warnings.filter((w) => /the de texts did not load, English stands in/.test(w))).toHaveLength(1);
+    expect(problems).toEqual([]);
 });
 
 plain("German texts that do not arrive within 4 seconds: the report shows in English, then takes them when they come", async ({ page }) => {
