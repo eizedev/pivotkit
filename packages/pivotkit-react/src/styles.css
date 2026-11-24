@@ -4049,7 +4049,8 @@
     /* nothing moves: no animation (a short one still shows its first frame, a popover scaled down), and
        no transition at all (a duration here would also apply to every element without a transition of
        its own, transition-property being "all" by default: a popover shown from visibility: hidden
-       stayed hidden for a frame and could not take the focus). No code waits for their end events. */
+       stayed hidden for a frame and could not take the focus). No code waits for their end events:
+       the zone's flash clears on its end and, without one, only stays set (zones.jsx). */
     .pk-root *,
     .pk-root *::before,
     .pk-root *::after {

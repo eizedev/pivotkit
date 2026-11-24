@@ -396,7 +396,6 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
         <LevelMenu
             name={name}
             labels={labels}
-            locale={locale}
             topics={topics}
             close={close}
             onPick={picker(commit, close)}
@@ -416,7 +415,6 @@ export function FilterMenu({ view, index, field, types, labels, commit, close, o
         <LevelMenu
             name={name}
             labels={labels}
-            locale={locale}
             topics={filterZoneTopics({ view, index, field, types, labels, locale, state, encoded })}
             close={close}
             onPick={picker(commit, close)}
@@ -443,7 +441,6 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
         <LevelMenu
             name={name}
             labels={labels}
-            locale={locale}
             topics={topics}
             close={close}
             onPick={picker(commit, close)}

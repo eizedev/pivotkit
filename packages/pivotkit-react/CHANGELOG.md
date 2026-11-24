@@ -34,15 +34,18 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - An error note stays until it is closed, also when two newer notes come.
 - The report ignores a view kept for the tab with `persistView="session"` when it is longer than a
   view file may be, and shows its start view. Storage counts as outside input.
-- The flash of a zone that takes a field and the floating chips of the empty report follow
-  `--pk-duration`, as every other animation does. A host that sets `--pk-duration: 0ms` stops them
-  too.
+- The flash of a zone that takes a field and the floating chips of the empty report last a multiple
+  of `--pk-duration`, as the other animations do. A host that sets `--pk-duration: 0ms` stops them,
+  and a longer value makes them longer. The flash ends with its animation, not after a fixed 600 ms.
+  The chips' short start delays stay fixed.
 - The report reads `chartOptions` without calling a getter. It leaves a getter out and names it in
   the console warning. Past 2,000 entries the warning has one line for it, not one per object still
   to come.
 - A `fileName` that is a Windows device name before a dot, such as `aux.data`, becomes `pivot`, as
   `aux` alone did. Windows reserves `AUX.data.csv` too, and `COM¹` as `COM1`.
-- Type-ahead in a field's menu and in the settings menus compares letters in the report's `locale`.
+- Type-ahead and the search compare letters in the language of the menu's texts. This holds in a
+  field's menu, the settings menus, More, and Views. Before, they used the browser's language or the
+  number locale.
 - The help of the chart's zoom says that the arrow keys move the slider. It said the slider could
   not be moved by keyboard yet.
 - On a phone, the settings button beside the tabs shows its icon only, as Enlarge and Full screen

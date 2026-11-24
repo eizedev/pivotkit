@@ -242,15 +242,32 @@ test("styles.css: every --pk-* token a rule uses has a default in the token bloc
     }
 });
 
-/** Animations and transitions whose length is not --pk-duration (none is fine), as "line n: prop: value". */
-const ownDurations = (text) =>
-    declarations(text)
-        .filter((d) => /^(animation|transition)(-duration)?$/.test(d.prop) && !/^none\b/.test(d.value) && !d.value.includes("var(--pk-duration)"))
+/**
+ * Animations and transitions whose length is not --pk-duration, as "line n: prop: value". The length
+ * is the first time of each comma-separated part; it must be var(--pk-duration), a calc() of it, or
+ * 0s (a switch, not a motion: visibility after a slide). A delay (the second time, animation-delay)
+ * only staggers and is not checked: at 0ms nothing moves.
+ */
+const ownDurations = (text) => {
+    // the length of one part: its first time, with --pk-duration and its calc() read as "D"
+    const lengthOf = (part) =>
+        part
+            .replace(/calc\(var\(--pk-duration\)[^()]*\)|var\(--pk-duration\)/g, " D ")
+            .replace(/var\([^()]*\)|cubic-bezier\([^()]*\)/g, " ")
+            .match(/(?<![\w.-])(D|\d*\.?\d+m?s)(?![\w.-])/)?.[1];
+    return declarations(text)
+        .filter((d) => /^(animation|transition)(-duration)?$/.test(d.prop) && !/^none\b/.test(d.value))
+        .filter((d) => d.value.split(/,(?![^(]*\))/).some((part) => !/^(D|0m?s)$/.test(lengthOf(part) ?? "")))
         .map((d) => `line ${d.line}: ${d.prop}: ${d.value}`);
+};
 
-test("the duration check finds a literal length and passes --pk-duration and none", () => {
+test("the duration check finds a literal length and passes --pk-duration and none; a delay is not checked", () => {
     assert.deepEqual(ownDurations(".pk-x { animation: pk-flash 600ms ease; transition: color 0.2s; }"), ["line 1: animation: pk-flash 600ms ease", "line 1: transition: color 0.2s"]);
-    assert.deepEqual(ownDurations(".pk-x { animation: pk-flash calc(var(--pk-duration) * 3) ease; transition: none; }"), []);
+    // a literal length before --pk-duration (as a delay) is still a literal length
+    assert.deepEqual(ownDurations(".pk-x { animation: pk-flash 1s var(--pk-duration); }"), ["line 1: animation: pk-flash 1s var(--pk-duration)"]);
+    assert.deepEqual(ownDurations(".pk-x { transition: color var(--pk-duration), opacity 0.3s; }"), ["line 1: transition: color var(--pk-duration), opacity 0.3s"]);
+    assert.deepEqual(ownDurations(".pk-x { animation: pk-flash calc(var(--pk-duration) * 3) ease 0.4s 3; transition: none; animation-delay: 0.8s; }"), []);
+    assert.deepEqual(ownDurations(".pk-x { transition: transform var(--pk-duration), visibility 0s linear var(--pk-duration); }"), []);
 });
 
 test("styles.css: every animation and transition takes its length from --pk-duration, so a host's 0ms or reduced motion stops it", () => {

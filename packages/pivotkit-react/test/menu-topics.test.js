@@ -233,6 +233,11 @@ test("the keys of a menu: arrows around the ends, Home and End; type-ahead moves
     assert.equal(typeAheadIndex(texts, 1, "so"), 1);
     assert.equal(typeAheadIndex(texts, 0, "x"), null);
     assert.equal(typeAheadIndex(["Ändern", "Zeile"], -1, "ä", "de-DE"), 0);
+    // the language decides: in Turkish "i" is the lower case of "İ", not of "I"
+    const cities = ["Istanbul", "İzmir"];
+    assert.equal(typeAheadIndex(cities, -1, "i", "tr"), 1);
+    assert.equal(typeAheadIndex(cities, -1, "i", "en"), 0);
+    assert.equal(typeAheadIndex(cities, -1, "ı", "tr"), 0);
 });
 
 test("a row's name says its state and a change in words, not only with the dot", () => {

@@ -105,10 +105,10 @@ export function tabLeaves(e, close) {
  * An ARIA menu: one Tab stop (the item focused last, else the one marked `data-pk-start`, else the
  * first), the arrow keys, Home and End, type-ahead; left and right move inside a group of choices
  * side by side (`data-pk-seg`).
- * Type-ahead compares in the report's `locale`.
- * @param {{ label?: string, labelledBy?: string, describedBy?: string, className?: string, close: () => void, children: React.ReactNode, testId?: string, locale?: string }} props
+ * Type-ahead compares in `lang`, the language of the menu's texts.
+ * @param {{ label?: string, labelledBy?: string, describedBy?: string, className?: string, close: () => void, children: React.ReactNode, testId?: string, lang?: string }} props
  */
-export function MenuList({ label, labelledBy, describedBy, className, close, children, testId, locale }) {
+export function MenuList({ label, labelledBy, describedBy, className, close, children, testId, lang }) {
     const ref = useRef(/** @type {HTMLDivElement | null} */ (null));
     const last = useRef(/** @type {string | null} */ (null));
     const typed = useRef({ text: "", at: 0 });
@@ -184,7 +184,7 @@ export function MenuList({ label, labelledBy, describedBy, className, close, chi
         if (e.key.length === 1 && e.key !== " ") {
             const now = Date.now();
             typed.current = { text: now - typed.current.at < 600 ? typed.current.text + e.key : e.key, at: now };
-            go(typeAheadIndex(items.map((el) => el.dataset.pkText ?? el.textContent ?? ""), at, typed.current.text, locale));
+            go(typeAheadIndex(items.map((el) => el.dataset.pkText ?? el.textContent ?? ""), at, typed.current.text, lang));
         }
     };
     return (
@@ -458,7 +458,7 @@ function TopicFirst({ topic, labels, onPick, onOpen }) {
  * The search of a menu: every choice of every level, by its text and its path. Enter runs only a hit
  * the arrow keys moved to; nothing found says so.
  */
-function SearchHits({ hits, labels, onPick, onOpen, close, locale }) {
+function SearchHits({ hits, labels, onPick, onOpen, close }) {
     if (!hits.length) {
         return (
             <p className="pk-hint pk-level-nothing" role="status" data-testid="menu-search-nothing">
@@ -467,7 +467,7 @@ function SearchHits({ hits, labels, onPick, onOpen, close, locale }) {
         );
     }
     return (
-        <MenuList label={labels.searchResults} close={close} testId="menu-search-hits" locale={locale}>
+        <MenuList label={labels.searchResults} close={close} testId="menu-search-hits" lang={labels.lang}>
             {hits.map((h) => (
                 <MenuItem key={h.id} id={`hit-${h.id}`} text={h.choice ? h.text : `${h.text}…`} plain={h.text} checked={h.choice?.checked} icon={h.choice ? h.topic.icon : "chevronRight"} hint={h.path || undefined} haspopup={h.choice ? undefined : "dialog"} onSelect={() => (h.choice ? onPick(h.choice) : onOpen(h.topic.id, undefined, h.focus))} />
             ))}
@@ -479,7 +479,7 @@ function SearchHits({ hits, labels, onPick, onOpen, close, locale }) {
  * A menu in levels.
  * @param {{ name: string, labels: any, topics: import("./menu-topics.js").Topic[], close: () => void,
  *   onPick: (choice: import("./menu-topics.js").Choice) => void, panel: (id: string, back: (focus?: string) => void, hint?: string) => React.ReactNode,
- *   head?: React.ReactNode, foot?: React.ReactNode, search?: boolean, locale?: string, focusAgain?: unknown,
+ *   head?: React.ReactNode, foot?: React.ReactNode, search?: boolean, focusAgain?: unknown,
  *   filter?: (query: string) => import("./menu-topics.js").Topic[], searchText?: string }} props
  *   `onPick`: applies a choice (the menu then goes back to its first level, unless the choice closes
  *   it); `panel`: the form of a "panel" topic, with `back` (one level back, the focus where the level
@@ -489,7 +489,7 @@ function SearchHits({ hits, labels, onPick, onOpen, close, locale }) {
  *   of the hits of every level (a menu of fields searched as the field list is); `searchText`: the
  *   search's name and placeholder instead of "Search in the menu of …"
  */
-export function LevelMenu({ name, labels, topics, close, onPick, panel, head, foot, search = false, locale, focusAgain, filter, searchText }) {
+export function LevelMenu({ name, labels, topics, close, onPick, panel, head, foot, search = false, focusAgain, filter, searchText }) {
     // the levels open (a topic's id with the focus that goes back to where it was opened from; none:
     // the first level) and where the focus goes once it shows: "level" the level's first control,
     // "search" the search, "row:<topic>" a topic's row, "item:<choice>" a choice
@@ -574,7 +574,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
     const first = () => {
         const typed = search && query.trim() ? query : "";
         const shown = typed && filter ? filter(typed) : topics;
-        const hits = typed && !filter ? searchHits(searchEntries(topics, query), query, locale) : null;
+        const hits = typed && !filter ? searchHits(searchEntries(topics, query), query, labels.lang) : null;
         const none = typed && filter && !shown.some((t) => !t.hidden && (t.groups ?? []).some((g) => g.choices.length));
         return (
             <>
@@ -608,9 +608,9 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                 ) : null}
                 <Scroller className="pk-level-first">
                     {hits || none ? (
-                        <SearchHits hits={hits ?? []} labels={labels} onPick={pick} onOpen={open} close={close} locale={locale} />
+                        <SearchHits hits={hits ?? []} labels={labels} onPick={pick} onOpen={open} close={close} />
                     ) : (
-                        <MenuList label={name} close={close} testId="level-first" locale={locale}>
+                        <MenuList label={name} close={close} testId="level-first" lang={labels.lang}>
                             {shown.map((t) => (
                                 <TopicFirst key={t.id} topic={t} labels={labels} onPick={pick} onOpen={() => open(t.id)} />
                             ))}
@@ -644,7 +644,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                         {topic.kind === "menu" ? (
                             <>
                                 {topic.intro ? <p id={`${titleId}-intro`} className="pk-hint pk-menu-hint">{topic.intro}</p> : null}
-                                <MenuList labelledBy={titleId} describedBy={topic.intro ? `${titleId}-intro` : undefined} close={close} locale={locale}>
+                                <MenuList labelledBy={titleId} describedBy={topic.intro ? `${titleId}-intro` : undefined} close={close} lang={labels.lang}>
                                     <Groups topic={topic} onPick={pick} />
                                 </MenuList>
                             </>
