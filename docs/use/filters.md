@@ -23,15 +23,16 @@ taken out of the report, it leaves its filter behind.
 ![The menu of Released in Filters: the Filter row says last 12 months with its months, then Group, Move to and Remove field](../assets/screenshots/filter-zone-light.png#only-light)
 ![The menu of Released in Filters: the Filter row says last 12 months with its months, then Group, Move to and Remove field](../assets/screenshots/filter-zone-dark.png#only-dark)
 
-The field list's **Add to Filters** opens the filter first: **Apply** places the field with it,
-**Cancel** changes nothing. A field you drag into Filters keeps every item until you filter it.
+??? info "Add to Filters, and dates in Filters"
+    The field list's **Add to Filters** opens the filter first: **Apply** places the field with it,
+    **Cancel** changes nothing. A field you drag into Filters keeps every item until you filter it.
 
-A date in Filters is grouped by the span of its dates, as on Rows. **Group** in its chip's menu
-changes the unit, for example to **Year**, to filter whole years. The new grouping starts with every
-item; Undo brings the earlier filter back.
+    A date in Filters is grouped by the span of its dates, as on Rows. **Group** in its chip's menu
+    changes the unit, for example to **Year**, to filter whole years. The new grouping starts with every
+    item; Undo brings the earlier filter back.
 
-![The filter of Product opened from Add to Filters in the field list: its values with row counts, a search, Select all and Select none, a condition on the names, Cancel and Apply](../assets/screenshots/add-to-filters-light.png#only-light)
-![The filter of Product opened from Add to Filters in the field list: its values with row counts, a search, Select all and Select none, a condition on the names, Cancel and Apply](../assets/screenshots/add-to-filters-dark.png#only-dark)
+    ![The filter of Product opened from Add to Filters in the field list: its values with row counts, a search, Select all and Select none, a condition on the names, Cancel and Apply](../assets/screenshots/add-to-filters-light.png#only-light)
+    ![The filter of Product opened from Add to Filters in the field list: its values with row counts, a search, Select all and Select none, a condition on the names, Cancel and Apply](../assets/screenshots/add-to-filters-dark.png#only-dark)
 
 The Filter level of the menu has three parts. They work together: an item stays when it is ticked
 and meets every rule.
@@ -71,22 +72,23 @@ A date field, and a grouping of a date such as "Date by month", has **Quick choi
 
 A range moves with the calendar, so "Last 12 months" in a saved report stays right next month.
 "Last 3 months" in November keeps September to November. Untick **Include the current month** to
-keep August to October instead. **Rolling instead of whole calendar periods** under More choices counts from today's
-date instead of whole months: Aug 12 to Nov 12.
+keep August to October instead. **Rolling instead of whole calendar periods** under More choices
+counts from today's date instead of whole months: Aug 12 to Nov 12.
 
-Today is the day in the data's time zone. That is UTC unless the application sets another one.
+??? info "Today, data that end, and groupings"
+    Today is the day in the data's time zone. That is UTC unless the application sets another one.
 
-**Data that end.** For an archive or a closed year, set **Counted back from** to **the latest
-record**. Then "Last 12 months" are the last twelve months of the data, and the chip says "last 12
-months to Dec 2025". The level offers this when the data end before the current period. You can
-also count from the first record or a date of your own. The view keeps this choice, and every range of
-the field counts from it, a rule's range too.
+    **Data that end.** For an archive or a closed year, set **Counted back from** to **the latest
+    record**. Then "Last 12 months" are the last twelve months of the data, and the chip says "last 12
+    months to Dec 2025". The level offers this when the data end before the current period. You can
+    also count from the first record or a date of your own. The view keeps this choice, and every range of
+    the field counts from it, a rule's range too.
 
-On a grouping, the range goes by the dates themselves: "Last 18 months" on a grouping by year keeps
-only the months of the oldest year that are in the range.
+    On a grouping, the range goes by the dates themselves: "Last 18 months" on a grouping by year keeps
+    only the months of the oldest year that are in the range.
 
-Each choice shows the dates it keeps and its rows ("2022–2026 · 2,190 rows"), and names the dates
-without data: "last 2 years (2025; 2026 has no data)".
+    Each choice shows the dates it keeps and its rows ("2022–2026 · 2,190 rows"), and names the dates
+    without data: "last 2 years (2025; 2026 has no data)".
 
 ![More choices of EOL date by month on the end-of-life data, open with Next 2 years set: Next and Before the last with their counts and units, Rolling, and Counted back from](../assets/screenshots/filter-more-light.png#only-light)
 ![More choices of EOL date by month on the end-of-life data, open with Next 2 years set: Next and Before the last with their counts and units, Rolling, and Counted back from](../assets/screenshots/filter-more-dark.png#only-dark)
@@ -130,20 +132,19 @@ Your browser cannot play this video. The caption below says what it shows.
 ![The Filter level of Date by month of year with a rule on the total: Average of Mean °C is greater than 25, its explanation open, its line saying it keeps 0 of 12 months with the lowest and the highest total, and the red summary](../assets/screenshots/filter-rules-light.png#only-light)
 ![The Filter level of Date by month of year with a rule on the total: Average of Mean °C is greater than 25, its explanation open, its line saying it keeps 0 of 12 months with the lowest and the highest total, and the red summary](../assets/screenshots/filter-rules-dark.png#only-dark)
 
-Good to know:
-
-- **A date compares its day.** "is before Mar 1, 2022" keeps every row of 28 February, whatever its
-  time.
-- **Names ignore case and extra spaces.** "SERVER" matches "Server".
-- **A total names its value.** With several values in the report you pick one; with no value, the
-  rule counts rows ("Count of rows"). A rule whose value has left the report keeps it.
-- **A total compares the computed value**, the sum or the average, not a "show as" percentage. For
-  "Revenue as % of grand total", type the revenue, not 25 %.
-- **A total works within groups.** With a field above it on the same axis, a rule on the total
-  applies within each item of that field, as top N does ([below](#top-n)).
-- When a rule keeps nothing, its line says why and gives the range: "Keeps 0 of 12 months – the
-  totals go from 13.4 (Jan) to 22.2 (Jul)". The summary turns red.
-- **Remove** beside Rules takes the rules off. The ticked values and the date range stay.
+??? info "Good to know"
+    - **A date compares its day.** "is before Mar 1, 2022" keeps every row of 28 February, whatever its
+      time.
+    - **Names ignore case and extra spaces.** "SERVER" matches "Server".
+    - **A total names its value.** With several values in the report you pick one; with no value, the
+      rule counts rows ("Count of rows"). A rule whose value has left the report keeps it.
+    - **A total compares the computed value**, the sum or the average, not a "show as" percentage. For
+      "Revenue as % of grand total", type the revenue, not 25 %.
+    - **A total works within groups.** With a field above it on the same axis, a rule on the total
+      applies within each item of that field, as top N does ([below](#top-n)).
+    - When a rule keeps nothing, its line says why and gives the range: "Keeps 0 of 12 months – the
+      totals go from 13.4 (Jan) to 22.2 (Jul)". The summary turns red.
+    - **Remove** beside Rules takes the rules off. The ticked values and the date range stay.
 
 ### Items without a value { #items-without-a-value }
 
@@ -166,13 +167,17 @@ or by the value you pick there.
 ![The Top items level of Country: Off, Top 3 (checked, the template's), Top 5, Top 10 and Top N…, by Sum of Population, Also show items with the same value as the last one, and the items shown](../assets/screenshots/top-items-light.png#only-light)
 ![The Top items level of Country: Off, Top 3 (checked, the template's), Top 5, Top 10 and Top N…, by Sum of Population, Also show items with the same value as the last one, and the items shown](../assets/screenshots/top-items-dark.png#only-dark)
 
-- **Per group.** With Region and Country on Rows, "top 3 countries" keeps three countries per
-  region, as in Excel. A region's total is then the total of its three countries, and percentages
-  count only the items shown. A note above the table says so.
-- **Ties.** Top N keeps exactly N items. At a tie at the cut, the item that comes first in the data
-  stays. Tick **Also show items with the same value as the last one** to keep every tied item, so
-  "Top 6" may show 7.
-- **Reset filter** leaves top N as it is. **Off** takes it away.
+With a field above it on Rows, a top N keeps N items per group, and the group totals count only
+those items.
+
+??? info "Per group, ties and Reset"
+    - **Per group.** With Region and Country on Rows, "top 3 countries" keeps three countries per
+      region, as in Excel. A region's total is then the total of its three countries, and percentages
+      count only the items shown. A note above the table says so.
+    - **Ties.** Top N keeps exactly N items. At a tie at the cut, the item that comes first in the data
+      stays. Tick **Also show items with the same value as the last one** to keep every tied item, so
+      "Top 6" may show 7.
+    - **Reset filter** leaves top N as it is. **Off** takes it away.
 
 ## Type numbers { #numbers-in-the-menus }
 
@@ -204,8 +209,9 @@ The menu of a row or column field offers:
 - **Custom order** sorts in an order the application gives the field, such as the seasons. A field
   with such an order is sorted in it when you place it. Choose A to Z to use names instead.
 
-Values that give no number cannot sort: a list of distinct values, the first or last entry of a
-text, and the average, median, minimum or maximum of dates.
+??? info "Values that cannot sort"
+    Values that give no number cannot sort: a list of distinct values, the first or last entry of a
+    text, and the average, median, minimum or maximum of dates.
 
 Undo takes back every filter and sort step.
 
