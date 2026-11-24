@@ -153,7 +153,7 @@ test("cells with an Excel error are empty, with a note", async () => {
     assert.equal(t.notes.find((n) => n.code === "ERROR_CELLS").params.count, 2);
 });
 
-test("a number in a text cell that both notations read reads in the locale's: 1,234 is 1.234 in German, 1234 in English", async () => {
+test("a number in a text cell that both notations read reads in the locale's: 1,234 and 1.500 are German in a German locale", async () => {
     const bytes = makeXlsx({ sheets: [{ name: "S", rows: [["Name", "Amount"], ["a", "1,234"], ["b", "2,5"]] }] });
     const de = await read(fileOf(bytes), { locale: "de-DE" });
     assert.deepEqual(de.data[1], [1.234, 2.5]);
@@ -165,6 +165,10 @@ test("a number in a text cell that both notations read reads in the locale's: 1,
     const english = await read(fileOf(both), { locale: "en-US" });
     assert.deepEqual(english.data[1], [1234]);
     assert.equal(english.notes.find((n) => n.code === "DECIMAL_MARK").params.decimal, ".");
+    // a point is a German group, as in a comma-separated file of a German locale
+    const points = makeXlsx({ sheets: [{ name: "S", rows: [["Name", "Amount"], ["a", "1.500"], ["b", "2.000"]] }] });
+    assert.deepEqual((await read(fileOf(points), { locale: "de-DE" })).data[1], [1500, 2000]);
+    assert.deepEqual((await read(fileOf(points), { locale: "en-US" })).data[1], [1.5, 2]);
 });
 
 test("inline strings, booleans, a sheet name with an ampersand, a name with direction characters", async () => {
