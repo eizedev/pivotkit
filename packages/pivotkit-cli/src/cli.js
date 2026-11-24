@@ -22,15 +22,13 @@ import { describeCommand } from "./describe.js";
 import { RemoteError } from "./errors.js";
 import { exampleCommand } from "./examples.js";
 import { completionScript, helpText } from "./help.js";
-import { checkNotInput, context } from "./inputs.js";
+import { context } from "./inputs.js";
 import { checkChoices, checkValues, checkWhere, didYouMean, envDefaults, parse } from "./options.js";
 import { remoteCommand } from "./remote-commands.js";
 import { renderCommand } from "./render.js";
-import { FORMAT_NAMES, ignoredOptions, renderFormat, renderInputs } from "./render-options.js";
 import { loginCommand, logoutCommand, tokenCommand } from "./sign-in.js";
 import { validateCommand } from "./validate.js";
 import { environment, versions } from "./versions.js";
-import { readView, withMap } from "./view.js";
 
 export { environment, versions };
 
@@ -229,7 +227,7 @@ async function runCommand(command, positionals, values, io, { say }) {
     }
     checkValues(values, fromEnv);
     const ctx = await context(values, io);
-    return remote ? remoteCommand(/** @type {any} */ (command), positionals, values, ctx, { readView, withMap, renderFormat, checkNotInput, ignoredOptions, renderInputs, formatNames: FORMAT_NAMES }) : LOCAL_COMMANDS[command](positionals, values, ctx);
+    return remote ? remoteCommand(/** @type {any} */ (command), positionals, values, ctx) : LOCAL_COMMANDS[command](positionals, values, ctx);
 }
 
 /**

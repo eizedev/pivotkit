@@ -17,24 +17,16 @@ import { CliError, asCliError, shortName, writeSafe } from "pivotkit-node/files"
 import { RemoteError } from "./errors.js";
 import { fromFields, filtersOf, hasLayoutFlags, mapOf } from "./layout-view.js";
 import { layoutOf } from "./layout-flags.js";
+import { checkNotInput } from "./inputs.js";
 import { nothingWritten } from "./nothing-written.js";
+import { FORMAT_NAMES, ignoredOptions, renderFormat, renderInputs } from "./render-options.js";
 import { checkTls, createClient, readToken, serverOf, sourceId, timeoutOf } from "./remote.js";
 import { SOURCE_ID } from "pivotkit-node/rest";
 import { USER_AGENT } from "./user-agent.js";
+import { readView, withMap } from "./view.js";
 
 /** Permissions of a file remote mode writes: only its owner reads it (the server's data). */
 const PRIVATE_FILE = 0o600;
-
-/**
- * @typedef {object} Helpers  what remote commands share with the local ones in cli.js
- * @property {(positionals: string[], values: Record<string, any>, ctx: any) => Promise<any>} readView
- * @property {(view: any, values: Record<string, any>) => any} withMap
- * @property {(values: Record<string, any>, ctx: any) => string} renderFormat  render's checks of -o, -f and the terminal; the format
- * @property {(ctx: any, flag: string, output: string, inputs: Array<[string | undefined, string]>, written: string) => Promise<void>} checkNotInput
- * @property {(values: Record<string, any>, format: string) => any[]} ignoredOptions
- * @property {(values: Record<string, any>) => Record<string, any>} renderInputs
- * @property {Record<string, string>} formatNames
- */
 
 /**
  * Runs a command against the server.
@@ -42,9 +34,8 @@ const PRIVATE_FILE = 0o600;
  * @param {string[]} positionals
  * @param {Record<string, any>} values
  * @param {any} ctx
- * @param {Helpers} helpers
  */
-export async function remoteCommand(command, positionals, values, ctx, helpers) {
+export async function remoteCommand(command, positionals, values, ctx) {
     const server = serverOf(values, ctx.io.env);
     if (command !== "sources") {
         if (values.source === undefined) {
@@ -67,7 +58,7 @@ export async function remoteCommand(command, positionals, values, ctx, helpers) 
     }
     const client = createClient({ server, values, ctx, userAgent: USER_AGENT });
     const run = { render: renderRemote, validate: validateRemote, describe: describeRemote, sources: sourcesRemote }[command];
-    return run(positionals, { ...values, sourceParams }, ctx, client, helpers);
+    return run(positionals, { ...values, sourceParams }, ctx, client);
 }
 
 /**
@@ -144,11 +135,11 @@ function noDataArgument(positionals, command) {
     }
 }
 
-async function validateRemote(positionals, values, ctx, client, helpers) {
+async function validateRemote(positionals, values, ctx, client) {
     if (positionals.length > 1) {
         throw new CliError("usage", "EXTRA_ARGUMENT", `validate takes one view, not ${positionals.length}`);
     }
-    const view = helpers.withMap(await helpers.readView(positionals, values, ctx), values);
+    const view = withMap(await readView(positionals, values, ctx), values);
     const { data } = await jsonOf(client.json("POST", "views/validate", { ...sourceOf(values), view: view.view }));
     const findings = [...(view.findings ?? []), ...client.cleanFindings(data.findings)];
     const valid = data.valid === true && !findings.some((f) => f.severity === "error");
@@ -157,9 +148,9 @@ async function validateRemote(positionals, values, ctx, client, helpers) {
     return { findings, extra: { valid, uses: deepClean(Array.isArray(data.uses) ? data.uses : [], client.strip), source: values.source }, note };
 }
 
-async function describeRemote(positionals, values, ctx, client, helpers) {
+async function describeRemote(positionals, values, ctx, client) {
     if (values.suggest) {
-        return suggestRemote(positionals, values, ctx, client, helpers);
+        return suggestRemote(positionals, values, ctx, client);
     }
     const onlySuggest = ["output", "map"].find((f) => values[f] !== undefined) ?? (hasLayoutFlags(values) ? ["rows", "cols", "values", "group", "filter", "chart-type"].find((f) => values[f] !== undefined) : undefined);
     if (onlySuggest) {
@@ -173,7 +164,7 @@ async function describeRemote(positionals, values, ctx, client, helpers) {
     }
     let view;
     try {
-        view = await helpers.readView(positionals, values, ctx);
+        view = await readView(positionals, values, ctx);
     } catch (e) {
         // a source's id where the view belongs (pivotkit describe sales --source sales)
         const arg = positionals[0];
@@ -189,7 +180,7 @@ async function describeRemote(positionals, values, ctx, client, helpers) {
 }
 
 /** describe --suggest: the server's draft as a view file, on stdout or into -o. */
-async function suggestRemote(positionals, values, ctx, client, helpers) {
+async function suggestRemote(positionals, values, ctx, client) {
     noDataArgument(positionals, "describe");
     if (values.output !== undefined) {
         if (values.output === "-") {
@@ -198,7 +189,7 @@ async function suggestRemote(positionals, values, ctx, client, helpers) {
         if (!/\.json$/i.test(values.output)) {
             throw new CliError("usage", "UNKNOWN_EXTENSION", `-o ${shortName(values.output)}: a view file is JSON: name it <name>.pivotkit.json`);
         }
-        await helpers.checkNotInput(ctx, "-o", values.output, [[values["token-file"], "token"]], "draft");
+        await checkNotInput(ctx, "-o", values.output, [[values["token-file"], "token"]], "draft");
     }
     const { data } = await jsonOf(client.json("POST", "views/suggest", { ...sourceOf(values), layout: await layoutFor(values, ctx) }));
     const findings = client.cleanFindings(data.findings);
@@ -227,8 +218,8 @@ async function suggestRemote(positionals, values, ctx, client, helpers) {
     return { findings, extra, note: [...lines, `next: pivotkit describe --source ${values.source} --suggest -o ${values.source}.pivotkit.json`].join("\n") };
 }
 
-async function renderRemote(positionals, values, ctx, client, helpers) {
-    const format = helpers.renderFormat(values, ctx);
+async function renderRemote(positionals, values, ctx, client) {
+    const format = renderFormat(values, ctx);
     const layoutMode = fromFields(values);
     if (layoutMode) {
         noDataArgument(positionals, "render");
@@ -236,11 +227,11 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
         throw new CliError("usage", "EXTRA_ARGUMENT", `render takes one view, not ${positionals.length}`);
     }
     if (values.output !== undefined && !layoutMode) {
-        await helpers.checkNotInput(ctx, "-o", values.output, [[positionals[0], "view"], [values["token-file"], "token"]], "output");
+        await checkNotInput(ctx, "-o", values.output, [[positionals[0], "view"], [values["token-file"], "token"]], "output");
     } else if (values.output !== undefined) {
-        await helpers.checkNotInput(ctx, "-o", values.output, [[values["token-file"], "token"]], "output");
+        await checkNotInput(ctx, "-o", values.output, [[values["token-file"], "token"]], "output");
     }
-    const findings = [...helpers.ignoredOptions(values, format)];
+    const findings = [...ignoredOptions(values, format)];
     /** @type {Record<string, unknown>} the view or the layout to render */
     let what;
     if (layoutMode && values.suggest) {
@@ -250,7 +241,7 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
         what = { view: data.view };
     } else {
         const given = layoutMode ? { layout: await layoutFor(values, ctx) } : await (async () => {
-            const view = helpers.withMap(await helpers.readView(positionals, values, ctx), values);
+            const view = withMap(await readView(positionals, values, ctx), values);
             findings.push(...(view.findings ?? []));
             return { view: view.view };
         })();
@@ -273,7 +264,7 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
     if (failing(findings, values) || (!what.view && !what.layout)) {
         return { findings, extra: { ...extra, output: null }, note: nothingWritten(findings), noteIsError: true };
     }
-    const answer = await client.file({ ...sourceOf(values), ...what, format, ...helpers.renderInputs(values) });
+    const answer = await client.file({ ...sourceOf(values), ...what, format, ...renderInputs(values) });
     if ("viewErrors" in answer) {
         findings.push(...answer.viewErrors);
         return { findings, extra: { ...extra, output: null }, note: nothingWritten(findings), noteIsError: true };
@@ -281,7 +272,7 @@ async function renderRemote(positionals, values, ctx, client, helpers) {
     if (values.output) {
         await writeFile(values.output, answer.bytes, ctx);
         extra.output = { file: shortName(values.output), format, mediaType: RENDER_FORMATS[format].mediaType, bytes: answer.bytes.length };
-        return { findings, extra, note: `wrote ${extra.output.file}: ${helpers.formatNames[format]} of the server's source ${values.source}` };
+        return { findings, extra, note: `wrote ${extra.output.file}: ${FORMAT_NAMES[format]} of the server's source ${values.source}` };
     }
     ctx.io.stdout.write(answer.bytes);
     return { findings, extra, note: null };

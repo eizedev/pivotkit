@@ -10,6 +10,15 @@ import { VIEW_BYTES, textOf } from "./inputs.js";
 import { mapOf } from "./layout-view.js";
 
 /**
+ * @typedef {object} CommandView  the view of a command
+ * @property {unknown} view  its text, or the view of a link
+ * @property {string} name
+ * @property {string} source  where it came from: a file's path, "-", "argument", "link" or "layout"
+ * @property {string | null} sheet  the workbook sheet it names
+ * @property {any[]} [findings]  what --map did
+ */
+
+/**
  * A view read as a view file: its text, or a view read from a link (an object).
  * @param {unknown} view
  * @returns {ReturnType<typeof fromViewFile>}
@@ -21,7 +30,7 @@ export const viewFileOf = (view) => fromViewFile(typeof view === "string" ? view
  * @param {string[]} positionals
  * @param {Record<string, any>} values
  * @param {any} ctx
- * @returns {Promise<{ view: unknown, name: string, source: string, sheet: string | null, findings?: any[] }>}
+ * @returns {Promise<CommandView>}
  */
 export async function readView(positionals, values, ctx) {
     if (values.link !== undefined) {
@@ -100,8 +109,9 @@ export function listedFields(view) {
 /**
  * --map on a view read from a file, a link or the argument: its fields renamed (renameFields), the
  * types its view file lists too; a name the view does not use is a warning (unusedMap).
- * @param {{ view: unknown, name: string, source: string, sheet: string | null }} view
+ * @param {CommandView} view
  * @param {Record<string, any>} values
+ * @returns {CommandView}
  */
 export function withMap(view, values) {
     if (!values.map?.length) {
