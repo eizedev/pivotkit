@@ -17,6 +17,9 @@
 //   node bench/server/http-source.js                                     json and csv, 10k 100k 500k and 20 MiB
 //   node bench/server/http-source.js --formats json --sizes 100000 --runs 1
 //
+// It needs openssl on the PATH, and reads pivotkit-server's internal guardedFetch and HTTP source
+// modules from the repository (src/), as the server's tests do.
+//
 // The answer has seven columns, one of them hidden by the source's policy. Sizes above the default
 // http.maxBytes (20 MiB) raise it and limits.fileBytes to 256 MiB; "20MiB" is the most rows that
 // fit the default.
@@ -161,7 +164,12 @@ async function main() {
     const results = [];
     const key = join(dir, "key.pem");
     const cert = join(dir, "cert.pem");
-    execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", key, "-out", cert, "-days", "2", "-subj", "/CN=api.example.test", "-addext", "subjectAltName=DNS:api.example.test"], { stdio: "ignore" });
+    try {
+        execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", key, "-out", cert, "-days", "2", "-subj", "/CN=api.example.test", "-addext", "subjectAltName=DNS:api.example.test"], { stdio: "ignore" });
+    } catch (error) {
+        console.error(error.code === "ENOENT" ? "the benchmark needs openssl on the PATH, for the fake backend's certificate" : `openssl could not make the certificate: ${error.message}`);
+        process.exit(1);
+    }
     console.log(`Node ${process.versions.node}, ${platform()} ${arch()}, ${cpus()[0]?.model ?? "unknown CPU"}; median of ${args.runs} runs`);
     console.log("| format | rows | answer MB | peak RSS MB | peak heap MB (main) | ms |");
     console.log("| --- | ---: | ---: | ---: | ---: | ---: |");

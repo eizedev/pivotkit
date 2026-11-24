@@ -8,7 +8,7 @@ import { CHART_OPTIONS_CAPS, cleanChartOptions, mergeChartOptions } from "../src
 import { LABELS } from "../src/labels.js";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../src/deferred.js";
-import { loadCheck, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, viewStorageName, withLinkParam, writeStoredView } from "../src/share.js";
+import { VIEW_TEXT_MAX, loadCheck, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, viewStorageName, withLinkParam, writeStoredView } from "../src/share.js";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3 },
@@ -52,17 +52,31 @@ test("the link's address: the page's own for true, the host's base URL, none whe
     }
 });
 
-test("the tab's view: stored per storageKey, quietly nothing when storage is blocked", () => {
+test("the tab's view: stored per storageKey, read back as a normalized view, quietly nothing when storage is blocked", () => {
     const map = new Map();
     const storage = { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => map.set(k, v) };
-    writeStoredView("sales", storage, { rows: ["Region"] });
-    assert.equal(readStoredView("sales", storage), JSON.stringify({ rows: ["Region"] }));
-    assert.equal(readStoredView("ops", storage), null);
+    writeStoredView("sales", storage, { rows: ["region"] });
+    assert.equal(map.get(viewStorageName("sales")), JSON.stringify({ rows: ["region"] }));
+    assert.deepEqual(readStoredView("sales", storage, data)?.rows, ["Region"]);
+    assert.equal(readStoredView("ops", storage, data), null);
     assert.equal(viewStorageName(undefined), "pivotkit:view:");
     const blocked = { getItem: () => { throw new Error("SecurityError"); }, setItem: () => { throw new Error("QuotaExceeded"); } };
-    assert.equal(readStoredView("sales", blocked), null);
+    assert.equal(readStoredView("sales", blocked, data), null);
     assert.doesNotThrow(() => writeStoredView("sales", blocked, {}));
-    assert.equal(readStoredView("sales", null), null);
+    assert.equal(readStoredView("sales", null, data), null);
+});
+
+test("the tab's view: a stored text that is no view, or longer than a view file, is not read (storage is outside input)", () => {
+    const view = JSON.stringify({ rows: ["Region"] });
+    const map = new Map([
+        [viewStorageName("fits"), view + " ".repeat(VIEW_TEXT_MAX - view.length)],
+        [viewStorageName("big"), view + " ".repeat(VIEW_TEXT_MAX)],
+        [viewStorageName("hand"), "{ rows: Region"]
+    ]);
+    const storage = { getItem: (k) => map.get(k) ?? null };
+    assert.deepEqual(readStoredView("fits", storage, data)?.rows, ["Region"]);
+    assert.equal(readStoredView("big", storage, data), null);
+    assert.equal(readStoredView("hand", storage, data), null);
 });
 
 test("a loaded view is normalized against the data; a template file gives its view", () => {
@@ -160,6 +174,19 @@ test("chartOptions: plain JSON passes, functions and other values are left out a
     assert.match(cleanChartOptions(root).problems[0], /nested deeper/);
     const wide = Object.fromEntries(Array.from({ length: CHART_OPTIONS_CAPS.entries + 5 }, (_, i) => [`k${i}`, i]));
     assert.equal(Object.keys(cleanChartOptions(wide).options).length, CHART_OPTIONS_CAPS.entries);
+    // past the cap one problem says so, not one per object or list still to come
+    const many = { a: wide, b: [1, 2], c: { d: 1 }, e: [{ f: 1 }] };
+    assert.deepEqual(cleanChartOptions(many).problems, [`chartOptions.a: more than ${CHART_OPTIONS_CAPS.entries} entries in all`]);
+});
+
+test("chartOptions: a getter is not called, it is dropped and named", () => {
+    let calls = 0;
+    const title = Object.defineProperty({ text: "Sales" }, "subtext", { enumerable: true, get: () => (calls++, "from a getter") });
+    const list = Object.defineProperty([1, 2], 1, { get: () => (calls++, 3) });
+    const { options, problems } = cleanChartOptions({ title, series: [{ data: list }] });
+    assert.equal(calls, 0);
+    assert.deepEqual(options, { title: { text: "Sales" }, series: [{ data: [1, null] }] });
+    assert.deepEqual(problems, ["chartOptions.title.subtext: a getter, not allowed", "chartOptions.series[0].data[1]: a getter, not allowed"]);
 });
 
 test("chartOptions merge: key by key, lists entry by entry, an object into every entry of a list", () => {

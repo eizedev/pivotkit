@@ -1,4 +1,3 @@
-import { MAX_DATE_MS } from "pivotkit-core";
 /*
  * The changes the first load makes to a view (placing, moving, sorting by a header, totals, the tips'
  * actions; those only the menus make are in menu-ops.js, loaded with them), as pure functions:
@@ -17,7 +16,7 @@ import { MAX_DATE_MS } from "pivotkit-core";
  * pickFilter().
  */
 
-import { LIMITS, aggregatorsFor, foldText, isFormat, swapAxes } from "pivotkit-core";
+import { LIMITS, MAX_DATE_MS, aggregatorsFor, foldText, isFormat, swapAxes } from "pivotkit-core";
 import { CHART_TYPES } from "./chart-types.js";
 
 /** @typedef {"rows" | "cols" | "values" | "filters"} Zone */
@@ -73,7 +72,9 @@ export const same = (a, b) => typeof a === "string" && typeof b === "string" && 
 
 /**
  * The items of a picker whose label holds what was typed: as text filters compare (pivotkit-core's
- * foldText), so case and runs of whitespace, a no-break space among them, do not matter.
+ * foldText), so case and runs of whitespace, a no-break space among them, do not matter. Without a
+ * search (nothing or only white space typed) it gives `items` itself: filter.jsx tells by that
+ * whether a search is on.
  * @param {Array<{ label: string } & Record<string, any>>} items
  * @param {string} query
  */
@@ -285,8 +286,6 @@ export function fieldAt(view, zone, index) {
  * Moves an entry from one zone to another (or within one zone) to an index of the target zone. A value
  * moved to an axis or Filters places its field there; an axis field moved to Values adds a value and
  * leaves the axis.
- */
-/**
  * @param {any} view
  * @param {Zone} from
  * @param {number} fromIndex

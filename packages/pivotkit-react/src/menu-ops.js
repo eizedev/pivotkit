@@ -594,14 +594,14 @@ export function conditionKind(encoded, view, field) {
  * @param {string} locale
  */
 export function filterState(view, field, state, labels, locale) {
-    const same = (f) => typeof f.field === "string" && f.field.toLowerCase() === field.toLowerCase();
+    const ofField = (f) => typeof f.field === "string" && f.field.toLowerCase() === field.toLowerCase();
     const parts = [];
     if (state && state.summary) {
         parts.push(fill(labels.filterSummary, { shown: state.summary.shown.toLocaleString(locale), total: state.summary.total.toLocaleString(locale) }));
     }
     // the chip's rules on the items (with a text rule), else the text rules said here
     parts.push(...(state?.rules ?? []));
-    for (const f of view.filters.filter(same)) {
+    for (const f of view.filters.filter(ofField)) {
         if (f.type === "value" || (f.type === "text" && !state?.rules)) {
             parts.push(ruleText(view, f, { labels, locale, timeZone: "UTC", date: false }));
         }

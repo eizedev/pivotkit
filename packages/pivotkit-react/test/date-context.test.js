@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, toGrid } from "pivotkit-core";
+import { LIMITS, computePivot, encode, toGrid } from "pivotkit-core";
 import { dateContext, dateRangeText, yearSetText, yearsOf } from "../src/date-context.js";
 import { calendarDays, groupHint, groupStats } from "../src/group-context.js";
 import { yearText } from "../src/names.js";
-import { LABELS } from "../src/labels.js";
+import { LABELS, fill, plural } from "../src/labels.js";
+import { dateSpan } from "../src/view-ops.js";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../src/deferred.js";
 import { en } from "../src/menu-labels.js";
@@ -71,7 +72,6 @@ test("cyclic hints preserve gaps and cross-year month/quarter coverage", () => {
 });
 
 test("one-day/year Group labels use singular forms in English and German", async () => {
-    const {plural, fill} = await import("../src/labels.js");
     const single = encode([{Date:"2024-01-01"}]);
     for (const [labels, locale, day, year] of [[{...LABELS.en,...en},"en-US","day","year together"],[{...LABELS.de,...de},"de-DE","Tag","Jahr zusammen"]]) {
         assert.match(groupHint(single,"Date","month",locale,labels), new RegExp(`1 ${year}$`));
@@ -111,7 +111,6 @@ test("timeline Group endpoint years follow core Gregorian labels", () => {
     }
 });
 
-
 test("Japanese calendar context uses observed eras within a Gregorian year", () => {
     const locale = "ja-JP-u-ca-japanese";
     const fmt = new Intl.DateTimeFormat(locale, {year: "numeric", timeZone: "UTC"});
@@ -126,7 +125,6 @@ test("Japanese calendar context uses observed eras within a Gregorian year", () 
 });
 
 test("date spans reuse date scans per immutable dataset without caching non-date fields", async () => {
-    const {dateSpan} = await import("../src/view-ops.js");
     let reads = 0;
     const counted = {...data, column: (field) => { reads++; return data.column(field); }};
     const span = dateSpan(counted, "Date");
@@ -161,7 +159,6 @@ test("cyclic week labels do not claim a single Gregorian year is an ISO week-yea
 });
 
 test("nonrepresentable typed dates cannot crash field info, footer, years or Group hints", async () => {
-    const {dateSpan} = await import("../src/view-ops.js");
     const invalid = {columns:["Date", "Amount"], types:["date", "number"], data:[[8.64e15 + 1, -8.64e15 - 1], [1, 2]]};
     const encoded = encode(invalid);
     assert.equal(dateSpan(encoded, "Date"), null);
@@ -195,7 +192,6 @@ test("cyclic month hints use Gregorian grouping semantics in non-Gregorian local
     }
 });
 
-
 test("single-year cyclic months describe observed calendar months, never synthetic year-2000 months", () => {
     for (const locale of ["en-US-u-ca-islamic", "he-IL-u-ca-hebrew", "ar-SA"]) {
         for (const days of [["2024-01-15"], ["2024-01-01", "2024-01-31"]]) {
@@ -226,7 +222,6 @@ test("date ranges reuse formatters for large date schemas and distinguish era op
         assert.ok(constructions <= 2, `${constructions} formatters constructed`);
     } finally { Intl.DateTimeFormat = Original; }
 });
-
 
 test("combined cyclic month keys use localized Gregorian names", () => {
     const locale = "en-US-u-ca-islamic-civil";
@@ -288,8 +283,6 @@ test("timeline month hints preserve historical years zero through 99 and BCE end
 });
 
 test("date-span LRU remains bounded across unlimited host columns", async () => {
-    const {dateSpan} = await import("../src/view-ops.js");
-    const {LIMITS} = await import("pivotkit-core");
     const columns = Array.from({length: LIMITS.cacheEntries + 1}, (_, i) => `Date${i}`);
     const dates = encode({columns, types: columns.map(() => "date"), data: columns.map(() => [0])});
     const first = dateSpan(dates, columns[0]);

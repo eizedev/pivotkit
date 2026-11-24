@@ -130,4 +130,10 @@ npm run bench:browser                                     # benchmark, 100k to 1
 - `tests/view-file-schema.test.js` checks the view-file JSON Schemas against pivotkit-core's writer.
 - `tests/npm-pack.test.js` checks how `scripts/npm-pack.js` reads the output of `npm pack`.
 - `tests/reader-plugin.test.js` checks the docs' example reader plugin against pivotkit-core's contract.
-- `tests/serve.test.js` checks the playground's static server; `tests/playground-server.js` starts it for tests.
+- `tests/serve.test.js` checks the playground's static server. `tests/playground-server.js` starts it for tests and the docs scripts.
+- `tests/playground-help.test.js` checks that each topic of the playground's help links to a docs page and heading that exist.
+- `tests/screenshots.test.js` and `tests/docs-clips.test.js` check how the docs show screenshots and clips.
+- `tests/encode-callers.test.js` checks that every call of pivotkit-core's `encode()` in a package names what bounds its data.
+- `tests/audit-signatures.test.js` checks when `scripts/audit-signatures.js` tries the registry signature check again.
+- `tests/until.test.js` checks `until()` from `tests/until.js`.
+- `tests/check-pack.test.js`, `tests/docs-demo.test.js` and `tests/check-readme-links.test.js` check the parts of those scripts that decide what they check or copy.

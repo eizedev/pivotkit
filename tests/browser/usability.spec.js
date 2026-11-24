@@ -1,6 +1,6 @@
 // What a business user sees: words instead of bare icons, notes that explain, charts that stay
 // readable. Every test here fails without its fix.
-import { chipMenu, chips, expect, openLevel, openZones, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, openLevel, openZones, tableRows, test, toolbar, untilStable } from "./fixtures.js";
 
 test("narrow: every toolbar button keeps its text; the rest is in a labelled More menu", async ({ page }) => {
     for (const width of [640, 390]) {
@@ -367,15 +367,7 @@ test("a pie in a low report is drawn inside its box, labels included", async ({ 
         }
         return { y: -1, height };
     });
-    let lowest = { y: -1, height: 0 };
-    await expect
-        .poll(async () => {
-            const now = await lowestDrawn();
-            const same = now.y > 0 && now.y === lowest.y && now.height === lowest.height;
-            lowest = now;
-            return same;
-        }, { intervals: [250, 250, 250, 500] })
-        .toBe(true);
+    const lowest = await untilStable(lowestDrawn, { ready: (now) => now.y > 0 });
     // the canvas is the box, not taller: nothing of the pie is cut at the bottom
     const [chart, box] = await Promise.all([canvas.boundingBox(), page.locator(".pk-chart-box").boundingBox()]);
     expect(chart.y + chart.height).toBeLessThanOrEqual(box.y + box.height + 0.5);

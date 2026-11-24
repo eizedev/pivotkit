@@ -3,12 +3,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, normalize, toGrid } from "pivotkit-core";
-import { LABELS } from "../src/labels.js";
 import "../src/deferred.js";
-import { en as menuEn } from "../src/menu-labels.js";
 import { sortText } from "../src/names.js";
 import { headerSortState, headerSortTarget, nextHeaderSort, setSort } from "../src/view-ops.js";
 import { axisTopics } from "../src/menu-topics.js";
+import { MENU } from "./helpers.js";
 
 const data = encode([
     { City: "Oslo", Month: "Jan", Temp: -4 },
@@ -16,7 +15,7 @@ const data = encode([
     { City: "Cairo", Month: "Jan", Temp: 14 },
     { City: "Cairo", Month: "Jul", Temp: 29 }
 ]);
-const labels = { ...LABELS.en, ...menuEn };
+const labels = MENU.en;
 const typeOf = (f) => ({ city: "string", month: "string", temp: "number" })[f.toLowerCase()];
 const temp = { field: "Temp", agg: "average" };
 const view = normalize({ rows: ["City"], cols: ["Month"], values: [temp] }, data).view;

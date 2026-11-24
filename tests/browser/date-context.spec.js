@@ -1,9 +1,12 @@
+// Date groupings in context (#109): a cyclic item (a month, a weekday) names its year where the data
+// spans more than one, in the table, the chips, the titles and the field information, in English and
+// German and in other calendars; the exports write the plain items, as the command line does.
 import { readFile } from "node:fs/promises";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
 import { test, expect, openZones } from "./fixtures.js";
 for (const lang of ["en", "de"]) {
-    test(`weather date context and Group level (${lang}) #109`, async ({page}) => {
+    test(`weather date context and Group level (${lang}) #109`, async ({ page }) => {
         await page.goto(`?data=weather&preset=0&lang=${lang}`);
         await openZones(page);
         await expect(page.getByTestId("date-range")).toContainText("2023");
@@ -26,7 +29,7 @@ for (const lang of ["en", "de"]) {
     });
 }
 
-test("a single weather year labels cyclic items, not combined years #109", async ({page}) => {
+test("a single weather year labels cyclic items, not combined years #109", async ({ page }) => {
     const view = {rows: ["Month"], derived: [{name: "Month", field: "Date", by: "month"}], values: [{field: "Mean °C", agg: "average"}], filters: [{field: "Date", type: "compare", op: ">=", value: "2025-01-01"}]};
     const hash = encodeViewLink(toViewFile(view, {}, {link: true}));
     await page.goto(`?data=weather&empty#pivot-playground=${hash}`);
@@ -35,7 +38,7 @@ test("a single weather year labels cyclic items, not combined years #109", async
     await expect(page.getByTestId("date-range")).toContainText("2023");
 });
 
-test("cyclic chip IDs stay stable and downloaded headers omit display-only year context #109", async ({page}) => {
+test("cyclic chip IDs stay stable and downloaded headers omit display-only year context #109", async ({ page }) => {
     await page.goto("?data=weather&preset=0");
     await openZones(page);
     await page.getByTestId("chip-menu-Date by month of year").click();
@@ -48,7 +51,7 @@ test("cyclic chip IDs stay stable and downloaded headers omit display-only year 
     expect(text).toContain("Date by month of year");
 });
 
-test("the export writes the plain items, as the command line does, while the table shows the year #109", async ({page}) => {
+test("the export writes the plain items, as the command line does, while the table shows the year #109", async ({ page }) => {
     const view = {rows: ["Month"], derived: [{name: "Month", field: "Date", by: "month"}], values: [{field: "Mean °C", agg: "average"}], filters: [{field: "Date", type: "compare", op: ">=", value: "2025-01-01"}]};
     const hash = encodeViewLink(toViewFile(view, {}, {link: true}));
     await page.goto(`?data=weather&empty#pivot-playground=${hash}`);
@@ -60,7 +63,7 @@ test("the export writes the plain items, as the command line does, while the tab
     expect(text).toMatch(/^"?Jan"?,/m);
 });
 
-test("one year by weekday: plain items, the year in the title #109", async ({page}) => {
+test("one year by weekday: plain items, the year in the title #109", async ({ page }) => {
     const view = {rows: ["Weekday"], derived: [{name: "Weekday", field: "Date", by: "weekday"}], values: [{field: "Mean °C", agg: "average"}], filters: [{field: "Date", type: "compare", op: ">=", value: "2025-01-01"}]};
     const hash = encodeViewLink(toViewFile(view, {}, {link: true}));
     await page.goto(`?data=weather&empty#pivot-playground=${hash}`);
@@ -77,7 +80,7 @@ test("one year by weekday: plain items, the year in the title #109", async ({pag
     expect(text).toMatch(/^"?Mon"?,/m);
 });
 
-test("field information and footer use the loaded view locale #109", async ({page}) => {
+test("field information and footer use the loaded view locale #109", async ({ page }) => {
     const view = {rows:["Date"], values:[{agg:"count"}], formatting:{locale:"de-DE"}};
     const hash = encodeViewLink(toViewFile(view, {}, {link:true}));
     await page.goto(`?data=weather&empty#pivot-playground=${hash}`);
@@ -91,7 +94,7 @@ test("field information and footer use the loaded view locale #109", async ({pag
 
 for (const theme of ["light", "dark"]) {
     for (const width of [1280, 390]) {
-        test(`date context review screenshot ${theme} ${width} #109`, async ({page}, info) => {
+        test(`date context review screenshot ${theme} ${width} #109`, async ({ page }, info) => {
             test.skip(info.project.name !== "chromium", "Layout captures only; behaviour covered in all engines");
             await page.setViewportSize({width, height:900});
             await page.goto(`?data=weather&preset=0&theme=${theme}`);
@@ -104,7 +107,7 @@ for (const theme of ["light", "dark"]) {
     }
 }
 
-test("enlarged summary retains cyclic context and Group introduction describes its menu #109", async ({page}) => {
+test("enlarged summary retains cyclic context and Group introduction describes its menu #109", async ({ page }) => {
     await page.goto("?data=weather&preset=0");
     await page.getByTestId("enlarge").click();
     await expect(page.getByTestId("enlarged-fields")).toContainText("2023–2025 combined");
@@ -119,7 +122,7 @@ test("enlarged summary retains cyclic context and Group introduction describes i
 });
 
 
-test("computed date info alone keeps the user explanation switch available #109", async ({page}) => {
+test("computed date info alone keeps the user explanation switch available #109", async ({ page }) => {
     await page.goto("pages/element-views.html");
     const host = page.locator("#views");
     await expect(host.locator(".pk-root")).toBeVisible();
@@ -140,7 +143,7 @@ test("computed date info alone keeps the user explanation switch available #109"
     await expect(host.locator('.pk-field[data-field="Date"] .pk-info')).toHaveCount(0);
 });
 
-test("single cyclic month shows observed non-Gregorian endpoints; the export keeps the plain item #109", async ({page}) => {
+test("single cyclic month shows observed non-Gregorian endpoints; the export keeps the plain item #109", async ({ page }) => {
     const locale = "en-US-u-ca-islamic-civil";
     const view = {rows:["Month"], derived:[{name:"Month",field:"Date",by:"month"}], values:[{field:"Mean °C",agg:"average"}], formatting:{locale}, filters:[{field:"Date",type:"compare",op:">=",value:"2025-01-01"},{field:"Date",type:"compare",op:"<=",value:"2025-01-31"}]};
     const hash = encodeViewLink(toViewFile(view, {}, {link:true}));
@@ -163,7 +166,7 @@ test("single cyclic month shows observed non-Gregorian endpoints; the export kee
 });
 
 
-test("combined cyclic months display Gregorian grouping keys in other calendars; the export keeps the plain items #109", async ({page}) => {
+test("combined cyclic months display Gregorian grouping keys in other calendars; the export keeps the plain items #109", async ({ page }) => {
     const locale = "en-US-u-ca-islamic-civil";
     const view = {rows:["Month"], derived:[{name:"Month",field:"Date",by:"month"}], values:[{field:"Mean °C",agg:"average"}], formatting:{locale}, filters:[{field:"Date",type:"compare",op:">=",value:"2025-01-01"},{field:"Date",type:"compare",op:"<=",value:"2025-12-31"}]};
     const hash = encodeViewLink(toViewFile(view, {}, {link:true}));
@@ -182,13 +185,13 @@ test("combined cyclic months display Gregorian grouping keys in other calendars;
     expect(text).toContain(dec);
 });
 
-test("drill title retains combined cyclic field context #109", async ({page}) => {
+test("drill title retains combined cyclic field context #109", async ({ page }) => {
     await page.goto("?data=weather&preset=0");
     await page.locator('[data-testid="pivot-table"] td.pk-clickable').first().click();
     await expect(page.getByTestId("drill-panel")).toContainText("2023–2025 combined");
 });
 
-test("invalid host locale keeps date Group menus usable after controlled failure #109", async ({page}) => {
+test("invalid host locale keeps date Group menus usable after controlled failure #109", async ({ page }) => {
     await page.goto("pages/element-views.html");
     const host = page.locator("#views");
     await expect(host.locator(".pk-root")).toBeVisible();
@@ -204,7 +207,7 @@ test("invalid host locale keeps date Group menus usable after controlled failure
     await expect(host.getByTestId("group-year")).toBeVisible();
 });
 
-test("historical Month grouping hints retain the actual century #109", async ({page}) => {
+test("historical Month grouping hints retain the actual century #109", async ({ page }) => {
     await page.goto("pages/element-views.html");
     const host = page.locator("#views");
     await expect(host.locator(".pk-root")).toBeVisible();

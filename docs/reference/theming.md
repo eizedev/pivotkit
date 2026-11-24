@@ -206,6 +206,8 @@ has, or use a variable font.
 - Every control is at least 24 x 24 px (`--pk-target`).
 - On a touch screen, buttons, tabs, chips and the small text buttons are at least 44 x 44 px (`--pk-target-touch`), the small controls too. Every menu's rows, its Back row, search row and segments, a filter's values, the folds of its sections and the fields of a form in a menu are at least that high. A row's fold arrow keeps its size: its hit area is `--pk-target-touch` wide and as high as its row. In the field list, the name, the grip, the "i" and the menu keep their size. Instead, each gets a hit area `--pk-target-touch` high: a layer over it, for the grip as wide as high. The gap between rows grows to hold it, so the rows stay compact.
 - Animations run through `--pk-duration`, which is `0ms` when the system asks for reduced motion.
+  The flash of a zone that takes a field and the floating chips of the empty report are multiples
+  of it, so a longer value makes them longer too.
 
 ## Chart colours and sizes { #chart-colours }
 

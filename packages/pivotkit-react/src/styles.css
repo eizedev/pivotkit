@@ -1029,7 +1029,7 @@
 }
 
 .pk-zone.pk-flash {
-    animation: pk-flash 600ms var(--pk-ease);
+    animation: pk-flash calc(var(--pk-duration) * 3.3) var(--pk-ease);
 }
 
 .pk-zone-head {
@@ -3277,14 +3277,14 @@
     border-radius: 999px;
     background: var(--pk-accent-soft);
     border: 1.5px solid color-mix(in srgb, var(--pk-accent) 45%, transparent);
+    /* the chips float three times, then rest; each one a little later */
+    animation: pk-float calc(var(--pk-duration) * 18) ease-in-out 3;
 }
 
-/* the chips float three times, then rest */
 .pk-c1 {
     top: 2px;
     left: 4px;
     width: 70px;
-    animation: pk-float 3.2s ease-in-out 3;
 }
 
 .pk-c2 {
@@ -3293,7 +3293,7 @@
     width: 88px;
     background: color-mix(in srgb, var(--pk-type-number) 16%, var(--pk-surface));
     border-color: color-mix(in srgb, var(--pk-type-number) 45%, transparent);
-    animation: pk-float 3.2s ease-in-out 0.4s 3;
+    animation-delay: 0.4s;
 }
 
 .pk-c3 {
@@ -3302,7 +3302,7 @@
     width: 56px;
     background: color-mix(in srgb, var(--pk-type-date) 16%, var(--pk-surface));
     border-color: color-mix(in srgb, var(--pk-type-date) 45%, transparent);
-    animation: pk-float 3.2s ease-in-out 0.8s 3;
+    animation-delay: 0.8s;
 }
 
 .pk-steps {
@@ -4049,7 +4049,8 @@
     /* nothing moves: no animation (a short one still shows its first frame, a popover scaled down), and
        no transition at all (a duration here would also apply to every element without a transition of
        its own, transition-property being "all" by default: a popover shown from visibility: hidden
-       stayed hidden for a frame and could not take the focus). No code waits for their end events. */
+       stayed hidden for a frame and could not take the focus). No code waits for their end events:
+       the zone's flash clears on its end and, without one, only stays set (zones.jsx). */
     .pk-root *,
     .pk-root *::before,
     .pk-root *::after {

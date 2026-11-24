@@ -3,7 +3,7 @@
  * input, the drop overlay, the dialog of the file being read, the Data menu's panel, the source line)
  * and what a file picked or dropped starts. The report keeps only its state and hands it in as one
  * object (`ImportApi`), so its first load holds no more than the Data button, the drop handler and the
- * state; everything here loads on first use (lazy-import.jsx).
+ * state; everything here loads on first use (lazy-import.js).
  */
 
 import React from "react";

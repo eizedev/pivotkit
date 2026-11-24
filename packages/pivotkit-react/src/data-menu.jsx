@@ -1,6 +1,6 @@
 /*
  * The Data menu's panel (allowImport), with the menus (menus.js): it loads the import UI on its first
- * open (lazy-import.jsx) and shows its panel (import-host.jsx), "Loading…" while it loads and "Try
+ * open (lazy-import.js) and shows its panel (import-host.jsx), "Loading…" while it loads and "Try
  * again" when it failed.
  */
 

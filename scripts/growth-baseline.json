@@ -255,7 +255,6 @@
         "packages/pivotkit-react/src/popover.jsx exports wheelScrollsInside",
         "packages/pivotkit-react/src/print-frame.js exports PRINT_LOAD_TIMEOUT",
         "packages/pivotkit-react/src/print-frame.js exports printParts",
-        "packages/pivotkit-react/src/share.js exports VIEW_TEXT_MAX",
         "packages/pivotkit-react/src/theme.js exports CHART_COLORS",
         "packages/pivotkit-react/src/use-theme.js exports hostTheme",
         "packages/pivotkit-react/src/view-ops.js exports fieldAt",

@@ -78,14 +78,14 @@ test("a template's own .pk-report-note colour colours the note under a cut chart
 test.describe("a host's dark colours (#385)", () => {
     const HOST = { "--pk-surface": "#fffaf0", "--pk-chart-1": "#c00000", "--pk-heat-high": "#b34700" };
     const HOST_DARK = { "--pk-surface": "#101418", "--pk-chart-1": "#ff7a7a", "--pk-heat-high": "#ff9933" };
-    const CASES = [
+    const SCREENS = [
         { name: "a dark screen", scheme: "dark", media: "screen", template: DEFAULT_TEMPLATE, expected: HOST_DARK },
         { name: "a light screen", scheme: "light", media: "screen", template: DEFAULT_TEMPLATE, expected: HOST },
         { name: "paper from a dark screen", scheme: "dark", media: "print", template: DEFAULT_TEMPLATE, expected: HOST },
         { name: 'a dark screen, root pins light (data-pk-theme="light")', scheme: "dark", media: "screen", template: TEMPLATES['data-pk-theme="light"'].template, expected: HOST },
         { name: "a dark screen, a template with its own dark surface", scheme: "dark", media: "screen", template: TEMPLATES["its own dark colours"].template, expected: { ...HOST_DARK, "--pk-surface": "#1b1712" } }
     ];
-    for (const { name, scheme, media, template, expected } of CASES) {
+    for (const { name, scheme, media, template, expected } of SCREENS) {
         test(`${name}: the page takes ${expected === HOST ? "the host's light colours" : "the host's dark colours"}, every text 4.5:1`, async ({ page }) => {
             await page.emulateMedia({ colorScheme: scheme, media });
             for (const [viewName, view] of Object.entries(VIEWS)) {

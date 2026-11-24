@@ -2,8 +2,8 @@
 // level of the chip menus, Options, Views and Export, and the filter from the field list; two reports
 // on one page share no name (pivotkit-react in one React root, and two web components, each a root
 // of its own).
-import { expect, test, toolbar } from "./fixtures.js";
-import { NAV_PAGES, everyTopic, formFields, openZonesIn } from "./host-nav.js";
+import { expect, openZones, test, toolbar } from "./fixtures.js";
+import { NAV_PAGES, everyTopic, formFields } from "./host-nav.js";
 
 test.describe("form fields have names of their own per report (#115)", () => {
     for (const [name, url] of NAV_PAGES) {
@@ -15,7 +15,7 @@ test.describe("form fields have names of their own per report (#115)", () => {
                 const report = page.locator(`#${id}`);
                 const seen = [];
                 await expect(report.locator(".pk-field")).toHaveCount(10);
-                await openZonesIn(report);
+                await openZones(report);
                 // a second value: a top N and a rule on the total then choose the value they go by (a select)
                 await report.locator('.pk-field[data-field="Memory GB"] .pk-field-name').click();
                 await expect(report.getByTestId("chip-menu-Sum of Memory GB")).toBeVisible();

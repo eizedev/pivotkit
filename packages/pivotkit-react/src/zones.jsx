@@ -217,15 +217,13 @@ function Zone({ zone, entries, labels, children, explain, add }) {
             setFlash(true);
         }
     }
-    useEffect(() => {
-        if (!flash) {
-            return undefined;
-        }
-        const t = setTimeout(() => setFlash(false), 600);
-        return () => clearTimeout(t);
-    }, [flash]);
+    // the light goes when its animation (pk-flash, the only one of the zone itself; a chip's own end
+    // event bubbles up and is not it) ends, so it lasts as long as --pk-duration says (a timer
+    // would cut a host's longer one). With reduced motion no animation runs and no end event comes:
+    // the class stays and does nothing, and the next chip does not light the zone either.
+    const flashed = (e) => e.target === e.currentTarget && setFlash(false);
     return (
-        <section ref={setNodeRef} tabIndex={-1} className={`pk-zone pk-zone-${zone}${isOver ? " pk-over" : ""}${dragging ? " pk-dropping" : ""}${flash ? " pk-flash" : ""}`} aria-label={labels.zones[zone]} data-zone={zone}>
+        <section ref={setNodeRef} tabIndex={-1} className={`pk-zone pk-zone-${zone}${isOver ? " pk-over" : ""}${dragging ? " pk-dropping" : ""}${flash ? " pk-flash" : ""}`} aria-label={labels.zones[zone]} data-zone={zone} onAnimationEnd={flashed}>
             <div className="pk-zone-head">
                 <h3 className="pk-zone-title">
                     <Icon name={/** @type {any} */ (ZONE_ICON[zone])} size={14} />

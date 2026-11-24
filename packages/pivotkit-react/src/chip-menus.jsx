@@ -4,7 +4,7 @@
  * side by side, by a value), Filter (filter-level.jsx: quick choices of a date, the values with their
  * counts, the rules), the grouping of a date or a number, Top items, Move to. A field in Filters: the
  * same Filter, Move to. A value: Summarize by, Show as, Number format, Highlight, Name, Move to. The topics are data
- * (chip-topics.js); this module draws the levels that hold a form. Every choice applies at once; a
+ * (menu-topics.js); this module draws the levels that hold a form. Every choice applies at once; a
  * number typed applies a moment after the typing stops, a name on Enter or when the field is left,
  * and Escape in a field gives back what applies. Remove field is the menu's last item.
  */
@@ -26,6 +26,11 @@ import { TOP_COUNTS, axisTopics, filterZoneTopics, valueTopics } from "./menu-to
 import { filtersOf, groupField, groupingOf, setFieldLabel, sourceOf } from "./view-ops.js";
 import { binProblem, setTopFilter, updateValue } from "./menu-ops.js";
 
+/** How many items of the field the report shows on `axis`, with its limits; null over one (the report says why). */
+function itemsShown(encoded, view, axis, limits) {
+    return belowLimits(() => computePivot(encoded, view, { limits })[axis].children.length, null);
+}
+
 /**
  * The Top items level: Off, Top 3, Top 5, Top 10, or a count of one's own, largest or smallest
  * first ("Top N…"), by a value when the view has several, and, while one is set, "Also show items
@@ -33,11 +38,6 @@ import { binProblem, setTopFilter, updateValue } from "./menu-ops.js";
  * its axis; else, with the ties, that a group can show more). A choice applies at once, the count a
  * moment after the typing stops.
  */
-/** How many items of the field the report shows on `axis`, with its limits; null over one (the report says why). */
-function itemsShown(encoded, view, axis, limits) {
-    return belowLimits(() => computePivot(encoded, view, { limits })[axis].children.length, null);
-}
-
 function TopLevel({ view, field, types, labels, locale, commit, back, encoded }) {
     const top = filtersOf(view, field, ["top"])[0];
     // the items the top shows: the field's items of the result, when it is the first on its axis (not one per group above it)
@@ -396,7 +396,6 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
         <LevelMenu
             name={name}
             labels={labels}
-            locale={locale}
             topics={topics}
             close={close}
             onPick={picker(commit, close)}
@@ -416,7 +415,6 @@ export function FilterMenu({ view, index, field, types, labels, commit, close, o
         <LevelMenu
             name={name}
             labels={labels}
-            locale={locale}
             topics={filterZoneTopics({ view, index, field, types, labels, locale, state, encoded })}
             close={close}
             onPick={picker(commit, close)}
@@ -443,7 +441,6 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
         <LevelMenu
             name={name}
             labels={labels}
-            locale={locale}
             topics={topics}
             close={close}
             onPick={picker(commit, close)}

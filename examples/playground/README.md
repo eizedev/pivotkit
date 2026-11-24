@@ -36,12 +36,22 @@ node examples/playground/serve.js 4173    # serve the static build
 server, for example GitHub Pages or a test container. The build is esbuild only: the package is built
 first and imported as a consumer imports it (`pivotkit-react` and `pivotkit-react/styles.css`).
 
-URL parameters pick the start: `?data=weather|countries|earthquakes|nobel|endoflife|tickets|sales|assets`,
-`start=<the template's name in words>` (as the Start dropdown writes it; `start=empty` or `empty` for an
-empty report; `preset=0|1|2|3|4` by position also works), `rows=2000|4000|100000` (generated data only), `lang=en|de`, `height=480` (the report at that height in px, as a host's card gives it),
-`theme=light|dark` (sets `<html data-theme>` as PowerShell Universal does;
-without it the report follows the system). The footer shows the engine timings of the last change
-and the last `onCellClick`. The Data and Start dropdowns write `data` and `start` into the address,
+URL parameters pick the start:
+
+| Parameter | Effect |
+| --- | --- |
+| `data=weather\|countries\|earthquakes\|nobel\|endoflife\|tickets\|sales\|assets` | The data set. |
+| `start=<the template's name in words>` | The start template, as the Start dropdown writes it. |
+| `start=empty` or `empty` | An empty report. |
+| `preset=0\|1\|2\|3\|4` | The start template by its place in the list. |
+| `rows=2000\|4000\|100000` | The number of rows. Generated data only. |
+| `lang=en\|de` | The language. |
+| `height=480` | The report at that height in px, as a host's card gives it. |
+| `grow=on` | With `height`: the report grows past that height when it needs more. |
+| `theme=light\|dark` | Sets `<html data-theme>`, as PowerShell Universal does. Without it the report follows the system. |
+| `import=off` | No loading of data: the report as a host shows it without `allowImport`. |
+
+The footer shows the engine timings of the last change and the last `onCellClick`. The Data and Start dropdowns write `data` and `start` into the address,
 and every change of the report writes its view into the fragment (`#pivot-playground=`, pivotkit's
 share format, read back by the report's `shareLink`), so a reload keeps the report. Copy link in
 Views copies `data`, `start`, `rows` (generated data) and the view: the playground passes that URL

@@ -50,14 +50,14 @@ COPY --from=build --chown=10001:10001 --chmod=0700 /state /var/lib/pivotkit
 # `pivotkit-server` on the PATH, for docker exec / kubectl exec (distroless has no /usr/bin/env)
 COPY --chmod=0755 docker/pivotkit-server /usr/local/bin/pivotkit-server
 WORKDIR /app
-# the log as JSON lines: docker run -t gives the process a terminal, where "auto" would write text;
-# a configuration's log.format still wins
 # /config/pivotkit.json missing and /config empty: the built-in example configuration (state.js)
 ENV NODE_ENV=production \
     PIVOTKIT_CONFIG=/config/pivotkit.json \
     PIVOTKIT_STATE_DIR=/var/lib/pivotkit \
-    PIVOTKIT_PORT=3333 \
-    PIVOTKIT_LOG_FORMAT=json
+    PIVOTKIT_PORT=3333
+# the log as JSON lines: docker run -t gives the process a terminal, where "auto" would write text;
+# a configuration's log.format still wins
+ENV PIVOTKIT_LOG_FORMAT=json
 # a fixed user and group, not the base image's: the operator owns /out by this id
 USER 10001:10001
 EXPOSE 3333
