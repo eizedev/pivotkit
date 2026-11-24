@@ -20,6 +20,7 @@ import { startErrorLine } from "./log.js";
 import { stopOnSignals } from "./stop.js";
 import { DEFAULT_PORT, MCP_PACKAGE, TOKEN_ENV, loadMcp } from "./serve.js";
 import { importInstalled, missingPackageText } from "./installed.js";
+import { DOCS_SITE } from "./options/branding.js";
 
 /** The variable that names the configuration file (flags.js's). */
 export { CONFIG_ENV };
@@ -53,7 +54,7 @@ const FLAG_ORDER = (({ help, ...rest }) => ({ ...rest, version: VERSION_FLAG, he
 /** The help text. */
 export function helpText() {
     const commands = Object.entries(COMMANDS).map(([name, text]) => `  ${name.padEnd(34)}${text}`);
-    return `pivotkit-server ${VERSION}: pivotkit's REST service, its MCP server and its command line in one.\n\nUsage: pivotkit-server <command> [options]\n       pivotkit-server --version\n\nCommands:\n${commands.join("\n")}\n\nOptions of serve, check-config and check-source:\n${flagLines(FLAG_ORDER).join("\n")}\n\nThe static token, when the configuration names none: $${TOKEN_ENV}.\nDocs: https://pivotkit.eize.dev/reference/rest/\n`;
+    return `pivotkit-server ${VERSION}: pivotkit's REST service, its MCP server and its command line in one.\n\nUsage: pivotkit-server <command> [options]\n       pivotkit-server --version\n\nCommands:\n${commands.join("\n")}\n\nOptions of serve, check-config and check-source:\n${flagLines(FLAG_ORDER).join("\n")}\n\nThe static token, when the configuration names none: $${TOKEN_ENV}.\nDocs: ${DOCS_SITE}reference/rest/\n`;
 }
 
 /** The package of the command line: `pivotkit-server cli` loads it by name, not as a dependency. */
@@ -79,6 +80,8 @@ async function runCli(argv, io) {
  * @param {any} io
  */
 async function runMcp(argv, io) {
+    // no configuration is read yet, so a mismatch names pivotkit's own upgrading page (loadMcp's
+    // default docs): the operator's branding.docsUrl is not known here
     const mcp = await loadMcp();
     if (!mcp) {
         io.stderr.write(`pivotkit-server: ${missingPackageText("mcp", MCP_PACKAGE)}\n`);

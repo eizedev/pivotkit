@@ -66,11 +66,32 @@ function comparators(part) {
         const high = major > 0 || minor === null ? at(major + 1, 0, 0) : minor > 0 || patch === null ? at(0, minor + 1, 0) : at(0, 0, patch + 1);
         return [{ op: ">=", version: low }, { op: "<", version: { ...high, pre: ["0"] } }];
     }
+    const span = partialSpan(op, major, minor, patch);
+    if (span) {
+        return [span];
+    }
     if (op === "~" || ((op === "" || op === "=") && (minor === null || patch === null))) {
         const high = minor === null ? at(major + 1, 0, 0) : at(major, minor + 1, 0);
         return [{ op: ">=", version: low }, { op: "<", version: { ...high, pre: ["0"] } }];
     }
     return [{ op: op || "=", version: low }];
+}
+
+/**
+ * A partial version after > or <= as the comparison of its whole span, as npm reads it: >1.2 is
+ * >=1.3.0, <=1.2 is <1.3.0-0; null for any other comparator.
+ * @param {string} op
+ * @param {number} major
+ * @param {number | null} minor
+ * @param {number | null} patch
+ * @returns {{ op: string, version: Version } | null}
+ */
+function partialSpan(op, major, minor, patch) {
+    if ((op !== ">" && op !== "<=") || (minor !== null && patch !== null)) {
+        return null;
+    }
+    const next = minor === null ? { major: major + 1, minor: 0, patch: 0 } : { major, minor: minor + 1, patch: 0 };
+    return op === ">" ? { op: ">=", version: { ...next, pre: [] } } : { op: "<", version: { ...next, pre: ["0"] } };
 }
 
 /** Whether a version passes one comparison. */

@@ -6,10 +6,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, chownSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "pivotkit-server";
-import { BIN, BY_REGION, POSIX, binEnv, call, factsOf, restServer, runBin, tempDir, workspace } from "../helpers.js";
+import { BIN, BY_REGION, POSIX, TOKEN, binEnv, call, factsOf, restServer, runBin, tempDir, workspace } from "../helpers.js";
 
 /** The command as a person runs it (runBin), not waiting: for runs at the same time. */
 const runAsync = (args, { cwd } = {}) =>
@@ -116,14 +116,14 @@ test("--if-missing refuses a kept file the server could not use; a kept file los
     assert.match(r.stderr, /short\.token.*not a usable token/s);
     assert.ok(!r.stderr.includes("too-short"));
     const good = join(dir, "good.token");
-    writeFileSync(good, "a-test-token-that-is-long-enough-0123456789\n");
+    writeFileSync(good, `${TOKEN}\n`);
     chmodSync(good, 0o644);
     const k = runBin(["token", "new", "--file", good, "--if-missing"]);
     assert.equal(k.status, 0, k.stderr);
     // the world bits go; the group's stay (a group that shares it), with a warning
     assert.equal(statSync(good).mode & 0o777, 0o640);
     assert.match(k.stderr, /warning: .*good\.token.*readable by others than its owner \(mode 640\)/);
-    assert.equal(fileValue(good), "a-test-token-that-is-long-enough-0123456789");
+    assert.equal(fileValue(good), TOKEN);
     const shared = runBin(["token", "new", "--file", good, "--if-missing"]);
     assert.equal(statSync(good).mode & 0o777, 0o640, "a group's bits are not taken away");
     assert.match(shared.stderr, /mode 640/);
@@ -305,12 +305,12 @@ test("round trip: token new --add, the server takes it with its profile, --force
 test("token show: the value of a configured token; 1 when it cannot be used, 2 for an unknown name", () => {
     const dir = tempDir();
     const config = join(dir, "pivotkit.json");
-    writeFileSync(join(dir, "good.token"), "a-test-token-that-is-long-enough-0123456789\n");
+    writeFileSync(join(dir, "good.token"), `${TOKEN}\n`);
     writeFileSync(join(dir, "short.token"), "short\n");
     writeFileSync(config, JSON.stringify({ auth: { mode: "token", tokens: [{ name: "good", file: "good.token" }, { name: "short", file: "short.token" }, { name: "gone", file: "gone.token" }, { name: "byenv", env: "BYENV_TOKEN" }] } }));
     const good = runBin(["token", "show", "good", "--config", config]);
     assert.equal(good.status, 0, good.stderr);
-    assert.equal(good.stdout, "a-test-token-that-is-long-enough-0123456789\n");
+    assert.equal(good.stdout, `${TOKEN}\n`);
     // $PIVOTKIT_CONFIG is the default for show
     assert.equal(runBin(["token", "show", "good"], { env: { PIVOTKIT_CONFIG: config } }).stdout, good.stdout);
     for (const name of ["short", "gone", "byenv"]) {
@@ -323,7 +323,7 @@ test("token show: the value of a configured token; 1 when it cannot be used, 2 f
     assert.equal(unknown.status, 2);
     assert.match(unknown.stderr, /no token "godo".*did you mean "good"/);
     const json = JSON.parse(runBin(["token", "show", "good", "--config", config, "--json"]).stdout);
-    assert.deepEqual([json.ok, json.command, json.name, json.token], [true, "token show", "good", "a-test-token-that-is-long-enough-0123456789"]);
+    assert.deepEqual([json.ok, json.command, json.name, json.token], [true, "token show", "good", TOKEN]);
     assert.equal(runBin(["token", "show"]).status, 2, "a name is needed");
     assert.equal(runBin(["token", "show", "good"]).status, 2, "a configuration is needed");
 });
@@ -417,9 +417,9 @@ test("without hard links: the file is created in place, and a run that loses wai
     try {
         const dir = tempDir();
         secretFileMeans.link = async () => Promise.reject(noLinks);
-        const made = await placeSecret(join(dir, "made.token"), "a-test-token-that-is-long-enough-0123456789");
+        const made = await placeSecret(join(dir, "made.token"), TOKEN);
         assert.equal(made.created, true);
-        assert.equal(fileValue(join(dir, "made.token")), "a-test-token-that-is-long-enough-0123456789");
+        assert.equal(fileValue(join(dir, "made.token")), TOKEN);
         if (POSIX) {
             assert.equal(statSync(join(dir, "made.token")).mode & 0o777, 0o600);
         }
@@ -440,7 +440,7 @@ test("without hard links: the file is created in place, and a run that loses wai
 
 test("secret-rules: the server's rules for a token and a key", async () => {
     const { tokenProblem, keyProblem } = await import("../../src/secret-rules.js");
-    assert.equal(tokenProblem("a-test-token-that-is-long-enough-0123456789"), null);
+    assert.equal(tokenProblem(TOKEN), null);
     assert.match(String(tokenProblem("short")), /at least 32/);
     assert.ok(tokenProblem("a test token that is long enough 0123456789"), "a space is no bearer token");
     assert.equal(keyProblem("downloads")("x".repeat(32)), null);
@@ -507,7 +507,7 @@ const utf16 = (text) => Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(`$
 test("a UTF-16 file says so: token new --if-missing, token show, check-config and the start", async () => {
     const dir = workspace();
     const file = join(dir, "ps.token");
-    writeFileSync(file, utf16("a-test-token-that-is-long-enough-0123456789"));
+    writeFileSync(file, utf16(TOKEN));
     const config = join(dir, "pivotkit.json");
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "ps", file: "ps.token" }] }, output: { dir: "out", downloads: { key: { file: "ps.key" } } } }));
     writeFileSync(join(dir, "ps.key"), utf16("a-key-that-is-long-enough-for-the-download-links-0123456789"));
@@ -525,9 +525,13 @@ test("a UTF-16 file says so: token new --if-missing, token show, check-config an
     await assert.rejects(restServer(await loadConfig(config)), (e) => said.test(e.message));
 });
 
-test("a token or key file that is no regular file or too long is refused, never waited for", { skip: !POSIX && "FIFOs are POSIX" }, async () => {
+test("a token or key file that is no regular file or too long is refused, never waited for", { skip: !POSIX && "FIFOs are POSIX" }, async (t) => {
     const dir = workspace();
-    spawnSync("mkfifo", [join(dir, "fifo.token")]);
+    const made = spawnSync("mkfifo", [join(dir, "fifo.token")]);
+    if (made.status !== 0) {
+        t.skip("the mkfifo command is missing or failed");
+        return;
+    }
     writeFileSync(join(dir, "long.token"), `${"a".repeat(5000)}\n`);
     const config = join(dir, "pivotkit.json");
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "fifo", file: "fifo.token" }, { name: "long", file: "long.token" }] } }));
@@ -547,7 +551,7 @@ test("--if-missing: a kept file of another user gets a warning", { skip: !POSIX 
     const { uid } = secretFileMeans;
     const dir = tempDir();
     const file = join(dir, "theirs.token");
-    writeFileSync(file, "a-test-token-that-is-long-enough-0123456789\n", { mode: 0o600 });
+    writeFileSync(file, `${TOKEN}\n`, { mode: 0o600 });
     try {
         // as if this ran as a user that is neither the file's owner nor root
         secretFileMeans.uid = () => 4242;
@@ -564,12 +568,12 @@ test("--force over a mounted file (EBUSY) says that a mounted file cannot be rep
     const { rename } = secretFileMeans;
     const dir = tempDir();
     const file = join(dir, "mounted.token");
-    writeFileSync(file, "a-test-token-that-is-long-enough-0123456789\n", { mode: 0o600 });
+    writeFileSync(file, `${TOKEN}\n`, { mode: 0o600 });
     try {
         secretFileMeans.rename = async () => Promise.reject(Object.assign(new Error("resource busy"), { code: "EBUSY" }));
         await assert.rejects(placeSecret(file, "a-new-token-that-is-long-enough-01234567890", { replace: true, label: "mounted.token" }), (e) => e.code === "MOUNTED" && /a mounted file cannot be replaced/.test(e.message));
         assert.deepEqual(tempFiles(dir), []);
-        assert.equal(fileValue(file), "a-test-token-that-is-long-enough-0123456789");
+        assert.equal(fileValue(file), TOKEN);
     } finally {
         secretFileMeans.rename = rename;
     }
@@ -581,7 +585,7 @@ test("SIGTERM during a write leaves no temporary file", { skip: !POSIX && "signa
     // the link step stands for a slow file system: the signal comes while the temporary file exists
     const script = `import { placeSecret, secretFileMeans } from ${JSON.stringify(module)};
 secretFileMeans.link = () => { process.kill(process.pid, "SIGTERM"); return new Promise((done) => setTimeout(done, 5000)); };
-await placeSecret(${JSON.stringify(join(dir, "slow.token"))}, "a-test-token-that-is-long-enough-0123456789");`;
+await placeSecret(${JSON.stringify(join(dir, "slow.token"))}, ${JSON.stringify(TOKEN)});`;
     const r = spawnSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8", timeout: 20_000 });
     assert.equal(r.signal, "SIGTERM", r.stderr);
     assert.deepEqual(readdirSync(dir), []);
@@ -610,7 +614,7 @@ test("key new --config --add names the key in the configuration, with the same c
 test("on a terminal: a kept file is one line; MCP only where the configuration serves it; --add says it rewrote the file", async () => {
     const { credentialsCommand } = await import("../../src/credentials.js");
     const dir = tempDir();
-    writeFileSync(join(dir, "kept.token"), "a-test-token-that-is-long-enough-0123456789\n", { mode: 0o600 });
+    writeFileSync(join(dir, "kept.token"), `${TOKEN}\n`, { mode: 0o600 });
     writeFileSync(join(dir, "rest-only.json"), JSON.stringify({ http: { enable: ["rest"] } }));
     let err = "";
     const io = { env: {}, cwd: dir, stdout: { write() {} }, stderr: { isTTY: true, write: (t) => (err += t) } };
@@ -629,7 +633,7 @@ test("on a terminal: a kept file is one line; MCP only where the configuration s
 
 test("a request without a token is told what to send in plain words, without angle brackets", async () => {
     const dir = workspace();
-    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "t", env: "T" }] }, baseDir: dir }, { env: { T: "a-test-token-that-is-long-enough-0123456789" } });
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "token", tokens: [{ name: "t", env: "T" }] }, baseDir: dir }, { env: { T: TOKEN } });
     try {
         const r = await call(`${server.api}/sources`);
         assert.equal(r.status, 401);
@@ -686,7 +690,7 @@ test("--force over another user's file: the group kept by chown(-1, gid), only i
     const { placeSecret, secretFileMeans } = await import("../../src/secret-file.js");
     const dir = tempDir();
     const file = join(dir, "theirs.token");
-    writeFileSync(file, "a-test-token-that-is-long-enough-0123456789\n");
+    writeFileSync(file, `${TOKEN}\n`);
     chmodSync(file, 0o660);
     const me = process.getuid?.() ?? 0;
     // the old file's owner and group, neither this user's nor its default group
@@ -724,7 +728,7 @@ test("--force where neither owner nor group can be kept: mode 600 and a warning"
     const { placeSecret, secretFileMeans } = await import("../../src/secret-file.js");
     const dir = tempDir();
     const file = join(dir, "lost.token");
-    writeFileSync(file, "a-test-token-that-is-long-enough-0123456789\n");
+    writeFileSync(file, `${TOKEN}\n`);
     chmodSync(file, 0o640);
     const own = statSync(file).gid;
     const { chown } = secretFileMeans;
@@ -747,8 +751,8 @@ test("--force keeps a second group of this user and its read bit", { skip: (!POS
     // a group a new file in this directory would not get by itself
     const group = (process.getgroups?.() ?? []).find((g) => g !== statSync(dir).gid && g !== process.getgid?.());
     assert.ok(group !== undefined);
-    writeFileSync(file, "a-test-token-that-is-long-enough-0123456789\n");
-    (await import("node:fs")).chownSync(file, process.getuid?.() ?? 0, group);
+    writeFileSync(file, `${TOKEN}\n`);
+    chownSync(file, process.getuid?.() ?? 0, group);
     chmodSync(file, 0o640);
     const kept = await placeSecret(file, "a-new-token-that-is-long-enough-01234567890", { replace: true, label: "shared.token" });
     assert.equal(statSync(file).gid, group, "the group kept");
@@ -759,14 +763,14 @@ test("--force keeps a second group of this user and its read bit", { skip: (!POS
 test("--if-missing that takes away everyone's read access says so; through a link it only reads", { skip: !POSIX && "mode bits and links are POSIX" }, () => {
     const dir = tempDir();
     const file = join(dir, "open.token");
-    writeFileSync(file, "a-test-token-that-is-long-enough-0123456789\n");
+    writeFileSync(file, `${TOKEN}\n`);
     chmodSync(file, 0o604);
     const r = runBin(["token", "new", "--file", file, "--if-missing"]);
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stderr, /warning: .*open\.token: removed everyone's read access \(mode 600, was 604\)/);
     // a mounted Secret: the file behind ..data links, its mode not ours to change
     mkdirSync(join(dir, "..data"));
-    writeFileSync(join(dir, "..data", "reports"), "a-test-token-that-is-long-enough-0123456789\n");
+    writeFileSync(join(dir, "..data", "reports"), `${TOKEN}\n`);
     chmodSync(join(dir, "..data", "reports"), 0o644);
     symlinkSync(join("..data", "reports"), join(dir, "reports"));
     const linked = runBin(["token", "new", "--file", join(dir, "reports"), "--if-missing"]);
@@ -778,7 +782,7 @@ test("--if-missing that takes away everyone's read access says so; through a lin
     for (const flag of ["--print", "--json"]) {
         const printed = runBin(["token", "new", "--file", join(dir, "reports"), "--if-missing", "--print", ...(flag === "--json" ? ["--json"] : [])]);
         assert.equal(printed.status, 2, flag);
-        assert.ok(!printed.stdout.includes("a-test-token-that-is-long-enough"), flag);
+        assert.ok(!printed.stdout.includes(TOKEN), flag);
         assert.match(flag === "--json" ? JSON.parse(printed.stdout).error.message : printed.stderr, /behind a symbolic link/);
     }
 });
@@ -831,7 +835,6 @@ test("the claude mcp add hint says that the token lands in the process list and 
 test("--add notices a same-size edit with the time put back", async () => {
     const { credentialsCommand } = await import("../../src/credentials.js");
     const { secretFileMeans } = await import("../../src/secret-file.js");
-    const { utimesSync } = await import("node:fs");
     const dir = workspace();
     const config = join(dir, "pivotkit.json");
     writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv", title: "AAAA" } } }, null, 2));

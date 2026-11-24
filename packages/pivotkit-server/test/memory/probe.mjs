@@ -29,8 +29,6 @@
 // The markers are made at run time from a hash, so they are in no source text, and the lists to look
 // them up are made after the snapshots, so they are in none of them.
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { createServer } from "node:https";
 import { join } from "node:path";
 import v8 from "node:v8";
@@ -39,7 +37,7 @@ import { createGuardedFetch } from "../../src/sources/fetch.js";
 import { httpMeans, loadFor } from "../../src/sources/http.js";
 import { loadCode } from "../../src/sources/code.js";
 import { COMPUTE_HOOKS } from "../../src/compute.js";
-import { fakeLookup, tempDir } from "../helpers.js";
+import { fakeLookup, loopbackCert, tempDir } from "../helpers.js";
 
 const ROWS = 2000;
 /** The sources: kind, and whether a signed-in person calls it (else a caller without an identity). */
@@ -53,18 +51,19 @@ const SOURCES = [
     { id: "jsonPerson", kind: "json", person: true },
     { id: "codePerson", kind: "code", person: true }
 ];
-const seed = createHash("sha256").update(String(Math.random())).digest("hex");
+/** The run's seed: printed with the result, and taken from $PIVOTKIT_PROBE_SEED to repeat a run. */
+const seed = process.env.PIVOTKIT_PROBE_SEED ?? createHash("sha256").update(String(Math.random())).digest("hex");
 /** A text marker's 24 hex characters: a hash of the run's seed, the source, its class (h, s hidden; v shown) and its row. */
 const markerOf = (source, kind, i) => createHash("sha256").update(`${seed}:${source}:${kind}:${i}`).digest("hex").slice(0, 24);
 const marker = (source, kind, i) => `K${kind}${markerOf(source, kind, i)}K`;
+const STEP = 20_000;
+const FLOATS = [700_000, 700_000 + SOURCES.length * STEP];
+const INTS = [1_800_000_000, 1_900_000_000 + SOURCES.length * STEP];
 /**
  * The numbers of a source's row: hidden float64 and int32, shown int32. On 64-bit V8 (Node's builds)
  * a whole number of this size is a small integer, never boxed, so the snapshots' check of boxed
  * numbers has no effect for hiddenInt: it is covered by the kept data only (the packed int32 bytes).
  */
-const STEP = 20_000;
-const FLOATS = [700_000, 700_000 + SOURCES.length * STEP];
-const INTS = [1_800_000_000, 1_900_000_000 + SOURCES.length * STEP];
 const numbersOf = (n, i) => ({ hiddenFloat: FLOATS[0] + n * STEP + i + 0.375, hiddenInt: 1_900_000_000 + n * STEP + i, shownInt: 1_800_000_000 + n * STEP + i });
 
 /** A source's rows, made anew on every request or load, so nothing of them stays reachable from here. */
@@ -238,12 +237,11 @@ const collect = () => {
 
 // a backend over https on loopback, with a certificate made for this run
 const dir = tempDir("memory");
-execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-keyout", join(dir, "key.pem"), "-out", join(dir, "cert.pem"), "-days", "1", "-subj", "/CN=backend.example.test", "-addext", "subjectAltName=DNS:backend.example.test"], { stdio: "ignore" });
-const cert = readFileSync(join(dir, "cert.pem"));
+const { key, cert } = loopbackCert("backend.example.test");
 /** The requests and loads per source, and the size of the smallest answer. */
 const hits = Object.fromEntries(SOURCES.map((s) => [s.id, 0]));
 let answerBytes = Infinity;
-const backend = createServer({ key: readFileSync(join(dir, "key.pem")), cert }, (req, res) => {
+const backend = createServer({ key, cert }, (req, res) => {
     const n = SOURCES.findIndex((s) => req.url === `/v1/${s.id}`);
     hits[SOURCES[n].id]++;
     const body = answerOf(n);
@@ -332,6 +330,6 @@ withControls();
 collect();
 const control = await report(v8.getHeapSnapshot({ exposeNumericValues: true }));
 
-console.log(JSON.stringify({ rows: ROWS, sources: SOURCES, hits, answerBytes, kept, worker, main, workers, control: { ...control.controls, largestBuffer: control.largestBuffer } }));
+console.log(JSON.stringify({ seed, rows: ROWS, sources: SOURCES, hits, answerBytes, kept, worker, main, workers, control: { ...control.controls, largestBuffer: control.largestBuffer } }));
 await context.close();
 backend.close();

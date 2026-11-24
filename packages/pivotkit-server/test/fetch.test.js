@@ -13,6 +13,7 @@ import { gzipSync } from "node:zlib";
 import { loopbackCert, loopbackFetch as local, plainLoopbackFetch as plainLocal } from "./helpers.js";
 import { GuardedFetchError, addressRefusal, createGuardedFetch, guardedFetch } from "../src/sources/fetch.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
+import { until } from "../../../tests/until.js";
 
 let server;
 let base;
@@ -68,7 +69,6 @@ before(async () => {
 });
 after(() => new Promise((resolve) => server.close(resolve)));
 
-
 /** A lookup that answers what `answers` says, counting its calls. */
 function stubLookup(answers) {
     const stub = (hostname, options, callback) => {
@@ -115,10 +115,10 @@ test("only https: plain http is refused unless allowed, and then only to a loopb
 });
 
 test("an address with a user name or password is refused before anything is sent", async () => {
-    const before = requests.length;
+    const start = requests.length;
     assert.equal(await codeOf(local(`http://user:pass@127.0.0.1:${server.address().port}/ok`)), "USERINFO");
     assert.equal(await codeOf(guardedFetch("https://user@example.com/")), "USERINFO");
-    assert.equal(requests.length, before);
+    assert.equal(requests.length, start);
 });
 
 test("metadata, link-local and unspecified addresses are refused as literals in every spelling, without a lookup", async () => {
@@ -164,7 +164,7 @@ test("a name that resolves to a metadata address, a mapped one or a mix with a p
 });
 
 test("loopback and private addresses are refused unless allowPrivate is true, by name (the system's resolver) and as literals", async () => {
-    const before = connections;
+    const start = connections;
     // refused when the caller says nothing: a caller that forgets the operator's intranet setting fails closed
     assert.equal(await codeOf(plainLocal(`http://localhost:${server.address().port}/ok`)), "REFUSED_ADDRESS");
     assert.equal(await codeOf(plainLocal(`${base}/ok`, { allowIpLiterals: true })), "REFUSED_ADDRESS");
@@ -174,27 +174,27 @@ test("loopback and private addresses are refused unless allowPrivate is true, by
     assert.equal(await codeOf(guardedFetch("https://10.1.2.3/", { allowPrivate: false, allowIpLiterals: true })), "REFUSED_ADDRESS");
     assert.equal(await codeOf(guardedFetch("https://[::ffff:192.168.1.1]/", { allowPrivate: false, allowIpLiterals: true })), "REFUSED_ADDRESS");
     assert.equal(await codeOf(guardedFetch("https://[fd12::1]/", { allowPrivate: false, allowIpLiterals: true })), "REFUSED_ADDRESS");
-    assert.equal(connections, before, "nothing reached the server");
+    assert.equal(connections, start, "nothing reached the server");
     assert.equal((await local(`http://localhost:${server.address().port}/ok`)).status, 200, "allowPrivate: true reaches it");
 });
 
 test("the address is checked where the socket connects: one lookup, and a later answer is never used", async () => {
     // a check before the request followed by a connect would ask twice and reach the second answer
     // (this test's server on loopback); the guard asks once, on the connection itself
-    const before = connections;
+    const start = connections;
     const lookup = stubLookup((n) => (n === 1 ? [{ address: "192.0.2.1", family: 4 }] : [{ address: "127.0.0.1", family: 4 }]));
     const code = await codeOf(createGuardedFetch({ lookup })(`https://rebind.example.test:${server.address().port}/ok`, { timeMs: 400, allowPrivate: false }));
     assert.ok(["TIMEOUT", "NETWORK"].includes(code), code);
     assert.equal(lookup.calls, 1);
-    assert.equal(connections, before);
+    assert.equal(connections, start);
 });
 
 test("a redirect is refused, not followed", async () => {
-    const before = requests.length;
+    const start = requests.length;
     const error = await local(`${base}/redirect`).catch((e) => e);
     assert.equal(error.code, "REDIRECT");
     assert.equal(error.status, 302);
-    assert.equal(requests.length, before + 1, "only the first request was made");
+    assert.equal(requests.length, start + 1, "only the first request was made");
 });
 
 test("bodies over maxBytes are cut: with a Content-Length, streamed, and a gzip bomb counted after decompression", async () => {
@@ -339,7 +339,7 @@ test("a streamed body (a file's read stream) is sent with its stated length; a l
 const timers = () => process.getActiveResourcesInfo().filter((r) => r === "Timeout").length;
 
 test("a header name or value node:http cannot send, or another method, is a GuardedFetchError and leaves no timer behind", async () => {
-    const before = timers();
+    const start = timers();
     const cases = [
         [{ headers: { "bad name": "x" } }, "BAD_HEADER"],
         [{ headers: { "x-a": "caf\u00e9 \u2603" } }, "BAD_HEADER"],
@@ -354,8 +354,8 @@ test("a header name or value node:http cannot send, or another method, is a Guar
     }
     // a Latin-1 value is sent as it is
     assert.equal((await local(`${base}/ok`, { headers: { "x-a": "caf\u00e9" } })).status, 200);
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    assert.equal(timers(), before);
+    // the successful request's own timer is cleared as its answer ends; a refused one never had one
+    await until(() => timers() <= start, { message: `timers left behind: ${timers() - start}` });
 });
 
 test("an IP address as the host needs allowIpLiterals; a name does not; 304 is an answer, not a redirect", async () => {

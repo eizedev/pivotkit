@@ -221,3 +221,25 @@ test("save is an input of POST /views/render, not of the file route", () => {
     assert.equal(schemaOf("/views/render").properties.save?.type, "boolean");
     assert.equal(schemaOf("/views/render/file").properties.save, undefined);
 });
+
+test("/openapi.json and the REST resource's metadata answer GET and HEAD, and other methods with 405 and Allow: GET, HEAD", async () => {
+    const dir = workspace();
+    // an issuer nothing listens on: the metadata's method is checked before the issuer is asked
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "oauth", issuer: "http://127.0.0.1:9/issuer", resource: "http://127.0.0.1:3333/api/v1", allowInsecureIssuer: true }, rest: { openapi: "public" }, baseDir: dir });
+    try {
+        for (const path of ["/openapi.json", "/.well-known/oauth-protected-resource/api/v1"]) {
+            for (const method of ["POST", "PUT", "DELETE"]) {
+                const res = await fetch(`${server.url}${path}`, { method });
+                assert.equal(res.status, 405, `${method} ${path}`);
+                assert.equal(res.headers.get("allow"), "GET, HEAD", `${method} ${path}`);
+            }
+            // HEAD as GET, without a body (the metadata is 503 here: its issuer never answers)
+            const [get, head] = await Promise.all([fetch(`${server.url}${path}`), fetch(`${server.url}${path}`, { method: "HEAD" })]);
+            assert.notEqual(head.status, 405, `HEAD ${path}`);
+            assert.equal(head.status, get.status, `HEAD ${path}`);
+            assert.equal(await head.text(), "");
+        }
+    } finally {
+        await server.close();
+    }
+});

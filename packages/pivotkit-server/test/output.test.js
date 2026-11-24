@@ -5,11 +5,11 @@
 // policy before the first request.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdirSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, constants, existsSync, mkdirSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { whyNot } from "../src/context.js";
+import { outputMeans, whyNot } from "../src/context.js";
 import { prune } from "../src/present.js";
-import { makeRoom } from "../src/output.js";
+import { makeRoom, outputErrorOf } from "../src/output.js";
 import { checkConfig } from "pivotkit-server";
 import { BY_REGION, call, factsOf, restServer, workspace, runBin, tempDir } from "./helpers.js";
 
@@ -190,7 +190,7 @@ test("output.draftMaxAgeDays: drafts that still wait go after that many days, al
     const server = await restServer(options);
     try {
         assert.deepEqual(reports(out).sort(), ["Done.pivotkit-out.report.json", "New.pivotkit-out.report.json", "old.pivotkit-out.csv"]);
-        const said = server.log.filter((l) => /output\.draftMaxAgeDays/.test(l.message ?? l.msg ?? ""));
+        const said = server.log.filter((l) => /output\.draftMaxAgeDays/.test(l.msg ?? ""));
         assert.equal(said.length, 1, JSON.stringify(server.log));
         assert.equal(said[0].drafts, 1);
     } finally {
@@ -257,10 +257,6 @@ test("output.maxMb: the oldest reports go until the new one fits; a directory of
 });
 
 test("an output directory on a read-only file system (a container's --read-only root without a volume): the start, a report and check-config say to mount a volume", async () => {
-    const { outputMeans } = await import("../src/context.js");
-    const { outputErrorOf } = await import("../src/output.js");
-    const { checkConfig } = await import("pivotkit-server");
-    const { constants } = await import("node:fs");
     const { access } = outputMeans;
     const dir = workspace();
     outputMeans.access = async (path, mode) => (mode & constants.W_OK ? Promise.reject(Object.assign(new Error("read-only file system"), { code: "EROFS" })) : access(path, mode));

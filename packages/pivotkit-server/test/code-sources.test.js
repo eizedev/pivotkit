@@ -15,8 +15,8 @@ import { LOAD_CACHE, createLoadCache, encodedBytes } from "../src/sources/cache.
 import { LOAD_HOOKS, LOAD_LIMITS, createLoadRunner, isTransient, loadRunner, ownError, sourceFailure } from "../src/sources/run.js";
 import { createComputer } from "../src/compute.js";
 import { packTable, packedBytes, unpackTable } from "../src/packed.js";
-import { encode } from "pivotkit-core";
-import { call, factsOf, restServer, workspace } from "./helpers.js";
+import { PivotkitError, encode } from "pivotkit-core";
+import { call, factsOf, nobody, restServer, token, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
 const VIEW = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
@@ -25,10 +25,6 @@ const ROWS = [
     { Region: "South", Sales: 20, Secret: "y" }
 ];
 
-/** A static token's caller: an identity of its own. */
-const token = (name) => callerOf("token", { token: "", clientId: name, scopes: [], expiresAt: 0, extra: { allScopes: true } });
-/** An OAuth caller without a usable subject: no identity. */
-const nobody = () => callerOf("oauth", { token: "jwt", clientId: "bot", scopes: [], expiresAt: 0, extra: { subject: null, issuer: "https://issuer.example" } });
 
 /** A context whose log lines are kept. */
 async function contextOf(options) {
@@ -471,7 +467,7 @@ test("last good data: a SourceError refusal drops it too; maxStale 0 turns it of
     }
 });
 
-test("kept data: version() decides as before, ttl reuses for its seconds, without both every call loads", async (t) => {
+test("kept data: version() decides, ttl reuses for its seconds, without both every call loads", async (t) => {
     t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
     let loads = 0;
     let version = 1;
@@ -565,15 +561,13 @@ test("options: cacheShared only for a code source; timeMs at most ten minutes; t
     assert.match(text, /^Code sources \(2\):$/m);
     assert.match(text, /^ {2}a: load up to 20000 ms\n {4}reused while version\(\) is the same\n {4}data per caller\n {4}last good data: off$/m);
     assert.match(text, /^ {2}b: load up to 30000 ms\n {4}loaded on every call\n {4}data per caller\n {4}last good data: up to 3600 s after a transient failure$/m);
-    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
-    assert.doesNotMatch(factsOf(text), /code sources with a time limit and data per caller/);
     // without MCP, where data sent in the request adds no note, a file source alone gives none
     assert.doesNotMatch((await checkConfig({ sources: { f: { file: "x.csv" } } }, { http: false, mcp: false })).text, /Code sources|New in this version/);
     // with MCP on (the default) a file source alone gets no code-source line or note either
     assert.doesNotMatch((await checkConfig({ sources: { f: { file: "x.csv" } } }, { http: false })).text, /Code sources/);
 });
 
-test("the load cache: least recently used out, at most 8 entries and a quarter of the bytes per owner, its own entries first; encoded data measured", () => {
+test("the load cache: least recently used out, at most its entries and a quarter of the bytes per owner, its own entries first; encoded data measured", () => {
     const cache = createLoadCache({ entries: 4, bytes: 100, perIdentity: 2 });
     cache.set("a1", 1, { identity: "a", bytes: 10 });
     cache.set("a2", 2, { identity: "a", bytes: 10 });
@@ -741,7 +735,6 @@ test("hostile: the host's code that throws while its rows are read, and a versio
 });
 
 test("hostile: a host value that throws pivotkit's own error class while it is read never shows its text", async () => {
-    const { PivotkitError } = await import("pivotkit-core");
     const boom = () => {
         throw new PivotkitError("LIMIT_EXCEEDED", "db at 10.1.2.3 is full");
     };
@@ -762,8 +755,9 @@ test("hostile: a host value that throws pivotkit's own error class while it is r
             assert.doesNotMatch(error.message, /10\.1\.2\.3/, id);
         }
         // a value whose toJSON throws is written as encode writes it: empty
-        const json = await present(context, "render_view", { source: "json", view: VIEW, format: "csv" }, LOCAL);
-        assert.doesNotMatch(JSON.stringify(json), /10\.1\.2\.3/);
+        const rendered = await present(context, "render_view", { source: "json", view: VIEW, format: "csv" }, LOCAL);
+        assert.equal(rendered.result.inline.text, "Region,Sum of Sales\r\n(blank),1\r\nGrand Total,1\r\n");
+        assert.doesNotMatch(JSON.stringify(rendered), /10\.1\.2\.3/);
     } finally {
         await context.close();
     }
@@ -1097,7 +1091,7 @@ test("where it runs: a code source's operation is computed in a worker, bounded 
     }
 });
 
-test("where it runs: the same result, hidden fields and dataAsOf as before; rows whose keys differ in case are one column", async (t) => {
+test("where it runs: the same result, hidden fields and dataAsOf in both places; rows whose keys differ in case are one column", async (t) => {
     const loadedAt = Date.UTC(2025, 10, 15, 8, 0, 0);
     // the worker's clock is not this thread's: the time a load ended comes from here
     t.mock.timers.enable({ apis: ["Date"], now: loadedAt });

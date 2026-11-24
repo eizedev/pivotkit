@@ -26,7 +26,7 @@ test("every error class extends CodedError and keeps its name and members", () =
         [new OperationError("INVALID_INPUT", "m"), "OperationError", ["code", "status"]],
         [new OperationError("BUSY", "m", { retryable: true }), "OperationError", ["code", "details", "status"]],
         [new AuthRefusal(401, "invalid_token", "m"), "AuthRefusal", ["error", "status"]],
-        [new CommandError(1, "C", "m"), "Error", ["code", "exitCode", "kind"]],
+        [new CommandError(1, "C", "m"), "CommandError", ["code", "exitCode", "kind"]],
         [new OpenApiError("m"), "OpenApiError", []],
         [new ConfigError("m"), "ConfigError", ["code", "problems"]],
         [new SecretFileError("EXISTS", "m"), "SecretFileError", ["code"]],

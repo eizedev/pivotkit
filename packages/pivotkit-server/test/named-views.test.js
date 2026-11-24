@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { encode, toViewFile, viewFileName, viewFileText } from "pivotkit-core";
+import { encode, toViewFile, viewFileText } from "pivotkit-core";
 import { readViewLink } from "pivotkit-core/link";
 import { ConfigError, checkConfig, createContext, present, validateOptions } from "pivotkit-server";
 import { OTHER_TOKEN, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
@@ -47,7 +47,7 @@ function namedServerOptions(dir, extra = {}) {
 function namedWorkspace() {
     const dir = workspace();
     mkdirSync(join(dir, "data", "views"));
-    writeFileSync(join(dir, "data", "views", viewFileName("Sales by region").replace("sales-by-region", "by-region")), BROWSER_FILE);
+    writeFileSync(join(dir, "data", "views", "by-region.pivotkit.json"), BROWSER_FILE);
     mkdirSync(join(dir, "views-extra"));
     writeFileSync(join(dir, "views-extra", "by-product.json"), JSON.stringify({ rows: ["Product"], values: [{ agg: "count" }] }));
     return dir;

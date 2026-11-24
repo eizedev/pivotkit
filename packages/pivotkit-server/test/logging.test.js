@@ -6,10 +6,10 @@
 // environment; and no token, value, path or claim on any line in either format.
 import { test, mock } from "node:test";
 import assert from "node:assert/strict";
-import { connect } from "node:net";
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { createContext, serve, validateOptions } from "pivotkit-server";
+import { connect, createServer } from "node:net";
+import { chmodSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, sep } from "node:path";
+import { createContext, createServerHandler, serve, validateOptions } from "pivotkit-server";
 import { REFUSED_REASONS, SEVERITY, flushed, logSettingsOf, optionsFrom, refusalReason, startFields, startErrorLine, traceIdOf, upstreamRequestIdOf, withRequestScope, SERVER_FLAGS } from "pivotkit-server/internal";
 import { createLog } from "../src/log.js";
 import { uploadCauseOf } from "../src/delivery.js";
@@ -26,13 +26,13 @@ function keptLog(settings, { tty = false, env = {}, version = "0.7.0" } = {}) {
     return { log: createLog(settings, stream, { service: "pivotkit-server", version, env }), lines };
 }
 
-/** The scope of the issue's example line. */
+/** The scope of the documented example line (docs/reference/operations.md). */
 const EXAMPLE_SCOPE = Object.freeze({ id: "F0iFBi9CZjQ", traceId: "4bf92f3577b34da6a3ce929d0e0e4736", address: "192.0.2.10" });
 
-/** The issue's example request line. */
+/** The documented example request line (docs/reference/operations.md, from #446). */
 const EXAMPLE_ENTRY = Object.freeze({ operation: "describe_source", route: "POST /sources/describe", client: "reports", source: "web", status: 502, code: "SOURCE_UNAVAILABLE", ms: 15 });
 
-test("the spec's example lines: the same request in JSON and in text, field for field", () => {
+test("the documented example lines: the same request in JSON and in text, field for field", () => {
     mock.timers.enable({ apis: ["Date"], now: new Date("2026-11-15T11:12:45.066Z") });
     try {
         const json = keptLog({ format: "json" });
@@ -396,7 +396,7 @@ test("redaction with OAuth: no token, claim, group or subject on any line, in JS
                 for (const secret of [good, wrongAudience, forged, good.split(".")[1], ...Object.values(CLAIMS).flat(), "subject-secret-4711"]) {
                     assert.ok(!all.includes(secret), `${format}: ${String(secret).slice(0, 12)}... is not logged`);
                 }
-                assert.equal((all.match(/bad_token/g) ?? []).length >= 2, true);
+                assert.ok((all.match(/bad_token/g) ?? []).length >= 2, all);
             } finally {
                 await server.close();
             }
@@ -407,7 +407,6 @@ test("redaction with OAuth: no token, claim, group or subject on any line, in JS
 });
 
 test("a host that serves the handler itself: every answer still names its id in X-Request-Id, the same as its lines; the handler's trustProxy wins", async () => {
-    const { createServerHandler } = await import("pivotkit-server");
     const dir = workspace();
     const lines = [];
     const handler = await createServerHandler({ sources: { sales: { file: "data/sales.csv" } }, http: { enable: ["rest"], trustProxy: true }, baseDir: dir }, { env: {}, stderr: { write: (t) => lines.push(JSON.parse(t)) }, loopback: true });
@@ -453,7 +452,7 @@ test("JSON lines: every text value without C0, C1 or bidi controls, a Host and a
     const dir = workspace();
     const { server, text } = await rawServer({ sources: { sales: { file: "data/sales.csv" } }, log: { format: "json" }, baseDir: dir });
     try {
-        await raw(`${server.url}/api/v1/sources`, { headers: { host: Buffer.from("evil\u009b.example", "latin1").toString("latin1"), origin: "https://o\u0085.example" } }).catch(() => undefined);
+        await raw(`${server.url}/api/v1/sources`, { headers: { host: "evil\u009b.example", origin: "https://o\u0085.example" } }).catch(() => undefined);
     } finally {
         await server.close();
     }
@@ -470,10 +469,18 @@ test("started: token names and source ids at most 64 characters, without control
 });
 
 test("refusal reasons: every code the servers refuse with has a reason of its own; an unmapped one is its own name, never bad_request", () => {
-    // the codes passed to refusalReason anywhere in pivotkit-server and pivotkit-mcp
-    const sources = ["../src", "../src/rest", "../../pivotkit-mcp/src"].flatMap((dir) => readdirSync(new URL(dir, import.meta.url)).filter((f) => f.endsWith(".js")).map((f) => readFileSync(new URL(`${dir}/${f}`, import.meta.url), "utf8")));
-    const codes = new Set(sources.flatMap((text) => [...text.matchAll(/refusalReason\("([A-Z_]+)"/g)].map((m) => m[1])));
+    // the codes passed to refusalReason anywhere in pivotkit-server and pivotkit-mcp, also as either
+    // side of a condition (refusalReason(client ? "NOT_ALLOWED" : "INSUFFICIENT_SCOPE"))
+    const sources = ["../src", "../../pivotkit-mcp/src"].flatMap((dir) =>
+        readdirSync(new URL(dir, import.meta.url), { recursive: true })
+            .filter((f) => f.endsWith(".js"))
+            .map((f) => readFileSync(new URL(`${dir}/${f.split(sep).join("/")}`, import.meta.url), "utf8"))
+    );
+    const codes = new Set(sources.flatMap((text) => [...text.matchAll(/refusalReason\(([^,)]*)/g)].flatMap((m) => [...m[1].matchAll(/"([A-Z_]{4,})"/g)].map((c) => c[1]))));
     assert.ok(codes.size >= 10, [...codes].join(", "));
+    for (const code of ["NOT_ALLOWED", "INSUFFICIENT_SCOPE", "AUTH_NOT_READY", "TOKEN_IN_ADDRESS", "INVALID_INPUT"]) {
+        assert.ok(codes.has(code), `the scan finds ${code} in a condition`);
+    }
     for (const code of codes) {
         assert.ok(REFUSED_REASONS.includes(refusalReason(code)), `${code} has no reason of its own`);
     }
@@ -491,13 +498,12 @@ test("debug-level refusals: a path nobody serves and a GET of the MCP endpoint a
         try {
             await call(`${server.url}/wp-admin.php`);
             await fetch(`${server.url}/mcp`, { headers: { accept: "text/event-stream" } });
-            const broken = await new Promise((resolve) => {
-                import("node:net").then(({ connect }) => {
-                    const socket = connect(Number(new URL(server.url).port), "127.0.0.1", () => socket.write("GET / HTTP/1.1\r\nHost: localhost\r\nBad Header Line\r\n\r\n"));
-                    let answer = "";
-                    socket.on("data", (d) => (answer += d));
-                    socket.on("close", () => resolve(answer));
-                });
+            const broken = await new Promise((resolve, reject) => {
+                const socket = connect(Number(new URL(server.url).port), "127.0.0.1", () => socket.write("GET / HTTP/1.1\r\nHost: localhost\r\nBad Header Line\r\n\r\n"));
+                let answer = "";
+                socket.on("data", (d) => (answer += d));
+                socket.on("error", reject);
+                socket.on("close", () => resolve(answer));
             });
             assert.match(String(broken), /^HTTP\/1\.1 400 Bad Request\r\n[\s\S]*X-Request-Id: ([A-Za-z0-9_-]{11})/);
             const id = /X-Request-Id: ([A-Za-z0-9_-]{11})/.exec(String(broken))?.[1];
@@ -568,7 +574,15 @@ test("every 4xx answer has exactly one line under its X-Request-Id: what the MCP
 test("an error answer with no line of its own: a 5xx gets an error-level refused line whose reason is the problem's code; /readyz says only when readiness changes", async () => {
     const dir = workspace();
     // an issuer nothing listens on: its metadata never loads, so the REST resource's metadata is 503 AUTH_NOT_READY
-    const { server, text } = await rawServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "oauth", issuer: "http://127.0.0.1:9/issuer", resource: "http://127.0.0.1:3333/api/v1", allowInsecureIssuer: true }, log: { format: "json", level: "info" }, baseDir: dir });
+    // an issuer on a port nobody listens on: one the test had and closed
+    const closedPort = await new Promise((resolve) => {
+        const probe = createServer();
+        probe.listen(0, "127.0.0.1", () => {
+            const { port } = /** @type {import("node:net").AddressInfo} */ (probe.address());
+            probe.close(() => resolve(port));
+        });
+    });
+    const { server, text } = await rawServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "oauth", issuer: `http://127.0.0.1:${closedPort}/issuer`, resource: "http://127.0.0.1:3333/api/v1", allowInsecureIssuer: true }, log: { format: "json", level: "info" }, baseDir: dir });
     try {
         const answer = await raw(`${server.url}/.well-known/oauth-protected-resource/api/v1`);
         assert.equal(answer.status, 503);
@@ -599,7 +613,6 @@ test("an error answer with no line of its own: a 5xx gets an error-level refused
 test("/readyz: one line when the server is no longer ready (warn) and one when it is ready again (info)", { skip: (process.platform === "win32" || process.getuid?.() === 0) && "file modes" }, async () => {
     const dir = workspace();
     const { server, text } = await rawServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, log: { format: "json", level: "info" }, baseDir: dir });
-    const { chmodSync } = await import("node:fs");
     try {
         const probe = async () => (await raw(`${server.url}/readyz`)).status;
         assert.equal(await probe(), 200);

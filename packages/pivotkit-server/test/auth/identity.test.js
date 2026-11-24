@@ -2,7 +2,7 @@
 // "local"; identityKey is the only identity caches and bindings use, and it fails closed (null) for a
 // token without a usable subject and for a caller the server did not make. The caller never holds the
 // access token; only exchangeTokenFor sends it, and only sources/auth.js may import it.
-// The https tests make a certificate per run with the openssl command (loopbackCert in helpers.js):
+// The https test makes a certificate per run with the openssl command (loopbackCert in helpers.js):
 // it must be on the PATH.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -14,7 +14,7 @@ import { localIssuer } from "./local-issuer.js";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { callerOf, createContext } from "pivotkit-server";
+import { callerOf, validateOptions } from "pivotkit-server";
 import { identityKey } from "../../src/context.js";
 import { callerView, createAuthCore, exchangeTokenFor } from "../../src/auth.js";
 
@@ -137,9 +137,11 @@ test("exchangeTokenFor refuses a caller without a signed-in person, and only sou
     assert.equal("exchangeTokenFor" in (await import("pivotkit-server")), false);
 });
 
-test("auth.subjectClaim is an option of the configuration", async () => {
-    const context = await createContext({ auth: { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp", subjectClaim: "oid" } });
-    await context.close();
+test("auth.subjectClaim is an option of the configuration", () => {
+    const auth = { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" };
+    assert.equal(validateOptions({ auth: { ...auth, subjectClaim: "oid" } }).auth.subjectClaim, "oid");
+    // a misspelt key is refused, so the line above proves the option is known
+    assert.throws(() => validateOptions({ auth: { ...auth, subjectClam: "oid" } }), /unknown key "subjectClam"; did you mean "subjectClaim"/);
 });
 
 test("exchangeTokenFor sends the caller's token as the subject_token to the token endpoint only, with the client's credentials", async () => {

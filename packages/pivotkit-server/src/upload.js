@@ -29,7 +29,7 @@ import { createReadStream } from "node:fs";
 import { readSecret } from "./secrets.js";
 import { GuardedFetchError, guardedFetch } from "./sources/fetch.js";
 import { pointerValue } from "./sources/http.js";
-import { HEADER_NAME } from "./options/headers.js";
+import { HEADER_NAME, headerValueOf } from "./options/headers.js";
 import { uploadMaxBytes, uploadSettingsOf } from "./options/upload.js";
 
 /**
@@ -57,8 +57,8 @@ const REFUSED_UPLOAD_HEADERS = /^(host|content-length|content-type|content-encod
 /** The most uploads waiting for a slot; one more is refused at once (TIMEOUT, retryable). */
 export const UPLOAD_QUEUE_MAX = 32;
 
-/** A header's value the presign service asks for: printable Latin-1 and tab (longer than a configured one: a signed session token). */
-const UPLOAD_HEADER_VALUE = /^[\t\x20-\x7e\x80-\xff]{0,4096}$/;
+/** A header's value the presign service asks for (options/headers.js headerValueOf), longer than a configured one: a signed session token. */
+const UPLOAD_HEADER_VALUE = headerValueOf(0, 4096);
 
 /** The most headers the presign service may ask for. */
 const UPLOAD_HEADERS_MAX = 20;
@@ -76,8 +76,8 @@ const EXPIRY_MAX_MS = 366 * 86_400_000;
  * PRESIGN_/STORE_ and a guardedFetch code);
  * `retryable` whether the same request may work later. The message is the code: no address, answer
  * or header value.
+ * @extends {CodedError<string, undefined>}
  */
-/** @extends {CodedError<string, undefined>} */
 export class UploadFailure extends CodedError {
     /**
      * @param {string} code
@@ -167,7 +167,7 @@ export const checkedAddress = (text, origins, max, base) => addressCheck(text, o
  * @param {unknown} value
  * @param {number} [now]
  */
-export function expiryOf(value, now = Date.now()) {
+export function uploadExpiryOf(value, now = Date.now()) {
     let ms = NaN;
     if (typeof value === "number" && Number.isFinite(value)) {
         ms = value * 1000;
@@ -410,7 +410,7 @@ export async function upload(context, file, meta) {
             // the store holds the report by now: it stays there (the operator's store cleans it up)
             throw new UploadFailure(`LINK_${problem}`, false);
         }
-        const expiresAt = expiry === undefined ? null : expiryOf(expiry);
+        const expiresAt = expiry === undefined ? null : uploadExpiryOf(expiry);
         return { url: url.href, ...(expiresAt ? { expiresAt } : {}) };
     });
 }

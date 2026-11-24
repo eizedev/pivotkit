@@ -75,7 +75,7 @@ test("#479: a row longer than its header is left out of a source that hides a fi
     }
 });
 
-test("#479: a source that hides nothing keeps such a row (its extra values in a hidden Column N), as before", async () => {
+test("#479: a source that hides nothing keeps such a row (its extra values in a hidden Column N)", async () => {
     const dir = workspace({ "staff.csv": SHIFTED_CSV });
     const server = await restServer({ sources: { staff: { file: "data/staff.csv", policy: { default: "show" } } }, baseDir: dir });
     try {
@@ -114,12 +114,12 @@ test("#479: the ROWS_DROPPED note stays when a hidden column is called name (not
 
 test("#479: a row longer than its header only by an empty last cell is left out too: its values are shifted all the same", async () => {
     const dir = workspace({ "people.csv": "name,ssn,city\nann,11,Berlin\nbob,12,3,\n" });
-    const server = await restServer({ sources: { people: { file: "data/people.csv", policy: { default: "show", fields: { ssn: "hide" } } } }, baseDir: dir });
+    const server = await restServer({ sources: { people: { file: "data/people.csv", policy: { default: "show", fields: { ssn: "hide" }, results: true } } }, baseDir: dir });
     try {
-        const city = await call(`${server.api}/views/render`, { body: { source: "people", view: { rows: ["city"], values: [{ agg: "count" }] }, format: "json" } });
-        // the request's random id may hold a 3 (#721): only the parts that can carry data are read
-        const answer = JSON.stringify({ ...city.data, requestId: undefined });
-        assert.doesNotMatch(answer, /"3"|\b3\b(?=[^0-9])/, answer);
+        const city = await call(`${server.api}/views/render/file`, { body: { source: "people", view: { rows: ["city"], values: [{ agg: "count" }] }, format: "csv" } });
+        assert.equal(city.status, 200);
+        // bob's row is left out: its 3 would sit under city
+        assert.equal(Buffer.from(city.data).toString("utf8"), "\uFEFFcity,Count\r\nBerlin,1\r\nGrand Total,1\r\n");
         const described = await call(`${server.api}/sources/describe`, { body: { source: "people" } });
         assert.equal(described.data.rows, 1);
     } finally {

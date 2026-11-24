@@ -15,7 +15,6 @@ import { PARAMS_BUSY_TEXT } from "../sources/params.js";
 import { TEMPLATE_UNAVAILABLE_TEXT } from "../print-template.js";
 import { DOCS_SITE } from "../options/branding.js";
 
-
 /** The codes the REST layer adds to the operations', with their status, and every code a problem can carry: pivotkit-node/rest's, which the CLI's remote mode checks answers against. */
 export { REST_ERRORS, PROBLEM_CODES } from "pivotkit-node/rest";
 

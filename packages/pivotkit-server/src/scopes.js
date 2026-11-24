@@ -15,7 +15,7 @@ import { holds } from "./registry.js";
 
 /**
  * The scopes a resource's metadata offers (scopes_supported), or null for none. auth.scopesSupported,
- * when set, is taken as it is (an empty list too); otherwise the surface's required scopes (REST:
+ * when set, is taken as it is (an empty list offers none, unless a scope is required); otherwise the surface's required scopes (REST:
  * rest.requiredScopes, else auth.requiredScopes; MCP: auth.requiredScopes) and, with
  * auth.offerSourceScopes true, the scopes of the sources (MCP: files.scopes too; REST takes no
  * file paths), without those auth.scopeProfiles names. null when that leaves none.

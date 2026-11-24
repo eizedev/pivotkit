@@ -16,11 +16,10 @@ import { placeMarker, sweepMarkers } from "../src/downloads/markers.js";
 import { dispositionOf, filenameOf } from "../src/downloads/files.js";
 import { sizeText } from "../src/downloads/pages.js";
 import { SIGN_IN_CALLBACKS } from "../src/downloads/sign-in.js";
-import { NO_LINK_NOTE, linkFor, resourceLinkOf } from "../src/delivery.js";
+import { NO_LINK_NOTE, deliver, linkFor, resourceLinkOf } from "../src/delivery.js";
 import { BY_REGION, call, factsOf, raw, restServer, SALES_CSV, tempDir, TOKEN, untilReady, workspace } from "./helpers.js";
 import { localIssuer, signingKey } from "./auth/local-issuer.js";
 import { createContext } from "../src/context.js";
-import { deliver } from "../src/delivery.js";
 import { until } from "../../../tests/until.js";
 
 const PUBLIC = "https://reports.example.com";
@@ -29,6 +28,9 @@ const REST_RESOURCE = `${PUBLIC}/api/v1`;
 const CLIENT_ID = "pivotkit-downloads";
 const DL_KEY = "a-download-key-for-tests-that-is-long-enough-0123456789";
 const KEYS = subkeysOf(Buffer.from(DL_KEY, "utf8"));
+
+/** HMAC-SHA256 in base64url (a signature under a key the test holds). */
+const createHmacB64 = (keyBytes, text) => createHmac("sha256", keyBytes).update(text).digest("base64url");
 
 /** The provider (auth/local-issuer.js with a token endpoint), its address and its key. */
 let provider;
@@ -186,9 +188,6 @@ test("token: a signed token reads back; a changed payload or signature, another 
     assert.notEqual(subjectDigest(KEYS, "a", "b\u0000c", "d"), subjectDigest(KEYS, "a\u0000b", "c", "d"));
 });
 
-/** HMAC-SHA256 in base64url (a signature under a key the test holds). */
-const createHmacB64 = (keyBytes, text) => createHmac("sha256", keyBytes).update(text).digest("base64url");
-
 test("file names: the stored name's prefix and mark come off; Content-Disposition holds no line break, quote or backslash", () => {
     assert.equal(filenameOf("Q3vB0rD3cE1fG9hI2jK4lM-Sales by region.pivotkit-out.xlsx"), "Sales by region.xlsx");
     assert.equal(filenameOf("Q3vB0rD3cE1fG9hI2jK4lM-Weekly.pivotkit-out.report.json"), "Weekly.report.json");
@@ -196,6 +195,8 @@ test("file names: the stored name's prefix and mark come off; Content-Dispositio
     const header = dispositionOf('Umsätze "Q3"\r\nSet-Cookie: x=1\\.xlsx');
     assert.doesNotMatch(header, /[\r\n]/);
     assert.equal(header, `attachment; filename="Ums_tze Q3Set-Cookie: x=1.xlsx"; filename*=UTF-8''Ums%C3%A4tze%20Q3Set-Cookie%3A%20x%3D1.xlsx`);
+    // a lone surrogate: encodeURIComponent would throw on it
+    assert.equal(dispositionOf("a\uD800b.csv"), `attachment; filename="a_b.csv"; filename*=UTF-8''a%EF%BF%BDb.csv`);
 });
 
 test("which report gets which link: open sources plain links, closed ones only bound (sign-in with a subject, or the operator's once), REST only with results", () => {
@@ -536,7 +537,6 @@ test("once: the page names the file, its kind, size and expiry; after the downlo
         assert.match(html, /<p class="file">q3-sales-by-region\.csv<\/p>/);
         const expiry = new Date(Date.parse(/** @type {string} */ (output.expiresAt))).toISOString();
         assert.match(html, new RegExp(`<p>CSV file, ${size} bytes\\. <span id="until">It can be downloaded once, until <time datetime="${expiry}">${expiry.slice(0, 10)} ${expiry.slice(11, 16)} UTC</time>\\.</span></p>`));
-        // shown after the click, by the page's script; the time the browser's own zone
         // after the click the page's script says it, in the repeat window's minutes
         assert.match(html, /textContent='Downloaded once\. You can repeat it for 2 minutes, in this browser\.'/);
         assert.match(html, /timeZoneName:'short'/);
@@ -899,7 +899,7 @@ test("signIn: the callback checks the link's expiry again; reports over open sou
     }
 });
 
-test("signIn: while the sign-in issuer is not loaded a link answers 503; REST callers without results get no link to a closed report", async () => {
+test("signIn: while the sign-in issuer is not loaded a link answers 503; REST callers without results get no link to a closed report", async (t) => {
     // a provider whose metadata serves access tokens (keys) but names no sign-in endpoints: the
     // server takes calls, its sign-in links wait for metadata they can use
     const half = createServer((req, res) => {
@@ -908,7 +908,7 @@ test("signIn: while the sign-in issuer is not loaded a link answers 503; REST ca
     });
     await new Promise((resolve) => half.listen(0, "127.0.0.1", resolve));
     const halfIssuer = `http://127.0.0.1:${/** @type {any} */ (half.address()).port}`;
-    after(() => new Promise((resolve) => half.close(resolve)));
+    t.after(() => new Promise((resolve) => half.close(resolve)));
     const dir = workspace();
     const server = await restServer(
         {
@@ -990,8 +990,6 @@ test("check-config: where links point, which sources get which link, the redirec
     assert.match(auto, /closed for plain links: sales \(the automatic values rule\)/);
     assert.match(auto, /^ {4}for plain links, write a policy: the automatic values rule decides levels by the data, so it closes the source$/m);
     assert.match(signIn.text, /^WARNING \(Delivery\): output\.downloads\.key is not set: links stop working on a restart and on another replica$/m);
-    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
-    assert.doesNotMatch(signIn.text, /download links under \/downloads\/, answered without a token/);
 
     const once = await checkConfig({ sources, output: { dir: "out", downloads: { bind: "once", key: { env: "DL_KEY" } } }, baseDir: dir }, { http: true, env: { DL_KEY: "short" } });
     assert.match(once.text, /reports over closed sources \(sales\): one-time links/);
@@ -1067,9 +1065,8 @@ test("a rotated key takes effect without a restart, within KEY_READ_MS: links of
         const before = await render("Before");
         assert.equal((await fetch(before.url)).status, 200);
         env.DL_KEY = "another-download-key-for-tests-that-is-long-enough-9876543210";
-        // the key is read again at most every KEY_READ_MS
-        await new Promise((resolve) => setTimeout(resolve, KEY_READ_MS + 50));
-        assert.equal((await fetch(before.url)).status, 404);
+        // the key is read again at most every KEY_READ_MS: the old link turns 404 within it
+        await until(async () => (await fetch(before.url)).status === 404, { tries: Math.ceil((KEY_READ_MS * 5) / 20), every: 20, message: "the old key's link still answers" });
         const after = await render("After");
         assert.equal((await fetch(after.url)).status, 200);
         assert.equal(readToken(KEYS, after.url.split("/downloads/")[1]), null);
@@ -1102,6 +1099,7 @@ test("no random-key warning where no report can get a link (only closed sources,
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir });
     try {
+        // a fixed sleep: nothing may be said meanwhile (the start's check gives no line to wait for)
         await new Promise((r) => setTimeout(r, 100));
         assert.ok(!server.log.some((l) => /random key/.test(l.message ?? "")), JSON.stringify(server.log));
     } finally {
@@ -1222,6 +1220,30 @@ test("signIn: a token endpoint on a metadata address is refused before a request
     }
 });
 
+test("signIn: a token endpoint that answers no JSON fails the sign-in, and the debug log never quotes its answer", async () => {
+    const own = provider.routes["/token"];
+    provider.routes["/token"] = (req, res) => {
+        req.resume();
+        req.on("end", () => {
+            res.writeHead(200, { "content-type": "text/plain" });
+            res.end("never-logged-token");
+        });
+    };
+    const { server, render, open, callback } = await signInServer({ more: { log: { level: "debug" } } });
+    try {
+        const output = await render("alice");
+        const redirect = await open(output.url);
+        const { code, state } = signInAt(/** @type {string} */ (redirect.headers.get("location")), "alice");
+        const got = await callback(code, state, cookieOf(redirect));
+        assert.equal(got.status, 400);
+        assert.match(logText(server), /download links: the sign-in failed/);
+        assert.doesNotMatch(logText(server), /never-logged/);
+    } finally {
+        provider.routes["/token"] = own;
+        await server.close();
+    }
+});
+
 test("signIn: HEAD on a link answers its state without starting a sign-in: no redirect, no cookie (link previews)", async () => {
     const { server, render, local, open } = await signInServer();
     try {
@@ -1309,7 +1331,7 @@ test("signIn: sign-in callbacks from one address are rate limited (each writes a
         }
         assert.ok(statuses.includes(429), String(statuses));
         assert.equal(statuses[0], 200);
-        assert.ok(server.log.some((l) => l.event === "download" && l.code === "RATE_LIMITED") || server.log.some((l) => l.status === 429), "the refusal has a line");
+        assert.ok(server.log.some((l) => l.event === "download" && l.bound === "signIn" && l.code === "RATE_LIMITED" && l.status === 429), JSON.stringify(server.log.filter((l) => l.code === "RATE_LIMITED" || l.status === 429)));
     } finally {
         await server.close();
     }

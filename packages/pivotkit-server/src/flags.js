@@ -19,8 +19,7 @@ import { configFrom, stateDirOf } from "./state.js";
  * The flags both runners take, defined once: the HTTP ones (`http`) say what they set, without the
  * runner's own words around them (pivotkit-mcp puts "HTTP: " before them, since it serves stdio by
  * default).
- */
-/** @type {Readonly<{ source: Flag, output: Flag, http: FlagTable, log: Flag, "log-format": Flag, "log-address": Flag, "check-config": Flag, help: Flag }>} */
+ * @type {Readonly<{ source: Flag, output: Flag, http: FlagTable, log: Flag, "log-format": Flag, "log-address": Flag, "check-config": Flag, help: Flag }>} */
 export const SHARED_FLAGS = Object.freeze({
     source: { type: "string", multiple: true, value: "id=file", text: "A source: its id and a CSV, TSV, JSON or XLSX file (may be given more than once)." },
     output: { type: "string", value: "dir", text: "Write reports and drafts into this directory (made at start if missing)." },
@@ -44,12 +43,11 @@ export const SHARED_FLAGS = Object.freeze({
 /**
  * The shared HTTP flags with a prefix before each text ("HTTP: ").
  * @param {string} prefix
+ * @returns {Record<string, Flag>}
  */
-/** @returns {Record<string, Flag>} */
 export const httpFlags = (prefix = "") => Object.fromEntries(Object.entries(SHARED_FLAGS.http).map(([name, f]) => [name, { ...f, text: prefix ? `${prefix}${f.text[0].toLowerCase()}${f.text.slice(1)}` : f.text }]));
 
-/** The flags of `pivotkit-server serve` and `check-config`. */
-/** @type {FlagTable} */
+/** The flags of `pivotkit-server serve` and `check-config`. @type {FlagTable} */
 export const SERVER_FLAGS = Object.freeze({
     config: { type: "string", value: "file", text: "The configuration file (JSON); default $PIVOTKIT_CONFIG." },
     source: SHARED_FLAGS.source,
@@ -168,6 +166,8 @@ export async function optionsFrom(argv, env, { flags, configEnv, program = "pivo
         }
         options.sources = { ...options.sources, [entry.slice(0, at)]: { file: entry.slice(at + 1) } };
     }
+    // --allow-dir and --list-files are flags of pivotkit-mcp's runner only (its own table); the
+    // server's table has none, so they are undefined here when the server's runner parses
     if (values["allow-dir"] || values["list-files"]) {
         options.files = { ...options.files, allowDirs: [...(options.files?.allowDirs ?? []), ...(values["allow-dir"] ?? [])], ...(values["list-files"] ? { list: true } : {}) };
     }

@@ -14,7 +14,6 @@ const FILE_CSP = "sandbox; default-src 'none'";
 /** The media types of the files pivotkit writes, by extension. */
 const MEDIA_TYPES = Object.freeze({ xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", html: "text/html; charset=utf-8", csv: "text/csv; charset=utf-8", json: "application/json", svg: "image/svg+xml" });
 
-
 /** What a page calls a report's file, by extension. */
 const FILE_KINDS = Object.freeze({ xlsx: "Excel workbook", html: "HTML report", csv: "CSV file", json: "JSON file", svg: "SVG image" });
 
@@ -34,8 +33,9 @@ export function filenameOf(stored) {
  * @param {string} name
  */
 export function dispositionOf(name) {
-    // control characters (line breaks among them), quotes and backslashes out
-    const clean = [...name].filter((c) => c.charCodeAt(0) > 0x1f && c.charCodeAt(0) !== 0x7f && c !== '"' && c !== "\\").join("");
+    // control characters (line breaks among them), quotes and backslashes out; a lone surrogate
+    // becomes U+FFFD (encodeURIComponent throws on one)
+    const clean = [.../** @type {any} */ (name).toWellFormed()].filter((c) => c.charCodeAt(0) > 0x1f && c.charCodeAt(0) !== 0x7f && c !== '"' && c !== "\\").join("");
     const ascii = clean.replace(/[^\x20-\x7e]/g, "_") || "report";
     const encoded = encodeURIComponent(clean).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
     return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;

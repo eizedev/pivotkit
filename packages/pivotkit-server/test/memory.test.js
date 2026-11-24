@@ -18,10 +18,12 @@ const PROBE = fileURLToPath(new URL("./memory/probe.mjs", import.meta.url));
 /** The probe's backend needs a certificate from openssl, as the other tests of HTTP sources do. */
 const noOpenssl = spawnSync("openssl", ["version"]).error ? "openssl is not installed: the probe's https backend needs a certificate made with it" : false;
 
-test("a hidden column is kept nowhere: not in the kept loads, not in the worker's data sets, not among what the main thread or the worker still reach", { skip: noOpenssl }, () => {
+test("a hidden column is kept nowhere: not in the kept loads, not in the worker's data sets, not among what the main thread or the worker still reach", { skip: noOpenssl }, (t) => {
     const run = spawnSync(process.execPath, ["--expose-gc", PROBE], { encoding: "utf8", timeout: 120_000 });
     assert.equal(run.status, 0, run.stderr);
-    const { rows, sources, hits, answerBytes, kept, worker, main, workers, control } = JSON.parse(run.stdout.trim().split("\n").at(-1) ?? "");
+    const { seed, rows, sources, hits, answerBytes, kept, worker, main, workers, control } = JSON.parse(run.stdout.trim().split("\n").at(-1) ?? "");
+    // a failing run repeats with the same markers: PIVOTKIT_PROBE_SEED=<seed>
+    t.diagnostic(`the probe's seed: ${seed}`);
     const none = { hiddenTexts: 0, hiddenNumbers: 0 };
     const hiddenOf = (look) => ({ hiddenTexts: look.hiddenTexts, hiddenNumbers: look.hiddenNumbers });
 
