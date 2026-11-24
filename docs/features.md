@@ -232,8 +232,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - The rows of a source for a host application's backend, off by default
       ([rows route](reference/records.md#records)).
     - CORS off by default, and limits per caller.
-    - A configuration check that says whether the server starts, and commands to make, list and
-      revoke tokens and keys ([list, revoke, remove](reference/tokens.md#token-list)).
+    - A configuration check that says whether the server starts. Commands make tokens and keys, and
+      list, revoke and remove tokens ([tokens and keys](reference/tokens.md)).
 - Sources for both services ([data sources](reference/sources.md)):
     - data files
     - an operator's API as an HTTP source
@@ -253,7 +253,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
   ([server in 5 minutes](getting-started/server-in-5-minutes.md),
   [made at the first start](reference/tokens.md#first-start), [container image](reference/container.md),
   [Kubernetes](getting-started/kubernetes.md)):
-    - Small, non-root, read-only, with health checks.
+    - Distroless, non-root, read-only, with health checks.
     - Signed, with provenance and an SBOM.
     - One `docker run` serves example data and makes its own token at the first start.
 - A log for operations, as JSON lines with request ids and outcomes, with examples for Docker's
@@ -270,7 +270,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - Tools to write views, or lay them out by field names, and to validate and describe them.
     - Tools to render reports into files, make links and draft schedules, from a view, a layout or a
       view the operator published by name.
-    - The model reads only what the policy shows ([what reaches an AI model](model-data.md)).
+    - Through pivotkit, the model reads only what the policy shows. A client with file tools can
+      [reach more](model-data.md#beyond-policy).
 - An exposure policy per field, from the field's values down to nothing
   ([exposure policy](reference/mcp.md#policy)). Results over fields that are not shown stay in the
   file.
