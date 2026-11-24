@@ -201,12 +201,12 @@ export const en = {
     // the tooltip's line for the series that do not fit
     chartMore: "+{count} more",
     chartMoreInTotal: "+{count} more (in the total)",
-    // said when a click on the legend hides or shows a series (or a slice)
     // the chart's text alternative of a 100 % stack
     chartShares: "Shown as shares of each stack.",
     // the zoom slider by keyboard: its name, and what it shows
     chartZoom: "Zoom window",
     chartZoomWindow: "Categories {from} to {to} of {count}",
+    // said when a click on the legend hides or shows a series (or a slice)
     chartHidden: "{name} hidden",
     chartShown: "{name} shown",
     categories: "categories",
