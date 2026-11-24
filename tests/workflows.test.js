@@ -227,6 +227,12 @@ test("a pull request runs the browser matrix unless it changes only docs, Markdo
         if: "github.event_name == 'push'",
         uses: "./.github/workflows/browser.yml"
     });
+    // a pull request's run of ci.yml has no browser jobs: a release and the image take a push run only
+    for (const [file, job] of [["release.yml", "build"], ["image.yml", "publish"]]) {
+        const queries = jobOf(file, job).steps.flatMap(commandsOf).filter((line) => line.includes("actions/workflows/ci.yml/runs?"));
+        assert.equal(queries.length, 1, `${file}: one query for the CI run of the tagged commit`);
+        assert.match(queries[0], /[?&]event=push&/, `${file} accepts a pull request's CI run, which has no browser tests`);
+    }
 });
 
 // what the browser jobs build, serve and test names no ignored path: a string such as "docs/x.md",
@@ -238,7 +244,7 @@ test("the browser jobs read nothing their pull request filter ignores", () => {
     const files = read.flatMap((path) => {
         const url = new URL(path, root);
         if (/\.[a-z]+$/.test(path)) return [path];
-        return readdirSync(url, { recursive: true }).map((name) => `${path}/${name}`);
+        return readdirSync(url, { recursive: true }).map((name) => `${path}/${name.replaceAll("\\", "/")}`);
     }).filter((path) => /\.(c?m?js|jsx|html|json)$/.test(path) && !/(^|\/)package(-lock)?\.json$/.test(path) && !/(^|\/)(node_modules|dist|types|test)\//.test(path) && !/\/data\//.test(path));
     assert.ok(files.length > 100, `only ${files.length} files read`);
     const ignored = /["'`](?:\.{1,2}\/)*(?:docs\/|examples\/angular\/)|["'`][^"'`\s]*\.md["'`]/;

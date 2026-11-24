@@ -278,7 +278,7 @@ jobs:
           # a pre-release would take the stable tags <version> and <major>.<minor>
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "$version is a pre-release: no image"; exit 1; }
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "$GITHUB_SHA is not on main"; exit 1; }
-          runs="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success&per_page=1" --jq '.total_count')"
+          runs="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&event=push&status=success&per_page=1" --jq '.total_count')"
           test "$runs" -gt 0 || { echo "no successful CI run for $GITHUB_SHA"; exit 1; }
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
