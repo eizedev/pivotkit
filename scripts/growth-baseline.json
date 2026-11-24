@@ -1,7 +1,7 @@
 {
     "docs": {
         "pages": {
-            "docs/concepts/charts.md": [317],
+            "docs/concepts/charts.md": [316],
             "docs/concepts/limits.md": [430],
             "docs/getting-started/kubernetes.md": [486],
             "docs/learn.md": [458],
@@ -9,9 +9,8 @@
             "docs/privacy.md": [503],
             "docs/reference/cli.md": [748],
             "docs/reference/core.md": [674],
-            "docs/reference/element.md": [604],
-            "docs/reference/mcp.md": [1005],
-            "docs/reference/react.md": [869],
+            "docs/reference/mcp.md": [999],
+            "docs/reference/react.md": [861],
             "docs/reference/rest.md": [972],
             "docs/reference/sources.md": [984],
             "docs/security.md": [896],

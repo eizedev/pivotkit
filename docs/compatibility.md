@@ -187,48 +187,7 @@ The full list of settings is in [OAuth](reference/mcp.md#oauth) and [REST sign-i
 | Claude Code | Documented, not tested | [Add it to your client](getting-started/mcp.md#2-add-it-to-your-client) |
 | Claude Desktop | Documented, not tested | [Add it to your client](getting-started/mcp.md#2-add-it-to-your-client) |
 | VS Code | Documented, not tested | [Add it to your client](getting-started/mcp.md#2-add-it-to-your-client) |
-| Other MCP clients | Documented, not tested | The `mcpServers` form under "Other clients" |
-
-The settings each client needs:
-
-=== "Claude Code"
-
-    ```bash
-    claude mcp add pivotkit -- npx -y pivotkit-mcp --source sales=$HOME/reports/sales.csv --output $HOME/reports/out
-    ```
-
-    Over HTTP with a token:
-
-    ```bash
-    claude mcp add --transport http pivotkit https://reports.example.com/mcp --header "Authorization: Bearer <token>"
-    ```
-
-=== "Claude Desktop"
-
-    In `claude_desktop_config.json`:
-
-    ```json
-    { "mcpServers": { "pivotkit": {
-        "command": "npx",
-        "args": ["-y", "pivotkit-mcp", "--source", "sales=/Users/you/reports/sales.csv", "--output", "/Users/you/reports/out"] } } }
-    ```
-
-=== "VS Code"
-
-    In `.vscode/mcp.json`:
-
-    ```json
-    { "servers": { "pivotkit": {
-        "type": "stdio",
-        "command": "npx",
-        "args": ["-y", "pivotkit-mcp", "--source", "sales=${workspaceFolder}/data/sales.csv", "--output", "${workspaceFolder}/reports"] } } }
-    ```
-
-=== "Other clients"
-
-    ```json
-    { "mcpServers": { "pivotkit": { "command": "npx", "args": ["-y", "pivotkit-mcp", "--config", "/path/to/pivotkit-mcp.json"] } } }
-    ```
+| Other MCP clients | Documented, not tested | [Add it to your client](getting-started/mcp.md#2-add-it-to-your-client), "Other clients" |
 
 ## Data sources { #sources }
 

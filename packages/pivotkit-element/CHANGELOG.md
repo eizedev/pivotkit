@@ -6,6 +6,11 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Changed
+
+- The README, the package's page on npm, no longer carries a paragraph on what dates say. It said
+  nothing about the web component, and the docs describe dates.
+
 ### Fixed
 
 - The package root exports the types of every event detail and property: `TipDismiss`, `DataLoad`,

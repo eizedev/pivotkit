@@ -27,7 +27,7 @@ It needs Node 24 or later. It brings the official MCP TypeScript SDK
 (`@modelcontextprotocol/server`), which speaks the protocol revision 2026-07-28 and the 2025
 revisions. It also brings [pivotkit-server](rest.md), which holds what it shares with the REST
 service: sources, policy, workers, output, sign-in. pivotkit-server brings
-[pivotkit-report](report.md), pivotkit-node's file handling, pivotkit-xlsx, ECharts, and jose
+[pivotkit-report](report.md), pivotkit-node's file handling, pivotkit-xlsx, ECharts 6 and jose
 (for OAuth). `pivotkit-server serve` runs this endpoint and the REST service on one port.
 
 ## Tools { #tools }
@@ -397,14 +397,8 @@ one probably meant.
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
 | - | `--check-config` | - | Print whether the server would start and what it would expose, then exit. It shows the sources, each field's level and why, the fields the automatic values rule gives or would give `values`, files, output and auth. Exit 1 when it finds a problem ([reading it](rest.md#check-config)). A policy rule that names no column of the data is a warning (exit 0) |
 
-Waiting drafts do not expire unless you set `output.draftMaxAgeDays`. They count against the drafts
-cap: half of `output.maxFiles` (500 by default) and half of `output.maxMb` (512 MiB by default). The
-server never deletes them to make room. Once they reach the cap, the server refuses new drafts until
-a person approves or removes drafts. Renders keep working, unless drafts written under larger
-limits fill the directory alone. So approve or reject drafts by changing their
-`status`, or remove them. A host may also delete or move a draft instead of rewriting its `status`.
-A draft file that cannot be read or parsed, is over 1 MiB, or has no `status` that is a string
-counts as waiting.
+Waiting schedule drafts have a cap of their own, and the server never deletes them to make room:
+see [reports and drafts in the output directory](delivery.md#output-directory).
 
 When the server is killed during a write, the write leaves its temporary file
 (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). It is not a report. It is neither counted

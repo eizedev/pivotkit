@@ -28,7 +28,7 @@ not put `pivotkit` on the `PATH`. In a project, run `npm install --save-dev pivo
 `npx pivotkit <command>`. Step by step: [getting started with the command line](../getting-started/cli.md).
 
 It needs Node 24 or later. It brings [pivotkit-report](report.md), pivotkit-core, pivotkit-node,
-pivotkit-xlsx and ECharts.
+pivotkit-xlsx and ECharts 6.
 
 ## Try it { #try-it }
 

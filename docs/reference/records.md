@@ -138,8 +138,6 @@ limit wins.
 | `rest.records.writeMs` | 10000, at most `compute.timeMs` | A reader that has not read the whole answer within this time loses its place (1000 to 600000, not above `compute.timeMs`) |
 | `sources.<id>.records.maxRows` | `rest.records.maxRows` | A lower row limit for one source. It cannot be higher than the server's |
 
-The defaults are a first guess. Real row counts will set them better.
-
 - Over a row or cell limit, the answer is 413 `LIMIT_EXCEEDED`, for example "this source has too
   many rows to open here (60,000, the limit is 50,000); filter it with a parameter or ask the
   operator". Where the policy hides the row count (`rows: false`), the message leaves the count out.
