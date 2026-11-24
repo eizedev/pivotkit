@@ -152,6 +152,12 @@ export { EVENTS };
  * @property {string} [name]  the view's name in the file
  */
 
+/** The worker URLs of another origin said once in the console. */
+const refusedWorkers = new Set();
+
+/** Where the worker is from the module this code lands in (build.js: the bundle's layout). */
+const IMPORT_WORKER = typeof __PIVOTKIT_IMPORT_WORKER__ === "string" ? __PIVOTKIT_IMPORT_WORKER__ : "./import-worker.js";
+
 /**
  * Starts the import worker: the package's (dist/import-worker.js, next to this module's chunk), or
  * the app's own copy at `url` (importWorkerUrl, relative to the page) where a bundle moved the module
@@ -172,11 +178,6 @@ const startImportWorker = (url) => {
     }
     return new Worker(at, { type: "module" });
 };
-/** The worker URLs of another origin said once in the console. */
-const refusedWorkers = new Set();
-
-/** Where the worker is from the module this code lands in (build.js: the bundle's layout). */
-const IMPORT_WORKER = typeof __PIVOTKIT_IMPORT_WORKER__ === "string" ? __PIVOTKIT_IMPORT_WORKER__ : "./import-worker.js";
 
 /** The tag the package defines. */
 export const TAG = "pivot-report";

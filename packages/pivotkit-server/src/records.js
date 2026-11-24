@@ -33,7 +33,7 @@ import { RECORDS_JOB } from "./data.js";
 import { createPlaces } from "./limits.js";
 import { callerFields, refusalReason } from "./log.js";
 import { recordsBoundsOf, recordsOfProfile, sourceMaxRowsOf } from "./options/records.js";
-import { levelOf } from "./policy.js";
+import { fieldKey, levelOf } from "./policy.js";
 import { checkDepth } from "./input-depth.js";
 import { PIECE_CHARS } from "./records-writer.js";
 import { requestId } from "./request-id.js";
@@ -123,7 +123,7 @@ export function createRecords(context) {
         }
         if (!Object.hasOwn(options.sources ?? {}, input.source) || !recordsOfProfile(options, caller.profile).includes(input.source)) {
             // a source that is not there answers alike: no probing for ids
-            // the caller's own profile by name: a placeholder in angle brackets reached a caller as "policy.profiles..records" (#693)
+            // the caller's own profile by name: a placeholder in angle brackets would reach a caller as "policy.profiles..records"
             const where = caller.profile ? `in your profile (policy.profiles.${caller.profile}.records)` : "per profile (policy.profiles), and your sign-in has no profile";
             throw new OperationError("NOT_ALLOWED", `your sign-in may not read the rows of this source; the operator grants it ${where}`);
         }
@@ -231,7 +231,8 @@ export function choose(head, policy, input, problemOf = plainProblemOf) {
     const visible = (i) => levels[i] !== "hide";
     const withheld = head.columns.filter((_, i) => visible(i) && levels[i] !== "show").map((c) => c.name);
     /** The place of a field by name (case-insensitive), among the fields the caller may know of. */
-    const placeOf = (name) => head.columns.findIndex((c, i) => visible(i) && c.name.toLowerCase() === String(name).toLowerCase());
+    // the policy's own match of a field's name (case, Unicode form and spaces)
+    const placeOf = (name) => head.columns.findIndex((c, i) => visible(i) && fieldKey(c.name) === fieldKey(String(name)));
     /** @type {number[]} */
     let wanted;
     if (input.view !== undefined) {

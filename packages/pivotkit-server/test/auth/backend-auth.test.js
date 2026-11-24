@@ -20,7 +20,7 @@ import { httpSettingsOf } from "../../src/options/http.js";
 import { httpMeans } from "../../src/sources/http.js";
 import { withRequestId } from "../../src/request-id.js";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { call, factsOf, restServer, tempDir, json, loopbackHttps } from "../helpers.js";
+import { POSIX, call, factsOf, restServer, tempDir, json, loopbackHttps } from "../helpers.js";
 import { localIssuer } from "./local-issuer.js";
 import { until } from "../../../../tests/until.js";
 
@@ -35,6 +35,7 @@ let routes = new Map();
 /** @type {Array<{ path: string, query: string, headers: import("node:http").IncomingHttpHeaders, form: Record<string, string> | null }>} */
 let asked = [];
 let server;
+let originalFetch;
 let port = 0;
 let issued = 0;
 
@@ -56,10 +57,14 @@ before(async () => {
         });
     });
     ({ server, port } = backend);
+    originalFetch = httpMeans.fetch;
     httpMeans.fetch = backend.fetch;
 });
 
-after(() => server.close());
+after(() => {
+    httpMeans.fetch = originalFetch;
+    return server.close();
+});
 
 beforeEach(() => {
     routes = new Map();
@@ -720,7 +725,7 @@ test("check-config: how each backend authentication is made and where its secret
     const text = factsOf(result.text);
     assert.match(text, /\n {4}backend authentication: client credentials as pivotkit-backend at https:\/\/auth\.example\.test:\d+\/token, scope platform:read \(httpSources\.backends\.platform\.auth\)\n {6}client secret from the file \S+\n/);
     assert.ok(text.includes(`client secret from the file ${readable}`), result.text);
-    if (process.platform === "win32") {
+    if (!POSIX) {
         // Windows has no such modes: the file takes its folder's permissions, and nothing is warned of
         assert.doesNotMatch(text, /can be read by other users/);
     } else {
@@ -780,7 +785,7 @@ test("check-source: the sign-in's outcome (status, error code, scope, expires_in
         routes.set("/xchg", json(body, status));
         out = await checkSource(exchange, "vms", {}, { fetch: httpMeans.fetch });
         assert.equal(out.ok, false, String(status));
-        assert.match(out.text, /did not answer as one does .* check vms|did not answer as one does/);
+        assert.match(out.text, /did not answer as one does \(a 400 with an OAuth error for a request without a person.s token\): check httpSources\.backends\.platform\.auth\.tokenExchange\.tokenUrl/);
     }
     clean("check-source", out.text);
     // a claim-bound parameter: --param stands in for the claim
@@ -807,7 +812,7 @@ test("the token cache holds at most TOKEN_LIMITS.entries tokens, the oldest out 
     assert.equal(asked.length, before + 1, "the oldest was dropped");
 });
 
-test("review: the quick-start page's titles leave out sources only a signed-in person can use", async () => {
+test("the quick-start page's titles leave out sources only a signed-in person can use", async () => {
     const file = secretFile(SECRET);
     const options = { ...optionsOf({ tokenExchange: { tokenUrl: tokenUrl("/xchg"), audience: "a", clientId: "p", clientSecret: { file }, intranet: true } }, { auth: OAUTH }), sources: { ...optionsOf().sources, open: { http: { url: `${backendUrl()}/vms`, intranet: true, rows: "/items" }, policy: POLICY }, claimed: { http: { url: `${backendUrl()}/c/{customer}`, intranet: true }, params: { customer: { type: "string", required: true, claim: "customer", pattern: "^[a-z]+$" } }, policy: POLICY } } };
     const context = await contextOf(options);
@@ -819,7 +824,7 @@ test("review: the quick-start page's titles leave out sources only a signed-in p
     }
 });
 
-test("review: an exchanged token never outlives a person's token whose exp is fractional, and is not kept when its exp is unknown", async (t) => {
+test("an exchanged token never outlives a person's token whose exp is fractional, and is not kept when its exp is unknown", async (t) => {
     // the clock the person's token is counted on, moved by the test
     t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
     routes.set("/xchg", tokenEndpoint());
@@ -842,7 +847,7 @@ test("review: an exchanged token never outlives a person's token whose exp is fr
     }
 });
 
-test("review: a Bearer answer whose issued_token_type is not an access token is refused; the issuer's metadata is read once for callers at once", async () => {
+test("a Bearer answer whose issued_token_type is not an access token is refused; the issuer's metadata is read once for callers at once", async () => {
     routes.set("/v1/vms", json({ items: VMS }));
     const file = secretFile(SECRET);
     routes.set("/token", tokenEndpoint({ issued_token_type: "urn:ietf:params:oauth:token-type:refresh_token" }));
@@ -874,7 +879,7 @@ test("review: a Bearer answer whose issued_token_type is not an access token is 
     }
 });
 
-test("review: the log: a setup warning once per interval, a cached failure with the request id, a hidden person-bound source, a backend 401 to a static header, unreadable secrets at start", async () => {
+test("the log: a setup warning once per interval, a cached failure with the request id, a hidden person-bound source, a backend 401 to a static header, unreadable secrets at start", async () => {
     routes.set("/v1/vms", json({}, 401));
     const context = await contextOf(optionsOf({ header: { value: { env: "PIVOTKIT_TEST_API_KEY" } } }));
     try {
@@ -914,7 +919,7 @@ test("review: the log: a setup warning once per interval, a cached failure with 
     }
 });
 
-test("review: check-config warns of a token endpoint off the issuer's origin and of one on a private address without intranet; check-source names the client settings on a refusal", async () => {
+test("check-config warns of a token endpoint off the issuer's origin and of one on a private address without intranet; check-source names the client settings on a refusal", async () => {
     const options = {
         auth: { ...OAUTH, issuer: "https://login.example.test/" },
         sources: {
@@ -948,7 +953,7 @@ test("check-config warns of a token exchange without scope, since some providers
     assert.deepEqual([...facts.matchAll(unscoped)].map((m) => m[1]).sort(), ["httpSources.backends.platform.auth", "sources.own.http.auth"]);
 });
 
-test("review: exchangeTokenFor sends a person's token through a guardedFetch only", async () => {
+test("exchangeTokenFor sends a person's token through a guardedFetch only", async () => {
     let called = false;
     const plain = async () => {
         called = true;

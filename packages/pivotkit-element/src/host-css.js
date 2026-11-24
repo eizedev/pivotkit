@@ -10,8 +10,10 @@
  * does not reach the report; only the element's own value does.
  */
 
-/** The token selectors of pivotkit-react's styles.css (as written or as esbuild prints them) and what they become. */
-/** @type {Array<[RegExp, string]>} */
+/**
+ * The token selectors of pivotkit-react's styles.css (as written or as esbuild prints them) and what they become.
+ * @type {Array<[RegExp, string]>}
+ */
 const TOKEN_SELECTORS = [
     [/:where\(\.pk-root\[data-pk-theme=(["']?)dark\1\]\)/g, ':host([data-pk-theme="dark"])'],
     [/:where\(\.pk-root\)/g, ":host"]

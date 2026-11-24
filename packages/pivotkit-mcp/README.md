@@ -14,7 +14,7 @@ claude mcp add pivotkit -- npx -y pivotkit-mcp --source sales=/path/to/sales.csv
 
 - Node 24 or later.
 - It brings the official MCP TypeScript SDK and pivotkit-server. pivotkit-server brings
-  pivotkit-report, pivotkit-node's file handling, pivotkit-xlsx, ECharts 6.1.0 and jose.
+  pivotkit-report, pivotkit-node's file handling, pivotkit-xlsx, ECharts and jose.
 - `pivotkit-server serve` runs it next to the REST service on one port.
 
 ## Example
@@ -24,16 +24,23 @@ A configuration file, `pivotkit-mcp.json`:
 ```json
 {
   "sources": {
-    "sales": { "file": "data/sales.csv", "title": "Sales", "policy": { "fields": { "Region": "show", "Customer": "hide" } } }
+    "sales": {
+      "file": "data/sales.csv",
+      "title": "Sales",
+      "policy": { "fields": { "Region": "show", "Customer": "hide" } }
+    }
   },
   "output": { "dir": "reports" }
 }
 ```
 
 ```bash
-npx -y pivotkit-mcp --config pivotkit-mcp.json                  # stdio
-npx -y pivotkit-mcp --config pivotkit-mcp.json --check-config   # what a model would see
-npx -y pivotkit-mcp --config pivotkit-mcp.json --http --auth token   # http://127.0.0.1:3333/mcp, PIVOTKIT_MCP_TOKEN
+# stdio
+npx -y pivotkit-mcp --config pivotkit-mcp.json
+# what a model would see
+npx -y pivotkit-mcp --config pivotkit-mcp.json --check-config
+# http://127.0.0.1:3333/mcp, with the token in PIVOTKIT_MCP_TOKEN
+npx -y pivotkit-mcp --config pivotkit-mcp.json --http --auth token
 ```
 
 ## What it does

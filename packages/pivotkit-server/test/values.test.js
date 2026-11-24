@@ -512,3 +512,11 @@ test("the deny list: ambiguous short words only as words of their own, so neutra
         assert.equal(deniedWord(name, deny), null, `${name} passes`);
     }
 });
+
+test("statistics: a column named __proto__ or constructor gets its own entry, also after the worker's clone", () => {
+    const data = encode({ columns: ["__proto__", "constructor", "Region"], data: [["a", "b"], ["c", "d"], ["North", "South"]] });
+    const { fields } = structuredClone(sourceStats(data));
+    assert.deepEqual(Object.keys(fields), ["__proto__", "constructor", "region"]);
+    assert.ok(Object.hasOwn(fields, "__proto__"));
+    assert.equal(fields.__proto__.distinct, 2);
+});

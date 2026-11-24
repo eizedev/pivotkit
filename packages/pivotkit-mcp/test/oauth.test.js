@@ -127,7 +127,7 @@ test("scopes: without the required scope 403 insufficient_scope; a tool's own sc
     }
 });
 
-test("an issuer that cannot be reached: /mcp answers 503 and the server keeps trying; metadata of another origin's JWKS is refused", async () => {
+test("an issuer that cannot be reached: /mcp answers 503 with Retry-After, and the log warns that its metadata could not be loaded", async () => {
     const dir = workspace();
     const server = await httpServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "oauth", issuer: "http://127.0.0.1:9", resource: RESOURCE, allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, baseDir: dir });
     try {

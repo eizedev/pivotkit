@@ -203,7 +203,9 @@ export function createDownloadHandler(context, runtime = {}) {
     sweeping?.unref?.();
 
     /** Logs a download request: never its token, path, code, state or cookie; its status is the answer's (the line's level follows it). */
-    const log = (entry) => context.log.download({ via: "link", requestId: requestId() ?? newRequestId(), ...entry, status: entry.ok ? 200 : (ANSWERS[/** @type {keyof typeof ANSWERS} */ (entry.code)]?.status ?? 500) });
+    // the status is the answer's: by `answer`, the key in ANSWERS where it differs from the code logged
+    // (SIGN_IN_TOO_MANY logs RATE_LIMITED), else by the code
+    const log = ({ answer: key, ...entry }) => context.log.download({ via: "link", requestId: requestId() ?? newRequestId(), ...entry, status: entry.ok ? 200 : (ANSWERS[/** @type {keyof typeof ANSWERS} */ (key ?? entry.code)]?.status ?? 500) });
 
     /** @type {import("./downloads/sign-in.js").SignInRoute} */
     const linkRoute = { context, settings, state, keys, jar, log, answer, page, markersDir, sweep, issuer, signInRules, env, loopback, callbackUrl: () => `${state.base}${CALLBACK_PATH}` };

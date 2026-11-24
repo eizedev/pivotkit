@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { deflateSync, strToU8 } from "fflate";
+import { deflateSync, strToU8, unzipSync } from "fflate";
 import { PivotkitError, computePivot, encode, toGrid } from "pivotkit-core";
 import { readFile, readerFor, validatePlugin } from "pivotkit-core/import";
 import xlsxReader from "pivotkit-xlsx";
@@ -469,12 +469,26 @@ test("a small sheet with a value far out (row 300,000, column XFD) is refused be
     assert.ok(cpu() < 2_000, "refused at once");
 });
 
+test("a sheet name with a raw \">\" in its quoted value (legal XML; Excel writes &gt;) names the sheet whole", async () => {
+    const base = makeXlsx({ sheets: [{ name: "AxB", rows: [["H"], [1]] }], level: 0 });
+    for (const quoted of ['name="A>B"', "name='A>B'"]) {
+        const workbook = new TextDecoder().decode(unzipSync(base)["xl/workbook.xml"]).replace('name="AxB"', quoted);
+        assert.ok(workbook.includes(quoted));
+        const bytes = rebuild(base, { "xl/workbook.xml": strToU8(workbook) });
+        assert.deepEqual(await sheets(fileOf(bytes)), [{ name: "A>B", index: 0, visible: true }], quoted);
+        assert.deepEqual((await read(fileOf(bytes))).data, [[1]], quoted);
+    }
+});
+
 test("a list of sheets with <sheet repeated and never closed is read in linear time", async () => {
-    const workbook = `<?xml version="1.0"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${"<sheet".repeat(40_000)}`; // and no ">" after them
-    const bytes = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), { "xl/workbook.xml": strToU8(workbook) });
-    const cpu = cpuClock();
-    await rejects(read(fileOf(bytes)), "NO_TABLE");
-    assert.ok(cpu() < 2_000, `${Math.round(cpu())} ms of CPU`);
+    // and no ">" after them; then with a quote that never closes in each
+    for (const open of ["<sheet", '<sheet name="a', "<sheet name='a"]) {
+        const workbook = `<?xml version="1.0"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${open.repeat(40_000)}`;
+        const bytes = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), { "xl/workbook.xml": strToU8(workbook) });
+        const cpu = cpuClock();
+        await rejects(read(fileOf(bytes)), "NO_TABLE");
+        assert.ok(cpu() < 2_000, `${open}: ${Math.round(cpu())} ms of CPU`);
+    }
 });
 
 test("a row that never ends is refused once it passes 64 MiB, not held whole", async () => {

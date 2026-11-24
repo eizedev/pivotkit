@@ -106,8 +106,30 @@ const sourcesDocs = (docs, anchor) => docsLink(docs, `reference/sources/#${ancho
 /** A note's pointer to a section of the sources page: " (address)", or nothing without documentation. */
 const docsRef = (docs, anchor) => (docs === null ? "" : ` (${sourcesDocs(docs, anchor)})`);
 
-/** A document or an operation that gives no source; the command exits 2 with the message. */
-/** @extends {CodedError<undefined, undefined>} */
+/** The most characters of the scope a generated client_credentials block asks for. */
+const SCOPE_TEXT = 1000;
+
+/**
+ * Whole scopes up to SCOPE_TEXT characters, joined by spaces: never one cut in the middle.
+ * @param {string[]} scopes
+ * @param {(left: number) => void} cut  told how many were left out, if any
+ */
+function wholeScopes(scopes, cut) {
+    const kept = [];
+    for (const s of scopes) {
+        if ([...kept, s].join(" ").length > SCOPE_TEXT) {
+            cut(scopes.length - kept.length);
+            break;
+        }
+        kept.push(s);
+    }
+    return kept.join(" ");
+}
+
+/**
+ * A document or an operation that gives no source; the command exits 2 with the message.
+ * @extends {CodedError<undefined, undefined>}
+ */
 export class OpenApiError extends CodedError {
     /** @param {string} message */
     constructor(message) {
@@ -383,6 +405,8 @@ class Resolver {
         }
         /** @type {Array<[string, any]>} */
         const properties = this.entriesOf(ownObject(schema, "properties"));
+        /** @type {Record<string, unknown>} the first part's items and description the schema lacks */
+        const taken = {};
         let type = own(schema, "type");
         for (const part of parts.slice(0, OPENAPI_LIMITS.merged)) {
             // each part costs a node, and its properties one each: a wide or repeated allOf cannot multiply work for free
@@ -399,17 +423,15 @@ class Resolver {
             type ??= own(inner, "type");
             for (const key of ["items", "description"]) {
                 if (!Object.hasOwn(schema, key) && Object.hasOwn(inner, key)) {
-                    properties.push([`\0${key}`, inner[key]]);
+                    taken[key] ??= inner[key];
                 }
             }
         }
         // only the keys the generator reads are copied: a schema's other keys (thousands of x- keys) cost nothing
         /** @type {Record<string, any>} */
         const merged = Object.fromEntries(MERGED_KEYS.filter((k) => Object.hasOwn(schema, k)).map((k) => [k, schema[k]]));
-        merged.properties = Object.fromEntries(properties.filter(([k]) => !k.startsWith("\0")));
-        for (const [k, v] of properties.filter(([key]) => key.startsWith("\0"))) {
-            merged[k.slice(1)] ??= v;
-        }
+        merged.properties = Object.fromEntries(properties);
+        Object.assign(merged, taken);
         if (type !== undefined) {
             merged.type = type;
         }
@@ -697,6 +719,7 @@ function parametersOf(path, pathItem, operation, refs, note, credentialNames, do
             continue;
         }
         if (where !== "path" && where !== "query") {
+            note(`Skipped the parameter ${shown(original)}: its "in" is ${shown(where)}, a place OpenAPI does not define.`);
             continue;
         }
         if (!plainName(original)) {
@@ -801,11 +824,9 @@ function parametersOf(path, pathItem, operation, refs, note, credentialNames, do
     if (!path.startsWith("/") || /[?#]/.test(path) || path.includes("//") || path.length > OPENAPI_LIMITS.path) {
         throw new OpenApiError(`the path ${shown(path)} is no path an HTTP source can use (it starts with "/", has no "?", "#" or empty segment, and at most ${OPENAPI_LIMITS.path} characters)`);
     }
-    // the path with each {original} as {name}
-    let httpPath = path;
-    for (const p of kept.filter((k) => k.where === "path")) {
-        httpPath = httpPath.split(`{${p.original}}`).join(`{${p.name}}`);
-    }
+    // the path with each {original} as {name}, in one pass: a name may be another's original
+    const pathNames = new Map(kept.filter((k) => k.where === "path").map((p) => [p.original, p.name]));
+    const httpPath = path.replace(/\{([^}]*)\}/g, (whole, original) => (pathNames.has(original) ? `{${pathNames.get(original)}}` : whole));
     const params = Object.fromEntries(kept.map((p) => [p.name, p.declaration]));
     const query = Object.fromEntries(kept.filter((p) => p.where === "query").map((p) => [p.original, `{${p.name}}`]));
     try {
@@ -1133,8 +1154,9 @@ function authOf(scheme, scopes, name, unsupported, note) {
         if (wanted.length < listed.length) {
             note(`The security scheme ${shown(label)}: scopes starting with ${TODO_MARK} are left out; add the ones the API needs to scope.`);
         }
-        if (wanted.length) {
-            cc.scope = wanted.join(" ").slice(0, 1000);
+        const scope = wholeScopes(wanted, (left) => note(`The security scheme ${shown(label)}: ${left} of its scopes are left out, as scope holds at most ${SCOPE_TEXT} characters; keep the ones the API needs.`));
+        if (scope) {
+            cc.scope = scope;
         }
         return { clientCredentials: cc };
     }

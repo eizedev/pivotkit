@@ -44,11 +44,12 @@ import { jsonDepth } from "../input-depth.js";
 import { asOfText } from "./as-of.js";
 import { backendHeaders, dropToken } from "./auth.js";
 import { guardedFetch, GuardedFetchError, upstreamCauseOf } from "./fetch.js";
-export { upstreamCauseOf };
-import { AnswerShapeError, rowsReader } from "./json-rows.js";
+import { AnswerShapeError, INDEX, rowsReader } from "./json-rows.js";
 import { canonicalJson, configHashOf, privatePart, tableKeyOf } from "./keys.js";
 import { SourceError, loadRunner, ownError } from "./run.js";
 import { expandUrl, loggedPath } from "./template.js";
+
+export { upstreamCauseOf };
 
 /** The deepest a JSON answer may be nested. */
 export const MAX_DEPTH = 64;
@@ -85,7 +86,7 @@ export function pointerValue(value, keys) {
     let at = value;
     for (const key of keys) {
         if (Array.isArray(at)) {
-            if (!/^(?:0|[1-9]\d{0,8})$/.test(key) || Number(key) >= at.length) {
+            if (!INDEX.test(key) || Number(key) >= at.length) {
                 return undefined;
             }
             at = at[Number(key)];
@@ -175,7 +176,9 @@ const SETUP_CODES = new Set(["BAD_URL", "NOT_HTTPS", "USERINFO", "BAD_HEADER", "
 
 /**
  * The fields of an upstream warning: why (upstreamCauseOf's words), the backend's name (never its
- * address), its status where it answered, and the time since the source's request started.
+ * address), its status where it answered, and the time since the source's request started. Only
+ * the line of a status the backend answered adds the URL template: the operator's own setting,
+ * without a caller's value.
  * @param {import("../options/http.js").HttpSettings} settings
  * @param {number} started
  * @param {string} cause
@@ -598,14 +601,14 @@ export async function loadHttp(settings, values, how) {
             probing = true;
         }
     }
-    const asOf = (asOfValue !== undefined ? asOfText(typeof asOfValue === "string" || typeof asOfValue === "number" ? asOfValue : null, { epoch: "s" }) : null) ?? asOfText(new Date()) ?? "";
+    const given = asOfValue !== undefined ? asOfText(typeof asOfValue === "string" || typeof asOfValue === "number" ? asOfValue : null, { epoch: "s" }) : null;
     if (how.trace && settings.asOf) {
         how.trace.asOfRaw = asOfValue !== undefined;
     }
-    if (asOfValue !== undefined && asOfText(typeof asOfValue === "string" || typeof asOfValue === "number" ? asOfValue : null, { epoch: "s" }) === null) {
+    if (asOfValue !== undefined && given === null) {
         how.log.debug(`the source ${id}: its asOf did not parse; the time it arrived stands in`, { source: id });
     }
-    return { table: table.finish(), upload: null, asOf, pages, bytes };
+    return { table: table.finish(), upload: null, asOf: given ?? asOfText(new Date()) ?? "", pages, bytes };
 }
 
 /**
@@ -690,8 +693,8 @@ function nextPage(settings, body, headers, current, count, seen, log) {
 
 /**
  * A CSV answer read in a worker into a packed table without the hidden columns: the reader's and the
- * pool's errors (a limit, a body that is no CSV, BUSY, TIMEOUT) reach the caller as they are, as they
- * did when the operation's worker read the bytes. The worker keeps the data set by `tableKey`, so
+ * pool's errors (a limit, a body that is no CSV, BUSY, TIMEOUT) reach the caller as they are. The
+ * worker keeps the data set by `tableKey`, so
  * the operation's job goes to it without the table.
  */
 async function readCsv(computer, spec, upload, tableKey, asOf, signal) {
@@ -709,6 +712,15 @@ const nameOf = (source) => {
         names.set(source, randomBytes(9).toString("base64url"));
     }
     return names.get(source);
+};
+
+/** The hash of a configured source object's settings, made once: the same object has the same settings (httpSettingsOf). */
+const configHashes = new WeakMap();
+const configHashFor = (source, settings) => {
+    if (!configHashes.has(source)) {
+        configHashes.set(source, configHashOf({ http: source.http, settings }));
+    }
+    return configHashes.get(source);
 };
 
 /**
@@ -763,7 +775,7 @@ export async function loadFor(computer, resolved, caller, log, signal = undefine
     }
     const person = identity ?? `client:${caller.client}`;
     const name = nameOf(source);
-    const configHash = configHashOf({ http: source.http, settings });
+    const configHash = configHashFor(source, settings);
     // the values and the identity only as a keyed digest; the levels that decide which columns are
     // dropped before the answer is kept (a caller whose profile shows more gets its own copy)
     const key = identity === null ? null : canonicalJson(["http", name, configHash, privatePart([values ?? {}, identity]), { default: spec.levels.default, fields: spec.levels.fields }, spec.timeZone ?? null, spec.limits]);

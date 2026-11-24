@@ -9,7 +9,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { quoteArg } from "../src/layout-view.js";
-import { BY_REGION, SALES_CSV, run, tempDir } from "./helpers.js";
+import { BY_REGION, SALES_CSV, has, run, tempDir } from "./helpers.js";
 
 /** A directory with sales.csv and the view file view.json over it. */
 function fixtureDir() {
@@ -77,7 +77,7 @@ test("describe <view file> --suggest, and render <view file> with layout flags: 
     assert.equal((await run(["describe", "rows.json", "--suggest"], { cwd: dir })).code, 0);
 });
 
-test("quoteArg: a value with ! in single quotes, so an interactive bash pastes it without history expansion", () => {
+test("quoteArg: a value with ! in single quotes, so an interactive bash pastes it without history expansion", { skip: has("bash") ? false : "bash is not installed" }, () => {
     assert.equal(quoteArg("sum:Units"), "sum:Units");
     assert.equal(quoteArg("Mean °C"), '"Mean °C"');
     assert.equal(quoteArg("Wow!"), "'Wow!'");
@@ -153,7 +153,7 @@ test("describe --data - with no argument describes the data from stdin", async (
     const file = await run(["describe", "--data", "sales.csv"], { cwd: fixtureDir() });
     assert.equal(file.code, 0, file.stderr);
     assert.match(file.stdout, /^ {2}Units/m);
-    // --suggest takes --data alone as before
+    // --suggest takes --data alone
     assert.equal((await run(["describe", "--data", "-", "--data-format", "csv", "--suggest"], { cwd: dir, input: SALES_CSV })).code, 0);
     // --as view with --data alone: there is no view
     const asView = await run(["describe", "--data", "sales.csv", "--as", "view"], { cwd: fixtureDir() });
@@ -169,7 +169,8 @@ const caseInsensitive = (dir) => existsSync(join(dir, "SALES.CSV"));
 
 test("-o naming the data through a link to its directory or another case of its name: refused, the data kept", async () => {
     const dir = fixtureDir();
-    symlinkSync(dir, join(dir, "lnk"));
+    // a junction on Windows: a link to a directory that needs no privilege there
+    symlinkSync(dir, join(dir, "lnk"), "junction");
     for (const args of [
         ["render", "sales.csv", "--rows", "Region", "-f", "csv", "-o", "lnk/sales.csv"],
         ["render", "view.json", "--data", "sales.csv", "-f", "csv", "-o", "lnk/sales.csv"],

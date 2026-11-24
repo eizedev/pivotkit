@@ -1,8 +1,8 @@
 /*
- * The keys several features share (the foundation of 0.7.0): a source's params and its fields'
- * descriptions, how long a source's data is kept and how long a load may take (auth.subjectClaim, the
- * claim that names a person, stays in config.js's auth keys, where it was first). A feature that uses one of them never declares it again; it relaxes or adds rules
- * in its own fragment.
+ * The keys several features share: a source's params and its fields' descriptions, how long a
+ * source's data is kept and how long a load may take (auth.subjectClaim, the claim that names a
+ * person, stays in config.js's auth keys, where it was first). A feature that uses one of them never
+ * declares it again; it relaxes or adds rules in its own fragment.
  *
  * params, ttl, maxStale and timeMs are taken by code and HTTP sources (load, http); options/code.js
  * and options/http.js give them their defaults, sources/run.js their behaviour.
@@ -74,10 +74,10 @@ export const todoPaths = (options) => todoEntries(options).map(([path]) => path)
  * @param {import("./shared.js").RangeProblem} [range]  where a value out of its range goes (validateOptions collects them)
  */
 export function validate(options, range = throwRange) {
-    // The placeholder rule lives in base, not in options/http.js: base's rules run first, so the
+    // a generated block's placeholders, before any rule that would name them only as a wrong
+    // address. The rule lives in base, not in options/http.js: base's rules run first, so the
     // operator reads "still says TODO" instead of the http fragment's "not an https:// address" for
-    // the same value; and a fragment of its own would be a feature with no keys and no check section.
-    // a generated block's placeholders, before any rule that would name them only as a wrong address
+    // the same value; and a fragment of its own would be a feature with no keys and no check section
     const todos = todoPaths(options);
     if (todos.length) {
         throw new ConfigError(`${todos.length} ${todos.length === 1 ? "value still says" : "values still say"} ${TODO_MARK}: ${todos.slice(0, 10).join(", ")}${todos.length > 10 ? `, and ${todos.length - 10} more` : ""}; replace each with the real value`);

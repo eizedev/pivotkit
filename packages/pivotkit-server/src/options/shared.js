@@ -50,6 +50,9 @@ export const SLOTS = Object.freeze(["top", "source", "http", "policy", "auth", "
 
 /** @typedef {"top" | "source" | "http" | "policy" | "auth" | "mcp" | "rest" | "output"} Slot */
 
+/** What a reference with create and env is told. */
+export const CREATE_NEEDS_FILE = "create needs file; pivotkit cannot set a variable";
+
 /**
  * What is wrong with a secret reference: exactly one of `{ "env": "NAME" }` (an environment variable)
  * or `{ "file": "path" }` (relative to the configuration file), never the secret itself. `creatable`:
@@ -85,8 +88,8 @@ function secretRefProblems(ref, creatable) {
     return given.length === 1 && keys.filter((k) => k !== "create").length === 1 ? [] : ["give either env (the variable that holds it) or file, as a non-empty text"];
 }
 
-/** What a reference with create and env is told. */
-export const CREATE_NEEDS_FILE = "create needs file; pivotkit cannot set a variable";
+/** Why an issuer address is refused: plain http without auth.allowInsecureIssuer. */
+export const HTTPS_ISSUER_TEXT = "must be an https:// address (auth.allowInsecureIssuer is for tests only)";
 
 /** The schema of a secret reference in the options' schema language (a custom check): one another system issues. */
 export const SECRET_REF = Object.freeze({ custom: (/** @type {unknown} */ ref) => secretRefProblems(ref, false) });

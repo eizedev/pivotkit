@@ -27,8 +27,8 @@ Without installing, `npx pivotkit-cli <command>` runs it once (`npx pivotkit-cli
 not put `pivotkit` on the `PATH`. In a project, run `npm install --save-dev pivotkit-cli`, then
 `npx pivotkit <command>`. Step by step: [getting started with the command line](../getting-started/cli.md).
 
-It needs Node 24 or later. It brings [pivotkit-report](report.md), pivotkit-core, pivotkit-xlsx and
-ECharts 6.
+It needs Node 24 or later. It brings [pivotkit-report](report.md), pivotkit-core, pivotkit-node,
+pivotkit-xlsx and ECharts 6.
 
 ## Try it { #try-it }
 

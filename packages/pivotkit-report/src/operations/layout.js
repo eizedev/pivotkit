@@ -71,14 +71,14 @@ export function describedFor(source, env) {
 }
 
 /**
- * The view of an input that gives a view or a layout (exactly one): the layout's view as a view file
- * with its name, and its notes as findings.
+ * The view of an input that gives a view or a layout (exactly one; the caller checked it with
+ * checkViewOrLayout before it read the data): the layout's view as a view file with its name, and its
+ * notes as findings.
  * @param {{ view?: unknown, layout?: any }} input
  * @param {{ data: any }} source
  * @param {import("../operations.js").OperationEnv} env
  */
 export function viewOrLayout(input, source, env) {
-    checkViewOrLayout(input);
     if (input.view !== undefined) {
         return { view: input.view, notes: [], fromLayout: false };
     }

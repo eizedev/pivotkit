@@ -235,7 +235,7 @@ export async function read(file, options) {
 
     const table = createTable({ file: name, limits: o.limits, locale: o.locale, hints: { decimal: ".", serialDates: true } });
     table.note("SHEET", { sheet: sheet.name, count: list.length, visible: list.filter((s) => s.visible).length });
-    if (trimmed.lastRow > trimmed.lastValueRow && trimmed.lastRow - trimmed.lastValueRow >= 100) {
+    if (trimmed.lastRow - trimmed.lastValueRow >= 100) {
         table.note("USED_RANGE", { usedRow: trimmed.lastRow, lastRow: trimmed.lastValueRow });
     }
     for (let r = 0; r < rows.length; r++) {

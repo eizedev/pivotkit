@@ -26,7 +26,10 @@ export const VIEW_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
 /** The most views a source publishes, in the configuration and its folder together. */
 export const MAX_VIEWS = 100;
 
-/** The largest view file, and the largest view written in the configuration, in bytes (limits.view in messages). */
+/**
+ * The largest view file in bytes, and the largest view written in the configuration in characters of
+ * its JSON text (limits.view in messages).
+ */
 export const VIEW_BYTES = 262_144;
 
 /** What is wrong with a view written in place, or null: too large, or no view. */
@@ -64,6 +67,7 @@ function viewsProblems(value) {
     return problems;
 }
 
+/** @type {Readonly<Partial<Record<import("./shared.js").Slot, Record<string, any>>>>} */
 export const KEYS = Object.freeze({ source: { views: { custom: viewsProblems }, viewsDir: "string" } });
 
 /** The schema says it all; the files are checked at start (context.js) and by check-config. */

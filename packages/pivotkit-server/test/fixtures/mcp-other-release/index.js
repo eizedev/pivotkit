@@ -1,5 +1,5 @@
-// A pivotkit-mcp of another release: it imports a name this pivotkit-server does not export, as
-// pivotkit-mcp 0.1.1 did beside pivotkit-server 0.1.0 (BODY_BYTES).
+// A pivotkit-mcp of another release: it imports a name this pivotkit-server does not export, as an
+// older pivotkit-mcp did beside an older pivotkit-server.
 import { EXPORT_OF_ANOTHER_RELEASE } from "pivotkit-server";
 
 export const run = () => EXPORT_OF_ANOTHER_RELEASE;

@@ -14,8 +14,6 @@ import { ConfigError, noRouteDetail } from "./config.js";
 import { fitsRange } from "./version-range.js";
 import { importInstalled, missingPackageText } from "./installed.js";
 import { TOKEN_ENV, VERSION, createContext } from "./context.js";
-
-export { TOKEN_ENV };
 import { allowedHosts, hostRefusal } from "./checks.js";
 import { BODY_BYTES, connectionLimitsOf, isLoopback, refusedText, serveFetch } from "./listen.js";
 import { bodyBytesOf } from "./limits.js";
@@ -28,12 +26,14 @@ import { noteAnswered, refusalReason, startFields } from "./log.js";
 import { createRouteHandler } from "./route-handler.js";
 import { logNotes, openAddressRefusal, prepareHttpServe } from "./state.js";
 
+/** The variable of the one static token when the configuration names none. */
+export { TOKEN_ENV };
+
 /** The default port. */
 export const DEFAULT_PORT = 3333;
 
 /** The answer to a body over BODY_BYTES that no front end answers itself. */
 const BODY_TOO_LARGE_TEXT = `the body is larger than ${bytesText(BODY_BYTES)}, the most this service takes`;
-
 
 /** The MCP server's package: imported by name at run time, so pivotkit-server does not depend on it. */
 export const MCP_PACKAGE = "pivotkit-mcp";
@@ -60,7 +60,7 @@ export async function loadMcp(docs = undefined) {
         // named without the installed package's path
         const entry = missingEntry(e);
         if (entry) {
-            throw await releaseMismatch({ message: `this pivotkit-server has no entry point pivotkit-server/${entry}` });
+            throw await releaseMismatch({ message: `this pivotkit-server has no entry point pivotkit-server/${entry}` }, installedVersions(), docs);
         }
         throw e;
     }
@@ -133,6 +133,28 @@ async function releaseMismatch(e, { mcp, server } = installedVersions(), docs = 
         `pivotkit-mcp ${mcp?.version ?? "(version unknown)"} does not fit pivotkit-server ${server?.version ?? VERSION}${why ? ` (${why})` : ""}. ` +
             `Install pivotkit-server and pivotkit-mcp of one release in one command${guide ? `: ${guide}#update` : "."}`
     );
+}
+
+/**
+ * The problem answer to a body that cannot be read (400) or is too large (413), from the family of
+ * its path: the download links, MCP, REST, else the server's own.
+ * @param {{ downloads: any, mcp: any, rest: any, problem: (code: string, detail: string) => Response }} families
+ * @param {400 | 413} status
+ * @param {string} path
+ * @param {Record<string | symbol, any>} [info]
+ */
+function familyProblem({ downloads, mcp, rest, problem }, status, path, info) {
+    const route = path.split("?")[0];
+    if (downloads.handles(route)) {
+        return downloads.problem(status, path, info);
+    }
+    if (mcp && !rest?.handles(route) && mcp.problem) {
+        return mcp.problem(status, path, info);
+    }
+    if (rest) {
+        return rest.problem(status, path, info);
+    }
+    return status === 413 ? problem("BODY_TOO_LARGE", BODY_TOO_LARGE_TEXT) : problem("INVALID_INPUT", "the request cannot be read");
 }
 
 /**
@@ -267,7 +289,7 @@ export async function createServerHandler(options, runtime) {
             fetch: hosted.fetch,
             /** @type {import("./listen.js").FetchHandler["release"]} */
             release: (info) => rest?.release(info),
-            problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status, path, info) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status, path, info) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? BODY_TOO_LARGE_TEXT : "the request cannot be read")),
+            problem: (status, path, info) => familyProblem({ downloads, mcp, rest, problem }, status, path, info),
             async close() {
                 downloads.close();
                 await rest?.close();

@@ -4,13 +4,12 @@
 // is the MCP icon and the page's favicon. The defaults stay pivotkit's.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { connect } from "node:net";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkConfig, validateOptions } from "pivotkit-server";
 import { REST_ROUTES } from "../src/rest/routes.js";
 import { sourceFromOpenApiCommand } from "../src/openapi-source.js";
-import { call, factsOf, raw, restServer, TOKEN, untilReady, workspace, mcpInitialize } from "./helpers.js";
+import { call, factsOf, raw, rawExchange, restServer, TOKEN, untilReady, workspace, mcpInitialize } from "./helpers.js";
 import { localIssuer } from "./auth/local-issuer.js";
 
 /** The documentation site pivotkit names by default. */
@@ -42,24 +41,6 @@ function brandedWorkspace() {
     const dir = workspace();
     writeFileSync(join(dir, "icon.png"), PNG);
     return dir;
-}
-
-/** Sends raw bytes and gives back what the server answers, until it closes or 1.5 s pass. */
-function rawExchange(port, text) {
-    return new Promise((resolve) => {
-        let got = "";
-        const socket = connect(port, "127.0.0.1", () => socket.write(text));
-        socket.on("data", (c) => {
-            got += c.toString("latin1");
-        });
-        const done = () => resolve(got);
-        socket.on("close", done);
-        socket.on("error", done);
-        setTimeout(() => {
-            socket.destroy();
-            done();
-        }, 1500).unref();
-    });
 }
 
 /** A text with the values of `$schema` keys taken out, also inside JSON written as a string (an MCP tool's text). */
@@ -140,12 +121,12 @@ async function everyAnswer(server) {
     const link = (await made.clone().json()).output?.url;
     answers.push(["render_view with a link", await answerText(made)]);
     assert.ok(link, "render_view gives a download link");
-    const local = `${server.url}${new URL(link).pathname}`;
-    await ask("download page (a browser)", local, { headers: { accept: "text/html" } });
-    await ask("download link (a program)", local);
+    const linkUrl = `${server.url}${new URL(link).pathname}`;
+    await ask("download page (a browser)", linkUrl, { headers: { accept: "text/html" } });
+    await ask("download link (a program)", linkUrl);
     await ask("unknown download link (a browser)", `${server.url}/downloads/no-such-link`, { headers: { accept: "text/html" } });
     await ask("unknown download link (a program)", `${server.url}/downloads/no-such-link`, { headers: { accept: "application/json" } });
-    await ask("download link wrong method", local, { method: "PUT", headers: { accept: "application/json" } });
+    await ask("download link wrong method", linkUrl, { method: "PUT", headers: { accept: "application/json" } });
 
     // the Host check and the body caps, on raw requests
     const port = new URL(server.url).port;
@@ -428,4 +409,10 @@ test("a download sign-in with another issuer points to the docs, not to an issue
     const options = { sources: SOURCES, output: { dir: "out", downloads: { signIn: { clientId: "c", issuer: "https://other.example/" } } }, auth: { mode: "oauth", issuer: "https://auth.example/", resource: MCP_RESOURCE } };
     assert.throws(() => validateOptions(options), (e) => !/github\.com/.test(e.message) && /https:\/\/pivotkit\.eize\.dev\/reference\/delivery\//.test(e.message));
     assert.throws(() => validateOptions({ ...options, branding: { docsUrl: null } }), (e) => !/github\.com|pivotkit\.eize\.dev/.test(e.message) && /issuer of its own/.test(e.message));
+});
+
+test("http.page: url with sources false is no conflict; url with sources true is", () => {
+    const base = { sources: { sales: { file: "sales.csv" } } };
+    validateOptions({ ...base, http: { page: { url: "https://intranet.example/", sources: false } } });
+    assert.throws(() => validateOptions({ ...base, http: { page: { url: "https://intranet.example/", sources: true } } }), /http\.page/);
 });

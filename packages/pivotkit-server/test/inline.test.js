@@ -18,6 +18,7 @@ import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspac
 import { cpuClock } from "../../../tests/cpu-time.js";
 import { until } from "../../../tests/until.js";
 import { connect } from "node:net";
+import { request } from "node:http";
 
 const LOCAL = callerOf("none", undefined);
 
@@ -36,6 +37,9 @@ const TICKETS = Object.freeze({
 /** A table of n rows and w columns. */
 const tableOf = (n, w = 2) => ({ columns: Array.from({ length: w }, (_, i) => (i === 0 ? "Region" : `Value ${i}`)), rows: Array.from({ length: n }, (_, r) => Array.from({ length: w }, (_, c) => (c === 0 ? ["North", "South", "East"][r % 3] : r * c))), rowCount: n });
 
+/** A table of n rows whose Note cells are 90 characters long: a large body with few rows. */
+const longRows = (n) => ({ columns: ["Region", "Note"], rows: Array.from({ length: n }, (_, i) => [["North", "South"][i % 2], "n".repeat(90)]), rowCount: n });
+
 /** A context without a log, unless one is asked for. */
 const contextOf = (options) => createContext({ log: "off", ...options });
 
@@ -50,7 +54,7 @@ test("MCP: a table the caller sends is described and rendered; dataAsOf is its a
         const described = await present(context, "describe_source", { source: "inline:", data: { ...TICKETS, asOf: "2026-01-02T03:04:05+01:00" } }, LOCAL);
         assert.deepEqual(described.result.fields.map((f) => [f.name, f.level]), [["Region", "show"], ["Sales", "show"], ["Owner", "show"]]);
         assert.equal(described.result.rows, 3);
-        assert.ok(Date.parse(described.result.dataAsOf) >= Math.floor(before / 1000) * 1000, "when it arrived");
+        assert.ok(Date.parse(described.result.dataAsOf) >= Math.floor(before / 1000) * 1000, "when it arrived"); // wall time: a timestamp the code wrote
         assert.equal(described.result.suppliedAsOf, "2026-01-02T02:04:05Z", "parsed and written again in UTC");
         const rendered = await present(context, "render_view", { source: "inline:", data: TICKETS, view: BY_REGION, format: "csv" }, LOCAL);
         assert.equal(rendered.result.inline.text, "Region,Sum of Sales\r\nNorth,15\r\nSouth,20\r\nGrand Total,35\r\n");
@@ -241,8 +245,6 @@ test("check-config: who may send data on MCP and REST, and how much; warnings fo
     };
     const designed = await sectionOf({ policy: { profiles: { etl: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }] }, rest: { data: { maxBytes: 20_971_520 } }, mcp: { data: { rows: 200, cells: 2000, bytes: 131_072 } } }, { env: { ETL_TOKEN: "x".repeat(40) } });
     assert.deepEqual(designed.facts, ["  MCP: on, up to 200 rows / 2000 cells / 128 KiB (mcp.data)", "  REST: for profiles etl, up to 20 MiB (rest.data.maxBytes)"]);
-    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
-    assert.doesNotMatch(factsOf(designed.text), /data in the request \(inline:; mcp\.data: false switches it off\)/);
     assert.deepEqual((await sectionOf({})).facts, ["  MCP: on, up to 500 rows / 5000 cells / 256 KiB", "  REST: off (no policy or profile has data: true)"]);
     const off = await sectionOf({ mcp: { data: false } });
     assert.deepEqual(off.facts, ["  MCP: off (mcp.data: false)", "  REST: off (no policy or profile has data: true)"]);
@@ -345,7 +347,7 @@ test("REST: inline: without data: true is NOT_ALLOWED on every route that takes 
 test("REST: a larger body only for a signed-in caller that may send data; a larger declared size is refused before the token", async () => {
     const server = await restServer(restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } } }), restEnv);
     // about 3 MiB of JSON: over the 2 MiB everyone gets, under the 4 MiB of etl
-    const big = { columns: ["Region", "Note"], rows: Array.from({ length: 30_000 }, (_, i) => [["North", "South"][i % 2], "n".repeat(90)]), rowCount: 30_000 };
+    const big = longRows(30_000);
     const body = JSON.stringify({ source: "inline:", data: big });
     assert.ok(body.length > BODY_BYTES && body.length < 4 * 1_048_576);
     try {
@@ -537,7 +539,7 @@ test("REST multipart on the other routes; hostile files: garbage, a sheet that i
 
 test("the larger body with the MCP endpoint on the same port; the MCP endpoint keeps 2 MiB", async () => {
     const server = await restServer(restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } } }), { ...restEnv, enable: ["rest", "mcp"] });
-    const big = { columns: ["Region", "Note"], rows: Array.from({ length: 30_000 }, (_, i) => [["North", "South"][i % 2], "n".repeat(90)]), rowCount: 30_000 };
+    const big = longRows(30_000);
     const body = JSON.stringify({ source: "inline:", data: big });
     try {
         assert.equal((await call(`${server.api}/sources/describe`, { token: TOKEN, body })).status, 200);
@@ -618,7 +620,6 @@ test("the large body: only on a route that takes a source, and at most two at on
         assert.equal(nowhere.status, 413);
         assert.match(nowhere.data.detail, /larger than 2 MiB/);
         // two large bodies on their way hold the two places; a third waits for none and is told to try again
-        const { request } = await import("node:http");
         const url = new URL(`${server.api}/sources/describe`);
         const open = [];
         for (let i = 0; i < 2; i++) {
@@ -640,7 +641,7 @@ test("the large body: only on a route that takes a source, and at most two at on
             req.destroy();
         }
         // a complete body: it takes a place only when one is free, else it is BUSY at once
-        const big = { columns: ["Region", "Note"], rows: Array.from({ length: 25_000 }, (_, i) => [["North", "South"][i % 2], "n".repeat(90)]), rowCount: 25_000 };
+        const big = longRows(25_000);
         await until(async () => (await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: big } })).status === 200, { message: "the places were given back" });
     } finally {
         await server.close();
@@ -703,7 +704,6 @@ test("one place for a large body per caller: its second gets 503 BUSY while anot
     const options = restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } }, log: "debug", policy: { profiles: { etl: { data: true }, etl2: { data: true } } }, auth: { mode: "token", tokens: [{ name: "etl", env: "ETL_TOKEN", profile: "etl" }, { name: "etl2", env: "PLAIN_TOKEN", profile: "etl2" }] } });
     const server = await restServer(options, restEnv);
     const size = 3 * 1_048_576;
-    const { request } = await import("node:http");
     const url = new URL(`${server.api}/sources/describe`);
     try {
         const held = request({ agent: false, host: url.hostname, port: url.port, path: url.pathname, method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}`, "content-length": String(size) } });
@@ -714,7 +714,7 @@ test("one place for a large body per caller: its second gets 503 BUSY while anot
         assert.equal(second.status, 503);
         assert.equal(second.data.code, "BUSY");
         assert.equal(second.data.retryable, true);
-        const big = { columns: ["Region", "Note"], rows: Array.from({ length: 25_000 }, (_, i) => [["North", "South"][i % 2], "n".repeat(90)]), rowCount: 25_000 };
+        const big = longRows(25_000);
         assert.equal((await call(`${server.api}/sources/describe`, { token: OTHER_TOKEN, body: { source: "inline:", data: big } })).status, 200, "another caller takes the other place");
         held.destroy();
         // a complete body: it takes a place only when one is free, else it is BUSY at once

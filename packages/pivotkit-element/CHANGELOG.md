@@ -13,6 +13,10 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- The package root exports the types of every event detail and property: `TipDismiss`, `DataLoad`,
+  `SourceEntry`, `SourceSwitch`, `ReaderPlugin` and `ColumnarData` came only from
+  `pivotkit-element/element`.
+
 - Headers that wrap between words only, one note above the result at a time on a phone and a
   clearer tip on an empty report. See pivotkit-react's changelog.
 - The chart's point menu without a tooltip over it, the fade of a cut-off menu and the euro listed
@@ -177,15 +181,15 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   ([#376](https://github.com/eizedev/pivotkit/issues/376), [#106](https://github.com/eizedev/pivotkit/issues/106)).
 
 - The drill-down panel's copy and download follow `export-data`. Without it, the panel shows the
-  rows but offers no copy and no download (#263).
+  rows but offers no copy and no download ([#263](https://github.com/eizedev/pivotkit/issues/263)).
 - The first load is about 1.7 KiB smaller: pivotkit-core's ECharts option loads with the chart
-  (#546).
+  ([#546](https://github.com/eizedev/pivotkit/issues/546)).
 - The first load grows by about 0.5 KiB gzip: the table measures whether its row labels fit before
-  the first paint ([#584](https://github.com/eizedev/pivotkit/issues/584)). With the other changes of this release, the first-load budget is 181 KiB (#546).
+  the first paint ([#584](https://github.com/eizedev/pivotkit/issues/584)). With the other changes of this release, the first-load budget is 181 KiB ([#546](https://github.com/eizedev/pivotkit/issues/546)).
 - `npm run size` names the zlib it measures with. It says when the sizes can differ from CI's, as
-  with a Node that uses the system's zlib (#546).
+  with a Node that uses the system's zlib ([#546](https://github.com/eizedev/pivotkit/issues/546)).
 - The row count under the result says how many of the data's rows the filters keep, as
-  pivotkit-react's (#108).
+  pivotkit-react's ([#108](https://github.com/eizedev/pivotkit/issues/108)).
 
 ### Fixed
 
@@ -204,7 +208,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   not cut, and a heatmap names every row that has room ([#228](https://github.com/eizedev/pivotkit/issues/228), [#229](https://github.com/eizedev/pivotkit/issues/229),
   [#230](https://github.com/eizedev/pivotkit/issues/230), [#231](https://github.com/eizedev/pivotkit/issues/231)).
 - The zones fold when they no longer fit the element's box, also when the box keeps its size, as
-  pivotkit-react's (#93).
+  pivotkit-react's ([#93](https://github.com/eizedev/pivotkit/issues/93)).
 
 ## [0.7.0] - 2026-11-16
 

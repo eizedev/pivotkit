@@ -67,7 +67,9 @@ test("cleanSvg refuses what a chart never draws, and turns style attributes into
     assert.ok(cleanSvg(svg('<g xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve"></g>')).includes('xmlns:xlink="http://www.w3.org/1999/xlink"'));
     assert.throws(() => cleanSvg('<svg xmlns="http://www.w3.org/2000/svg"><g>'), (e) => e.details.reason.includes("not closed"));
     const clean = cleanSvg(svg('<text style="font-size:12px;font-family:Arial;cursor:pointer;fill:url(https://x)" x="1">a &amp; b</text><style>.x:hover{}</style><rect fill="url(#g1)"/>'));
-    assert.equal(clean, '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><text x="1" font-size="12px" font-family="Arial">a &amp; b</text><rect fill="url(#g1)"></rect></svg>'.replace("<rect fill=\"url(#g1)\"></rect>", '<rect fill="url(#g1)"/>'));
+    assert.equal(clean, '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><text x="1" font-size="12px" font-family="Arial">a &amp; b</text><rect fill="url(#g1)"/></svg>');
+    // each <style> element is left out up to its own end tag, a second one too
+    assert.equal(cleanSvg(svg("<style>.a{}</style><g></g><style>.b{}</style><rect/>")), svg("<g></g><rect/>"));
     // a numeric reference to a character XML does not allow would make the SVG unreadable: left out
     assert.equal(cleanSvg(svg("<text>a&#0;b&#x1F;c&#xD800;d&#65;&#x20AC;&#10;</text>")), svg("<text>abcd&#65;&#x20AC;&#10;</text>"));
 });

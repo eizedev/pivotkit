@@ -8,16 +8,18 @@ import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
+import { writeFileSync } from "node:fs";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { callerOf, checkConfig, createContext, present, validateOptions } from "pivotkit-server";
 import { renderFile, serverTextOf } from "pivotkit-server/internal";
 import { createGuardedFetch } from "../src/sources/fetch.js";
-import { httpMeans, jsonDepth, pointerValue, tableBuilder, tableOf } from "../src/sources/http.js";
+import { certificateHint, httpMeans, jsonDepth, pointerValue, tableBuilder, tableOf } from "../src/sources/http.js";
+import { normalizeParams } from "../src/sources/params.js";
 import { compileTemplate, expandUrl } from "../src/sources/template.js";
 import { checkSource, paramFlags } from "../src/check-source.js";
 import { loadRunner } from "../src/sources/run.js";
 import { run } from "../src/runner.js";
-import { call, factsOf, restServer, tempDir, json, loopbackHttps, fakeLookup, literal } from "./helpers.js";
+import { call, factsOf, restServer, tempDir, json, loopbackHttps, fakeLookup, literal, nobody, token } from "./helpers.js";
 import { until } from "../../../tests/until.js";
 
 /** What the backend answers per path, set by each test; and what it was asked. */
@@ -53,7 +55,6 @@ beforeEach(() => {
     ADDRESSES.clear();
 });
 
-
 const VMS = [
     { name: "web-1", cpu: 4, state: "running", owner: "alice@example.com", tags: { env: "prod" } },
     { name: "web-2", cpu: 2, state: "stopped", owner: "bob@example.com", tags: { env: "test" } },
@@ -85,8 +86,24 @@ async function contextOf(options, level = "info") {
 }
 
 const LOCAL = callerOf("none", undefined);
-const token = (name) => callerOf("token", { token: "", clientId: name, scopes: [], expiresAt: 0, extra: { allScopes: true } });
-const nobody = () => callerOf("oauth", { token: "jwt", clientId: "bot", scopes: [], expiresAt: 0, extra: { subject: null, issuer: "https://issuer.example" } });
+
+/** An OAuth caller "ana" through `client`, under `auth`. */
+const ana = (client, auth) => callerOf("oauth", { token: "jwt", clientId: client, scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: auth.issuer, groups: [] } }, auth);
+const OAUTH = Object.freeze({ mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" });
+const OAUTH_PROFILES = Object.freeze({ ...OAUTH, clientProfiles: { "narrow-bot": "narrow" } });
+
+/** Records every load the runner runs, its key and value, until `stop()` puts the runner back. */
+function keptLoads() {
+    /** @type {Array<{ key: any, value: any }>} */
+    const kept = [];
+    const original = loadRunner.runLoad;
+    loadRunner.runLoad = async (key, ...rest) => {
+        const ran = await original(key, ...rest);
+        kept.push({ key, value: ran.value });
+        return ran;
+    };
+    return { kept, stop: () => (loadRunner.runLoad = original) };
+}
 const VIEW = { rows: ["state"], values: [{ field: "cpu", agg: "sum" }] };
 const describe = (context, params, caller = LOCAL, source = "vms") => present(context, "describe_source", { source, ...(params ? { params } : {}) }, caller);
 /** A report's CSV as the file route gives it (the server's policy has results: true). */
@@ -725,7 +742,6 @@ test("check-source: one load with the operator's values, pages, rows and fields 
 test("check-source as a command: the configuration file, --param, exit codes", async () => {
     const dir = tempDir();
     const file = join(dir, "pivotkit.json");
-    const { writeFileSync } = await import("node:fs");
     writeFileSync(file, JSON.stringify(optionsOf()));
     routes.set("/v1/customers/acme/vms", json({ items: VMS }));
     const out = [];
@@ -744,7 +760,6 @@ test("check-source as a command: the configuration file, --param, exit codes", a
 test("check-source for the operator: options in any order, exit 2 for an id that is no HTTP source, the values on success, the --param to re-run with, where a refusal's secret is, and NODE_EXTRA_CA_CERTS that does not cover the certificate", async () => {
     const dir = tempDir();
     const file = join(dir, "pivotkit.json");
-    const { writeFileSync } = await import("node:fs");
     writeFileSync(file, JSON.stringify(optionsOf()));
     routes.set("/v1/customers/acme/vms", json({ items: VMS }));
     const out = [];
@@ -768,16 +783,6 @@ test("check-source for the operator: options in any order, exit 2 for an id that
     err.length = 0;
     assert.equal(await run(["check-source", "vms", "--config", file, "--bogus"], io), 2);
     assert.equal(err.join(""), 'pivotkit-server: unknown option "--bogus"; run "pivotkit-server --help"\n');
-    err.length = 0;
-    assert.equal(await run(["serve", "--auth", "bogus"], io), 2);
-    // serve's error where stderr is no terminal is a JSON line (the log's auto rule), with the same words
-    assert.equal(JSON.parse(err.join("")).msg, '--auth must be none, token or oauth; run "pivotkit-server --help"');
-    err.length = 0;
-    assert.equal(await run(["serve", "--auth", "bogus"], { ...io, stderr: { isTTY: true, write: (t) => err.push(t) } }), 2);
-    assert.equal(err.join(""), 'pivotkit-server: --auth must be none, token or oauth; run "pivotkit-server --help"\n', "on a terminal: text");
-    err.length = 0;
-    assert.equal(await run(["bogus"], io), 2);
-    assert.equal(err.join(""), 'pivotkit-server: unknown command "bogus"; run "pivotkit-server --help"\n');
 
     // a missing required value: the flag to re-run with, the declared example
     const missing = await checkSource(optionsOf(), "vms", {});
@@ -807,9 +812,8 @@ test("check-source for the operator: options in any order, exit 2 for an id that
     assert.match(set, /a certificate error: NODE_EXTRA_CA_CERTS is set, but no certificate in that file signed this server's certificate; add the certificate authority that did and start the server again/);
     assert.doesNotMatch(set, /ca\.pem/, "the file's path is the operator's own; the hint does not repeat it");
     // an expired certificate or another host's name is no unknown signer: the file is not blamed
-    const { certificateHint } = await import("../src/sources/http.js");
-    for (const failure of ["certificate has expired (CERT_HAS_EXPIRED)", "Hostname/IP does not match certificate's altnames (ERR_TLS_CERT_ALTNAME_INVALID)"]) {
-        assert.doesNotMatch(certificateHint({ NODE_EXTRA_CA_CERTS: "ca.pem" }, failure), /is set/);
+    for (const reason of ["certificate has expired (CERT_HAS_EXPIRED)", "Hostname/IP does not match certificate's altnames (ERR_TLS_CERT_ALTNAME_INVALID)"]) {
+        assert.doesNotMatch(certificateHint({ NODE_EXTRA_CA_CERTS: "ca.pem" }, reason), /is set/);
     }
 });
 
@@ -829,14 +833,6 @@ test("REST: GET /sources/{id} of a source that needs params points to POST /sour
     } finally {
         await s.close();
     }
-});
-
-test("pivotkit-server --help names --version", async () => {
-    const out = [];
-    const io = { env: {}, stdout: { write: (t) => out.push(t) }, stderr: { write: (t) => out.push(t) } };
-    assert.equal(await run(["--help"], io), 0);
-    assert.match(out.join(""), /\n {7}pivotkit-server --version\n/);
-    assert.match(out.join(""), /\n {2}--version +Print the version and exit\.\n {2}--help +Print this help and exit\.\n/, "--version before --help, as pivotkit-mcp's");
 });
 
 test("an answer without rows is an empty table: describe_source says no rows and render_view a report without them, not an error", async () => {
@@ -911,7 +907,6 @@ test("a REST client that closes its connection and an MCP client that closes its
     }
 });
 
-
 test("secrets in literal query values: never in check-source's text or the debug log", async () => {
     routes.set("/v1/customers/acme/vms", json({ items: VMS }));
     const options = optionsOf({ query: { state: "{state}", api_key: "tok-secret-1" } });
@@ -952,7 +947,6 @@ test("a caller's value of the wrong form: refused with the parameter's descripti
     } finally {
         await context.close();
     }
-    const { normalizeParams } = await import("../src/sources/params.js");
     assert.throws(() => normalizeParams({ x: { type: "string", pattern: ".{1,10}" } }, { x: "a\uD800" }, null, "s"), /lone surrogates/);
     assert.deepEqual({ ...normalizeParams({ x: { type: "string", pattern: ".{1,10}" } }, { x: "a😀" }, null, "s") }, { x: "a😀" });
 });
@@ -1018,7 +1012,9 @@ test("the request's signal reaches every operation over a source (suggest, valid
             const aborted = Date.now();
             gone.abort();
             // the backend never answers: a call that ignores the abort is still waiting after 10 s
-            const ended = await Promise.race([call.then(() => "answered", (e) => e), new Promise((r) => setTimeout(() => r("still waiting"), 10_000))]);
+            let timer;
+            const ended = await Promise.race([call.then(() => "answered", (e) => e), new Promise((r) => (timer = setTimeout(() => r("still waiting"), 10_000)))]);
+            clearTimeout(timer);
             assert.ok(ended instanceof Error, `${name}: the call ended at the abort (${ended})`);
             assert.notEqual(ended.name, "TimeoutError", `${name}: not by a time limit`);
             assert.ok(Date.now() - aborted < 10_000, `${name}: within 10 s of the abort`); // wall time: event latency
@@ -1084,18 +1080,12 @@ test("options: a query's problem is reported under http.query", () => {
 
 test("the kept answer: hidden columns dropped before it is kept, the values only as a keyed digest; a profile that shows more gets its own copy", async () => {
     routes.set("/v1/customers/acme-secret/vms", json({ items: VMS }));
-    const auth = { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp", clientProfiles: { "narrow-bot": "narrow" } };
+    const auth = OAUTH_PROFILES;
     const shown = { default: "hide", fields: { name: "show", cpu: "show", state: "show", owner: "show" } };
     const context = await contextOf(optionsOf({}, { policy: shown }, { policy: { profiles: { narrow: { fields: { owner: "hide" } } } }, auth }));
     // one person through two clients: the same identity, a narrower profile through one of them
-    const through = (client) => callerOf("oauth", { token: "jwt", clientId: client, scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: auth.issuer, groups: [] } }, auth);
-    const kept = [];
-    const original = loadRunner.runLoad;
-    loadRunner.runLoad = async (key, ...rest) => {
-        const ran = await original(key, ...rest);
-        kept.push({ key, value: ran.value });
-        return ran;
-    };
+    const through = (client) => ana(client, auth);
+    const { kept, stop } = keptLoads();
     try {
         const narrow = (await describe(context, { customer: "acme-secret" }, through("narrow-bot"))).result;
         assert.deepEqual(narrow.fields.map((f) => f.name).sort(), ["cpu", "name", "state"]);
@@ -1112,7 +1102,7 @@ test("the kept answer: hidden columns dropped before it is kept, the values only
         }
         assert.notEqual(kept[0].key, kept[1].key);
     } finally {
-        loadRunner.runLoad = original;
+        stop();
         await context.close();
     }
 });
@@ -1161,18 +1151,12 @@ test("a CSV answer is kept without the columns the caller's levels hide; a profi
         res.writeHead(200, { "content-type": "text/csv" });
         res.end("name,cpu,state,owner,secret\nweb-1,4,running,alice@example.com,s3cr3t-a\nweb-2,2,stopped,bob@example.com,s3cr3t-b\ndb-1,8,running,carol@example.com,s3cr3t-c\n");
     });
-    const auth = { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp", clientProfiles: { "narrow-bot": "narrow" } };
+    const auth = OAUTH_PROFILES;
     const shown = { default: "hide", fields: { name: "show", cpu: "show", state: "show", owner: "show" } };
     const options = { ...optionsOf({}, {}, { policy: { results: true, profiles: { narrow: { fields: { owner: "hide" } } } }, auth }), sources: { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy: shown } } };
     const context = await contextOf(options);
-    const through = (client) => callerOf("oauth", { token: "jwt", clientId: client, scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: auth.issuer, groups: [] } }, auth);
-    const kept = [];
-    const original = loadRunner.runLoad;
-    loadRunner.runLoad = async (key, ...rest) => {
-        const ran = await original(key, ...rest);
-        kept.push({ key, value: ran.value });
-        return ran;
-    };
+    const through = (client) => ana(client, auth);
+    const { kept, stop } = keptLoads();
     try {
         const narrow = (await describe(context, undefined, through("narrow-bot"), "csv")).result;
         assert.deepEqual(narrow.fields.map((f) => f.name).sort(), ["cpu", "name", "state"]);
@@ -1192,29 +1176,29 @@ test("a CSV answer is kept without the columns the caller's levels hide; a profi
         assert.equal(kept[0].key, kept[1].key);
         assert.notEqual(kept[0].key, kept.at(-1).key, "a narrower and a wider profile never share a kept answer");
     } finally {
-        loadRunner.runLoad = original;
+        stop();
         await context.close();
     }
 });
 
-test("a CSV answer kept packed: the reader's notes without a hidden column's, warm calls without the table, the reader's limits as before", async () => {
+test("a CSV answer kept packed: the reader's notes without a hidden column's, warm calls without the table, the reader's limits", async () => {
     routes.set("/v1/export.csv", (_req, res) => {
         res.writeHead(200, { "content-type": "text/csv" });
         res.end("name,cpu,day,born\nweb-1,4,03/04/2026,05/06/1990\nweb-2,2,04/05/2026,07/08/1991\ndb-1,8,05/06/2026,09/10/1992\n");
     });
-    const auth = { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" };
-    const ana = callerOf("oauth", { token: "jwt", clientId: "claude", scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: auth.issuer, groups: [] } }, auth);
+    const auth = OAUTH;
+    const person = ana("claude", auth);
     const policy = { default: "hide", fields: { name: "show", cpu: "show", day: "show" } };
     const options = { ...optionsOf({}, {}, { policy: { results: true }, auth }), sources: { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy } } };
     const context = await contextOf(options);
     try {
-        const described = (await describe(context, undefined, ana, "csv")).result;
+        const described = (await describe(context, undefined, person, "csv")).result;
         assert.equal(described.rows, 3);
         const notes = described.notes.map((n) => n.message).join("\n");
         assert.match(notes, /Dates in "day" were read as month\/day\/year/, "the reader's notes reach the caller");
         assert.doesNotMatch(notes, /born/, "nothing about a hidden column");
         for (let i = 0; i < 3; i++) {
-            assert.match(await csvOf(context, { source: "csv", view: { rows: ["name"], values: [{ field: "cpu", agg: "sum" }] } }, ana), /db-1,8/);
+            assert.match(await csvOf(context, { source: "csv", view: { rows: ["name"], values: [{ field: "cpu", agg: "sum" }] } }, person), /db-1,8/);
         }
         assert.equal(asked.length, 1);
         assert.deepEqual(context.computer.sent(), { tables: 1, cached: 4 }, "the bytes go once, to the worker that reads them; the operations go without the table");
@@ -1224,7 +1208,7 @@ test("a CSV answer kept packed: the reader's notes without a hidden column's, wa
     // a limit of the reader: its own code and words, as when the operation's worker read the bytes
     const limited = await contextOf({ ...options, limits: { rows: 2 } });
     try {
-        const error = await failure(describe(limited, undefined, ana, "csv"));
+        const error = await failure(describe(limited, undefined, person, "csv"));
         assert.equal(error.code, "LIMIT_EXCEEDED");
         assert.match(error.message, /limits\.rows/);
     } finally {
@@ -1233,7 +1217,7 @@ test("a CSV answer kept packed: the reader's notes without a hidden column's, wa
     // every column hidden: the rows still counted
     const none = await contextOf({ ...options, sources: { csv: { ...options.sources.csv, policy: { default: "hide" } } } });
     try {
-        const described = (await describe(none, undefined, ana, "csv")).result;
+        const described = (await describe(none, undefined, person, "csv")).result;
         assert.deepEqual([described.rows, described.fields, described.hiddenFields], [3, [], 4]);
     } finally {
         await none.close();
@@ -1245,8 +1229,8 @@ test("a kept CSV answer is read under the limits and time zone it was read with:
         res.writeHead(200, { "content-type": "text/csv" });
         res.end("name,cpu,state\nweb-1,4,running\nweb-2,2,stopped\ndb-1,8,running\n");
     });
-    const auth = { mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" };
-    const ana = callerOf("oauth", { token: "jwt", clientId: "claude", scopes: [], expiresAt: 0, extra: { subject: "ana", issuer: auth.issuer, groups: [] } }, auth);
+    const auth = OAUTH;
+    const person = ana("claude", auth);
     // one configured source object in two servers (a host that builds its contexts from one options object)
     const base = optionsOf({}, {}, { auth });
     const sources = { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy: POLICY } };
@@ -1254,9 +1238,9 @@ test("a kept CSV answer is read under the limits and time zone it was read with:
     const narrow = await contextOf({ ...base, sources, limits: { rows: 2 } });
     const zoned = await contextOf({ ...base, sources, timeZone: "Asia/Tokyo" });
     try {
-        assert.equal((await describe(wide, undefined, ana, "csv")).result.rows, 3);
-        assert.equal((await failure(describe(narrow, undefined, ana, "csv"))).code, "LIMIT_EXCEEDED", "not the other server's kept table");
-        assert.equal((await describe(zoned, undefined, ana, "csv")).result.rows, 3);
+        assert.equal((await describe(wide, undefined, person, "csv")).result.rows, 3);
+        assert.equal((await failure(describe(narrow, undefined, person, "csv"))).code, "LIMIT_EXCEEDED", "not the other server's kept table");
+        assert.equal((await describe(zoned, undefined, person, "csv")).result.rows, 3);
         assert.equal(asked.length, 3, "each reads the answer under its own limits and time zone");
     } finally {
         await Promise.all([wide.close(), narrow.close(), zoned.close()]);
@@ -1270,23 +1254,17 @@ test("a CSV answer for a caller without an identity: read by the operation's wor
     });
     const options = { ...optionsOf({}, {}, { policy: { results: true } }), sources: { csv: { http: { backend: "platform", path: "/export.csv", format: "csv" }, policy: POLICY } } };
     const context = await contextOf(options);
-    const kept = [];
-    const original = loadRunner.runLoad;
-    loadRunner.runLoad = async (key, ...rest) => {
-        const ran = await original(key, ...rest);
-        kept.push(key);
-        return ran;
-    };
+    const { kept, stop } = keptLoads();
     try {
         for (let i = 0; i < 2; i++) {
             const described = (await describe(context, undefined, nobody(), "csv")).result;
             assert.deepEqual([described.fields.map((f) => f.name).sort(), described.hiddenFields], [["cpu", "name", "state"], 1]);
         }
-        assert.deepEqual(kept, [null, null], "no key: nothing kept or shared");
+        assert.deepEqual(kept.map((k) => k.key), [null, null], "no key: nothing kept or shared");
         assert.equal(asked.length, 2);
         assert.deepEqual(context.computer.sent(), { tables: 0, cached: 0 }, "no read job: the bytes go to the operation's worker");
     } finally {
-        loadRunner.runLoad = original;
+        stop();
         await context.close();
     }
 });

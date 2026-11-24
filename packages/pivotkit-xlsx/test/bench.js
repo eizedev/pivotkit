@@ -88,7 +88,7 @@ const files = {
 writeFileSync(files.plain, makeXlsx({ sheets: [{ name: "Tickets", rows: () => ticketRows(ROWS) }] }));
 writeFileSync(files["used range to row 900,000"], makeXlsx({ sheets: [{ name: "Tickets", rows: () => ticketRows(ROWS), usedRangeTo: 900_000, emptyCells: 20 }] }));
 const browser = process.argv.includes("--browser");
-if (browser) spawnSync("node", ["build.js"], { cwd: join(here, ".."), stdio: "inherit" });
+if (browser) spawnSync(process.execPath, ["build.js"], { cwd: join(here, ".."), stdio: "inherit" });
 for (const [label, file] of Object.entries(files)) {
     const size = (await readBytes(file)).length;
     console.log(`\n${label}: ${ROWS.toLocaleString("en-US")} rows x 20 columns, ${(size / 1e6).toFixed(1)} MB`);

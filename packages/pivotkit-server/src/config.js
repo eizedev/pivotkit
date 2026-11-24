@@ -153,7 +153,6 @@ export const serverLimitsOf = (options) => ({ ...SERVER_LIMITS, ...(options.limi
 /** The defaults of the compute pool: compute-defaults.js. */
 export { COMPUTE_DEFAULTS } from "./compute-defaults.js";
 
-/** How many reports and drafts the output directory holds, and how many MiB (output.maxMb), before its oldest go. */
 /**
  * The output directory's defaults: at most 1000 files and 1024 MiB of pivotkit's, and reports older
  * than 30 days deleted (maxAgeDays; 0: no age limit; a schedule draft waits for approval and stays,
@@ -474,7 +473,7 @@ function urlOf(text, path) {
  * http.publicUrl, checked: an http(s) origin, with a trailing "/" at most. The server serves at the
  * root of its host, and every address it names (REST, OpenAPI, download links, the MCP page, OAuth
  * resources) is built from the origin. A path, a user name, a password, a query or a fragment is a
- * ConfigError that never repeats the value (#629).
+ * ConfigError that never repeats the value.
  * @param {string} text
  */
 function publicUrlOf(text) {
@@ -541,9 +540,9 @@ export const publicOriginOf = (options) => (options?.http?.publicUrl ? new URL(o
 
 /**
  * Where people find the REST service and its OpenAPI document, for messages: full addresses under
- * http.publicUrl's origin (publicOriginOf), else the paths. Readers took a bare "/openapi.json"
- * next to "/api/v1" as relative to it, so without a public URL the document's place is said in
- * words. openapi is null where rest.openapi "off" serves no document.
+ * http.publicUrl's origin (publicOriginOf), else the paths. Without a public URL the document's
+ * place is said in words: a bare "/openapi.json" next to "/api/v1" reads as relative to it.
+ * openapi is null where rest.openapi "off" serves no document.
  * @param {ServerOptions} options
  * @returns {{ rest: string, openapi: string | null }}
  */
@@ -569,7 +568,8 @@ export function noRouteDetail(options) {
 /**
  * The REST service's OAuth resource: rest.resource, else the origin of auth.resource with /api/v1
  * (an audience of its own, so a token for the MCP endpoint does not reach REST), else
- * http.publicUrl's origin with /api/v1. A user name or password of those addresses is left out.
+ * http.publicUrl's origin with /api/v1, else http://localhost/api/v1. A user name or password of
+ * those addresses is left out.
  * @param {ServerOptions} options
  */
 export const restResourceOf = (options) => options.rest?.resource ?? `${(options.auth?.resource ? new URL(options.auth.resource).origin : null) ?? publicOriginOf(options) ?? "http://localhost"}${REST_BASE}`;

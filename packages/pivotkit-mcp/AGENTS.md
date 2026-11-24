@@ -13,7 +13,8 @@ npx pivotkit-mcp --source sales=data.csv --output out --check-config
 ## Tools
 
 - One tool per operation of pivotkit-report's `OPERATIONS`. `registerTools` in `src/tools.js` adds them.
-- A new operation needs no change here.
+- A new operation needs no change in `src/`. `test/protocol.test.js` names each tool on purpose:
+  add the new one to `TOOL_NAMES` there.
 - What only MCP needs goes into `tools.js`: extra words in `descriptionOf`, annotations.
 - The work is pivotkit-server's `present()`. Do not repeat policy logic here.
 - A changed tool description or schema: say on the upgrading page that clients must reconnect.

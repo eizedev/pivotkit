@@ -6,8 +6,7 @@
  *     level info, format auto (text on a terminal, JSON otherwise)
  *     addresses on: the socket's peer (with http.trustProxy the forwarded client, the proxy as peerAddress)
  *
- * check/index.js says what a section returns. The log has no "New in this version" note in this
- * version; the changelog of pivotkit-server has the log's changes of earlier versions.
+ * check/index.js says what a section returns. The log has no "New in this version" note.
  */
 
 import { logSettingsOf } from "../log.js";

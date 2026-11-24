@@ -16,7 +16,7 @@ import { isClosedForDelivery } from "../src/registry.js";
 import { createDownloadHandler } from "../src/downloads.js";
 import { createLimits } from "../src/limits.js";
 import { NO_LINK_NOTE } from "../src/delivery.js";
-import { BY_REGION, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
+import { ALL_SHOWN, BY_REGION, TOKEN, call, factsOf, restServer, workspace } from "./helpers.js";
 import { until } from "../../../tests/until.js";
 
 const OAUTH = Object.freeze({ mode: "oauth", issuer: "https://auth.example.test/", resource: "https://pivotkit.example.test/mcp" });
@@ -36,16 +36,15 @@ async function contextOf(options) {
 }
 
 /** Every field shown: such a source is open by its policy. */
-const SHOWN = Object.freeze({ default: "show" });
 
 /** A code source per caller (a claim-bound team, the operator's perPerson flag) and an open one. */
 const PERSONAL_SOURCES = {
-    open: { load: async () => ROWS, policy: SHOWN },
-    team: { load: async () => ROWS, policy: SHOWN, params: { team: { type: "string", required: true, claim: "team", pattern: "^[a-z0-9-]{1,40}$" } } },
-    mine: { load: async () => ROWS, policy: SHOWN, perPerson: true }
+    open: { load: async () => ROWS, policy: ALL_SHOWN },
+    team: { load: async () => ROWS, policy: ALL_SHOWN, params: { team: { type: "string", required: true, claim: "team", pattern: "^[a-z0-9-]{1,40}$" } } },
+    mine: { load: async () => ROWS, policy: ALL_SHOWN, perPerson: true }
 };
 
-// --- F1: data that belongs to one person counts as closed for links ---------------------------------
+// --- data that belongs to one person counts as closed for links ---------------------------------
 
 test("data per person counts as closed for links: a claim-bound source, a perPerson code source and data sent in the request; an open source stays open", async () => {
     const context = await contextOf({ sources: PERSONAL_SOURCES, auth: OAUTH });
@@ -60,7 +59,7 @@ test("data per person counts as closed for links: a claim-bound source, a perPer
         const closed = Object.fromEntries((await context.registry.check()).map((s) => [s.id, s.closed]));
         assert.deepEqual(closed, { open: false, team: true, mine: true });
     } finally {
-        await context.close?.();
+        await context.close();
     }
 });
 
@@ -70,10 +69,10 @@ test("isClosedForDelivery: closed by a field, inline data, a claim parameter, a 
         sources: {
             ...PERSONAL_SOURCES,
             sales: { file: "data/sales.csv" },
-            shown: { file: "data/sales.csv", policy: SHOWN },
-            exchanged: { http: { url: "https://api.example.test/vms", auth: { tokenExchange: { audience: "a", clientId: "p", clientSecret: { env: "X" } } } }, policy: SHOWN }
+            shown: { file: "data/sales.csv", policy: ALL_SHOWN },
+            exchanged: { http: { url: "https://api.example.test/vms", auth: { tokenExchange: { audience: "a", clientId: "p", clientSecret: { env: "X" } } } }, policy: ALL_SHOWN }
         },
-        files: { allowDirs: ["data"], policy: SHOWN }
+        files: { allowDirs: ["data"], policy: ALL_SHOWN }
     };
     const closed = (ref) => isClosedForDelivery(/** @type {any} */ (options), ref);
     assert.equal(closed("shown"), false);
@@ -121,7 +120,7 @@ test("perPerson: a code source only, and not with cacheShared (one copy for all 
 
 test("output.baseUrl: a report over data sent in the request gets no address; the person asks the operator", async () => {
     const dir = workspace();
-    const server = await restServer({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, policy: { data: true }, output: { dir: "out", baseUrl: "https://files.example.com/reports/" }, baseDir: dir });
+    const server = await restServer({ sources: { open: { file: "data/sales.csv", policy: ALL_SHOWN } }, policy: { data: true }, output: { dir: "out", baseUrl: "https://files.example.com/reports/" }, baseDir: dir });
     try {
         const open = await call(`${server.api}/views/render`, { body: { source: "open", view: BY_REGION, format: "csv", name: "Open" } });
         assert.equal(open.status, 200, JSON.stringify(open.data));
@@ -148,7 +147,7 @@ test("check-config: per-person sources and data sent in requests are named with 
     assert.doesNotMatch(text, /^ {2}(team|mine): load[^\n]*\n(?: {4}[^\n]*\n)*? {4}reports over it get plain links/m);
 });
 
-// --- F2: reports without an age limit --------------------------------------------------------------
+// --- reports without an age limit --------------------------------------------------------------
 
 test("check-config: warns only when output.maxAgeDays is 0 while closed sources or data sent in requests are on; the default limit is said on the output line", async () => {
     const dir = workspace();
@@ -157,17 +156,15 @@ test("check-config: warns only when output.maxAgeDays is 0 while closed sources 
     assert.match(warned, /^WARNING \(Retention\): output\.maxAgeDays is 0 \(no age limit\) and reports over closed sources \(sales\) and data sent in requests can hold data about people; leave out output\.maxAgeDays \(the default deletes reports after 30 days\) or set a number of days$/m);
     assert.match(warned, /^ {2}no age limit for reports \(output\.maxAgeDays 0\); schedule drafts stay until a person approves or removes them$/m);
     // data sent in requests alone: an open source, MCP on
-    const inlineOnly = factsOf((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text);
+    const inlineOnly = factsOf((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: ALL_SHOWN } }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text);
     assert.match(inlineOnly, /WARNING \(Retention\): output\.maxAgeDays is 0 \(no age limit\) and data sent in requests can hold/);
     // the default (30 days), a written limit, no output.dir, or nothing closed and no data in requests: no warning
     const byDefault = factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out" }, baseDir: dir }, { http: false, env: {} })).text);
     assert.doesNotMatch(byDefault, /Retention:/);
     assert.match(byDefault, /^ {2}reports older than 30 days are deleted; schedule drafts stay until a person approves or removes them$/m);
-    // the notes of 0.2.0 are gone: "New in this version" names this release's changes only
-    assert.doesNotMatch(byDefault, /reports deleted after 30 days \(output\.maxAgeDays: 0 keeps them\)/);
     assert.doesNotMatch(factsOf((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 7 }, baseDir: dir }, { http: false, env: {} })).text), /Retention:|deleted after 30 days/);
     assert.doesNotMatch((await checkConfig({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir }, { http: false, env: {} })).text, /Retention:/);
-    assert.doesNotMatch((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: SHOWN } }, mcp: { data: false }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text, /Retention:/);
+    assert.doesNotMatch((await checkConfig({ sources: { open: { file: "data/sales.csv", policy: ALL_SHOWN } }, mcp: { data: false }, output: { dir: "out", maxAgeDays: 0 }, baseDir: dir }, { http: false, env: {} })).text, /Retention:/);
 });
 
 test("output.maxAgeDays: 30 days by default in a directory of the reports' own; a directory with the operator's files starts without an age limit unless one is written", async () => {
@@ -200,7 +197,7 @@ test("output.maxAgeDays: 30 days by default in a directory of the reports' own; 
     await assert.rejects(contextOf({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data", maxAgeDays: 30 }, baseDir: dir }), /output\.maxAgeDays could delete/);
 });
 
-// --- F6: cache keys hold no group, claim or value in clear text --------------------------------------
+// --- cache keys hold no group, claim or value in clear text --------------------------------------
 
 test("cache keys: a code source's key holds no group, claim or parameter value in clear text; two persons still get two entries, one person one", async () => {
     const context = await contextOf({ sources: { team: { load: async () => ROWS, params: { team: { type: "string", required: true, claim: "team", pattern: "^[a-z0-9-]{1,40}$" }, region: { type: "string" } } } }, auth: OAUTH });
@@ -225,7 +222,7 @@ test("cache keys: a code source's key holds no group, claim or parameter value i
         assert.notEqual(keys[0], keys[2], "two persons, two entries");
     } finally {
         loadRunner.runLoad = original;
-        await context.close?.();
+        await context.close();
     }
 });
 
@@ -239,7 +236,7 @@ test("cache keys: a table job's key holds no parameter value in clear text; othe
     assert.equal(tableKeyOf({ ...parts, identity: null }), null);
 });
 
-// --- F8: a person in no group of groupProfiles ------------------------------------------------------
+// --- a person in no group of groupProfiles ------------------------------------------------------
 
 test("groups: a person in no group of auth.groupProfiles is refused without auth.defaultProfile; a scope's or client's profile or the default decides instead", () => {
     const auth = { groupProfiles: [{ group: "finance", profile: "finance" }], scopeProfiles: { "pivotkit:staff": "staff" } };
@@ -265,7 +262,7 @@ test("check-config: with groupProfiles and no defaultProfile it says a person in
     assert.match(text, /WARNING \(Auth\): auth\.groupProfiles without auth\.defaultProfile: a person in none of the groups is refused \(403\); set auth\.defaultProfile to a narrow profile to let them in/);
 });
 
-// --- F10: one-time markers swept on a timer -------------------------------------------------------
+// --- one-time markers swept on a timer -------------------------------------------------------
 
 test("downloads: the markers of expired one-time links are swept on a timer, without another download", async () => {
     const dir = workspace();
@@ -283,7 +280,7 @@ test("downloads: the markers of expired one-time links are swept on a timer, wit
         assert.equal(existsSync(live), true, "a live link's marker stays");
     } finally {
         handler.close();
-        await context.close?.();
+        await context.close();
     }
 });
 
@@ -301,7 +298,7 @@ test("downloads: after close() the sweep timer no longer runs", async () => {
         await new Promise((r) => setTimeout(r, 150));
         assert.equal(existsSync(old), true, "no sweep after close()");
     } finally {
-        await context.close?.();
+        await context.close();
     }
 });
 
@@ -309,6 +306,7 @@ test("downloads: after close() the sweep timer no longer runs", async () => {
 
 test("limits: an address without a refused token in the last minute and a caller whose bucket is full again are dropped on a timer; not after close()", async () => {
     let t = 1_000_000;
+    // a fixed sleep of four prune intervals: what must stay stays meanwhile
     const wait = () => new Promise((r) => setTimeout(r, 80));
     const limits = createLimits({}, () => t, { pruneEveryMs: 20 });
     try {
@@ -318,8 +316,8 @@ test("limits: an address without a refused token in the last minute and a caller
         assert.deepEqual(limits.size(), { addresses: 1, callers: 1 }, "both still count");
         t += 61_000;
         limits.failed("192.0.2.8");
-        await wait();
         // the old address and the full bucket are gone; the address refused just now stays
+        await until(() => limits.size().callers === 0, { message: "the timer pruned the full bucket" });
         assert.deepEqual(limits.size(), { addresses: 1, callers: 0 });
         assert.equal(limits.blocked("192.0.2.8"), 0);
     } finally {

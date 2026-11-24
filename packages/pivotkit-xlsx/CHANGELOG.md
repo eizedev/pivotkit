@@ -6,6 +6,11 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Fixed
+
+- A sheet name with a raw `>` in its quoted value, such as `name="A>B"`, names the sheet. That is
+  legal XML, though Excel writes `&gt;`. pivotkit-xlsx refused such a workbook as having no worksheet.
+
 ### Changed
 
 - The XML checks of a workbook are split into smaller files: the declaration check, the guard, the

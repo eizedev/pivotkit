@@ -37,9 +37,12 @@ npm install pivotkit-element
 ```js
 // report.js
 const report = document.querySelector("pivot-report");
-report.data = rows;                        // an array of objects, property only
+// an array of objects, property only
+report.data = rows;
 report.templates = [{ name: "By region", view: { rows: ["Region"] } }];
-report.addEventListener("pivot-view-change", (e) => localStorage.setItem("view", JSON.stringify(e.detail.view)));
+report.addEventListener("pivot-view-change", (e) =>
+  localStorage.setItem("view", JSON.stringify(e.detail.view))
+);
 ```
 
 ## How it works

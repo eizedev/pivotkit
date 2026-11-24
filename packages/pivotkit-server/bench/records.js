@@ -32,11 +32,12 @@ import { fileURLToPath } from "node:url";
 import { SignJWT } from "jose";
 import { createContext } from "pivotkit-server";
 import { createRestHandler } from "pivotkit-server/rest";
+import { RECORDS_DEFAULTS } from "../src/options/records.js";
 import { tempDir } from "../../../tests/temp-dir.js";
 import { isMain } from "../../../scripts/is-main.js";
 
 /** The sizes measured by default: 10,000 rows, the default row limit and 100,000 rows. */
-const SIZES = [10_000, 50_000, 100_000];
+const SIZES = [10_000, RECORDS_DEFAULTS.maxRows, 100_000];
 
 /** A deterministic generator (mulberry32), so every run sees the same data. */
 function random(seed) {
@@ -70,7 +71,7 @@ async function serverOf(dir, n) {
         sources: { orders: { file: join(dir, "orders.csv"), policy: { default: "show" } } },
         policy: { profiles: { staff: { records: ["orders"], results: true } } },
         auth: { mode: "token", tokens: [{ name: "ops", env: "BENCH_TOKEN" }], externalIssuers: [{ issuer: "host", typ: "host+jwt", scopes: ["pivotkit"], profiles: ["staff"], profile: "staff", keys: [{ kid: "k1", publicKey: { file: join(dir, "issuer.pub") } }] }] },
-        rest: { records: { maxRows: Math.max(n, 50_000), maxCells: Math.max(n * 8, 1_000_000) } },
+        rest: { records: { maxRows: Math.max(n, RECORDS_DEFAULTS.maxRows), maxCells: Math.max(n * 8, RECORDS_DEFAULTS.maxCells) } },
         log: "off"
     };
     const context = await createContext(options);
@@ -93,7 +94,6 @@ async function measure(server, path, body) {
         heap = Math.max(heap, now.heapUsed);
     }, 2);
     const cpu = process.cpuUsage();
-    const started = performance.now();
     const response = await server.rest.fetch(new Request(`http://127.0.0.1/api/v1${path}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${server.token}` }, body: JSON.stringify(body) }), { address: "127.0.0.1" });
     let bytes = 0;
     const reader = /** @type {ReadableStream<Uint8Array>} */ (response.body).getReader();
@@ -107,13 +107,12 @@ async function measure(server, path, body) {
         rss = Math.max(rss, now.rss);
         heap = Math.max(heap, now.heapUsed);
     }
-    const ms = performance.now() - started;
     const used = process.cpuUsage(cpu);
     clearInterval(sampler);
     if (response.status !== 200) {
         throw new Error(`${path}: ${response.status}`);
     }
-    return { ms, cpuMs: (used.user + used.system) / 1000, rssMb: (rss - before.rss) / 1_048_576, heapMb: (heap - before.heapUsed) / 1_048_576, bytes };
+    return { cpuMs: (used.user + used.system) / 1000, rssMb: (rss - before.rss) / 1_048_576, heapMb: (heap - before.heapUsed) / 1_048_576, bytes };
 }
 
 /** What each kind of request sends. */
