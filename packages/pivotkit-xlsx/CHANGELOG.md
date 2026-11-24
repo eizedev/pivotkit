@@ -8,6 +8,9 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ### Fixed
 
+- The column check before parsing counts a row as wide as the parser builds it. A row whose cells
+  all name one column, such as `A1`, `A2` and `A3`, is as wide as its number of cells. Such a row
+  over `limits.columns` or `limits.importCells` is refused before the sheet is parsed.
 - A sheet name with a raw `>` in its quoted value, such as `name="A>B"`, names the sheet. That is
   legal XML, though Excel writes `&gt;`. pivotkit-xlsx refused such a workbook as having no worksheet.
 

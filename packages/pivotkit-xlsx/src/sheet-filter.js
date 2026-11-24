@@ -86,8 +86,9 @@ function squeeze(buf, file, part) {
  * The row whose start tag is buf[lt, gt] ("<row ...>", name buf[name, nameEnd)), read tag by tag as
  * the parser reads it up to its end tag (the start tag's name, prefix and all), comments, CDATA
  * sections and processing instructions skipped whole; null while it does not end in `buf`. Gives where
- * it ends (just after its end tag), whether a cell has content (an end tag `c`), the highest column
- * and row of its cells' `r` and of the `r` of a row inside it (the parser reads one as a row), the
+ * it ends (just after its end tag), whether a cell has content (an end tag `c`), its width as the
+ * parser builds it (each cell one more, or its column if that is further), the highest row of its
+ * cells' `r` and of the `r` of a row inside it (the parser reads one as a row), the
  * highest shared string a cell names (`t="s"` and its `<v>`, -1 for none) and the cells with an error.
  */
 function readRow(buf, name, nameEnd, gt, file, part) {
@@ -123,8 +124,10 @@ function readRow(buf, name, nameEnd, gt, file, part) {
             const self = buf[end - 1] === 0x2f;
             const attrsEnd = self ? end - 1 : end;
             if (stop - local === 1 && buf[local] === 0x63) {
-                // a cell
+                // a cell: the parser appends it after the empty cells up to its column, so the row
+                // is at least one wider than before, also when cells name one column ("A1", "A2" ...)
                 open = false;
+                column++;
                 eachAttr(buf, stop, attrsEnd, (at, atEnd, vFrom, vTo) => {
                     if (atEnd - at !== 1) return;
                     if (buf[at] === 0x72) {
