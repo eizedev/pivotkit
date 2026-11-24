@@ -8,7 +8,7 @@
  * the focus goes back to its button, Tab closes it and moves on. A level with form controls (a
  * filter, a name) is a panel: a group with its heading, Tab through its controls, Escape back. Every
  * choice applies at once. A search above the first level finds any choice of any level (topics in
- * chip-topics.js). Loaded with the menus (menus.js).
+ * menu-topics.js). Loaded with the menus (menus.js).
  */
 
 import React, { useContext, useEffect, useId, useLayoutEffect, useRef, useState } from "react";

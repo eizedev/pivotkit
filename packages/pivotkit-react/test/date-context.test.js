@@ -111,7 +111,6 @@ test("timeline Group endpoint years follow core Gregorian labels", () => {
     }
 });
 
-
 test("Japanese calendar context uses observed eras within a Gregorian year", () => {
     const locale = "ja-JP-u-ca-japanese";
     const fmt = new Intl.DateTimeFormat(locale, {year: "numeric", timeZone: "UTC"});
@@ -195,7 +194,6 @@ test("cyclic month hints use Gregorian grouping semantics in non-Gregorian local
     }
 });
 
-
 test("single-year cyclic months describe observed calendar months, never synthetic year-2000 months", () => {
     for (const locale of ["en-US-u-ca-islamic", "he-IL-u-ca-hebrew", "ar-SA"]) {
         for (const days of [["2024-01-15"], ["2024-01-01", "2024-01-31"]]) {
@@ -226,7 +224,6 @@ test("date ranges reuse formatters for large date schemas and distinguish era op
         assert.ok(constructions <= 2, `${constructions} formatters constructed`);
     } finally { Intl.DateTimeFormat = Original; }
 });
-
 
 test("combined cyclic month keys use localized Gregorian names", () => {
     const locale = "en-US-u-ca-islamic-civil";

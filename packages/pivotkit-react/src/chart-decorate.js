@@ -77,8 +77,9 @@ export function drawOption(instance, option, style, doc, extra, hostOptions) {
     const marked = (/** @type {((v: number) => number) | undefined} */ pixelOf) => {
         const drawn = decorate(option, style, instance.getHeight(), doc, instance.getWidth(), { ...extra, pixelOf });
         own ??= drawn;
-        const { axisEvery, ...rest } = drawn;
-        void axisEvery;
+        // the option without the report's own axisEvery, which ECharts does not know
+        const rest = { ...drawn };
+        delete rest.axisEvery;
         return hostOptions ? mergeChartOptions(rest, hostOptions) : rest;
     };
     const first = marked(undefined);

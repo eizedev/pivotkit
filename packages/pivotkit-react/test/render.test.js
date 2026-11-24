@@ -118,7 +118,6 @@ test("multiple footer ranges visibly name their host-labelled date sources", () 
     assert.match(html,/Ship Date: /);
 });
 
-
 test("invalid locale with date fields renders the controlled error instead of throwing", () => {
     const {html} = render({data:[{Date:"2024-01-01",Amount:1}], locale:"invalid_locale", defaultView:{rows:["Date"],values:[{field:"Amount",agg:"sum"}]}});
     assert.match(html, /role="alert"/);

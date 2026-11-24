@@ -40,7 +40,7 @@ export const options = {
     // a chunk of its own (splitting), so both use one copy of each module (one React context each)
     // labels.js (the package's "./labels"): every text, for hosts; not part of the report's first load
     // menu-texts-de.js: the menus' German texts, loaded with the menus for a German report only
-    // import-ui.js: loading data (allowImport), loaded on its first use (lazy-import.jsx)
+    // import-ui.js: loading data (allowImport), loaded on its first use (lazy-import.js)
     // import-worker.js: the module worker a host may start to read CSV and JSON off the page (importWorker)
     // deferred.js: German texts and the tips' table at once; deferred-late.js: the same loaded later,
     // for pivotkit-element (deferredFile)
