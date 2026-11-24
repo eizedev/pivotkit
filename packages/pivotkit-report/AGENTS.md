@@ -24,6 +24,8 @@ npx playwright test tests/browser/report-               # after a stylesheet or 
 - Anything else is `INVALID_TEMPLATE`.
 - The SVG comes from ECharts' server-side renderer. The ECharts module is passed in.
 - `cleanSvg` checks and cleans it. ECharts is an optional peer dependency.
+- The peer range takes any ECharts 6, but the tests run only the exact devDependency.
+  `test/svg.test.js` matches its exact SVG output.
 - `template-style.js` loads only for a host's own template. It imports nothing.
 - The default template carries a strict CSP (`REPORT_CSP` in `default-template.js`). Keep it strict.
 

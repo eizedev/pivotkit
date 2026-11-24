@@ -146,7 +146,7 @@ test("create_link and draft_schedule take a layout instead of a view: exactly on
     for (const name of ["create_link", "draft_schedule"]) {
         const schema = /** @type {any} */ (OPERATIONS[name].input);
         assert.ok(schema.properties.layout?.properties?.groups, `${name}: the layout of the schema is the operations' LAYOUT`);
-        assert.ok(!schema.required.includes("view"), `${name}: view is no longer required`);
+        assert.ok(!schema.required.includes("view"), `${name}: view is optional (a layout stands in for it)`);
     }
     const { result } = await OPERATIONS.create_link.run({ source: "sales", layout }, env);
     conforms("create_link", result);
@@ -212,6 +212,19 @@ test("every run checks its input against its schema first: a front end without a
     }
     assert.ok(Object.isFrozen(OPERATIONS.render_view));
     assert.doesNotThrow(() => checkInput(OPERATIONS.render_view.input, { source: "s", view: "{}", format: "csv" }));
+});
+
+test("every input schema uses only keywords checkInput enforces, so REST and the CLI check what MCP's validator checks", () => {
+    // what checkInput reads, and the annotations no validator enforces
+    const ENFORCED = new Set(["type", "enum", "required", "properties", "additionalProperties", "items", "minLength", "maxLength", "pattern", "minimum", "maximum", "minItems", "maxItems", "uniqueItems", "maxProperties"]);
+    const ANNOTATIONS = new Set(["description", "default", "title", "examples"]);
+    const walk = (schema, path) => {
+        for (const key of Object.keys(schema)) assert.ok(ENFORCED.has(key) || ANNOTATIONS.has(key), `${path} uses ${key}, which checkInput does not check`);
+        for (const [name, sub] of Object.entries(schema.properties ?? {})) walk(sub, `${path}.${name}`);
+        if (schema.items) walk(schema.items, `${path}[]`);
+        if (schema.additionalProperties && typeof schema.additionalProperties === "object") walk(schema.additionalProperties, `${path}[*]`);
+    };
+    for (const [name, op] of Object.entries(OPERATIONS)) walk(op.input, name);
 });
 
 test("suggest_view: a draft view file from the source's fields, valid against it; a layout replaces the parts it gives", async () => {
