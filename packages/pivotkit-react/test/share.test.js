@@ -170,6 +170,19 @@ test("chartOptions: plain JSON passes, functions and other values are left out a
     assert.match(cleanChartOptions(root).problems[0], /nested deeper/);
     const wide = Object.fromEntries(Array.from({ length: CHART_OPTIONS_CAPS.entries + 5 }, (_, i) => [`k${i}`, i]));
     assert.equal(Object.keys(cleanChartOptions(wide).options).length, CHART_OPTIONS_CAPS.entries);
+    // past the cap one problem says so, not one per object or list still to come
+    const many = { a: wide, b: [1, 2], c: { d: 1 }, e: [{ f: 1 }] };
+    assert.deepEqual(cleanChartOptions(many).problems, [`chartOptions.a: more than ${CHART_OPTIONS_CAPS.entries} entries in all`]);
+});
+
+test("chartOptions: a getter is not called, it is dropped and named", () => {
+    let calls = 0;
+    const title = Object.defineProperty({ text: "Sales" }, "subtext", { enumerable: true, get: () => (calls++, "from a getter") });
+    const list = Object.defineProperty([1, 2], 1, { get: () => (calls++, 3) });
+    const { options, problems } = cleanChartOptions({ title, series: [{ data: list }] });
+    assert.equal(calls, 0);
+    assert.deepEqual(options, { title: { text: "Sales" }, series: [{ data: [1, null] }] });
+    assert.deepEqual(problems, ["chartOptions.title.subtext: a getter, not allowed", "chartOptions.series[0].data[1]: a getter, not allowed"]);
 });
 
 test("chartOptions merge: key by key, lists entry by entry, an object into every entry of a list", () => {

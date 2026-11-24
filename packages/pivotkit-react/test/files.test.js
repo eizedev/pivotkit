@@ -16,6 +16,11 @@ test("file names: no path, no reserved characters or names", () => {
     assert.equal(safeFileName("C:\\\\temp\\\\x"), "C-temp-x");
     assert.equal(safeFileName('a<b>c:"d|e?*'), "a-b-c-d-e-");
     assert.equal(safeFileName("CON"), "pivot");
+    // Windows reserves a device name before any extension: "aux.x" + ".csv" is AUX as well
+    assert.equal(safeFileName("aux.x"), "pivot");
+    assert.equal(safeFileName("Nul.tar"), "pivot");
+    assert.equal(safeFileName("console"), "console");
+    assert.equal(safeFileName("com1-sales"), "com1-sales");
     assert.equal(safeFileName(""), "pivot");
     assert.equal(safeFileName(42), "pivot");
     assert.equal(safeFileName("x".repeat(300)).length, 120);
