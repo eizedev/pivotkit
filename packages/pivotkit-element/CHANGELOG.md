@@ -15,7 +15,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   nothing about the web component, and the docs describe dates.
 - The first load grows by about 1.3 KiB gzip with pivotkit-core's and pivotkit-react's fixes of this
   release: 181.9 KiB measured on a Mac, in 13 files instead of 12. Its budget goes to 182.5 KiB,
-  the import group's to 23.2 KiB and the unused group's to 6.5 KiB
+  the import group's to 23.2 KiB, the unused group's to 6.5 KiB and the report group's to 24.5 KiB
   ([#782](https://github.com/eizedev/pivotkit/pull/782), [#786](https://github.com/eizedev/pivotkit/pull/786),
   [#796](https://github.com/eizedev/pivotkit/pull/796)).
 
