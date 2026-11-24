@@ -303,7 +303,7 @@ jobs:
         run: |
           version="${TAG#pivotkit-server@}"
           if out="$(docker buildx imagetools inspect "$IMAGE:$version" 2>&1)"; then echo "$IMAGE:$version exists already"; exit 1; fi
-          if ! grep -qiE 'not found|manifest unknown' <<< "$out"; then echo "the registry did not say whether $IMAGE:$version exists: $out"; exit 1; fi
+          if ! grep -qiE 'not found|manifest unknown|name unknown' <<< "$out"; then echo "the registry did not say whether $IMAGE:$version exists: $out"; exit 1; fi
       - name: Build and push (linux/amd64, linux/arm64) with provenance and SBOM
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0

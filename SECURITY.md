@@ -30,10 +30,10 @@ Report a way to:
   [Limits](https://pivotkit.eize.dev/concepts/limits/#limits) page says the defaults allow
 
 A view cannot run code, but it decides how much work the engine does. The limits in `LIMITS` count
-that work before the memory it guards is allocated. The defaults suit a browser tab: a pivot can still
-take seconds and up to about 1.5 GB. The data itself, rows times columns, is the host's to bound. A host
-that takes views or data from untrusted users lowers the limits to what its reports need and catches
-`PivotkitError`.
+that work before the memory it guards is allocated, or while it grows. The defaults suit a browser
+tab: a pivot at the defaults can still take seconds and up to about 1.5 GB. The data itself, rows
+times columns, is the host's to bound: only its rows are limited. A host that takes views or data from
+untrusted users lowers the limits to what its reports need and catches `PivotkitError`.
 
 A vulnerability in a dependency, such as Apache ECharts or fflate, belongs to that project. Tell us
 too if a package ships an affected version.
