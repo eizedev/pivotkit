@@ -32,6 +32,7 @@
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { LimitsContext } from "./limits-context.js";
 import { loadECharts } from "./chart.jsx";
 import { PivotDnd } from "./dnd.jsx";
 import { AboveResult } from "./above-result.jsx";
@@ -281,6 +282,7 @@ function Report(props) {
             onDrop={onDrag}
         >
             <LayerContext.Provider value={layerValue}>
+              <LimitsContext.Provider value={limits}>
               <FormNameContext.Provider value={formPrefix}>
               <HelpContext.Provider value={help}>
                 <PivotDnd labels={labels} onDrop={placing.onDrop} renderOverlay={(src) => <DragChip src={src} typeOf={fields.typeOf} />} onDragStart={(src) => void (src.kind === "field" && drawer.closeIfNarrow())}>
@@ -311,6 +313,7 @@ function Report(props) {
                 </div>
               </HelpContext.Provider>
               </FormNameContext.Provider>
+              </LimitsContext.Provider>
             </LayerContext.Provider>
         </div>
     );

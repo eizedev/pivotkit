@@ -615,3 +615,25 @@ test("the condition on the labels by the field's type, none for dates and yes/no
     assert.equal(conditionKind(data, view, "Day by month"), null, "a grouping of a date is a date");
     assert.equal(conditionKind(data, view, "Done"), null);
 });
+
+// The rules on totals compare what itemTotals counts: with the host's limits, as the report computes,
+// and over a limit no totals instead of an error the menu cannot catch.
+test("itemTotals counts with the host's limits; over a limit it gives no totals, never an error", async () => {
+    const { itemTotals } = await import("../src/menu-ops.js");
+    const rows = Array.from({ length: 50 }, (_, i) => ({ Item: `i${i}`, Units: i }));
+    const data = encode(rows);
+    const view = normalize({ rows: ["Item"], values: [{ field: "Units", agg: "sum" }] }, data).view;
+    const by = { field: "Units", agg: "sum" };
+    assert.equal(itemTotals(data, view, "Item", by, [], { groups: 10 }).totals.size, 0);
+    assert.equal(itemTotals(data, view, "Item", by, [], { groups: 10 }).rows, 0);
+    assert.equal(itemTotals(data, view, "Item", by, []).totals.size, 50);
+});
+
+test("belowLimits gives the fallback only for a limit the data or view is over; any other error is thrown on", async () => {
+    const { belowLimits } = await import("../src/limits-context.js");
+    const { PivotkitError } = await import("pivotkit-core");
+    assert.equal(belowLimits(() => { throw new PivotkitError("LIMIT_EXCEEDED", "over"); }, "none"), "none");
+    assert.throws(() => belowLimits(() => { throw new PivotkitError("INVALID_ARGUMENT", "a defect"); }, "none"), /a defect/);
+    assert.throws(() => belowLimits(() => { throw new TypeError("a bug"); }, "none"), TypeError);
+    assert.equal(belowLimits(() => 3, "none"), 3);
+});
