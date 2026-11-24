@@ -2,7 +2,7 @@
 // that needs the room: long category names (#228), a donut's outside labels (#229), long values at the
 // end of horizontal bars (#230) and a heatmap with many rows (#231). Each test reads what ECharts drew:
 // the text's boxes inside the chart, whole (no "…"), not on top of each other.
-import { test, expect } from "../fixtures.js";
+import { expect, test, untilStable } from "../fixtures.js";
 import { ZOOM_SLIDER } from "../../../packages/pivotkit-core/src/chart-zoom.js";
 
 /** Countries with long names and their population (2024, rounded), as the countries example has them. */
@@ -145,16 +145,7 @@ async function drawn(chart) {
             };
         });
     // the layout settles after the first frames (fonts, the resize observer)
-    let last = null;
-    await expect
-        .poll(async () => {
-            const now = await read();
-            const same = now && last && JSON.stringify(now) === JSON.stringify(last);
-            last = now;
-            return Boolean(same);
-        }, { intervals: [300, 300, 300, 500, 500, 1000] })
-        .toBe(true);
-    return last;
+    return untilStable(read, { ready: Boolean, intervals: [300, 300, 300, 500, 500, 1000] });
 }
 
 /**
