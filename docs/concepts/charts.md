@@ -26,7 +26,7 @@ and `chartOptions`.
 - `"treemap"`: a tile per category, its area the category's total over every column, as a pie's
   slice. It has no legend. `chart.hidden` leaves tiles out.
 
-A pivotkit before these two types reads a view with one as `"auto"`, with an `unknownSetting` issue.
+A reader that lacks these two types reads a view with one as `"auto"`, with an `unknownSetting` issue.
 
 [Chart types](../use/charts.md#chart-types) describes what Automatic draws and the tips that suggest
 another type.

@@ -52,8 +52,8 @@ yet." A field does not turn them on. Loading data with rows does.
 
 ## The table or the rows behind it?
 
-The table's exports hold what you see: the groups, the totals, the numbers as the table shows them.
-They are Excel, Table as CSV, the HTML report and the copies.
+The table's exports are Excel, Table as CSV, the HTML report, and the copies. They hold the table:
+its groups and its totals. The top of this page says how each one writes the numbers.
 
 **Source data** holds what the report is made of:
 

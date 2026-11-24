@@ -43,7 +43,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - The zones fold under their heading "Fields in the report" ([a low report](use/layout.md#a-low-report)).
 - Table and Chart as tabs on the result, each with its settings, and both side by side on a wide report ([charts](use/charts.md#both)).
 - The table ([the table](use/fields.md#the-table)): subtotals and grand totals, expand and collapse,
-  sticky headers, and long labels that wrap. It is fast from 300 rows on.
+  sticky headers, and long labels that wrap. A long table draws only the rows in view.
 - Developers: per field a label, a description, links, an aggregator, a format and an item order
   (`fieldDefaults`). They can also come from a JSON Schema or OpenAPI document
   ([field descriptions](concepts/fields.md)).
@@ -160,7 +160,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - The table by arrow keys.
     - A text alternative of the chart.
     - Focus kept on purpose.
-    - 44 px touch targets on a phone.
+    - Touch targets of a size for fingers on a phone.
 - Both themes meet WCAG contrast ratios, and a test checks them. pivotkit claims no conformance
   level ([theming](reference/theming.md)).
 
@@ -204,62 +204,45 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - with one template per source or one for the whole server, in the services
 - `pivotkit-cli` ([command line](getting-started/cli.md), [pivotkit-cli](reference/cli.md)):
     - `pivotkit example`, `render`, `validate` and `describe`.
-    - A draft view from a file's fields (`describe --suggest`), and a report without a view file
-      from layout flags (`render --rows ... --values ... --filter Country=Germany`). `--map` for a renamed column, and
-      `--save-view` ([a view from the data's fields](reference/cli.md#a-view-from-the-datas-fields)).
-    - Exit codes, `--json`, and messages that say what to fix.
-    - The sheet of a workbook a view names. `describe` lists a workbook's sheets.
+    - A draft view from a file's fields, or a report without a view file from the field names
+      ([a view from the data's fields](reference/cli.md#a-view-from-the-datas-fields)).
+    - Exit codes, output for programs, and messages that say what to fix.
+    - The sheets of a workbook.
     - Shell completion and safe file handling.
-    - Offline, or on a pivotkit-server's sources with `--url`, `--source` and `pivotkit sources`
-      ([with a server](reference/cli.md#with-a-server)).
+    - Offline, or on a pivotkit-server's sources ([with a server](reference/cli.md#with-a-server)).
 - For programs and reviews: `validate` with "did you mean" hints, and `describeSource` and
   `describeView` in plain words ([views](concepts/views.md)).
 
 ## REST service and container { #rest }
 
 - `pivotkit-server` ([getting started](getting-started/rest.md), [pivotkit-server](reference/rest.md),
-  [tokens and keys](reference/rest.md#credentials),
+  [tokens and keys](reference/tokens.md#credentials),
   [reading check-config](reference/rest.md#check-config), [security](security.md#rest),
   [privacy](privacy.md)):
-    - The same operations for programs over HTTP under `/api/v1`: list and describe sources,
-      validate, describe and render views, links, and schedule drafts.
-    - An OpenAPI 3.1 document made from the same table.
-    - Errors as problem documents.
-    - Sign-in with tokens or OAuth 2.1. The server can issue tokens that expire on their own
-      ([signed tokens](reference/rest.md#signed-tokens)). It also takes short-lived tokens another
-      system issues for its signed-in person, such as PowerShell Universal
-      ([tokens from another system](reference/rest.md#external-issuers)).
-    - With OAuth, people sign in from the command line with a code in the browser: `pivotkit login`,
-      then `pivotkit token` for curl or PowerShell
-      ([sign in from the command line](reference/rest.md#sign-in-cli)).
-    - Policy profiles per token, OAuth client, group or scope, and a default profile. A profile can
-      allow more values, downloads, and data sent with the request as JSON or as a csv, tsv, json or
-      xlsx file.
-    - The rows of a source for a person who signed in, where a profile allows it, so a host
-      application's backend can show a live report. Off by default, fields at `show` only
-      ([rows route](reference/rest.md#records)).
-    - The person in the log only when the operator asks for it.
+    - The same operations for programs over HTTP: list and describe sources, validate, describe
+      and render views, links, and schedule drafts.
+    - An OpenAPI document and errors as problem documents.
+    - Sign-in with tokens or OAuth, tokens that expire on their own
+      ([signed tokens](reference/tokens.md#signed-tokens)), and tokens another system issues
+      ([tokens from another system](reference/tokens.md#external-issuers)).
+    - Sign-in from the command line with a code in the browser
+      ([sign in from the command line](reference/sign-in.md#sign-in-cli)).
+    - Policy profiles per caller, with data sent in the request where a profile allows it
+      ([profiles](reference/rest.md#profiles)).
+    - The rows of a source for a host application's backend, off by default
+      ([rows route](reference/records.md#records)).
     - CORS off by default, and limits per caller.
-    - `check-config` says whether the server starts. It prints each field's level per source and
-      profile.
-    - `token new` and `key new` make tokens and keys into files only their owner can read. `--add`
-      puts a token into the configuration.
-    - `token list`, `token revoke` and `token remove` manage tokens without showing a value
-      ([list, revoke, remove](reference/rest.md#token-list)).
+    - A configuration check that says whether the server starts. Commands make tokens and keys, and
+      list, revoke and remove tokens ([tokens and keys](reference/tokens.md)).
 - Sources for both services ([data sources](reference/sources.md)):
     - data files
     - an operator's API as an HTTP source
     - a library host's code sources
     - [named views](reference/sources.md#views) per source, from the configuration or a folder of
       view files the browser saved
-- An HTTP source offers:
-    - its address written once, with typed parameters a caller fills
-    - paging, and data kept per caller
-    - a sign-in to the backend by a secret header, OAuth client credentials, or a token exchange for
-      the signed-in person
-    - parameters bound to a claim of the sign-in
-    - `pivotkit-server check-source` to test it
-    - `pivotkit-server source-from-openapi` to start from the API's OpenAPI document
+- An [HTTP source](reference/sources.md#http) offers typed parameters, paging, a sign-in to the
+  backend, parameters bound to the caller's sign-in, a command to test it, and a start from the
+  API's [OpenAPI document](reference/sources.md#openapi).
 - Download links ([download links](reference/delivery.md)):
     - The server serves each report for a while under a link that expires.
     - For sources whose fields are not all shown, only the person who asked gets the report, after
@@ -268,18 +251,13 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
       template. The result holds the store's link ([upload](reference/delivery.md#upload)).
 - One container image for the REST service, the MCP server and the command line
   ([server in 5 minutes](getting-started/server-in-5-minutes.md),
-  [made at the first start](reference/rest.md#first-start), [container image](reference/container.md),
+  [made at the first start](reference/tokens.md#first-start), [container image](reference/container.md),
   [Kubernetes](getting-started/kubernetes.md)):
-    - Distroless Node 24, non-root, read-only, with health checks.
+    - Distroless, non-root, read-only, with health checks.
     - Signed, with provenance and an SBOM.
-    - One `docker run` serves example data. At its first start the server makes a token and the
-      download links' key and keeps them in a volume. `token show` reads the token back.
-- A log for operations ([operations and logs](reference/operations.md)):
-    - JSON lines, or text on a terminal.
-    - Level, severity, request and trace ids, the client's address, the outcome and a refused
-      request's reason.
-    - `X-Request-Id` on every answer.
-    - Examples for Docker's `gelf` and `syslog` drivers.
+    - One `docker run` serves example data and makes its own token at the first start.
+- A log for operations, as JSON lines with request ids and outcomes, with examples for Docker's
+  log drivers ([operations and logs](reference/operations.md)).
 - Your own name and links for intranet deployments ([your own name and links](reference/branding.md)):
     - The name people and clients see, and an icon.
     - Your own documentation address, or no documentation links at all.
@@ -294,34 +272,19 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
       view the operator published by name.
     - Through pivotkit, the model reads only what the policy shows. A client with file tools can
       [reach more](model-data.md#beyond-policy).
-- An exposure policy per field ([what reaches an AI model](model-data.md), [exposure policy](reference/mcp.md#policy)):
-
-    | Level | The model gets |
-    | --- | --- |
-    | `show` | values and results |
-    | `values` | a category's values as a complete list, so the model filters on exact names, but no result |
-    | `summary`, the default | name, type and counts |
-    | `hide` | nothing |
-
-    - An automatic `values` rule for category fields. It is off by default, and `check-config`
-      previews it.
-    - Results over fields that are not shown stay in the file.
-- One server, different rules per client: a profile per token, OAuth client, group or scope, and a
-  default profile. So a cloud assistant sees less than a model on your own hardware
-  ([per client](model-data.md#per-client)).
-- A result only in the answer, saved nowhere: `render_view` with `save: false` returns a small csv
-  or json over shown fields inline. It writes no file ([inline only](reference/mcp.md#inline-only)).
-  Its numbers are rounded as the view shows them, in the caller's `locale`, and a csv can have one
-  header row.
-- More ([data in the request](reference/mcp.md#data)):
-    - When the data is from (`dataAsOf`), in every result and in the html and xlsx files the
-      services write. The source list gives it with the row count
+- An exposure policy per field, from the field's values down to nothing
+  ([exposure policy](reference/mcp.md#policy)). Results over fields that are not shown stay in the
+  file.
+- One server, different rules per client, so a cloud assistant sees less than a model on your own
+  hardware ([per client](model-data.md#per-client)).
+- A small result only in the answer, saved nowhere ([inline only](reference/mcp.md#inline-only)).
+- More:
+    - When the data is from, in every result and in the files the services write
       ([source list](reference/rest.md#source-list)).
     - The request id in every result, to find its log line.
-    - A small table of the model's own (`inline:`). It is capped, and `mcp.data: false` switches it
-      off.
-    - stdio and Streamable HTTP with a token or OAuth 2.1.
-    - A skill that teaches the workflow.
+    - A small table of the model's own ([data in the request](reference/mcp.md#data)).
+    - stdio and Streamable HTTP with a token or OAuth.
+    - A skill that teaches the workflow ([the skill](reference/mcp.md#skill)).
 
 ## Security { #security }
 
@@ -339,11 +302,10 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
 
 ## Limits and performance { #limits }
 
-- Rows, groups, cells and work are capped before anything big is allocated. Links are capped while
-  they are inflated. A loaded file has its own limits ([limits](concepts/limits.md#limits)).
-- Measured up to 1,000,000 rows in three browsers on one Mac. Heavy parts load on first use
-  ([measured in the browser](concepts/limits.md#measured-in-the-browser),
-  [bundle size](reference/element.md#bundle-size)).
+- pivotkit caps rows, groups, cells and work before it allocates anything big. A loaded file has its
+  own limits ([limits](concepts/limits.md#limits)).
+- Measured in three browsers ([measured in the browser](concepts/limits.md#measured-in-the-browser)).
+  Heavy parts load on first use ([bundle size](reference/element.md#bundle-size)).
 
 ## Packages and integrations { #embedding }
 

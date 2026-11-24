@@ -1,6 +1,6 @@
 ---
 title: Operations and logs
-description: Running pivotkit-server and pivotkit-mcp in production - the log's settings, levels, events and fields, request ids and trace ids, correlation with a reverse proxy, error codes in the log, and shipping the log with Docker's gelf and syslog drivers or a Kubernetes log agent.
+description: Running pivotkit-server and pivotkit-mcp in production - the log's settings, levels, events and fields, request ids and trace ids, correlation with a reverse proxy, error codes in the log, shipping the log with Docker's gelf and syslog drivers or a Kubernetes log agent, and sizing the memory for the compute workers.
 ---
 
 # Operations and logs
@@ -10,7 +10,8 @@ stdout is the MCP protocol. What happens to the lines is up to your container ru
 manager: `docker logs`, journald, a log driver or a cluster's log agent. This page says what a line
 holds and how to get the lines where you search them. Whether a server is up and can take work is
 for `/healthz` and `/readyz`, not the log ([health checks](rest.md#running)). There is no metrics
-endpoint: count events from the log lines below.
+endpoint: count events from the log lines below. [Memory and workers](#sizing) says how much memory
+a container needs.
 
 ## Settings { #settings }
 
@@ -349,7 +350,7 @@ When the server has a state directory (`/var/lib/pivotkit` in the [container ima
 `--state-dir` elsewhere), it keeps there:
 
 - in `secrets/`, the token `admin`, the key of the download links and the audit key it made at its
-  first start ([made at the first start](rest.md#first-start))
+  first start ([made at the first start](tokens.md#first-start))
 - in `out/`, the reports, where `output.dir` names it
 
 Back the volume up with the rest of the installation. Keep the backup as secret as the tokens: with
@@ -379,6 +380,88 @@ OpenTelemetry Collector, Grafana Alloy) ships it.
 - Keep pivotkit's `level` and `requestId` as fields.
 
 See [Kubernetes](../getting-started/kubernetes.md) for the deployment itself.
+
+## Memory and workers { #sizing }
+
+A pool of worker threads computes the reports over a file. `compute.*` in
+[the configuration](mcp.md#configuration) sets it up:
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `compute.workers` | 2 (at most 16) | Reports computed at once |
+| `compute.memoryMb` | 1024 | The JavaScript heap a worker may use. A report that needs more fails with `LIMIT_EXCEEDED`, and the server replaces the worker |
+| `compute.timeMs` | 30000 | The longest a report may compute (`TIMEOUT`) |
+| `compute.queueMs` | 10000 | How long a call waits for a free worker before `BUSY` |
+| `limits.fileBytes` | 50 MB | The largest file the server reads |
+
+`compute.memoryMb` bounds a worker's JavaScript heap, but not all of its memory:
+
+- The bound covers the old generation. The young generation adds up to 64 MB.
+- The bytes of the file the worker reads lie outside the heap.
+- The encoded columns lie outside it too. They take, as typed arrays, up to 12 bytes per row and column.
+- Each worker keeps the last four data sets it read, so its memory stays up after a report instead
+  of going back down. The encoded columns of all four count.
+
+As a starting point for the container's memory limit:
+
+```text
+memory limit  =  main process  +  compute.workers x (compute.memoryMb + 64 MB + limits.fileBytes)
+```
+
+With the defaults that is about 150 MB + 2 x (1024 + 64 + 50) MB, about 2.4 GB. The
+[Kubernetes example](../getting-started/kubernetes.md) sets 2560Mi. Large files with many columns need more than this for the encoded columns the workers keep.
+Watch the pod's memory with your own data.
+
+With a limit below the sum, a report that alone would fail with `LIMIT_EXCEEDED` becomes an OOM
+kill of the whole container, with every report running in it. For a smaller container, lower
+`compute.memoryMb` or the workers, not the limit alone. With `compute.memoryMb` 512 and 2 workers,
+a limit of about 1.4 GB is a starting point.
+
+With code or HTTP sources, the main process also keeps up to `sourceCache.maxMb` of loaded data,
+256 MiB by default ([bounds](code-sources.md#code-cache)). Add it to the limit, or lower
+`sourceCache.maxMb`.
+
+For an idea of real use, here is one measurement. It ran once with Node 26 on macOS, not with the
+image. Take it as a rough order and check your own data with `docker stats` or `kubectl top pod`. The source was a CSV
+file of 30 MB with 700,000 rows and 6 columns. The process used about 100 MB without work. Each
+worker that had computed a report over the file added about 470 MB.
+
+An HTTP source's first call loads the backend's answer and computes over it. This table shows how
+much the server process grew during that call. The main thread and the workers count together. It
+also shows the largest JavaScript heap of the main thread, without the answer's bytes. It ran on
+one laptop with Node 26 on macOS, with seven columns, one of them hidden. Each value is the median
+of three runs and only a rough order. The 66 MB and 34 MB answers needed a larger `sources.<id>.http.maxBytes`
+and `limits.fileBytes`.
+
+| Answer | Rows | Size | Memory added | Main thread heap |
+| --- | ---: | ---: | ---: | ---: |
+| JSON | 10,000 | 1 MB | about 70 MB | about 20 MB |
+| JSON | 100,000 | 13 MB | about 250 MB | about 60 MB |
+| JSON | 151,550 | 20 MB | about 290 MB | about 70 MB |
+| JSON | 500,000 | 66 MB | about 570 MB | about 140 MB |
+| CSV | 10,000 | 1 MB | about 70 MB | about 20 MB |
+| CSV | 100,000 | 7 MB | about 240 MB | about 20 MB |
+| CSV | 293,222 | 20 MB | about 440 MB | about 20 MB |
+| CSV | 500,000 | 34 MB | about 640 MB | about 20 MB |
+
+A worker reads a CSV answer, so its heap shows in the memory added, not in the main thread's.
+
+The server reads a JSON answer while it arrives, as [memory](sources.md#http-memory)
+explains. It holds a CSV answer whole until a worker has read it.
+
+The memory added is the process's highest resident memory during the call, minus what it used
+before. The benchmark reads the heap at each garbage collection, so its true peak may be a little
+higher.
+
+To measure on your own machine, run this in a checkout of the repository. It needs `openssl` and
+runs every size of the table.
+
+```bash
+node bench/server/http-source.js
+```
+
+A report runs on one worker thread. Give the container about one CPU per worker that should compute
+at the same time.
 
 ## Privacy { #privacy }
 

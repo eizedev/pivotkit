@@ -41,6 +41,11 @@ getting-started page step by step.
 
 </div>
 
+You run the REST service and the MCP server for others? Start with
+[Server in 5 minutes](../getting-started/server-in-5-minutes.md): one `docker run`, a token, and a
+first call. Then pick the [container image](../reference/container.md) or
+[Kubernetes](../getting-started/kubernetes.md).
+
 Coming from an earlier release? [Upgrading](../getting-started/upgrading.md) lists what a host checks.
 
 
