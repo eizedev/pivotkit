@@ -107,12 +107,12 @@ function moveTopic(view, zone, index, count, labels, name, type, defaults) {
  * The topics of a field's menu on Rows or Columns: sort by label (side by side), sort by a value,
  * Filter, the grouping of a date or a number, Top items, Move to.
  * @param {{ view: any, zone: string, index: number, field: string, types: Map<string, string>,
- *   labels: any, locale: string, state?: any, defaultsOf?: (field: string) => any, encoded?: any }} input
- *   `state`: the chip's state (zones.jsx), for the filter's "3 of 12"; `encoded`: the data, for the
+ *   labels: any, locale: string, state?: any, defaultsOf?: (field: string) => any, encoded?: any, limits?: Partial<import("pivotkit-core").Limits> }} input
+ *   `state`: the chip's state (zones.jsx), for the filter's "3 of 12"; `limits`: the host's (LimitsContext); `encoded`: the data, for the
  *   search's quick choices of a date field
  * @returns {Topic[]}
  */
-export function axisTopics({ view, zone, index, field, types, labels, locale, state, defaultsOf, encoded }) {
+export function axisTopics({ view, zone, index, field, types, labels, locale, state, defaultsOf, encoded, limits }) {
     const source = sourceOf(view, field);
     const name = fieldLabel(field, labels.core);
     const sourceType = types.get(source.toLowerCase());
@@ -147,7 +147,7 @@ export function axisTopics({ view, zone, index, field, types, labels, locale, st
     if (customItems) {
         byValue.push(sortChoice("custom", labels.sortCustom, "custom", "asc", null, "sortAsc"), sortChoice("custom-desc", labels.sortCustomDesc, "custom", "desc", null, "sortDesc"));
     }
-    const otherSort = sort && sort.by !== "label" ? sortText(view, sort, labels, sort.column && encoded ? columnText(view, sort.column, encoded, labels, locale) : undefined) : null;
+    const otherSort = sort && sort.by !== "label" ? sortText(view, sort, labels, sort.column && encoded ? columnText(view, sort.column, encoded, labels, locale, limits) : undefined) : null;
     /** @type {Topic[]} */
     const topics = [
         {

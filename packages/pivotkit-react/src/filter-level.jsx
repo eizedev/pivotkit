@@ -16,7 +16,8 @@
  */
 
 import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
-import { CATALOG, LIMITS, fieldItems, fieldLabel, formatter } from "pivotkit-core";
+import { CATALOG, LIMITS, fieldLabel, formatter } from "pivotkit-core";
+import { LimitsContext, itemsOf } from "./limits-context.js";
 import { ClearInput } from "./clear-input.jsx";
 import { useIsoLayoutEffect } from "./iso.js";
 import { activeIn, useFormName } from "./dom.js";
@@ -932,7 +933,8 @@ const without = (view, field, types) => view.filters.filter((f) => !(typeof f.fi
  * the focus on the first one.
  */
 export function FilterLevel({ view, field, encoded, types, labels, locale, commit, back, hint }) {
-    const info = useMemo(() => fieldItems(encoded, field, { view, locale, labels: labels.core }), [encoded, field, view, locale, labels]);
+    const limits = useContext(LimitsContext);
+    const info = useMemo(() => itemsOf(encoded, field, { view, locale, labels: labels.core, limits }), [encoded, field, view, locale, labels, limits]);
     const narrow = useContext(LayerContext).size === "narrow";
     const fk = useMemo(() => ruleKind(encoded, view, field), [encoded, view, field]);
     const source = sourceOf(view, field);
@@ -1022,11 +1024,11 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
         }
         const base = without(view, field, ["value", "top"]);
         const by = totalRules[0]?.by ?? measuresOf(view, types, labels, undefined).choices[0];
-        const all = itemTotals(encoded, view, field, by, [...base, ...totalRules]);
+        const all = itemTotals(encoded, view, field, by, [...base, ...totalRules], limits);
         const perRule = new Map();
         for (const r of totalRules) {
-            const plain = itemTotals(encoded, view, field, r.by, base);
-            const kept = itemTotals(encoded, view, field, r.by, [...base, r]);
+            const plain = itemTotals(encoded, view, field, r.by, base, limits);
+            const kept = itemTotals(encoded, view, field, r.by, [...base, r], limits);
             perRule.set(r, { totals: plain.totals, kept: kept.totals.size });
         }
         return { shown: all.totals, rows: all.rows, perRule, by };
@@ -1035,12 +1037,12 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     const itemResults = useMemo(() => {
         const out = new Map();
         for (const r of itemRules) {
-            const kept = fieldItems(encoded, field, { view: { ...view, filters: [r] }, locale, labels: labels.core });
+            const kept = itemsOf(encoded, field, { view: { ...view, filters: [r] }, locale, labels: labels.core, limits });
             out.set(r, kept ? kept.items.filter((i) => i.kept).length : 0);
         }
         // the quick choice alone, for the items it leaves out
         if (quick.filters.length && itemRules.length) {
-            const kept = fieldItems(encoded, field, { view: { ...view, filters: quick.filters }, locale, labels: labels.core });
+            const kept = itemsOf(encoded, field, { view: { ...view, filters: quick.filters }, locale, labels: labels.core, limits });
             out.set("quick", new Set(kept ? kept.items.filter((i) => !i.kept).map((i) => keyOf(i.value)) : []));
         }
         return out;
@@ -1116,7 +1118,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     }
     // the scope of a total: the other axes' items and the data's dates ("all 14 City items and the dates Jan 1, 2023 – Dec 31, 2025")
     const others = [...view.rows, ...view.cols].filter((f) => f.toLowerCase() !== field.toLowerCase());
-    const scopeParts = others.map((f) => fill(labels.scopeItems, { count: number(fieldItems(encoded, f, { view, locale, labels: labels.core })?.items.length ?? 0), field: fieldLabel(f, labels.core) }));
+    const scopeParts = others.map((f) => fill(labels.scopeItems, { count: number(itemsOf(encoded, f, { view, locale, labels: labels.core, limits })?.items.length ?? 0), field: fieldLabel(f, labels.core) }));
     if (span) {
         scopeParts.push(fill(labels.scopeDates, { range: `${dayText(isoDay(span.min), locale)} – ${dayText(isoDay(span.max), locale)}` }));
     }
