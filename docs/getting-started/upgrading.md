@@ -6,9 +6,9 @@ description: How to update pivotkit's packages, the image and the plugin, and wh
 # Upgrading
 
 For everyone who updates an installation of pivotkit. The first part says how to update, for each
-way of installing. The second part lists the changes of the next release and of the latest one that
-need your action. Every other change is in the package's `CHANGELOG.md`. [Versioning](../versioning.md) says
-which releases may break things.
+way of installing. The second part lists the changes of the newest release that need your action,
+and those of the next release once `main` has any. Every other change is in the package's
+`CHANGELOG.md`. [Versioning](../versioning.md) says which releases may break things.
 
 ## Update an installation { #update }
 
@@ -111,9 +111,11 @@ claude plugin update pivotkit-mcp@pivotkit
 
 ## What changed { #changes }
 
-### In the next release { #next }
+### From 0.9 to 0.10 { #from-0-9 }
 
-These changes are on `main` and come with the next release.
+pivotkit-server and pivotkit-mcp move from 0.4 to 0.5 with this release, pivotkit-cli from 0.5 to
+0.6. The table lists the changes that need an action. The changelogs list changes of texts, of the
+layout, and new options.
 
 | Change | Applies to you when | Action |
 | --- | --- | --- |
@@ -126,73 +128,25 @@ These changes are on `main` and come with the next release.
 | **Breaking:** `toViewFile` throws `PivotkitError` | your code calls pivotkit-core's `toViewFile` with a view that is no object and catches `TypeError` | catch `PivotkitError` with the code `INVALID_ARGUMENT` |
 | **Breaking:** header values refuse the control characters U+0080 to U+009F | a header value in your configuration or secret holds one of them | remove the character. The start or the log names the header |
 | **Breaking:** reports are written with mode 0600 | another user reads the output directory without `output.baseUrl`, such as a backup job | run that reader as the server's user, or set `output.baseUrl`; `chmod 600` older reports to match |
+| Numbers in loaded files read by their decimal mark | people load CSV or Excel files with text numbers such as `1,234` or `1.500` | check the column the note `DECIMAL_MARK` names. A comma-separated file reads `"1,234"` as 1234, where it read as 1.234; an Excel text cell `"1.500"` reads as 1500 in a German locale, where it read as 1.5 |
+| [Versions move together](#update) | you list pivotkit-core, pivotkit-report or pivotkit-xlsx yourself | update them to the release of pivotkit-react 0.10: core 0.10.0, report 0.6.0, xlsx 0.7.0 |
 
 #### pivotkit-server no longer brings pivotkit-cli { #server-without-cli }
 
 `pivotkit-server cli` runs the pivotkit-cli installed beside pivotkit-server. Install it the way you
 installed pivotkit-server, for example `npm install --global pivotkit-cli@<version>`. Without it, the
-command exits with code 2 and names `npm install pivotkit-cli`, and `npm install --global pivotkit-cli` for a
-global install. The container image has all three
-packages.
-
-### From 0.8 to 0.9 { #from-0-8-2 }
-
-pivotkit-server and pivotkit-mcp move from 0.3 to 0.4 with this release. The table lists the
-changes that need an action. The changelogs list changes of texts, of the layout, and new options.
-
-| Change | Applies to you when | Action |
-| --- | --- | --- |
-| **Breaking:** [`http.publicUrl` is an origin](#public-url-origin) | `http.publicUrl` or `--public-url` has a path, user, password, query, or fragment | give pivotkit a host name of its own, or route its paths at the host's root. Then set the origin |
-| **Breaking:** [Node 24 or later](#node-24) | you run pivotkit's packages on Node 22 | update Node first. The image brings Node 24 |
-| **Breaking:** [Fewer JavaScript exports of pivotkit-server](#internal-exports) | your code imports a name that [JavaScript exports](../reference/service-exports.md) does not list | use a listed name, or open an issue |
-| [Versions move together](#update) | you list pivotkit-core, pivotkit-report or pivotkit-xlsx yourself | update them to the release of pivotkit-react 0.9: core 0.9.0, report 0.5.0, xlsx 0.6.0 |
-| A link names [a source's parameters](../concepts/sharing.md#link-params) | links carry a source's parameters | list them in `sources.<id>.linkParams`. Send `Referrer-Policy: same-origin` or `no-referrer`, see [security](../security.md#link-params) |
-| New MCP tool descriptions and view schema | you run pivotkit-server or pivotkit-mcp | reconnect MCP clients |
-| Error and message texts without the product name | a program or log rule matches the words of an error, or of pivotkit-react's messages about a loaded view | match the error's `code`, or update the words |
-| Views of 0.9 opened by pivotkit 0.8 | pages with pivotkit 0.8 open views made with 0.9: names of a field (`fieldLabels`), table and chart side by side, the two new chart types, sort by one column | update every page that shares views to 0.9. pivotkit 0.8 opens such a view with an error note and falls back to the fields' own names, the table, its automatic chart type and the sort by the whole row. Saved there, the view loses these settings |
-| An unreadable print template is the server's error | a program reads the answer of an html render | expect 502 `SOURCE_UNAVAILABLE`, not 404 `FILE_NOT_AVAILABLE` |
-| 503 `BUSY` logs at `warn` | a log rule counts `error` lines | count `BUSY` among the warnings, or match its `code` |
-| A click in the chart opens a menu | your app uses `onCellClick` or `pivot-cell-click` for chart points, or tests click a chart point | the call comes at **Show the rows** or a double click |
-| An [HTTP source](../reference/sources.md#http-rows) reads JSON while it arrives | a backend's JSON repeats a key on the way to its rows after them | fix the answer. The server refuses it with `SOURCE_UNAVAILABLE` |
-| `<pivot-report>` reads `"false"` as off | a page writes `save-templates`, `can-publish`, `allow-import` or `loading` as `"false"` and means on | leave the attribute out |
-| `ViewInput` is now `PivotView` | TypeScript code imports `ViewInput` from pivotkit-react | import `PivotView`. `ViewInput` still works until its [deprecation](../versioning.md#register) ends |
-
-#### `http.publicUrl` is an origin { #public-url-origin }
-
-The server serves at the root of its host, so `http.publicUrl` and `--public-url` take an origin such
-as `https://reports.example.com`. The server does not start with a path, user, password, query or
-fragment there, or in `auth.resource` and `rest.resource`. `check-config` shows it before you
-restart.
-
-On a shared host, give pivotkit a host name of its own, or route `/mcp`, `/.well-known/`, `/api/v1`,
-`/openapi.json`, `/downloads/` and `/` at the root of that host. If your address had a path, change
-these with it:
-
-- With `output.downloads.signIn`, register the new sign-in callback at the identity provider.
-  `check-config` prints it.
-- Point MCP clients at the new address and set `auth.resource` to it.
-- Download links sent before the update stop working.
-
-#### Node 24 or later { #node-24 }
-
-pivotkit-core, -xlsx, -report, -cli, -server and -mcp need Node 24 or later. `node --version` must
-print `v24` or higher. On Node 22, npm warns with `EBADENGINE`, or refuses with
-`engine-strict=true`. [Compatibility](../compatibility.md#node) lists the tested versions.
-
-#### Fewer JavaScript exports of pivotkit-server { #internal-exports }
-
-`pivotkit-server`, `pivotkit-server/policy` and `pivotkit-mcp/policy` export only the names that
-[JavaScript exports](../reference/service-exports.md) lists. A host that imported another name, such
-as `planState` or `renderFile`, gets an error at start that names it.
+command exits with code 2 and names `npm install pivotkit-cli`, and `npm install --global pivotkit-cli`
+for a global install. The container image has all three packages.
 
 ## Older releases { #older }
 
-The changes of 0.8 and earlier are in each package's changelog:
+The changes of 0.9 and earlier are in each package's changelog:
 [pivotkit-react](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-react/CHANGELOG.md),
 [pivotkit-server](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-server/CHANGELOG.md),
 [pivotkit-mcp](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-mcp/CHANGELOG.md),
 [pivotkit-cli](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-cli/CHANGELOG.md) and
 the [other packages](https://github.com/eizedev/pivotkit/tree/main/packages). Read the entries marked
-**Breaking** and the sections "Upgrading from" of every minor version from yours to the new one. The
-[page as it was for 0.9](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md)
-has the details for 0.4 to 0.8.
+**Breaking** and the sections "Upgrading from" of every minor version from yours to the new one.
+Earlier versions of this page have the details:
+[0.9](https://github.com/eizedev/pivotkit/blob/152bc7809fd41021a0650996f685e657cf1fbb89/docs/getting-started/upgrading.md#from-0-8-2)
+and [0.4 to 0.8](https://github.com/eizedev/pivotkit/blob/5e36b19f07b8c9cff75a14c57316576d8dd9d50b/docs/getting-started/upgrading.md).

@@ -6,6 +6,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-24
+
 ### Fixed
 
 - The quick-start page escapes the address of `branding.icon` in its HTML, as it escapes every other
@@ -13,9 +15,11 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Changed
 
+- Depends on `pivotkit-report` `^0.6.0` and `pivotkit-server` `^0.5.0`. Install pivotkit-server and
+  pivotkit-mcp 0.5.0 in one command
+  ([update](https://pivotkit.eize.dev/getting-started/upgrading/#update-global)).
 - The skill no longer names the caps of inline data. It points to `list_sources`, which names the
   caps the server has, also when `mcp.data` lowers them.
-
 - The HTTP handler runs its requests through pivotkit-server's route handler (`createRouteHandler`
   of `pivotkit-server/internal`), so it needs the pivotkit-server of the same release. The answers and
   log lines stay the same.
@@ -344,7 +348,8 @@ First release.
   two `Authorization` headers are refused, also when node:http would keep only the first; an input
   nested deeper than 64 levels is `INVALID_INPUT` before it reaches a worker.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.4.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.5.0...HEAD
+[0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.4.0...pivotkit-mcp@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.3.2...pivotkit-mcp@0.4.0
 [0.3.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.3.1...pivotkit-mcp@0.3.2
 [0.3.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.3.0...pivotkit-mcp@0.3.1

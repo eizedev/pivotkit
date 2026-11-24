@@ -6,6 +6,8 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-24
+
 ### Fixed
 
 - The column check before parsing counts a row as wide as the parser builds it. A row whose cells
@@ -16,6 +18,8 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.10.0` (was `^0.9.0`): a host updates both together, or it gets
+  two copies of pivotkit-core.
 - A text cell's number that both notations read reads in the notation of the `locale`, as in a
   comma-separated file, with the note `DECIMAL_MARK`. Before, such a cell read as German when it
   had a comma and as English when it had a point, in every locale:
@@ -131,7 +135,8 @@ First release.
   worker is started and a strict Content-Security-Policy works. `dist/` holds a bundle for pages
   without a bundler, with `THIRD_PARTY_LICENSES.txt`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.6.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.7.0...HEAD
+[0.7.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.6.0...pivotkit-xlsx@0.7.0
 [0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.5.0...pivotkit-xlsx@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.4.0...pivotkit-xlsx@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.3.1...pivotkit-xlsx@0.4.0

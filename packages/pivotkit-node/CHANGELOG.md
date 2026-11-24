@@ -6,6 +6,8 @@ All notable changes to `pivotkit-node` are documented in this file. The format i
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-24
+
 ### Fixed
 
 - `writeNew` and `writeSafe` with `exclusive` work on file systems without hard links, such as FAT,
@@ -22,4 +24,5 @@ All notable changes to `pivotkit-node` are documented in this file. The format i
   which codes may work again.
 - `CliError` extends `CodedError` of `pivotkit-core/internal`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/commits/main/packages/pivotkit-node
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-node@0.1.0...HEAD
+[0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-node@0.1.0
