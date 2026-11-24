@@ -43,7 +43,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - `createHistory`: `push`, `undo`, `redo` and `reset` work when taken off the object. A `limit` that
   is no number throws `INVALID_OPTION`. Before, `NaN` kept every step without a word. `Infinity`
   keeps every step, as before.
-- `toXlsx` names "the size of an Excel sheet" for a grid larger than a sheet, not a setting
+- `toXlsx` names "an Excel sheet" for a grid larger than a sheet, not a setting
   `limits.xlsxRows` that does not exist. `details.limit` stays `xlsxRows` or `xlsxColumns`.
 - A row field sorted by a value in one column takes time in proportion to the rows. Each row
   searched the column again: 40,000 rows and columns took about 14 seconds.

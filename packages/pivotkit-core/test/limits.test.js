@@ -166,7 +166,7 @@ test("XLSX: more columns or rows than an Excel sheet holds is a clear error", ()
     const tall = { ...wide, rows: new Array(1_048_577), columnCount: 1 };
     assert.throws(() => toXlsx(tall), isError("LIMIT_EXCEEDED", "xlsxRows"));
     // Excel's size is no setting: the message names none
-    assert.throws(() => toXlsx(tall), { message: "1,048,577 rows exceed the limit of 1,048,576 (the size of an Excel sheet)" });
+    assert.throws(() => toXlsx(tall), { message: "1,048,577 rows exceed the limit of 1,048,576 (an Excel sheet)" });
 });
 
 test("wrong arguments throw PivotkitError, not a TypeError deep inside", () => {
