@@ -9,7 +9,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 ### Added
 
 - At `log.level` `debug`, a REST request whose large body takes one of the places for large bodies
-  writes a line with the number of places held. It tells why another caller gets 503 `BUSY`.
+  writes a line with the number of places held. It shows why another caller gets 503 `BUSY`.
 
 ### Fixed
 
