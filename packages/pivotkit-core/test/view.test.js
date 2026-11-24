@@ -301,6 +301,9 @@ test("settings earlier versions dropped without a word are warnings, so a strict
     // the value is still dropped for its default
     const n = normalize(view, data).view;
     assert.deepEqual([n.values[0].showAs.axis, n.sort[0].by, n.sort[0].order, n.totals.grandTotalRow], ["rows", "label", "asc", true]);
+    // null is "not given" for them, as before they were reported
+    const nulls = { rows: ["Region"], values: [{ field: "Units", agg: "sum", showAs: { type: "runningTotal", axis: null } }], sort: [{ field: "Region", by: null, order: null }] };
+    assert.deepEqual(normalize(nulls, data).issues, []);
 });
 
 test("a choice of the display or the chart that is not allowed is an error, null included, as the schema refuses it", () => {

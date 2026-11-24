@@ -31,9 +31,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
     new code `notSection`.
   - A sort's `by` or `order` and a "show values as" `axis` of an unknown kind give `unknownSetting`.
 
-  `null` counts as not given, for a switch as for a section. A choice such as `order` reports `null`,
-  as the display and the chart's choices always did, and as the schema refuses it. The value an
-  issue quotes loses controls and invisible characters, direction characters included.
+  `null` counts as not given, for all of them. The value an issue quotes loses controls and
+  invisible characters, direction characters included.
 - `renameFields` swaps the fields' own names too when it swaps two fields, as `{ A: "B", B: "A" }`
   does. It lost one name.
 - The name, description and source of a view file lose invisible characters, direction characters

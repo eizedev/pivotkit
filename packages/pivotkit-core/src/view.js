@@ -296,12 +296,13 @@ function oneOf(value, allowed, fallback) {
 }
 
 /**
- * oneOf, and a value given but not allowed (null too) is reported with `report`: an error, or a
- * warning for a setting older readers dropped without a word (a sort's by and order, an axis).
+ * oneOf, and a value given but not allowed is reported with `report`: an error (null too), or a
+ * warning for a setting older readers dropped without a word (a sort's by and order, an axis), where
+ * null counts as not given, as for a switch.
  */
 function choice(value, allowed, fallback, ctx, path, report = ctx.issue) {
     const out = oneOf(value, allowed, fallback);
-    if (value !== undefined && out !== value) {
+    if (value !== undefined && out !== value && (value !== null || report === ctx.issue)) {
         report(path, `unknown ${path.split(".").pop()} ${JSON.stringify(value)}`, "unknownSetting", { value: shown(value) });
     }
     return out;
