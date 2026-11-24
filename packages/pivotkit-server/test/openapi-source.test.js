@@ -4,7 +4,6 @@
 // in. The hostile fixture carries what a document could do to whoever reads it.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
@@ -13,7 +12,7 @@ import { validateOptions } from "../src/config.js";
 import { todoPaths } from "../src/options/base.js";
 import { CHECK_FIRST, CHECK_HOST, OPENAPI_LIMITS, OpenApiError, looksSecret, loadDocumentText, operatorText, readDocument, sourceFromOpenApi, sourceFromOpenApiCommand } from "../src/openapi-source.js";
 import { createGuardedFetch } from "../src/sources/fetch.js";
-import { BIN, tempDir } from "./helpers.js";
+import { tempDir, runBin } from "./helpers.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
 
 const fixturePath = (name) => fileURLToPath(new URL(`./fixtures/openapi/${name}`, import.meta.url));
@@ -23,7 +22,6 @@ const HOSTILE_TEXT = fixture("hostile.json");
 const generate = (doc, operation, more = {}) => sourceFromOpenApi(doc, { operation, ...more });
 
 /** The bin as an operator runs it. */
-const run = (args) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
 
 /** What an operator writes for each TODO, by the key that holds it. */
 const FILLED = Object.freeze({ url: "https://api.example.com/v1", tokenUrl: "https://auth.example.com/oauth/token", clientId: "pivotkit-backend", env: "PLATFORM_SECRET", rows: "/results", name: "x-api-key" });
@@ -264,7 +262,7 @@ test("source-from-openapi: only JSON OpenAPI 3.0 or 3.1 within the size and nest
 });
 
 test("source-from-openapi: the command prints the block on stdout and the review on stderr; usage errors exit 2", () => {
-    const ok = run(["source-from-openapi", fixturePath("platform.json"), "--operation", "listVms", "--id", "vms", "--backend=platform"]);
+    const ok = runBin(["source-from-openapi", fixturePath("platform.json"), "--operation", "listVms", "--id", "vms", "--backend=platform"]);
     assert.equal(ok.status, 0, ok.stderr);
     const block = JSON.parse(ok.stdout);
     assert.deepEqual(Object.keys(block.sources), ["vms"]);
@@ -282,19 +280,19 @@ test("source-from-openapi: the command prints the block on stdout and the review
         [[fixturePath("platform.json"), "--operation", "createVm"], /is a POST/],
         [[join(tempDir(), "missing.json"), "--operation", "x"], /cannot read ".*missing\.json": ENOENT/]
     ]) {
-        const res = run(["source-from-openapi", ...args]);
+        const res = runBin(["source-from-openapi", ...args]);
         assert.equal(res.status, 2, `${args.join(" ")}: ${res.stderr}`);
         assert.match(res.stderr, pattern);
         assert.equal(res.stdout, "");
     }
-    const help = run(["source-from-openapi", "--help"]);
+    const help = runBin(["source-from-openapi", "--help"]);
     assert.equal(help.status, 0);
     assert.match(help.stdout, /^Usage: pivotkit-server source-from-openapi /);
     for (const flag of ["--operation <id>", "--id <source id>", "--backend <name>"]) {
         assert.ok(help.stdout.includes(flag), flag);
     }
     // the command list of the main help keeps a space between each command and its text
-    const main = run(["--help"]);
+    const main = runBin(["--help"]);
     assert.match(main.stdout, /\n {2}source-from-openapi <file\|url> +Propose/);
 });
 
@@ -364,7 +362,7 @@ test("source-from-openapi: a refusal prints no terminal escape from the document
     const text = JSON.stringify({ openapi: "3.0.3", info: { title: "T", version: "1" }, paths: { "/a/{p}": { get: { operationId: "x\u001b]0;owned\u0007", parameters: [{ name: "p", in: "path", required: true, schema: { type: "\u001b[31marray\u202e" } }], responses: {} } } } });
     const dir = tempDir();
     writeFileSync(join(dir, "escape.json"), text);
-    const res = run(["source-from-openapi", join(dir, "escape.json"), "--operation", "x\u001b]0;owned\u0007"]);
+    const res = runBin(["source-from-openapi", join(dir, "escape.json"), "--operation", "x\u001b]0;owned\u0007"]);
     assert.equal(res.status, 2);
     assert.match(res.stderr, /the path parameter "p" is of no type a parameter has/);
     // eslint-disable-next-line no-control-regex

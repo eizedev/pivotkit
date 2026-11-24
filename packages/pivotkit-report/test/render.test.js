@@ -101,6 +101,17 @@ test("conditional colours: a colour scale per cell and data bars, as rules witho
     const bars = [...r.text.matchAll(/\.(pk-c\d+)\{--pk-bar:([\d.]+)%;--pk-bar-color:#123456\}/g)];
     assert.equal(bars.length, 4);
     assert.ok(bars.some((b) => b[2] === "100"));
+    // cells of the same bar share one rule: 40 rows of four bar lengths write four rules, not forty
+    const many = Array.from({ length: 40 }, (_, i) => ({ Id: `r${i}`, Units: (i % 4) + 1 }));
+    const shared = await render({ rows: ["Id"], values: [{ field: "Units", agg: "sum", conditional: { type: "dataBar" } }] }, many, { format: "html", ...FIXED });
+    assert.equal((shared.text.match(/class="[^"]*pk-has-bar/g) ?? []).length, 40);
+    assert.equal((shared.text.match(/\.pk-c\d+\{--pk-bar:/g) ?? []).length, 4);
+    // a colour scale of the theme and one of the view's own colours share their rules the same way
+    for (const conditional of [{ type: "colorScale" }, { type: "colorScale", colors: ["#ff0000", "#00ff00"] }]) {
+        const scaled = await render({ rows: ["Id"], values: [{ field: "Units", agg: "sum", conditional }] }, many, { format: "html", ...FIXED });
+        assert.equal((scaled.text.match(/class="[^"]*pk-has-scale/g) ?? []).length, 40);
+        assert.equal((scaled.text.match(/\.pk-c\d+\{--pk-cell-bg:/g) ?? []).length, 4, JSON.stringify(conditional));
+    }
 });
 
 // #212: a scale or bars without colours of the view's own take the host's tokens, as the report on
@@ -217,6 +228,18 @@ test("options are checked: an unknown format, a chart size out of range, SVG wit
     await assert.rejects(render(BY_REGION, SALES, { format: "html", chart: "on" }), option("chart"));
     await assert.rejects(render(BY_REGION, SALES, { format: "html", chartEmbed: "svg" }), option("chartEmbed"));
     await assert.rejects(render(BY_REGION, SALES, { format: "csv", bom: "no" }), option("bom"));
+    // texts are texts and the table's cells a whole number of at least 1: not a TypeError deep inside, not an empty table
+    for (const [key, wrong] of [["title", 5], ["description", {}], ["source", ["a"]], ["labels", "de"], ["texts", 1], ["tableCells", Number.NaN], ["tableCells", 0], ["tableCells", 10.5], ["tableCells", "100"]]) {
+        await assert.rejects(render(BY_REGION, SALES, { format: "html", [key]: wrong, ...FIXED }), option(key), `${key} ${String(wrong)}`);
+    }
+    // null is "not given" and Infinity no limit, as before
+    const given = await render(BY_REGION, SALES, { format: "html", title: null, description: null, source: null, labels: null, texts: null, tableCells: Infinity, ...FIXED });
+    assert.equal(given.ok, true);
+    // a view that holds itself is no view: an issue, never a TypeError
+    const looped = /** @type {any} */ ({ rows: ["Region"] });
+    looped.self = looped;
+    const r = await render(looped, SALES, { format: "html", ...FIXED });
+    assert.deepEqual([r.ok, r.issues[0].code], [false, "viewFile"]);
 });
 
 test("tokens and darkTokens of a wrong type are refused, not ignored", async () => {

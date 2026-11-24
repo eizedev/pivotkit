@@ -1,6 +1,8 @@
 // The options table composed from per-feature fragments (src/options/), the check-config sections
 // (src/check/), and secret references: a key declared twice is an error when the table is composed,
-// an unknown key is still refused, today's table stays as it was; check-config's layout (check/format.js).
+// an unknown key is still refused, the table and a whole check-config text are their golden files;
+// check-config's layout (check/format.js). After a change meant to change a golden file:
+// PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-server, and review the diff.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, readFileSync, writeFileSync } from "node:fs";
@@ -17,79 +19,17 @@ import { OTHER_TOKEN, TOKEN, factsOf, tempDir, workspace } from "./helpers.js";
 const treeOf = (schema) =>
     schema === null || typeof schema !== "object" ? (typeof schema === "function" ? "fn" : schema) : Array.isArray(schema) ? schema.map(treeOf) : Object.fromEntries(Object.entries(schema).map(([k, v]) => [k, typeof v === "function" ? "fn" : treeOf(v)]));
 
-test("options: the composed table is today's, in today's order, plus the shared source keys and the features' keys", () => {
-    const before = JSON.parse(readFileSync(new URL("./fixtures/option-keys-before-fragments.json", import.meta.url), "utf8"));
-    const expected = structuredClone(before);
-    // HTTP sources (options/http.js): a source's http, before code's cacheShared (the fragments' order); httpSources last of the top keys
-    // a backend's sign-in (#329): a source's http.auth and a backend's auth, secrets as references
-    const auth = {
-        object: {
-            header: { object: { name: "string", prefix: "string", value: { custom: "fn" } } },
-            clientCredentials: { object: { tokenUrl: "string", clientId: "string", clientSecret: { custom: "fn" }, assertion: { custom: "fn" }, scope: "string", audience: "string", resource: "string", intranet: "boolean" } },
-            tokenExchange: { object: { tokenUrl: "string", clientId: "string", clientSecret: { custom: "fn" }, audience: "string", resource: "string", scope: "string", maxAgeSeconds: "integer", intranet: "boolean" } }
-        }
-    };
-    const http = { object: { backend: "string", path: "string", url: "string", intranet: "boolean", query: { map: "string" }, headers: { map: "string" }, auth, rows: "string", format: { enum: ["json", "csv"] }, asOf: "string", paging: { custom: "fn" }, maxPages: "integer", maxBytes: "integer" } };
-    Object.assign(expected.sources.map.object, { ttl: "integer", maxStale: "integer", timeMs: "integer", http, cacheShared: "boolean", perPerson: "boolean" });
-    // data sent in the request (options/inline.js): a policy's data, after results; mcp.data; rest.data
-    const withData = (policy) => Object.fromEntries(Object.entries(policy).flatMap(([k, v]) => (k === "results" ? [[k, v], ["data", "boolean"]] : [[k, v]])));
-    expected.sources.map.object.policy.object = withData(expected.sources.map.object.policy.object);
-    expected.files.object.policy.object = withData(expected.files.object.policy.object);
-    expected.policy.object = withData(expected.policy.object);
-    expected.policy.object.profiles.map.object = withData(expected.policy.object.profiles.map.object);
-    expected.mcp.object.data = { or: [{ const: false }, { object: { rows: "integer", cells: "integer", bytes: "integer" } }] };
-    expected.rest.object.data = { object: { maxBytes: "integer" } };
-    expected.httpSources = { object: { enabled: "boolean", allowIpLiterals: "boolean", backends: { map: { object: { url: "string", intranet: "boolean", headers: { map: "string" }, auth, timeMs: "integer", maxBytes: "integer", ttl: "integer", maxStale: "integer" } } } } };
-    // the load cache's size (options/code.js), after httpSources (the fragments' order)
-    expected.sourceCache = { object: { maxMb: "integer" } };
-    // how long a schedule draft may wait for approval (config.js), after maxAgeDays
-    expected.output.object.draftMaxAgeDays = "integer";
-    // the server's print template (config.js, #614), after draftMaxAgeDays
-    expected.output.object.template = "string";
-    // download links (options/downloads.js)
-    const secretRef = { custom: "fn" };
-    expected.output.object.downloads = { object: { enabled: "boolean", expiresMinutes: "integer", bind: { enum: ["signIn", "once", "none"] }, key: secretRef, allowInsecureUrl: "boolean", signIn: { object: { clientId: "string", clientSecret: secretRef, issuer: "string", scopes: "strings", tokenUrl: "string" } } } };
-    // the operator's controls (options/operator.js): after the base's keys, in the fragment's order
-    Object.assign(expected.auth.object, { groupsClaim: "string", groupsSeparator: "string", groupProfiles: { list: { object: { group: "string", profile: "string" } } }, defaultProfile: "string", offerSourceScopes: "boolean" });
-    expected.audit = { object: { subject: { enum: ["off", "hash", "plain"] }, key: { custom: "fn" } } };
-    // the upload target (options/upload.js): a header is a text or a secret reference with a prefix
-    const headers = { map: { or: ["string", { object: { prefix: "string", value: secretRef } }] } };
-    expected.output.object.upload = { object: { url: "string", headers, link: "string", expiresAt: "string", presign: { object: { url: "string", headers, uploadUrl: "string", uploadHeaders: "string", link: "string", expiresAt: "string", allowOrigins: "strings" } }, linkOrigins: "strings", method: { enum: ["PUT", "POST"] }, timeMs: "integer", maxBytes: "integer", keepLocal: "boolean", bind: { enum: ["none", "once", "signIn"] }, intranet: "boolean" } };
-    // the issuer's requests (options/issuer.js): an issuer on a loopback or private address
-    expected.auth.object.intranet = "boolean";
-    // the public client pivotkit login signs in with (options/issuer.js): rest.signIn, after the base's rest keys and inline's data
-    expected.rest.object.signIn = { object: { clientId: "string" } };
-    // a token's file pivotkit makes where it is missing (state.js): create, after file
-    const token = expected.auth.object.tokens.list.object;
-    expected.auth.object.tokens.list.object = Object.fromEntries(Object.entries(token).flatMap(([k, v]) => (k === "file" ? [[k, v], ["create", "boolean"]] : [[k, v]])));
-    // the log (options/log.js): a level alone, as before, or its level, format and addresses; the
-    // key moves from config.js to its fragment, so it comes last
-    delete expected.log;
-    const levels = { enum: ["debug", "info", "warn", "error", "off"] };
-    expected.log = { or: [levels, { object: { level: levels, format: { enum: ["auto", "text", "json"] }, address: { enum: ["on", "off"] } } }] };
-    // a static token's expiry (config.js, last of a token's keys) and the signed tokens (options/signed.js, the last fragment)
-    expected.auth.object.tokens.list.object.expires = "string";
-    expected.auth.object.signedTokens = { object: { dir: "string", maxDays: "integer" } };
-    // tokens other systems issue (options/external.js, after signed)
-    expected.auth.object.externalIssuers = { list: { object: { issuer: "string", typ: "string", maxMinutes: "integer", scopes: "strings", profiles: "strings", profile: "string", keys: { list: { object: { kid: "string", publicKey: secretRef } } } } } };
-    // the params a link may carry (config.js, #619): after linkKey
-    const source = expected.sources.map.object;
-    expected.sources.map.object = Object.fromEntries(Object.entries(source).flatMap(([k, v]) => (k === "linkKey" ? [[k, v], ["linkParams", "strings"]] : [[k, v]])));
-    // the rows route (options/records.js, after external): a policy's records after data, rest.records, a source's records
-    const withRecords = (policy) => Object.fromEntries(Object.entries(policy).flatMap(([k, v]) => (k === "data" ? [[k, v], ["records", "strings"]] : [[k, v]])));
-    expected.sources.map.object.policy.object = withRecords(expected.sources.map.object.policy.object);
-    expected.files.object.policy.object = withRecords(expected.files.object.policy.object);
-    expected.policy.object = withRecords(expected.policy.object);
-    expected.policy.object.profiles.map.object = withRecords(expected.policy.object.profiles.map.object);
-    expected.rest.object.records = { object: { maxRows: "integer", maxCells: "integer", concurrency: "integer", idleMs: "integer", writeMs: "integer" } };
-    expected.sources.map.object.records = { object: { maxRows: "integer" } };
-    // named views (options/views.js, after records): a source's views and viewsDir
-    Object.assign(expected.sources.map.object, { views: { custom: "fn" }, viewsDir: "string" });
-    // branding (options/branding.js, the last fragment): http.page's url (config.js keeps the key in its place), and branding last of the top keys
-    expected.http.object.page = { or: [{ const: false }, { const: true }, { object: { sources: "boolean", url: { custom: "fn" } } }] };
-    expected.branding = { object: { name: { custom: "fn" }, docsUrl: { custom: "fn" }, icon: "string" } };
-    // JSON.stringify compares the order too: the "known: ..." list of an unknown key prints it
-    assert.equal(JSON.stringify(treeOf(OPTION_KEYS)), JSON.stringify(expected));
+/** The options table's golden file, and whether this run writes it (PIVOTKIT_UPDATE_GOLDEN=1). */
+const OPTION_KEYS_FILE = new URL("./fixtures/option-keys.json", import.meta.url);
+const updateGolden = process.env.PIVOTKIT_UPDATE_GOLDEN === "1";
+
+test("options: the composed table is the golden file's, in its order (PIVOTKIT_UPDATE_GOLDEN=1 writes it; review the diff)", () => {
+    // the order counts too: the "known: ..." list of an unknown key prints it
+    const table = `${JSON.stringify(treeOf(OPTION_KEYS), null, 2)}\n`;
+    if (updateGolden) {
+        writeFileSync(OPTION_KEYS_FILE, table);
+    }
+    assert.equal(table, readFileSync(OPTION_KEYS_FILE, "utf8"), "the options table differs from test/fixtures/option-keys.json");
 });
 
 test("options: a key declared twice is an error when the table is composed, naming both places", () => {
@@ -223,9 +163,13 @@ test("check-config: the whole text of a configuration of every kind of source, w
         rest: { cors: { origins: ["https://app.example.com"] } }
     };
     const result = await checkConfig({ ...options, baseDir: dir }, { http: true, env: { BOT_TOKEN: TOKEN }, name: "pivotkit-server", rest: true });
-    const golden = readFileSync(new URL("./fixtures/check-config.txt", import.meta.url), "utf8");
     // the paths are the system's own: "/" in the golden file stands for its separator
-    assert.equal(result.text.split(dir).join("<dir>").replace(/<dir>\S*/g, (path) => path.split(sep).join("/")), golden);
+    const text = result.text.split(dir).join("<dir>").replace(/<dir>\S*/g, (path) => path.split(sep).join("/"));
+    const golden = new URL("./fixtures/check-config.txt", import.meta.url);
+    if (updateGolden) {
+        writeFileSync(golden, text);
+    }
+    assert.equal(text, readFileSync(golden, "utf8"));
     assert.deepEqual([result.problems, result.warnings, result.stops], [1, 2, 0]);
     // every line fits, but for a full path (one word, never cut)
     for (const line of result.text.split("\n").filter((l) => !l.includes(dir))) {

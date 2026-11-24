@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readdirSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { BY_REGION, SALES_CSV, call, raw, restServer, workspace } from "./helpers.js";
+import { until } from "../../../tests/until.js";
 
 /** A server over the sales data: Region and Product shown, Customer hidden, the rest summary. */
 async function salesServer(extra = {}) {
@@ -435,11 +436,14 @@ test("a file name cut at 80 characters never splits a character; the download st
 test("limits: requests of one caller at once, the client's address behind a proxy, Retry-After when busy", async () => {
     let release;
     const gate = new Promise((r) => (release = r));
+    // two sources, so the two loads do not join one: each started load holds one of the two places
+    let started = 0;
+    const slow = { load: async () => (started++, await gate, [{ Region: "N", Sales: 1 }]) };
     const dir = workspace();
-    const server = await restServer({ sources: { slow: { load: async () => (await gate, [{ Region: "N", Sales: 1 }]) }, sales: { file: "data/sales.csv" } }, rest: { concurrency: 2 }, http: { trustProxy: true }, baseDir: dir });
+    const server = await restServer({ sources: { slow, slow2: { ...slow }, sales: { file: "data/sales.csv" } }, rest: { concurrency: 2 }, http: { trustProxy: true }, baseDir: dir });
     try {
-        const running = [0, 1].map(() => call(`${server.api}/views/validate`, { body: { source: "slow", view: BY_REGION } }));
-        await new Promise((r) => setTimeout(r, 100));
+        const running = ["slow", "slow2"].map((source) => call(`${server.api}/views/validate`, { body: { source, view: BY_REGION } }));
+        await until(() => started === 2, { message: "both loads started" });
         const third = await call(`${server.api}/sources`);
         assert.equal(third.status, 429);
         assert.equal(third.headers.get("retry-after"), "1");
@@ -456,9 +460,13 @@ test("limits: requests of one caller at once, the client's address behind a prox
     } finally {
         await server.close();
     }
-    const busy = await restServer({ sources: { sales: { file: "data/sales.csv" } }, compute: { workers: 1, queueMs: 1, timeMs: 30_000 }, baseDir: dir });
+    // one worker that waits 1 ms for work: six calls whose one load ends at once reach the pool together,
+    // and a table of 200,000 rows keeps the worker far longer than 1 ms on any machine
+    const rows = Array.from({ length: 200_000 }, (_, i) => `Region ${i % 97},${i}`);
+    writeFileSync(join(dir, "data", "large.csv"), ["Region,Sales", ...rows].join("\n") + "\n");
+    const busy = await restServer({ sources: { large: { file: "data/large.csv" } }, compute: { workers: 1, queueMs: 1, timeMs: 30_000 }, baseDir: dir });
     try {
-        const all = await Promise.all(Array.from({ length: 6 }, () => call(`${busy.api}/sources/sales`)));
+        const all = await Promise.all(Array.from({ length: 6 }, () => call(`${busy.api}/sources/large`)));
         const refused = all.filter((r) => r.status === 503);
         assert.ok(refused.length > 0, all.map((r) => r.status).join(","));
         assert.equal(refused[0].data.code, "BUSY");

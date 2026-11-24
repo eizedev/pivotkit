@@ -9,10 +9,9 @@ import { generateKeyPairSync } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT } from "jose";
-import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { checkConfig, loadConfig, validateOptions } from "pivotkit-server";
 import { createSignedVerifier, SIGNED_TOKEN } from "../../src/signed-tokens.js";
-import { BY_REGION, POSIX, TOKEN, call, factsOf, restServer, runBin, workspace } from "../helpers.js";
+import { BY_REGION, POSIX, TOKEN, call, factsOf, restServer, runBin, workspace, mcpToolWorks } from "../helpers.js";
 
 /** A signed token as the server makes it: three base64url parts. */
 const JWT_TEXT = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
@@ -132,23 +131,6 @@ function setup({ auth = {}, policy } = {}) {
 /** The server of a configuration file, REST and MCP, the static token in its variable. */
 const serverOf = async (config) => restServer(await loadConfig(config), { env: { OPS_TOKEN: TOKEN }, enable: ["rest", "mcp"] });
 
-/** An MCP tool call with a bearer token: whether it was let in. */
-async function mcpCall(server, token) {
-    const client = new Client({ name: "signed", version: "1.0.0" });
-    try {
-        await client.connect(new StreamableHTTPClientTransport(new URL(`${server.url}/mcp`), { requestInit: { headers: { authorization: `Bearer ${token}` } } }));
-        const result = await client.callTool({ name: "describe_source", arguments: { source: "sales" } });
-        return !result.isError;
-    } catch (e) {
-        if (/401|invalid_token|Unauthorized/i.test(String(e?.message ?? e))) {
-            return false;
-        }
-        throw e;
-    } finally {
-        await client.close().catch(() => undefined);
-    }
-}
-
 test("token issue: a signed token works on REST and MCP at once, its value is in no file, list or log line", async () => {
     const { config, signed } = setup();
     const server = await serverOf(config);
@@ -163,7 +145,7 @@ test("token issue: a signed token works on REST and MCP at once, its value is in
         const token = out.token;
         // REST and MCP both let it in, without a restart
         assert.equal((await call(`${server.api}/views/validate`, { body: { source: "sales", view: BY_REGION }, token })).status, 200);
-        assert.equal(await mcpCall(server, token), true);
+        assert.equal(await mcpToolWorks(server, token), true);
         // the log names the token by its ID, never its value or its name
         const text = JSON.stringify(server.log);
         assert.ok(server.log.some((l) => l.event === "call" && l.client === out.id), text);
@@ -210,7 +192,7 @@ test("token revoke by name or ID: the next request with it is refused on REST an
         assert.equal(runBin(["token", "revoke", "laptop", "--config", config]).status, 0);
         const refused = await call(`${server.api}/sources`, { token: a.token });
         assert.equal(refused.status, 401);
-        assert.equal(await mcpCall(server, a.token), false);
+        assert.equal(await mcpToolWorks(server, a.token), false);
         // the other one still works; then revoked by its ID
         assert.equal((await call(`${server.api}/sources`, { token: b.token })).status, 200);
         assert.equal(runBin(["token", "revoke", b.id, "--config", config]).status, 0);
@@ -442,7 +424,7 @@ test("an expired signed token is refused on REST and MCP, and the log names a to
         const refused = await call(`${server.api}/sources`, { token: expired });
         assert.equal(refused.status, 401);
         assert.match(JSON.stringify(refused.data), /expired/);
-        assert.equal(await mcpCall(server, expired), false);
+        assert.equal(await mcpToolWorks(server, expired), false);
         const named = JSON.parse(runBin(["token", "issue", "--config", config, "--name", "distinct-laptop-name", "--json"]).stdout);
         assert.equal((await call(`${server.api}/sources`, { token: named.token })).status, 200);
         const text = JSON.stringify(server.log);
