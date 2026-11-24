@@ -154,7 +154,8 @@ All nine packages publish through staging: their trusted publishers have "Allow 
    npm publish ../<package>-0.0.0-stage.tgz --access public --tag stage
    ```
 
-   `--tag stage` is required for a prerelease version, and it keeps the placeholder off `latest`.
+   npm requires `--tag` for a prerelease version. On a first publish npm still points `latest` at the
+   placeholder; the first approved release moves `latest` to the real version.
 
    Use an npm account with two-factor authentication.
 2. On npm, add a trusted publisher to each package:
