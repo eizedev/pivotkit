@@ -2969,7 +2969,7 @@
 
 .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
     width: var(--pk-label-w, max-content);
-    max-width: var(--pk-label-max, max(6em, 30cqi));
+    max-width: var(--pk-label-max, max(calc(6em + var(--pk-th-extra, 0px)), 30cqi));
 }
 
 /* a narrow report: a little less room around each cell, for the labels' least width below, and a
@@ -2979,7 +2979,7 @@
 }
 
 .pk-root[data-pk-size="narrow"] .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
-    max-width: var(--pk-label-max, max(5.5em, 22cqi));
+    max-width: var(--pk-label-max, max(calc(5.5em + var(--pk-th-extra, 0px)), 22cqi));
 }
 
 /* --pk-label-w and --pk-label-max are internal switches that fitLabels sets through data-pk-labels,
@@ -3118,6 +3118,13 @@
    of breaking a word or widening the column */
 .pk-table thead .pk-th-field {
     flex-wrap: wrap;
+}
+
+/* --pk-th-extra (internal, not a theme token): what a value's icon and fill take from its name's room,
+   so a value name's least width (above) still holds a word such as "Population". The row labels'
+   caps leave it out: their columns are what a phone has to share with the values */
+.pk-table thead .pk-th-field {
+    --pk-th-extra: 2.1em;
 }
 
 .pk-th-zone {
