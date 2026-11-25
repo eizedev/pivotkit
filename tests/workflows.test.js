@@ -292,6 +292,32 @@ test("the release workflow publishes the tarball by a path npm reads as a file",
     }
 });
 
+// The publish job holds the OIDC token, so the npm it runs is installed from a tarball whose sha512 is
+// committed in release.yml, never by a name the registry resolves (#724)
+test("the publish job installs npm only from a tarball with the integrity committed in release.yml", () => {
+    const steps = jobOf("release.yml", "publish").steps;
+    const installs = steps.flatMap((step, index) => commandsOf(step).filter((line) => /\bnpm\s+(install|i|add)\b/.test(line)).map((line) => ({ step, index, line })));
+    assert.equal(installs.length, 1, `the publish job installs with npm in ${installs.length} places, not one: ${JSON.stringify(installs.map(({ line }) => line))}`);
+    const [{ step, index, line }] = installs;
+    assert.equal(line, 'npm install --global "$file" --offline --ignore-scripts --no-audit --no-fund', "npm is installed from the checked file, offline and without scripts");
+    assert.ok(index < stepRunning(steps, "npm stage publish"), "npm is installed before it stages");
+    assert.match(step.env?.NPM_VERSION ?? "", /^\d+\.\d+\.\d+$/, "the step pins NPM_VERSION exactly");
+    // staged publishing needs npm 11.15.0 or later (npm's documentation, "Staged publishing")
+    const [major, minor] = step.env.NPM_VERSION.split(".").map(Number);
+    assert.ok(major > 11 || (major === 11 && minor >= 15), `npm ${step.env.NPM_VERSION} cannot stage: it needs 11.15.0 or later`);
+    assert.match(step.env?.NPM_INTEGRITY ?? "", /^sha512-[A-Za-z0-9+/]{86}==$/, "the step commits NPM_INTEGRITY, npm's dist.integrity");
+    // these commands and no other, in this order: download, compare (fail closed), install, version check
+    assert.deepEqual(commandsOf(step), [
+        'file="$RUNNER_TEMP/npm-$NPM_VERSION.tgz"',
+        'curl --fail --silent --show-error --location --proto "=https" --output "$file" "https://registry.npmjs.org/npm/-/npm-$NPM_VERSION.tgz"',
+        'actual="sha512-$(openssl dgst -sha512 -binary "$file" | base64 -w0)"',
+        'test "$actual" = "$NPM_INTEGRITY" || { echo "npm $NPM_VERSION tarball has $actual, release.yml expects $NPM_INTEGRITY"; exit 1; }',
+        line,
+        'test "$(npm --version)" = "$NPM_VERSION" || { echo "npm $(npm --version) is installed, not $NPM_VERSION"; exit 1; }'
+    ]);
+    assert.deepEqual(Object.keys(step).sort(), ["env", "name", "run"], "nothing changes how the step runs: no if, continue-on-error or working-directory");
+});
+
 // The trusted publisher on npm allows staging only (RELEASING.md): a plain npm publish
 // would fail at release time, after the tag is pushed
 test("the release workflow stages on npm and never publishes directly", () => {
