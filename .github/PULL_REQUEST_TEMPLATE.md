@@ -6,10 +6,11 @@
 
 - [ ] Linked issue; for a new feature, the answers to the five questions
 - [ ] New or changed tests fail without this change; no test weakened
-- [ ] Docs, upgrading notes and `CHANGELOG.md` describe the new state
+- [ ] Docs and upgrading notes describe the new state; `CHANGELOG.md` entry (optional)
 - [ ] Reviewed before opening by someone who did not write it (strongly recommended, mandatory for the maintainer's own AI agents; for AI-written code a person or a separate AI session), and I read, ran and understand all of it
 
 ## Test plan
 
 - [ ] The checks of [Check your change](https://github.com/eizedev/pivotkit/blob/main/CONTRIBUTING.md#check-your-change): those for every change, and those for what this one changes
+- [ ] `npm run growth` passes, or the known baseline entry it fails on is named in the Summary
 - [ ] What I ran, with numbers where a check gives some, such as benchmark timings:

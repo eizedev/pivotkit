@@ -29,7 +29,7 @@ npx playwright install   # once, for the browser tests
 2. Create a branch named after the change: `feat/...`, `fix/...` or `docs/...`.
 3. Write the test first for a fix. Watch it fail, then fix the code.
 4. Run the checks below.
-5. Update the docs and the changelog.
+5. Update the docs. A changelog entry is welcome (see below).
 6. Open a pull request.
 
 ## Check your change
@@ -42,6 +42,18 @@ npm run types
 npm test
 npm run growth
 ```
+
+`npm run growth` checks that functions, unused exports, duplicated code and docs pages do not grow;
+the header of `scripts/growth.js` explains each check. If it fails:
+
+- on a function or docs page that is already in `scripts/growth-baseline.json` under the same file
+  and name, also when your change made it bigger, or on the total of all docs pages: name it in the
+  pull request's summary, for example "growth fails on the known entry `LevelMenu`". The red check
+  is expected, and the maintainer fixes it before the merge. CI skips the later steps of that job,
+  so run `npm test` and `npm run types` locally and say so.
+- because an entry shrank: run `node scripts/growth.js --update` and commit the baseline.
+- on anything else (a new entry, duplicated code, a renamed or moved function): that one is yours
+  to fix.
 
 Then, depending on what you changed:
 
@@ -91,7 +103,9 @@ After `uvx zensical@<version> build --strict`, `node scripts/check-readme-links.
 
 ## Changelog and commits
 
-- Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed.
+- Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed. It is welcome,
+  not required: if it is missing, the maintainer adds it before the merge. This includes the entries
+  a deprecation or a break needs.
 - Use Conventional Commits with the package as scope: `feat(core): ...`, `fix(react): ...`.
 
 ## Pull request
@@ -130,7 +144,8 @@ A pull request that deprecates something delivers:
 - for the services, a `check-config` line that names the id
 - where possible, the old form keeps working. pivotkit turns it into the new one
 - a test that uses the old form and checks the warning and the result
-- the register entry, a changelog entry with the id, and a row on the upgrading page
+- the register entry, a row on the upgrading page, and a changelog entry with the id (welcome, see
+  [Changelog and commits](#changelog-and-commits))
 
 The removal waits for the next major release.
 
