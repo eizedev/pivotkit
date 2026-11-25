@@ -1,0 +1,39 @@
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask how to do something with pivotkit. When an answer helps, mark it as the answer.
+        A bug goes into an [issue](https://github.com/eizedev/pivotkit/issues/new/choose), a security problem into a [private report](https://github.com/eizedev/pivotkit/security/advisories/new).
+  - type: textarea
+    id: goal
+    attributes:
+      label: What do you want to do?
+      description: The task, in a few sentences. A view (JSON) or a few rows of sample data help. Remove confidential values first.
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What did you try?
+      description: Code, settings or steps, and what happened.
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where do you use pivotkit?
+      multiple: true
+      options:
+        - React (pivotkit-react)
+        - Web component (pivotkit-element)
+        - Engine (pivotkit-core)
+        - Reports in code (pivotkit-report)
+        - Command line (pivotkit-cli)
+        - REST service (pivotkit-server)
+        - MCP server (pivotkit-mcp)
+        - PowerShell Universal
+        - Other
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: The pivotkit packages and, if it matters, browser, Node or host.
+      placeholder: pivotkit-react and its version, React version, browser

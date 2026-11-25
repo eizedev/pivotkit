@@ -382,7 +382,7 @@ Groups to profiles, with a narrow profile for everyone else:
 ```
 
 A person in both groups gets `finance`, since it comes first. `check-config` warns when a later entry
-shows a field an earlier one holds back.
+shows a field an earlier one holds back. It compares the levels in each source, with its policy.
 
 Without `defaultProfile`, the server refuses a person with 403 `NOT_ALLOWED` when they are in none
 of the groups and their client or scopes name no profile (the MCP endpoint answers

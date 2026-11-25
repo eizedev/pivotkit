@@ -6,6 +6,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Changed
+
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
 ### Fixed
 
 - Text on coloured fills reads at 4.5:1 or more in both themes

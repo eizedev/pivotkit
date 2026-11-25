@@ -8,6 +8,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
 - The chart's load group grows by 0.7 KiB gzip with pivotkit-core's fix of text on coloured fills
   and of high and low points beside grouped bars
   ([#913](https://github.com/eizedev/pivotkit/issues/913), [#914](https://github.com/eizedev/pivotkit/issues/914)).

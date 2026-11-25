@@ -6,6 +6,10 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Changed
+
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
 ### Fixed
 
 - The SVG and the HTML report draw text on coloured fills as the screen does, with pivotkit-core's

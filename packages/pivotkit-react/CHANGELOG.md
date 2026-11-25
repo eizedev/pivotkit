@@ -6,6 +6,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
 ### Added
 
 - The package exports `TIP_IDS` and `NOTICE_IDS`, the ids of the tips and of the notices. A host

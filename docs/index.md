@@ -148,6 +148,16 @@ and platforms, and how each one was tested.
     - It is a pivot report, not a data grid, a dashboard tool or a BI server. See the
       [comparison](compare.md).
 
+## Questions and stability
+
+pivotkit is 0.x. A minor release can break things. Each break is marked **Breaking** in the
+changelog, and [Upgrading](getting-started/upgrading.md) says what to do. [Versioning](versioning.md)
+has the full promise.
+
+Ask questions and share ideas in [GitHub Discussions](https://github.com/eizedev/pivotkit/discussions).
+Bugs go into [issues](https://github.com/eizedev/pivotkit/issues). Each release round is announced
+in Discussions too.
+
 ## License
 
 MIT. The source is on [GitHub](https://github.com/eizedev/pivotkit). pivotkit draws charts with
