@@ -6,6 +6,7 @@ import React from "react";
 import { renderToString } from "react-dom/server";
 import { PivotReport } from "pivotkit-react";
 import { LABELS } from "pivotkit-react/labels";
+import { NOTICE_IDS, TIP_IDS } from "../src/tip-state.js";
 
 const rows = [
     { Region: "North", Product: "A", Units: 3 },
@@ -24,9 +25,11 @@ function render(props) {
     }
 }
 
-test("the package exports the component, and the labels from pivotkit-react/labels with every text", async () => {
+test("the package exports the component and the tip ids, and the labels from pivotkit-react/labels with every text", async () => {
     const mod = await import("pivotkit-react");
-    assert.deepEqual(Object.keys(mod).sort(), ["PivotReport"]);
+    assert.deepEqual(Object.keys(mod).sort(), ["NOTICE_IDS", "PivotReport", "TIP_IDS"]);
+    // the ids of the tips' table, for a host that checks a `tips` list (#720)
+    assert.deepEqual([mod.TIP_IDS, mod.NOTICE_IDS], [TIP_IDS, NOTICE_IDS]);
     // the report's languages; a new one is added here too (AGENTS.md, "Adding a language")
     assert.deepEqual(Object.keys(LABELS), ["en", "de"]);
     // the first load's texts and the menus' (loaded with the menus) in one object

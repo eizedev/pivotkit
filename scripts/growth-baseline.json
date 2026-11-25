@@ -88,7 +88,7 @@
             "packages/pivotkit-server/src/options/http.js Function 'backendAuthOf'": [38],
             "packages/pivotkit-server/src/options/http.js Function 'compileSource'": [76],
             "packages/pivotkit-server/src/options/http.js Function 'validate'": [28],
-            "packages/pivotkit-server/src/options/records.js Function 'validate'": [28],
+            "packages/pivotkit-server/src/options/records.js Function 'validate'": [26],
             "packages/pivotkit-server/src/options/upload.js Function 'compile'": [34],
             "packages/pivotkit-server/src/packed.js Function 'packColumn'": [26],
             "packages/pivotkit-server/src/policy.js Function 'resolvePolicy'": [37],

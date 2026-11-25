@@ -9,7 +9,8 @@
  *    sign-in get NOT_ALLOWED;
  * 2. the right: the caller's profile names the source in `records`. A source that is not there gets
  *    the same NOT_ALLOWED, so the answer says nothing about which sources exist;
- * 3. a place: at most rest.records.concurrency rows requests at once, one per person, else 503 BUSY;
+ * 3. a place: at most rest.records.concurrency rows requests at once, one per person. A person without
+ *    one waits for it up to rest.records.waitMs, first come first, else 503 BUSY;
  * 4. the source for the caller (its scopes, its parameters) and its data, read in a compute worker,
  *    which posts the head: the columns, their types, the row count and a view's fields;
  * 5. what leaves, decided here, never in the worker: only fields at `show` for the caller. A hidden
@@ -81,6 +82,9 @@ export const RECORDS_OUTPUT = Object.freeze({
 /** How long a caller refused for want of a place waits before it tries again, in seconds. */
 const BUSY_RETRY = "5";
 
+/** The most rows requests that wait for a place at once (rest.records.waitMs); more get BUSY at once. */
+const RECORDS_WAITING = 32;
+
 /**
  * Whether a caller may read the rows of a source: a person whose profile names it.
  * @param {import("./config.js").ServerOptions} options
@@ -103,7 +107,23 @@ export function createRecords(context) {
     const options = context.options;
     const { problem, problemOf } = problemsFor(brandingOfContext(context).docs);
     const bounds = recordsBoundsOf(options);
-    const places = createPlaces(bounds.concurrency);
+    const places = createPlaces(bounds.concurrency, RECORDS_WAITING);
+
+    /**
+     * A place for a person: at once, or after waiting up to rest.records.waitMs (a debug line says
+     * it waits); null: BUSY. A caller that left while it waited gets its signal's reason thrown: no
+     * refusal of a full route, as for a load it left (sources/run.js).
+     * @param {string} person
+     * @param {AbortSignal} [signal]
+     */
+    async function placeFor(person, signal) {
+        const onWait = () => context.log.debug("rows: a request waits for a place", { held: places.held(), waiting: places.waiting() });
+        const release = await places.wait(person, bounds.waitMs, { signal, onWait });
+        if (!release && signal?.aborted) {
+            throw signal.reason instanceof Error ? signal.reason : new DOMException("the caller went away", "AbortError");
+        }
+        return release;
+    }
 
     /**
      * The answer to a rows request (the body read and parsed; the caller signed in).
@@ -128,7 +148,7 @@ export function createRecords(context) {
             throw new OperationError("NOT_ALLOWED", `your sign-in may not read the rows of this source; the operator grants it ${where}`);
         }
         const person = /** @type {string} */ (identityKey(caller));
-        const release = places.take(person);
+        const release = await placeFor(person, how.signal);
         if (!release) {
             context.log.refused({ status: 503, path: REST_BASE, reason: refusalReason("BUSY"), limit: bounds.concurrency, ...callerFields(caller) });
             return problem("BUSY", "", { reason: "records", headers: { "retry-after": BUSY_RETRY }, extra: { requestId: requestId(), retryable: true } });

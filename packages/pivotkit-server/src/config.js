@@ -107,7 +107,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {{ perMinute?: number, burst?: number, failedAuthPerMinute?: number }} [rateLimit]  per caller, and per address for refused tokens
  * @property {number} [concurrency]  requests of one caller at once (default 4)
  * @property {{ maxBytes?: number }} [data]  the largest body of a caller that may send data (default 10 MiB, at most 64 MiB)
- * @property {{ maxRows?: number, maxCells?: number, concurrency?: number, idleMs?: number, writeMs?: number }} [records]  the rows route's bounds (options/records.js RECORDS_DEFAULTS)
+ * @property {{ maxRows?: number, maxCells?: number, concurrency?: number, waitMs?: number, idleMs?: number, writeMs?: number }} [records]  the rows route's bounds (options/records.js RECORDS_DEFAULTS)
  */
 
 /**

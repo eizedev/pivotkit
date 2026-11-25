@@ -4,6 +4,7 @@
 // strict Content-Security-Policy. Playwright's CSS locators reach into open shadow roots.
 import { readFile } from "node:fs/promises";
 import { test as plain } from "@playwright/test";
+import { encodeViewLink } from "pivotkit-core/link";
 import { capturePrint, expect, openSaveAs, test, toolbar, twoFrames, watchConsole } from "./fixtures.js";
 
 const wanted = process.env.PIVOTKIT_REACT === "19" ? /^19\./ : /^18\./;
@@ -467,6 +468,29 @@ test.describe("lifecycle", () => {
         expect(await zone(page, "#sales", "rows")).toEqual(["Region"]);
         // a new mount starts a new history
         await expect(sales.getByTestId("undo")).toBeDisabled();
+    });
+
+    test("a report mounted again opens the link in the address, with the link module already loaded (#735)", async ({ page }) => {
+        const view = { rows: ["Team"], values: [{ field: "Hours", agg: "sum" }] };
+        await page.goto(`pages/element-leaks.html#pivot=${encodeViewLink(view)}`);
+        await page.waitForFunction(() => customElements.get("pivot-report"));
+        const mount = () =>
+            page.evaluate(() => {
+                const el = document.createElement("pivot-report");
+                el.data = [{ Team: "A", Hours: 2 }, { Team: "B", Hours: 3 }];
+                el.setAttribute("share-link", "");
+                document.body.append(el);
+            });
+        // the first mount loads the link module, then opens the link
+        await mount();
+        await expect.poll(() => zone(page, "pivot-report", "rows")).toEqual(["Team"]);
+        await page.evaluate(() => document.querySelector("pivot-report").remove());
+        await twoFrames(page);
+        expect(await page.evaluate(() => location.hash)).toContain("pivot=");
+        // mounted again: the link module is there, so the link opens at once, while the report mounts
+        await mount();
+        await expect.poll(() => zone(page, "pivot-report", "rows")).toEqual(["Team"]);
+        await expect(page.locator("pivot-report").getByTestId("pivot-table")).toContainText("Hours");
     });
 
     test("mounting and unmounting leaves no listener on the document or the window and no observer", async ({ page }) => {
