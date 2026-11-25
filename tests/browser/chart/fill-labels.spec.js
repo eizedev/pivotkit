@@ -6,7 +6,7 @@ import { ELLIPSIS, PLATE_SIDE, TILE_EDGE, TILE_LABEL_PADDING, TILE_MIN_CHARS, pl
 import { TEXT_MIN } from "../../fill-contrast.js";
 import { installContrast } from "../contrast.js";
 import { expect, test } from "../fixtures.js";
-import { chartOf, inChart, mountReport, ROWS, VIEW } from "./report.js";
+import { chartOf, inChart, inPage, mountReport, ROWS, tooltipOf, VIEW } from "./report.js";
 
 /** Every text ECharts drew, sorted: its words, fill, outline colour and outline width. */
 const drawnTexts = (chartEl) =>
@@ -59,6 +59,8 @@ const TILE_MIN = {
     width: textWidth(`${"M".repeat(TILE_MIN_CHARS)}${ELLIPSIS}`, 14) + 2 * (PLATE_SIDE + TILE_LABEL_PADDING),
     height: plateLine(14) + 2 * TILE_EDGE
 };
+/** Narrower than this no cut name fits, even of the narrowest characters (lower case): no label. */
+const TILE_NONE_WIDTH = textWidth(`${"a".repeat(TILE_MIN_CHARS)}${ELLIPSIS}`, 14) + 2 * (PLATE_SIDE + TILE_LABEL_PADDING);
 /** Twenty countries by population: wide tiles and tiles too narrow for a name on a plate. */
 const COUNTRIES = [["India", 1450], ["China", 1410], ["United States", 340], ["Indonesia", 283], ["Pakistan", 251], ["Nigeria", 232], ["Brazil", 212], ["Bangladesh", 173], ["Russian Federation", 143], ["Ethiopia", 132], ["Mexico", 130], ["Japan", 124], ["Egypt, Arab Rep.", 116], ["Philippines", 115], ["Congo, Dem. Rep.", 109], ["Viet Nam", 101], ["Iran, Islamic Rep.", 91], ["Turkiye", 85], ["Germany", 83], ["Thailand", 71]].map(([Country, Population]) => ({ Country, Population }));
 
@@ -105,15 +107,23 @@ for (const theme of ["light", "dark"]) {
             return out;
         });
         expect(tiles.length).toBe(COUNTRIES.length);
+        let below = 0;
         for (const t of tiles) {
             for (const p of t.plates) expect(p.words, `${t.name}: a plate ${p.width} px wide without words`).toBe(true);
             // a tile with room for the fewest characters of a cut name, as capitals (the widest), and the
             // ellipsis on a plate, and for one line of it, shows words (at 14 px: 61 x 23 px)
             if (t.size[0] >= TILE_MIN.width && t.size[1] >= TILE_MIN.height) expect(t.words, `a tile of ${t.size.map(Math.round).join(" x ")} px without words`).not.toBeNull();
+            // a tile too narrow even for lower case, or lower than a line, shows neither words nor a plate
+            if (t.size[0] < TILE_NONE_WIDTH || t.size[1] < TILE_MIN.height) {
+                below++;
+                expect(t.words, `${t.name}: words on a tile of ${t.size.map(Math.round).join(" x ")} px`).toBeNull();
+                expect(t.plates, `${t.name}: a plate on a tile of ${t.size.map(Math.round).join(" x ")} px`).toEqual([]);
+            }
             if (!t.words) continue;
             // the words' middle within 2 px of the tile's
             expect(Math.abs((t.words[0] + t.words[1]) / 2 - (t.tile[0] + t.tile[1]) / 2), `${t.name}: ${JSON.stringify(t)}`).toBeLessThanOrEqual(2);
         }
+        expect(below, "tiles below the smallest that can write a label").toBeGreaterThan(0);
         // every label on a plate, cut with an ellipsis where the name is wider than its tile: 4.5:1
         const labels = await contrasts(page, await labelsOnMarks(chartEl));
         for (const l of labels) expect(l.ratio, `${l.text}: ${l.ink} on ${l.fill}`).toBeGreaterThanOrEqual(TEXT_MIN);
@@ -129,6 +139,50 @@ for (const theme of ["light", "dark"]) {
         for (const l of labels) expect(l.ratio, `${l.text}: ${l.ink} on ${l.fill}`).toBeGreaterThanOrEqual(TEXT_MIN);
     });
 }
+
+// On a phone a tap on a tile shows its tooltip: the whole name and the value of a tile whose label is cut
+// or left out
+test.describe("a touch screen", () => {
+    test.use({ viewport: { width: 390, height: 900 }, hasTouch: true, isMobile: false });
+
+    test("treemap, 390 px: a tap on a tile without words or with a cut name shows its whole name and value", async ({ page }) => {
+        await page.goto("pages/host.html");
+        await mountReport(page, { id: "fill-report", rows: COUNTRIES, view: { rows: ["Country"], values: [{ field: "Population", agg: "sum" }], display: "chart", chart: { type: "treemap" } }, theme: "light", height: 560 });
+        const chartEl = await chartOf(page, "fill-report", "treemap");
+        // each tile's middle and what it writes: "" for none
+        const tiles = await inChart(chartEl, (chart) => {
+            const out = [];
+            for (const el of chart.getZr().storage.getDisplayList(true)) {
+                const text = el.getTextContent?.();
+                if (!text || !el.style?.fill) continue;
+                const box = el.getBoundingRect().clone();
+                box.applyTransform(el.getComputedTransform());
+                const shown = !text.ignore && !text.invisible;
+                const words = shown ? (text.childrenRef?.() ?? []).filter((p) => p.type === "tspan" && p.style?.text?.trim()).map((p) => p.style.text) : [];
+                out.push({ middle: [box.x + box.width / 2, box.y + box.height / 2], words });
+            }
+            return out;
+        });
+        const bare = tiles.find((t) => t.words.length === 0);
+        const cut = tiles.find((t) => t.words[0]?.endsWith(ELLIPSIS));
+        expect(bare, "a tile without words").toBeTruthy();
+        expect(cut, "a tile with a cut name").toBeTruthy();
+        let before = "";
+        for (const tile of [bare, cut]) {
+            const at = await inPage(chartEl, tile.middle);
+            await page.touchscreen.tap(at.x, at.y);
+            // the tile's own tooltip, not the one of the tile tapped before
+            await expect.poll(async () => (await tooltipOf(chartEl)).join(" ")).not.toBe(before);
+            const tip = (await tooltipOf(chartEl)).join(" ");
+            before = tip;
+            const country = COUNTRIES.find((c) => tip.includes(`${c.Country} ${c.Population}`));
+            expect(country, `a tile writing ${JSON.stringify(tile.words)}: ${tip}`).toBeTruthy();
+            if (tile === cut) expect(country.Country.startsWith(tile.words[0].slice(0, -1)), `${tile.words[0]}: ${tip}`).toBe(true);
+            // a person's pace between the taps, no double tap
+            await page.waitForTimeout(400);
+        }
+    });
+});
 
 test("grouped bars (#913): a high or low point's label crosses no other bar and no other label", async ({ page }) => {
     await page.setViewportSize({ width: 560, height: 900 });
