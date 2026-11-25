@@ -195,16 +195,14 @@ export function importLabels(labels) {
 
 /**
  * The texts of a column's decimal mark choice from its note DECIMAL_MARK: the mark read, the question with the note's
- * example, the full text for a tooltip and the two options, each the example's value with that mark in
- * `locale`, without grouping. Null when the params lack a finite number for either mark or a mark of
- * "." or "," (a plugin's own note), or the texts lack `markQuestion` or `markOption`: such a note
- * offers no choice.
+ * example, the full text for a tooltip and the two options, what the example reads as with each mark.
+ * Null when the params lack a finite number for either mark or a mark of "." or "," (a plugin's own
+ * note), or the texts lack `markQuestion`, `markOption` or `markOf`: such a note offers no choice.
  * @param {Record<string, unknown>} params  the note's params: decimal, example, point, comma
  * @param {ImportTexts} texts
- * @param {string} locale
  * @returns {{ decimal: "." | ",", question: string, title: string, options: Array<{ value: "." | ",", text: string }> } | null}
  */
-export function markTexts(params, texts, locale) {
+export function markTexts(params, texts) {
     const { decimal, example, point, comma } = params;
     if (typeof point !== "number" || typeof comma !== "number" || !Number.isFinite(point) || !Number.isFinite(comma)) {
         return null;
@@ -213,23 +211,20 @@ export function markTexts(params, texts, locale) {
         return null;
     }
     const forms = /** @type {Record<string, unknown>} */ (texts.markOption ?? {});
-    if (typeof texts.markQuestion !== "string" || typeof forms.decimal !== "string" || typeof forms.thousands !== "string") {
+    if (typeof texts.markQuestion !== "string" || typeof texts.markOf !== "string" || typeof forms.decimal !== "string" || typeof forms.thousands !== "string") {
         return null;
     }
     // the separator in the example (it has one: only "1,234" or "1.234" with a sign read as different
-    // numbers): the decimal mark when the option's mark is that character. The digits on each side come
-    // from the example as written, sign and trailing zeros kept, so "-2.500" is "-2 point 500", not the
-    // -2.5 of `point`: the person finds their own digits again, and no locale puts its mark back in
+    // numbers): the decimal mark when the option's mark is that character. Both readings are built from
+    // the example as written, sign and trailing zeros kept: "-2.500" is "-2 point 500" or "-2500", not
+    // the -2.5 of `point` in the locale's notation. The question and both options then show the same
+    // digits and signs, and no locale puts its mark back in
     const text = String(example);
     const separator = text.includes(",") ? "," : ".";
     const at = text.lastIndexOf(separator);
-    const sides = { whole: text.slice(0, at) || "0", fraction: text.slice(at + 1) };
-    const read = (/** @type {number} */ value) => value.toLocaleString(locale, { useGrouping: false, maximumFractionDigits: 10 });
-    const option = (/** @type {"." | ","} */ mark, /** @type {number} */ value) => ({
-        value: mark,
-        text: fill(texts.markOption[separator === mark ? "decimal" : "thousands"], { value: read(value), ...sides }),
-    });
-    const options = [option(".", point), option(",", comma)];
+    const sides = { whole: text.slice(0, at) || "0", fraction: text.slice(at + 1), value: text.slice(0, at) + text.slice(at + 1) };
+    const option = (/** @type {"." | ","} */ mark) => ({ value: mark, text: fill(texts.markOption[separator === mark ? "decimal" : "thousands"], sides) });
+    const options = [option("."), option(",")];
     const question = fill(texts.markQuestion, { example: text });
     const chosen = options.find((o) => o.value === decimal);
     return { decimal, question, title: `${question} ${chosen?.text}`, options };

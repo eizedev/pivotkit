@@ -168,12 +168,12 @@ function pickedTable(base, types, marks) {
  * DECIMAL_MARK): a question with the note's example above a choice of what it reads as with each
  * mark (markTexts), such as "1234 (thousands)" and "1 point 234". The question is the select's
  * label, so clicking it focuses the select. A note without the example's two numbers offers no choice.
- * @param {{ name: string, index: number, mark: Record<string, unknown>, t: import("./import-labels.js").ImportTexts, locale: string,
+ * @param {{ name: string, index: number, mark: Record<string, unknown>, t: import("./import-labels.js").ImportTexts,
  *   formName: string, onMark: (mark: string) => void }} props  `mark`: the note's params
  */
-function MarkChoice({ name, index, mark, t, locale, formName, onMark }) {
+function MarkChoice({ name, index, mark, t, formName, onMark }) {
     const id = useId();
-    const texts = markTexts(mark, t, locale);
+    const texts = markTexts(mark, t);
     if (!texts) {
         return null;
     }
@@ -199,9 +199,9 @@ function MarkChoice({ name, index, mark, t, locale, formName, onMark }) {
  * A column's head in the preview: its name, its type, and the decimal mark of its numbers while
  * they fit both (MarkChoice).
  * @param {{ name: string, index: number, type: string, mark: Record<string, unknown> | null, t: import("./import-labels.js").ImportTexts,
- *   locale: string, formName: string, onType: (type: string) => void, onMark: (mark: string) => void }} props  `mark`: the note's params
+ *   formName: string, onType: (type: string) => void, onMark: (mark: string) => void }} props  `mark`: the note's params
  */
-function ColumnHead({ name, index, type, mark, t, locale, formName, onType, onMark }) {
+function ColumnHead({ name, index, type, mark, t, formName, onType, onMark }) {
     return (
         <th scope="col">
             {name}
@@ -212,7 +212,7 @@ function ColumnHead({ name, index, type, mark, t, locale, formName, onType, onMa
                     </option>
                 ))}
             </select>
-            {mark ? <MarkChoice name={name} index={index} mark={mark} t={t} locale={locale} formName={formName} onMark={onMark} /> : null}
+            {mark ? <MarkChoice name={name} index={index} mark={mark} t={t} formName={formName} onMark={onMark} /> : null}
         </th>
     );
 }
@@ -476,7 +476,6 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
                                                     type={shown.types[i]}
                                                     mark={shown.types[i] === "number" ? (shown.notes.find((n) => n.code === "DECIMAL_MARK" && n.params.column === c)?.params ?? null) : null}
                                                     t={t}
-                                                    locale={locale}
                                                     formName={formName}
                                                     onType={(type) => setTypes((old) => (old ?? base?.types ?? []).map((ty, k) => (k === i ? /** @type {import("pivotkit-core/import").ImportType} */ (type) : ty)))}
                                                     onMark={(mark) => setMarks((old) => Object.assign([], old, { [i]: mark }))}
