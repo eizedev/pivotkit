@@ -125,12 +125,17 @@ function widerEntries(options) {
     return out;
 }
 
-/** Whether a profile shows any field (of the server's policy or a source's) more than another. */
+/**
+ * Whether a profile shows any field more than another, by the levels a caller gets: per configured
+ * source (the server's policy, the source's and the profile merged) and, where files.allowDirs lets
+ * callers read files, under files.policy. A field the source already shows to both is no difference.
+ */
 function shows(options, wide, narrow) {
     const strictness = (level) => POLICY_LEVELS.indexOf(level);
-    for (const source of [undefined, ...Object.values(options.sources ?? {}).map((s) => s.policy)]) {
-        const p = resolvePolicy(options.policy, source, wide);
-        const q = resolvePolicy(options.policy, source, narrow);
+    const files = options.files?.allowDirs?.length ? [{ policy: options.files.policy, how: { file: true } }] : [];
+    for (const { policy, how } of [...Object.values(options.sources ?? {}).map((s) => ({ policy: s.policy, how: {} })), ...files]) {
+        const p = resolvePolicy(options.policy, policy, wide, how);
+        const q = resolvePolicy(options.policy, policy, narrow, how);
         if (strictness(p.default) < strictness(q.default)) {
             return true;
         }

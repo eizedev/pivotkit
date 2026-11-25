@@ -15,6 +15,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - One-time download links and the sign-in of download links work when the output directory's file
   system has no hard links, such as FAT, exFAT and some SMB mounts. There the server creates the file
   that marks a link or sign-in used in place. Both failed with 500.
+- `check-config` no longer warns that a later `auth.groupProfiles` entry shows fields an earlier one
+  holds back when the source's policy already shows those fields to both. It compares the levels a
+  person gets in each source, and under `files.policy` where `files.allowDirs` is set.
 
 ## [0.5.0] - 2026-11-24
 
