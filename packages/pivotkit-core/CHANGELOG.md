@@ -17,26 +17,28 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
-- `decorateOption` takes `tileOf`, a treemap's tiles after a first draw, and `drawnTiles(chart)`
-  reads them from an ECharts instance. A treemap's labels then stand in their tiles' middle.
+- `decorateOption` takes `tileOf(index, name)`, a treemap's tiles after a first draw, and
+  `drawnTiles(chart)` reads them from an ECharts instance. A treemap's labels then stand in their
+  tiles' middle, cut to fit.
 
 ### Fixed
 
 - Text on coloured fills reads at 4.5:1 or more in both themes
   ([#914](https://github.com/eizedev/pivotkit/issues/914)):
   - A treemap writes its labels in `--pk-text` on a plate in `--pk-surface`, the same on every tile.
-    A label too big for its tile has no plate and takes the ink that reads on the tile, so no plate
-    stands without words. Without a `--pk-surface` the chart can draw, no label has a plate.
+    With `tileOf`, a name wider than its tile ends in "…" and a value that does not fit is left out;
+    a tile with room for fewer than 3 letters has no label, so no plate stands without words.
+    Without a `--pk-surface` the chart can draw, no label has a plate.
   - A heatmap's numbers take `--pk-text` or `--pk-surface`, else black or white, whichever reaches
     4.5:1 on the cell. `labelColorOn` gives black or white where neither candidate reaches it.
 - High and low points ([#913](https://github.com/eizedev/pivotkit/issues/913)):
   - The ▲ and ▼ take the text colour, as the value does. A light series colour made them hard to read.
   - In grouped bars a label no longer crosses another bar of its group. It moves beside its dot or
-    above the group's highest bar. In dense grouped bars some labels are left out; the tooltip has
-    the value.
+    above the group's highest bar. In dense grouped bars the chart's highest and lowest are placed
+    first and some other labels are left out; the tooltip has the value.
 - Reference lines ([#913](https://github.com/eizedev/pivotkit/issues/913)):
-  - On a chart narrower than 480 px, a label writes the value instead of the line's name; a trend
-    keeps its name.
+  - On a chart narrower than 480 px, the labels keep the lines' names where all fit in 30 % of the
+    width. Else each writes the value instead of the name; a trend keeps its name.
   - The sample before an average's label takes the series' colour from `colorMap` and
     `chart.colors`, as the line does.
 

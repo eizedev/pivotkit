@@ -21,21 +21,20 @@ export { labelColorOn };
 
 /**
  * A treemap's tiles as a first draw laid them out, for decorateOption's `tileOf`: by an item's place in
- * the series' data, its tile's size and the colour it was filled with, or null. `chart` is the ECharts
- * instance: its model keeps the tree's root first, then the items in their order. undefined for a chart
- * without a treemap.
+ * the series' data and its name, its tile's size, or null. `chart` is the ECharts instance. ECharts
+ * (checked with 6.1.0) keeps the tree in its list depth first, the root first: a flat treemap's item i
+ * at i + 1. An item's name that is not at that place (a tree with children) gives null.
  * @param {any} chart
- * @returns {((index: number) => { width: number, height: number, fill?: string } | null) | undefined}
+ * @returns {((index: number, name: string) => { width: number, height: number } | null) | undefined}
  */
 export function drawnTiles(chart) {
     const series = chart.getModel?.()?.getSeriesByIndex(0);
     if (series?.subType !== "treemap") return undefined;
     const data = series.getData();
-    return (index) => {
+    return (index, name) => {
+        if (index + 1 >= data.count() || data.getName(index + 1) !== name) return null;
         const tile = data.getItemLayout(index + 1);
-        if (typeof tile?.height !== "number") return null;
-        const fill = data.getItemVisual(index + 1, "style")?.fill;
-        return { width: tile.width, height: tile.height, ...(typeof fill === "string" ? { fill } : {}) };
+        return typeof tile?.height === "number" ? { width: tile.width, height: tile.height } : null;
     };
 }
 
@@ -88,17 +87,40 @@ function inkOn(fill, inks, readColor) {
     return read ? labelColorOn(read, inks) : inks[0];
 }
 
+/** The fewest characters a treemap's tile writes of a name cut short; with fewer it writes no label. */
+const TILE_MIN_CHARS = 3;
+/** The end of a text cut short: one character, so a narrow tile keeps more of the name. */
+const ELLIPSIS = "\u2026";
+
+/**
+ * `text` as it fits `width` px at `fontSize` (textWidth): whole, else cut with ELLIPSIS after at least
+ * TILE_MIN_CHARS characters; null when that does not fit.
+ * @param {string} text
+ * @param {number} width
+ * @param {number} fontSize
+ */
+function fitText(text, width, fontSize) {
+    if (textWidth(text, fontSize) <= width) return text;
+    const chars = [...text];
+    for (let n = chars.length - 1; n >= TILE_MIN_CHARS; n--) {
+        const cut = `${chars.slice(0, n).join("").trimEnd()}${ELLIPSIS}`;
+        if (textWidth(cut, fontSize) <= width) return cut;
+    }
+    return null;
+}
+
 /**
  * A treemap's labels (see above): on plates in the background colour, the text in the text colour, the
- * plates' corners as the tiles'. ECharts gives a tile's label a box of the tile's size and lays rich text
- * out from the box's top. With `tileOf` (the tiles of a first draw) each label's padding moves the lines
- * that fit down to the tile's middle, and a label too wide for its tile, or without room for a line on a
- * plate, keeps no plate: ECharts cuts it
- * short, in the ink that reads on its tile, so no plate stands without words. Without `tileOf` all
- * labels stand on plates at the top. Without a background colour it can draw (--pk-surface missing, or
- * `readColor` cannot read it), no plates: each label in the ink that reads on its tile (inkedLabel).
+ * plates' corners as the tiles', alike on every tile. ECharts gives a tile's label a box of the tile's
+ * size and lays rich text out from the box's top. With `tileOf` (the tiles of a first draw) each label
+ * writes what fits its tile, in the tile's middle: the name cut short with ELLIPSIS (fitText), the
+ * lines after it whole or not at all (a number cut short would mislead), as many lines as plates fit
+ * the tile's height. A tile without room for TILE_MIN_CHARS characters or one line writes no label: the
+ * tooltip has it. Without `tileOf` the labels stand on plates at the top, ECharts cutting them. Without
+ * a background colour it can draw (--pk-surface missing, or `readColor` cannot read it), no plates:
+ * each label in the ink that reads on its tile (inkedLabel).
  * @param {any} s  the treemap's series
- * @param {{ text?: string, surface?: string, radius: number, fontSize: number, readColor?: (color: string) => string | null, tileOf?: (index: number) => { width: number, height: number, fill?: string } | null }} theme
+ * @param {{ text?: string, surface?: string, radius: number, fontSize: number, readColor?: (color: string) => string | null, tileOf?: (index: number, name: string) => { width: number, height: number } | null }} theme
  * @returns {{ label: any, data?: any[] }}
  */
 function treemapLabels(s, { text, surface, radius, fontSize, readColor, tileOf }) {
@@ -112,13 +134,12 @@ function treemapLabels(s, { text, surface, radius, fontSize, readColor, tileOf }
     // no --pk-text: ECharts' own text colour
     const ink = text || undefined;
     const line = Math.round(fontSize * 1.5);
-    const style = { fontSize, lineHeight: line };
     const out = {
         label: {
             ...label,
             color: ink,
             formatter: (/** @type {any} */ p) => styled("plate", format(p)),
-            rich: { plate: { ...style, color: ink, backgroundColor: plate, borderRadius: radius, padding: [Math.max(1, (line - fontSize * 1.2) / 2), PLATE_SIDE] } }
+            rich: { plate: { fontSize, lineHeight: line, color: ink, backgroundColor: plate, borderRadius: radius, padding: [Math.max(1, (line - fontSize * 1.2) / 2), PLATE_SIDE] } }
         }
     };
     if (!tileOf || !Array.isArray(s.data)) return out;
@@ -126,18 +147,17 @@ function treemapLabels(s, { text, surface, radius, fontSize, readColor, tileOf }
     return {
         ...out,
         data: s.data.map((/** @type {any} */ d, /** @type {number} */ i) => {
-            const tile = tileOf(i);
+            const tile = tileOf(i, d.name);
             if (!tile) return d;
-            const texts = String(format(d)).split("\n");
-            const room = tile.height - 2 * pad;
-            // a plate where its words fit the tile's width and one line of it its height
-            const fits = Math.max(...texts.map((t) => textWidth(t, fontSize))) + 2 * PLATE_SIDE <= tile.width - 2 * pad && room >= line;
-            // without a plate, lines as close as ECharts' own
-            const height = fits ? line : Math.round(fontSize * 1.2);
-            const lines = Math.max(1, Math.min(texts.length, Math.floor(room / height)));
-            const top = pad + Math.max(0, (room - lines * height) / 2);
-            const bare = fits ? {} : { rich: { plate: { fontSize, lineHeight: height, color: inkOn(tile.fill, inks, readColor), backgroundColor: "transparent", padding: 0 } } };
-            return { ...d, label: { ...d.label, padding: [top, pad, pad, pad], ...bare } };
+            const width = tile.width - 2 * pad - 2 * PLATE_SIDE;
+            const height = tile.height - 2 * pad;
+            const [first, ...rest] = String(format(d)).split("\n");
+            const name = fitText(first, width, fontSize);
+            const shown = name === null ? [] : [name, ...rest.filter((t) => textWidth(t, fontSize) <= width)].slice(0, Math.floor(height / line));
+            if (!shown.length) return { ...d, label: { ...d.label, show: false } };
+            const top = pad + (height - shown.length * line) / 2;
+            const words = styled("plate", shown.join("\n"));
+            return { ...d, label: { ...d.label, padding: [top, pad, pad, pad], formatter: () => words } };
         })
     };
 }
@@ -177,18 +197,49 @@ function heatmapColors(colors, readColor) {
     return colors.map((c, i) => readColor(String(c)) ?? fallback[i === 0 ? 0 : fallback.length - 1]);
 }
 
-/** A chart narrower than this writes a reference line's value alone, without its name (briefOf). */
+/** A chart narrower than this writes the reference lines' names before their values only where they fit (briefWords). */
 const LINE_VALUE_MIN_WIDTH = 480;
+/** On a narrow chart, the share of its width a reference line's label may take with its name. */
+const LINE_WORDS_SHARE = 0.3;
 /** Room (px) between the plot and a reference line's label right of it. */
 const LINE_LABEL_GAP = 6;
 
-/** The words of a reference line's label on a narrow chart: its value (a trend's name), else its name. */
-const briefOf = (/** @type {any} */ item) => String(item.brief ?? item.name ?? "");
+/** The words of a reference line's label, without its sample: its name and value (a trend's name). */
+const wordsOf = (/** @type {any} */ item) => String(item.label.formatter()).replace(/^\{s\|[^}]*\} /, "");
 
-/** A reference line's markLine item with its label writing its brief words alone (briefOf), after its sample. */
-const namesOnly = (/** @type {any} */ d) => {
+/**
+ * The words of reference lines' labels on a chart `width` px wide (narrower than LINE_VALUE_MIN_WIDTH),
+ * by line: each its name and value where every label with its sample takes at most LINE_WORDS_SHARE of
+ * the width, else each its value alone (`brief`; a trend its name). All or none, so the labels read
+ * alike. Without the names the samples' dashes tell the kinds.
+ * @param {any[]} items  the lines' markLine items (their first point for a trend)
+ * @param {number} width
+ * @param {number} fontSize
+ * @returns {Map<any, string>}
+ */
+function briefWords(items, width, fontSize) {
+    const sampleOf = (/** @type {any} */ item) => LINE_SAMPLES[/** @type {keyof typeof LINE_SAMPLES} */ (item.lineStyle?.type)] ?? "";
+    const named = items.every((item) => textWidth(`${sampleOf(item)} ${wordsOf(item)}`, fontSize) <= width * LINE_WORDS_SHARE);
+    return new Map(items.map((item) => [item, named ? wordsOf(item) : String(item.brief ?? item.name ?? "")]));
+}
+
+/**
+ * The reference lines of upright lines (horizontal bars) on a narrow chart: each label with the words
+ * briefWords gives, its line's name where every label fits, else the value.
+ * @param {any[]} series
+ * @param {number} width
+ * @param {number} fontSize
+ */
+function uprightWords(series, width, fontSize) {
+    const head = (/** @type {any} */ d) => (Array.isArray(d) ? d[0] : d);
+    const brief = briefWords(series.flatMap((s) => (s.markLine?.data ?? []).map(head)), width, fontSize);
+    return series.map((s) => (s.markLine ? { ...s, markLine: { ...s.markLine, data: s.markLine.data.map((/** @type {any} */ d) => withWords(d, /** @type {string} */ (brief.get(head(d))))) } } : s));
+}
+
+/** A reference line's markLine item with its label writing `words` after its sample. */
+const withWords = (/** @type {any} */ d, /** @type {string} */ words) => {
     const head = Array.isArray(d) ? d[0] : d;
-    const label = { ...head.label, formatter: () => lineLabelText(head.lineStyle?.type, briefOf(head)) };
+    const label = { ...head.label, formatter: () => lineLabelText(head.lineStyle?.type, words) };
     return Array.isArray(d) ? [{ ...head, label }, d[1]] : { ...head, label };
 };
 
@@ -199,8 +250,8 @@ const namesOnly = (/** @type {any} */ d) => {
  * after a first draw): the labels then sit at their lines. Without it the heights are estimated on a
  * scale at most as fine as ECharts' (it never stretches the values over less than half the axis, nor
  * the plot over less than about half the chart), so the labels end at least as far apart as
- * estimated. A chart narrower than LINE_VALUE_MIN_WIDTH writes the values alone (a trend its name:
- * briefOf), and leaves out a
+ * estimated. A chart narrower than LINE_VALUE_MIN_WIDTH writes the lines' names only where they fit
+ * (briefWords), and leaves out a
  * label that would sit more than one and a half lines from its line; the tooltip has every value. A
  * trend on bars ends at the middle of the last bar: its label moves right by half a bar's band.
  * @param {any[]} series  the decorated series
@@ -223,7 +274,9 @@ function lineLabels(series, { width, height, grid, fontSize, pixelOf }) {
     }
     const narrow = width < LINE_VALUE_MIN_WIDTH;
     // the widest label: its sample, a space and its words
-    const textOf = (/** @type {any} */ item) => `${LINE_SAMPLES[/** @type {keyof typeof LINE_SAMPLES} */ (item.lineStyle?.type)] ?? ""} ${narrow ? briefOf(item) : String(item.label.formatter()).replace(/^\{s\|[^}]*\} /, "")}`;
+    /** @type {Map<any, string>} the words of each label on a narrow chart */
+    const brief = narrow ? briefWords(labels.map((l) => l.item), width, fontSize) : new Map();
+    const textOf = (/** @type {any} */ item) => `${LINE_SAMPLES[/** @type {keyof typeof LINE_SAMPLES} */ (item.lineStyle?.type)] ?? ""} ${brief.get(item) ?? wordsOf(item)}`;
     const widest = Math.max(...labels.map((l) => textWidth(textOf(l.item), fontSize)));
     // without the real heights: the values' span (the data, a stack's tops, 0 and the lines) on a coarse scale
     const numbers = series.flatMap((s) => (s.data ?? []).filter((/** @type {unknown} */ v) => typeof v === "number"));
@@ -261,7 +314,7 @@ function lineLabels(series, { width, height, grid, fontSize, pixelOf }) {
                           const far = narrow && dy > line * 1.5;
                           const label = { ...head.label, offset: [l.trend ? band : 0, dy], ...(far ? { show: false } : {}) };
                           const item = Array.isArray(d) ? [{ ...head, label }, d[1]] : { ...head, label };
-                          return narrow ? namesOnly(item) : item;
+                          return narrow ? withWords(item, /** @type {string} */ (brief.get(head))) : item;
                       })
                   }
               }
@@ -279,7 +332,7 @@ function lineLabels(series, { width, height, grid, fontSize, pixelOf }) {
  * @param {{ height?: number, width?: number, categoryNames?: string[], axisLabels?: string,
  *   tooltipFormatter?: (context: { valueFormatter?: (v: unknown) => string, shareFormatter?: (v: number) => string, xNames?: string[], yNames?: string[], categoryNames?: string[] }) => unknown,
  *   readColor?: (color: string) => string | null, zoom?: string, zoomAt?: { start: number, end: number }, timeline?: boolean, touch?: boolean,
- *   pixelOf?: (value: number) => number, tileOf?: (index: number) => { width: number, height: number, fill?: string } | null }} [size]
+ *   pixelOf?: (value: number) => number, tileOf?: (index: number, name: string) => { width: number, height: number } | null }} [size]
  *   height and width: the chart's size in px (the room around a pie, a heatmap's column names, the
  *   category axis); categoryNames: the categories' whole names (the tooltip's title when the axis
  *   writes them shorter); axisLabels: the view's chart.axisLabels; tooltipFormatter: builds the
@@ -394,8 +447,8 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     if (grid) grid.right += valueLabelRoom(series, fontSize);
     // the labels of lying reference lines: right of the plot, kept apart, with room
     const lines = grid && first(option.yAxis)?.type === "value" ? lineLabels(series, { width, height, grid, fontSize, pixelOf }) : null;
-    // upright lines (horizontal bars) have a row each above the plot; a narrow chart writes their values alone
-    if (grid && !lines && width < LINE_VALUE_MIN_WIDTH) series = series.map((s) => (s.markLine ? { ...s, markLine: { ...s.markLine, data: s.markLine.data.map(namesOnly) } } : s));
+    // upright lines (horizontal bars) have a row each above the plot; a narrow chart writes their names where they fit
+    if (grid && !lines && width < LINE_VALUE_MIN_WIDTH) series = uprightWords(series, width, fontSize);
     if (lines) {
         grid.right += lines.room;
         series = lines.series;

@@ -2,6 +2,7 @@
 // draws must be what the screen's chart draws (pivotkit-core's chartPlan and the report's marks).
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { drawnTiles } from "pivotkit-core/chart";
 import { render } from "pivotkit-report";
 import { FIXED, SALES, echarts, startTags, svgTexts } from "./fixtures.js";
 
@@ -229,4 +230,38 @@ test("colorMap takes a pair of colours for light and dark, as the React prop doe
     const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar" } };
     const r = await render(view, SALES, { format: "svg", echarts, colorMap: { A: ["#0a0b0c", "#f0f0f0"] }, ...FIXED });
     assert.ok(r.text.includes('fill="#0a0b0c"') && !r.text.includes('fill="#f0f0f0"'));
+});
+
+test("drawnTiles against ECharts itself: a flat treemap's tiles by item; in a tree with children no tile is taken for another item's", () => {
+    const draw = (/** @type {object[]} */ data) => {
+        const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: 600, height: 400 });
+        chart.setOption({ animation: false, series: [{ type: "treemap", data, breadcrumb: { show: false } }] });
+        return chart;
+    };
+    const flat = draw([{ name: "a", value: 30 }, { name: "b", value: 10 }]);
+    try {
+        const tileOf = /** @type {(i: number, name: string) => { width: number, height: number } | null} */ (drawnTiles(flat));
+        const [a, b] = [tileOf(0, "a"), tileOf(1, "b")];
+        assert.ok(a && b, "both tiles found");
+        // the tiles share the chart in the values' proportion: 3 to 1
+        assert.ok(Math.abs((a.width * a.height) / (b.width * b.height) - 3) < 0.01, `${a.width}x${a.height} ${b.width}x${b.height}`);
+        assert.equal(tileOf(0, "b"), null);
+        assert.equal(tileOf(2, "c"), null);
+    } finally {
+        flat.dispose();
+    }
+    // ECharts lists a tree depth first: an item after one with children is not at its index + 1
+    const nested = draw([{ name: "a", value: 30 }, { name: "b", children: [{ name: "b1", value: 5 }, { name: "b2", value: 5 }] }, { name: "c", value: 10 }]);
+    try {
+        const tileOf = /** @type {(i: number, name: string) => unknown} */ (drawnTiles(nested));
+        assert.ok(tileOf(0, "a"));
+        assert.ok(tileOf(1, "b"));
+        assert.equal(tileOf(2, "c"), null, "b1 sits where c would");
+    } finally {
+        nested.dispose();
+    }
+    const bar = echarts.init(null, null, { renderer: "svg", ssr: true, width: 600, height: 400 });
+    bar.setOption({ xAxis: { data: ["a"] }, yAxis: {}, series: [{ type: "bar", data: [1] }] });
+    assert.equal(drawnTiles(bar), undefined);
+    bar.dispose();
 });

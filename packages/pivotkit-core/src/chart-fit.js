@@ -296,7 +296,10 @@ const BAR_GAP = 0.3;
 const BAR_CATEGORY_GAP = 0.2;
 
 /**
- * Where ECharts draws each series' bars within a category's band of `band` px, as its bar layout does:
+ * Where ECharts draws each series' bars within a category's band of `band` px, as its bar layout does
+ * with its default barGap and barCategoryGap (BAR_GAP, BAR_CATEGORY_GAP) and the series' barMaxWidth: a
+ * host's barGap, barCategoryGap or barWidth (chartOptions) moves the bars, and the point labels placed
+ * here may then cross a bar or be left out. The layout is estimated, not read from the drawn bars:
  * per series index, the offset of the bar's left edge from the band's middle and its width; null for a
  * series that is no bar, or hidden in the legend. Stacked bars share one column.
  * @param {any[]} series  the decorated series (barMaxWidth set by decorateOption)
@@ -400,8 +403,9 @@ function intoPlot(pos, box, { width, top, bottom, lift }) {
  *   every dot stays.
  * - Two labels that would cover each other, another point's dot or another bar (grouped bars, #913),
  *   move: the later one beside its dot (right, then left), then over the highest bar of its group,
- *   else it is left out: in dense grouped bars some labels are left out. The dot stays; the tooltip
- *   and the text alternative name the value. Each point sits over its own bar (barSlots).
+ *   else it is left out: in dense grouped bars some labels are left out. The chart's highest and
+ *   lowest value are placed first, so they keep theirs. The dot stays; the tooltip and the text
+ *   alternative name the value. Each point sits over its own bar (barSlots).
  *   `pixelOf` gives each value's real height after a first draw; without it the heights are
  *   estimated on the same plot.
  * Horizontal bars: each bar has a band of its own, so only the axis's reach is set.
@@ -447,12 +451,13 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
     let dataMin = typeof axis?.dataMin === "number" ? axis.dataMin : undefined;
     /** @type {Map<any, { position?: string, show?: boolean, offset?: number[] }>} */
     const moves = new Map();
+    // the chart's highest and lowest value
+    const highest = items.reduce((a, b) => (b.d.name === "max" && (!a || b.value > a.value) ? b : a), /** @type {typeof items[number] | null} */ (null));
+    const lowest = items.reduce((a, b) => (b.d.name === "min" && (!a || b.value < a.value) ? b : a), /** @type {typeof items[number] | null} */ (null));
     // many series: the labels would cover the lines; only the chart's highest and lowest keep theirs
     if (series.filter((s) => s.type === "line" || s.type === "bar").length > POINT_LABEL_SERIES) {
-        const top = items.reduce((a, b) => (b.d.name === "max" && (!a || b.value > a.value) ? b : a), /** @type {typeof items[number] | null} */ (null));
-        const bottom = items.reduce((a, b) => (b.d.name === "min" && (!a || b.value < a.value) ? b : a), /** @type {typeof items[number] | null} */ (null));
         for (const i of items) {
-            if (i !== top && i !== bottom) moves.set(i.d, { show: false });
+            if (i !== highest && i !== lowest) moves.set(i.d, { show: false });
         }
     }
     for (const i of items) {
@@ -508,7 +513,10 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
     const plotBottom = yOf(extent[0]);
     /** @type {Box[]} */
     const placed = [];
-    items.forEach((i, k) => {
+    // the chart's highest and lowest first: where labels are left out, they keep theirs
+    const first = items.map((_, k) => k).sort((a, b) => Number(items[b] === highest || items[b] === lowest) - Number(items[a] === highest || items[a] === lowest));
+    first.forEach((k) => {
+        const i = items[k];
         if (moves.get(i.d)?.show === false) return;
         const own = moves.get(i.d)?.position ?? i.d.label?.position ?? "top";
         // over no other label and no other dot; beside its dot, within the plot's width (a label above

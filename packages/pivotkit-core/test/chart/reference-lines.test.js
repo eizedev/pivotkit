@@ -282,7 +282,7 @@ test("the labels write the value as the axis does, short", () => {
     assert.equal(referenceLines(r).at(-1).format(1234567), "€1,234,567.00");
 });
 
-test("decorateOption: the labels of lying lines right of the plot, kept apart, with room; a narrow chart writes the values only (#913)", () => {
+test("decorateOption: the labels of lying lines right of the plot, kept apart, with room; a narrow chart writes the names only where every label fits (#913)", () => {
     const style = { getPropertyValue: () => "" };
     // A's average 25 and a target of 26: two labels at nearly the same height
     const r = pivot({ chart: { type: "line", referenceLines: { average: true, trend: true, target: 26 } } });
@@ -301,6 +301,10 @@ test("decorateOption: the labels of lying lines right of the plot, kept apart, w
     const narrow = decorateOption(toEChartsOption(r), style, { width: 360, height: 480 });
     const names = narrow.series.flatMap((x) => x.markLine?.data ?? []).map((d) => (Array.isArray(d) ? d[0] : d)).filter((d) => d.label.show !== false).map((d) => words(d.label));
     assert.deepEqual(names.sort(), ["25", "26", "5", "Trend", "Trend"]);
+    // narrow, but each label with its name within 30 % of the chart's width: every label names its line
+    const roomy = decorateOption(toEChartsOption(r), style, { width: 440, height: 480 });
+    const named = roomy.series.flatMap((x) => x.markLine?.data ?? []).map((d) => (Array.isArray(d) ? d[0] : d)).filter((d) => d.label.show !== false).map((d) => words(d.label));
+    assert.deepEqual(named.sort(), ["Average 25", "Average 5", "Target 26", "Trend", "Trend"]);
 });
 
 test("each label carries its line's cue: a sample of its dash in the line's colour", () => {

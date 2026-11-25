@@ -58,24 +58,52 @@ test("treemap, both themes: every label on a plate in the background colour, the
     assert.equal(s.label.formatter({ name: "A}B", value: 1 }), "{plate|A}}{plate|B}\n{plate|1}");
 });
 
-test("treemap with the tiles of a first draw (tileOf): each label in its tile's middle; a label too wide for its tile on no plate, in the ink that reads on it", () => {
+test("treemap with the tiles of a first draw (tileOf): each label on a plate in its tile's middle, cut to the tile with an ellipsis; none where fewer than 3 characters fit", () => {
     const r = computePivot(REGIONS, { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" }, formatting: { locale: "en-US" } });
     const style = { getPropertyValue: (/** @type {string} */ n) => THEME_TOKENS.light[n] ?? "" };
-    // the first tile wide and tall, the second 30 px wide (no room for "West" on a plate), the others unknown
-    const tiles = [{ width: 300, height: 200, fill: "#2a78d6" }, { width: 30, height: 60, fill: "#1f1f1f" }];
-    const [s] = decorateOption(toEChartsOption(r, { theme: chartThemeFrom(style) }), style, { width: 800, height: 480, tileOf: (i) => tiles[i] ?? null }).series;
-    const [wide, narrow, unknown] = s.data;
+    /** @type {Record<string, { width: number, height: number }>} */
+    const tiles = {
+        Central: { width: 300, height: 200 },
+        // 30 px wide: not even "Wes…" fits
+        West: { width: 30, height: 60 },
+        // 20 px tall: no line fits
+        North: { width: 300, height: 20 },
+        // 50 px wide: "Isl…" fits, the value "1,340" does not
+        Islands: { width: 50, height: 60 }
+    };
+    /** @type {Array<[number, string]>} */
+    const asked = [];
+    const tileOf = (/** @type {number} */ i, /** @type {string} */ name) => (asked.push([i, name]), tiles[name] ?? null);
+    const [s] = decorateOption(toEChartsOption(r, { theme: chartThemeFrom(style) }), style, { width: 800, height: 480, tileOf }).series;
+    const byName = Object.fromEntries(s.data.map((/** @type {any} */ d) => [d.name, d]));
+    // asked by item and name, so a tile is never another item's
+    assert.deepEqual(asked, s.data.map((/** @type {any} */ d, /** @type {number} */ i) => [i, d.name]));
     const line = s.label.rich.plate.lineHeight;
-    // two lines of `line` px in the middle of 200 px: (200 - 2 * line) / 2 above them
-    assert.deepEqual(wide.label.padding, [(200 - 2 * line) / 2, 5, 5, 5]);
-    assert.equal(wide.label.rich, undefined, "on the series' plate");
-    const bare = narrow.label.rich.plate;
-    assert.equal(bare.backgroundColor, "transparent");
-    assert.equal(bare.padding, 0);
-    assert.ok(/** @type {number} */ (contrastOnFill(bare.color, "#1f1f1f")) >= 4.5, bare.color);
-    // two closer lines in the middle of 60 px
-    assert.deepEqual(narrow.label.padding, [(60 - 2 * bare.lineHeight) / 2, 5, 5, 5]);
-    assert.equal(unknown.label, undefined);
+    // two lines of `line` px in the middle of the 190 px inside the tile, on the series' plate
+    assert.deepEqual(byName.Central.label.padding, [5 + (190 - 2 * line) / 2, 5, 5, 5]);
+    assert.equal(byName.Central.label.formatter(), "{plate|Central}\n{plate|4,000}");
+    assert.equal(byName.Central.label.rich, undefined, "on the series' plate");
+    // cut with an ellipsis, on the plate; the value left out whole, not cut
+    assert.equal(byName.Islands.label.formatter(), "{plate|Isl…}");
+    assert.deepEqual(byName.Islands.label.padding, [5 + (50 - line) / 2, 5, 5, 5]);
+    // no empty plate where nothing fits: the tooltip has the value
+    assert.equal(byName.West.label.show, false);
+    assert.equal(byName.North.label.show, false);
+    // a tile not drawn yet: the series' label
+    assert.equal(byName.South.label, undefined);
+});
+
+test("drawnTiles: a treemap's tiles by item and name, its root left out; nothing for another chart", () => {
+    const data = { count: () => 2, getName: (/** @type {number} */ i) => ["", "A"][i], getItemLayout: () => ({ width: 300, height: 200 }) };
+    const chart = (/** @type {string} */ subType) => ({ getModel: () => ({ getSeriesByIndex: () => ({ subType, getData: () => data }) }) });
+    const tileOf = /** @type {(i: number, name: string) => unknown} */ (drawnTiles(chart("treemap")));
+    // the root at 0, the first item at 1
+    assert.deepEqual(tileOf(0, "A"), { width: 300, height: 200 });
+    // another name at that place, or past the end: unknown
+    assert.equal(tileOf(0, "B"), null);
+    assert.equal(tileOf(1, "A"), null);
+    assert.equal(drawnTiles(chart("bar")), undefined);
+    assert.equal(drawnTiles({}), undefined);
 });
 
 test("treemap without a background colour it can draw: no plates, each label in the ink that reads on its tile", () => {
@@ -90,18 +118,6 @@ test("treemap without a background colour it can draw: no plates, each label in 
         const key = /^\{(\w+)\|/.exec(out)?.[1] ?? "";
         assert.ok(/** @type {number} */ (contrastOnFill(s.label.rich[key].color, "#1f1f1f")) >= 4.5, out);
     }
-});
-
-test("drawnTiles: a treemap's tiles by item, its root left out; nothing for another chart", () => {
-    const layouts = [{ width: 800, height: 480 }, { width: 300, height: 200 }, null];
-    const chart = (/** @type {string} */ subType) => ({
-        getModel: () => ({ getSeriesByIndex: () => ({ subType, getData: () => ({ getItemLayout: (/** @type {number} */ i) => layouts[i], getItemVisual: () => ({ fill: "#2a78d6" }) }) }) })
-    });
-    const tileOf = /** @type {(i: number) => unknown} */ (drawnTiles(chart("treemap")));
-    assert.deepEqual(tileOf(0), { width: 300, height: 200, fill: "#2a78d6" });
-    assert.equal(tileOf(1), null);
-    assert.equal(drawnTiles(chart("bar")), undefined);
-    assert.equal(drawnTiles({}), undefined);
 });
 
 /** A colour `t` of the way from `a` to `b` (#rrggbb), mixed as ECharts mixes a visual map's colours: per channel. */

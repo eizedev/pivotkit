@@ -356,15 +356,18 @@ test.describe("reference lines", () => {
                         expect(overlap(boxes[i].box, boxes[j].box), `${JSON.stringify(chart)}: "${boxes[i].label}" and "${boxes[j].label}" overlap`).toBe(false);
                     }
                 }
-                // the labels are inside the chart, and a narrow one writes the value only, a trend its name (#913)
+                // the labels are inside the chart; a narrow one names its line where every label fits, else
+                // writes the value only, a trend its name (#913)
                 const size = await chartEl.boundingBox();
                 for (const l of boxes) {
                     expect(l.box.x + l.box.width, l.label).toBeLessThanOrEqual(size.width + 1);
                     expect(l.box.x, l.label).toBeGreaterThanOrEqual(-1);
                 }
                 if (width < 480) {
-                    expect(boxes.every((l) => l.label === "Trend" || /^\d+$/.test(l.label)), boxes.map((l) => l.label).join(", ")).toBe(true);
-                    expect(boxes.map((l) => l.label)).toContain("26");
+                    const brief = boxes.every((l) => l.label === "Trend" || /^\d+$/.test(l.label));
+                    const named = boxes.every((l) => /^[A-Z][a-z]+( \d+)?$/.test(l.label));
+                    expect(brief || named, `all or none named: ${boxes.map((l) => l.label).join(", ")}`).toBe(true);
+                    expect(boxes.map((l) => l.label)).toContain(brief ? "26" : "Target 26");
                 } else {
                     expect(boxes.map((l) => l.label)).toContain("Target 26");
                 }
