@@ -24,6 +24,14 @@ import { RELATIVE_UNITS } from "./relative.js";
  */
 
 /**
+ * @typedef {object} AnchoredRanges  one whole unit of a relative range counted from an anchor (the data's latest date, a date of its own)
+ * @property {Readonly<Record<string, Readonly<{ current: string, adjacent: string }>>>} last
+ * @property {Readonly<Record<string, Readonly<{ current: string, adjacent: string }>>>} next
+ * @property {Readonly<Record<string, Readonly<{ current: string, adjacent: string }>>>} before
+ * @property {Readonly<Record<string, string>>} this
+ */
+
+/**
  * @typedef {object} DescribeLabels  the words of describeView; {placeholders} are filled once, with the view's names and values
  * @property {string} lang  the language whose plural rules pick a Counted form
  * @property {string} quote  a text value: "\"{value}\"", German „{value}“
@@ -49,6 +57,8 @@ import { RELATIVE_UNITS } from "./relative.js";
  * @property {Readonly<Record<string, string>>} precisions
  * @property {Phrase} relative  "{field} is in the {range}"
  * @property {Ranges} ranges  a relative range by direction and unit
+ * @property {AnchoredRanges | null} anchoredRanges  one whole unit counted from an anchor that is not today
+ *   ("am Tag davor" instead of "gestern"); null: `ranges` as they are
  * @property {string} how  "{text} ({how})": how a relative range is counted
  * @property {string} rolling
  * @property {string} currentExcluded
@@ -124,6 +134,24 @@ const deRanges = (direction) => Object.freeze(Object.fromEntries(RELATIVE_UNITS.
     return [u, Object.freeze({ one, other, current, adjacent })];
 })));
 
+/**
+ * One whole unit counted from an anchor that is not today, in German: "am selben Tag", "am Tag davor",
+ * "am Tag danach", from each unit's preposition, article and noun.
+ */
+const DE_UNIT_WORDS = Object.freeze({
+    hour: ["in der", "vor der", "Stunde", "in derselben", "vor derselben"],
+    day: ["am", "vor dem", "Tag", "am selben", "vor demselben"],
+    week: ["in der", "vor der", "Woche", "in derselben", "vor derselben"],
+    month: ["im", "vor dem", "Monat", "im selben", "vor demselben"],
+    quarter: ["im", "vor dem", "Quartal", "im selben", "vor demselben"],
+    year: ["im", "vor dem", "Jahr", "im selben", "vor demselben"]
+});
+const deAnchored = (direction) => Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => {
+    const [at, before, noun, same, beforeSame] = DE_UNIT_WORDS[u];
+    const [current, adjacent] = direction === "before" ? [`${beforeSame} ${noun}`, `${before} ${noun} davor`] : [`${same} ${noun}`, `${at} ${noun} ${direction === "last" ? "davor" : "danach"}`];
+    return [u, Object.freeze({ current, adjacent })];
+})));
+
 const phrase = (yes, not) => Object.freeze({ yes, not });
 
 /**
@@ -168,6 +196,7 @@ export const DESCRIBE_LABELS = Object.freeze({
             before: enRanges("before"),
             this: Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => [u, `this ${u}`])))
         }),
+        anchoredRanges: null,
         how: "{text} ({how})",
         rolling: "rolling",
         currentExcluded: "current excluded",
@@ -229,6 +258,12 @@ export const DESCRIBE_LABELS = Object.freeze({
             next: deRanges("next"),
             before: deRanges("before"),
             this: Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => [u, DE_RANGES.last[u][2]])))
+        }),
+        anchoredRanges: Object.freeze({
+            last: deAnchored("last"),
+            next: deAnchored("next"),
+            before: deAnchored("before"),
+            this: Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => [u, deAnchored("last")[u].current])))
         }),
         how: "{text} ({how})",
         rolling: "gleitend",

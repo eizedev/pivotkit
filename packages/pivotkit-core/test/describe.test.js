@@ -213,6 +213,13 @@ test("describeView in German: a relative range of one whole unit says what the e
     // rolling: the unit up to now, not a calendar day
     assert.equal(text({ direction: "last", count: 1, unit: "day", calendar: false }), "Date ist innerhalb des letzten Tages (gleitend), ohne leere Werte");
     assert.equal(text({ direction: "last", count: 1, unit: "week", calendar: false, includeCurrent: false }), "Date ist innerhalb der letzten Woche (gleitend, ohne den laufenden Zeitraum), ohne leere Werte");
+    // counted from an anchor that is not today: the same unit, the one before or after it, not "today"
+    assert.deepEqual(days({ anchor: "latest", latest: "2025-06-30", includeCurrent: false }), { from: "2025-06-29", to: "2025-06-29" });
+    assert.equal(text({ direction: "last", count: 1, unit: "day", anchor: "latest" }), "Date ist am selben Tag (gezählt ab dem letzten Datensatz), ohne leere Werte");
+    assert.equal(text({ direction: "last", count: 1, unit: "day", anchor: "latest", includeCurrent: false }), "Date ist am Tag davor (gezählt ab dem letzten Datensatz), ohne leere Werte");
+    assert.equal(text({ direction: "next", count: 1, unit: "week", anchor: "2025-06-30", includeCurrent: false }), "Date ist in der Woche danach (gezählt ab 2025-06-30), ohne leere Werte");
+    assert.equal(text({ direction: "this", unit: "day", anchor: "2025-06-30" }), "Date ist am selben Tag (gezählt ab 2025-06-30), ohne leere Werte");
+    assert.equal(text({ direction: "before", count: 1, unit: "month", anchor: "first" }), "Date ist vor demselben Monat (gezählt ab dem ersten Datensatz), ohne leere Werte");
     // English keeps its words
     assert.equal(describeView({ version: 2, filters: [{ field: "Date", type: "relative", direction: "last", count: 1, unit: "day", includeCurrent: false }] }, data).filters[0].text, "Date is in the last 1 day (current excluded) (blanks dropped)");
 });

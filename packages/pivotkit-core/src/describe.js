@@ -151,14 +151,18 @@ const countedForm = (form, count, lang) => (typeof form === "string" ? form : pl
 /**
  * A relative range in words. A language with words for a single whole unit (RangeForms' `current`
  * and `adjacent`: "today", "yesterday") names it so; those words say whether the current unit is in
- * it, so "current excluded" is not added to them.
+ * it, so "current excluded" is not added to them. Counted from an anchor that is not today, they are
+ * the words of `anchoredRanges` ("the day before"), where the language has them.
  */
 function rangeText(f, words) {
+    const anchored = Boolean(f.anchor && f.anchor !== "today") && isPlainObject(words.anchoredRanges);
+    const singles = anchored ? words.anchoredRanges : words.ranges;
     if (f.direction === "this") {
-        return { range: wordOf(words.ranges.this, f.unit), saysCurrent: true };
+        return { range: wordOf(singles.this, f.unit), saysCurrent: true };
     }
     const forms = words.ranges[f.direction]?.[f.unit];
-    const single = f.count === 1 && f.calendar !== false && forms ? (f.includeCurrent === false ? forms.adjacent : forms.current) : undefined;
+    const own = singles[f.direction]?.[f.unit];
+    const single = f.count === 1 && f.calendar !== false && own ? (f.includeCurrent === false ? own.adjacent : own.current) : undefined;
     return typeof single === "string" ? { range: single, saysCurrent: true } : { range: pluralForm(forms, f.count, words.lang), saysCurrent: false };
 }
 
