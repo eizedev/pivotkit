@@ -464,7 +464,7 @@ area with `stackPercent`.
 | `tooltipFormatter` | Builds the tooltip's formatter. Leave it out for a chart without a tooltip, such as an SVG. |
 | `readColor` | `(color) => color \| null`: a heatmap colour as ECharts can mix it. ECharts reads hex, `rgb()`, `hsl()` and some names only, and another form, such as `oklch()`, turns the cells black. An end with `null` takes `DEFAULT_THEME.colorScale`'s colour. |
 | `zoom`, `zoomAt`, `timeline`, `touch` | The zoom slider of a chart on a screen. See below. |
-| `pixelOf`, `tileOf` | After a first draw. `pixelOf`: `(value) => px`, a value's height in the drawn chart, such as ECharts' `convertToPixel`: the labels of the reference lines then sit at their lines. `tileOf`: `(index) => { width, height, fill } \| null`, a treemap item's tile, such as `drawnTiles(chart)` gives: each label then stands in its tile's middle. |
+| `pixelOf`, `tileOf` | After a first draw. `pixelOf`: `(value) => px`, a value's height in the drawn chart, such as ECharts' `convertToPixel`: the labels of the reference lines then sit at their lines. `tileOf`: `(index, name) => { width, height } \| null`, the tile of a treemap's item `index` named `name`, such as `drawnTiles(chart)` gives: each label then stands in its tile's middle, cut to fit. `drawnTiles` gives `null` for an item it cannot match by name, such as in a tree with children. |
 
 It adds the theme's colours from the tokens, and:
 
@@ -481,10 +481,10 @@ It adds the theme's colours from the tokens, and:
 - The category axis laid out for the chart's size (`categoryLabelLayout`: straight, slanted or every
   n-th, `chart.axisLabels`). The option's `axisEvery` says when every n-th label is written.
 - Room on the right for the values at the end of horizontal bars, fewer value ticks on a narrow axis.
-- A heatmap's row names and numbers where its cells have room, each number in the first of
-  `--pk-text` and `--pk-surface` that reads at 4.5:1, else `#000000` or `#ffffff` (`labelColorOn`). A
-  treemap's labels in `--pk-text` on a plate in `--pk-surface`; a label too big for its tile
-  (`tileOf`), or any without a `--pk-surface` it can draw, has no plate and takes the cell's ink.
+- A heatmap's row names and numbers where its cells have room. Each number takes the one of
+  `--pk-text` and `--pk-surface` with the higher contrast on its cell if it reaches 4.5:1, else
+  `#000000` or `#ffffff` (`labelColorOn`). A treemap's labels on a plate, cut to their tiles with
+  `tileOf`, as [Charts › Treemap](../use/charts.md#treemap) describes.
 
 pivotkit-react adds its DOM tooltip through `tooltipFormatter`. Its `readColor` turns any colour the
 browser reads into `#rrggbb`. pivotkit-report's keeps the colours ECharts reads. Any other one
@@ -537,8 +537,8 @@ The view's display settings are part of the option:
 - The hidden legend entries of `chart.hidden` as `legend.selected`. Without a legend, the option has
   one that is not shown.
 - The reference lines (`chart.referenceLines`) as silent `markLine`s, with the value axis's
-  `dataMin` and `dataMax` reaching them. The high and low points as silent `markPoint`s, their
-  labels kept inside the plot and apart by `decorateOption`.
+  `dataMin` and `dataMax` reaching them. The high and low points as silent `markPoint`s, their labels
+  kept inside the plot and apart by `decorateOption` ([limits](../concepts/charts.md#high-and-low-points)).
 - Fixed colours (`chart.colors`, `colorMap`) as `itemStyle.color` of a series or a slice, and the
   line's and the fill's colour of a line or an area. `tooltip.shareFormatter` writes a share in the
   locale's way.

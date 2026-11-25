@@ -219,8 +219,8 @@ The chart reads these tokens in the current theme:
 | The heatmap | `--pk-heat-low`/`--pk-heat-high` |
 | The title's size and weight | `--pk-chart-title-size`, `--pk-weight-strong` |
 | Its other text: the axes, the legend, the labels on bars, slices and cells, the heatmap's scale | `--pk-chart-text-size` |
-| The text on a treemap's tiles, on a plate | `--pk-text` on `--pk-surface` |
-| The numbers on a heatmap's cells, and a treemap's text too big for a plate: the first that reaches 4.5:1 on the cell, else black or white | `--pk-text`, `--pk-surface` |
+| The text on a treemap's tiles, on a plate ([treemap](../use/charts.md#treemap)) | `--pk-text` on `--pk-surface` |
+| The numbers on a heatmap's cells: of the two, the one with the higher contrast on the cell if it reaches 4.5:1, else black or white | `--pk-text`, `--pk-surface` |
 | The labels of high and low points, with an outline around the letters | `--pk-muted`, outlined in `--pk-surface` |
 | The labels of reference lines | `--pk-muted` |
 | The corners of bars and pie slices | `--pk-radius-chart` |
@@ -231,8 +231,9 @@ The chart reads these tokens in the current theme:
 | The axis line | `--pk-chart-axis`, else `--pk-border` |
 | The grid | `--pk-grid`, else `--pk-border` |
 
-Black (`#000000`) and white (`#ffffff`) are fixed values, not tokens. Without a `--pk-surface` the
-chart can draw, a treemap has no plates, and each label takes the ink that reads on its tile. That
+Black (`#000000`) and white (`#ffffff`) are fixed values, not tokens. The contrast of `--pk-text`
+and of `--pk-muted` on `--pk-surface` is the theme's: the chart does not change them. Without a
+`--pk-surface` the chart can draw, a treemap's text has no plate and takes a heatmap's ink. That
 is a missing `--pk-surface`, or in pivotkit-report on its own a form ECharts does not read, such as
 `oklch()` or `color-mix()`. A missing `--pk-surface` also leaves the points' labels without an outline.
 
