@@ -102,6 +102,15 @@ const showsWholeText = (select) =>
         return text + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + 16 <= el.clientWidth;
     });
 
+/** Whether the type selects of all column heads start on one line, with or without a decimal mark choice. */
+const typesOnOneLine = async (dialog) => {
+    const tops = [];
+    for (const type of await dialog.locator("select[data-testid^='import-type-']").all()) {
+        tops.push(Math.round((await type.boundingBox()).y));
+    }
+    return new Set(tops).size === 1;
+};
+
 /** Whether an element lies inside its column head, not cut off by it. */
 const insideItsHead = (element) =>
     element.evaluate((el) => {
@@ -120,22 +129,20 @@ test("a column whose numbers fit both decimal marks: the preview asks what the f
     const dialog = page.getByRole("dialog", { name: "Load sales.csv" });
     expect((await preview(dialog)).rows.map((r) => r[1])).toEqual(["1,234", "2,500"]);
     // only the column the note names has the choice, with the note's mark: the question with the example above it,
-    // the options what "1,234" is with each mark, without a thousands separator
+    // the options what "1,234" is with each mark, without a thousands separator; the question names the select
+    // (the column follows for a screen reader), and a click on it moves the focus to the select
     await expect(dialog.locator("select[data-testid^='import-mark-']")).toHaveCount(1);
     const mark = dialog.getByTestId("import-mark-1");
     const question = fill(importEn.markQuestion, { example: "1,234" });
-    await expect(dialog.getByTestId("import-question-1")).toHaveText(question);
-    await expect(mark).toHaveAccessibleName(fill(importEn.markOf, { column: "Sales" }));
-    await expect(mark).toHaveAccessibleDescription(question);
-    await expect(mark).toHaveAttribute("title", `${question} 1234`);
+    await expect(dialog.getByTestId("import-question-1")).toBeVisible();
+    await expect(mark).toHaveAccessibleName(`${question} ${fill(importEn.markOf, { column: "Sales" })}`);
+    await expect(mark).toHaveAttribute("title", `${question} 1234 (thousands)`);
     await expect(mark).toHaveValue(".");
-    await expect(mark.locator("option")).toHaveText(["1234", "1.234"]);
-    // the heads start at the top: the type of each column on one line, with or without the choice
-    const tops = [];
-    for (const type of await dialog.locator("select[data-testid^='import-type-']").all()) {
-        tops.push(Math.round((await type.boundingBox()).y));
-    }
-    expect(new Set(tops).size).toBe(1);
+    await expect(mark.locator("option")).toHaveText(["1234 (thousands)", "1.234 (decimal)"]);
+    await dialog.getByTestId("import-question-1").click();
+    await expect(mark).toBeFocused();
+    await expect(mark).toHaveValue(".");
+    expect(await typesOnOneLine(dialog)).toBe(true);
     const note = dialog.locator("li[data-code='DECIMAL_MARK']");
     await expect(note).toHaveText(fill(importEn.notes.DECIMAL_MARK, { column: "Sales", decimal: ".", example: "1,234" }));
     // by keyboard: Tab from the type reaches the choice, typing the start of an option picks it (arrow keys open the
@@ -148,7 +155,7 @@ test("a column whose numbers fit both decimal marks: the preview asks what the f
     await expect.poll(async () => (await preview(dialog)).rows.map((r) => r[1])).toEqual(["1.234", "2.5"]);
     await expect(note).toHaveText(fill(importEn.notes.DECIMAL_MARK, { column: "Sales", decimal: ",", example: "1,234" }));
     await expect(mark).toBeFocused();
-    await expect(mark).toHaveAttribute("title", `${question} 1.234`);
+    await expect(mark).toHaveAttribute("title", `${question} 1.234 (decimal)`);
     // as text the column has no mark; a number again, it keeps the mark picked
     await dialog.getByTestId("import-type-1").selectOption("string");
     await expect(dialog.locator("select[data-testid^='import-mark-']")).toHaveCount(0);
@@ -168,10 +175,9 @@ test("a column whose numbers fit both decimal marks: the preview asks what the f
     await dropFiles(page, page.getByTestId("pivot-table"), [SALES]);
     const deDialog = page.getByRole("dialog", { name: "sales.csv laden" });
     const deMark = deDialog.getByTestId("import-mark-1");
-    await expect(deDialog.getByTestId("import-question-1")).toHaveText(fill(importDe.markQuestion, { example: "1,234" }));
-    await expect(deMark).toHaveAccessibleName(fill(importDe.markOf, { column: "Sales" }));
+    await expect(deMark).toHaveAccessibleName(`${fill(importDe.markQuestion, { example: "1,234" })} ${fill(importDe.markOf, { column: "Sales" })}`);
     await expect(deMark).toHaveValue(",");
-    await expect(deMark.locator("option")).toHaveText(["1234", "1,234"]);
+    await expect(deMark.locator("option")).toHaveText(["1234 (Tausender)", "1,234 (Dezimal)"]);
     expect((await preview(deDialog)).rows.map((r) => r[1])).toEqual(["1,234", "2,5"]);
     await deMark.selectOption(".");
     await expect.poll(async () => (await preview(deDialog)).rows.map((r) => r[1])).toEqual(["1.234", "2.500"]);
@@ -195,6 +201,7 @@ test("on a phone the decimal mark choice and its question show their whole text,
         }
         expect(await insideItsHead(dialog.getByTestId("import-question-1")), lang).toBe(true);
         expect(await insideItsHead(mark), lang).toBe(true);
+        expect(await typesOnOneLine(dialog), lang).toBe(true);
     }
 });
 

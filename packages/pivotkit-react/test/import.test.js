@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { PivotkitError, encode } from "pivotkit-core";
 import { IMPORT_NOTE_CODES, limitError, readFile } from "pivotkit-core/import";
 import { DATA_STEPS, NO_DATA_STEPS, hostHistory, pushData, redoData, undoData, withoutFuture } from "../src/data-history.js";
-import { IMPORT_TEXTS, de, en, errorText, importLabels, noteText } from "../src/import-labels.js";
+import { IMPORT_TEXTS, de, en, errorText, importLabels, markTexts, noteText } from "../src/import-labels.js";
 import { acceptOf, formatsOf, readImport, sheetsOf } from "../src/import-run.js";
 import { backToOriginal, loadData, moveData, restoreData } from "../src/import-steps.js";
 import { KEPT_REPORTS, forgetData, hostIdentity, keepData, keptData } from "../src/data-keep.js";
@@ -471,4 +471,30 @@ test("a loaded file's limits are the host's importLimits over its limits, key by
     for (const worker of [undefined, fakeWorker()]) {
         await assert.rejects(readImport(csv(TICKETS), { worker, limits: fileLimits }), (e) => e instanceof PivotkitError && e.code === "LIMIT_EXCEEDED" && e.details.limit === "rows" && e.details.max === 2);
     }
+});
+
+test("decimal mark choice: the note's example with each mark, in the locale, with whether its separator is the decimal mark; no choice without both numbers or a mark", () => {
+    const note = { column: "Sales", decimal: ".", example: "1,234", point: 1234, comma: 1.234 };
+    assert.deepEqual(markTexts(note, en, "en"), {
+        decimal: ".",
+        question: "“1,234” means",
+        title: "“1,234” means 1234 (thousands)",
+        options: [
+            { value: ".", text: "1234 (thousands)" },
+            { value: ",", text: "1.234 (decimal)" },
+        ],
+    });
+    // German, the comma read; an example with a point: its point is the decimal mark with "."
+    assert.deepEqual(markTexts({ ...note, decimal: "," }, de, "de").options, [
+        { value: ".", text: "1234 (Tausender)" },
+        { value: ",", text: "1,234 (Dezimal)" },
+    ]);
+    assert.equal(markTexts({ ...note, decimal: ",", example: "2.500", point: 2.5, comma: 2500 }, de, "de").title, "„2.500“ bedeutet 2500 (Tausender)");
+    assert.deepEqual(markTexts({ ...note, example: "2.500", point: 2.5, comma: 2500 }, en, "en").options.map((o) => o.text), ["2.5 (decimal)", "2500 (thousands)"]);
+    // a plugin's own note: without both numbers as finite numbers, or with another mark, there is no choice
+    const { point, comma, ...noNumbers } = note;
+    for (const params of [noNumbers, { ...note, point: undefined }, { ...note, comma: Number.NaN }, { ...note, point: Infinity }, { ...note, comma: "1.234" }, { ...note, decimal: ";" }, { ...note, decimal: undefined }]) {
+        assert.equal(markTexts(params, en, "en"), null, JSON.stringify(params));
+    }
+    assert.ok(point && comma);
 });

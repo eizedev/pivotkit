@@ -34,9 +34,11 @@ export const en = {
     typeOf: "Type of {column}",
     types: { string: "Text", number: "Number", date: "Date", boolean: "Yes/No" },
     // a number column whose values fit both decimal marks: the question above its choice, whose options
-    // are what the note's example reads as with each mark; markOf names the choice for a screen reader
-    markOf: "Decimal mark of {column}",
+    // are what the note's example reads as with each mark (markOption: {value} and whether the example's
+    // separator is the decimal mark or groups thousands); markOf follows the question for a screen reader
+    markOf: "(decimal mark of {column})",
     markQuestion: "“{example}” means",
+    markOption: { decimal: "{value} (decimal)", thousands: "{value} (thousands)" },
     yes: "Yes",
     no: "No",
     noRows: "The file holds no rows.",
@@ -76,7 +78,7 @@ export const en = {
         TEXT_CUT: { one: "{count} value longer than {max} characters was cut.", other: "{count} values longer than {max} characters were cut." },
         CHARACTERS_REMOVED: { one: "Control or text direction characters were removed from {count} value.", other: "Control or text direction characters were removed from {count} values." },
         DATE_ORDER: "Dates in “{column}” were read as {order}; the values fit both.",
-        DECIMAL_MARK: "Numbers in “{column}” were read with “{decimal}” as the decimal mark; some, such as “{example}”, also fit the other mark. If that is wrong, pick the other mark under the column's name, or write the numbers with the other mark in the file.",
+        DECIMAL_MARK: "Numbers in “{column}” were read with “{decimal}” as the decimal mark; some, such as “{example}”, also fit the other mark. To change it, pick what “{example}” means under the column's name, or write the numbers with the other mark in the file.",
         VALUES_NOT_CONVERTED: { one: "{count} value in “{column}” cannot be read as {type} and is empty.", other: "{count} values in “{column}” cannot be read as {type} and are empty." },
         NUMBERS_TOO_LARGE: "Numbers in “{column}” too large to hold are empty: {count}.",
         NUMBERS_ROUNDED: "Long whole numbers in “{column}” may have lost digits: {count}. Write IDs as text in the file.",
@@ -118,8 +120,9 @@ export const de = {
     someColumns: "Die ersten {shown} von {count} Spalten werden gezeigt; die anderen behalten den erkannten Typ und das erkannte Dezimalzeichen.",
     typeOf: "Typ von {column}",
     types: { string: "Text", number: "Zahl", date: "Datum", boolean: "Ja/Nein" },
-    markOf: "Dezimalzeichen von {column}",
+    markOf: "(Dezimalzeichen von {column})",
     markQuestion: "„{example}“ bedeutet",
+    markOption: { decimal: "{value} (Dezimal)", thousands: "{value} (Tausender)" },
     yes: "Ja",
     no: "Nein",
     noRows: "Die Datei enthält keine Zeilen.",
@@ -152,7 +155,7 @@ export const de = {
         TEXT_CUT: { one: "{count} Wert mit mehr als {max} Zeichen wurde gekürzt.", other: "{count} Werte mit mehr als {max} Zeichen wurden gekürzt." },
         CHARACTERS_REMOVED: { one: "Aus {count} Wert wurden Steuer- oder Richtungszeichen entfernt.", other: "Aus {count} Werten wurden Steuer- oder Richtungszeichen entfernt." },
         DATE_ORDER: "Datumswerte in „{column}“ wurden als {order} gelesen; die Werte passen zu beidem.",
-        DECIMAL_MARK: "Zahlen in „{column}“ wurden mit „{decimal}“ als Dezimalzeichen gelesen; einige, etwa „{example}“, passen auch zum anderen Zeichen. Stimmt das nicht, wähl das andere Zeichen unter dem Namen der Spalte, oder schreib die Zahlen in der Datei mit dem anderen Zeichen.",
+        DECIMAL_MARK: "Zahlen in „{column}“ wurden mit „{decimal}“ als Dezimalzeichen gelesen; einige, etwa „{example}“, passen auch zum anderen Zeichen. Zum Ändern wähl unter dem Namen der Spalte, was „{example}“ bedeutet, oder schreib die Zahlen in der Datei mit dem anderen Zeichen.",
         VALUES_NOT_CONVERTED: { one: "{count} Wert in „{column}“ lässt sich nicht als {type} lesen und bleibt leer.", other: "{count} Werte in „{column}“ lassen sich nicht als {type} lesen und bleiben leer." },
         NUMBERS_TOO_LARGE: "Zu große Zahlen in „{column}“ bleiben leer: {count}.",
         NUMBERS_ROUNDED: "Lange ganze Zahlen in „{column}“ haben vielleicht Stellen verloren: {count}. Schreib Kennungen in der Datei als Text.",
@@ -188,6 +191,37 @@ export function importLabels(labels) {
     const out = /** @type {ImportTexts} */ (mergeLabels(base, own));
     done.set(labels, out);
     return out;
+}
+
+/**
+ * The texts of a column's decimal mark choice from its note DECIMAL_MARK: the mark read, the question with the note's
+ * example, the full text for a tooltip and the two options, each the example's value with that mark in
+ * `locale`, without grouping. Null when the params lack a finite number for either mark or a mark of
+ * "." or "," (a plugin's own note): such a note offers no choice.
+ * @param {Record<string, unknown>} params  the note's params: decimal, example, point, comma
+ * @param {ImportTexts} texts
+ * @param {string} locale
+ * @returns {{ decimal: "." | ",", question: string, title: string, options: Array<{ value: "." | ",", text: string }> } | null}
+ */
+export function markTexts(params, texts, locale) {
+    const { decimal, example, point, comma } = params;
+    if (typeof point !== "number" || typeof comma !== "number" || !Number.isFinite(point) || !Number.isFinite(comma)) {
+        return null;
+    }
+    if (decimal !== "." && decimal !== ",") {
+        return null;
+    }
+    // the separator in the example: the decimal mark when the option's mark is that character
+    const separator = String(example).includes(",") ? "," : ".";
+    const read = (/** @type {number} */ value) => value.toLocaleString(locale, { useGrouping: false, maximumFractionDigits: 10 });
+    /** @type {Array<{ value: "." | ",", text: string }>} */
+    const options = [
+        { value: ".", text: fill(texts.markOption[separator === "." ? "decimal" : "thousands"], { value: read(point) }) },
+        { value: ",", text: fill(texts.markOption[separator === "," ? "decimal" : "thousands"], { value: read(comma) }) },
+    ];
+    const question = fill(texts.markQuestion, { example: String(example) });
+    const chosen = options.find((o) => o.value === decimal);
+    return { decimal, question, title: `${question} ${chosen?.text}`, options };
 }
 
 /**
