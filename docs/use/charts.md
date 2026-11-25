@@ -81,10 +81,14 @@ report: the report itself, field list included, is at least 1,024 pixels wide.
 ![A treemap of 20 countries by population, each tile named with its value](../assets/screenshots/chart-treemap-light.png#only-light)
 ![A treemap of 20 countries by population, each tile named with its value](../assets/screenshots/chart-treemap-dark.png#only-dark)
 
-- Each tile shows its name and value. A small tile cuts the text with "…". The tooltip shows both.
+- Each tile shows its name and value in its middle, on a plate in the background's colour. The
+  plate looks the same on every tile, whatever the tile's colour.
+- A name wider than its tile ends in "…" after at least 4 characters; a value that does not fit is
+  left out. A tile with less room, or lower than a line, shows no text. Point at or tap a tile for both.
 - A row with a total of 0 or less gets no tile.
 - The colours only tell the tiles apart. They do not stand for a value.
-- The text on a tile is light or dark, whichever reads better on its colour.
+- Without a background colour the chart can draw, the text has no plate. It then takes the text or
+  background colour, else black or white, that reads on its tile ([Theming](../reference/theming.md#chart-colours)).
 - It has no legend. **Chart settings › Series** hides a tile or sets its colour.
 - With a field on Columns, a tile adds up every column, as a pie does.
 - A click on a tile opens no rows.
@@ -311,8 +315,9 @@ target you set. High and low points mark the highest and the lowest value of eac
 - Each line has a label right of the plot, at the line's height. It starts with a short sample of
   the line's dash in the line's colour, then the name and the value, written short as on the axis,
   such as "Target 500K". A label of a line close to another moves just below it.
-- On a chart narrower than 480 px, such as on a phone, the labels name the lines only. A label
-  that cannot sit near its line is left out there; the tooltip still names the line.
+- On a chart narrower than 480 px, such as on a phone, the names stay only where all labels fit in
+  30 % of the width. Else a label writes the value (a trend its name) after its dash in the series'
+  colour, as in the legend. A label that cannot sit near its line is left out; the tooltip names it.
 - The value axis reaches every line. A target higher than every bar still shows.
 - The tooltip lists the lines at the category with their whole values: a trend with its value there.
 - The chart image, the HTML report and the chart as SVG draw the lines too.
@@ -325,15 +330,16 @@ target you set. High and low points mark the highest and the lowest value of eac
 ![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and a label with ▲ or ▼ and its value](../assets/screenshots/chart-points-light.png#only-light)
 ![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and a label with ▲ or ▼ and its value](../assets/screenshots/chart-points-dark.png#only-dark)
 
-- The dot has the series' colour. Its label starts with ▲ for the highest value or ▼ for the
-  lowest, in the same colour, then the value as the table writes it.
+- The dot has the series' colour. Its label, in the muted text colour (`--pk-muted`), starts with
+  ▲ for the highest value or ▼ for the lowest, then the value as the table writes it.
 - On a line, the highest label sits above its dot and the lowest below it.
 - On bars and areas, both labels sit above the dot. On a bar, that is past the bar's end.
 - A label never stretches the axis across zero. Near zero, it sits beside its dot.
 - Labels have an outline in the background's colour, so they read over a line.
 - A stack marks the highest and lowest total, in the neutral colour of a target.
-- Two labels that would cover each other move beside their dots. A label that still has no room
-  is left out. Its dot stays, and the tooltip names the value.
+- Labels that would cover each other or another bar of a group move beside their dots or above
+  the group. In dense grouped bars the chart's highest and lowest label come first, and some
+  others are left out; the tooltip has the value.
 - With more than 8 series, every dot stays, but only the chart's highest and lowest value keep a
   label.
 - Where two categories share the highest value, the first one gets the dot. A series whose values
@@ -399,8 +405,8 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 - A series without a value at the category is left out.
 - A long series name ends in "…". When more series are there than fit, the last line says how many
   more there are, and whether the total includes them.
-- On a phone, tap a bar, a point or a heatmap cell to see its tooltip. Tap it again to open
-  [its menu](#filter-from-the-chart).
+- On a phone, tap a bar, a point, a heatmap cell or a treemap tile to see its tooltip. Tap a bar, a
+  point or a cell again to open [its menu](#filter-from-the-chart).
 - A pie's tooltip shows the value's name, the slice and its value. With a field on Columns, a slice
   adds up every column.
 - A heatmap's tooltip shows the value's name, the cell's row and column and its value.

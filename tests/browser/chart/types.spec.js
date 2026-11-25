@@ -1,6 +1,6 @@
 // Two chart types (#518) picked in Chart settings by real clicks: bars and lines (the first value as
-// bars, the others as lines on an axis of their own) and a treemap (a tile per category, its label in
-// the token colour that reads on it). The drawn marks come from the chart's own model.
+// bars, the others as lines on an axis of their own) and a treemap (a tile per category, its label on a
+// plate in the background colour, fill-labels.spec.js). The drawn marks come from the chart's own model.
 import { installContrast } from "../contrast.js";
 import { expect, test } from "../fixtures.js";
 import { mountReport } from "./report.js";
@@ -26,14 +26,14 @@ async function mount(page, view, { theme = "light", width = 1440 } = {}) {
     return page.locator("#types-report");
 }
 
-/** The series ECharts drew: type, value axis and, for a treemap, each tile's fill and label colour. */
+/** The series ECharts drew: type, value axis and, for a treemap, its tiles and its labels' plate. */
 const drawnSeries = (report) =>
     report.getByTestId("pivot-chart").evaluate(async (el) => {
         const { getInstanceByDom } = await import("echarts/core");
         const chart = getInstanceByDom(el);
         if (!chart || !chart.getZr().animation.isFinished()) return null;
         const option = chart.getOption();
-        return option.series.map((s) => ({ type: s.type, axis: s.yAxisIndex ?? 0, tiles: s.type === "treemap" ? s.data.map((d) => ({ name: d.name, fill: d.itemStyle?.color, ink: d.label?.color, outline: d.label?.textBorderColor ?? null })) : null, axes: (option.yAxis ?? []).length }));
+        return option.series.map((s) => ({ type: s.type, axis: s.yAxisIndex ?? 0, tiles: s.type === "treemap" ? s.data.map((d) => ({ name: d.name, fill: d.itemStyle?.color, own: d.label ?? null })) : null, plate: s.label?.rich?.plate ?? null, axes: (option.yAxis ?? []).length }));
     });
 
 /** WCAG contrast of two opaque colours the page resolves. */
@@ -72,18 +72,19 @@ for (const [width, theme] of [
     [390, "light"],
     [390, "dark"]
 ]) {
-    test(`treemap at ${width} px, ${theme}: a tile per region, each label in the token colour that reads on its tile`, async ({ page }) => {
+    test(`treemap at ${width} px, ${theme}: a tile per region, each label on a plate it reads on`, async ({ page }) => {
         const report = await mount(page, { values: [TWO[0]], chart: { type: "bar" } }, { theme, width });
         await report.getByTestId("view-settings").click();
         await report.getByTestId("chart-treemap").click();
         await expect.poll(async () => (await drawnSeries(report))?.[0]?.type).toBe("treemap");
-        const [{ tiles }] = await drawnSeries(report);
+        const [{ tiles, plate }] = await drawnSeries(report);
         expect(tiles.map((t) => t.name).sort()).toEqual(["Central", "East", "North", "South", "West"]);
-        // the label reads at 4.5:1 on its tile, or against the outline it gets where no token does
-        for (const t of tiles) {
-            const ratio = await contrast(page, t.ink, t.outline ?? t.fill);
-            expect(ratio, `${t.name}: ${t.ink} on ${t.outline ?? t.fill}`).toBeGreaterThanOrEqual(4.5);
-        }
+        // every label the same: on a plate it reads on at 4.5:1, whatever the tile's colour. A tile's own
+        // label sets only its padding (the tile's middle), its words cut to the tile, or hides a label that
+        // does not fit; never a look of its own (fill-labels.spec.js)
+        expect(tiles.flatMap((t) => Object.keys(t.own ?? {}).filter((k) => !["padding", "formatter", "show"].includes(k)))).toEqual([]);
+        const ratio = await contrast(page, plate.color, plate.backgroundColor);
+        expect(ratio, `${plate.color} on ${plate.backgroundColor}`).toBeGreaterThanOrEqual(4.5);
         // no tip about pies: a treemap holds many parts
         await expect(report.getByText("A pie works for")).toHaveCount(0);
     });

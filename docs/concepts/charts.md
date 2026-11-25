@@ -163,7 +163,8 @@ document.querySelector("pivot-report").colorMap = { Failed: "#e3000f", Success: 
 - A label writes a sample of its line's dash in the line's colour, then the value as the value
   axis does. `decorateOption` puts the labels right of the plot and keeps them a line apart. With
   `pixelOf`, the real height of a value after a first draw, they sit at their lines. Below 480 px
-  it writes the names only and leaves out a label far from its line.
+  the names stay where all fit in 30 % of the width, else the values (a trend its name); a label
+  far from its line is left out.
 - A trend over the categories' order, when a category has no date, is one straight segment.
 
 Two functions decide which chart draws which line. The chart, the menu and the report's SVG use
@@ -212,13 +213,14 @@ A series' lines take its colour. The lines of no series, a target and a stack's 
   `referenceLineChecks`): per series, or of a stack's total.
 - The first of equal values gets the point. A series whose values are all the same gets none.
 - `toEChartsOption` draws them as a silent ECharts `markPoint` on the series: a dot in the series'
-  colour (a stack's in `--pk-chart-reference`), a label with ▲ or ▼ in that colour and the value in
-  the text colour. A palette colour such as yellow is too light for text, so the value keeps the
-  text colour.
+  colour (a stack's in `--pk-chart-reference`), and a label with ▲ or ▼ and the value in the muted
+  text colour (`--pk-muted`). A palette colour such as yellow is too light for text, so the dot alone takes it.
 - `decorateOption` keeps the labels inside the plot: the value axis reaches past them
   (`dataMin`, `dataMax`). A label that would take the axis across zero sits beside its dot.
-- Labels that would cover each other move beside their dots, or are left out. With `pixelOf` it
-  uses the real heights after a first draw.
+- Labels that would cover each other or another bar of a group move beside their dots, then above
+  the group's highest bar, else are left out; the chart's highest and lowest go first there. With
+  `pixelOf` it uses the real heights. Bar places assume the default `barGap` and `barCategoryGap`;
+  a host's `barGap`, `barCategoryGap` or `barWidth` can put a label on a bar or leave it out.
 - With more than 8 series, only the chart's highest and lowest value keep a label. Every dot stays.
 - The labels and dots get an outline in `--pk-surface`, so they read over a line.
 

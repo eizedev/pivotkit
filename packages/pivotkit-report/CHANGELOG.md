@@ -10,6 +10,13 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 - The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
 
+### Fixed
+
+- The SVG and the HTML report draw text on coloured fills as the screen does, with pivotkit-core's
+  fix ([#913](https://github.com/eizedev/pivotkit/issues/913), [#914](https://github.com/eizedev/pivotkit/issues/914)):
+  a treemap's labels on plates in the middle of their tiles and cut to fit, a heatmap's numbers in the ink that reads on each cell, the ▲ and ▼
+  in the muted text colour (`--pk-muted`).
+
 ## [0.6.0] - 2026-11-24
 
 ### Fixed
