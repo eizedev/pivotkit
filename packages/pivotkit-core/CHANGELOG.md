@@ -27,7 +27,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   ([#914](https://github.com/eizedev/pivotkit/issues/914)):
   - A treemap writes its labels in `--pk-text` on a plate in `--pk-surface`, the same on every tile.
     With `tileOf`, a name wider than its tile ends in "…" and a value that does not fit is left out;
-    a cut name keeps at least 4 letters. A tile with less room, or lower than a line, has no label,
+    a cut name keeps at least 4 characters. A tile with less room, or lower than a line, has no label,
     so no plate stands without words.
     Without a `--pk-surface` the chart can draw, no label has a plate.
   - A heatmap's numbers take `--pk-text` or `--pk-surface`, else black or white, whichever reaches

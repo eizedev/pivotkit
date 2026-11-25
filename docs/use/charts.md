@@ -83,8 +83,8 @@ report: the report itself, field list included, is at least 1,024 pixels wide.
 
 - Each tile shows its name and value in its middle, on a plate in the background's colour. The
   plate looks the same on every tile, whatever the tile's colour.
-- A name wider than its tile ends in "…" after at least 4 letters; a value that does not fit is left
-  out. A tile with less room, or lower than a line, shows no text. Point at or tap a tile for both.
+- A name wider than its tile ends in "…" after at least 4 characters; a value that does not fit is
+  left out. A tile with less room, or lower than a line, shows no text. Point at or tap a tile for both.
 - A row with a total of 0 or less gets no tile.
 - The colours only tell the tiles apart. They do not stand for a value.
 - Without a background colour the chart can draw, the text has no plate. It then takes the text or
@@ -405,8 +405,8 @@ Point at a bar, a segment of stacked bars or a point of a line to see a tooltip.
 - A series without a value at the category is left out.
 - A long series name ends in "…". When more series are there than fit, the last line says how many
   more there are, and whether the total includes them.
-- On a phone, tap a bar, a point or a heatmap cell to see its tooltip. Tap it again to open
-  [its menu](#filter-from-the-chart).
+- On a phone, tap a bar, a point, a heatmap cell or a treemap tile to see its tooltip. Tap a bar, a
+  point or a cell again to open [its menu](#filter-from-the-chart).
 - A pie's tooltip shows the value's name, the slice and its value. With a field on Columns, a slice
   adds up every column.
 - A heatmap's tooltip shows the value's name, the cell's row and column and its value.
