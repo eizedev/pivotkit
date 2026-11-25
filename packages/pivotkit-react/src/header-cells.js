@@ -47,7 +47,9 @@ export function scopeOf(cell, named) {
  * @returns {string}
  */
 export function cornerLabel(view, labels) {
-    return [["rows", view.rows], ["cols", view.cols]]
+    /** @type {[string, string[]][]} */
+    const axes = [["rows", view.rows], ["cols", view.cols]];
+    return axes
         .filter(([, fields]) => fields.length > 0)
         .map(([zone, fields]) => `${labels.zones[zone]}: ${fields.map((f) => fieldLabel(f, labels.core)).join(", ")}`)
         .join("; ");
