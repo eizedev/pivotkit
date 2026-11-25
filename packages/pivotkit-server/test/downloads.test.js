@@ -1075,11 +1075,32 @@ test("markers without hard links (FAT, exFAT, some SMB and object-store mounts):
             assert.equal(readFileSync(marker, "utf8"), `${now + 60}\n`);
         }
         assert.deepEqual(readdirSync(dir).filter((n) => n.endsWith(".tmp")), []);
-        // a marker read while it is written in place (its expiry not whole yet) is never swept
+        // a marker read while it is written in place (its expiry not whole yet) is not swept; one
+        // that stayed so for longer than any link works (its writer died) is
         const partial = join(dir, `${randomBytes(16).toString("base64url")}.used`);
+        const stale = join(dir, `${randomBytes(16).toString("base64url")}.used`);
         writeFileSync(partial, "17");
+        writeFileSync(stale, "");
+        const dayAndTwoHours = new Date(Date.now() - 26 * 3_600_000);
+        utimesSync(stale, dayAndTwoHours, dayAndTwoHours);
         await sweepMarkers(dir, now);
         assert.equal(existsSync(partial), true);
+        assert.equal(existsSync(stale), false);
+        // a write into the marker that fails in this process (a full disk) leaves no marker: the
+        // request fails, and the link still works
+        const { write } = markerMeans;
+        const full = join(dir, `${randomBytes(16).toString("base64url")}.used`);
+        markerMeans.write = async () => {
+            throw Object.assign(new Error("ENOSPC"), { code: "ENOSPC" });
+        };
+        try {
+            await assert.rejects(placeMarker(full, now + 60), { code: "ENOSPC" });
+        } finally {
+            markerMeans.write = write;
+        }
+        assert.equal(existsSync(full), false);
+        await placeMarker(full, now + 60);
+        assert.equal(readFileSync(full, "utf8"), `${now + 60}\n`);
         // any other failure of link() is no reason to write in place
         markerMeans.link = noLink("EACCES");
         const denied = join(dir, `${randomBytes(16).toString("base64url")}.used`);

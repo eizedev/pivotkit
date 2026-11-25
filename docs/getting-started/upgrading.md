@@ -118,6 +118,7 @@ The next release, on `main` now. The table lists the changes that need an action
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | **Breaking:** a key file that starts with a UTF-8 byte order mark is refused | a key's `{ "file" }` (`output.downloads.key`, `audit.key`, a backend's or the upload store's secret) starts with one, as Windows PowerShell 5.1's `-Encoding UTF8` writes it | save the file as UTF-8 without the mark. `check-config` names the file. Download links made with the old key stop working, and audit hashes change |
+| A backend's sign-in and `output.upload`'s headers read `{ "env" }` secrets from the `env` the host passes | a host passes its own `env` to `createContext` or `serve()` without those variables | add the variables to that `env`. The start warns when a backend's sign-in cannot read its secret |
 
 ### From 0.9 to 0.10 { #from-0-9 }
 
