@@ -1,7 +1,7 @@
 // Text on coloured fills (#913, #914) as ECharts drew it: a treemap's labels on plates, a heatmap's
 // numbers in the ink that reads on their cell, each at 4.5:1 on what is under it, in both themes; the
-// labels of high and low points never across another bar. After a theme switch every label takes the
-// colours a fresh render in that theme gives.
+// labels of high and low points never across another bar. After a theme switch every label and plate
+// takes the colours a fresh render in that theme gives.
 import { TEXT_MIN } from "../../fill-contrast.js";
 import { installContrast } from "../contrast.js";
 import { expect, test } from "../fixtures.js";
@@ -125,11 +125,14 @@ for (const type of ["treemap", "heatmap"]) {
             await page.evaluate((theme) => window.__rerender({ theme }), to);
             await expect.poll(() => page.locator("#fill-report .pk-root").getAttribute("data-pk-theme")).toBe(to);
             let chartEl = await chartOf(page, "fill-report", type);
-            const switched = await drawnTexts(chartEl);
-            expect(switched.length).toBeGreaterThan(0);
+            // the texts and, for each label on a mark, its ink and what is under it (a treemap's plate)
+            const drawn = async (el) => ({ texts: await drawnTexts(el), marks: (await labelsOnMarks(el)).map((l) => `${l.text} | ${l.ink} on ${l.fill}`).sort() });
+            const switched = await drawn(chartEl);
+            expect(switched.texts.length).toBeGreaterThan(0);
+            expect(switched.marks.length).toBeGreaterThan(0);
             await mountReport(page, { id: "fill-report", rows: ROWS, view, theme: to, height: 480 });
             chartEl = await chartOf(page, "fill-report", type);
-            expect(switched).toEqual(await drawnTexts(chartEl));
+            expect(switched).toEqual(await drawn(chartEl));
         });
     }
 }
