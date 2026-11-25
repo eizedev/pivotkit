@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { SignJWT } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
 import { KEY_READ_MS, readToken, signToken, subjectDigest, subkeysOf } from "../src/downloads/tokens.js";
-import { placeMarker, sweepMarkers } from "../src/downloads/markers.js";
+import { markerMeans, placeMarker, sweepMarkers } from "../src/downloads/markers.js";
 import { dispositionOf, filenameOf } from "../src/downloads/files.js";
 import { sizeText } from "../src/downloads/pages.js";
 import { SIGN_IN_CALLBACKS } from "../src/downloads/sign-in.js";
@@ -1054,6 +1054,49 @@ test("markers: written whole and exclusive; the sweep deletes an expired one, ke
     assert.equal(existsSync(oldTemp), false);
     // no temporary file is left by a write
     assert.deepEqual(readdirSync(dir).filter((n) => n.endsWith(".tmp")).length, 1);
+});
+
+test("markers without hard links (FAT, exFAT, some SMB and object-store mounts): created exclusively in place with the expiry; a one-time link works once", async () => {
+    const { link } = markerMeans;
+    const noLink = (code) => async () => {
+        throw Object.assign(new Error(code), { code });
+    };
+    const dir = join(tempDir(), ".pivotkit-downloads");
+    mkdirSync(dir);
+    const now = Math.floor(Date.now() / 1000);
+    try {
+        // EISDIR: Windows on FAT and exFAT
+        for (const code of ["EPERM", "ENOTSUP", "EISDIR"]) {
+            markerMeans.link = noLink(code);
+            const marker = join(dir, `${randomBytes(16).toString("base64url")}.used`);
+            await placeMarker(marker, now + 60);
+            assert.equal(readFileSync(marker, "utf8"), `${now + 60}\n`);
+            await assert.rejects(placeMarker(marker, now + 1), { code: "EEXIST" });
+            assert.equal(readFileSync(marker, "utf8"), `${now + 60}\n`);
+        }
+        assert.deepEqual(readdirSync(dir).filter((n) => n.endsWith(".tmp")), []);
+        // a marker read while it is written in place (its expiry not whole yet) is never swept
+        const partial = join(dir, `${randomBytes(16).toString("base64url")}.used`);
+        writeFileSync(partial, "17");
+        await sweepMarkers(dir, now);
+        assert.equal(existsSync(partial), true);
+        // any other failure of link() is no reason to write in place
+        markerMeans.link = noLink("EACCES");
+        const denied = join(dir, `${randomBytes(16).toString("base64url")}.used`);
+        await assert.rejects(placeMarker(denied, now + 60), { code: "EACCES" });
+        assert.equal(existsSync(denied), false);
+        markerMeans.link = noLink("EPERM");
+        const { server, local, render } = await onceServer();
+        try {
+            const url = local((await render("No links")).url);
+            const answers = await Promise.all(Array.from({ length: 20 }, () => fetch(url, { method: "POST", headers: { origin: PUBLIC } }).then(async (r) => ({ status: r.status, body: await r.text() }))));
+            assert.deepEqual(answers.map((a) => a.status).sort(), [200, ...Array(19).fill(409)]);
+        } finally {
+            await server.close();
+        }
+    } finally {
+        markerMeans.link = link;
+    }
 });
 
 test("a rotated key takes effect without a restart, within KEY_READ_MS: links of the old key answer 404, new links work", async () => {

@@ -12,6 +12,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   sign-in and of `output.upload`'s headers from that `env`. They were read from `process.env`, at
   start and on every load. Static tokens and the download key already used it. A host that passes its
   own `env` must hold those variables in it.
+- One-time download links and the sign-in of download links work when the output directory's file
+  system has no hard links, such as FAT, exFAT and some SMB mounts. There the server creates the file
+  that marks a link or sign-in used in place. Both failed with 500.
 
 ## [0.5.0] - 2026-11-24
 
