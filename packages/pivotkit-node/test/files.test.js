@@ -62,7 +62,8 @@ test("writeNew without hard links (FAT, exFAT, some SMB mounts): the name is cre
         throw Object.assign(new Error(code), { code });
     };
     try {
-        for (const code of ["EPERM", "ENOTSUP"]) {
+        // EISDIR: Windows on FAT and exFAT (ERROR_INVALID_FUNCTION, as libuv maps it)
+        for (const code of ["EPERM", "ENOTSUP", "EISDIR"]) {
             fileMeans.link = noLink(code);
             assert.equal(await writeNew(dir, `Sales ${code}`, "csv", new TextEncoder().encode("a,b")), `Sales ${code}.csv`);
             assert.equal(readFileSync(join(dir, `Sales ${code}.csv`), "utf8"), "a,b");

@@ -114,8 +114,10 @@ The exit codes:
 - 2 for a usage or configuration error.
 
 No message holds a value. These commands, `check-config` and the start say so when a file is in
-UTF-16, which is what PowerShell 5.1's `>` writes. They also say so when a token or key file is not a
-regular file or is longer than 4096 bytes. They never wait for such a file. When you stop the
+UTF-16, which is what PowerShell 5.1's `>` writes. They refuse a key file that starts with a UTF-8
+byte order mark: the mark would become part of the key. A token file's mark is trimmed with the
+spaces around the token. They also say so when a token or key file is not a regular file or is
+longer than 4096 bytes. They never wait for such a file. When you stop the
 command (Ctrl+C) during a write, it removes its temporary file.
 
 On Windows, the mode does not apply: the file takes the permissions of its folder. To keep the file

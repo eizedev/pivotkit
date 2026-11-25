@@ -34,9 +34,13 @@ import { CliError, printable, shortName } from "./errors.js";
 /** The calls tests replace: a file system without hard links, a temporary file that cannot be removed. */
 export const fileMeans = { link, unlink };
 
-/** The codes of link() where a file system has no hard links (FAT, exFAT, some SMB and FUSE mounts). */
-/** @type {ReadonlySet<string>} */
-export const NO_HARD_LINKS = new Set(["EPERM", "ENOTSUP", "EOPNOTSUPP", "ENOSYS", "EXDEV", "EMLINK"]);
+/**
+ * The codes of link() where a file system has no hard links (FAT, exFAT, some SMB and FUSE mounts).
+ * On Windows, libuv reports ERROR_INVALID_FUNCTION as EISDIR (src/win/error.c), the error
+ * CreateHardLinkW is reported to give on FAT and exFAT (not measured here).
+ * @type {ReadonlySet<string>}
+ */
+export const NO_HARD_LINKS = new Set(["EPERM", "ENOTSUP", "EOPNOTSUPP", "ENOSYS", "EXDEV", "EMLINK", "EISDIR"]);
 
 const READ_FLAGS = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);
 
