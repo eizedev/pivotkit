@@ -17,7 +17,7 @@ import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/cli
 import { OperationError } from "pivotkit-report/operations";
 import { callerOf, checkConfig, present, validateOptions } from "pivotkit-server";
 import { serverTextOf } from "pivotkit-server/internal";
-import { checkedAddress, fillTemplate, nameSlug, uploadExpiryOf, uploadMeans } from "../src/upload.js";
+import { checkedAddress, fillTemplate, nameSlug, UPLOAD_QUEUE_MAX, UPLOAD_SLOTS, uploadExpiryOf, uploadMeans, uploadsWaiting } from "../src/upload.js";
 import { deliver, NO_LINK_NOTE, storeFor } from "../src/delivery.js";
 import { createDownloadHandler } from "../src/downloads.js";
 import { subkeysOf } from "../src/downloads/tokens.js";
@@ -704,7 +704,8 @@ test("the slot queue is capped: an upload beyond 32 waiting ones fails at once, 
     const { context, log } = await contextOf(presignOptions());
     try {
         const waiting = Array.from({ length: 34 }, () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }));
-        await until(() => held.length >= 2, { tries: 200, every: 10 });
+        // every one of the 34 holds a slot or waits for one: on a slow runner some are still on their way
+        await until(() => held.length >= UPLOAD_SLOTS && uploadsWaiting(context) >= UPLOAD_QUEUE_MAX, { tries: 500, every: 10 });
         const started = Date.now();
         const refused = await failureOf(withRequestId("Queue_Full0", () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false })));
         // far below the upload's timeMs (30 s) that a queued call would wait

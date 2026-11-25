@@ -184,6 +184,13 @@ export function uploadExpiryOf(value, now = Date.now()) {
 const slots = new WeakMap();
 
 /**
+ * How many of the context's uploads wait for a slot (tests: a test that fills the queue waits for
+ * this instead of guessing when every upload has reached it).
+ * @param {object} context
+ */
+export const uploadsWaiting = (context) => slots.get(context)?.waiting.length ?? 0;
+
+/**
  * Runs fn when one of the context's slots is free; gives up when the deadline passes first.
  * @template T
  * @param {object} context
