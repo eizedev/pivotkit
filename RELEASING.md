@@ -91,9 +91,13 @@ Release packages in this order. It follows their run-time dependencies.
 - It records the tarball's integrity right after the pack. `publish` refuses a tarball with another one.
 - The `publish` job waits for an environment reviewer.
 - Before approving, read `.github/workflows/release.yml` at the tag. That version runs.
-- `publish` stages the tarball with provenance (`npm stage publish`, npm 11.21.1).
+- `publish` stages the tarball with provenance (`npm stage publish`).
 - Provenance comes from the workflow's `--provenance`, not from `publishConfig`.
 - Staging needs npm 11.15.0 or later. Trusted publishing needs Node 22.14.0 or later.
+- `publish` runs the npm version that `NPM_VERSION` pins in `.github/workflows/release.yml`.
+  It installs npm only from a tarball whose integrity matches `NPM_INTEGRITY` there.
+- To raise npm, change both values in one commit. `npm view npm@<version> dist.integrity` prints the integrity.
+  Take it on a machine you trust, not in a CI run: CI compares against it and cannot check it.
 - The run's summary names the tarball and its integrity.
 - To check the staged tarball itself, fetch it with `npm stage download <stage-id>`.
   `echo "sha512-$(openssl dgst -sha512 -binary <file> | openssl base64 -A)"` must print the summary's integrity.
@@ -114,6 +118,10 @@ npm stage approve <stage-id>   # or: npm stage reject <stage-id>
 ### 5. GitHub release
 
 - Publish a GitHub release for each tag, with a short text and a link to the CHANGELOG.
+- Start one discussion per release round, not one per tag: create the round's last GitHub release
+  with `--discussion-category "Announcements"`, for example
+  `gh release create pivotkit-mcp@x.y.z --verify-tag --notes-file notes.md --discussion-category "Announcements"`.
+  Its text sums up the round and links the release of every package in it.
 - A release also publishes the documentation site (`.github/workflows/docs.yml`).
 - The site build uses the newest release tag on main, whichever release started it.
 - To publish the site by hand: Actions, Docs site, Run workflow, input `tag`.
@@ -181,6 +189,7 @@ For the container image:
 - Provenance attests the workflow and the commit. It does not prove `dist/` is unaltered.
 - `build` packs before lint, types and tests run. Only tsc and the package's own build run before the pack.
 - `publish` checks the tarball's integrity, and that its name and version match the tag.
+- `publish` installs npm only from a tarball whose sha512 is committed in `release.yml`. Node comes from `setup-node`.
 - No check compares a package's imports with the lowest core version its range admits.
   Exact ranges and `check-release.js` cover that instead.
 - `npm run pack:check` shows what would be published. It fails while a package is `"private": true`.

@@ -338,7 +338,7 @@ with a tool such as cert-manager.
 
 The controller must pass the request's `Host` on unchanged and write `X-Forwarded-For`. Its time
 limit for an answer must be longer than `compute.queueMs` + `compute.timeMs`, which is 40 seconds
-with the defaults. Check your controller's default.
+with the defaults; the rows route adds `rest.records.waitMs` (5 s). Check your controller's default.
 
 To publish less, give the Ingress the paths `/mcp`, `/api/v1` and `/downloads` instead of `/`. With
 OAuth, add the prefix `/.well-known/oauth-protected-resource`.

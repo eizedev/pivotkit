@@ -767,8 +767,8 @@ The notes, in the order the report shows them, and when:
 | `menus` | tip | The empty report, before the first drag. | |
 | `cells` | tip | A table with values, until a value was opened once. | |
 
-The texts are `labels.tips` and `labels.tipActions` ([Localisation](localisation.md)). The ids in
-`tips`, `dismissedTips` and `onTipDismiss` are those of the tips. Notices cannot be switched off.
+The texts are `labels.tips` and `labels.tipActions` ([Localisation](localisation.md)). The tip ids are
+the export `TIP_IDS`. Notices (`NOTICE_IDS`) always show; `tips` and `dismissedTips` ignore their ids.
 
 The report reads the stored dismissals (`storageKey`) after the first render. This also holds when
 the report is rendered on a server and hydrated. The server and the first client render show the

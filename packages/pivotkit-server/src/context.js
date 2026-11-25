@@ -55,7 +55,7 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  * @property {{ write(text: string): unknown }} [stderr]  where the log goes (default process.stderr)
  * @property {string} [tokenEnv]  the variable of the one static token when auth.tokens is empty (default PIVOTKIT_TOKEN; pivotkit-mcp: PIVOTKIT_MCP_TOKEN)
  * @property {{ name: string, version: string }} [service]  the program every log line names (default pivotkit-server and its version)
- * @property {Record<string, string | undefined>} [env]  the environment the log reads NO_COLOR from (default process.env)
+ * @property {Record<string, string | undefined>} [env]  the environment the log reads NO_COLOR from and a backend's sign-in its { env } secrets (default process.env)
  */
 
 /**
@@ -69,6 +69,7 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  * @property {import("./branding.js").Branding} branding  the operator's name, documentation links, icon and page (fixed at start)
  * @property {string} authMode
  * @property {string} version
+ * @property {Record<string, string | undefined>} env  where a backend's sign-in reads its { env } secrets (runtime.env, default process.env)
  * @property {(how: { env?: Record<string, string | undefined>, loopback: boolean }) => Promise<any>} auth
  * @property {() => Promise<{ ok: boolean, checks: Record<string, boolean> }>} ready
  * @property {() => Promise<void>} countAutoValues  after start: read each file source the automatic rule applies to and log its "values" fields
@@ -76,20 +77,12 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  */
 
 /**
- * Builds the shared context.
- * @param {import("./config.js").ServerOptions} options
- * @param {ContextRuntime} [runtime]
- * @returns {Promise<ServerContext>}
+ * A source's print templates and named views, checked at start: what the parser refuses stops the
+ * start; a file that is not there yet is a warning.
+ * @param {any} options
+ * @param {any} log
  */
-export async function createContext(options, runtime = {}) {
-    validateOptions(options);
-    const service = runtime.service ?? { name: "pivotkit-server", version: VERSION };
-    const log = createLog(options.log ?? "info", runtime.stderr ?? process.stderr, { service: service.name, version: service.version, env: runtime.env ?? process.env });
-    // the icon is read now: a file that is missing or no PNG stops the start, as check-config says
-    const branding = await brandingOf(options);
-    const registry = await createRegistry(options, { log }).catch((e) => {
-        throw e?.code === "ALLOW_DIR_NOT_FOUND" || e?.code === "ALLOW_DIR_NOT_DIRECTORY" ? new ConfigError(`files.allowDirs: ${e.message.replace(/^--allow-dir /, "")}`) : e;
-    });
+async function refuseTemplatesAndViews(options, log) {
     // a source's print template the parser refuses: refused now, not first on an html report; one
     // that is not there yet (a deploy that copies it later) is a warning, as a missing source file
     for (const { key, reports, missing, problem } of await checkTemplates(options)) {
@@ -110,8 +103,27 @@ export async function createContext(options, runtime = {}) {
             log.warn(`sources.${id}.${key}: ${text}; ${skipped ? "the file is skipped" : "those views are left out; check-config says more"}`);
         }
     }
+}
+
+/**
+ * Builds the shared context.
+ * @param {import("./config.js").ServerOptions} options
+ * @param {ContextRuntime} [runtime]
+ * @returns {Promise<ServerContext>}
+ */
+export async function createContext(options, runtime = {}) {
+    validateOptions(options);
+    const service = runtime.service ?? { name: "pivotkit-server", version: VERSION };
+    const env = runtime.env ?? process.env;
+    const log = createLog(options.log ?? "info", runtime.stderr ?? process.stderr, { service: service.name, version: service.version, env });
+    // the icon is read now: a file that is missing or no PNG stops the start, as check-config says
+    const branding = await brandingOf(options);
+    const registry = await createRegistry(options, { log }).catch((e) => {
+        throw e?.code === "ALLOW_DIR_NOT_FOUND" || e?.code === "ALLOW_DIR_NOT_DIRECTORY" ? new ConfigError(`files.allowDirs: ${e.message.replace(/^--allow-dir /, "")}`) : e;
+    });
+    await refuseTemplatesAndViews(options, log);
     // a backend's sign-in whose secret cannot be read: said at start, not first to a caller
-    await warnUnreadableSecrets(options, log, (source) => httpSettingsOf(source).auth);
+    await warnUnreadableSecrets(options, log, (source) => httpSettingsOf(source).auth, env);
     let output = null;
     if (options.output?.dir) {
         const wanted = pathOf(options, options.output.dir);
@@ -202,6 +214,7 @@ export async function createContext(options, runtime = {}) {
         branding,
         authMode: options.auth?.mode ?? "none",
         version: VERSION,
+        env,
 
         /**
          * The authentication every HTTP front end of this context shares, built on first use.

@@ -11,6 +11,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - `describeView(view, schema, { labels })` writes its texts in German too: `DESCRIBE_LABELS.de`, or
   `describeLabels(locale)` for a locale's language. English stays the default, word for word.
 
+### Changed
+
+- The Excel number format codes (`excelNumberFormat`) are in a file of their own, `excel-format.js`.
+  A bundle that splits by file keeps them out of a page's first load until an export needs them
+  ([#772](https://github.com/eizedev/pivotkit/issues/772)). The public API is unchanged.
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
 ## [0.10.0] - 2026-11-24
 
 ### Fixed

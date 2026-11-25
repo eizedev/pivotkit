@@ -382,7 +382,7 @@ Groups to profiles, with a narrow profile for everyone else:
 ```
 
 A person in both groups gets `finance`, since it comes first. `check-config` warns when a later entry
-shows a field an earlier one holds back.
+shows a field an earlier one holds back. It compares the levels in each source, with its policy.
 
 Without `defaultProfile`, the server refuses a person with 403 `NOT_ALLOWED` when they are in none
 of the groups and their client or scopes name no profile (the MCP endpoint answers
@@ -458,8 +458,8 @@ curl -s -o report.xlsx -H "Authorization: Bearer $ETL_TOKEN" \
       larger than any caller may send before that.
     - The server reads at most two bodies over 2 MiB at once over all callers, one per caller.
       Another caller gets 503 `BUSY` with `Retry-After` and `retryable: true`. A caller here is a
-      token (by its name) or an OAuth client. Programs that share one token, or people who sign in
-      through one OAuth client, send one such body at a time between them.
+      person (an OAuth subject, or a static token's name), else the OAuth client of a token without a
+      subject. Two people of one OAuth client may hold both places. Programs that share one token send one such body at a time between them.
     - The server refuses a JSON body nested deeper than 64 levels before it parses it. It refuses a
       multipart body with more than two parts before it reads the parts.
     - The server parses a JSON body in its main thread. A `data: true` token is trusted with that

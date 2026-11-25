@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { emptyView, normalize } from "pivotkit-core";
+import { useIsoLayoutEffect } from "./iso.js";
 import { fill } from "./labels.js";
 import { viewFromObject } from "./share.js";
 import { unusedNotes } from "./unused-keep.js";
@@ -59,7 +60,9 @@ export function useViewLoading(props, report) {
         },
         [commit, labels, announce, remember, noteLoad, undoAction]
     );
-    useEffect(() => {
+    // a layout effect: the link read at mount opens in useShareLink's layout effect, which runs after
+    // this one, and opens at once when the link module is already loaded (a report mounted again, #735)
+    useIsoLayoutEffect(() => {
         latest.current = { history, encoded, limits, labels, announce, sourceId, loaded: applyLoaded, sources, onSourceSwitch };
     });
     const loadTemplate = useCallback(

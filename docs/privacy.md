@@ -274,11 +274,11 @@ The server keeps in its memory, never on disk:
 - **The limiter's state** (`rest.rateLimit`, `mcp.rateLimit`):
     - per address that sent a refused token: the times of its refused tokens of the last minute
       (the limit on trying tokens)
-    - per client (a static token's name, an OAuth client id, or `local`): a rate bucket, its fill,
-      when it was last used, and the number of its requests running
+    - per caller (a keyed digest of its person, token name or `local`; else its client), and per
+      client over all its people: a rate bucket, its fill, its last use and its requests running
 
     Once a minute the server drops an address whose refused tokens are all older than a minute. It
-    also drops a client whose bucket is full again, so the server keeps an address at most about two
+    also drops a caller whose bucket is full again, so the server keeps an address at most about two
     minutes after its last refused token. A running count goes when its requests end. Each map holds
     at most 10,000 keys.
 

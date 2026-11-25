@@ -461,7 +461,7 @@ function linkNext(value) {
  * Loads an HTTP source's data: every page, its rows as a table, when the data is from.
  * @param {import("../options/http.js").HttpSettings} settings
  * @param {Record<string, string | number | boolean> | null} values  the caller's checked values
- * @param {{ signal: AbortSignal, limits: import("pivotkit-core").Limits, log: any, declared: Record<string, any> | undefined, caller: import("../registry.js").Caller, fetch?: typeof guardedFetch, trace?: LoadTrace, levels?: import("../data.js").SourceSpec["levels"] }} how  levels: the caller's, whose hidden columns are never kept
+ * @param {{ signal: AbortSignal, limits: import("pivotkit-core").Limits, log: any, env?: Record<string, string | undefined>, declared: Record<string, any> | undefined, caller: import("../registry.js").Caller, fetch?: typeof guardedFetch, trace?: LoadTrace, levels?: import("../data.js").SourceSpec["levels"] }} how  levels: the caller's, whose hidden columns are never kept
  * @returns {Promise<{ table: { columns: string[], rows: unknown[][] } | null, upload: { bytes: Uint8Array, format: "csv" } | null, asOf: string, pages: number, bytes: number }>}
  */
 export async function loadHttp(settings, values, how) {
@@ -470,7 +470,7 @@ export async function loadHttp(settings, values, how) {
     const started = Date.now();
     const maxBytes = Math.min(settings.maxBytes, how.limits.fileBytes ?? settings.maxBytes);
     const fixed = { accept: settings.format === "csv" ? "text/csv" : "application/json", ...settings.headers };
-    const signIn = (trace) => backendHeaders(settings.auth, how.caller, { signal: how.signal, id, log: how.log, fetch, ...(settings.backend ? { backend: settings.backend } : {}), ...(trace ? { trace } : {}) });
+    const signIn = (trace) => backendHeaders(settings.auth, how.caller, { signal: how.signal, id, log: how.log, env: how.env, fetch, ...(settings.backend ? { backend: settings.backend } : {}), ...(trace ? { trace } : {}) });
     // the sign-in's headers last: a static header never stands in for them
     if (how.trace && settings.auth) {
         how.trace.auth = { kind: settings.auth.kind };
@@ -761,8 +761,9 @@ function tableBytes(loaded) {
  * @param {import("../registry.js").Caller} caller
  * @param {any} log
  * @param {AbortSignal} [signal]
+ * @param {Record<string, string | undefined>} [env]  where the sign-in reads its { env } secrets (default process.env)
  */
-export async function loadFor(computer, resolved, caller, log, signal = undefined) {
+export async function loadFor(computer, resolved, caller, log, signal = undefined, env = undefined) {
     const source = resolved.source;
     const settings = httpSettingsOf(source);
     const spec = resolved.spec;
@@ -783,7 +784,7 @@ export async function loadFor(computer, resolved, caller, log, signal = undefine
     // a load's table (its serial: a new load is a new key) under the caller's levels and limits
     const tableKeyFor = (serial) => tableKeyOf({ kind: "http", id: `${name}:${spec.id}`, configHash: canonicalJson([configHash, serial, spec.timeZone ?? null]), params: values, identity, levels: spec.levels, limits: spec.limits });
     // the caller's levels: the columns they hide are left out while the rows arrive (tableBuilder)
-    const ran = await loadRunner.runLoad(key, (loadSignal) => loadHttp(settings, values, { signal: loadSignal, limits, log, declared: source.params, caller, levels: spec.levels }), {
+    const ran = await loadRunner.runLoad(key, (loadSignal) => loadHttp(settings, values, { signal: loadSignal, limits, log, env, declared: source.params, caller, levels: spec.levels }), {
         // hidden columns never kept: a JSON answer's rows without them, a CSV answer read in a worker
         // (outside the source's timeMs, within compute.timeMs) into a packed table without them
         prepare: async ({ table, upload, asOf, pages, bytes }, readSignal) => {
@@ -825,10 +826,10 @@ export const httpKind = Object.freeze({
      * @param {any} base
      * @param {import("../registry.js").Caller} caller
      * @param {any} log
-     * @param {{ signal?: AbortSignal }} [how]
+     * @param {{ signal?: AbortSignal, env?: Record<string, string | undefined> }} [how]  env: where the sign-in reads its { env } secrets (the context's)
      */
     async run(computer, op, input, resolved, base, caller, log, how = {}) {
-        const { value, stale, tableKey } = await loadFor(computer, resolved, caller, log, how.signal);
+        const { value, stale, tableKey } = await loadFor(computer, resolved, caller, log, how.signal, how.env);
         const job = { ...base, spec: resolved.spec, tableKey, asOf: value.asOf, ...(value.upload ? { upload: value.upload } : { table: value.table }), ...(value.notes.length ? { notes: value.notes } : {}) };
         const ran = await computer.run(op, input, job);
         return { ...ran, asOf: ran.asOf ?? value.asOf, stale };

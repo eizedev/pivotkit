@@ -16,7 +16,7 @@
             "docs/security.md": [896],
             "docs/use/charts.md": [481]
         },
-        "totalLines": 24133
+        "totalLines": 24045
     },
     "functions": {
         "complexity": {
@@ -37,7 +37,6 @@
             "packages/pivotkit-mcp/src/http.js Async function 'route'": [28],
             "packages/pivotkit-react/src/PivotReport.jsx Function 'Report'": [34],
             "packages/pivotkit-react/src/chart-tooltip.js Function 'tooltipContent'": [51],
-            "packages/pivotkit-react/src/chart.jsx Arrow function": [27],
             "packages/pivotkit-react/src/export-run.js Async function 'runExport'": [64],
             "packages/pivotkit-react/src/fields.jsx Function 'FieldPanel'": [29],
             "packages/pivotkit-react/src/filter-level.jsx Function 'FilterLevel'": [56],
@@ -72,7 +71,7 @@
             "packages/pivotkit-server/src/check/upload.js Async function 'section'": [34],
             "packages/pivotkit-server/src/config.js Function 'check'": [36],
             "packages/pivotkit-server/src/config.js Function 'rules'": [115],
-            "packages/pivotkit-server/src/context.js Async function 'createContext'": [49],
+            "packages/pivotkit-server/src/context.js Async function 'createContext'": [41],
             "packages/pivotkit-server/src/credentials.js Async function 'credentialsCommand'": [26],
             "packages/pivotkit-server/src/credentials.js Async function 'keyNew'": [37],
             "packages/pivotkit-server/src/credentials.js Async function 'tokenNew'": [38],
@@ -88,7 +87,7 @@
             "packages/pivotkit-server/src/options/http.js Function 'backendAuthOf'": [38],
             "packages/pivotkit-server/src/options/http.js Function 'compileSource'": [76],
             "packages/pivotkit-server/src/options/http.js Function 'validate'": [28],
-            "packages/pivotkit-server/src/options/records.js Function 'validate'": [28],
+            "packages/pivotkit-server/src/options/records.js Function 'validate'": [26],
             "packages/pivotkit-server/src/options/upload.js Function 'compile'": [34],
             "packages/pivotkit-server/src/packed.js Function 'packColumn'": [26],
             "packages/pivotkit-server/src/policy.js Function 'resolvePolicy'": [37],
@@ -122,7 +121,6 @@
             "packages/pivotkit-core/src/chart-style.js Function 'decorateOption'": [155],
             "packages/pivotkit-core/src/chart.js Function 'toEChartsOption'": [199],
             "packages/pivotkit-mcp/src/http.js Async function 'createHttpHandler'": [159],
-            "packages/pivotkit-react/src/chart.jsx Function 'PivotChart'": [195],
             "packages/pivotkit-react/src/chip-menus.jsx Function 'TopLevel'": [125],
             "packages/pivotkit-react/src/fields.jsx Function 'FieldPanel'": [142],
             "packages/pivotkit-react/src/filter-level.jsx Function 'FilterLevel'": [257],
@@ -141,7 +139,7 @@
             "packages/pivotkit-report/src/template.js Function 'parseTemplate'": [190],
             "packages/pivotkit-server/src/auth.js Async function 'createAuthCore'": [186],
             "packages/pivotkit-server/src/compute.js Function 'createComputer'": [342],
-            "packages/pivotkit-server/src/context.js Async function 'createContext'": [167],
+            "packages/pivotkit-server/src/context.js Async function 'createContext'": [154],
             "packages/pivotkit-server/src/listen.js Async arrow function": [126],
             "packages/pivotkit-server/src/listen.js Async function 'serveFetch'": [217],
             "packages/pivotkit-server/src/openapi-source.js Function 'parametersOf'": [144],
