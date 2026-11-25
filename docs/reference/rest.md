@@ -458,8 +458,8 @@ curl -s -o report.xlsx -H "Authorization: Bearer $ETL_TOKEN" \
       larger than any caller may send before that.
     - The server reads at most two bodies over 2 MiB at once over all callers, one per caller.
       Another caller gets 503 `BUSY` with `Retry-After` and `retryable: true`. A caller here is a
-      token (by its name) or an OAuth client. Programs that share one token, or people who sign in
-      through one OAuth client, send one such body at a time between them.
+      person (an OAuth subject, or a static token's name), else the OAuth client of a token without a
+      subject. Two people of one OAuth client may hold both places. Programs that share one token send one such body at a time between them.
     - The server refuses a JSON body nested deeper than 64 levels before it parses it. It refuses a
       multipart body with more than two parts before it reads the parts.
     - The server parses a JSON body in its main thread. A `data: true` token is trusted with that

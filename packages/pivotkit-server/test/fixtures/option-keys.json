@@ -623,6 +623,7 @@
           "maxRows": "integer",
           "maxCells": "integer",
           "concurrency": "integer",
+          "waitMs": "integer",
           "idleMs": "integer",
           "writeMs": "integer"
         }

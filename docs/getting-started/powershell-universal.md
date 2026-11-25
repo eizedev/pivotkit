@@ -230,8 +230,8 @@ then counts refused tokens per client and logs the client's address. See
 
 ARR ends a request that takes longer than its **Time-out**, in the same **Server Proxy Settings**.
 Keep it longer than `compute.queueMs` + `compute.timeMs`, which is 40 seconds with the defaults, so
-ARR does not cut off a long answer ([configuration](../reference/mcp.md#configuration)). This is
-not tested with ARR.
+ARR does not cut off a long answer ([configuration](../reference/mcp.md#configuration)). The rows
+route adds `rest.records.waitMs` (5 s). This is not tested with ARR.
 
 A server that offers MCP alone runs the same way with `pivotkit-mcp`'s own command:
 `node_modules\pivotkit-mcp\bin\pivotkit-mcp.js --config ... --http --auth token`. The token goes in

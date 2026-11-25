@@ -6,6 +6,22 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Changed
+
+- A rows request (`POST /api/v1/sources/records`) that finds every place taken waits up to
+  `rest.records.waitMs` (default 5 s, 0 to 60 s) for one, first come first served, before 503
+  `BUSY`. A request that is answered within that time no longer turns the next person away. With the
+  defaults, a slow load (up to `compute.timeMs`, 30 s) or a slow reader (up to
+  `rest.records.writeMs`, 10 s) still outlasts the wait, and the others get 503 `BUSY`. Raise
+  `waitMs` or `rest.records.concurrency` for that. `waitMs: 0` keeps the old behavior. Raise a
+  proxy's time limit for this route by `waitMs`.
+
+### Fixed
+
+- A large REST body (over 2 MiB, for a profile with `data: true`) takes its place per person, as
+  the rate limit counts. Two people who sign in through one OAuth client can each send one at once.
+  Before, they shared one place. A token without a person still counts per token or client.
+
 ## [0.5.0] - 2026-11-24
 
 ### Added
