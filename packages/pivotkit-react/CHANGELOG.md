@@ -6,6 +6,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- The package exports `TIP_IDS` and `NOTICE_IDS`, the ids of the tips and of the notices. A host
+  that checks a `tips` list no longer reads them from an internal chunk
+  ([#720](https://github.com/eizedev/pivotkit/issues/720)).
+
 ### Fixed
 
 - A report mounted again while a link is in the page's address, such as a second report on the page

@@ -1,7 +1,7 @@
 // Compiled by `npm run test:types` against the generated declarations, through the package's own
 // exports map: the published types must describe the component as a TypeScript user sees it.
 import React from "react";
-import { PivotReport, type CellClick, type DataLoad, type ExportFile, type FieldDefaults, type PartialLabels, type PivotReportProps, type PivotView, type Template, type ViewInput } from "pivotkit-react";
+import { NOTICE_IDS, PivotReport, TIP_IDS, type CellClick, type DataLoad, type ExportFile, type FieldDefaults, type PartialLabels, type PivotReportProps, type PivotView, type Template, type ViewInput } from "pivotkit-react";
 import { LABELS } from "pivotkit-react/labels";
 import "pivotkit-react/styles.css"; // the stylesheet as a strict project imports it, without a bundler's CSS types (TS2882 without its declaration)
 import type { View } from "pivotkit-core";
@@ -10,6 +10,8 @@ const templates: Template[] = [{ name: "By region", view: { rows: ["Region"] } }
 const publish = (name: string, view: PivotView): Promise<string> => Promise.resolve(`${name}:${view.rows?.length ?? 0}`);
 const store: PivotReportProps = { templates, templateStore: "browser", storageKey: "sales", canPublish: true, onPublishTemplate: publish, onSaveTemplate: (name, view, where) => [name, view.rows, where.scope], onDeleteTemplate: (name, where) => where.scope === "shared" && name };
 const onCell = (c: CellClick): number => c.count + c.rows.length + c.row.length;
+// the tip ids a host checks its `tips` list against; a notice is no tip
+const allowed: string[] = TIP_IDS.filter((id) => !NOTICE_IDS.includes(id));
 const props: PivotReportProps = { data: [{ Region: "North", Units: 3 }], templates, theme: "dark", locale: "de-DE", height: 480, limits: { cells: 10_000 }, importLimits: { rows: 1_000 } };
 const de: string = LABELS.de.zones.rows;
 const menuText: string = LABELS.en.cancel;
@@ -34,5 +36,6 @@ export const elements = [
     <PivotReport key="b" data={[]} dataKey="v1" defaultView={start} fieldDefaults={defaults} onDeleteTemplate={deleteLater} onExport={keepCsv} />,
     <PivotReport key="c" view={start} onViewChange={() => undefined} labels={wrong} />,
     <PivotReport key="i" data={columnar} allowImport plugins={[jsonl]} onDataLoad={onLoad} importWorker={() => new Worker(new URL("pivotkit-react/import-worker", import.meta.url), { type: "module" })} />,
+    <PivotReport key="t" data={[]} tips={allowed} />,
     <PivotReport key="d" data={[]} tips={["top", "cells"]} storageKey="sales" dismissedTips={["values"]} onTipDismiss={(c) => c.dismissed.length + (c.id ?? "").length} fieldDefaults={{ Units: { label: "Units sold", description: "How many.", href: "https://example.org", type: "number" } }} />
 ];
