@@ -107,15 +107,16 @@ const shadowStyles = {
  * `export *` outside REPORT_CORE.
  * - chart.js (toEChartsOption): the chart loads the option from pivotkit-core/chart instead
  *   (pivotkit-react's echarts.js, pivotkit-report's svg.js), so the option's code goes to the chart group.
- * - describe.js (describeView and the rest): only pivotkit-report uses it. Its imports of
- *   "pivotkit-core" get the barrel with these lines (REPORT_CORE), which only the report's chunk reaches.
+ * - describe.js (describeView and the rest) and describe-labels.js (its English and German words):
+ *   only pivotkit-report uses them. Its imports of "pivotkit-core" get the barrel with these lines
+ *   (REPORT_CORE), which only the report's chunk reaches.
  * A bundled named or namespace import of these names from "pivotkit-core" anywhere else fails the
  * build (logOverride below); so does a change of the lines below. A dynamic import("pivotkit-core")
  * would not: none exists, keep it so.
  */
 const BARREL_OFF = Object.freeze({
     chart: 'export { toEChartsOption } from "./chart.js";\n',
-    report: 'export { describeSource, describeView, DESCRIBE_LIMITS } from "./describe.js";\n'
+    report: 'export { describeSource, describeView, DESCRIBE_LIMITS } from "./describe.js";\nexport { DESCRIBE_LABELS, describeLabels } from "./describe-labels.js";\n'
 });
 const CORE_SRC = join(here, "..", "pivotkit-core", "src");
 /** The virtual module pivotkit-report's imports of "pivotkit-core" resolve to: the barrel with BARREL_OFF.report. */
