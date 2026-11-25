@@ -15,7 +15,6 @@ import { decodeText } from "./import-text.js";
 import { localeDecimal } from "./locale-decimal.js";
 
 const CANDIDATES = [",", ";", "\t", "|"];
-const SEPARATOR_NAMES = { ",": "commas", ";": "semicolons", "\t": "tabs", "|": "vertical bars" };
 /** Characters of the start of a file the separator is guessed from. */
 const SAMPLE_CHARS = 65_536;
 const SAMPLE_ROWS = 100;
@@ -187,7 +186,7 @@ export async function read(file, options) {
         hints: { decimal: sep === ";" ? "," : localeDecimal(o.locale) }
     });
     table.note("ENCODING", { encoding });
-    table.note("SEPARATOR", { separator: sep, name: SEPARATOR_NAMES[sep] ?? `"${sep}"` });
+    table.note("SEPARATOR", { separator: sep });
 
     // splitRows runs synchronously; between steps of ROW_STEP rows the event loop gets a turn
     let at = start;

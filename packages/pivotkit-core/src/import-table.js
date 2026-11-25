@@ -193,8 +193,10 @@ export function noteMessage(code, p) {
     switch (code) {
         case "ENCODING":
             return `Read as ${p.encoding}.`;
-        case "SEPARATOR":
-            return `Values separated by ${p.name}.`;
+        case "SEPARATOR": {
+            const names = { ",": "commas", ";": "semicolons", "\t": "tabs", "|": "vertical bars" };
+            return `Values separated by ${names[p.separator] ?? `"${p.separator}"`}.`;
+        }
         case "LINES_SKIPPED":
             return `${n(p.count)} line(s) above the column names were skipped (a title block).`;
         case "COLUMN_RENAMED":

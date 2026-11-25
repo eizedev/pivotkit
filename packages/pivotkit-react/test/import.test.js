@@ -130,6 +130,16 @@ test("every note code of the readers has a text in English and German; German ha
 
 test("a note in the report's language: counts in their plural form and the locale's digits, the variants of a code, a plugin's own code in its words", () => {
     const where = { lang: "en", locale: "en-US" };
+    const separators = [
+        [",", "commas", "Kommas"],
+        [";", "semicolons", "Semikolons"],
+        ["\t", "tabs", "Tabs"],
+        ["|", "vertical bars", "senkrechte Striche"],
+    ];
+    for (const [separator, enName, deName] of separators) {
+        assert.equal(noteText({ code: "SEPARATOR", params: { separator } }, en, where), `Values separated by ${enName}.`);
+        assert.equal(noteText({ code: "SEPARATOR", params: { separator } }, de, { lang: "de", locale: "de-DE" }), `Werte getrennt durch ${deName}.`);
+    }
     assert.equal(noteText({ code: "ROWS_EMPTY", params: { count: 1 } }, en, where), "1 empty row was left out.");
     assert.equal(noteText({ code: "ROWS_EMPTY", params: { count: 12345 } }, en, where), "12,345 empty rows were left out.");
     assert.equal(noteText({ code: "ROWS_EMPTY", params: { count: 12345 } }, de, { lang: "de", locale: "de-DE" }), "12.345 leere Zeilen wurden weggelassen.");
