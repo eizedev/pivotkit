@@ -124,14 +124,14 @@ test("describeView in German: every filter type, the parts and the whole sentenc
     assert.equal(text({ field: "Units", type: "compare", op: "=", value: 5, not: true }), "Units ist nicht 5, ohne leere Werte");
     assert.equal(text({ field: "Units", type: "compare", op: "between", value: 1, value2: 9 }), "Units ist zwischen 1 und 9, ohne leere Werte");
     assert.equal(text({ field: "Date", type: "compare", op: ">", value: "2026-01-01", precision: "month" }), "Date ist größer als „2026-01-01“ (nach Monat), ohne leere Werte");
-    assert.equal(text({ field: "Region", type: "in", items: ["North", "South"], blanks: "include" }), "Region ist einer der Werte „North“, „South“, mit leeren Werten");
+    assert.equal(text({ field: "Region", type: "in", items: ["North", "South"], blanks: "include" }), "Region ist einer der Werte „North“; „South“, mit leeren Werten");
     assert.equal(text({ field: "Region", type: "in", items: [], not: true }), "Region ist keiner der Werte (keine Einträge), ohne leere Werte");
     assert.equal(text({ field: "Region", type: "blank", not: true }), "Region ist nicht leer");
     assert.equal(text({ field: "Rep", type: "text", op: "contains", value: "a", on: "label" }), "Rep (wie angezeigt) enthält „a“, Groß- und Kleinschreibung egal, Leerraum zusammengefasst, ohne leere Werte");
     assert.equal(text({ field: "Rep", type: "text", op: "endsWith", value: "n", not: true, match: { case: "sensitive", whitespace: "exact" } }), "Rep endet nicht auf „n“, Groß- und Kleinschreibung beachtet, Leerraum genau, ohne leere Werte");
     assert.equal(text({ field: "Date", type: "relative", direction: "this", unit: "year" }), "Date ist in diesem Jahr, ohne leere Werte");
     assert.equal(text({ field: "Date", type: "relative", direction: "next", count: 3, unit: "week", anchor: "2026-01-05" }), "Date ist in den nächsten 3 Wochen (gezählt ab 2026-01-05), ohne leere Werte");
-    assert.equal(text({ field: "Date", type: "relative", direction: "before", count: 2, unit: "day", calendar: false, includeCurrent: false, anchor: "latest" }), "Date ist vor den letzten 2 Tagen (gleitend, ohne den laufenden Zeitraum, gezählt ab dem letzten Datensatz), ohne leere Werte");
+    assert.equal(text({ field: "Date", type: "relative", direction: "before", count: 2, unit: "day", calendar: false, includeCurrent: false, anchor: "latest" }), "Date ist vor den letzten 2 Tagen (gleitend, gezählt ab dem letzten Datensatz), ohne leere Werte");
     assert.equal(text({ field: "Region", type: "top", count: 2, by: { field: "Units", agg: "sum" }, ties: "all" }), "die 2 obersten Einträge von Region nach Summe von Units, gleiche Werte behalten");
     assert.equal(text({ field: "Region", type: "top", count: 1, bottom: true, by: { field: "Units", agg: "average" } }), "der unterste Eintrag von Region nach Durchschnitt von Units");
     assert.equal(text({ field: "Region", type: "value", op: "=", value: 5, by: { field: "Units", agg: "sum" } }), "Region mit Summe von Units 5");
@@ -142,13 +142,54 @@ test("describeView in German: every filter type, the parts and the whole sentenc
         filters: [{ field: "Units", type: "compare", op: ">", value: 1 }, { field: "Region", type: "blank", not: true }],
         sort: [{ field: "Region", by: "value", value: { field: "Units", agg: "sum" }, order: "desc" }, { field: "Product", by: "label", order: "asc" }]
     }, data, de);
-    assert.equal(d.text, "Summe von Units, Anzahl der Zeilen nach Region > Month; in Spalten: Product; Filter: Units ist größer als 1, ohne leere Werte und Region ist nicht leer; als Tabelle und Balkendiagramm");
+    assert.equal(d.text, "Summe von Units, Anzahl der Zeilen nach Region > Month; in Spalten: Product; Filter: Units ist größer als 1, ohne leere Werte; und Region ist nicht leer; als Tabelle und Balkendiagramm");
     assert.deepEqual(d.derived.map((x) => x.text), ["Month: Date nach Monat"]);
     assert.deepEqual(d.sort.map((x) => x.text), ["Region nach Summe von Units, absteigend", "Product nach Beschriftung, aufsteigend"]);
     assert.equal(describeView({ version: 2, rows: ["Nope"] }, data, de).text, "(ungültig: 1 Fehler, betroffene Teile fehlen) Anzahl der Zeilen");
     assert.equal(describeView({ version: 2, rows: ["Nope", "Gone"] }, data, de).text, "(ungültig: 2 Fehler, betroffene Teile fehlen) Anzahl der Zeilen");
     assert.equal(describeLabels("de-AT"), DESCRIBE_LABELS.de);
     assert.equal(describeLabels("fr-FR"), DESCRIBE_LABELS.en);
+});
+
+test("describeView in German: lists and filters stay apart where numbers have a decimal comma", () => {
+    const view = { version: 2, filters: [{ field: "Units", type: "in", items: [1, 2.5, 3, 1234567.25] }, { field: "Region", type: "in", items: ["North", "South"] }, { field: "Units", type: "compare", op: ">", value: 2.5 }] };
+    const de = describeView(view, data, { labels: DESCRIBE_LABELS.de, locale: "de-DE" });
+    // a list's items by "; ", so "2,5" stays one number; a filter after a blanks clause by "; und "
+    assert.equal(de.filters[0].text, "Units ist einer der Werte 1; 2,5; 3; 1234567,25, ohne leere Werte");
+    assert.equal(de.text, "Anzahl der Zeilen; Filter: Units ist einer der Werte 1; 2,5; 3; 1234567,25, ohne leere Werte; und Region ist einer der Werte „North“; „South“, ohne leere Werte; und Units ist größer als 2,5, ohne leere Werte");
+    // English word for word as before
+    assert.equal(describeView(view, data).text, 'count of rows where Units is one of 1, 2.5, 3, 1234567.25 (blanks dropped); and Region is one of "North", "South" (blanks dropped); and Units is greater than 2.5 (blanks dropped)');
+});
+
+test("describeView: true and false of a filter in the words of the language, as the report's table writes them", () => {
+    const paid = encode([{ Paid: true }, { Paid: false }]);
+    const view = { version: 2, filters: [{ field: "Paid", type: "in", items: [true, false] }] };
+    assert.equal(describeView(view, paid, { labels: DESCRIBE_LABELS.de }).filters[0].text, "Paid ist einer der Werte Ja; Nein, ohne leere Werte");
+    assert.equal(describeView(view, paid).filters[0].text, "Paid is one of true, false (blanks dropped)");
+});
+
+test("describeView: a rolling range says nothing about the current unit, as the engine ignores includeCurrent there", () => {
+    const range = (includeCurrent) => relativeDateRange("week", 2, { now: "2026-11-13", calendar: false, includeCurrent });
+    // the engine: a rolling range counts back from the moment, with or without includeCurrent
+    assert.deepEqual(range(false), range(true));
+    for (const labels of [DESCRIBE_LABELS.en, DESCRIBE_LABELS.de]) {
+        const text = (includeCurrent) => describeView({ version: 2, filters: [{ field: "Date", type: "relative", direction: "last", count: 2, unit: "week", calendar: false, includeCurrent }] }, data, { labels }).filters[0].text;
+        assert.equal(text(false), text(true));
+    }
+    assert.equal(describeView({ version: 2, filters: [{ field: "Date", type: "relative", direction: "last", count: 1, unit: "week", calendar: false, includeCurrent: false }] }, data, { labels: DESCRIBE_LABELS.de }).filters[0].text, "Date ist innerhalb der letzten Woche (gleitend), ohne leere Werte");
+    assert.equal(describeView({ version: 2, filters: [{ field: "Date", type: "relative", direction: "before", count: 2, unit: "day", calendar: false, includeCurrent: false, anchor: "latest" }] }, data).filters[0].text, "Date is in the before 2 days (rolling, from latest) (blanks dropped)");
+});
+
+test("describeLabels: a locale's words with a host's own over them at every depth", () => {
+    const own = describeLabels("de-DE", { blanks: { exclude: "ohne Leere" } });
+    assert.equal(own.blanks.exclude, "ohne Leere");
+    assert.equal(own.blanks.include, DESCRIBE_LABELS.de.blanks.include);
+    assert.equal(own.where, DESCRIBE_LABELS.de.where);
+    assert.equal(describeLabels("en-US", { where: "if {filters}" }).and, DESCRIBE_LABELS.en.and);
+    assert.equal(describeLabels("de-DE", undefined), DESCRIBE_LABELS.de);
+    // words that name their language go over that language's: English words for a German locale keep no German word ("heute")
+    assert.deepEqual(describeLabels("de-DE", DESCRIBE_LABELS.en), DESCRIBE_LABELS.en);
+    assert.throws(() => describeLabels("de-DE", /** @type {any} */ ("de")), (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT");
 });
 
 test("describeView fills its words once: a name or a value that looks like a placeholder stays as it is", () => {
@@ -212,7 +253,6 @@ test("describeView in German: a relative range of one whole unit says what the e
     assert.equal(text({ direction: "before", count: 1, unit: "month", includeCurrent: false }), "Date ist vor dem Vormonat, ohne leere Werte");
     // rolling: the unit up to now, not a calendar day
     assert.equal(text({ direction: "last", count: 1, unit: "day", calendar: false }), "Date ist innerhalb des letzten Tages (gleitend), ohne leere Werte");
-    assert.equal(text({ direction: "last", count: 1, unit: "week", calendar: false, includeCurrent: false }), "Date ist innerhalb der letzten Woche (gleitend, ohne den laufenden Zeitraum), ohne leere Werte");
     // counted from an anchor that is not today: the same unit, the one before or after it, not "today"
     assert.deepEqual(days({ anchor: "latest", latest: "2025-06-30", includeCurrent: false }), { from: "2025-06-29", to: "2025-06-29" });
     assert.equal(text({ direction: "last", count: 1, unit: "day", anchor: "latest" }), "Date ist am selben Tag (gezählt ab dem letzten Datensatz), ohne leere Werte");
@@ -227,7 +267,7 @@ test("describeView in German: a relative range of one whole unit says what the e
 test("describeView: numbers of filter values in the locale, without grouping; text values in the words' quotes", () => {
     const view = { version: 2, rows: ["Region"], filters: [{ field: "Units", type: "compare", op: "between", value: 1.5, value2: 2025 }, { field: "Region", type: "in", items: ["North", "Say \"hi\""] }, { field: "Units", type: "in", items: [0.5, 1200] }] };
     const de = describeView(view, data, { labels: DESCRIBE_LABELS.de, locale: "de-DE" });
-    assert.deepEqual(de.filters.map((f) => f.text), ["Units ist zwischen 1,5 und 2025, ohne leere Werte", "Region ist einer der Werte „North“, „Say \\\"hi\\\"“, ohne leere Werte", "Units ist einer der Werte 0,5, 1200, ohne leere Werte"]);
+    assert.deepEqual(de.filters.map((f) => f.text), ["Units ist zwischen 1,5 und 2025, ohne leere Werte", "Region ist einer der Werte „North“; „Say \\\"hi\\\"“, ohne leere Werte", "Units ist einer der Werte 0,5; 1200, ohne leere Werte"]);
     // de-CH writes a point
     assert.equal(describeView(view, data, { labels: DESCRIBE_LABELS.de, locale: "de-CH" }).filters[0].text, "Units ist zwischen 1.5 und 2025, ohne leere Werte");
     // without a locale, and in English, as JSON writes them, word for word as before

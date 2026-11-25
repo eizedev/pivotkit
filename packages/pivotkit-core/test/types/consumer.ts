@@ -96,6 +96,8 @@ const inGerman: string = describeView({ rows: ["Region"] }, described, { labels:
 // a nested table in part, at any depth
 const nestedWords: DescribeLabelsInput = { blanks: { exclude: "x" }, ranges: { last: { day: { other: "past {count} days" } } }, text: { equals: { not: "{field} is not {value}" } } };
 const inPart: string = describeView({ rows: ["Region"] }, described, { labels: nestedWords }).text;
+// a locale's words with a host's own over them
+const ownGerman: string = describeLabels("de-DE", nestedWords).blanks.exclude;
 // @ts-expect-error a table's word is a text
 void describeView({ rows: ["Region"] }, described, { labels: { blanks: { exclude: 1 } } });
 const identifier: boolean = isIdentifierName("Order No");
@@ -117,5 +119,6 @@ void unit;
 void grouped;
 void inGerman;
 void inPart;
+void ownGerman;
 void identifier;
 void sourceId;

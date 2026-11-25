@@ -4,8 +4,10 @@
  * summary with the words of its language; the MCP server and the CLI keep English.
  */
 
+import { PivotkitError } from "./errors.js";
 import { GROUPING_NAMES, REPORT_LABELS } from "./labels.js";
 import { RELATIVE_UNITS } from "./relative.js";
+import { isPlainObject } from "./util.js";
 
 /** @typedef {Readonly<{ yes: string, not: string }>} Phrase  a phrase, and the phrase with "not" */
 /** @typedef {Readonly<{ one: string, other: string }>} Counted  a phrase by Intl.PluralRules category of {count} */
@@ -35,6 +37,9 @@ import { RELATIVE_UNITS } from "./relative.js";
  * @typedef {object} DescribeLabels  the words of describeView; {placeholders} are filled once, with the view's names and values
  * @property {string} lang  the language whose plural rules pick a Counted form
  * @property {string} quote  a text value: "\"{value}\"", German „{value}“
+ * @property {string} true  a value true; German "Ja", as the report's table writes it
+ * @property {string} false
+ * @property {string} list  between the items of a list: ", ", German "; " (its numbers have a decimal comma)
  * @property {Readonly<Record<string, string>> | null} aggregators  an aggregator's name; null: its key ("sum")
  * @property {string} valueName  a value: "{agg} of {field}"
  * @property {string} valueOfRows  a value of no field: "{agg} of rows"
@@ -79,7 +84,7 @@ import { RELATIVE_UNITS } from "./relative.js";
  * @property {string} rows  "by {fields}"
  * @property {string} cols  "across {fields}"
  * @property {string} where  "where {filters}"
- * @property {string} and  between two filters
+ * @property {string} and  between two filters: "; and ", German "; und " (a filter may hold commas and "und")
  * @property {string} separator  between the parts of the sentence after the values and the rows (columns, filters, chart)
  * @property {string} chart  "as a {type}": {type} is one of `chartTypes`
  * @property {string} both  "as a table and a {type}"
@@ -88,7 +93,8 @@ import { RELATIVE_UNITS } from "./relative.js";
  */
 
 /**
- * The labels a host passes: any key or table entry left out keeps English, at every depth
+ * The labels a host passes: any key or table entry left out keeps the words under them, at every
+ * depth: English for describeView's `labels`, the locale's for describeLabels(locale, own)
  * (`{ blanks: { exclude: "no blanks" } }`, `{ ranges: { last: { day: { other: "..." } } } }`).
  * @template T
  * @typedef {{ [K in keyof T]?: T[K] extends string | null ? T[K] : DescribeLabelsPart<T[K]> }} DescribeLabelsPart
@@ -164,6 +170,9 @@ export const DESCRIBE_LABELS = Object.freeze({
     en: Object.freeze({
         lang: "en",
         quote: '"{value}"',
+        true: "true",
+        false: "false",
+        list: ", ",
         aggregators: null,
         valueName: "{agg} of {field}",
         valueOfRows: "{agg} of rows",
@@ -227,6 +236,9 @@ export const DESCRIBE_LABELS = Object.freeze({
     de: Object.freeze({
         lang: "de",
         quote: "„{value}“",
+        true: REPORT_LABELS.de.true,
+        false: REPORT_LABELS.de.false,
+        list: "; ",
         aggregators: REPORT_LABELS.de.aggregators,
         valueName: REPORT_LABELS.de.valueName,
         valueOfRows: "{agg} der Zeilen",
@@ -285,7 +297,7 @@ export const DESCRIBE_LABELS = Object.freeze({
         rows: "nach {fields}",
         cols: "in Spalten: {fields}",
         where: "Filter: {filters}",
-        and: " und ",
+        and: "; und ",
         separator: "; ",
         chart: "als {type}",
         both: "als Tabelle und {type}",
@@ -295,10 +307,42 @@ export const DESCRIBE_LABELS = Object.freeze({
 });
 
 /**
- * The DESCRIBE_LABELS of a locale's language ("de-DE": German), English for any other.
+ * `words` over `base` at every depth: a table given in part keeps the base's other entries; null and
+ * undefined keep the base's.
+ * @param {object} base
+ * @param {object} words
+ * @returns {any}
+ */
+export function mergeWords(base, words) {
+    const out = { ...base };
+    for (const [key, value] of Object.entries(words)) {
+        if (value === undefined || value === null) {
+            continue;
+        }
+        const own = Object.hasOwn(out, key) ? out[key] : undefined;
+        out[key] = isPlainObject(own) && isPlainObject(value) ? mergeWords(own, value) : value;
+    }
+    return out;
+}
+
+/** The DESCRIBE_LABELS of a locale's language ("de-DE": German), English for any other. */
+const labelsOf = (locale) => (String(locale ?? "").split("-")[0].toLowerCase() === "de" ? DESCRIBE_LABELS.de : DESCRIBE_LABELS.en);
+
+/**
+ * The DESCRIBE_LABELS of a locale's language ("de-DE": German), English for any other; `own` words
+ * over them at every depth, as describeView's `labels` go over English. Words that name their
+ * language (`lang`, as DESCRIBE_LABELS.en does) go over that language's, so no word of the locale's
+ * language is left among them.
  * @param {string} [locale]
+ * @param {DescribeLabelsInput} [own]
  * @returns {Readonly<DescribeLabels>}
  */
-export function describeLabels(locale) {
-    return String(locale ?? "").split("-")[0].toLowerCase() === "de" ? DESCRIBE_LABELS.de : DESCRIBE_LABELS.en;
+export function describeLabels(locale, own) {
+    if (own === undefined || own === null) {
+        return labelsOf(locale);
+    }
+    if (!isPlainObject(own)) {
+        throw new PivotkitError("INVALID_ARGUMENT", `describeLabels: own words must be an object, not ${Array.isArray(own) ? "an array" : typeof own}`);
+    }
+    return mergeWords(labelsOf(typeof own.lang === "string" ? own.lang : locale), own);
 }

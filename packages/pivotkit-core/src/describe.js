@@ -9,7 +9,7 @@
 
 import { aggregatorsFor } from "./aggregators.js";
 import { FILTERS } from "./filters.js";
-import { DESCRIBE_LABELS } from "./describe-labels.js";
+import { DESCRIBE_LABELS, mergeWords } from "./describe-labels.js";
 import { isEncoded } from "./encode.js";
 import { PivotkitError } from "./errors.js";
 import { numberFormat } from "./intl.js";
@@ -124,7 +124,8 @@ const refText = (ref, words) => {
 /**
  * How a description writes a value of a filter: a text in the words' quotes ("North", German
  * „North“), JSON's escapes kept; a number as `locale` writes it, without grouping (1,5 and 2025 for
- * de-DE), or as JSON does without a locale; anything else as it is. Dates are ISO days (texts).
+ * de-DE), or as JSON does without a locale; true and false in the words' words (German "Ja");
+ * anything else as it is. Dates are ISO days (texts).
  * @param {import("./describe-labels.js").DescribeLabels} words
  * @param {string | null} locale
  * @returns {(value: unknown) => string}
@@ -135,14 +136,17 @@ function valueWriter(words, locale) {
         if (typeof value === "string") {
             return fill(words.quote, { value: JSON.stringify(value).slice(1, -1) });
         }
+        if (typeof value === "boolean") {
+            return value ? words.true : words.false;
+        }
         return number && typeof value === "number" ? number.format(value) : String(value);
     };
 }
 
-/** A list of items in words, capped. */
+/** A list of items in words, capped, with the words' separator: German "; ", as its numbers have a decimal comma. */
 const itemsText = (items, say) => {
-    const shown = items.slice(0, 10).map((v) => say.value(typeof v === "string" ? valueText(v, "string") : v));
-    return items.length > 10 ? fill(say.words.more, { items: shown.join(", "), count: items.length - 10 }) : shown.join(", ");
+    const shown = items.slice(0, 10).map((v) => say.value(typeof v === "string" ? valueText(v, "string") : v)).join(say.words.list);
+    return items.length > 10 ? fill(say.words.more, { items: shown, count: items.length - 10 }) : shown;
 };
 
 /** A phrase that is one text, or one text by the plural category of `count` (Counted). */
@@ -188,7 +192,8 @@ function filterPhrase(f, say) {
         case "relative": {
             const { range, saysCurrent } = rangeText(f, words);
             const phrase = fill(yesNot(words.relative), { range });
-            const how = [f.calendar === false ? words.rolling : null, f.includeCurrent === false && !saysCurrent ? words.currentExcluded : null, f.anchor && f.anchor !== "today" ? fill(words.fromAnchor, { anchor: Object.hasOwn(words.anchors, f.anchor) ? words.anchors[f.anchor] : "{anchor}" }) : null].filter(Boolean);
+            // a rolling range counts back from the moment itself: the engine ignores includeCurrent there
+            const how = [f.calendar === false ? words.rolling : null, f.includeCurrent === false && f.calendar !== false && !saysCurrent ? words.currentExcluded : null, f.anchor && f.anchor !== "today" ? fill(words.fromAnchor, { anchor: Object.hasOwn(words.anchors, f.anchor) ? words.anchors[f.anchor] : "{anchor}" }) : null].filter(Boolean);
             return { phrase: how.length ? fill(words.how, { text: phrase, how: how.join(", ") }) : phrase, values: { count: f.count, anchor: f.anchor } };
         }
         case "top": {
@@ -211,19 +216,6 @@ function filterText(f, say) {
     const { phrase, values, blanks } = filterPhrase(f, say);
     const withBlanks = blanks !== false && f.blanks ? fill(say.words.withBlanks, { text: phrase, blanks: say.words.blanks[f.blanks] }) : phrase;
     return fill(withBlanks, { ...values, field: f.field });
-}
-
-/** `labels` over `base` at every depth: a table given in part keeps the base's other entries; null and undefined keep the base's. */
-function mergeWords(base, labels) {
-    const out = { ...base };
-    for (const [key, value] of Object.entries(labels)) {
-        if (value === undefined || value === null) {
-            continue;
-        }
-        const own = Object.hasOwn(out, key) ? out[key] : undefined;
-        out[key] = isPlainObject(own) && isPlainObject(value) ? mergeWords(own, value) : value;
-    }
-    return out;
 }
 
 /**

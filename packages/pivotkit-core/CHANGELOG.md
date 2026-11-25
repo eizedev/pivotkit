@@ -11,10 +11,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - `describeView(view, schema, { labels, locale })` writes its texts in German too: `DESCRIBE_LABELS.de`,
   or `describeLabels(locale)` for a locale's language. German quotes text values („North“) and names
   one whole unit of a relative range as the engine keeps it ("heute", "gestern", "im Vorjahr"; from
-  an anchor "am Tag davor").
+  an anchor "am Tag davor"). It separates the items of a list with "; ", so a decimal comma stays in
+  its number ("1; 2,5; 3"), joins filters with "; und ", and writes true and false as "Ja" and "Nein".
   `labels` given in part keep English for the rest, at any depth; `labels` that are not an object
   throw `INVALID_OPTION`. `locale` writes the numbers of filter values as the locale does, without
   grouping (`1,5`). English stays the default, word for word.
+- `describeLabels(locale, own)` puts a host's own words over the locale's, at any depth. Words that
+  name their language (`lang`) go over that language's.
 
 ### Changed
 
@@ -22,6 +25,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   A bundle that splits by file keeps them out of a page's first load until an export needs them
   ([#772](https://github.com/eizedev/pivotkit/issues/772)). The public API is unchanged.
 - The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
+### Fixed
+
+- `describeView` no longer says "current excluded" of a rolling relative range (`calendar: false`).
+  The engine counts a rolling range back from the moment itself and ignores `includeCurrent` there,
+  so the text said something the filter does not do.
 
 ## [0.10.0] - 2026-11-24
 
