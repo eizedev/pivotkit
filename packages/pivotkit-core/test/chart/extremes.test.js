@@ -262,6 +262,17 @@ test("decorateOption: dense grouped bars (#913): the chart's highest and lowest 
     assert.ok(shown.length < 6, shown.join(", "));
 });
 
+test("decorateOption: lines keep the series' order, so close lows move apart instead of a label left out", () => {
+    const style = { getPropertyValue: () => "" };
+    // three years of monthly temperatures: the lows of January and February close together
+    const values = { 2023: [4.1, 2.8, 5.5, 7.7, 14, 19.4, 20.1, 19.6, 18.9, 12.1, 5.5, 3.6], 2024: [1.2, 6.6, 7.6, 10.9, 16.9, 18, 20.4, 21.4, 17.5, 11.5, 5.4, 3.8], 2025: [2.3, 0.6, 6.2, 12, 13.9, 19.7, 19.6, 18.9, 15.7, 10.3, 5.2, 3.1] };
+    const rows = encode(Object.entries(values).flatMap(([Year, list]) => list.map((T, i) => ({ Month: `m${String(i + 1).padStart(2, "0")}`, Year, T }))));
+    const r = computePivot(rows, { rows: ["Month"], cols: ["Year"], values: [{ field: "T", agg: "sum", format: "number:1" }], sort: [], formatting: { locale: "en-US" }, chart: { type: "line", referenceLines: ON } });
+    const out = decorateOption(toEChartsOption(r), style, { width: 1080, height: 420 });
+    const shown = out.series.flatMap((s) => (s.markPoint?.data ?? []).filter((d) => d.label.show !== false).map((d) => text(d.label)));
+    assert.deepEqual(shown.sort(), ["▲ 20.1", "▲ 21.4", "▲ 19.7", "▼ 0.6", "▼ 1.2", "▼ 2.8"].sort());
+});
+
 test("decorateOption: a label reads over a line it crosses, outlined in the background's colour", () => {
     const style = { getPropertyValue: (name) => (name === "--pk-surface" ? "#101418" : "") };
     const out = decorateOption(toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } })), style, { width: 800, height: 480 });

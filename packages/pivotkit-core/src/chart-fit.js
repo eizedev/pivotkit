@@ -333,6 +333,21 @@ function barSlots(series, band, legend) {
 }
 
 /**
+ * The order pointLabels places its labels in, as indexes into `items`. In grouped bars, where labels
+ * are left out most, the chart's highest and lowest (`kept`) come first, so they keep theirs; elsewhere
+ * the series' order, which moves labels apart rather than leaving them out.
+ * @param {unknown[]} items
+ * @param {boolean} grouped
+ * @param {unknown[]} kept
+ * @returns {number[]}
+ */
+function placingOrder(items, grouped, kept) {
+    const order = items.map((_, k) => k);
+    const rank = (/** @type {number} */ k) => Number(kept.includes(items[k]));
+    return grouped ? order.sort((a, b) => rank(b) - rank(a)) : order;
+}
+
+/**
  * The boxes of grouped bars (side by side, not stacked) in a chart's estimated pixels, by series and
  * category: the obstacles of the high and low points' labels. None for one column of bars.
  * @param {any[]} series
@@ -403,7 +418,7 @@ function intoPlot(pos, box, { width, top, bottom, lift }) {
  *   every dot stays.
  * - Two labels that would cover each other, another point's dot or another bar (grouped bars, #913),
  *   move: the later one beside its dot (right, then left), then over the highest bar of its group,
- *   else it is left out: in dense grouped bars some labels are left out. The chart's highest and
+ *   else it is left out: in dense grouped bars some labels are left out. There the chart's highest and
  *   lowest value are placed first, so they keep theirs. The dot stays; the tooltip and the text
  *   alternative name the value. Each point sits over its own bar (barSlots).
  *   `pixelOf` gives each value's real height after a first draw; without it the heights are
@@ -513,9 +528,7 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
     const plotBottom = yOf(extent[0]);
     /** @type {Box[]} */
     const placed = [];
-    // the chart's highest and lowest first: where labels are left out, they keep theirs
-    const first = items.map((_, k) => k).sort((a, b) => Number(items[b] === highest || items[b] === lowest) - Number(items[a] === highest || items[a] === lowest));
-    first.forEach((k) => {
+    placingOrder(items, bars.length > 0, [highest, lowest]).forEach((k) => {
         const i = items[k];
         if (moves.get(i.d)?.show === false) return;
         const own = moves.get(i.d)?.position ?? i.d.label?.position ?? "top";

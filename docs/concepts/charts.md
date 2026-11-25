@@ -218,9 +218,9 @@ A series' lines take its colour. The lines of no series, a target and a stack's 
 - `decorateOption` keeps the labels inside the plot: the value axis reaches past them
   (`dataMin`, `dataMax`). A label that would take the axis across zero sits beside its dot.
 - Labels that would cover each other or another bar of a group move beside their dots, then above
-  the group's highest bar, else are left out, the chart's highest and lowest last. With `pixelOf` it
-  uses the real heights. Bar places assume ECharts' default `barGap` and `barCategoryGap`; a host's
-  `barGap`, `barCategoryGap` or `barWidth` can move a label onto a bar or leave it out.
+  the group's highest bar, else are left out; the chart's highest and lowest go first there. With
+  `pixelOf` it uses the real heights. Bar places assume the default `barGap` and `barCategoryGap`;
+  a host's `barGap`, `barCategoryGap` or `barWidth` can put a label on a bar or leave it out.
 - With more than 8 series, only the chart's highest and lowest value keep a label. Every dot stays.
 - The labels and dots get an outline in `--pk-surface`, so they read over a line.
 
