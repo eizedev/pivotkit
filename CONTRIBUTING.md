@@ -29,7 +29,7 @@ npx playwright install   # once, for the browser tests
 2. Create a branch named after the change: `feat/...`, `fix/...` or `docs/...`.
 3. Write the test first for a fix. Watch it fail, then fix the code.
 4. Run the checks below.
-5. Update the docs, and the changelog if you can.
+5. Update the docs. A changelog entry is welcome (see below).
 6. Open a pull request.
 
 ## Check your change
@@ -43,9 +43,15 @@ npm test
 npm run growth
 ```
 
-`npm run growth` fails when a function, the unused exports or a docs page grows. If it fails on an
-entry that is already in `scripts/growth-baseline.json`, say so in the pull request and leave it to
-the maintainer. A new entry is yours to fix.
+`npm run growth` checks that functions, unused exports, duplicated code and docs pages do not grow;
+the header of `scripts/growth.js` explains each check. If it fails:
+
+- on a function or docs page that is already in `scripts/growth-baseline.json` under the same file
+  and name: say so in the pull request, for example "growth fails on the known entry `LevelMenu`".
+  The red check is expected, and the maintainer fixes it before the merge.
+- because an entry shrank: run `node scripts/growth.js --update` and commit the baseline.
+- on anything else (a new entry, duplicated code, a renamed or moved function): that one is yours
+  to fix.
 
 Then, depending on what you changed:
 
@@ -96,7 +102,8 @@ After `uvx zensical@<version> build --strict`, `node scripts/check-readme-links.
 ## Changelog and commits
 
 - Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed. It is welcome,
-  not required: if it is missing, the maintainer adds it before the merge.
+  not required: if it is missing, the maintainer adds it before the merge. This includes the entries
+  a deprecation or a break needs.
 - Use Conventional Commits with the package as scope: `feat(core): ...`, `fix(react): ...`.
 
 ## Pull request
