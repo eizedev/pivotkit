@@ -703,8 +703,9 @@ test("the slot queue is capped: an upload beyond 32 waiting ones fails at once, 
     routes.set("PUT *", (entry, res) => (hold ? held.push(() => bucket()(entry, res)) : bucket()(entry, res)));
     const { context, log } = await contextOf(presignOptions());
     try {
-        const waiting = Array.from({ length: 34 }, () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }));
-        // only a full queue makes the next call's refusal certain: on a slow runner some of the 34 are still on their way
+        const filling = UPLOAD_SLOTS + UPLOAD_QUEUE_MAX;
+        const waiting = Array.from({ length: filling }, () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }));
+        // only a full queue makes the next call's refusal certain: on a slow runner some uploads are still on their way
         await until(() => held.length >= UPLOAD_SLOTS && uploadsWaiting(context) >= UPLOAD_QUEUE_MAX, {
             message: `the queue did not fill to ${UPLOAD_QUEUE_MAX} waiting uploads`
         });
@@ -714,9 +715,10 @@ test("the slot queue is capped: an upload beyond 32 waiting ones fails at once, 
         assert.ok(Date.now() - started < 10_000, "refused at once, not after timeMs"); // wall time: event latency
         assert.deepEqual([refused?.code, refused?.details?.retryable], ["UPLOAD_FAILED", true]);
         assert.equal(log.find((l) => l.requestId === "Queue_Full0" && l.upload)?.upload, "TIMEOUT");
+        assert.equal(uploadsWaiting(context), UPLOAD_QUEUE_MAX, "the refused call did not join the queue");
         hold = false;
         held.splice(0).forEach((go) => go());
-        assert.equal((await Promise.all(waiting)).filter((o) => o?.url).length, 34);
+        assert.equal((await Promise.all(waiting)).filter((o) => o?.url).length, filling);
     } finally {
         await context.close();
     }
