@@ -2,6 +2,7 @@
 // numbers in the ink that reads on their cell, each at 4.5:1 on what is under it, in both themes; the
 // labels of high and low points never across another bar. After a theme switch every label and plate
 // takes the colours a fresh render in that theme gives.
+import { ELLIPSIS, PLATE_SIDE, TILE_EDGE, TILE_LABEL_PADDING, TILE_MIN_CHARS, plateLine, textWidth } from "../../../packages/pivotkit-core/src/chart-measure.js";
 import { TEXT_MIN } from "../../fill-contrast.js";
 import { installContrast } from "../contrast.js";
 import { expect, test } from "../fixtures.js";
@@ -53,6 +54,11 @@ const contrasts = async (page, labels) => {
 /** Eight regions, one tile each, and a host's light grey and near black among the colours. */
 const REGIONS = ["Central", "West", "North", "South", "East", "Alps", "Coast", "Islands"].map((Region, i) => ({ Region, Revenue: 4000 - i * 380 }));
 const HOST = { Central: "#d9d9d9", West: "#1f1f1f" };
+/** The smallest tile that writes a label at the report's 14 px text, from pivotkit-core's measures (treemapLabels). */
+const TILE_MIN = {
+    width: textWidth(`${"M".repeat(TILE_MIN_CHARS)}${ELLIPSIS}`, 14) + 2 * (PLATE_SIDE + TILE_LABEL_PADDING),
+    height: plateLine(14) + 2 * TILE_EDGE
+};
 /** Twenty countries by population: wide tiles and tiles too narrow for a name on a plate. */
 const COUNTRIES = [["India", 1450], ["China", 1410], ["United States", 340], ["Indonesia", 283], ["Pakistan", 251], ["Nigeria", 232], ["Brazil", 212], ["Bangladesh", 173], ["Russian Federation", 143], ["Ethiopia", 132], ["Mexico", 130], ["Japan", 124], ["Egypt, Arab Rep.", 116], ["Philippines", 115], ["Congo, Dem. Rep.", 109], ["Viet Nam", 101], ["Iran, Islamic Rep.", 91], ["Turkiye", 85], ["Germany", 83], ["Thailand", 71]].map(([Country, Population]) => ({ Country, Population }));
 
@@ -101,10 +107,9 @@ for (const theme of ["light", "dark"]) {
         expect(tiles.length).toBe(COUNTRIES.length);
         for (const t of tiles) {
             for (const p of t.plates) expect(p.words, `${t.name}: a plate ${p.width} px wide without words`).toBe(true);
-            // a tile with room for three letters and the ellipsis on a plate shows words: at 14 px the widest
-            // three (capitals, 0.7 em) and "…" (0.55 em) take 37 px, the plate 2 px a side and the tile 5 px
-            // a side: 51 px wide; a line of 21 px and a pixel above and below it: 23 px tall
-            if (t.size[0] >= 52 && t.size[1] >= 24) expect(t.words, `a tile of ${t.size.map(Math.round).join(" x ")} px without words`).not.toBeNull();
+            // a tile with room for the fewest characters of a cut name, as capitals (the widest), and the
+            // ellipsis on a plate, and for one line of it, shows words (at 14 px: 61 x 23 px)
+            if (t.size[0] >= TILE_MIN.width && t.size[1] >= TILE_MIN.height) expect(t.words, `a tile of ${t.size.map(Math.round).join(" x ")} px without words`).not.toBeNull();
             if (!t.words) continue;
             // the words' middle within 2 px of the tile's
             expect(Math.abs((t.words[0] + t.words[1]) / 2 - (t.tile[0] + t.tile[1]) / 2), `${t.name}: ${JSON.stringify(t)}`).toBeLessThanOrEqual(2);

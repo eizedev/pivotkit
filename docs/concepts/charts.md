@@ -213,8 +213,8 @@ A series' lines take its colour. The lines of no series, a target and a stack's 
   `referenceLineChecks`): per series, or of a stack's total.
 - The first of equal values gets the point. A series whose values are all the same gets none.
 - `toEChartsOption` draws them as a silent ECharts `markPoint` on the series: a dot in the series'
-  colour (a stack's in `--pk-chart-reference`), and a label with ▲ or ▼ and the value in the text
-  colour. A palette colour such as yellow is too light for text, so the dot alone takes it.
+  colour (a stack's in `--pk-chart-reference`), and a label with ▲ or ▼ and the value in the muted
+  text colour (`--pk-muted`). A palette colour such as yellow is too light for text, so the dot alone takes it.
 - `decorateOption` keeps the labels inside the plot: the value axis reaches past them
   (`dataMin`, `dataMax`). A label that would take the axis across zero sits beside its dot.
 - Labels that would cover each other or another bar of a group move beside their dots, then above

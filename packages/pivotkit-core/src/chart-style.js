@@ -10,7 +10,7 @@
 import { DEFAULT_THEME, EXTREME_INKS, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
 import { POINT_HALO, barExtent, otherSlices, pieLabelFit, pieLabelTexts, pointLabels, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
-import { AXIS_LABEL_MARGIN, LINE_SAMPLES, categorySlot, groupLabelLine, groupLabelOffset, heatmapFrame, lineLabelText, textWidth } from "./chart-measure.js";
+import { AXIS_LABEL_MARGIN, ELLIPSIS, LINE_SAMPLES, PLATE_SIDE, TILE_EDGE, TILE_LABEL_PADDING, TILE_MIN_CHARS, categorySlot, groupLabelLine, groupLabelOffset, heatmapFrame, lineLabelText, plateLine, textWidth } from "./chart-measure.js";
 import { ZOOM_SLIDER, longestNames, zoomRange, zoomSlider, zoomWindow } from "./chart-zoom.js";
 import { labelColorOn } from "./chart-colors.js";
 
@@ -69,12 +69,6 @@ const styled = (key, text) =>
         .map((line) => line.split("}").map((part) => (part ? `{${key}|${part}}` : "")).join("}"))
         .join("\n");
 
-/** ECharts' padding of a treemap's label inside its tile, px (its default `label.padding`). */
-const TILE_LABEL_PADDING = 5;
-
-/** A plate's room left and right of its words, px. */
-const PLATE_SIDE = 2;
-
 /**
  * The ink of `inks` that reads on `fill` (labelColorOn), black or white when none does; `inks[0]` for a
  * fill it cannot read.
@@ -86,11 +80,6 @@ function inkOn(fill, inks, readColor) {
     const read = typeof fill === "string" ? (readColor ? (readColor(fill) ?? fill) : fill) : null;
     return read ? labelColorOn(read, inks) : inks[0];
 }
-
-/** The fewest characters a treemap's tile writes of a name cut short; with fewer it writes no label. */
-const TILE_MIN_CHARS = 3;
-/** The end of a text cut short: one character, so a narrow tile keeps more of the name. */
-const ELLIPSIS = "\u2026";
 
 /**
  * `text` as it fits `width` px at `fontSize` (textWidth): whole, else cut with ELLIPSIS after at least
@@ -133,7 +122,7 @@ function treemapLabels(s, { text, surface, radius, fontSize, readColor, tileOf }
     const format = label.formatter;
     // no --pk-text: ECharts' own text colour
     const ink = text || undefined;
-    const line = Math.round(fontSize * 1.5);
+    const line = plateLine(fontSize);
     const out = {
         label: {
             ...label,
@@ -150,8 +139,8 @@ function treemapLabels(s, { text, surface, radius, fontSize, readColor, tileOf }
             const tile = tileOf(i, d.name);
             if (!tile) return d;
             const width = tile.width - 2 * pad - 2 * PLATE_SIDE;
-            // above and below the lines only a pixel: a tile a line tall keeps its label (the sides keep `pad`)
-            const height = tile.height - 2;
+            // above and below the lines only TILE_EDGE: a tile a line tall keeps its label (the sides keep `pad`)
+            const height = tile.height - 2 * TILE_EDGE;
             const [first, ...rest] = String(format(d)).split("\n");
             const name = fitText(first, width, fontSize);
             const shown = name === null ? [] : [name, ...rest.filter((t) => textWidth(t, fontSize) <= width)].slice(0, Math.floor(height / line));

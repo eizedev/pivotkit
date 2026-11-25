@@ -83,8 +83,8 @@ report: the report itself, field list included, is at least 1,024 pixels wide.
 
 - Each tile shows its name and value in its middle, on a plate in the background's colour. The
   plate looks the same on every tile, whatever the tile's colour.
-- A name wider than its tile ends in "…", and a value that does not fit is left out. A tile with
-  room for fewer than 3 letters, or lower than a line, shows no text. The tooltip shows both.
+- A name wider than its tile ends in "…" after at least 4 letters; a value that does not fit is left
+  out. A tile with less room, or lower than a line, shows no text. Point at or tap a tile for both.
 - A row with a total of 0 or less gets no tile.
 - The colours only tell the tiles apart. They do not stand for a value.
 - Without a background colour the chart can draw, the text has no plate. It then takes the text or
@@ -315,9 +315,9 @@ target you set. High and low points mark the highest and the lowest value of eac
 - Each line has a label right of the plot, at the line's height. It starts with a short sample of
   the line's dash in the line's colour, then the name and the value, written short as on the axis,
   such as "Target 500K". A label of a line close to another moves just below it.
-- On a chart narrower than 480 px, such as on a phone, the labels keep the names only where all fit
-  in a third of the width. Else a label writes the value, a trend its name, and its dash sample tells
-  the lines apart. A label that cannot sit near its line is left out; the tooltip names the line.
+- On a chart narrower than 480 px, such as on a phone, the names stay only where all labels fit in
+  30 % of the width. Else a label writes the value (a trend its name) after its dash in the series'
+  colour, as in the legend. A label that cannot sit near its line is left out; the tooltip names it.
 - The value axis reaches every line. A target higher than every bar still shows.
 - The tooltip lists the lines at the category with their whole values: a trend with its value there.
 - The chart image, the HTML report and the chart as SVG draw the lines too.
@@ -330,8 +330,8 @@ target you set. High and low points mark the highest and the lowest value of eac
 ![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and a label with ▲ or ▼ and its value](../assets/screenshots/chart-points-light.png#only-light)
 ![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and a label with ▲ or ▼ and its value](../assets/screenshots/chart-points-dark.png#only-dark)
 
-- The dot has the series' colour. Its label, in the text colour, starts with ▲ for the highest
-  value or ▼ for the lowest, then the value as the table writes it.
+- The dot has the series' colour. Its label, in the muted text colour (`--pk-muted`), starts with
+  ▲ for the highest value or ▼ for the lowest, then the value as the table writes it.
 - On a line, the highest label sits above its dot and the lowest below it.
 - On bars and areas, both labels sit above the dot. On a bar, that is past the bar's end.
 - A label never stretches the axis across zero. Near zero, it sits beside its dot.

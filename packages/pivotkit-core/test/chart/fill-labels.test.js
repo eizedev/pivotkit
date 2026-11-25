@@ -58,7 +58,7 @@ test("treemap, both themes: every label on a plate in the background colour, the
     assert.equal(s.label.formatter({ name: "A}B", value: 1 }), "{plate|A}}{plate|B}\n{plate|1}");
 });
 
-test("treemap with the tiles of a first draw (tileOf): each label on a plate in its tile's middle, cut to the tile with an ellipsis; none where fewer than 3 characters fit", () => {
+test("treemap with the tiles of a first draw (tileOf): each label on a plate in its tile's middle, cut to the tile with an ellipsis; none where fewer than 4 characters fit", () => {
     const r = computePivot(REGIONS, { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" }, formatting: { locale: "en-US" } });
     const style = { getPropertyValue: (/** @type {string} */ n) => THEME_TOKENS.light[n] ?? "" };
     /** @type {Record<string, { width: number, height: number }>} */
@@ -69,8 +69,10 @@ test("treemap with the tiles of a first draw (tileOf): each label on a plate in 
         // 20 px tall: no line fits; 23 px: one does, with a pixel above and below
         North: { width: 300, height: 20 },
         South: { width: 300, height: 23 },
-        // 50 px wide: "Isl…" fits, the value "1,340" does not
-        Islands: { width: 50, height: 60 }
+        // 56 px wide and 40 px tall: "Isla…" fits, the value "1,340" too, but a line only
+        Islands: { width: 56, height: 40 },
+        // 50 px wide: "Coa…" would fit, but a name cut to 3 characters is a stub: no label
+        Coast: { width: 50, height: 60 }
     };
     /** @type {Array<[number, string]>} */
     const asked = [];
@@ -84,11 +86,12 @@ test("treemap with the tiles of a first draw (tileOf): each label on a plate in 
     assert.deepEqual(byName.Central.label.padding, [(200 - 2 * line) / 2, 5, 0, 5]);
     assert.equal(byName.Central.label.formatter(), "{plate|Central}\n{plate|4,000}");
     assert.equal(byName.Central.label.rich, undefined, "on the series' plate");
-    // cut with an ellipsis, on the plate; the value left out whole, not cut
-    assert.equal(byName.Islands.label.formatter(), "{plate|Isl…}");
-    assert.deepEqual(byName.Islands.label.padding, [(60 - line) / 2, 5, 0, 5]);
+    // cut with an ellipsis, on the plate; the value, with no line left, left out whole, not cut
+    assert.equal(byName.Islands.label.formatter(), "{plate|Isla…}");
+    assert.deepEqual(byName.Islands.label.padding, [(40 - line) / 2, 5, 0, 5]);
     // no empty plate where nothing fits: the tooltip has the value
     assert.equal(byName.West.label.show, false);
+    assert.equal(byName.Coast.label.show, false);
     assert.equal(byName.North.label.show, false);
     assert.equal(byName.South.label.formatter(), "{plate|South}");
     // a tile not drawn yet: the series' label
