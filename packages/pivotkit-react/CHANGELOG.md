@@ -6,8 +6,25 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- Each zone has a colour: `--pk-zone-rows`, `--pk-zone-columns`, `--pk-zone-values` and
+  `--pk-zone-filters`. Its chips, its marks in the field list and a field's name in the table's header
+  take a fill mixed from it (`--pk-zone-tint`, 16 %, into `--pk-zone-tint-base`). New tokens for a
+  chip's controls (`--pk-control-icon`), the sort arrow (`--pk-sort-arrow`) and a field's hover in the
+  field list (`--pk-field-hover`) ([#920](https://github.com/eizedev/pivotkit/issues/920)).
+- Each field's name in the table's header carries its zone's icon and fill; with two or more values
+  each value's name carries the icon alone. Header cells name the cells they head (`scope`), and the
+  empty corner names the fields in Rows and Columns for a screen reader ([#920](https://github.com/eizedev/pivotkit/issues/920)).
+
 ### Changed
 
+- The sort arrow stands behind a header's name, at rest only on the sorted header, in the text colour
+  and bold, the same arrow as on the sorted chip. The sorted header's description says its order and
+  what the next click does ([#920](https://github.com/eizedev/pivotkit/issues/920)).
+- Chips of rows, columns and values have the zone's fill and no coloured frame; a filter's chip stays
+  neutral. The field type icons are neutral: `--pk-type-*` default to `--pk-muted` and stay
+  overridable. Chips take `--pk-radius-sm`, and `--pk-radius` is 8px (was 10px) ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
 
 ### Added
