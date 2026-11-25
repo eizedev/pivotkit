@@ -500,12 +500,15 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
             onSort?.(target.field, next);
             setSortNote(fill(labels.headerSorted, { field, order: words(next) }));
         };
+        // what the next click does: the tooltip, and after the order in use what a screen reader hears
+        const hint = target.ref && next ? fill(next.order === "desc" ? labels.headerSortDesc : labels.headerSortAsc, { value: column ? fill(labels.valueInColumn, { value: refLabel(view, target.ref, labels), column }) : refLabel(view, target.ref, labels) }) : fill(labels.headerSort, { field, order: words(next) });
         return {
             // aria-sort only on the header whose sort was chosen (a custom order too): one at a time (WAI-ARIA APG)
             sort: state.chosen || state.order === "other" ? state.order : null,
             content: (
-                // the order in use as the button's description, not its name: the name heads every cell below
-                <button type="button" className={`pk-th-sort${state.chosen ? " pk-sorted" : ""}`} aria-description={state.chosen ? fill(labels.stateSorted, { order: words(sortOf(view, target.field)) }) : undefined} title={target.ref && next ? fill(next.order === "desc" ? labels.headerSortDesc : labels.headerSortAsc, { value: column ? fill(labels.valueInColumn, { value: refLabel(view, target.ref, labels), column }) : refLabel(view, target.ref, labels) }) : fill(labels.headerSort, { field, order: words(next) })} onClick={click}>
+                // the order in use, then the next click's, as the button's description (it replaces the
+                // title's), not its name: the name heads every cell below
+                <button type="button" className={`pk-th-sort${state.chosen ? " pk-sorted" : ""}`} aria-description={state.chosen ? `${fill(labels.stateSorted, { order: words(sortOf(view, target.field)) })}. ${hint}` : undefined} title={hint} onClick={click}>
                     <span className="pk-th-text">{cell.text}</span>
                     <Icon name={down ? "arrowDown" : "arrowUp"} size={14} className="pk-th-arrow" />
                 </button>

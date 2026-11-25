@@ -161,7 +161,9 @@ test.describe("the table's header names its fields by zone (#920)", () => {
         await expect(sorted).toHaveText("Count of Ticket");
         // the order in words is the button's description, not its name: the name heads every cell below
         await expect(sorted).toHaveAccessibleName("Count of Ticket");
-        await expect(sorted).toHaveAccessibleDescription("sorted Largest Count of Ticket first");
+        // and, as the tooltip says, what the next click does
+        await expect(sorted).toHaveAccessibleDescription("sorted Largest Count of Ticket first. Sort by Count of Ticket: smallest first");
+        await expect(sorted).toHaveAttribute("title", "Sort by Count of Ticket: smallest first");
         const arrow = sorted.locator(".pk-th-arrow");
         await expect(arrow).toHaveCSS("opacity", "1");
         // behind the name
