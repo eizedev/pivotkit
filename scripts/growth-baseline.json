@@ -355,8 +355,6 @@
         "packages/pivotkit-server/src/stats.js exports LOOKS_LENGTH",
         "packages/pivotkit-server/src/upload.js exports ANSWER_BYTES",
         "packages/pivotkit-server/src/upload.js exports LINK_MAX",
-        "packages/pivotkit-server/src/upload.js exports UPLOAD_QUEUE_MAX",
-        "packages/pivotkit-server/src/upload.js exports UPLOAD_SLOTS",
         "packages/pivotkit-server/src/upload.js exports addressCheck",
         "packages/pivotkit-server/src/views.js exports MAX_VIEWS",
         "packages/pivotkit-server/src/views.js exports VIEW_BYTES",
