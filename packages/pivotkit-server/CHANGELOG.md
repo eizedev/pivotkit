@@ -6,6 +6,13 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- A host that passes `env` to `createContext` or `serve()` gets the `{ env }` secrets of a backend's
+  sign-in and of `output.upload`'s headers from that `env`. They were read from `process.env`, at
+  start and on every load. Static tokens and the download key already used it. A host that passes its
+  own `env` must hold those variables in it.
+
 ## [0.5.0] - 2026-11-24
 
 ### Added

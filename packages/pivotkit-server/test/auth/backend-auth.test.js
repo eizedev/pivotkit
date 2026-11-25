@@ -218,6 +218,33 @@ test("header: the value read from its secret on every load (a rotated file works
     }
 });
 
+test("the sign-in's { env } secrets come from the environment the host passed, not from the process's: at start, on a load, in check-source", async () => {
+    routes.set("/v1/vms", json({ items: VMS }));
+    routes.set("/token", tokenEndpoint());
+    assert.equal(process.env.PIVOTKIT_TEST_API_KEY, undefined);
+    const env = { PIVOTKIT_TEST_API_KEY: HEADER_SECRET };
+    const options = optionsOf({ header: { name: "X-Api-Key", value: { env: "PIVOTKIT_TEST_API_KEY" } } });
+    const lines = [];
+    const context = await createContext({ log: "info", ...options }, { env, stderr: { write: (t) => lines.push(String(t)) } });
+    try {
+        assert.ok(!lines.some((l) => /cannot be made/.test(l)), "no start warning: the passed env holds the secret");
+        await describe(context);
+        assert.equal(asked.at(-1)?.headers["x-api-key"], HEADER_SECRET);
+    } finally {
+        await context.close();
+    }
+    const out = await checkSource(options, "vms", {}, { fetch: httpMeans.fetch, env });
+    assert.ok(out.ok, out.text);
+    // client credentials and the token exchange's probe read their client secret the same way
+    const cc = await checkSource(optionsOf({ clientCredentials: { tokenUrl: tokenUrl(), clientId: "p", clientSecret: { env: "PIVOTKIT_TEST_API_KEY" }, intranet: true } }), "vms", {}, { fetch: httpMeans.fetch, env });
+    assert.ok(cc.ok, cc.text);
+    assert.equal(asked.findLast((a) => a.path === "/token")?.headers.authorization, `Basic ${Buffer.from(`p:${HEADER_SECRET}`).toString("base64")}`);
+    routes.set("/xchg", json({ error: "invalid_request" }, 400));
+    const xchg = await checkSource(optionsOf({ tokenExchange: { tokenUrl: tokenUrl("/xchg"), audience: "a", clientId: "p", clientSecret: { env: "PIVOTKIT_TEST_API_KEY" }, intranet: true } }, { auth: OAUTH }), "vms", {}, { fetch: httpMeans.fetch, env });
+    assert.ok(xchg.ok, xchg.text);
+    clean("check-source", out.text + cc.text + xchg.text);
+});
+
 test("client credentials: a client secret as client_secret_basic, the token kept until 30 s before it expires and shared by every caller, one request for many callers", async (t) => {
     // the clock a kept token's expiry is counted on, moved by the test
     t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
