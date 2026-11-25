@@ -27,7 +27,7 @@ npm install pivotkit-core
   [pivotkit-xlsx](https://www.npmjs.com/package/pivotkit-xlsx).
 
 pivotkit is 0.x: a minor release can break things. [Versioning](https://pivotkit.eize.dev/versioning/)
-says how each break is marked and what to do.
+says how each break is marked, [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/) what to do.
 
 ## Example
 

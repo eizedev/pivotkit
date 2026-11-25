@@ -17,7 +17,7 @@ Node 24 or later. It brings pivotkit-report, pivotkit-xlsx, ECharts 6.1.0 and jo
 the MCP SDK. For `pivotkit-server cli`, install [pivotkit-cli](https://www.npmjs.com/package/pivotkit-cli) beside it.
 
 pivotkit is 0.x: a minor release can break things. [Versioning](https://pivotkit.eize.dev/versioning/)
-says how each break is marked and what to do.
+says how each break is marked, [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/) what to do.
 
 ## Example
 

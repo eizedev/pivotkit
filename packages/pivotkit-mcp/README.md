@@ -18,7 +18,7 @@ claude mcp add pivotkit -- npx -y pivotkit-mcp --source sales=/path/to/sales.csv
 - `pivotkit-server serve` runs it next to the REST service on one port.
 
 pivotkit is 0.x: a minor release can break things. [Versioning](https://pivotkit.eize.dev/versioning/)
-says how each break is marked and what to do.
+says how each break is marked, [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/) what to do.
 
 ## Example
 

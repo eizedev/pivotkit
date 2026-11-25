@@ -8,6 +8,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
 - A rows request (`POST /api/v1/sources/records`) that finds every place taken waits up to
   `rest.records.waitMs` (default 5 s, 0 to 60 s) for one, first come first served, before 503
   `BUSY`. A request that is answered within that time no longer turns the next person away. With the

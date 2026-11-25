@@ -8,7 +8,7 @@ body:
     id: goal
     attributes:
       label: What do you want to do?
-      description: The task, in a few sentences. A view (JSON) or a few rows of sample data help.
+      description: The task, in a few sentences. A view (JSON) or a few rows of sample data help. Remove confidential values first.
     validations:
       required: true
   - type: textarea
@@ -36,4 +36,4 @@ body:
     attributes:
       label: Versions
       description: The pivotkit packages and, if it matters, browser, Node or host.
-      placeholder: pivotkit-react 0.10.0, React 19, Chrome 140
+      placeholder: pivotkit-react and its version, React version, browser
