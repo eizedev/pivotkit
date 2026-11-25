@@ -7,7 +7,8 @@
  * report that never shows a chart does not load it; the build keeps it a file of its own
  * (dist/echarts.js). pivotkit-core's ECharts option (toEChartsOption) and reference lines
  * (chart-tooltip.js chartLines), the check and merge of the host's chartOptions (chart-options.js) and
- * the report's marks on the option (chart-decorate.js) come with it: only a chart needs them.
+ * the report's marks on the option (chart-decorate.js), and the chart's instance with its events and
+ * each draw (chart-draw.js) come with it: only a chart needs them.
  */
 
 // renamed: a call of `use` reads as a React hook to the linter
@@ -27,3 +28,4 @@ export { colorMapFor } from "./chart-colors.js";
 export { LENGTH_TOKENS, chartStyle, decorate, drawOption, screenColor, tokenLengths } from "./chart-decorate.js";
 export { chartKeeper, shownOf, zoomKeyProps } from "./chart-legend.js";
 export { chartLines } from "./chart-tooltip.js";
+export { drawChart, startChart } from "./chart-draw.js";
