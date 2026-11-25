@@ -13,11 +13,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   one whole unit of a relative range as the engine keeps it ("heute", "gestern", "im Vorjahr"; from
   an anchor "am Tag davor"). It separates the items of a list with "; ", so a decimal comma stays in
   its number ("1; 2,5; 3"), joins filters with "; und ", and writes true and false as "Ja" and "Nein".
-  `labels` given in part keep English for the rest, at any depth; `labels` that are not an object
-  throw `INVALID_OPTION`. `locale` writes the numbers of filter values as the locale does, without
-  grouping (`1,5`). English stays the default, word for word.
+  `labels` given in part keep English for the rest, at any depth. `labels` that are not an object,
+  or with a key it does not know or a word of the wrong kind, throw `INVALID_OPTION`. `locale` writes
+  the numbers of filter values as the locale does, without grouping (`1,5`). English stays the
+  default, word for word ([#798](https://github.com/eizedev/pivotkit/issues/798)).
 - `describeLabels(locale, own)` puts a host's own words over the locale's, at any depth. Words that
-  name their language (`lang`) go over that language's.
+  name their language (`lang`) go over that language's. Words `describeView` would refuse throw
+  `INVALID_ARGUMENT`.
 
 ### Changed
 

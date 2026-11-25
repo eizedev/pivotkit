@@ -9,7 +9,7 @@
 
 import { aggregatorsFor } from "./aggregators.js";
 import { FILTERS } from "./filters.js";
-import { DESCRIBE_LABELS, mergeWords } from "./describe-labels.js";
+import { DESCRIBE_LABELS, mergeWords, wordsProblem } from "./describe-labels.js";
 import { isEncoded } from "./encode.js";
 import { PivotkitError } from "./errors.js";
 import { numberFormat } from "./intl.js";
@@ -230,6 +230,10 @@ function wordsOf(labels) {
     }
     if (!isPlainObject(labels)) {
         throw new PivotkitError("INVALID_OPTION", `describeView: options.labels must be an object of words (DESCRIBE_LABELS.de, describeLabels(locale)), not ${Array.isArray(labels) ? "an array" : typeof labels}`);
+    }
+    const problem = wordsProblem(/** @type {object} */ (labels));
+    if (problem) {
+        throw new PivotkitError("INVALID_OPTION", `describeView: options.labels.${problem}`);
     }
     return /** @type {any} */ (mergeWords(DESCRIBE_LABELS.en, /** @type {object} */ (labels)));
 }

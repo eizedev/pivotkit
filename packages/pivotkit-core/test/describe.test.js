@@ -221,6 +221,31 @@ test("describeView: labels that are not an object of words throw INVALID_OPTION"
     assert.equal(describeView({ version: 2 }, data, { labels: null }).text, "count of rows");
 });
 
+test("describeView and describeLabels refuse a key they do not know and a word of the wrong kind", () => {
+    const wrong = [
+        [{ blanks: 5 }, "blanks is a table of words, not a number"],
+        [{ blanks: [] }, "blanks is a table of words, not a list"],
+        [{ list: 5 }, "list is a text, not a number"],
+        [{ top: 5 }, "top is a text or a table of words, not a number"],
+        [{ aggregators: "sum" }, "aggregators is a table of words, not a string"],
+        [{ ranges: { last: { day: { current: 1 } } } }, "ranges.last.day.current is a text, not a number"],
+        [{ lang: 5 }, "lang is a text, not a number"],
+        [{ lang: "!!" }, 'lang is a language such as "de", not "!!"'],
+        [{ nope: "x" }, "nope is not a word of describeView"],
+        [{ blanks: { nope: "x" } }, "blanks.nope is not a word of describeView"],
+        [JSON.parse('{"__proto__":{"x":1}}'), "__proto__ is not a word of describeView"]
+    ];
+    for (const [labels, problem] of wrong) {
+        assert.throws(() => describeView({ version: 2 }, data, { labels }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION" && e.message === `describeView: options.labels.${problem}`, problem);
+        assert.throws(() => describeLabels("de-DE", /** @type {any} */ (labels)), (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT" && e.message === `describeLabels: own words: ${problem}`, problem);
+    }
+    // the kinds either language has: German's counted forms, a table English leaves null, both tables whole
+    for (const labels of [{ top: { one: "the top {field}", other: "top {count} {field}" } }, { aggregators: { sum: "Sum" } }, { anchoredRanges: { this: { day: "that day" } } }, DESCRIBE_LABELS.de, DESCRIBE_LABELS.en]) {
+        assert.equal(typeof describeView({ version: 2 }, data, { labels }).text, "string");
+        assert.ok(Object.isFrozen(describeLabels("de-DE", labels)));
+    }
+});
+
 test("describeView in German: no parentheses inside parentheses, in a filter or the whole sentence", () => {
     const filters = [
         { field: "Date", type: "relative", direction: "last", count: 2, unit: "year", calendar: false, anchor: "latest" },
@@ -268,6 +293,8 @@ test("describeView: numbers of filter values in the locale, without grouping; te
     const view = { version: 2, rows: ["Region"], filters: [{ field: "Units", type: "compare", op: "between", value: 1.5, value2: 2025 }, { field: "Region", type: "in", items: ["North", "Say \"hi\""] }, { field: "Units", type: "in", items: [0.5, 1200] }] };
     const de = describeView(view, data, { labels: DESCRIBE_LABELS.de, locale: "de-DE" });
     assert.deepEqual(de.filters.map((f) => f.text), ["Units ist zwischen 1,5 und 2025, ohne leere Werte", "Region ist einer der Werte „North“; „Say \\\"hi\\\"“, ohne leere Werte", "Units ist einer der Werte 0,5; 1200, ohne leere Werte"]);
+    // every decimal the number has, not the three of a default number format
+    assert.equal(describeView({ version: 2, filters: [{ field: "Units", type: "compare", op: ">", value: 0.1234567 }] }, data, { labels: DESCRIBE_LABELS.de, locale: "de-DE" }).filters[0].text, "Units ist größer als 0,1234567, ohne leere Werte");
     // de-CH writes a point
     assert.equal(describeView(view, data, { labels: DESCRIBE_LABELS.de, locale: "de-CH" }).filters[0].text, "Units ist zwischen 1.5 und 2025, ohne leere Werte");
     // without a locale, and in English, as JSON writes them, word for word as before

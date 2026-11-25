@@ -86,6 +86,7 @@ import { isPlainObject } from "./util.js";
  * @property {string} where  "where {filters}"
  * @property {string} and  between two filters: "; and ", German "; und " (a filter may hold commas and "und")
  * @property {string} separator  between the parts of the sentence after the values and the rows (columns, filters, chart)
+ * @property {string} filterList  between two filters of a list of them alone (the HTML report's `{{filters}}`): "; ", German "; und "
  * @property {string} chart  "as a {type}": {type} is one of `chartTypes`
  * @property {string} both  "as a table and a {type}"
  * @property {Readonly<Record<string, string>>} chartTypes  by CHART_TYPES; "auto" is a chart of no named type
@@ -228,6 +229,7 @@ export const DESCRIBE_LABELS = Object.freeze({
         where: "where {filters}",
         and: "; and ",
         separator: " ",
+        filterList: "; ",
         chart: "as a {type}",
         both: "as a table and a {type}",
         chartTypes: Object.freeze({ auto: "chart", bar: "bar chart", line: "line chart", area: "area chart", pie: "pie chart", donut: "donut chart", heatmap: "heatmap chart", combo: "combo chart", treemap: "treemap chart" }),
@@ -299,6 +301,7 @@ export const DESCRIBE_LABELS = Object.freeze({
         where: "Filter: {filters}",
         and: "; und ",
         separator: "; ",
+        filterList: "; und ",
         chart: "als {type}",
         both: "als Tabelle und {type}",
         chartTypes: Object.freeze({ auto: "Diagramm", bar: "Balkendiagramm", line: "Liniendiagramm", area: "Flächendiagramm", pie: "Kreisdiagramm", donut: "Ringdiagramm", heatmap: "Heatmap", combo: "Balken- und Liniendiagramm", treemap: "Treemap" }),
@@ -306,9 +309,57 @@ export const DESCRIBE_LABELS = Object.freeze({
     })
 });
 
+/** A value's kind for a message: "a number", "a list", "null". */
+const kindOf = (value) => (value === null ? "null" : Array.isArray(value) ? "a list" : typeof value === "object" ? "a table" : `a ${typeof value}`);
+
+/** A language tag Intl takes ("de", "en-US"), for the plural rules of `lang`. */
+function isLanguage(tag) {
+    try {
+        return Intl.getCanonicalLocales(tag).length === 1;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * What is wrong with words a host passes, or null: each key must be one of DESCRIBE_LABELS' (English
+ * or German; a table English leaves null, such as `aggregators`, takes the German table's keys), each
+ * word a text where those have a text and a table where they have a table; `lang` a language tag.
+ * Null and undefined keep the base's word.
+ * @param {object} words
+ * @param {object[]} [shapes]  the tables at this depth in English and German
+ * @param {string} [path]
+ * @returns {string | null}  "blanks.exclude is a text, not a number"
+ */
+export function wordsProblem(words, shapes = [DESCRIBE_LABELS.en, DESCRIBE_LABELS.de], path = "") {
+    for (const [key, value] of Object.entries(words)) {
+        if (value === undefined || value === null) {
+            continue;
+        }
+        const at = path ? `${path}.${key}` : key;
+        const kinds = shapes.filter((s) => Object.hasOwn(s, key) && s[key] !== null).map((s) => s[key]);
+        const tables = kinds.filter(isPlainObject);
+        const text = kinds.some((k) => typeof k === "string");
+        if (!kinds.length) {
+            return `${at} is not a word of describeView`;
+        }
+        if (typeof value === "string" ? !text : !(isPlainObject(value) && tables.length)) {
+            return `${at} is ${text && tables.length ? "a text or a table of words" : text ? "a text" : "a table of words"}, not ${kindOf(value)}`;
+        }
+        if (at === "lang" && !isLanguage(value)) {
+            return `lang is a language such as "de", not ${JSON.stringify(value.slice(0, 40))}`;
+        }
+        const inner = isPlainObject(value) ? wordsProblem(value, tables, at) : null;
+        if (inner) {
+            return inner;
+        }
+    }
+    return null;
+}
+
 /**
  * `words` over `base` at every depth: a table given in part keeps the base's other entries; null and
- * undefined keep the base's.
+ * undefined keep the base's. Check `words` with wordsProblem first. Each table of the result is frozen.
  * @param {object} base
  * @param {object} words
  * @returns {any}
@@ -322,7 +373,7 @@ export function mergeWords(base, words) {
         const own = Object.hasOwn(out, key) ? out[key] : undefined;
         out[key] = isPlainObject(own) && isPlainObject(value) ? mergeWords(own, value) : value;
     }
-    return out;
+    return Object.freeze(out);
 }
 
 /** The DESCRIBE_LABELS of a locale's language ("de-DE": German), English for any other. */
@@ -332,7 +383,8 @@ const labelsOf = (locale) => (String(locale ?? "").split("-")[0].toLowerCase() =
  * The DESCRIBE_LABELS of a locale's language ("de-DE": German), English for any other; `own` words
  * over them at every depth, as describeView's `labels` go over English. Words that name their
  * language (`lang`, as DESCRIBE_LABELS.en does) go over that language's, so no word of the locale's
- * language is left among them.
+ * language is left among them. `own` that is not an object, or with a key describeView does not know
+ * or a word of the wrong kind (wordsProblem), throws INVALID_ARGUMENT.
  * @param {string} [locale]
  * @param {DescribeLabelsInput} [own]
  * @returns {Readonly<DescribeLabels>}
@@ -343,6 +395,10 @@ export function describeLabels(locale, own) {
     }
     if (!isPlainObject(own)) {
         throw new PivotkitError("INVALID_ARGUMENT", `describeLabels: own words must be an object, not ${Array.isArray(own) ? "an array" : typeof own}`);
+    }
+    const problem = wordsProblem(own);
+    if (problem) {
+        throw new PivotkitError("INVALID_ARGUMENT", `describeLabels: own words: ${problem}`, { problem });
     }
     return mergeWords(labelsOf(typeof own.lang === "string" ? own.lang : locale), own);
 }
