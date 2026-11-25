@@ -181,7 +181,13 @@ test("a German report: German words around the table, the locale's numbers and C
     assert.ok(bodyCells(html.text).some((c) => c[0] === "North" && c[1] === "14,00"));
     // the filters and the summary in German too, with the locale's numbers and German quotes
     const filtered = await render({ ...view, filters: [{ field: "Units", type: "compare", op: ">=", value: 1.5 }, { field: "Region", type: "in", items: ["North", "South"] }] }, SALES, { format: "html", ...FIXED, locale: "de-DE" });
-    assert.match(filtered.text, /<dt>Filter<\/dt><dd>Units ist mindestens 1,5, ohne leere Werte; Region ist einer der Werte „North“; „South“, ohne leere Werte<\/dd>/);
+    assert.match(filtered.text, /<dt>Filter<\/dt><dd>Units ist mindestens 1,5, ohne leere Werte; und Region ist einer der Werte „North“; „South“, ohne leere Werte<\/dd>/);
+    // a list's items and two filters apart: "; " between items, "; und " between filters
+    const lists = await render({ ...view, filters: [{ field: "Units", type: "in", items: [1, 2.5] }, { field: "Region", type: "in", items: ["North", "South"] }] }, SALES, { format: "html", ...FIXED, locale: "de-DE" });
+    assert.match(lists.text, /<dd>Units ist einer der Werte 1; 2,5, ohne leere Werte; und Region ist einer der Werte „North“; „South“, ohne leere Werte<\/dd>/);
+    // English as before: "; " between filters
+    const english = await render({ ...view, filters: [{ field: "Units", type: "in", items: [1, 2.5] }, { field: "Region", type: "in", items: ["North", "South"] }] }, SALES, { format: "html", ...FIXED });
+    assert.match(english.text, /<dd>Units is one of 1, 2\.5 \(blanks dropped\); Region is one of &quot;North&quot;, &quot;South&quot; \(blanks dropped\)<\/dd>/);
     assert.match(filtered.text, /<meta name="description" content="Durchschnitt von Price nach Region; Filter: Units ist mindestens 1,5, ohne leere Werte; und Region ist einer der Werte „North“; „South“, ohne leere Werte">/);
     const csv = await render(view, SALES, { format: "csv", ...FIXED, locale: "de-DE" });
     assert.ok(csv.text.includes("North;14\r\n"));
@@ -206,6 +212,10 @@ test("a host's own labels and describeLabels: the table and the filters in the h
     const germanPart = await render(view, SALES, { format: "html", ...FIXED, locale: "de-DE", describeLabels: { blanks: { exclude: "ohne Leere" } } });
     assert.match(germanPart.text, /<dd>Units ist größer als 1,5, ohne Leere<\/dd>/);
     await assert.rejects(render(view, SALES, { format: "html", ...FIXED, describeLabels: /** @type {any} */ ("de") }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION" && e.details.option === "describeLabels");
+    // a word of the wrong kind or a key describeView does not know: refused before any work, not "(undefined)"
+    for (const [words, message] of [[{ blanks: 5 }, /describeLabels\.blanks is a table of words, not a number/], [{ list: 5 }, /describeLabels\.list is a text/], [{ nope: "x" }, /describeLabels\.nope is not a word/], [{ lang: "!!" }, /describeLabels\.lang is a language/]]) {
+        await assert.rejects(render(view, SALES, { format: "html", ...FIXED, describeLabels: /** @type {any} */ (words) }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION" && e.details.option === "describeLabels" && message.test(e.message), JSON.stringify(words));
+    }
 });
 
 test("a bad view never throws: its issues come back; strict gives no body, else the normalized view renders", async () => {

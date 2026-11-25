@@ -233,6 +233,12 @@ function checkKinds(options) {
             throw badOption(key, `${key} is an object of texts by name, not ${kindOf(value)}`);
         }
     }
+    try {
+        describeLabels("en", options.describeLabels);
+    } catch (error) {
+        // a key describeView does not know or a word of the wrong kind: the core's words, render's code
+        throw badOption("describeLabels", `describeLabels.${/** @type {any} */ (error).details?.problem ?? /** @type {Error} */ (error).message}`);
+    }
     const cells = options.tableCells;
     if (cells !== undefined && cells !== null && !(typeof cells === "number" && cells >= 1 && (Number.isInteger(cells) || cells === Infinity))) {
         throw badOption("tableCells", `tableCells is a whole number of at least 1 (Infinity: no limit), not ${typeof cells === "number" ? String(cells) : kindOf(cells)}`);
@@ -348,7 +354,8 @@ export async function render(view, data, options = {}) {
             const inner = options.chartEmbed === "inline" ? chart.svg : `<img alt="${escapeHtml(`${texts.chart}: ${title}`)}" width="${size?.width}" height="${size?.height}" src="data:image/svg+xml;base64,${base64(new TextEncoder().encode(chart.svg))}">`;
             chartHtml = `<figure class="pk-report-chart">${inner}${note}</figure>`;
         }
-        const described = describeView(normalized.view, data2, { labels: describeWords(options, grid.locale), locale: grid.locale, ...(limits ? { limits } : {}) });
+        const filterWords = describeWords(options, grid.locale);
+        const described = describeView(normalized.view, data2, { labels: filterWords, locale: grid.locale, ...(limits ? { limits } : {}) });
         const timeZone = options.timeZone ?? grid.timeZone ?? "UTC";
         // "6 of 8 rows" while a filter leaves rows out, as pivotkit-react's row count says; the data's
         // row count picks the form. With rowCount false neither {{rows}} nor the details say it.
@@ -364,7 +371,7 @@ export async function render(view, data, options = {}) {
             generated: generatedText(options.now, grid.locale, timeZone),
             dataAsOf: options.dataAsOf ? dataAsOfText(options.dataAsOf, grid.locale, timeZone) : "",
             rows: rowsText,
-            filters: described.filters.length ? described.filters.map((f) => f.text).join("; ") : texts.noFilters,
+            filters: described.filters.length ? described.filters.map((f) => f.text).join(filterWords.filterList) : texts.noFilters,
             summary: described.text,
             lang: grid.locale,
             dir: RTL.has(grid.locale.split("-")[0].toLowerCase()) ? "rtl" : "ltr"
