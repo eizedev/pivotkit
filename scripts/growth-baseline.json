@@ -185,7 +185,6 @@
         "packages/pivotkit-core/src/chart-zoom.js exports ZOOM_AUTO",
         "packages/pivotkit-core/src/chart.js exports POINT_GLYPHS",
         "packages/pivotkit-core/src/derive.js exports binning",
-        "packages/pivotkit-core/src/describe.js exports filterText",
         "packages/pivotkit-core/src/encode.js exports isColumnar",
         "packages/pivotkit-core/src/filters.js exports firstOf",
         "packages/pivotkit-core/src/filters.js exports latestOf",

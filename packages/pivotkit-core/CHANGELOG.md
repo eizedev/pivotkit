@@ -8,8 +8,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
-- `describeView(view, schema, { labels })` writes its texts in German too: `DESCRIBE_LABELS.de`, or
-  `describeLabels(locale)` for a locale's language. English stays the default, word for word.
+- `describeView(view, schema, { labels, locale })` writes its texts in German too: `DESCRIBE_LABELS.de`,
+  or `describeLabels(locale)` for a locale's language. German quotes text values („North“) and names
+  one whole unit of a relative range as the engine keeps it ("heute", "gestern", "im Vorjahr").
+  `labels` given in part keep English for the rest, at any depth; `labels` that are not an object
+  throw `INVALID_OPTION`. `locale` writes the numbers of filter values as the locale does, without
+  grouping (`1,5`). English stays the default, word for word.
 
 ### Changed
 

@@ -2,8 +2,9 @@
  * Plain, structured summaries of a data set and of a view, for a person reading a log, an approver
  * and an LLM that writes or explains views: what fields there are and what a view does, as JSON with
  * one short `text` per part. The texts are English; describeView also writes German
- * (DESCRIBE_LABELS in describe-labels.js). Nothing here is formatted for a locale or rendered; values from
- * the data are data (an LLM's prompt should mark them as such), capped in number and length.
+ * (DESCRIBE_LABELS in describe-labels.js) and a locale's numbers, for pivotkit-report's HTML report.
+ * Nothing is rendered; values from the data are data (an LLM's prompt should mark them as such),
+ * capped in number and length.
  */
 
 import { aggregatorsFor } from "./aggregators.js";
@@ -11,8 +12,9 @@ import { FILTERS } from "./filters.js";
 import { DESCRIBE_LABELS } from "./describe-labels.js";
 import { isEncoded } from "./encode.js";
 import { PivotkitError } from "./errors.js";
+import { numberFormat } from "./intl.js";
 import { fill, pluralForm } from "./labels.js";
-import { isPlainObject, optionsOf } from "./util.js";
+import { isPlainObject, optionsOf, resolveLocale } from "./util.js";
 import { normalize, validate, viewFields } from "./view.js";
 
 /** The most items a field's summary lists, and the characters of each. */
@@ -119,38 +121,74 @@ const refText = (ref, words) => {
     return ref.field ? fill(words.valueName, { agg, field: ref.field }) : fill(words.valueOfRows, { agg });
 };
 
+/**
+ * How a description writes a value of a filter: a text in the words' quotes ("North", German
+ * „North“), JSON's escapes kept; a number as `locale` writes it, without grouping (1,5 and 2025 for
+ * de-DE), or as JSON does without a locale; anything else as it is. Dates are ISO days (texts).
+ * @param {import("./describe-labels.js").DescribeLabels} words
+ * @param {string | null} locale
+ * @returns {(value: unknown) => string}
+ */
+function valueWriter(words, locale) {
+    const number = locale ? numberFormat(locale, { useGrouping: false, maximumFractionDigits: 20 }) : null;
+    return (value) => {
+        if (typeof value === "string") {
+            return fill(words.quote, { value: JSON.stringify(value).slice(1, -1) });
+        }
+        return number && typeof value === "number" ? number.format(value) : String(value);
+    };
+}
+
 /** A list of items in words, capped. */
-const itemsText = (items, words) => {
-    const shown = items.slice(0, 10).map((v) => (typeof v === "string" ? JSON.stringify(valueText(v, "string")) : String(v)));
-    return items.length > 10 ? fill(words.more, { items: shown.join(", "), count: items.length - 10 }) : shown.join(", ");
+const itemsText = (items, say) => {
+    const shown = items.slice(0, 10).map((v) => say.value(typeof v === "string" ? valueText(v, "string") : v));
+    return items.length > 10 ? fill(say.words.more, { items: shown.join(", "), count: items.length - 10 }) : shown.join(", ");
 };
 
+/** A phrase that is one text, or one text by the plural category of `count` (Counted). */
+const countedForm = (form, count, lang) => (typeof form === "string" ? form : pluralForm(form, count, lang));
+
+/**
+ * A relative range in words. A language with words for a single whole unit (RangeForms' `current`
+ * and `adjacent`: "today", "yesterday") names it so; those words say whether the current unit is in
+ * it, so "current excluded" is not added to them.
+ */
+function rangeText(f, words) {
+    if (f.direction === "this") {
+        return { range: wordOf(words.ranges.this, f.unit), saysCurrent: true };
+    }
+    const forms = words.ranges[f.direction]?.[f.unit];
+    const single = f.count === 1 && f.calendar !== false && forms ? (f.includeCurrent === false ? forms.adjacent : forms.current) : undefined;
+    return typeof single === "string" ? { range: single, saysCurrent: true } : { range: pluralForm(forms, f.count, words.lang), saysCurrent: false };
+}
+
 /** A filter's phrase and the values it is filled with: the phrase is built from words first, then filled once, so a name or value that holds "{field}" stays as it is. */
-function filterPhrase(f, words) {
+function filterPhrase(f, say) {
+    const { words } = say;
     const yesNot = (p) => (f.not ? p.not : p.yes);
-    const compared = { value: JSON.stringify(f.value), value2: JSON.stringify(f.value2) };
+    const compared = { value: say.value(f.value), value2: say.value(f.value2) };
     switch (f.type) {
         case "in":
-            return { phrase: yesNot(words.in), values: { items: itemsText(f.items ?? [], words) || words.noItems } };
+            return { phrase: yesNot(words.in), values: { items: itemsText(f.items ?? [], say) || words.noItems } };
         case "blank":
             return { phrase: yesNot(words.blank), values: {}, blanks: false };
         case "text": {
             const own = fill(yesNot(words.text[f.op]), f.on === "label" ? { field: words.asShown } : {});
             const phrase = f.match ? fill(words.match, { text: own, case: wordOf(words.cases, f.match.case), whitespace: wordOf(words.whitespace, f.match.whitespace) }) : own;
-            return { phrase, values: { value: JSON.stringify(f.value) } };
+            return { phrase, values: { value: say.value(f.value) } };
         }
         case "compare": {
             const phrase = fill(yesNot(words.compare), { op: words.ops[f.op] });
             return { phrase: f.precision && f.precision !== "day" ? fill(words.precision, { text: phrase, precision: wordOf(words.precisions, f.precision) }) : phrase, values: compared };
         }
         case "relative": {
-            const range = f.direction === "this" ? wordOf(words.ranges.this, f.unit) : pluralForm(words.ranges[f.direction]?.[f.unit], f.count, words.lang);
+            const { range, saysCurrent } = rangeText(f, words);
             const phrase = fill(yesNot(words.relative), { range });
-            const how = [f.calendar === false ? words.rolling : null, f.includeCurrent === false ? words.currentExcluded : null, f.anchor && f.anchor !== "today" ? fill(words.fromAnchor, { anchor: Object.hasOwn(words.anchors, f.anchor) ? words.anchors[f.anchor] : "{anchor}" }) : null].filter(Boolean);
+            const how = [f.calendar === false ? words.rolling : null, f.includeCurrent === false && !saysCurrent ? words.currentExcluded : null, f.anchor && f.anchor !== "today" ? fill(words.fromAnchor, { anchor: Object.hasOwn(words.anchors, f.anchor) ? words.anchors[f.anchor] : "{anchor}" }) : null].filter(Boolean);
             return { phrase: how.length ? fill(words.how, { text: phrase, how: how.join(", ") }) : phrase, values: { count: f.count, anchor: f.anchor } };
         }
         case "top": {
-            const phrase = f.bottom ? words.bottom : words.top;
+            const phrase = countedForm(f.bottom ? words.bottom : words.top, f.count, words.lang);
             return { phrase: f.ties === "all" ? fill(words.tiesKept, { text: phrase }) : phrase, values: { count: f.count, by: refText(f.by, words) }, blanks: false };
         }
         case "value":
@@ -163,31 +201,41 @@ function filterPhrase(f, words) {
 /**
  * One filter of a normalized view in words: "Region is one of \"North\", \"South\" (blanks dropped)".
  * @param {import("./view.js").FilterSpec} f
- * @param {import("./describe-labels.js").DescribeLabels} [words]  default English
+ * @param {{ words: import("./describe-labels.js").DescribeLabels, value: (value: unknown) => string }} say
  */
-export function filterText(f, words = DESCRIBE_LABELS.en) {
-    const { phrase, values, blanks } = filterPhrase(f, words);
-    const withBlanks = blanks !== false && f.blanks ? fill(words.withBlanks, { text: phrase, blanks: words.blanks[f.blanks] }) : phrase;
+function filterText(f, say) {
+    const { phrase, values, blanks } = filterPhrase(f, say);
+    const withBlanks = blanks !== false && f.blanks ? fill(say.words.withBlanks, { text: phrase, blanks: say.words.blanks[f.blanks] }) : phrase;
     return fill(withBlanks, { ...values, field: f.field });
 }
 
+/** `labels` over `base` at every depth: a table given in part keeps the base's other entries; null and undefined keep the base's. */
+function mergeWords(base, labels) {
+    const out = { ...base };
+    for (const [key, value] of Object.entries(labels)) {
+        if (value === undefined || value === null) {
+            continue;
+        }
+        const own = Object.hasOwn(out, key) ? out[key] : undefined;
+        out[key] = isPlainObject(own) && isPlainObject(value) ? mergeWords(own, value) : value;
+    }
+    return out;
+}
+
 /**
- * The words of `labels` over English, one level deep: a table that `labels` gives in part ({ blanks:
- * { exclude } }) keeps English for its other entries.
+ * The words of `labels` over English, at every depth: a table that `labels` gives in part
+ * ({ blanks: { exclude } }) keeps English for its other entries.
  * @param {unknown} labels
  * @returns {import("./describe-labels.js").DescribeLabels}
  */
 function wordsOf(labels) {
-    /** @type {any} */
-    const words = { ...DESCRIBE_LABELS.en };
+    if (labels === undefined || labels === null) {
+        return DESCRIBE_LABELS.en;
+    }
     if (!isPlainObject(labels)) {
-        return words;
+        throw new PivotkitError("INVALID_OPTION", `describeView: options.labels must be an object of words (DESCRIBE_LABELS.de, describeLabels(locale)), not ${Array.isArray(labels) ? "an array" : typeof labels}`);
     }
-    for (const [key, value] of Object.entries(/** @type {object} */ (labels))) {
-        const base = Object.hasOwn(words, key) ? words[key] : undefined;
-        words[key] = isPlainObject(base) && isPlainObject(value) ? { ...base, ...value } : value;
-    }
-    return words;
+    return /** @type {any} */ (mergeWords(DESCRIBE_LABELS.en, /** @type {object} */ (labels)));
 }
 
 /**
@@ -197,29 +245,34 @@ function wordsOf(labels) {
  * The view is normalized first; the parts are the normalized view's, so a part with an error is left
  * out of them, and `text` of an invalid view starts with "(invalid: n errors, ...)".
  * The `text`s are English unless `options.labels` gives other words: DESCRIBE_LABELS.de or
- * describeLabels(locale) for German. A partial `labels` takes English for each key and table entry it leaves out.
- * validate()'s errors and warnings stay English.
+ * describeLabels(locale) for German. A partial `labels` takes English for each key and table entry it
+ * leaves out, at every depth. `options.locale` writes the numbers of filter values as that locale
+ * does, without grouping (1,5 for de-DE); without it they are as in JSON. The view's own locale does
+ * not change them. validate()'s errors and warnings stay English.
  * @param {unknown} input  a view (any input normalize() takes)
  * @param {unknown} schema  encoded data, { fields } or the fields array
- * @param {{ limits?: Partial<import("./limits.js").Limits>, labels?: Partial<import("./describe-labels.js").DescribeLabels> }} [options]
+ * @param {{ limits?: Partial<import("./limits.js").Limits>, labels?: import("./describe-labels.js").DescribeLabelsInput, locale?: string }} [options]
  */
 export function describeView(input, schema, options) {
     options = optionsOf(options, "describeView");
     const words = wordsOf(options.labels);
+    const locale = options.locale === undefined || options.locale === null ? null : resolveLocale(null, options.locale);
+    const say = { words, value: valueWriter(words, locale) };
     const { valid, errors, warnings } = validate(input, schema, options);
     const view = normalize(input, schema, options).view;
     const values = view.values.map((v) => ({ field: v.field, agg: v.agg, label: v.label, showAs: v.showAs?.type ?? null, text: v.label ?? refText(v, words) }));
-    const filters = view.filters.map((f) => ({ ...f, text: filterText(f, words) }));
-    const derived = view.derived.map((d) => ({ ...d, text: fill(d.by === "bin" ? words.bins : words.derived, { name: d.name, field: d.field, by: wordOf(words.units, d.by), size: d.size }) }));
+    const filters = view.filters.map((f) => ({ ...f, text: filterText(f, say) }));
+    const derived = view.derived.map((d) => ({ ...d, text: fill(d.by === "bin" ? words.bins : words.derived, { name: d.name, field: d.field, by: wordOf(words.units, d.by), size: say.value(d.size) }) }));
     // a sort's column holds one key per column field: a date's key is milliseconds, written as its day
     const types = new Map(viewFields(view, schema).map((f) => [f.name, f.type]));
     const keyText = (key, i) => (types.get(view.cols[i]) === "date" ? (valueText(key, "date") ?? String(key)) : String(key));
     const sortPhrase = (s) => (s.by === "value" ? (s.column ? words.sortColumn : words.sortValue) : s.by === "custom" ? words.sortCustom : words.sortLabel);
     const sort = view.sort.map((s) => ({ ...s, text: fill(sortPhrase(s), { field: s.field, by: s.by === "value" ? refText(s.value, words) : "", column: s.column ? s.column.map(keyText).join(" › ") : "", order: s.order === "desc" ? words.orders.desc : words.orders.asc }) }));
     const chart = wordOf(words.chartTypes, view.chart.type);
+    // what it shows and by what, then the rest, each after the words' separator
+    const head = [values.length ? values.map((v) => v.text).join(", ") : words.countRows, view.rows.length ? fill(words.rows, { fields: view.rows.join(" > ") }) : null].filter(Boolean).join(" ");
     const parts = [
-        values.length ? values.map((v) => v.text).join(", ") : words.countRows,
-        view.rows.length ? fill(words.rows, { fields: view.rows.join(" > ") }) : null,
+        head,
         view.cols.length ? fill(words.cols, { fields: view.cols.join(" > ") }) : null,
         filters.length ? fill(words.where, { filters: filters.map((f) => f.text).join(words.and) }) : null,
         view.display === "table" ? null : fill(view.display === "both" ? words.both : words.chart, { type: chart })
@@ -235,6 +288,6 @@ export function describeView(input, schema, options) {
         derived,
         sort,
         display: { mode: view.display, chart: view.display === "table" ? null : view.chart.type },
-        text: `${valid ? "" : `${fill(pluralForm(words.invalid, errors.length, words.lang), { count: errors.length })} `}${parts.filter(Boolean).join(" ")}`
+        text: `${valid ? "" : `${fill(pluralForm(words.invalid, errors.length, words.lang), { count: errors.length })} `}${parts.filter(Boolean).join(words.separator)}`
     };
 }

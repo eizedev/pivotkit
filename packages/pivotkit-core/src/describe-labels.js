@@ -10,16 +10,23 @@ import { RELATIVE_UNITS } from "./relative.js";
 /** @typedef {Readonly<{ yes: string, not: string }>} Phrase  a phrase, and the phrase with "not" */
 /** @typedef {Readonly<{ one: string, other: string }>} Counted  a phrase by Intl.PluralRules category of {count} */
 /**
+ * @typedef {Readonly<{ one: string, other: string, current?: string, adjacent?: string }>} RangeForms
+ * a relative range of one unit, by the plural category of {count}; a language that has them names
+ * the single whole unit in words of its own: `current` the current one ("today", the default of
+ * count 1), `adjacent` the one before or after it (includeCurrent false: "yesterday", "tomorrow")
+ */
+/**
  * @typedef {object} Ranges  the relative ranges: "last 3 years", "this year"
- * @property {Readonly<Record<string, Counted>>} last
- * @property {Readonly<Record<string, Counted>>} next
- * @property {Readonly<Record<string, Counted>>} before
+ * @property {Readonly<Record<string, RangeForms>>} last
+ * @property {Readonly<Record<string, RangeForms>>} next
+ * @property {Readonly<Record<string, RangeForms>>} before
  * @property {Readonly<Record<string, string>>} this
  */
 
 /**
  * @typedef {object} DescribeLabels  the words of describeView; {placeholders} are filled once, with the view's names and values
  * @property {string} lang  the language whose plural rules pick a Counted form
+ * @property {string} quote  a text value: "\"{value}\"", German „{value}“
  * @property {Readonly<Record<string, string>> | null} aggregators  an aggregator's name; null: its key ("sum")
  * @property {string} valueName  a value: "{agg} of {field}"
  * @property {string} valueOfRows  a value of no field: "{agg} of rows"
@@ -47,8 +54,8 @@ import { RELATIVE_UNITS } from "./relative.js";
  * @property {string} currentExcluded
  * @property {string} fromAnchor  "from {anchor}"
  * @property {Readonly<Record<string, string>>} anchors  "latest" and "first"; a date anchor stays as it is
- * @property {string} top  "top {count} {field} by {by}"
- * @property {string} bottom
+ * @property {string | Counted} top  "top {count} {field} by {by}"
+ * @property {string | Counted} bottom
  * @property {string} tiesKept  "{text}, ties kept"
  * @property {Phrase} value  "{field} where {by} is {op}"
  * @property {Readonly<Record<string, string>> | null} units  a grouping's unit; null: its key ("yearMonth")
@@ -63,31 +70,58 @@ import { RELATIVE_UNITS } from "./relative.js";
  * @property {string} cols  "across {fields}"
  * @property {string} where  "where {filters}"
  * @property {string} and  between two filters
+ * @property {string} separator  between the parts of the sentence after the values and the rows (columns, filters, chart)
  * @property {string} chart  "as a {type}": {type} is one of `chartTypes`
  * @property {string} both  "as a table and a {type}"
  * @property {Readonly<Record<string, string>>} chartTypes  by CHART_TYPES; "auto" is a chart of no named type
  * @property {Counted} invalid  "(invalid: {count} errors, the parts they name are left out)"
  */
 
+/**
+ * The labels a host passes: any key or table entry left out keeps English, at every depth
+ * (`{ blanks: { exclude: "no blanks" } }`, `{ ranges: { last: { day: { other: "..." } } } }`).
+ * @template T
+ * @typedef {{ [K in keyof T]?: T[K] extends string | null ? T[K] : DescribeLabelsPart<T[K]> }} DescribeLabelsPart
+ */
+/** @typedef {DescribeLabelsPart<DescribeLabels>} DescribeLabelsInput */
+
 /** The English ranges: "last 3 years", "this year". */
 const enRanges = (word) => Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => [u, Object.freeze({ one: `${word} {count} ${u}`, other: `${word} {count} ${u}s` })])));
 
 /**
- * The German ranges, from each unit's grammar: the preposition with its article before "letzten"
- * ("im letzten Jahr"), the article after "vor" ("vor dem letzten Jahr"), the plural in the dative
- * and "this" as a whole phrase.
+ * The German ranges, whole phrases by unit. `one` is a rolling range of one unit (with whole units
+ * the count of 1 is `current` or `adjacent`), `other` the plural in the dative.
+ * `current` of "last" and "next" is the current unit, as "this" is.
  */
-const DE_UNITS = Object.freeze({
-    hour: { at: "in der", before: "vor der", one: "Stunde", other: "Stunden", this: "in dieser Stunde" },
-    day: { at: "am", before: "vor dem", one: "Tag", other: "Tagen", this: "am heutigen Tag" },
-    week: { at: "in der", before: "vor der", one: "Woche", other: "Wochen", this: "in dieser Woche" },
-    month: { at: "im", before: "vor dem", one: "Monat", other: "Monaten", this: "in diesem Monat" },
-    quarter: { at: "im", before: "vor dem", one: "Quartal", other: "Quartalen", this: "in diesem Quartal" },
-    year: { at: "im", before: "vor dem", one: "Jahr", other: "Jahren", this: "in diesem Jahr" }
+const DE_RANGES = Object.freeze({
+    last: {
+        hour: ["innerhalb der letzten Stunde", "in den letzten {count} Stunden", "in dieser Stunde", "in der vorigen Stunde"],
+        day: ["innerhalb des letzten Tages", "in den letzten {count} Tagen", "heute", "gestern"],
+        week: ["innerhalb der letzten Woche", "in den letzten {count} Wochen", "in dieser Woche", "in der Vorwoche"],
+        month: ["innerhalb des letzten Monats", "in den letzten {count} Monaten", "in diesem Monat", "im Vormonat"],
+        quarter: ["innerhalb des letzten Quartals", "in den letzten {count} Quartalen", "in diesem Quartal", "im Vorquartal"],
+        year: ["innerhalb des letzten Jahres", "in den letzten {count} Jahren", "in diesem Jahr", "im Vorjahr"]
+    },
+    next: {
+        hour: ["innerhalb der nächsten Stunde", "in den nächsten {count} Stunden", "in dieser Stunde", "in der kommenden Stunde"],
+        day: ["innerhalb des nächsten Tages", "in den nächsten {count} Tagen", "heute", "morgen"],
+        week: ["innerhalb der nächsten Woche", "in den nächsten {count} Wochen", "in dieser Woche", "in der kommenden Woche"],
+        month: ["innerhalb des nächsten Monats", "in den nächsten {count} Monaten", "in diesem Monat", "im kommenden Monat"],
+        quarter: ["innerhalb des nächsten Quartals", "in den nächsten {count} Quartalen", "in diesem Quartal", "im kommenden Quartal"],
+        year: ["innerhalb des nächsten Jahres", "in den nächsten {count} Jahren", "in diesem Jahr", "im kommenden Jahr"]
+    },
+    before: {
+        hour: ["früher als vor einer Stunde", "vor den letzten {count} Stunden", "vor dieser Stunde", "vor der vorigen Stunde"],
+        day: ["früher als vor einem Tag", "vor den letzten {count} Tagen", "vor dem heutigen Tag", "vor dem gestrigen Tag"],
+        week: ["früher als vor einer Woche", "vor den letzten {count} Wochen", "vor dieser Woche", "vor der Vorwoche"],
+        month: ["früher als vor einem Monat", "vor den letzten {count} Monaten", "vor diesem Monat", "vor dem Vormonat"],
+        quarter: ["früher als vor einem Quartal", "vor den letzten {count} Quartalen", "vor diesem Quartal", "vor dem Vorquartal"],
+        year: ["früher als vor einem Jahr", "vor den letzten {count} Jahren", "vor diesem Jahr", "vor dem Vorjahr"]
+    }
 });
-const deRanges = (word, before) => Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => {
-    const g = DE_UNITS[u];
-    return [u, Object.freeze({ one: `${before ? g.before : g.at} ${word} ${g.one}`, other: `${before ? "vor den" : "in den"} ${word} {count} ${g.other}` })];
+const deRanges = (direction) => Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => {
+    const [one, other, current, adjacent] = DE_RANGES[direction][u];
+    return [u, Object.freeze({ one, other, current, adjacent })];
 })));
 
 const phrase = (yes, not) => Object.freeze({ yes, not });
@@ -101,6 +135,7 @@ const phrase = (yes, not) => Object.freeze({ yes, not });
 export const DESCRIBE_LABELS = Object.freeze({
     en: Object.freeze({
         lang: "en",
+        quote: '"{value}"',
         aggregators: null,
         valueName: "{agg} of {field}",
         valueOfRows: "{agg} of rows",
@@ -154,6 +189,7 @@ export const DESCRIBE_LABELS = Object.freeze({
         cols: "across {fields}",
         where: "where {filters}",
         and: "; and ",
+        separator: " ",
         chart: "as a {type}",
         both: "as a table and a {type}",
         chartTypes: Object.freeze({ auto: "chart", bar: "bar chart", line: "line chart", area: "area chart", pie: "pie chart", donut: "donut chart", heatmap: "heatmap chart", combo: "combo chart", treemap: "treemap chart" }),
@@ -161,15 +197,16 @@ export const DESCRIBE_LABELS = Object.freeze({
     }),
     de: Object.freeze({
         lang: "de",
+        quote: "„{value}“",
         aggregators: REPORT_LABELS.de.aggregators,
         valueName: REPORT_LABELS.de.valueName,
         valueOfRows: "{agg} der Zeilen",
-        firstValue: "der erste Wert",
+        firstValue: "dem ersten Wert",
         countRows: "Anzahl der Zeilen",
         more: "{items} und {count} weitere",
         noItems: "(keine Einträge)",
         blanks: Object.freeze({ exclude: "ohne leere Werte", include: "mit leeren Werten", only: "nur leere Werte" }),
-        withBlanks: "{text} ({blanks})",
+        withBlanks: "{text}, {blanks}",
         in: phrase("{field} ist einer der Werte {items}", "{field} ist keiner der Werte {items}"),
         blank: phrase("{field} ist leer", "{field} ist nicht leer"),
         asShown: "{field} (wie angezeigt)",
@@ -186,22 +223,22 @@ export const DESCRIBE_LABELS = Object.freeze({
         ops: Object.freeze({ "=": "{value}", ">": "größer als {value}", ">=": "mindestens {value}", "<": "kleiner als {value}", "<=": "höchstens {value}", between: "zwischen {value} und {value2}" }),
         precision: "{text} (nach {precision})",
         precisions: Object.freeze({ year: "Jahr", quarter: "Quartal", month: "Monat", day: "Tag", hour: "Stunde" }),
-        relative: phrase("{field} liegt {range}", "{field} liegt nicht {range}"),
+        relative: phrase("{field} ist {range}", "{field} ist nicht {range}"),
         ranges: Object.freeze({
-            last: deRanges("letzten", false),
-            next: deRanges("nächsten", false),
-            before: deRanges("letzten", true),
-            this: Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => [u, DE_UNITS[u].this])))
+            last: deRanges("last"),
+            next: deRanges("next"),
+            before: deRanges("before"),
+            this: Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => [u, DE_RANGES.last[u][2]])))
         }),
         how: "{text} ({how})",
         rolling: "gleitend",
         currentExcluded: "ohne den laufenden Zeitraum",
-        fromAnchor: "ab {anchor}",
+        fromAnchor: "gezählt ab {anchor}",
         anchors: Object.freeze({ latest: "dem letzten Datensatz", first: "dem ersten Datensatz" }),
-        top: "die obersten {count} von {field} nach {by}",
-        bottom: "die untersten {count} von {field} nach {by}",
+        top: Object.freeze({ one: "der oberste Eintrag von {field} nach {by}", other: "die {count} obersten Einträge von {field} nach {by}" }),
+        bottom: Object.freeze({ one: "der unterste Eintrag von {field} nach {by}", other: "die {count} untersten Einträge von {field} nach {by}" }),
         tiesKept: "{text}, gleiche Werte behalten",
-        value: phrase("{field}, bei denen {by} {op} ist", "{field}, bei denen {by} nicht {op} ist"),
+        value: phrase("{field} mit {by} {op}", "{field} mit {by} nicht {op}"),
         units: GROUPING_NAMES.de.units,
         derived: "{name}: {field} nach {by}",
         bins: "{name}: {field} nach {by} je {size}",
@@ -211,13 +248,14 @@ export const DESCRIBE_LABELS = Object.freeze({
         sortCustom: "{field} in eigener Reihenfolge, {order}",
         orders: Object.freeze({ asc: "aufsteigend", desc: "absteigend" }),
         rows: "nach {fields}",
-        cols: "über {fields}",
-        where: "(Filter: {filters})",
-        and: "; ",
+        cols: "in Spalten: {fields}",
+        where: "Filter: {filters}",
+        and: " und ",
+        separator: "; ",
         chart: "als {type}",
         both: "als Tabelle und {type}",
         chartTypes: Object.freeze({ auto: "Diagramm", bar: "Balkendiagramm", line: "Liniendiagramm", area: "Flächendiagramm", pie: "Kreisdiagramm", donut: "Ringdiagramm", heatmap: "Heatmap", combo: "Balken- und Liniendiagramm", treemap: "Treemap" }),
-        invalid: Object.freeze({ one: "(ungültig: {count} Fehler, die Teile, die er nennt, fehlen)", other: "(ungültig: {count} Fehler, die Teile, die sie nennen, fehlen)" })
+        invalid: Object.freeze({ one: "(ungültig: {count} Fehler, betroffene Teile fehlen)", other: "(ungültig: {count} Fehler, betroffene Teile fehlen)" })
     })
 });
 

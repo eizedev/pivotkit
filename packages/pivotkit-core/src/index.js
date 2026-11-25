@@ -49,6 +49,7 @@
  * @typedef {import("./limits.js").Limits} Limits
  * @typedef {import("./labels.js").Labels} Labels
  * @typedef {import("./describe-labels.js").DescribeLabels} DescribeLabels
+ * @typedef {import("./describe-labels.js").DescribeLabelsInput} DescribeLabelsInput
  * @typedef {import("./schema.js").SchemaFieldDefaults} SchemaFieldDefaults
  * @typedef {import("./errors.js").PivotkitErrorCode} PivotkitErrorCode
  * @typedef {import("./view-file.js").ViewFileMeta} ViewFileMeta
