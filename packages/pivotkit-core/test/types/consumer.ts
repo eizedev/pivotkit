@@ -65,6 +65,11 @@ const plugin: ReaderPlugin = validatePlugin({ apiVersion: 1, kind: "reader", nam
 export async function load(file: File): Promise<number> {
     const table: ImportTable = await readFile(file, { plugins: [plugin, ...BUILT_IN_READERS], limits: { fileBytes: 1_000_000 }, signal: new AbortController().signal, onProgress: (p) => void p.phase, types: { Zip: "string" } });
     const again: ImportTable = retype(table, ["string", "number"]);
+    // the decimal mark of number columns, by name or by position
+    const comma: ImportTable = retype(table, {}, { decimal: { Sales: "," } });
+    const byPosition: ImportTable = retype(table, ["number"], { decimal: [","] });
+    void comma;
+    void byPosition;
     const columnar: ColumnarData = { columns: again.columns, types: again.types, data: again.data };
     return encode(columnar).length + encode(table).length + table.notes.filter((n) => n.code === "TEXT_CUT").length;
 }

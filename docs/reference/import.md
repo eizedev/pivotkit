@@ -199,19 +199,23 @@ A JSON number keeps only what a number holds:
 
 Write long IDs as JSON strings.
 
-`retype(table, types)` gives the table with other types. It works from the values as the reader
-first read them, which the table keeps in `table.raw`. So a preview can let a person change a column's type without reading
-the file again. Text read as a number goes back to the text the file holds (`1.234,5`). A value that
-does not convert is blank, with a note that counts them.
+### Changing types and decimal marks { #retype }
 
-`retype(table, types, { decimal })` also picks the decimal mark of number columns, `"."` or `","`,
-by column name or by position, as `types` does. It is for a column with the note `DECIMAL_MARK`,
-whose values read as different numbers in the two notations. Its text then reads in that mark
-alone: with `","`, `1,234` is 1.234 and `1.500` is 1500. A value that does not fit the mark is
-blank, with a note that counts them. The note `DECIMAL_MARK` stays and names the mark picked. A
-column keeps its mark while its type stays. When its type changes, it reads in its values' notation
-again unless `decimal` names a mark for it. The mark applies to text only: a number cell of a
-workbook stays as it is.
+`retype(table, types, { decimal })` gives the table with other types, and number columns with
+another decimal mark, without reading the file again. It works from the values as the reader first
+read them, which the table keeps in `table.raw`, so a preview can let a person change both.
+`types` and `decimal` name columns by name or by position. A missing entry keeps the column as it is.
+
+- **Types.** Text read as a number goes back to the text the file holds (`1.234,5`). A value that
+  does not convert is blank, with a note that counts them.
+- **Decimal marks.** `decimal` is `"."` or `","` for a number column. Its text then reads in that
+  mark alone: with `","`, `1,234` is 1.234 and `1.500` is 1500. It is meant for a column with the
+  note `DECIMAL_MARK`. That note stays, with the mark picked, as long as every value fits both marks.
+  On any other number column a mark is applied too: a value that does not fit it, such as `5,5`
+  with `"."`, is blank, with a note that counts them.
+- A column keeps its mark while its type stays. When its type changes, it reads in its values'
+  notation again unless `decimal` names a mark for it. The mark applies to text only: a number
+  cell of a workbook stays as it is.
 
 ## The table
 
