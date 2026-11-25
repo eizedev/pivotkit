@@ -109,8 +109,9 @@ const shadowStyles = {
  *   (pivotkit-react's echarts.js, pivotkit-report's svg.js), so the option's code goes to the chart group.
  * - describe.js (describeView and the rest): only pivotkit-report uses it. Its imports of
  *   "pivotkit-core" get the barrel with these lines (REPORT_CORE), which only the report's chunk reaches.
- * A bundled import of these names from "pivotkit-core" anywhere else fails the build; so does a change
- * of the lines below.
+ * A bundled named or namespace import of these names from "pivotkit-core" anywhere else fails the
+ * build (logOverride below); so does a change of the lines below. A dynamic import("pivotkit-core")
+ * would not: none exists, keep it so.
  */
 const BARREL_OFF = Object.freeze({
     chart: 'export { toEChartsOption } from "./chart.js";\n',
@@ -168,6 +169,8 @@ export const options = {
     legalComments: "none",
     metafile: true,
     plugins: [shadowStyles, barrelOff, deferredLate],
+    // a namespace import of a name barrelOff removes would be undefined at run time: fail the build
+    logOverride: { "import-is-undefined": "error" },
     logLevel: "warning"
 };
 

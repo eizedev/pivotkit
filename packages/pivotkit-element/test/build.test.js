@@ -187,7 +187,7 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
         assert.ok(!text(groups.initial).includes(words), `"${words}" is in the first load`);
     }
     // pivotkit-core/chart (the chart's marks and label layout) and the ECharts option (chart.js, which
-    // pivotkit-core's index.js re-exports too: build.js's chartOffBarrel) load with the chart, never first
+    // pivotkit-core's index.js re-exports too: build.js's barrelOff) load with the chart, never first
     for (const name of ["pivotkit-core/src/chart-style.js", "pivotkit-core/src/chart-layout.js", "pivotkit-core/src/chart.js"]) {
         assert.ok(inputsOf(groups.chart).some((i) => i.includes(name)), `${name} is not in the chart group`);
         assert.ok(!inputsOf(groups.initial).some((i) => i.includes(name)), `${name} is in the first load`);
@@ -216,6 +216,8 @@ test("a bundled import of toEChartsOption from pivotkit-core's index.js fails th
 test("only pivotkit-report gets describeView from pivotkit-core's index.js: a bundled import elsewhere fails the build", async () => {
     const bundle = (contents, resolveDir) => esbuild.build({ ...options, entryPoints: undefined, splitting: false, outdir: undefined, stdin: { contents, resolveDir }, write: false, metafile: true, logLevel: "silent" });
     await assert.rejects(bundle('import { describeView } from "pivotkit-core"; console.log(describeView);', new URL(".", pkgDir).pathname), /describeView/);
+    // a namespace import too: esbuild only warns there, and the name would be undefined at run time
+    await assert.rejects(bundle('import * as core from "pivotkit-core"; console.log(core.describeView);', new URL(".", pkgDir).pathname), /describeView/);
     // pivotkit-report's own import, with the rest of the index, and one copy of each module
     const report = await bundle('import { render } from "pivotkit-report"; console.log(render);', new URL(".", pkgDir).pathname);
     const inputs = Object.keys(report.metafile.inputs);
