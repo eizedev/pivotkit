@@ -1,7 +1,7 @@
 {
     "docs": {
         "pages": {
-            "docs/concepts/charts.md": [315],
+            "docs/concepts/charts.md": [316],
             "docs/concepts/limits.md": [430],
             "docs/getting-started/kubernetes.md": [486],
             "docs/learn.md": [458],
@@ -16,14 +16,14 @@
             "docs/security.md": [896],
             "docs/use/charts.md": [481]
         },
-        "totalLines": 24076
+        "totalLines": 24045
     },
     "functions": {
         "complexity": {
             "packages/pivotkit-cli/src/remote.js Async function 'request'": [30],
             "packages/pivotkit-cli/src/sign-in.js Async function 'loginCommand'": [27],
             "packages/pivotkit-core/src/chart-fit.js Function 'pointLabels'": [43],
-            "packages/pivotkit-core/src/chart-style.js Arrow function": [48],
+            "packages/pivotkit-core/src/chart-style.js Arrow function": [50],
             "packages/pivotkit-core/src/chart-style.js Function 'decorateOption'": [136],
             "packages/pivotkit-core/src/chart.js Function 'toEChartsOption'": [88],
             "packages/pivotkit-core/src/describe.js Function 'filterText'": [38],
@@ -38,7 +38,6 @@
             "packages/pivotkit-mcp/src/http.js Async function 'route'": [28],
             "packages/pivotkit-react/src/PivotReport.jsx Function 'Report'": [34],
             "packages/pivotkit-react/src/chart-tooltip.js Function 'tooltipContent'": [51],
-            "packages/pivotkit-react/src/chart.jsx Arrow function": [27],
             "packages/pivotkit-react/src/export-run.js Async function 'runExport'": [64],
             "packages/pivotkit-react/src/fields.jsx Function 'FieldPanel'": [29],
             "packages/pivotkit-react/src/filter-level.jsx Function 'FilterLevel'": [56],
@@ -120,10 +119,9 @@
         "lines": {
             "packages/pivotkit-cli/src/credential-store.js Function 'credentialStore'": [134],
             "packages/pivotkit-cli/src/remote.js Function 'createClient'": [161],
-            "packages/pivotkit-core/src/chart-style.js Function 'decorateOption'": [148],
+            "packages/pivotkit-core/src/chart-style.js Function 'decorateOption'": [155],
             "packages/pivotkit-core/src/chart.js Function 'toEChartsOption'": [199],
             "packages/pivotkit-mcp/src/http.js Async function 'createHttpHandler'": [159],
-            "packages/pivotkit-react/src/chart.jsx Function 'PivotChart'": [195],
             "packages/pivotkit-react/src/chip-menus.jsx Function 'TopLevel'": [125],
             "packages/pivotkit-react/src/fields.jsx Function 'FieldPanel'": [142],
             "packages/pivotkit-react/src/filter-level.jsx Function 'FilterLevel'": [257],

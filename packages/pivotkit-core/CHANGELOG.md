@@ -8,6 +8,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
+- The Excel number format codes (`excelNumberFormat`) are in a file of their own, `excel-format.js`.
+  A bundle that splits by file keeps them out of a page's first load until an export needs them
+  ([#772](https://github.com/eizedev/pivotkit/issues/772)). The public API is unchanged.
 - The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
 - `labelColorOn(fill, candidates)` can return `#000000` or `#ffffff`, not one of the candidates, where
   none reaches 4.5:1 on the fill ([#914](https://github.com/eizedev/pivotkit/issues/914)).

@@ -16,6 +16,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   that checks a `tips` list no longer reads them from an internal chunk
   ([#720](https://github.com/eizedev/pivotkit/issues/720)).
 
+### Changed
+
+- The chart's ECharts instance, its events and each draw are in `chart-draw.js`, which loads with
+  ECharts. A report that never shows a chart no longer loads that code
+  ([#772](https://github.com/eizedev/pivotkit/issues/772)).
+
 ### Fixed
 
 - The chart's text on coloured fills reads in both themes, with pivotkit-core's fix

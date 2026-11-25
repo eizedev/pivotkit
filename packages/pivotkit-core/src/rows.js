@@ -11,7 +11,8 @@
 import { csvText, exportText } from "./csv.js";
 import { checkLimit, expect } from "./errors.js";
 import { isEncoded } from "./encode.js";
-import { formatterFor, isFormat, shownDecimals } from "./format.js";
+import { shownDecimals } from "./excel-format.js";
+import { formatterFor, isFormat } from "./format.js";
 import { DEFAULT_LABELS, fieldLabel } from "./labels.js";
 import { resolveLimits } from "./limits.js";
 import { optionsOf, resolveLocale } from "./util.js";

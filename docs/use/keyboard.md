@@ -77,7 +77,8 @@ A menu or a panel takes the focus when it opens and gives it back when it closes
 ## Touch and sizes
 
 - Text stays readable at every page size, and every control is large enough to hit.
-- On a touch screen, every button, tab, chip and menu row is large enough for a finger.
+- On a touch screen, every button, tab, chip and menu row is large enough for a finger. On a phone,
+  the row with the loaded view's name may still be smaller ([#72](https://github.com/eizedev/pivotkit/issues/72)).
 - In the field list, the buttons keep their small size, so the names stay on one line. A finger
   still finds each one in a larger area around it.
 - A link inside a sentence, such as **Learn more**, keeps the size of its text.
@@ -93,3 +94,6 @@ A menu or a panel takes the focus when it opens and gives it back when it closes
     `aria-sort`. The view loaded in the Views menu carries `aria-current`. Table and Chart are ARIA
     tabs with manual activation, and the result is their tab panel. The text sizes and the touch
     targets in px are `--pk-*` tokens: see [theming](../reference/theming.md#sizes-and-motion).
+
+What is tested, the known limitations and how to report a barrier are in
+[ACCESSIBILITY.md](https://github.com/eizedev/pivotkit/blob/main/ACCESSIBILITY.md).
