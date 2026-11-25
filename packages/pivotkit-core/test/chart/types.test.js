@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CATALOG, computePivot, encode, normalize, referenceLineRules, toEChartsOption } from "pivotkit-core";
-import { decorateOption, labelColorOn } from "pivotkit-core/chart";
+import { decorateOption } from "pivotkit-core/chart";
 
 /** Revenue in thousands and units in a few dozen per month: two values of very different sizes. */
 const ROWS = [
@@ -114,37 +114,6 @@ test("treemap: one tile per category, its area its total, each tile in its colou
         hidden.series[0].data.map((d) => d.name),
         ["North"]
     );
-});
-
-test("labelColorOn: the label of a tile in the token colour that reads best on it", () => {
-    const dark = "#1a1d23";
-    const light = "#ffffff";
-    assert.equal(labelColorOn("#eda100", [dark, light]), dark, "dark text on yellow");
-    assert.equal(labelColorOn("#2a78d6", [dark, light]), light, "light text on blue");
-    assert.equal(labelColorOn("#008300", [dark, light]), light);
-    assert.equal(labelColorOn("rgb(237, 161, 0)", [dark, light]), dark);
-    // a colour it cannot read: the first token
-    assert.equal(labelColorOn("oklch(0.5 0.1 200)", [dark, light]), dark);
-});
-
-test("decorateOption: treemap labels take --pk-text or --pk-surface, whichever reads better on each tile", () => {
-    const tokens = { "--pk-text": "#1a1d23", "--pk-surface": "#ffffff" };
-    const style = { getPropertyValue: (n) => tokens[n] ?? "" };
-    const r = computePivot(data, { rows: ["Region"], values: [TWO[0]], chart: { type: "treemap", colors: [{ name: "North", color: "#eda100" }, { name: "South", color: "#2a78d6" }] } });
-    const out = decorateOption(toEChartsOption(r, { theme: THEME }), style, { width: 390, height: 300 });
-    assert.deepEqual(
-        out.series[0].data.map((d) => [d.name, d.label.color]),
-        [
-            ["North", "#1a1d23"],
-            ["South", "#ffffff"]
-        ]
-    );
-    // tiles are parted by the background's colour
-    assert.equal(out.series[0].itemStyle.borderColor, "#ffffff");
-    // on yellow the dark text reads (7.8:1): no outline; on a mid blue neither reaches 4.5:1, so the
-    // white label gets a dark outline it reads against
-    assert.equal(out.series[0].data[0].label.textBorderColor, undefined);
-    assert.deepEqual([out.series[0].data[1].label.textBorderColor, out.series[0].data[1].label.textBorderWidth], ["#1a1d23", 2]);
 });
 
 test("decorateOption: a combo's axis names each fit in half the chart; a phone leaves them to the legend", () => {

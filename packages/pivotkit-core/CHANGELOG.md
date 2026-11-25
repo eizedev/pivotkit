@@ -13,6 +13,19 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   a note. The note `DECIMAL_MARK` stays with the mark picked, and its new params `point` and
   `comma` give the example's number with each mark
   ([#787](https://github.com/eizedev/pivotkit/issues/787)).
+- `describeView(view, schema, { labels, locale })` writes its texts in German too: `DESCRIBE_LABELS.de`,
+  or `describeLabels(locale)` for a locale's language. German quotes text values („North“) and names
+  one whole unit of a relative range as the engine keeps it ("heute", "gestern", "im Vorjahr"; from
+  an anchor "am Tag davor"). It separates the items of a list with "; ", so a decimal comma stays in
+  its number ("1; 2,5; 3"), joins filters with "; und ", and writes true and false as "Ja" and "Nein".
+  `labels` given in part keep English for the rest, at any depth. `labels` that are not an object,
+  or with a key it does not know or a word of the wrong kind, throw `INVALID_OPTION`. `locale` writes
+  the numbers of filter values as the locale does, without grouping (`1,5`). English stays the
+  default, word for word ([#798](https://github.com/eizedev/pivotkit/issues/798)).
+- `describeLabels(locale, own)` puts a host's own words over the locale's, at any depth. Words that
+  name their language (`lang`) go over that language's. Words `describeView` would refuse throw
+  `INVALID_ARGUMENT`. A table of forms by count takes every plural category of its `lang` ("few"
+  for Polish), and the result is a frozen copy.
 
 ### Changed
 
@@ -20,6 +33,42 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   A bundle that splits by file keeps them out of a page's first load until an export needs them
   ([#772](https://github.com/eizedev/pivotkit/issues/772)). The public API is unchanged.
 - The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+- `labelColorOn(fill, candidates)` can return `#000000` or `#ffffff`, not one of the candidates, where
+  none reaches 4.5:1 on the fill ([#914](https://github.com/eizedev/pivotkit/issues/914)).
+
+### Added
+
+- `decorateOption` takes `tileOf(index, name)`, a treemap's tiles after a first draw, and
+  `drawnTiles(chart)` reads them from an ECharts instance. A treemap's labels then stand in their
+  tiles' middle, cut to fit.
+
+### Fixed
+
+- Text on coloured fills reads at 4.5:1 or more in both themes
+  ([#914](https://github.com/eizedev/pivotkit/issues/914)):
+  - A treemap writes its labels in `--pk-text` on a plate in `--pk-surface`, the same on every tile.
+    With `tileOf`, a name wider than its tile ends in "…" and a value that does not fit is left out;
+    a cut name keeps at least 4 characters. A tile with less room, or lower than a line, has no label,
+    so no plate stands without words.
+    Without a `--pk-surface` the chart can draw, no label has a plate.
+  - A heatmap's numbers take `--pk-text` or `--pk-surface`, else black or white, whichever reaches
+    4.5:1 on the cell. `labelColorOn` gives black or white where neither candidate reaches it.
+- High and low points ([#913](https://github.com/eizedev/pivotkit/issues/913)):
+  - The ▲ and ▼ take the muted text colour (`--pk-muted`), as the value does. A light series colour made them hard to read.
+  - In grouped bars a label no longer crosses another bar of its group. It moves beside its dot or
+    above the group's highest bar. In dense grouped bars the chart's highest and lowest are placed
+    first and some other labels are left out; the tooltip has the value.
+- Reference lines ([#913](https://github.com/eizedev/pivotkit/issues/913)):
+  - On a chart narrower than 480 px, the labels keep the lines' names where all fit in 30 % of the
+    width. Else each writes the value instead of the name; a trend keeps its name.
+  - The sample before an average's label takes the series' colour from `colorMap` and
+    `chart.colors`, as the line does.
+
+### Fixed
+
+- `describeView` no longer says "current excluded" of a rolling relative range (`calendar: false`).
+  The engine counts a rolling range back from the moment itself and ignores `includeCurrent` there,
+  so the text said something the filter does not do.
 
 ## [0.10.0] - 2026-11-24
 

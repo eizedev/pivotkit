@@ -91,7 +91,8 @@ From 1.0.0, nothing public goes away without a deprecation first.
 5. **A register entry.** The [register below](#register) lists the id, what is deprecated, the
    replacement, the release that deprecated it and the earliest release that removes it.
 6. **A changelog entry and an upgrading row.** The changelog names the id. The upgrading page says
-   what to change while the deprecation's release is the newest.
+   what to change while the deprecation's release is the newest. When a contribution leaves the
+   changelog entry out, the maintainer adds it.
 
 Removal comes no earlier than the next major release.
 [CONTRIBUTING.md](https://github.com/eizedev/pivotkit/blob/main/CONTRIBUTING.md#deprecate-something)

@@ -290,6 +290,125 @@ const VALUE_LABEL_ROOM = 48;
 /** More series than this: each dot stays, but only the chart's highest and lowest value keep a label. */
 export const POINT_LABEL_SERIES = 8;
 
+/** ECharts' gap between the bars of one category, a share of a bar's width (its barGap default). */
+const BAR_GAP = 0.3;
+/** ECharts' gap between two categories' bars, a share of the category's band (its barCategoryGap default). */
+const BAR_CATEGORY_GAP = 0.2;
+
+/**
+ * Where ECharts draws each series' bars within a category's band of `band` px, as its bar layout does
+ * with its default barGap and barCategoryGap (BAR_GAP, BAR_CATEGORY_GAP) and the series' barMaxWidth: a
+ * host's barGap, barCategoryGap or barWidth (chartOptions) moves the bars, and the point labels placed
+ * here may then cross a bar or be left out. The layout is estimated, not read from the drawn bars:
+ * per series index, the offset of the bar's left edge from the band's middle and its width; null for a
+ * series that is no bar, or hidden in the legend. Stacked bars share one column.
+ * @param {any[]} series  the decorated series (barMaxWidth set by decorateOption)
+ * @param {number} band
+ * @param {{ selected?: Record<string, boolean> }} [legend]  the option's (selected false: hidden)
+ * @returns {({ offset: number, width: number } | null)[]}
+ */
+function barSlots(series, band, legend) {
+    /** @type {Map<string, number[]>} each column with its series */
+    const columns = new Map();
+    series.forEach((s, i) => {
+        if (s.type !== "bar" || legend?.selected?.[s.name] === false) return;
+        const key = s.stack ? `stack:${s.stack}` : `own:${i}`;
+        columns.set(key, [...(columns.get(key) ?? []), i]);
+    });
+    const n = columns.size;
+    const auto = n ? Math.max(0, (band * (1 - BAR_CATEGORY_GAP)) / (n + (n - 1) * BAR_GAP)) : 0;
+    /** @type {({ offset: number, width: number } | null)[]} */
+    const slots = series.map(() => null);
+    const widths = [...columns.values()].map((members) => {
+        const max = Math.min(...members.map((i) => (typeof series[i].barMaxWidth === "number" ? series[i].barMaxWidth : Infinity)));
+        return Math.min(auto, max);
+    });
+    const total = widths.reduce((sum, w) => sum + w * (1 + BAR_GAP), 0) - (widths.length ? widths[widths.length - 1] * BAR_GAP : 0);
+    let offset = -total / 2;
+    [...columns.values()].forEach((members, k) => {
+        for (const i of members) slots[i] = { offset, width: widths[k] };
+        offset += widths[k] * (1 + BAR_GAP);
+    });
+    return slots;
+}
+
+/**
+ * The order pointLabels places its labels in, as indexes into `items`. In grouped bars, where labels
+ * are left out most, the chart's highest and lowest (`kept`) come first, so they keep theirs; elsewhere
+ * the series' order, which moves labels apart rather than leaving them out.
+ * @param {unknown[]} items
+ * @param {boolean} grouped
+ * @param {unknown[]} kept
+ * @returns {number[]}
+ */
+function placingOrder(items, grouped, kept) {
+    const order = items.map((_, k) => k);
+    const rank = (/** @type {number} */ k) => Number(kept.includes(items[k]));
+    return grouped ? order.sort((a, b) => rank(b) - rank(a)) : order;
+}
+
+/**
+ * The boxes of grouped bars (side by side, not stacked) in a chart's estimated pixels, by series and
+ * category: the obstacles of the high and low points' labels. None for one column of bars.
+ * @param {any[]} series
+ * @param {({ offset: number, width: number } | null)[]} slots  barSlots'
+ * @param {number} band
+ * @param {(value: number) => number} yOf
+ * @returns {{ si: number, index: number, x0: number, x1: number, y0: number, y1: number }[]}
+ */
+function groupedBars(series, slots, band, yOf) {
+    const offsets = new Set(slots.filter(Boolean).map((slot) => /** @type {any} */ (slot).offset));
+    if (offsets.size < 2) return [];
+    return series.flatMap((s, si) => {
+        const slot = slots[si];
+        if (!slot || s.stack) return [];
+        return (s.data ?? []).flatMap((/** @type {any} */ d, /** @type {number} */ index) => {
+            const v = typeof d === "number" ? d : typeof d?.value === "number" ? d.value : null;
+            if (v === null) return [];
+            const x0 = (index + 0.5) * band + slot.offset;
+            const [a, b] = [yOf(Math.max(v, 0)), yOf(Math.min(v, 0))];
+            return [{ si, index, x0, x1: x0 + slot.width, y0: Math.min(a, b), y1: Math.max(a, b) }];
+        });
+    });
+}
+
+/**
+ * Whether a point's label box, its outline with it, crosses a bar other than its point's own (groupedBars).
+ * @param {{ si: number, index: number, x0: number, x1: number, y0: number, y1: number }[]} bars
+ * @param {{ si: number, index: number }} point
+ * @param {{ x0: number, x1: number, y0: number, y1: number }} box
+ */
+function acrossBar(bars, point, box) {
+    return bars.some((r) => (r.si !== point.si || r.index !== point.index) && r.x0 < box.x1 && box.x0 < r.x1 && r.y0 < box.y1 && box.y0 < r.y1);
+}
+
+/**
+ * How far (px, up: negative) a label over its dot (`box`) moves to stand over the highest bar of its
+ * category's group (groupedBars), POINT_HALO above it; 0 when it stands there already or no group is.
+ * @param {{ index: number, y0: number }[]} bars
+ * @param {number} index  the point's category
+ * @param {{ y1: number }} box
+ */
+function overGroup(bars, index, box) {
+    const tops = bars.filter((r) => r.index === index).map((r) => r.y0);
+    return tops.length ? Math.min(0, Math.min(...tops) - POINT_HALO - box.y1) : 0;
+}
+
+/**
+ * How far (px) a label's box at `pos` moves into the plot. Beside a dot near the plot's top or bottom
+ * edge: up or down. Above or below a dot at the plot's first or last category: sideways. Over its
+ * group ("raised"): up by `lift`, and sideways as above.
+ * @param {string} pos
+ * @param {{ x0: number, x1: number, y0: number, y1: number }} box
+ * @param {{ width: number, top: number, bottom: number, lift: number }} plot
+ */
+function intoPlot(pos, box, { width, top, bottom, lift }) {
+    const beside = pos === "right" || pos === "left";
+    const dy = pos === "raised" ? lift : beside ? Math.min(0, bottom - box.y1) || Math.max(0, top - box.y0) : 0;
+    const dx = beside ? 0 : Math.max(0, -box.x0) || Math.min(0, width - box.x1);
+    return { dx, dy };
+}
+
 /**
  * The labels of the high and low points (pivotkit-core's markPoint): kept inside the plot and apart.
  * - The value axis reaches past each label at the plot's ends: `dataMin` and `dataMax` in values, from
@@ -297,17 +416,20 @@ export const POINT_LABEL_SERIES = 8;
  *   label that would take the axis across zero, past every value, goes beside its dot instead.
  * - With more than POINT_LABEL_SERIES series, only the chart's highest and lowest value keep a label;
  *   every dot stays.
- * - Two labels that would cover each other, or another point's dot, move: the later one beside its dot
- *   (right, then left), else it is left out. The dot stays; the tooltip and the text alternative name
- *   the value. `pixelOf` gives each value's real height after a first draw; without it the heights
- *   are estimated on the same plot.
+ * - Two labels that would cover each other, another point's dot or another bar (grouped bars, #913),
+ *   move: the later one beside its dot (right, then left), then over the highest bar of its group,
+ *   else it is left out: in dense grouped bars some labels are left out. There the chart's highest and
+ *   lowest value are placed first, so they keep theirs. The dot stays; the tooltip and the text
+ *   alternative name the value. Each point sits over its own bar (barSlots).
+ *   `pixelOf` gives each value's real height after a first draw; without it the heights are
+ *   estimated on the same plot.
  * Horizontal bars: each bar has a band of its own, so only the axis's reach is set.
  * @param {any[]} series  the decorated series
- * @param {{ width: number, height: number, grid: any, fontSize: number, horizontal: boolean, axis: any, pixelOf?: (value: number) => number }} chart
- *   axis: the value axis, with the reach the reference lines gave it
+ * @param {{ width: number, height: number, grid: any, fontSize: number, horizontal: boolean, axis: any, pixelOf?: (value: number) => number, legend?: { selected?: Record<string, boolean> } }} chart
+ *   axis: the value axis, with the reach the reference lines gave it; legend: the option's (its selected: false hides a series)
  * @returns {{ series: any[], dataMin?: number, dataMax?: number } | null}  null without points
  */
-export function pointLabels(series, { width, height, grid, fontSize, horizontal, axis, pixelOf }) {
+export function pointLabels(series, { width, height, grid, fontSize, horizontal, axis, pixelOf, legend }) {
     /** @type {{ si: number, di: number, d: any, value: number, index: number, text: string }[]} */
     const items = [];
     series.forEach((s, si) =>
@@ -344,12 +466,13 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
     let dataMin = typeof axis?.dataMin === "number" ? axis.dataMin : undefined;
     /** @type {Map<any, { position?: string, show?: boolean, offset?: number[] }>} */
     const moves = new Map();
+    // the chart's highest and lowest value
+    const highest = items.reduce((a, b) => (b.d.name === "max" && (!a || b.value > a.value) ? b : a), /** @type {typeof items[number] | null} */ (null));
+    const lowest = items.reduce((a, b) => (b.d.name === "min" && (!a || b.value < a.value) ? b : a), /** @type {typeof items[number] | null} */ (null));
     // many series: the labels would cover the lines; only the chart's highest and lowest keep theirs
     if (series.filter((s) => s.type === "line" || s.type === "bar").length > POINT_LABEL_SERIES) {
-        const top = items.reduce((a, b) => (b.d.name === "max" && (!a || b.value > a.value) ? b : a), /** @type {typeof items[number] | null} */ (null));
-        const bottom = items.reduce((a, b) => (b.d.name === "min" && (!a || b.value < a.value) ? b : a), /** @type {typeof items[number] | null} */ (null));
         for (const i of items) {
-            if (i !== top && i !== bottom) moves.set(i.d, { show: false });
+            if (i !== highest && i !== lowest) moves.set(i.d, { show: false });
         }
     }
     for (const i of items) {
@@ -379,13 +502,17 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
     const yOf = (/** @type {number} */ v) => (pixelOf ? pixelOf(v) : ((extent[1] - v) / (extent[1] - extent[0] || 1)) * plot);
     /** @typedef {{ x0: number, x1: number, y0: number, y1: number }} Box */
     const overlap = (/** @type {Box} */ a, /** @type {Box} */ b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+    // a point stands over the middle of its bar: grouped bars stand side by side in the band
+    const slots = barSlots(series, band, legend);
+    const xOf = (/** @type {number} */ si, /** @type {number} */ index) => (index + 0.5) * band + (slots[si] ? /** @type {any} */ (slots[si]).offset + /** @type {any} */ (slots[si]).width / 2 : 0);
+    const bars = groupedBars(series, slots, band, yOf);
     const dots = items.map((i) => {
-        const x = (i.index + 0.5) * band;
+        const x = xOf(i.si, i.index);
         const y = yOf(i.value);
         return { x0: x - POINT_DOT, x1: x + POINT_DOT, y0: y - POINT_DOT, y1: y + POINT_DOT };
     });
     const boxOf = (/** @type {typeof items[number]} */ i, /** @type {string} */ pos) => {
-        const x = (i.index + 0.5) * band;
+        const x = xOf(i.si, i.index);
         const y = yOf(i.value);
         // the outline adds to the text's box on every side
         const tall = line + 2 * POINT_HALO;
@@ -401,21 +528,27 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
     const plotBottom = yOf(extent[0]);
     /** @type {Box[]} */
     const placed = [];
-    items.forEach((i, k) => {
+    placingOrder(items, bars.length > 0, [highest, lowest]).forEach((k) => {
+        const i = items[k];
         if (moves.get(i.d)?.show === false) return;
         const own = moves.get(i.d)?.position ?? i.d.label?.position ?? "top";
         // over no other label and no other dot; beside its dot, within the plot's width (a label above
         // or below a dot stays within its category's band, the plot's margin takes the rest)
-        const free = (/** @type {Box} */ b, /** @type {string} */ p) => (p === "top" || p === "bottom" || (b.x0 >= 0 && b.x1 <= band * categories)) && !placed.some((o) => overlap(o, b)) && !dots.some((d, j) => j !== k && overlap(d, b));
-        const pos = [...new Set([own, "right", "left"])].find((p) => free(boxOf(i, p), p));
+        const free = (/** @type {Box} */ b, /** @type {string} */ p) => (p === "top" || p === "bottom" || (b.x0 >= 0 && b.x1 <= band * categories)) && !placed.some((o) => overlap(o, b)) && !dots.some((d, j) => j !== k && overlap(d, b)) && !acrossBar(bars, i, b);
+        // over the highest bar of its group: a label over its dot, within the plot
+        const lift = own === "top" ? overGroup(bars, i.index, boxOf(i, "top")) : 0;
+        const raised = (/** @type {Box} */ b) => ({ ...b, y0: b.y0 + lift, y1: b.y1 + lift });
+        const boxAt = (/** @type {string} */ p) => (p === "raised" ? raised(boxOf(i, "top")) : boxOf(i, p));
+        const candidates = [...new Set([own, "right", "left"]), ...(lift ? ["raised"] : [])];
+        const pos = candidates.find((p) => (p !== "raised" || boxAt(p).y0 >= plotTop) && free(boxAt(p), p === "raised" ? "top" : p));
         if (pos) {
-            const box = boxOf(i, pos);
-            // beside a dot near the plot's top or bottom edge: moved up or down into the plot
-            const dy = pos === "right" || pos === "left" ? Math.min(0, plotBottom - box.y1) || Math.max(0, plotTop - box.y0) : 0;
-            // above or below a dot at the plot's first or last category: moved sideways into the plot
-            const dx = pos === "top" || pos === "bottom" ? Math.max(0, -box.x0) || Math.min(0, band * categories - box.x1) : 0;
-            placed.push({ x0: box.x0 + dx, x1: box.x1 + dx, y0: box.y0 + dy, y1: box.y1 + dy });
-            if (pos !== (i.d.label?.position ?? "top") || dy || dx) moves.set(i.d, { position: pos, ...(dy || dx ? { offset: [dx, dy] } : {}) });
+            const box = boxAt(pos);
+            const { dx, dy } = intoPlot(pos, box, { width: band * categories, top: plotTop, bottom: plotBottom, lift });
+            // the raised box has its lift already
+            const shift = pos === "raised" ? 0 : dy;
+            placed.push({ x0: box.x0 + dx, x1: box.x1 + dx, y0: box.y0 + shift, y1: box.y1 + shift });
+            const at = pos === "raised" ? "top" : pos;
+            if (at !== (i.d.label?.position ?? "top") || dy || dx) moves.set(i.d, { position: at, ...(dy || dx ? { offset: [dx, dy] } : {}) });
         } else {
             moves.set(i.d, { show: false });
         }

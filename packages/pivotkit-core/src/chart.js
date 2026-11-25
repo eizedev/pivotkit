@@ -347,7 +347,7 @@ export function toEChartsOption(result, options) {
     const showValues = labels !== "auto" && labels !== "off";
     const position = type === "line" ? "top" : stacked ? "inside" : chart.horizontal && !combo ? "right" : "top";
     const valueLabel = showValues ? { label: { show: true, position, color: theme.textColor, formatter: (p) => (typeof p.value === "number" ? (percent ? shareFormatter(p.value) : fmt(p.value)) : "") } } : {};
-    const marks = markLines(referenceLines(result, { chart, series: s, words: options.labels?.referenceLines, locale: options.locale }), s, { horizontal: Boolean(chart.horizontal), theme, short: (v) => compact(v), hidden: Array.isArray(chart.hidden) ? chart.hidden : [] });
+    const marks = markLines(referenceLines(result, { chart, series: s, words: options.labels?.referenceLines, locale: options.locale }), s, { horizontal: Boolean(chart.horizontal), theme, colorOf, short: (v) => compact(v), hidden: Array.isArray(chart.hidden) ? chart.hidden : [] });
     const points = markPoints(extremePoints(result, { chart, series: s, locale: options.locale }), s, { type, horizontal: Boolean(chart.horizontal), theme, colorOf, raised: showValues && !stacked, hidden: Array.isArray(chart.hidden) ? chart.hidden : [] });
     // the value axis reaches every line: a target past the tallest bar is drawn, not cut off.
     // dataMin and dataMax are ECharts' own (ECharts 6, scaleRawExtentInfo: they widen the data's
@@ -410,15 +410,16 @@ const LABEL_GAP = 6;
  * drawn above every mark, in the theme's reference colour. Silent: a line is no element to point at; the
  * tooltip names its value. A trend is drawn from category to category, at its value at each: over
  * real time with a gap it bends where the axis leaves the gap out. A label writes the name and the
- * value as the value axis does (`short`); each item's `name` is the line's name alone, for a chart too
- * narrow for the value. `extent`: the lowest and highest value of the lines, for the value axis;
+ * value as the value axis does (`short`); each item's `brief` is what a chart too narrow for both
+ * writes: the value, a trend's name. `extent`: the lowest and highest value of the lines, for the value axis;
  * `room`: the height (px) the labels of upright lines take above the plot.
  * @param {import("./chart-lines.js").ReferenceLine[]} lines
  * @param {ReturnType<typeof toSeries>} s
- * @param {{ horizontal: boolean, theme: ChartTheme, short: (v: number) => string, hidden: string[] }} how
- *   hidden: the series the legend hides (chart.hidden); ECharts hides a series' markLine with it
+ * @param {{ horizontal: boolean, theme: ChartTheme, colorOf: (name: string, i: number) => string | null, short: (v: number) => string, hidden: string[] }} how
+ *   colorOf: a series' fixed colour (chart.colors, colorMap); hidden: the series the legend hides
+ *   (chart.hidden); ECharts hides a series' markLine with it
  */
-function markLines(lines, s, { horizontal, theme, short, hidden }) {
+function markLines(lines, s, { horizontal, theme, colorOf, short, hidden }) {
     /** @type {any[][]} */
     const bySeries = s.series.map(() => []);
     // the lines of no series go on the last series shown; with none shown, nowhere
@@ -437,12 +438,17 @@ function markLines(lines, s, { horizontal, theme, short, hidden }) {
         // line starts at the top), the first row nearest to it; lying ones right of the plot
         const where = horizontal ? { position: "start", distance: [0, LABEL_GAP + rows * (fontSize + LABEL_GAP)] } : { position: "end", distance: LABEL_GAP };
         rows += 1;
-        // the line's colour: its series' (the palette's, as ECharts picks it), else the reference colour
+        // the line's colour: its series' (a fixed one, else the palette's, as ECharts picks it), else the
+        // reference colour
         const colors = theme.colors ?? [];
-        const color = own ? colors[/** @type {number} */ (line.series) % Math.max(1, colors.length)] : (theme.referenceColor ?? theme.textColor);
+        const place = /** @type {number} */ (line.series);
+        const color = own ? (colorOf(own.name, place) ?? colors[place % Math.max(1, colors.length)]) : (theme.referenceColor ?? theme.textColor);
         const type = LINE_TYPES[line.kind];
         const style = {
             name: line.name,
+            // what a chart too narrow for the whole label writes (decorateOption): the value, which tells
+            // one series' average from another's (the sample says the kind and the series); a trend's name
+            brief: line.kind === "trend" ? line.name : short(/** @type {number} */ (line.value)),
             lineStyle: { type, width: 1.5, ...(own ? {} : { color }) },
             // the words in the text colour, after a sample of the line's dash in its colour
             label: { formatter: () => lineLabelText(type, text), rich: { s: { ...(color ? { color } : {}), fontSize } }, ...where, color: theme.textColor, fontSize }
@@ -477,9 +483,9 @@ export const POINT_GLYPHS = Object.freeze({ max: "\u25B2", min: "\u25BC" });
 /**
  * The high and low points as ECharts markPoint data, by the series that draws them: a series' own on
  * it; a stack's total's on the last series shown, in the theme's reference colour. Each is a dot in its
- * series' colour (chart.colors, colorMap, else the palette's) and a label: the glyph (▲, ▼) in that
- * colour, the value in the text colour, which reads on every background (a palette colour such as
- * yellow does not, as text). A line's highest label goes above its dot, its lowest below; a bar's past
+ * series' colour (chart.colors, colorMap, else the palette's) and a label in the text colour: the
+ * glyph (▲, ▼) and the value. A series' colour may be a light grey or yellow, which does not read as
+ * text (#913); the dot says which series it is. A line's highest label goes above its dot, its lowest below; a bar's past
  * its end, where nothing else is drawn, above any value label there (`raised`). decorateOption keeps
  * the labels inside the plot and apart.
  * @param {import("./chart-lines.js").ExtremePoint[]} points
@@ -514,7 +520,7 @@ function markPoints(points, s, { type, horizontal, theme, colorOf, raised, hidde
                 position,
                 distance: raised && !below ? fontSize + 10 : 6,
                 formatter: () => `{s|${POINT_GLYPHS[p.kind]}} ${label}`,
-                rich: { s: { ...(color ? { color } : {}), fontSize } },
+                rich: { s: { fontSize } },
                 color: theme.textColor,
                 fontSize
             }
