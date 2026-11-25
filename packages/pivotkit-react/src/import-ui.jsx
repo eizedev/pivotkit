@@ -164,16 +164,49 @@ function pickedTable(base, types, marks) {
 }
 
 /**
- * A column's head in the preview: its name, its type, and, while its numbers fit both decimal marks
- * (the reader's note DECIMAL_MARK), which mark they are written in, shown as what the note's example
- * reads as with each.
+ * Which decimal mark a column's numbers are written in, while they fit both (the reader's note
+ * DECIMAL_MARK): a question with the note's example above a choice of what it reads as with each
+ * mark, in the locale's notation without grouping ("1234" or "1.234"), so the two never look alike.
+ * The note's params without the example's two numbers (a plugin's own note) offer no choice.
+ * @param {{ name: string, index: number, mark: Record<string, unknown>, t: import("./import-labels.js").ImportTexts, locale: string,
+ *   formName: string, onMark: (mark: string) => void }} props  `mark`: the note's params
+ */
+function MarkChoice({ name, index, mark, t, locale, formName, onMark }) {
+    const questionId = useId();
+    const { decimal, example, point, comma } = mark;
+    if (!Number.isFinite(point) || !Number.isFinite(comma) || (decimal !== "." && decimal !== ",")) {
+        return null;
+    }
+    const reads = (value) => Number(value).toLocaleString(locale, { useGrouping: false, maximumFractionDigits: 10 });
+    const question = fill(t.markQuestion, { example: String(example) });
+    return (
+        <>
+            <span id={questionId} className="pk-hint" data-testid={`import-question-${index}`}>
+                {question}
+            </span>
+            <select
+                name={`${formName}-mark-${index}`}
+                value={decimal}
+                aria-label={fill(t.markOf, { column: name })}
+                aria-describedby={questionId}
+                title={`${question} ${reads(decimal === "." ? point : comma)}`}
+                onChange={(e) => onMark(e.target.value)}
+                data-testid={`import-mark-${index}`}
+            >
+                <option value=".">{reads(point)}</option>
+                <option value=",">{reads(comma)}</option>
+            </select>
+        </>
+    );
+}
+
+/**
+ * A column's head in the preview: its name, its type, and the decimal mark of its numbers while
+ * they fit both (MarkChoice).
  * @param {{ name: string, index: number, type: string, mark: Record<string, unknown> | null, t: import("./import-labels.js").ImportTexts,
  *   locale: string, formName: string, onType: (type: string) => void, onMark: (mark: string) => void }} props  `mark`: the note's params
  */
 function ColumnHead({ name, index, type, mark, t, locale, formName, onType, onMark }) {
-    const reads = (value) => Number(value).toLocaleString(locale, { useGrouping: false, maximumFractionDigits: 10 });
-    // a note without the example's two numbers (a plugin's own) offers no choice
-    const choice = mark && typeof mark.point === "number" && typeof mark.comma === "number";
     return (
         <th scope="col">
             {name}
@@ -184,12 +217,7 @@ function ColumnHead({ name, index, type, mark, t, locale, formName, onType, onMa
                     </option>
                 ))}
             </select>
-            {choice ? (
-                <select name={`${formName}-mark-${index}`} value={String(mark.decimal)} aria-label={fill(t.markOf, { column: name })} onChange={(e) => onMark(e.target.value)} data-testid={`import-mark-${index}`}>
-                    <option value=".">{fill(t.markReads, { example: String(mark.example), value: reads(mark.point) })}</option>
-                    <option value=",">{fill(t.markReads, { example: String(mark.example), value: reads(mark.comma) })}</option>
-                </select>
-            ) : null}
+            {mark ? <MarkChoice name={name} index={index} mark={mark} t={t} locale={locale} formName={formName} onMark={onMark} /> : null}
         </th>
     );
 }

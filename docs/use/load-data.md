@@ -47,7 +47,7 @@ The Data menu says which formats the report reads, for example
 | Sheet | A workbook with more than one sheet: which one to read. A hidden sheet says "(hidden)". Another sheet reads the file again. |
 | The first rows | Eight rows as they will be loaded, numbers in your language's notation. |
 | Type | Under each column name: **Text**, **Number**, **Date** or **Yes/No**. The report picks one from the values. You can change it here. A value that does not fit the type you pick stays empty, and a note counts these values. |
-| Decimal mark | Under a number column whose values read as different numbers with a decimal point and with a decimal comma, such as `1,234`: what that value is with each, for example "1234 (“1,234” in the file)" and "1.234 (“1,234” in the file)". Pick the one your file means. |
+| Decimal mark | Under a number column whose values read as different numbers with a decimal point and with a decimal comma, such as `1,234`: a label asks what the value means, "“1,234” means", and the choice offers it with each mark, "1234" or "1.234". Pick the one your file means. |
 | Notes | How the report read the file and what it changed: the encoding, the separator, lines skipped above the column names, empty rows left out, columns renamed, values cut, and numbers that could read two ways or were too long or too large. |
 
 While the report reads a large file, the preview shows the progress, with **Cancel**. The preview

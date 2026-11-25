@@ -4324,6 +4324,11 @@
     accent-color: var(--pk-accent);
 }
 
+/* the column heads start at the top: a head with a decimal mark choice is taller than the others */
+.pk-import th {
+    vertical-align: top;
+}
+
 .pk-import th select {
     display: block;
     width: 100%;

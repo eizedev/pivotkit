@@ -33,11 +33,10 @@ export const en = {
     someColumns: "The first {shown} of {count} columns are shown; the others keep the type and decimal mark found.",
     typeOf: "Type of {column}",
     types: { string: "Text", number: "Number", date: "Date", boolean: "Yes/No" },
-    // a number column whose values fit both decimal marks: one option per mark, what the note's example
-    // reads as with it ({value}, in the locale's notation without grouping). The value comes first, so
-    // a narrow column still shows the part that differs.
+    // a number column whose values fit both decimal marks: the question above its choice, whose options
+    // are what the note's example reads as with each mark; markOf names the choice for a screen reader
     markOf: "Decimal mark of {column}",
-    markReads: "{value} (“{example}” in the file)",
+    markQuestion: "“{example}” means",
     yes: "Yes",
     no: "No",
     noRows: "The file holds no rows.",
@@ -120,7 +119,7 @@ export const de = {
     typeOf: "Typ von {column}",
     types: { string: "Text", number: "Zahl", date: "Datum", boolean: "Ja/Nein" },
     markOf: "Dezimalzeichen von {column}",
-    markReads: "{value} („{example}“ in der Datei)",
+    markQuestion: "„{example}“ bedeutet",
     yes: "Ja",
     no: "Nein",
     noRows: "Die Datei enthält keine Zeilen.",
