@@ -6,7 +6,7 @@
  * template throw PivotkitError.
  */
 
-import { PivotkitError, closest, computePivot, describeView, encode, fromViewFile, normalize, outsideLimits, reportLabels, toGrid } from "pivotkit-core";
+import { PivotkitError, closest, computePivot, describeLabels, describeView, encode, fromViewFile, normalize, outsideLimits, reportLabels, toGrid } from "pivotkit-core";
 import { isDataAsOf, toCsvBytes, toJson, toXlsx } from "pivotkit-core/export";
 import { DEFAULT_TEMPLATE } from "./default-template.js";
 import { htmlTable } from "./html-table.js";
@@ -53,6 +53,7 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {boolean} [trusted]  the view is the host's own: the host's limits instead of outsideLimits() (default false)
  * @property {boolean} [strict]  no body when the view has an error (default false: the normalized view is rendered)
  * @property {Partial<import("pivotkit-core").Labels>} [labels]  pivotkit-core's texts (totals, value names)
+ * @property {import("pivotkit-core").DescribeLabelsInput} [describeLabels]  html: the words of the filters and the summary (describeView); default those of the locale's language, and words given in part go over them
  * @property {import("./texts.js").ReportTextsInput} [texts]  the report's words around the table; a count (rowsCount, rowsFiltered) as one text or its plural forms
  * @property {boolean} [rowCount]  html: false leaves the data's row count out of {{rows}} and the details (default true)
  * @property {Record<string, string>} [tokens]  --pk-* colours over the light ones (the chart and the report); html: a template's own CSS over them
@@ -78,7 +79,7 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
 const OPTION_VALUES = Object.freeze({ chart: [true, false, "auto"], chartEmbed: ["image", "inline"], bom: [true, false], strict: [true, false], trusted: [true, false], numbers: ["full", "shown"], flatHeader: [true, false], rowCount: [true, false] });
 
 /** The names of RenderOptions: any other is refused, so a misspelt option is not ignored. */
-const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "darkTokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "colorMap", "tableCells", "bom", "dataAsOf", "numbers", "flatHeader", "rowCount"]);
+const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "describeLabels", "texts", "tokens", "darkTokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "colorMap", "tableCells", "bom", "dataAsOf", "numbers", "flatHeader", "rowCount"]);
 
 /**
  * @typedef {object} RenderResult
@@ -139,6 +140,9 @@ function sizeOf(size) {
     }
     return { width, height };
 }
+
+/** The words of the filters and the summary: the locale's language, as the report's other words, with the host's over them; their numbers follow the locale. */
+const describeWords = (options, locale) => describeLabels(locale, options.describeLabels);
 
 /** "Nov 13, 2026, 10:00 AM" of `now` in the locale and time zone. */
 function generatedText(now, locale, timeZone) {
@@ -223,11 +227,17 @@ function checkKinds(options) {
             throw badOption(key, `${key} is a text, not ${kindOf(value)}`);
         }
     }
-    for (const key of /** @type {const} */ (["labels", "texts"])) {
+    for (const key of /** @type {const} */ (["labels", "describeLabels", "texts"])) {
         const value = options[key];
         if (value !== undefined && value !== null && (typeof value !== "object" || Array.isArray(value))) {
             throw badOption(key, `${key} is an object of texts by name, not ${kindOf(value)}`);
         }
+    }
+    try {
+        describeLabels("en", options.describeLabels);
+    } catch (error) {
+        // a key describeView does not know or a word of the wrong kind: the core's words, render's code
+        throw badOption("describeLabels", `describeLabels.${/** @type {any} */ (error).details?.problem ?? /** @type {Error} */ (error).message}`);
     }
     const cells = options.tableCells;
     if (cells !== undefined && cells !== null && !(typeof cells === "number" && cells >= 1 && (Number.isInteger(cells) || cells === Infinity))) {
@@ -344,7 +354,8 @@ export async function render(view, data, options = {}) {
             const inner = options.chartEmbed === "inline" ? chart.svg : `<img alt="${escapeHtml(`${texts.chart}: ${title}`)}" width="${size?.width}" height="${size?.height}" src="data:image/svg+xml;base64,${base64(new TextEncoder().encode(chart.svg))}">`;
             chartHtml = `<figure class="pk-report-chart">${inner}${note}</figure>`;
         }
-        const described = describeView(normalized.view, data2, { ...(limits ? { limits } : {}) });
+        const filterWords = describeWords(options, grid.locale);
+        const described = describeView(normalized.view, data2, { labels: filterWords, locale: grid.locale, ...(limits ? { limits } : {}) });
         const timeZone = options.timeZone ?? grid.timeZone ?? "UTC";
         // "6 of 8 rows" while a filter leaves rows out, as pivotkit-react's row count says; the data's
         // row count picks the form. With rowCount false neither {{rows}} nor the details say it.
@@ -360,7 +371,7 @@ export async function render(view, data, options = {}) {
             generated: generatedText(options.now, grid.locale, timeZone),
             dataAsOf: options.dataAsOf ? dataAsOfText(options.dataAsOf, grid.locale, timeZone) : "",
             rows: rowsText,
-            filters: described.filters.length ? described.filters.map((f) => f.text).join("; ") : texts.noFilters,
+            filters: described.filters.length ? described.filters.map((f) => f.text).join(filterWords.filterList) : texts.noFilters,
             summary: described.text,
             lang: grid.locale,
             dir: RTL.has(grid.locale.split("-")[0].toLowerCase()) ? "rtl" : "ltr"

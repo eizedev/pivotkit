@@ -192,9 +192,10 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
         assert.ok(inputsOf(groups.chart).some((i) => i.includes(name)), `${name} is not in the chart group`);
         assert.ok(!inputsOf(groups.initial).some((i) => i.includes(name)), `${name} is in the first load`);
     }
-    // the view's description (describe.js, which pivotkit-core's index.js re-exports too: build.js's
-    // barrelOff) loads with the HTML report; the Excel number formats (excel-format.js) with the export
-    for (const [name, group] of [["pivotkit-core/src/describe.js", "report"], ["pivotkit-core/src/excel-format.js", "export"]]) {
+    // the view's description and its words (describe.js and describe-labels.js, which pivotkit-core's
+    // index.js re-exports too: build.js's barrelOff) load with the HTML report; the Excel number
+    // formats (excel-format.js) with the export
+    for (const [name, group] of [["pivotkit-core/src/describe.js", "report"], ["pivotkit-core/src/describe-labels.js", "report"], ["pivotkit-core/src/excel-format.js", "export"]]) {
         assert.ok(inputsOf(groups[group]).some((i) => i.includes(name)), `${name} is not in the ${group} group`);
         assert.ok(!inputsOf(groups.initial).some((i) => i.includes(name)), `${name} is in the first load`);
     }
@@ -218,6 +219,7 @@ test("only pivotkit-report gets describeView from pivotkit-core's index.js: a bu
     await assert.rejects(bundle('import { describeView } from "pivotkit-core"; console.log(describeView);', new URL(".", pkgDir).pathname), /describeView/);
     // a namespace import too: esbuild only warns there, and the name would be undefined at run time
     await assert.rejects(bundle('import * as core from "pivotkit-core"; console.log(core.describeView);', new URL(".", pkgDir).pathname), /describeView/);
+    await assert.rejects(bundle('import { DESCRIBE_LABELS } from "pivotkit-core"; console.log(DESCRIBE_LABELS);', new URL(".", pkgDir).pathname), /DESCRIBE_LABELS/);
     // pivotkit-report's own import, with the rest of the index, and one copy of each module
     const report = await bundle('import { render } from "pivotkit-report"; console.log(render);', new URL(".", pkgDir).pathname);
     const inputs = Object.keys(report.metafile.inputs);

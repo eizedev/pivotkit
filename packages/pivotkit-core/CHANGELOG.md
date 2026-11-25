@@ -6,6 +6,22 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `describeView(view, schema, { labels, locale })` writes its texts in German too: `DESCRIBE_LABELS.de`,
+  or `describeLabels(locale)` for a locale's language. German quotes text values („North“) and names
+  one whole unit of a relative range as the engine keeps it ("heute", "gestern", "im Vorjahr"; from
+  an anchor "am Tag davor"). It separates the items of a list with "; ", so a decimal comma stays in
+  its number ("1; 2,5; 3"), joins filters with "; und ", and writes true and false as "Ja" and "Nein".
+  `labels` given in part keep English for the rest, at any depth. `labels` that are not an object,
+  or with a key it does not know or a word of the wrong kind, throw `INVALID_OPTION`. `locale` writes
+  the numbers of filter values as the locale does, without grouping (`1,5`). English stays the
+  default, word for word ([#798](https://github.com/eizedev/pivotkit/issues/798)).
+- `describeLabels(locale, own)` puts a host's own words over the locale's, at any depth. Words that
+  name their language (`lang`) go over that language's. Words `describeView` would refuse throw
+  `INVALID_ARGUMENT`. A table of forms by count takes every plural category of its `lang` ("few"
+  for Polish), and the result is a frozen copy.
+
 ### Changed
 
 - The Excel number format codes (`excelNumberFormat`) are in a file of their own, `excel-format.js`.
@@ -42,6 +58,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
     width. Else each writes the value instead of the name; a trend keeps its name.
   - The sample before an average's label takes the series' colour from `colorMap` and
     `chart.colors`, as the line does.
+
+### Fixed
+
+- `describeView` no longer says "current excluded" of a rolling relative range (`calendar: false`).
+  The engine counts a rolling range back from the moment itself and ignores `includeCurrent` there,
+  so the text said something the filter does not do.
 
 ## [0.10.0] - 2026-11-24
 

@@ -114,8 +114,8 @@ pivotkit-core has these functions for it:
   probably meant (`params.suggestion`).
 - The JSON Schema `pivotkit-core/schema/view-2.json` checks a view that a program or an LLM wrote,
   before it reaches the data. The schema is built from the engine's tables.
-- `describeView(view, data)` explains a view: its parts, with one short English text each
-  ([reference](../reference/core.md#describing-data-and-views)).
+- `describeView(view, data)` explains a view: its parts, with one short text each, in English or
+  German ([reference](../reference/core.md#describing-data-and-views)).
 
 The UI normalizes every view it gets. It shows what it dropped as a warning above the result, in plain
 words ([what people see](../use/behaviour.md#parts-of-a-view-that-were-not-used)).

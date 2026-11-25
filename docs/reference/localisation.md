@@ -46,6 +46,9 @@ console which key holds that text now.
 
 The report's `lang` attribute follows the labels, so screen readers use the right voice.
 
+The HTML report of [pivotkit-report](report.md) writes its filters and its summary in the locale's
+language too, with the locale's numbers ([`describeLabels`](report.md#options)).
+
 The web component loads the German texts of the first render as a file of its own:
 
 - Only a German report loads it, before it renders. Until then the report shows its skeleton without
