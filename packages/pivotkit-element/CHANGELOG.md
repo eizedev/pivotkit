@@ -6,6 +6,16 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Changed
+
+- The first load is 3.3 KiB smaller: 179.0 KiB gzip on an official Node 24 build, in 13 files as
+  before (was 182.3 KiB). Its budget stays at 182.5 KiB. The code moved loads on demand:
+  - The chart's events and each draw load with ECharts: the chart group grows by 1.3 KiB to 260.2 KiB.
+  - pivotkit-core's view description loads with the HTML report: the report group grows by 2.3 KiB
+    to 26.3 KiB, with the Excel number formats.
+  - pivotkit-core's Excel number formats load with the export: the export group grows by 0.8 KiB to
+    13.2 KiB ([#772](https://github.com/eizedev/pivotkit/issues/772)).
+
 ## [0.10.0] - 2026-11-24
 
 ### Changed

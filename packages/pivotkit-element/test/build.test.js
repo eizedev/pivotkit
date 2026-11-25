@@ -172,8 +172,9 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
     const menus = closure("menus.js");
     const chart = closure("echarts.js");
     // the menus' view changes and the filter's summary, sharing (copy, download, load a view), the
-    // drill-down's table; the chart's marks (with pivotkit-core/chart's label layout) come with ECharts
-    for (const [mod, group, name] of [["src/menu-ops.js", menus, "menus"], ["src/share-actions.js", menus, "menus"], ["src/drill-table.js", menus, "menus"], ["src/chart-decorate.js", chart, "chart"]]) {
+    // drill-down's table; the chart's marks (with pivotkit-core/chart's label layout), its instance
+    // with its events and each draw come with ECharts
+    for (const [mod, group, name] of [["src/menu-ops.js", menus, "menus"], ["src/share-actions.js", menus, "menus"], ["src/drill-table.js", menus, "menus"], ["src/chart-decorate.js", chart, "chart"], ["src/chart-draw.js", chart, "chart"]]) {
         assert.ok(group.has(mod), `${mod} is not in the ${name}`);
         assert.ok(!first.has(mod), `${mod} is in the first load`);
     }
@@ -191,6 +192,12 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
         assert.ok(inputsOf(groups.chart).some((i) => i.includes(name)), `${name} is not in the chart group`);
         assert.ok(!inputsOf(groups.initial).some((i) => i.includes(name)), `${name} is in the first load`);
     }
+    // the view's description (describe.js, which pivotkit-core's index.js re-exports too: build.js's
+    // barrelOff) loads with the HTML report; the Excel number formats (excel-format.js) with the export
+    for (const [name, group] of [["pivotkit-core/src/describe.js", "report"], ["pivotkit-core/src/excel-format.js", "export"]]) {
+        assert.ok(inputsOf(groups[group]).some((i) => i.includes(name)), `${name} is not in the ${group} group`);
+        assert.ok(!inputsOf(groups.initial).some((i) => i.includes(name)), `${name} is in the first load`);
+    }
     // the chart data stays first: the chart's text alternative and the tips read it (chart-series.js)
     assert.ok(inputsOf(groups.initial).some((i) => i.includes("pivotkit-core/src/chart-series.js")), "chart-series.js is not in the first load");
     // what stays first: the header sort's texts and its aria-sort (table.jsx renders it)
@@ -204,6 +211,16 @@ test("a bundled import of toEChartsOption from pivotkit-core's index.js fails th
     await assert.rejects(bundle('import { toEChartsOption } from "pivotkit-core"; console.log(toEChartsOption);'), /toEChartsOption/);
     const ok = await bundle('import { toEChartsOption } from "pivotkit-core/chart"; console.log(toEChartsOption);');
     assert.equal(ok.errors.length, 0);
+});
+
+test("only pivotkit-report gets describeView from pivotkit-core's index.js: a bundled import elsewhere fails the build", async () => {
+    const bundle = (contents, resolveDir) => esbuild.build({ ...options, entryPoints: undefined, splitting: false, outdir: undefined, stdin: { contents, resolveDir }, write: false, metafile: true, logLevel: "silent" });
+    await assert.rejects(bundle('import { describeView } from "pivotkit-core"; console.log(describeView);', new URL(".", pkgDir).pathname), /describeView/);
+    // pivotkit-report's own import, with the rest of the index, and one copy of each module
+    const report = await bundle('import { render } from "pivotkit-report"; console.log(render);', new URL(".", pkgDir).pathname);
+    const inputs = Object.keys(report.metafile.inputs);
+    assert.equal(inputs.filter((i) => /pivotkit-core[\\/]src[\\/]describe\.js$/.test(i)).length, 1);
+    assert.equal(inputs.filter((i) => /pivotkit-core[\\/]src[\\/]index\.js$/.test(i)).length, 1);
 });
 
 test("the size check says when its gzip sizes can differ from CI's", () => {
