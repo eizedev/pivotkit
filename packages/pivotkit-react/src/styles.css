@@ -2959,7 +2959,7 @@
    columns would shrink to the longest word otherwise); only the cap makes it wrap */
 .pk-table :is(tbody th.pk-rowHeader, thead th.pk-corner) .pk-th-content {
     width: var(--pk-label-w, max-content);
-    max-width: var(--pk-label-max, max(calc(5.5em + var(--pk-th-extra, 0px)), calc(var(--pk-row-share, 40cqi) / var(--pk-row-cols, 1)), var(--pk-row-room, 0px)));
+    max-width: var(--pk-label-max, max(5.5em, calc(var(--pk-row-share, 40cqi) / var(--pk-row-cols, 1)), var(--pk-row-room, 0px)));
 }
 
 /* labels without a value column next to them (fields in Rows alone) take the report's width */
@@ -2969,7 +2969,7 @@
 
 .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
     width: var(--pk-label-w, max-content);
-    max-width: var(--pk-label-max, max(calc(6em + var(--pk-th-extra, 0px)), 30cqi));
+    max-width: var(--pk-label-max, max(6em, 30cqi));
 }
 
 /* a narrow report: a little less room around each cell, for the labels' least width below, and a
@@ -2979,7 +2979,7 @@
 }
 
 .pk-root[data-pk-size="narrow"] .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
-    max-width: var(--pk-label-max, max(calc(5.5em + var(--pk-th-extra, 0px)), 22cqi));
+    max-width: var(--pk-label-max, max(5.5em, 22cqi));
 }
 
 /* --pk-label-w and --pk-label-max are internal switches that fitLabels sets through data-pk-labels,
@@ -3091,25 +3091,33 @@
 
 /* a field's name in the table: its zone's icon before it and, but for a value name repeated over the
    columns, its zone's fill; the corner of a chip, so the reader ties the two together. The fill
-   holds the arrow behind the name; the field's name is text, never in the zone's colour */
+   reaches into the cell's padding (the negative margin), and the arrow stays in that padding as on
+   every header (#70): only the icon widens a column. The field's name is text, never in the zone's
+   colour */
 .pk-table thead .pk-th-field {
     padding: 0.15em 0.4em;
+    margin-inline: -0.4em;
     border-radius: var(--pk-radius-sm);
     color: var(--pk-text);
 }
 
-.pk-table thead .pk-th-field.pk-zone-fill .pk-th-sort {
-    margin-inline-end: 0.9em;
-}
-
-/* --pk-th-extra (internal, not a theme token): what a field's icon, fill and arrow add to its name,
-   so a cap's least width (above) still keeps a common word whole */
-.pk-table thead .pk-th-field {
-    --pk-th-extra: 1.3em;
-}
-
+/* a filled name's fill reaches on under its arrow (0.9em after the text) as a shadow, which takes no
+   room: up to 0.05em before the cell's edge (its padding: 0.85em, 0.6em on a narrow report, where the
+   arrow's end stands out of the fill). So the fill widens no column, and fitLabels' caps (table.jsx)
+   hold for the name as for the labels below it */
 .pk-table thead .pk-th-field.pk-zone-fill {
-    --pk-th-extra: 3em;
+    --pk-th-tail: 0.4em;
+    box-shadow: var(--pk-th-tail) 0 0 color-mix(in srgb, var(--pk-zone) var(--pk-zone-tint), var(--pk-zone-tint-base));
+}
+
+.pk-root[data-pk-size="narrow"] .pk-table thead .pk-th-field.pk-zone-fill {
+    --pk-th-tail: 0.15em;
+}
+
+/* where a cap leaves less room than the icon and a word need, the icon stands above the name instead
+   of breaking a word or widening the column */
+.pk-table thead .pk-th-field {
+    flex-wrap: wrap;
 }
 
 .pk-th-zone {
