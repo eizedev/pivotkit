@@ -271,6 +271,51 @@ test("retype: a column made a number reads in its values' notation, and notes of
     assert.deepEqual(codes(both).filter((c) => c === "DECIMAL_MARK" || c === "VALUES_NOT_CONVERTED"), ["DECIMAL_MARK", "VALUES_NOT_CONVERTED"]);
 });
 
+test("retype with decimal: a caller picks a number column's mark; the note stays, with the mark picked and the example's two numbers", async () => {
+    const t = await readFile(text("a.csv", 'Sales,Kg\n"1,234","1,5"\n"-5,678",\n'));
+    assert.deepEqual(col(t, "Sales"), [1234, -5678]);
+    assert.deepEqual(t.notes.find((n) => n.code === "DECIMAL_MARK").params, { column: "Sales", decimal: ".", example: "1,234", point: 1234, comma: 1.234 });
+    // by name, case-insensitively: the comma is the decimal mark, the sign stays, the other column keeps its values
+    const de = retype(t, {}, { decimal: { sales: "," } });
+    assert.deepEqual(col(de, "Sales"), [1.234, -5.678]);
+    assert.equal(col(de, "Kg"), col(t, "Kg"));
+    const mark = de.notes.filter((n) => n.code === "DECIMAL_MARK");
+    assert.deepEqual(mark.map((n) => n.params), [{ column: "Sales", decimal: ",", example: "1,234", point: 1234, comma: 1.234 }]);
+    assert.equal(mark[0].message, 'Numbers in "Sales" were read with "," as the decimal mark; some, such as "1,234", also fit the other mark.');
+    // and back, by position; the mark stays while the column keeps its type, a type change reads the values again
+    assert.deepEqual(col(retype(de, {}, { decimal: ["."] }), "Sales"), [1234, -5678]);
+    assert.deepEqual(col(retype(de, { Kg: "string" }), "Sales"), [1.234, -5.678]);
+    assert.deepEqual(col(retype(retype(de, { Sales: "string" }), { Sales: "number" }), "Sales"), [1234, -5678]);
+    // a column made a number and its mark in one call; a mark for a column that is no number is ignored
+    const asText = retype(t, { Sales: "string" });
+    assert.deepEqual(col(retype(asText, { Sales: "number" }, { decimal: { Sales: "," } }), "Sales"), [1.234, -5.678]);
+    assert.deepEqual(col(retype(asText, {}, { decimal: { Sales: "," } }), "Sales"), ["1,234", "-5,678"]);
+    // invalid marks are ignored, as invalid types are
+    assert.deepEqual(col(retype(t, {}, { decimal: { Sales: ";" } }), "Sales"), [1234, -5678]);
+    assert.deepEqual(col(retype(t, {}, { decimal: "," }), "Sales"), [1234, -5678]);
+});
+
+test("retype with decimal: the picked mark reads text in that mark alone; what does not fit it is empty, with a note", async () => {
+    // both notations, a sign, a leading zero, a column that mixes them, an empty value
+    const t = await readFile(text("a.csv", 'Kg,N\n"1,234",1\n"-2.500",2\n"0,125",3\n"5,5",4\n,5\n"1.234,5",6\n'), { types: { Kg: "string" } });
+    const cases = [
+        // "." alone: "1,234" groups thousands; "0,125", "5,5" and "1.234,5" are no number with a decimal point
+        [".", [1234, -2.5, null, null, null, null], 3],
+        // "," alone: "-2.500" groups thousands; "0,125" is a decimal, a first group never starts with 0
+        [",", [1.234, -2500, 0.125, 5.5, null, 1234.5], 0]
+    ];
+    for (const [mark, values, failed] of cases) {
+        const n = retype(t, { Kg: "number" }, { decimal: [mark] });
+        assert.deepEqual(col(n, "Kg"), values, mark);
+        // the empty value stays empty and is not counted
+        assert.equal(n.notes.find((x) => x.code === "VALUES_NOT_CONVERTED")?.params.count ?? 0, failed, mark);
+        // "5,5" fits only the comma: the column does not fit both, so no note about the mark
+        assert.ok(!codes(n).includes("DECIMAL_MARK"), mark);
+    }
+    // without a mark, the same column reads each value as it fits ("5,5" decides German)
+    assert.deepEqual(col(retype(t, { Kg: "number" }), "Kg"), [1.234, -2500, 0.125, 5.5, null, 1234.5]);
+});
+
 test("JSON numbers a double cannot hold are noted: too large ones are empty, long whole numbers may have lost digits", async () => {
     const big = await readFile(text("a.json", '[{"a":1e999,"b":1},{"a":5,"b":2}]'));
     assert.deepEqual(col(big, "a"), [null, 5]);
