@@ -24,6 +24,10 @@ All notable changes to `pivotkit-report` are documented in this file. The format
   page description) in German, with the locale's numbers ("Units ist mindestens 1,5"). They were
   English. `{{filters}}` joins German filters with "; und ", as German lists use "; "
   ([#798](https://github.com/eizedev/pivotkit/issues/798)).
+- The SVG and the HTML report draw text on coloured fills as the screen does, with pivotkit-core's
+  fix ([#913](https://github.com/eizedev/pivotkit/issues/913), [#914](https://github.com/eizedev/pivotkit/issues/914)):
+  a treemap's labels on plates in the middle of their tiles and cut to fit, a heatmap's numbers in the ink that reads on each cell, the ▲ and ▼
+  in the muted text colour (`--pk-muted`).
 
 ## [0.6.0] - 2026-11-24
 

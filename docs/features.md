@@ -163,6 +163,7 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
     - Touch targets of a size for fingers on a phone.
 - Both themes meet WCAG contrast ratios, and a test checks them. pivotkit claims no conformance
   level ([theming](reference/theming.md)).
+- Tests, known limitations and how to report a barrier: [ACCESSIBILITY.md](https://github.com/eizedev/pivotkit/blob/main/ACCESSIBILITY.md).
 
 ## Languages { #languages }
 

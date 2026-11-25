@@ -1,7 +1,7 @@
 {
     "docs": {
         "pages": {
-            "docs/concepts/charts.md": [316],
+            "docs/concepts/charts.md": [318],
             "docs/concepts/limits.md": [430],
             "docs/getting-started/kubernetes.md": [486],
             "docs/learn.md": [458],
@@ -14,16 +14,16 @@
             "docs/reference/rest.md": [972],
             "docs/reference/sources.md": [984],
             "docs/security.md": [896],
-            "docs/use/charts.md": [481]
+            "docs/use/charts.md": [487]
         },
-        "totalLines": 24045
+        "totalLines": 24091
     },
     "functions": {
         "complexity": {
             "packages/pivotkit-cli/src/remote.js Async function 'request'": [30],
             "packages/pivotkit-cli/src/sign-in.js Async function 'loginCommand'": [27],
             "packages/pivotkit-core/src/chart-fit.js Function 'pointLabels'": [43],
-            "packages/pivotkit-core/src/chart-style.js Arrow function": [50],
+            "packages/pivotkit-core/src/chart-style.js Arrow function": [48],
             "packages/pivotkit-core/src/chart-style.js Function 'decorateOption'": [136],
             "packages/pivotkit-core/src/chart.js Function 'toEChartsOption'": [88],
             "packages/pivotkit-core/src/filters.js Function 'relativeDateRange'": [30],
@@ -118,7 +118,7 @@
         "lines": {
             "packages/pivotkit-cli/src/credential-store.js Function 'credentialStore'": [134],
             "packages/pivotkit-cli/src/remote.js Function 'createClient'": [161],
-            "packages/pivotkit-core/src/chart-style.js Function 'decorateOption'": [155],
+            "packages/pivotkit-core/src/chart-style.js Function 'decorateOption'": [148],
             "packages/pivotkit-core/src/chart.js Function 'toEChartsOption'": [199],
             "packages/pivotkit-mcp/src/http.js Async function 'createHttpHandler'": [159],
             "packages/pivotkit-react/src/chip-menus.jsx Function 'TopLevel'": [125],
@@ -353,8 +353,6 @@
         "packages/pivotkit-server/src/stats.js exports LOOKS_LENGTH",
         "packages/pivotkit-server/src/upload.js exports ANSWER_BYTES",
         "packages/pivotkit-server/src/upload.js exports LINK_MAX",
-        "packages/pivotkit-server/src/upload.js exports UPLOAD_QUEUE_MAX",
-        "packages/pivotkit-server/src/upload.js exports UPLOAD_SLOTS",
         "packages/pivotkit-server/src/upload.js exports addressCheck",
         "packages/pivotkit-server/src/views.js exports MAX_VIEWS",
         "packages/pivotkit-server/src/views.js exports VIEW_BYTES",

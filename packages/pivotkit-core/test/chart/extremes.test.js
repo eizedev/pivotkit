@@ -119,17 +119,18 @@ test("the ECharts option: a silent markPoint per series, a dot in its colour, �
     assert.deepEqual(a.markPoint.data.map((d) => text(d.label)), ["▲ 40", "▼ 10"]);
     assert.deepEqual(a.markPoint.data.map((d) => d.label.position), ["top", "bottom"]);
     assert.deepEqual(b.markPoint.data.map((d) => text(d.label)), ["▲ 7", "▼ 3"]);
-    // the dot and the glyph in the series' colour; the number in the text colour, which reads on
-    // every background (a palette colour such as yellow does not, as text)
+    // the dot in the series' colour; the glyph and the number in the text colour, which reads on every
+    // background (a series' colour such as a light grey or yellow does not, as text: #913)
     assert.equal(a.markPoint.data[0].itemStyle.color, "#111111");
     assert.equal(b.markPoint.data[0].itemStyle.color, "#222222");
-    assert.equal(b.markPoint.data[0].label.rich.s.color, "#222222");
+    assert.equal(b.markPoint.data[0].label.rich.s.color, undefined, "the glyph takes the label's colour");
     assert.equal(a.markPoint.data[0].label.color, "#333333");
     assert.equal(a.markPoint.data[0].label.fontSize, 15);
-    // a fixed colour (chart.colors) wins over the palette, for the dot and the glyph
+    // a fixed colour (chart.colors) wins over the palette for the dot; the label keeps the text colour
     const fixed = toEChartsOption(pivot({ chart: { type: "line", colors: [{ name: "B", color: "#abcdef" }], referenceLines: ON } }), { theme });
     assert.equal(fixed.series[1].markPoint.data[0].itemStyle.color, "#abcdef");
-    assert.equal(fixed.series[1].markPoint.data[0].label.rich.s.color, "#abcdef");
+    assert.equal(fixed.series[1].markPoint.data[0].label.rich.s.color, undefined);
+    assert.equal(fixed.series[1].markPoint.data[0].label.color, "#333333");
     // nothing switched on: no markPoint
     assert.equal(toEChartsOption(pivot({ chart: { type: "line" } })).series[0].markPoint, undefined);
 });
@@ -201,6 +202,75 @@ test("decorateOption: two labels at one category that would cover each other mov
     // with the real heights (pixelOf) far apart, both stay below their dots
     const far = decorateOption(toEChartsOption(r), style, { width: 390, height: 260, pixelOf: (v) => 1000 - v * 100 });
     assert.deepEqual(lows(far).map((d) => d.label.position), ["bottom", "bottom"]);
+});
+
+test("decorateOption: grouped bars (#913): a point's label stands over its own bar and never across a taller neighbour", () => {
+    const style = { getPropertyValue: () => "" };
+    // three teams side by side per month; A's high (50,000) between a taller B (100,000) and nothing
+    const rows = encode([
+        { Month: "m1", Team: "A", N: 50_000 },
+        { Month: "m1", Team: "B", N: 100_000 },
+        { Month: "m1", Team: "C", N: 10_000 },
+        { Month: "m2", Team: "A", N: 20_000 },
+        { Month: "m2", Team: "B", N: 30_000 },
+        { Month: "m2", Team: "C", N: 40_000 }
+    ]);
+    const r = computePivot(rows, { rows: ["Month"], cols: ["Team"], values: [{ field: "N", agg: "sum" }], sort: [], formatting: { locale: "en-US" }, chart: { type: "bar", referenceLines: ON } });
+    const highOf = (option, i) => option.series[i].markPoint.data.find((d) => d.name === "max");
+    const out = decorateOption(toEChartsOption(r), style, { width: 360, height: 300 });
+    // above A's bar the label would run across B's taller bar, beside it too: left out, the dot stays
+    assert.equal(highOf(out, 0).label.show, false, JSON.stringify(highOf(out, 0).label));
+    // B's high is the tallest bar: its label stays above it
+    assert.notEqual(highOf(out, 1).label.show, false);
+    // one column of bars (stacked) has no neighbours to avoid
+    const stacked = decorateOption(toEChartsOption(computePivot(rows, { rows: ["Month"], cols: ["Team"], values: [{ field: "N", agg: "sum" }], sort: [], chart: { type: "bar", stacked: true, referenceLines: ON } })), style, { width: 360, height: 300 });
+    assert.ok(stacked.series.some((s) => (s.markPoint?.data ?? []).some((d) => d.label.show !== false)));
+});
+
+test("decorateOption: grouped bars (#913): a label with no room over its bar or beside its dot stands over its group's highest bar", () => {
+    const style = { getPropertyValue: () => "" };
+    // A's high (50,000) next to a taller B (90,000) in m1; B's own high is in m2, so m1's group has room above
+    const rows = encode([
+        { Month: "m1", Team: "A", N: 50_000 },
+        { Month: "m1", Team: "B", N: 90_000 },
+        { Month: "m1", Team: "C", N: 10_000 },
+        { Month: "m2", Team: "A", N: 20_000 },
+        { Month: "m2", Team: "B", N: 100_000 },
+        { Month: "m2", Team: "C", N: 40_000 }
+    ]);
+    const r = computePivot(rows, { rows: ["Month"], cols: ["Team"], values: [{ field: "N", agg: "sum" }], sort: [], formatting: { locale: "en-US" }, chart: { type: "bar", referenceLines: ON } });
+    // the real heights: 100,000 at 50 px, 0 at 250 px
+    const pixelOf = (v) => 250 - v * 0.002;
+    const out = decorateOption(toEChartsOption(r), style, { width: 360, height: 300, pixelOf });
+    const label = out.series[0].markPoint.data.find((d) => d.name === "max").label;
+    assert.notEqual(label.show, false, JSON.stringify(label));
+    assert.equal(label.position, "top");
+    // moved up from A's top (150 px): the label's foot (its distance above the 5 px dot) above B's top (70 px)
+    assert.ok(150 - 5 - label.distance + label.offset[1] <= pixelOf(90_000), JSON.stringify(label));
+});
+
+test("decorateOption: dense grouped bars (#913): the chart's highest and lowest label are placed first, before the other series' labels take their room", () => {
+    const style = { getPropertyValue: () => "" };
+    // three series over six months; the chart's lowest (13) and highest (100) are B's, the second series
+    const values = { A: [40, 89, 84, 34, 91, 65], B: [31, 60, 13, 100, 73, 57], C: [51, 68, 22, 22, 99, 78] };
+    const rows = encode(Object.entries(values).flatMap(([Team, list]) => list.map((N, i) => ({ Month: `m${i + 1}`, Team, N }))));
+    const r = computePivot(rows, { rows: ["Month"], cols: ["Team"], values: [{ field: "N", agg: "sum" }], sort: [], formatting: { locale: "en-US" }, chart: { type: "bar", referenceLines: ON } });
+    const out = decorateOption(toEChartsOption(r), style, { width: 360, height: 300 });
+    const shown = out.series.flatMap((s) => (s.markPoint?.data ?? []).filter((d) => d.label.show !== false).map((d) => text(d.label)));
+    assert.ok(shown.includes("▲ 100") && shown.includes("▼ 13"), shown.join(", "));
+    // lossy: not every label has room
+    assert.ok(shown.length < 6, shown.join(", "));
+});
+
+test("decorateOption: lines keep the series' order, so close lows move apart instead of a label left out", () => {
+    const style = { getPropertyValue: () => "" };
+    // three years of monthly temperatures: the lows of January and February close together
+    const values = { 2023: [4.1, 2.8, 5.5, 7.7, 14, 19.4, 20.1, 19.6, 18.9, 12.1, 5.5, 3.6], 2024: [1.2, 6.6, 7.6, 10.9, 16.9, 18, 20.4, 21.4, 17.5, 11.5, 5.4, 3.8], 2025: [2.3, 0.6, 6.2, 12, 13.9, 19.7, 19.6, 18.9, 15.7, 10.3, 5.2, 3.1] };
+    const rows = encode(Object.entries(values).flatMap(([Year, list]) => list.map((T, i) => ({ Month: `m${String(i + 1).padStart(2, "0")}`, Year, T }))));
+    const r = computePivot(rows, { rows: ["Month"], cols: ["Year"], values: [{ field: "T", agg: "sum", format: "number:1" }], sort: [], formatting: { locale: "en-US" }, chart: { type: "line", referenceLines: ON } });
+    const out = decorateOption(toEChartsOption(r), style, { width: 1080, height: 420 });
+    const shown = out.series.flatMap((s) => (s.markPoint?.data ?? []).filter((d) => d.label.show !== false).map((d) => text(d.label)));
+    assert.deepEqual(shown.sort(), ["▲ 20.1", "▲ 21.4", "▲ 19.7", "▼ 0.6", "▼ 1.2", "▼ 2.8"].sort());
 });
 
 test("decorateOption: a label reads over a line it crosses, outlined in the background's colour", () => {
