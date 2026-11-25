@@ -110,6 +110,8 @@ same for everyone. [CONTRIBUTING.md](CONTRIBUTING.md) has the commands.
 - Tests that fail without the change and pass with it. No test weakened to pass.
 - Docs and upgrading notes that describe the new state. A changelog entry is welcome;
   [CONTRIBUTING.md](CONTRIBUTING.md#changelog-and-commits) says what happens without one.
+- For a change to docs or code, a whole-change check in the description: each touched page or
+  function read whole, and how the change reshaped it instead of appending.
 - Strongly recommended: an independent review before you open the pull request. Have code an AI
   assistant wrote reviewed by a reviewer that did not write it (a person or a separate AI session),
   and read, run and understand it yourself. The maintainer reviews every pull request neutrally
