@@ -220,7 +220,7 @@ The chart reads these tokens in the current theme:
 | The title's size and weight | `--pk-chart-title-size`, `--pk-weight-strong` |
 | Its other text: the axes, the legend, the labels on bars, slices and cells, the heatmap's scale | `--pk-chart-text-size` |
 | The text on a treemap's tiles, on a plate | `--pk-text` on `--pk-surface` |
-| The numbers on a heatmap's cells, and a treemap's text too wide for a plate: the first that reaches 4.5:1 on the cell, else black or white | `--pk-text`, `--pk-surface` |
+| The numbers on a heatmap's cells, and a treemap's text too big for a plate: the first that reaches 4.5:1 on the cell, else black or white | `--pk-text`, `--pk-surface` |
 | The labels of high and low points, with an outline around the letters | `--pk-muted`, outlined in `--pk-surface` |
 | The labels of reference lines | `--pk-muted` |
 | The corners of bars and pie slices | `--pk-radius-chart` |

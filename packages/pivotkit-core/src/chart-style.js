@@ -92,7 +92,8 @@ function inkOn(fill, inks, readColor) {
  * A treemap's labels (see above): on plates in the background colour, the text in the text colour, the
  * plates' corners as the tiles'. ECharts gives a tile's label a box of the tile's size and lays rich text
  * out from the box's top. With `tileOf` (the tiles of a first draw) each label's padding moves the lines
- * that fit down to the tile's middle, and a label too wide for its tile keeps no plate: ECharts cuts it
+ * that fit down to the tile's middle, and a label too wide for its tile, or without room for a line on a
+ * plate, keeps no plate: ECharts cuts it
  * short, in the ink that reads on its tile, so no plate stands without words. Without `tileOf` all
  * labels stand on plates at the top. Without a background colour it can draw (--pk-surface missing, or
  * `readColor` cannot read it), no plates: each label in the ink that reads on its tile (inkedLabel).
@@ -128,11 +129,12 @@ function treemapLabels(s, { text, surface, radius, fontSize, readColor, tileOf }
             const tile = tileOf(i);
             if (!tile) return d;
             const texts = String(format(d)).split("\n");
-            const fits = Math.max(...texts.map((t) => textWidth(t, fontSize))) + 2 * PLATE_SIDE <= tile.width - 2 * pad;
+            const room = tile.height - 2 * pad;
+            // a plate where its words fit the tile's width and one line of it its height
+            const fits = Math.max(...texts.map((t) => textWidth(t, fontSize))) + 2 * PLATE_SIDE <= tile.width - 2 * pad && room >= line;
             // without a plate, lines as close as ECharts' own
             const height = fits ? line : Math.round(fontSize * 1.2);
-            const room = tile.height - 2 * pad;
-            const lines = Math.min(texts.length, Math.floor(room / height));
+            const lines = Math.max(1, Math.min(texts.length, Math.floor(room / height)));
             const top = pad + Math.max(0, (room - lines * height) / 2);
             const bare = fits ? {} : { rich: { plate: { fontSize, lineHeight: height, color: inkOn(tile.fill, inks, readColor), backgroundColor: "transparent", padding: 0 } } };
             return { ...d, label: { ...d.label, padding: [top, pad, pad, pad], ...bare } };

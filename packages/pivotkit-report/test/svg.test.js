@@ -171,6 +171,13 @@ test("a combo and a treemap reach the SVG (#518)", async () => {
     for (const region of ["North", "South", "West"]) {
         assert.ok(tiles.includes(region), `${region}: ${tiles.join(" | ")}`);
     }
+    // each label in its tile's middle (#913): its name and value as far above as below the tile's centre
+    const lines = [...t.text.matchAll(/<text [^>]*y="([-\d.e]+)" transform="translate\(([^)]+)\)"[^>]*>([^<]*)<\/text>/g)].map(([, y, at, text]) => ({ y: Number(y), at, text }));
+    for (const region of ["North", "South", "West"]) {
+        const name = lines.find((l) => l.text === region);
+        const value = lines.find((l) => l !== name && l.at === name?.at);
+        assert.ok(name && value && Math.abs(name.y + value.y) <= 1, `${region}: ${JSON.stringify([name, value])}`);
+    }
 });
 
 test("100 % stacked bars and hidden series reach the SVG (#36)", async () => {

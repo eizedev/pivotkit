@@ -483,7 +483,7 @@ It adds the theme's colours from the tokens, and:
 - Room on the right for the values at the end of horizontal bars, fewer value ticks on a narrow axis.
 - A heatmap's row names and numbers where its cells have room, each number in the first of
   `--pk-text` and `--pk-surface` that reads at 4.5:1, else `#000000` or `#ffffff` (`labelColorOn`). A
-  treemap's labels in `--pk-text` on a plate in `--pk-surface`; a label too wide for its tile
+  treemap's labels in `--pk-text` on a plate in `--pk-surface`; a label too big for its tile
   (`tileOf`), or any without a `--pk-surface` it can draw, has no plate and takes the cell's ink.
 
 pivotkit-react adds its DOM tooltip through `tooltipFormatter`. Its `readColor` turns any colour the

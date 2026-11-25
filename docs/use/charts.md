@@ -84,8 +84,8 @@ report: the report itself, field list included, is at least 1,024 pixels wide.
 - Each tile shows its name and value. A small tile cuts the text with "…". The tooltip shows both.
   A row with a total of 0 or less gets no tile.
 - The colours only tell the tiles apart. They do not stand for a value.
-- The text stands in the tile's middle on a plate in the background's colour. Too wide for its
-  tile, it has no plate and takes black, white or the theme's text colour, whichever reads.
+- The text stands in the tile's middle on a plate in the background's colour. Too big for its
+  tile, it has no plate and takes the text or background colour, else black or white, that reads.
 - It has no legend. **Chart settings › Series** hides a tile or sets its colour.
 - With a field on Columns, a tile adds up every column, as a pie does. A click opens no rows.
 
