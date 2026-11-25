@@ -111,17 +111,18 @@ export function createRecords(context) {
 
     /**
      * A place for a person: at once, or after waiting up to rest.records.waitMs (a debug line says
-     * it waits); null: BUSY.
+     * it waits); null: BUSY. A caller that left while it waited gets its signal's reason thrown: no
+     * refusal of a full route, as for a load it left (sources/run.js).
      * @param {string} person
      * @param {AbortSignal} [signal]
      */
     async function placeFor(person, signal) {
-        const now = places.take(person);
-        if (now || bounds.waitMs <= 0) {
-            return now;
+        const onWait = () => context.log.debug("rows: a request waits for a place", { held: places.held(), waiting: places.waiting() });
+        const release = await places.wait(person, bounds.waitMs, { signal, onWait });
+        if (!release && signal?.aborted) {
+            throw signal.reason instanceof Error ? signal.reason : new DOMException("the caller went away", "AbortError");
         }
-        context.log.debug("rows: a request waits for a place", { held: places.held(), waiting: places.waiting() });
-        return places.wait(person, bounds.waitMs, signal);
+        return release;
     }
 
     /**

@@ -422,7 +422,7 @@ function gated() {
 
 test("503 BUSY with Retry-After beyond the server's cap", async () => {
     const slow = gated();
-    const { server, person } = await serverOf({ sources: { slow: { load: slow.load, policy: { default: "show" } } }, profiles: { staff: { ...PROFILES.staff, records: ["sales", "slow"] } }, rest: { records: { concurrency: 1 } } });
+    const { server, person } = await serverOf({ sources: { slow: { load: slow.load, policy: { default: "show" } } }, profiles: { staff: { ...PROFILES.staff, records: ["sales", "slow"] } }, rest: { records: { concurrency: 1, waitMs: 0 } } });
     try {
         const first = rows(server, await person({ sub: "ana" }), { source: "slow" });
         await until(() => slow.started() > 0);
@@ -464,7 +464,7 @@ test("createPlaces: a waiting holder gets a place given back before a newcomer; 
     const ben = places.wait("ben", 10_000);
     assert.equal(await places.wait("ana", 10_000), null, "a holder never waits for a second place");
     const left = new AbortController();
-    const cleo = places.wait("cleo", 10_000, left.signal);
+    const cleo = places.wait("cleo", 10_000, { signal: left.signal });
     assert.equal(await places.wait("dan", 10_000), null, "no more than maxWaiting wait");
     assert.equal(places.waiting(), 2);
     left.abort();
@@ -497,7 +497,7 @@ test("a second person waits for the place (rest.records.waitMs) and reads once t
         const first = h.ask(await h.person({ sub: "ana" }), { source: "slow" });
         await until(() => slow.started() > 0);
         const second = h.ask(await h.person({ sub: "ben" }), { source: "sales" });
-        await until(() => h.lines.some((l) => l.msg === "rows: a request waits for a place" && l.held === 1), { message: "the second person does not wait for the place" });
+        await until(() => h.lines.some((l) => l.msg === "rows: a request waits for a place" && l.held === 1 && l.waiting === 1), { message: "the second person does not wait for the place" });
         slow.open();
         const one = await first;
         assert.equal(one.status, 200);
@@ -505,6 +505,59 @@ test("a second person waits for the place (rest.records.waitMs) and reads once t
         const two = await second;
         assert.equal(two.status, 200, await two.clone().text());
         assert.deepEqual(JSON.parse(await two.text()).columns, ["Region", "Sales", "OrderDate"]);
+    } finally {
+        slow.open();
+        await h.close();
+    }
+});
+
+test("a wait for a place ends after rest.records.waitMs with 503 BUSY and Retry-After; only a real wait is logged as one (#636)", async () => {
+    const slow = gated();
+    const h = await handlerOf({ sources: { slow: { load: slow.load, policy: { default: "show" } } }, profiles: { staff: { ...PROFILES.staff, records: ["sales", "slow"] } }, rest: { records: { concurrency: 1, waitMs: 300 } }, top: { log: "debug" } });
+    const waits = () => h.lines.filter((l) => l.msg === "rows: a request waits for a place").length;
+    try {
+        const ana = await h.person({ sub: "ana" });
+        const first = h.ask(ana, { source: "slow" });
+        await until(() => slow.started() > 0);
+        // the same person is refused at once, without waiting
+        const again = await h.ask(ana, { source: "sales" });
+        assert.equal(again.status, 503);
+        assert.equal(waits(), 0, "a request refused at once is not logged as waiting");
+        const started = Date.now();
+        const busy = await h.ask(await h.person({ sub: "ben" }), { source: "sales" });
+        const waited = Date.now() - started;
+        assert.equal(busy.status, 503);
+        assert.equal(JSON.parse(await busy.text()).code, "BUSY");
+        assert.ok(Number(busy.headers.get("retry-after")) >= 1);
+        assert.ok(waited >= 290, `waited ${waited} ms`); // wall time: the wait is a timer of waitMs (300 ms)
+        assert.equal(waits(), 1);
+        slow.open();
+        await (await first).text();
+    } finally {
+        slow.open();
+        await h.close();
+    }
+});
+
+test("a caller that leaves while it waits for a place gets no BUSY refusal and leaves the queue (#636)", async () => {
+    const slow = gated();
+    const h = await handlerOf({ sources: { slow: { load: slow.load, policy: { default: "show" } } }, profiles: { staff: { ...PROFILES.staff, records: ["sales", "slow"] } }, rest: { records: { concurrency: 1 } }, top: { log: "debug" } });
+    try {
+        const first = h.ask(await h.person({ sub: "ana" }), { source: "slow" });
+        await until(() => slow.started() > 0);
+        const left = new AbortController();
+        const token = await h.person({ sub: "ben" });
+        const gone = h.rest.fetch(new Request("http://127.0.0.1/api/v1/sources/records", { method: "POST", signal: left.signal, headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify({ source: "sales" }) }), { address: "127.0.0.1" });
+        await until(() => h.lines.some((l) => l.msg === "rows: a request waits for a place" && l.waiting === 1));
+        const before = h.lines.length;
+        left.abort();
+        await gone.catch(() => undefined);
+        assert.deepEqual(h.lines.slice(before).filter((l) => l.event === "refused"), [], "no refusal of a full route for a caller that left");
+        slow.open();
+        await (await first).text();
+        const next = await h.ask(await h.person({ sub: "cleo" }), { source: "sales" });
+        assert.equal(next.status, 200, "the queue holds nobody who left");
+        await next.text();
     } finally {
         slow.open();
         await h.close();
@@ -628,7 +681,7 @@ test("a slow reader loses its place after writeMs, also when it reads within idl
     }
 });
 
-test("one slow reader no longer holds the place for the whole compute time: a waiting person reads once it is cut at writeMs (#636)", async () => {
+test("a person who waits gets the place a slow reader loses at writeMs, when writeMs ends within waitMs (#636)", async () => {
     const h = await handlerOf({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } }, rest: { records: { idleMs: 1000, writeMs: 1500, concurrency: 1 } } }, { "sales.csv": bigCsv(40_000) });
     try {
         const slow = await h.ask(await h.person({ sub: "ana" }), { source: "sales" });
@@ -676,7 +729,7 @@ test("a reader that leaves mid-answer frees its place at once", async () => {
 
 // a full server is a capacity refusal a client causes, not a server fault: its lines are warnings (#638)
 test("503 BUSY logs its refused line and every other line of the request at warn, not error", async () => {
-    const h = await handlerOf({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } }, rest: { records: { concurrency: 1 } } }, { "sales.csv": bigCsv(40_000) });
+    const h = await handlerOf({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } }, rest: { records: { concurrency: 1, waitMs: 0 } } }, { "sales.csv": bigCsv(40_000) });
     try {
         const first = await h.ask(await h.person({ sub: "ana" }), { source: "sales" });
         const lineCount = h.lines.length;

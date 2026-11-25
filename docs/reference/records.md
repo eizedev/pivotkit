@@ -121,8 +121,9 @@ warns about such a profile.
 
     `rest.records.concurrency` is 1 by default, for the whole server. One person's rows request
     holds the route. Every other person waits up to `rest.records.waitMs` (5 s) for it, then gets 503
-    `BUSY`. Raise `rest.records.concurrency` and `compute.workers` together when several people open
-    live reports at once.
+    `BUSY`. A slow load (up to `compute.timeMs`, 30 s) or a slow reader (up to `writeMs`, 10 s)
+    outlasts that wait. Raise `waitMs` for short peaks, or `rest.records.concurrency` and
+    `compute.workers` together when several people open live reports at once.
 
 The load stays bounded by the server's other limits: `limits.rows`, `limits.fileBytes`,
 `http.maxBytes` and `sourceCache.maxMb`. These keys bound what one answer hands out. The smallest

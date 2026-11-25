@@ -119,10 +119,11 @@ export function createPlaces(size, maxWaiting = 0) {
          * at once when the holder holds or waits for one already, or when maxWaiting wait already.
          * @param {string} holder
          * @param {number} ms
-         * @param {AbortSignal} [signal]  the request's: a caller that left stops waiting
+         * @param {{ signal?: AbortSignal, onWait?: () => void }} [how]  signal: the request's (a caller
+         *   that left stops waiting); onWait: called once the holder really waits
          * @returns {Promise<(() => void) | null>}
          */
-        wait(holder, ms, signal = undefined) {
+        wait(holder, ms, { signal, onWait } = {}) {
             const now = take(holder);
             if (now || ms <= 0 || holders.has(holder) || waiting.length >= maxWaiting || waiting.some((w) => w.holder === holder) || signal?.aborted) {
                 return Promise.resolve(now);
@@ -147,9 +148,13 @@ export function createPlaces(size, maxWaiting = 0) {
                     }
                     resolve(null);
                 };
+                // unref'd: a wait never keeps the process alive. Over HTTP, closing the listener ends
+                // the connections, and their signals end the waits
                 const timer = setTimeout(leave, ms);
+                timer.unref?.();
                 signal?.addEventListener("abort", leave, { once: true });
                 waiting.push(entry);
+                onWait?.();
             });
         },
         /** The places held (tests). */
