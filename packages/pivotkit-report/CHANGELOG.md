@@ -6,6 +6,11 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `render` takes `describeLabels`, the words of the HTML report's filters and summary. A host that
+  passes its own `labels` passes them too, so the report keeps to one language.
+
 ### Changed
 
 - The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
@@ -13,7 +18,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 ### Fixed
 
 - A German HTML report writes its filters and its summary (`{{filters}}`, `{{summary}}` and the
-  page description) in German. They were English (#798).
+  page description) in German, with the locale's numbers ("Units ist mindestens 1,5"). They were
+  English (#798).
 
 ## [0.6.0] - 2026-11-24
 
