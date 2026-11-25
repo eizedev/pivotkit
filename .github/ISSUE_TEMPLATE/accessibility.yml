@@ -23,9 +23,9 @@ body:
     id: setup
     attributes:
       label: Browser, system and assistive technology
-      placeholder: Firefox 145 on Windows 11 with NVDA, keyboard only, zoom 200 %
+      placeholder: Firefox on Windows with NVDA, keyboard only, zoom 200%
   - type: input
     id: version
     attributes:
       label: Package and version, or the docs page
-      placeholder: pivotkit-react 0.10.0, or the playground
+      placeholder: pivotkit-react 0.x, or the playground
