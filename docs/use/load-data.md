@@ -146,7 +146,9 @@ next file.
 - The preview is a dialog. The focus moves in, Tab stays inside, and Escape cancels. Afterwards the
   focus goes back to where it was.
 - When the first rows are there, the focus is on **Load data**, so Enter loads. Tab from there goes
-  to the sheet and the types, each a list named like "Type of Hours". Shift+Tab goes to **Cancel**.
+  to the sheet and the types, each a list named like "Type of Hours", and to the decimal marks, each
+  named by its question and column, like "“1,234” means (decimal mark of Sales)". Shift+Tab goes to
+  **Cancel**.
 - After you pick another sheet, the focus stays on the sheet list.
 - The dialog's description is its line of rows and columns and its notes, so a screen reader reads
   them out.
