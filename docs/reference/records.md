@@ -120,9 +120,9 @@ warns about such a profile.
 !!! warning "One rows request at a time by default"
 
     `rest.records.concurrency` is 1 by default, for the whole server. One person's rows request
-    holds the route. Every other person gets 503 `BUSY` until that answer is read or cut off. Raise
-    `rest.records.concurrency` and `compute.workers` together when several people open live reports
-    at once.
+    holds the route. Every other person waits up to `rest.records.waitMs` (5 s) for it, then gets 503
+    `BUSY`. Raise `rest.records.concurrency` and `compute.workers` together when several people open
+    live reports at once.
 
 The load stays bounded by the server's other limits: `limits.rows`, `limits.fileBytes`,
 `http.maxBytes` and `sourceCache.maxMb`. These keys bound what one answer hands out. The smallest
@@ -134,6 +134,7 @@ limit wins.
 | `rest.records.maxRows` | 50000 | The most rows of one answer (1 to 10,000,000) |
 | `rest.records.maxCells` | 1000000 | The most values of one answer: rows times fields (1 to 100,000,000) |
 | `rest.records.concurrency` | 1 | Rows requests at once over all callers, one per person (1 to 64). Keep it below `compute.workers` (default 2) |
+| `rest.records.waitMs` | 5000 | How long a request waits for a place before 503 `BUSY` (0 to 60000; 0: no wait) |
 | `rest.records.idleMs` | 30000 | A reader that reads nothing for this long loses its place (1000 to 600000) |
 | `rest.records.writeMs` | 10000, at most `compute.timeMs` | A reader that has not read the whole answer within this time loses its place (1000 to 600000, not above `compute.timeMs`) |
 | `sources.<id>.records.maxRows` | `rest.records.maxRows` | A lower row limit for one source. It cannot be higher than the server's |
@@ -143,13 +144,14 @@ limit wins.
   operator". Where the policy hides the row count (`rows: false`), the message leaves the count out.
   It names a parameter only for a source that takes one the caller sends.
 - The server checks the fields and the limits before it writes the first byte.
-- Beyond `concurrency`, or for a second request of the same person, the answer is 503 `BUSY` with
-  `Retry-After` and `retryable: true`.
-- With the default of 1, the route serves one person at a time. A slow reader keeps the others at
-  503 `BUSY` for up to `writeMs`. A source that loads slowly keeps them there while it loads, up to
-  its own time limit and `compute.timeMs`. The place is taken before the load, so at most
-  `concurrency` loads hold data at once. Raise `concurrency` and `compute.workers` together for
-  more people at once.
+- Beyond `concurrency`, a request waits up to `waitMs` for a place, first come first served. After
+  that, and at once for a second request of the same person or beyond 32 waiting requests, the
+  answer is 503 `BUSY` with `Retry-After` and `retryable: true`.
+- With the default of 1, the route serves one person at a time. A slow reader holds the place for up
+  to `writeMs`. A source that loads slowly holds it while it loads, up to its own time limit and
+  `compute.timeMs`, and a request that waits longer than `waitMs` gets 503 `BUSY`. The place is
+  taken before the load, so at most `concurrency` loads hold data at once. Raise `concurrency` and
+  `compute.workers` together for more people at once.
 - `writeMs` cuts an honest reader on a slow link too. The default answer of 50,000 rows is about
   4 MiB ([sizing](#records-sizing)), which needs about 3.5 Mbit/s within 10 s.
 - `auth.toolScopes` cannot name this route, since it is no operation. `rest.requiredScopes` and the
@@ -158,8 +160,8 @@ limit wins.
 - One request holds a [compute worker](mcp.md#configuration) while its answer is written. Keep
   `concurrency` below `compute.workers`, so reports still find a worker. `check-config` warns
   otherwise.
-- The whole request, reading and writing, must end within `compute.timeMs`, and the writing within
-  `writeMs`. A slow reader's answer is cut off then, and the connection ends without the closing
+- After its wait for a place, the whole request, reading and writing, must end within
+  `compute.timeMs`, and the writing within `writeMs`. A slow reader's answer is cut off then, and the connection ends without the closing
   bracket.
 - The answer has no `Content-Length`. Read it to its end, then parse it.
 

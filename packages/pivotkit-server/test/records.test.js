@@ -16,6 +16,7 @@ import { checkConfig, createContext, validateOptions } from "pivotkit-server";
 import { createRestHandler } from "pivotkit-server/rest";
 import { answeredType, columnPieces } from "../src/records-writer.js";
 import { recordsBoundsOf } from "../src/options/records.js";
+import { createPlaces } from "../src/limits.js";
 import { call, factsOf, restServer, TOKEN, untilReady, workspace, runBin } from "./helpers.js";
 import { localIssuer } from "./auth/local-issuer.js";
 import { until } from "../../../tests/until.js";
@@ -456,6 +457,60 @@ test("503 BUSY with Retry-After for a second request of the same person", async 
     }
 });
 
+test("createPlaces: a waiting holder gets a place given back before a newcomer; the same holder, one over the cap, a timeout and a caller that left get none", async () => {
+    const places = createPlaces(1, 2);
+    const ana = places.take("ana");
+    assert.ok(ana);
+    const ben = places.wait("ben", 10_000);
+    assert.equal(await places.wait("ana", 10_000), null, "a holder never waits for a second place");
+    const left = new AbortController();
+    const cleo = places.wait("cleo", 10_000, left.signal);
+    assert.equal(await places.wait("dan", 10_000), null, "no more than maxWaiting wait");
+    assert.equal(places.waiting(), 2);
+    left.abort();
+    assert.equal(await cleo, null, "a caller that left stops waiting");
+    ana();
+    assert.equal(places.take("eve"), null, "the place went to the waiting holder, not to a newcomer");
+    const benRelease = await ben;
+    assert.ok(benRelease);
+    assert.equal(await places.wait("eve", 20), null, "a wait ends after its time");
+    benRelease();
+    benRelease();
+    assert.deepEqual([places.held(), places.waiting()], [0, 0]);
+    assert.equal(await createPlaces(1, 2).wait("ana", 0).then((r) => typeof r), "function", "a free place is taken at once");
+});
+
+test("rest.records.waitMs: from 0 to 60000, 5000 by default; check-config says it", async () => {
+    assert.throws(() => validateOptions({ rest: { records: { waitMs: -1 } } }), /rest\.records\.waitMs: must be a whole number of 0 or more/);
+    assert.throws(() => validateOptions({ rest: { records: { waitMs: 60_001 } } }), /rest\.records\.waitMs: from 0 to 60000/);
+    validateOptions({ rest: { records: { waitMs: 0 } } });
+    assert.equal(recordsBoundsOf({}).waitMs, 5000);
+    const { options } = setup();
+    const { text } = await checkConfig({ ...options, rest: { records: { waitMs: 2000 } } }, { http: true, rest: true, env: { OPS: TOKEN }, name: "pivotkit-server" });
+    assert.match(text, /written within 10 s; a request waits up to 2 s for a place/);
+});
+
+test("a second person waits for the place (rest.records.waitMs) and reads once the first is done, not 503 BUSY (#636)", async () => {
+    const slow = gated();
+    const h = await handlerOf({ sources: { slow: { load: slow.load, policy: { default: "show" } } }, profiles: { staff: { ...PROFILES.staff, records: ["sales", "slow"] } }, rest: { records: { concurrency: 1 } }, top: { log: "debug" } });
+    try {
+        const first = h.ask(await h.person({ sub: "ana" }), { source: "slow" });
+        await until(() => slow.started() > 0);
+        const second = h.ask(await h.person({ sub: "ben" }), { source: "sales" });
+        await until(() => h.lines.some((l) => l.msg === "rows: a request waits for a place" && l.held === 1), { message: "the second person does not wait for the place" });
+        slow.open();
+        const one = await first;
+        assert.equal(one.status, 200);
+        await one.text();
+        const two = await second;
+        assert.equal(two.status, 200, await two.clone().text());
+        assert.deepEqual(JSON.parse(await two.text()).columns, ["Region", "Sales", "OrderDate"]);
+    } finally {
+        slow.open();
+        await h.close();
+    }
+});
+
 /** A REST handler in this process (no sockets), with setup()'s options. */
 async function handlerOf(extra = {}, files = undefined) {
     const s = setup(extra, files);
@@ -568,6 +623,34 @@ test("a slow reader loses its place after writeMs, also when it reads within idl
         assert.equal(next.status, 200, "the place is free again");
         await next.body?.cancel();
         assert.ok(h.lines.some((l) => l.event === "records" && l.outcome === "error" && l.level === "warn" && l.reason === "slow"), JSON.stringify(h.lines.filter((l) => l.event === "records")));
+    } finally {
+        await h.close();
+    }
+});
+
+test("one slow reader no longer holds the place for the whole compute time: a waiting person reads once it is cut at writeMs (#636)", async () => {
+    const h = await handlerOf({ sources: { sales: { file: "data/sales.csv", policy: { default: "show" } } }, rest: { records: { idleMs: 1000, writeMs: 1500, concurrency: 1 } } }, { "sales.csv": bigCsv(40_000) });
+    try {
+        const slow = await h.ask(await h.person({ sub: "ana" }), { source: "sales" });
+        assert.equal(slow.status, 200);
+        const reader = /** @type {ReadableStream} */ (slow.body).getReader();
+        // the slow reader's pace: a piece every 400 ms, inside idleMs, until the answer is cut
+        const reading = (async () => {
+            for (;;) {
+                await new Promise((r) => setTimeout(r, 400));
+                const read = await reader.read().catch((e) => ({ done: true, error: e }));
+                if (read.done) {
+                    return;
+                }
+            }
+        })();
+        const started = Date.now();
+        const next = await h.ask(await h.person({ sub: "ben" }), { source: "sales" });
+        assert.equal(next.status, 200, "the waiting person gets the place the slow reader lost");
+        assert.ok(Date.now() - started < 10_000, "far below compute.timeMs (30 s)"); // wall time: the place frees at the writeMs timer (1.5 s)
+        await next.body?.cancel();
+        await reading;
+        assert.ok(h.lines.some((l) => l.event === "records" && l.reason === "slow"));
     } finally {
         await h.close();
     }

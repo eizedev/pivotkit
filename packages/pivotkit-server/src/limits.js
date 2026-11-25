@@ -74,32 +74,88 @@ export const LARGE_BODIES = 2;
  * A few places, at most `size` held at once and one per holder: the large bodies (a caller that may
  * send data holds one while its body is read and its request runs, so a few such callers cannot fill
  * the memory together) and the rows requests (records.js: one per person while its answer is written).
+ * Up to `maxWaiting` holders may wait for a place (wait); a place given back goes to the first of them
+ * at once, so a newcomer never takes it first.
  * @param {number} size
+ * @param {number} [maxWaiting]  0: nobody waits (take only)
  */
-export function createPlaces(size) {
+export function createPlaces(size, maxWaiting = 0) {
     /** @type {Set<string>} the holders */
     const holders = new Set();
-    return {
-        /**
-         * A place for a holder, or null when all are held or the holder holds one: a function that
-         * gives it back (once).
-         * @param {string} holder  a caller's limit key (large bodies), a person's identity key (rows)
-         */
-        take(holder) {
-            if (holders.size >= size || holders.has(holder)) {
-                return null;
+    /** @type {Array<{ holder: string, give: (release: () => void) => void }>} the waiting, first come first */
+    const waiting = [];
+    /** The function that gives a holder's place back (once), to the first waiting holder if there is one. */
+    const releaseOf = (holder) => {
+        let given = false;
+        return () => {
+            if (given) {
+                return;
             }
-            holders.add(holder);
-            let given = false;
-            return () => {
-                if (!given) {
-                    given = true;
-                    holders.delete(holder);
-                }
-            };
+            given = true;
+            holders.delete(holder);
+            const next = waiting.shift();
+            if (next) {
+                holders.add(next.holder);
+                next.give(releaseOf(next.holder));
+            }
+        };
+    };
+    /**
+     * A place for a holder, or null when all are held or the holder holds one: a function that gives
+     * it back (once).
+     * @param {string} holder  a caller's limit key (large bodies), a person's identity key (rows)
+     */
+    const take = (holder) => {
+        if (holders.size >= size || holders.has(holder)) {
+            return null;
+        }
+        holders.add(holder);
+        return releaseOf(holder);
+    };
+    return {
+        take,
+        /**
+         * A place for a holder, waiting up to `ms` for one: null after that, when the signal aborts,
+         * at once when the holder holds or waits for one already, or when maxWaiting wait already.
+         * @param {string} holder
+         * @param {number} ms
+         * @param {AbortSignal} [signal]  the request's: a caller that left stops waiting
+         * @returns {Promise<(() => void) | null>}
+         */
+        wait(holder, ms, signal = undefined) {
+            const now = take(holder);
+            if (now || ms <= 0 || holders.has(holder) || waiting.length >= maxWaiting || waiting.some((w) => w.holder === holder) || signal?.aborted) {
+                return Promise.resolve(now);
+            }
+            return new Promise((resolve) => {
+                const done = () => {
+                    clearTimeout(timer);
+                    signal?.removeEventListener("abort", leave);
+                };
+                const entry = {
+                    holder,
+                    give: (/** @type {() => void} */ release) => {
+                        done();
+                        resolve(release);
+                    }
+                };
+                const leave = () => {
+                    done();
+                    const at = waiting.indexOf(entry);
+                    if (at >= 0) {
+                        waiting.splice(at, 1);
+                    }
+                    resolve(null);
+                };
+                const timer = setTimeout(leave, ms);
+                signal?.addEventListener("abort", leave, { once: true });
+                waiting.push(entry);
+            });
         },
         /** The places held (tests). */
-        held: () => holders.size
+        held: () => holders.size,
+        /** The holders waiting (tests). */
+        waiting: () => waiting.length
     };
 }
 
