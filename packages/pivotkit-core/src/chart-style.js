@@ -150,14 +150,15 @@ function treemapLabels(s, { text, surface, radius, fontSize, readColor, tileOf }
             const tile = tileOf(i, d.name);
             if (!tile) return d;
             const width = tile.width - 2 * pad - 2 * PLATE_SIDE;
-            const height = tile.height - 2 * pad;
+            // above and below the lines only a pixel: a tile a line tall keeps its label (the sides keep `pad`)
+            const height = tile.height - 2;
             const [first, ...rest] = String(format(d)).split("\n");
             const name = fitText(first, width, fontSize);
             const shown = name === null ? [] : [name, ...rest.filter((t) => textWidth(t, fontSize) <= width)].slice(0, Math.floor(height / line));
             if (!shown.length) return { ...d, label: { ...d.label, show: false } };
-            const top = pad + (height - shown.length * line) / 2;
+            const top = (tile.height - shown.length * line) / 2;
             const words = styled("plate", shown.join("\n"));
-            return { ...d, label: { ...d.label, padding: [top, pad, pad, pad], formatter: () => words } };
+            return { ...d, label: { ...d.label, padding: [top, pad, 0, pad], formatter: () => words } };
         })
     };
 }

@@ -103,8 +103,8 @@ for (const theme of ["light", "dark"]) {
             for (const p of t.plates) expect(p.words, `${t.name}: a plate ${p.width} px wide without words`).toBe(true);
             // a tile with room for three letters and the ellipsis on a plate shows words: at 14 px the widest
             // three (capitals, 0.7 em) and "…" (0.55 em) take 37 px, the plate 2 px a side and the tile 5 px
-            // a side: 51 px wide; a line of 21 px and 5 px above and below it: 31 px tall
-            if (t.size[0] >= 52 && t.size[1] >= 31) expect(t.words, `a tile of ${t.size.map(Math.round).join(" x ")} px without words`).not.toBeNull();
+            // a side: 51 px wide; a line of 21 px and a pixel above and below it: 23 px tall
+            if (t.size[0] >= 52 && t.size[1] >= 24) expect(t.words, `a tile of ${t.size.map(Math.round).join(" x ")} px without words`).not.toBeNull();
             if (!t.words) continue;
             // the words' middle within 2 px of the tile's
             expect(Math.abs((t.words[0] + t.words[1]) / 2 - (t.tile[0] + t.tile[1]) / 2), `${t.name}: ${JSON.stringify(t)}`).toBeLessThanOrEqual(2);

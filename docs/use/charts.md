@@ -84,7 +84,7 @@ report: the report itself, field list included, is at least 1,024 pixels wide.
 - Each tile shows its name and value in its middle, on a plate in the background's colour. The
   plate looks the same on every tile, whatever the tile's colour.
 - A name wider than its tile ends in "…", and a value that does not fit is left out. A tile with
-  room for fewer than 3 letters shows no text. The tooltip shows the name and the value.
+  room for fewer than 3 letters, or lower than a line, shows no text. The tooltip shows both.
 - A row with a total of 0 or less gets no tile.
 - The colours only tell the tiles apart. They do not stand for a value.
 - Without a background colour the chart can draw, the text has no plate. It then takes the text or

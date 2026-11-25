@@ -66,8 +66,9 @@ test("treemap with the tiles of a first draw (tileOf): each label on a plate in 
         Central: { width: 300, height: 200 },
         // 30 px wide: not even "Wes…" fits
         West: { width: 30, height: 60 },
-        // 20 px tall: no line fits
+        // 20 px tall: no line fits; 23 px: one does, with a pixel above and below
         North: { width: 300, height: 20 },
+        South: { width: 300, height: 23 },
         // 50 px wide: "Isl…" fits, the value "1,340" does not
         Islands: { width: 50, height: 60 }
     };
@@ -79,18 +80,19 @@ test("treemap with the tiles of a first draw (tileOf): each label on a plate in 
     // asked by item and name, so a tile is never another item's
     assert.deepEqual(asked, s.data.map((/** @type {any} */ d, /** @type {number} */ i) => [i, d.name]));
     const line = s.label.rich.plate.lineHeight;
-    // two lines of `line` px in the middle of the 190 px inside the tile, on the series' plate
-    assert.deepEqual(byName.Central.label.padding, [5 + (190 - 2 * line) / 2, 5, 5, 5]);
+    // two lines of `line` px in the middle of the tile's 200 px, on the series' plate
+    assert.deepEqual(byName.Central.label.padding, [(200 - 2 * line) / 2, 5, 0, 5]);
     assert.equal(byName.Central.label.formatter(), "{plate|Central}\n{plate|4,000}");
     assert.equal(byName.Central.label.rich, undefined, "on the series' plate");
     // cut with an ellipsis, on the plate; the value left out whole, not cut
     assert.equal(byName.Islands.label.formatter(), "{plate|Isl…}");
-    assert.deepEqual(byName.Islands.label.padding, [5 + (50 - line) / 2, 5, 5, 5]);
+    assert.deepEqual(byName.Islands.label.padding, [(60 - line) / 2, 5, 0, 5]);
     // no empty plate where nothing fits: the tooltip has the value
     assert.equal(byName.West.label.show, false);
     assert.equal(byName.North.label.show, false);
+    assert.equal(byName.South.label.formatter(), "{plate|South}");
     // a tile not drawn yet: the series' label
-    assert.equal(byName.South.label, undefined);
+    assert.equal(byName.East.label, undefined);
 });
 
 test("drawnTiles: a treemap's tiles by item and name, its root left out; nothing for another chart", () => {
