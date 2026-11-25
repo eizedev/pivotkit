@@ -204,7 +204,8 @@ Write long IDs as JSON strings.
 `retype(table, types, { decimal })` gives the table with other types, and number columns with
 another decimal mark, without reading the file again. It works from the values as the reader first
 read them, which the table keeps in `table.raw`, so a preview can let a person change both.
-`types` and `decimal` name columns by name or by position. A missing entry keeps the column as it is.
+`types` and `decimal` name columns by name or by position. A missing entry keeps the column as it
+is, and so does an entry that is not a type, or not `"."` or `","`.
 
 - **Types.** Text read as a number goes back to the text the file holds (`1.234,5`). A value that
   does not convert is blank, with a note that counts them.
