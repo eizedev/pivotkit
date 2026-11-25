@@ -6,6 +6,19 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- The package exports `TIP_IDS` and `NOTICE_IDS`, the ids of the tips and of the notices. A host
+  that checks a `tips` list no longer reads them from an internal chunk
+  ([#720](https://github.com/eizedev/pivotkit/issues/720)).
+
+### Fixed
+
+- A report mounted again while a link is in the page's address, such as a second report on the page
+  or one a host mounts anew on a theme switch, opens the link. Before, it threw a `TypeError` and
+  showed nothing, because the link opened before the report was ready for it
+  ([#735](https://github.com/eizedev/pivotkit/issues/735)).
+
 ## [0.10.0] - 2026-11-24
 
 ### Added

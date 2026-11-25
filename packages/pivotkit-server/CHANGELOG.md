@@ -14,6 +14,13 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   and the download sign-in's client secret. The start, `check-config` and `key new --if-missing` say
   so and name the file. Save it as UTF-8 without the mark. Download links made with such a key stop
   working, and audit hashes made with it change. A token file's mark is still trimmed.
+- A rows request (`POST /api/v1/sources/records`) that finds every place taken waits up to
+  `rest.records.waitMs` (default 5 s, 0 to 60 s) for one, first come first served, before 503
+  `BUSY`. A request that is answered within that time no longer turns the next person away. With the
+  defaults, a slow load (up to `compute.timeMs`, 30 s) or a slow reader (up to
+  `rest.records.writeMs`, 10 s) still outlasts the wait, and the others get 503 `BUSY`. Raise
+  `waitMs` or `rest.records.concurrency` for that. `waitMs: 0` keeps the old behavior. Raise a
+  proxy's time limit for this route by `waitMs`.
 
 ### Fixed
 
@@ -27,6 +34,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - `check-config` no longer warns that a later `auth.groupProfiles` entry shows fields an earlier one
   holds back when the source's policy already shows those fields to both. It compares the levels a
   person gets in each source, and under `files.policy` where `files.allowDirs` is set.
+- A large REST body (over 2 MiB, for a profile with `data: true`) takes its place per person, as
+  the rate limit counts. Two people who sign in through one OAuth client can each send one at once.
+  Before, they shared one place. A token without a person still counts per token or client.
 
 ## [0.5.0] - 2026-11-24
 
