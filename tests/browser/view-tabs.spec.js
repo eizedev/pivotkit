@@ -332,7 +332,7 @@ const PHONES = ["en", "de"].flatMap((lang) => [390, 393, 412, 430].map((width) =
 
 test.describe("a touch screen, where every button takes 44 px", () => {
     test.use({ hasTouch: true });
-    // a smaller phone: German has no room for one line, the buttons move above the tabs whole
+    // a smaller phone: in German the buttons move above the tabs (#943), in English they stay beside them; whole and apart either way
     for (const [lang, width] of [["en", 360], ["de", 360]]) {
         test(`${width} px, ${lang}: every tab and button whole, in the row and apart (#706)`, async ({ page }) => {
             await openRow(page, lang, width);
@@ -342,6 +342,7 @@ test.describe("a touch screen, where every button takes 44 px", () => {
     for (const [lang, width] of PHONES) {
         test(`a phone (${lang}, ${width} px): the tabs and the buttons share one line, the buttons at the right, at its foot (#760)`, async ({ page }) => {
             await openRow(page, lang, width);
+            await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", "narrow");
             await expectOneLine(page);
         });
     }
