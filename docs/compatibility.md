@@ -69,7 +69,7 @@ A host is the application the report runs in.
 | A React application | Tested in CI | The playground and host pages in Chromium, Firefox and WebKit |
 | A plain HTML page | Tested in CI | The web component on test pages, a strict Content-Security-Policy among them |
 | Angular | Tested in CI | CI builds the zoneless Angular 22 example and runs its browser test |
-| PowerShell Universal apps | Tested by hand | The report in a PowerShell Universal app, on release 0.3.0. [#118](https://github.com/eizedev/pivotkit/pull/118) fixed the findings. CI tests host pages that render as PowerShell Universal does. |
+| PowerShell Universal apps | Tested by hand | The [Pivot module for PowerShell Universal](https://powershell-universal-components.eize.dev/pivot/) has browser tests that run by hand against a PowerShell Universal instance ([browser tests on PSU](https://powershell-universal-components.eize.dev/development/#browser-tests-on-psu)). CI tests host pages that render as PowerShell Universal does. |
 | PowerShell Universal scripts with the REST service or the MCP server | Documented, not tested | [PowerShell Universal](getting-started/powershell-universal.md#psu) |
 | A Node program, engine only | Tested in CI | pivotkit-core's tests |
 | Your own Node server with pivotkit-server inside | Tested in CI | The REST handler with requests as a framework passes them |
