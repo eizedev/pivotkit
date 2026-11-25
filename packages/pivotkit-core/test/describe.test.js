@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DESCRIBE_LABELS, DESCRIBE_LIMITS, PivotkitError, describeLabels, describeSource, describeView, encode } from "../src/index.js";
+import { COMPARE_OPS, COMPARE_PRECISIONS, TEXT_OPS } from "../src/filters.js";
+import { RELATIVE_DIRECTIONS, RELATIVE_UNITS } from "../src/relative.js";
+import { CHART_TYPES } from "../src/view.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -154,7 +157,54 @@ test("describeView fills its words once: a name or a value that looks like a pla
     }
 });
 
-test("describeView: labels that leave a key out take English for it", () => {
-    const d = describeView({ version: 2, rows: ["Region"], filters: [{ field: "Units", type: "compare", op: ">", value: 1 }] }, data, { labels: { rows: "per {fields}" } });
-    assert.equal(d.text, "count of rows per Region where Units is greater than 1 (blanks dropped)");
+test("describeView: labels that leave a key or a table entry out take English for it", () => {
+    const d = describeView({ version: 2, rows: ["Region"], filters: [{ field: "Units", type: "compare", op: ">", value: 1 }] }, data, { labels: { rows: "per {fields}", blanks: { exclude: "no blanks" } } });
+    assert.equal(d.text, "count of rows per Region where Units is greater than 1 (no blanks)");
+    // a table given in part keeps English for its other entries
+    assert.equal(describeView({ version: 2, filters: [{ field: "Units", type: "compare", op: ">", value: 1, blanks: "include" }] }, data, { labels: { blanks: { exclude: "no blanks" } } }).filters[0].text, "Units is greater than 1 (blanks kept)");
+});
+
+test("describeView has words for every unit, direction, operator, precision and chart type of the engine, in English as before", () => {
+    const filterOf = (labels, filter) => describeView({ version: 2, filters: [filter] }, data, { labels }).filters[0]?.text ?? "";
+    const usable = (text) => text !== "" && !/undefined|\{\w+\}/.test(text);
+    for (const labels of [DESCRIBE_LABELS.en, DESCRIBE_LABELS.de]) {
+        for (const direction of RELATIVE_DIRECTIONS) {
+            for (const unit of RELATIVE_UNITS) {
+                // "this" is the current unit alone, without a count
+                for (const count of direction === "this" ? [1] : [1, 3]) {
+                    const text = filterOf(labels, { field: "Date", type: "relative", direction, unit, ...(direction === "this" ? {} : { count }) });
+                    assert.ok(usable(text), `${labels.lang} ${direction} ${count} ${unit}: ${text}`);
+                    if (labels === DESCRIBE_LABELS.en) {
+                        const range = direction === "this" ? `this ${unit}` : `${direction} ${count} ${unit}${count === 1 ? "" : "s"}`;
+                        assert.equal(text, `Date is in the ${range} (blanks dropped)`);
+                    }
+                }
+            }
+        }
+        for (const op of COMPARE_OPS) {
+            for (const precision of COMPARE_PRECISIONS) {
+                const filter = describeView({ version: 2, filters: [{ field: "Date", type: "compare", op, value: "2026-01-01", value2: "2026-02-01", precision }] }, data, { labels }).filters[0];
+                const text = filter?.text ?? "";
+                assert.ok(usable(text), `${labels.lang} ${op} ${precision}: ${text}`);
+                if (labels === DESCRIBE_LABELS.en) {
+                    // the values as normalize() writes them ("2026-01-01T00:00" by hour)
+                    const words = { "=": "", ">": "greater than ", ">=": "at least ", "<": "less than ", "<=": "at most ", between: "between " }[op];
+                    const value = op === "between" ? `${JSON.stringify(filter.value)} and ${JSON.stringify(filter.value2)}` : JSON.stringify(filter.value);
+                    assert.equal(text, `Date is ${words}${value}${precision === "day" ? "" : ` (by ${precision})`} (blanks dropped)`);
+                }
+            }
+        }
+        for (const op of TEXT_OPS) {
+            for (const not of [false, true]) {
+                assert.ok(usable(filterOf(labels, { field: "Rep", type: "text", op, value: "a", not })), `${labels.lang} text ${op}`);
+            }
+        }
+        for (const type of CHART_TYPES) {
+            const text = describeView({ version: 2, display: "chart", chart: { type } }, data, { labels }).text;
+            assert.ok(usable(text), `${labels.lang} chart ${type}: ${text}`);
+            if (labels === DESCRIBE_LABELS.en) {
+                assert.equal(text, `count of rows as a ${type === "auto" ? "chart" : `${type} chart`}`);
+            }
+        }
+    }
 });

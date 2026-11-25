@@ -172,13 +172,32 @@ export function filterText(f, words = DESCRIBE_LABELS.en) {
 }
 
 /**
+ * The words of `labels` over English, one level deep: a table that `labels` gives in part ({ blanks:
+ * { exclude } }) keeps English for its other entries.
+ * @param {unknown} labels
+ * @returns {import("./describe-labels.js").DescribeLabels}
+ */
+function wordsOf(labels) {
+    /** @type {any} */
+    const words = { ...DESCRIBE_LABELS.en };
+    if (!isPlainObject(labels)) {
+        return words;
+    }
+    for (const [key, value] of Object.entries(/** @type {object} */ (labels))) {
+        const base = Object.hasOwn(words, key) ? words[key] : undefined;
+        words[key] = isPlainObject(base) && isPlainObject(value) ? { ...base, ...value } : value;
+    }
+    return words;
+}
+
+/**
  * A view in plain parts: what it shows (rows, columns, values with their names), what it filters (each
  * filter structured, with its words), its groupings, sort and display, whether it is valid against the
  * data and what is wrong (validate()'s errors and warnings), and one short `text` of it all.
  * The view is normalized first; the parts are the normalized view's, so a part with an error is left
  * out of them, and `text` of an invalid view starts with "(invalid: n errors, ...)".
  * The `text`s are English unless `options.labels` gives other words: DESCRIBE_LABELS.de or
- * describeLabels(locale) for German. A partial `labels` takes English for each key it leaves out.
+ * describeLabels(locale) for German. A partial `labels` takes English for each key and table entry it leaves out.
  * validate()'s errors and warnings stay English.
  * @param {unknown} input  a view (any input normalize() takes)
  * @param {unknown} schema  encoded data, { fields } or the fields array
@@ -186,7 +205,7 @@ export function filterText(f, words = DESCRIBE_LABELS.en) {
  */
 export function describeView(input, schema, options) {
     options = optionsOf(options, "describeView");
-    const words = /** @type {import("./describe-labels.js").DescribeLabels} */ ({ ...DESCRIBE_LABELS.en, ...(isPlainObject(options.labels) ? options.labels : {}) });
+    const words = wordsOf(options.labels);
     const { valid, errors, warnings } = validate(input, schema, options);
     const view = normalize(input, schema, options).view;
     const values = view.values.map((v) => ({ field: v.field, agg: v.agg, label: v.label, showAs: v.showAs?.type ?? null, text: v.label ?? refText(v, words) }));

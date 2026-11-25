@@ -5,6 +5,7 @@
  */
 
 import { GROUPING_NAMES, REPORT_LABELS } from "./labels.js";
+import { RELATIVE_UNITS } from "./relative.js";
 
 /** @typedef {Readonly<{ yes: string, not: string }>} Phrase  a phrase, and the phrase with "not" */
 /** @typedef {Readonly<{ one: string, other: string }>} Counted  a phrase by Intl.PluralRules category of {count} */
@@ -68,10 +69,8 @@ import { GROUPING_NAMES, REPORT_LABELS } from "./labels.js";
  * @property {Counted} invalid  "(invalid: {count} errors, the parts they name are left out)"
  */
 
-const DATE_UNITS = Object.freeze(["hour", "day", "week", "month", "quarter", "year"]);
-
 /** The English ranges: "last 3 years", "this year". */
-const enRanges = (word) => Object.freeze(Object.fromEntries(DATE_UNITS.map((u) => [u, Object.freeze({ one: `${word} {count} ${u}`, other: `${word} {count} ${u}s` })])));
+const enRanges = (word) => Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => [u, Object.freeze({ one: `${word} {count} ${u}`, other: `${word} {count} ${u}s` })])));
 
 /**
  * The German ranges, from each unit's grammar: the preposition with its article before "letzten"
@@ -86,7 +85,7 @@ const DE_UNITS = Object.freeze({
     quarter: { at: "im", before: "vor dem", one: "Quartal", other: "Quartalen", this: "in diesem Quartal" },
     year: { at: "im", before: "vor dem", one: "Jahr", other: "Jahren", this: "in diesem Jahr" }
 });
-const deRanges = (word, before) => Object.freeze(Object.fromEntries(DATE_UNITS.map((u) => {
+const deRanges = (word, before) => Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => {
     const g = DE_UNITS[u];
     return [u, Object.freeze({ one: `${before ? g.before : g.at} ${word} ${g.one}`, other: `${before ? "vor den" : "in den"} ${word} {count} ${g.other}` })];
 })));
@@ -132,7 +131,7 @@ export const DESCRIBE_LABELS = Object.freeze({
             last: enRanges("last"),
             next: enRanges("next"),
             before: enRanges("before"),
-            this: Object.freeze(Object.fromEntries(DATE_UNITS.map((u) => [u, `this ${u}`])))
+            this: Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => [u, `this ${u}`])))
         }),
         how: "{text} ({how})",
         rolling: "rolling",
@@ -192,7 +191,7 @@ export const DESCRIBE_LABELS = Object.freeze({
             last: deRanges("letzten", false),
             next: deRanges("nächsten", false),
             before: deRanges("letzten", true),
-            this: Object.freeze(Object.fromEntries(DATE_UNITS.map((u) => [u, DE_UNITS[u].this])))
+            this: Object.freeze(Object.fromEntries(RELATIVE_UNITS.map((u) => [u, DE_UNITS[u].this])))
         }),
         how: "{text} ({how})",
         rolling: "gleitend",
