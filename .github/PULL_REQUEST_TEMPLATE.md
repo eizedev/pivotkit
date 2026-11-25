@@ -12,5 +12,5 @@
 ## Test plan
 
 - [ ] The checks of [Check your change](https://github.com/eizedev/pivotkit/blob/main/CONTRIBUTING.md#check-your-change): those for every change, and those for what this one changes
-- [ ] `npm run growth` passes, or the known baseline entry it fails on is named above
+- [ ] `npm run growth` passes, or the known baseline entry it fails on is named in the Summary
 - [ ] What I ran, with numbers where a check gives some, such as benchmark timings:
