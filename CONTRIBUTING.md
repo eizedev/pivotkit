@@ -2,8 +2,8 @@
 
 Thanks for helping.
 
-- Bug reports and ideas go into [issues](https://github.com/eizedev/pivotkit/issues).
-- Questions go into [discussions](https://github.com/eizedev/pivotkit/discussions).
+- Bug reports and concrete feature requests go into [issues](https://github.com/eizedev/pivotkit/issues).
+- Questions and ideas go into [discussions](https://github.com/eizedev/pivotkit/discussions).
 - Security reports go privately, see [SECURITY.md](SECURITY.md).
 - Everyone follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 

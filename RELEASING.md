@@ -118,6 +118,10 @@ npm stage approve <stage-id>   # or: npm stage reject <stage-id>
 ### 5. GitHub release
 
 - Publish a GitHub release for each tag, with a short text and a link to the CHANGELOG.
+- Start one discussion per release round, not one per tag: create the round's last GitHub release
+  with `--discussion-category "Announcements"`, for example
+  `gh release create pivotkit-mcp@x.y.z --verify-tag --notes-file notes.md --discussion-category "Announcements"`.
+  Its text sums up the round and links the release of every package in it.
 - A release also publishes the documentation site (`.github/workflows/docs.yml`).
 - The site build uses the newest release tag on main, whichever release started it.
 - To publish the site by hand: Actions, Docs site, Run workflow, input `tag`.

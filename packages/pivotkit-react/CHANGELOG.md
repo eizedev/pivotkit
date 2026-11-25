@@ -6,6 +6,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
 ### Added
 
 - The package exports `TIP_IDS` and `NOTICE_IDS`, the ids of the tips and of the notices. A host
@@ -16,6 +20,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   the choice offers the value with each mark, such as "1234" and "1.234". The note now points
   there first. New texts `markOf` and `markQuestion` in `labels.dataImport`, English and German
   ([#787](https://github.com/eizedev/pivotkit/issues/787)).
+
+### Changed
+
+- The chart's ECharts instance, its events and each draw are in `chart-draw.js`, which loads with
+  ECharts. A report that never shows a chart no longer loads that code
+  ([#772](https://github.com/eizedev/pivotkit/issues/772)).
 
 ### Fixed
 

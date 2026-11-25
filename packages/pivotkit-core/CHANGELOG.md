@@ -14,6 +14,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   `comma` give the example's number with each mark
   ([#787](https://github.com/eizedev/pivotkit/issues/787)).
 
+### Changed
+
+- The Excel number format codes (`excelNumberFormat`) are in a file of their own, `excel-format.js`.
+  A bundle that splits by file keeps them out of a page's first load until an export needs them
+  ([#772](https://github.com/eizedev/pivotkit/issues/772)). The public API is unchanged.
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
 ## [0.10.0] - 2026-11-24
 
 ### Fixed

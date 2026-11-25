@@ -20,7 +20,7 @@ import { strToU8, zipSync } from "fflate";
 import { BIDI_CONTROLS } from "./csv.js";
 import { DEFAULT_THEME } from "./defaults.js";
 import { checkLimit, expect } from "./errors.js";
-import { excelNumberFormat } from "./format.js";
+import { excelNumberFormat } from "./excel-format.js";
 import { isGrid } from "./grid.js";
 import { MS_PER_DAY, hexDigits, optionsOf } from "./util.js";
 
