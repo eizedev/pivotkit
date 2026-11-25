@@ -11,6 +11,8 @@ import { test as plain } from "@playwright/test";
 import { chips, drag, expect, tableRows, test, toolbar, watchConsole } from "./fixtures.js";
 import { makeXlsx } from "../../packages/pivotkit-xlsx/test/make-xlsx.js";
 import { dataMenu, dropFiles, fieldNames, fileOf, nextFileChooser, pickThroughMenu } from "./import-helpers.js";
+import { de as importDe, en as importEn } from "../../packages/pivotkit-react/src/import-labels.js";
+import { fill } from "../../packages/pivotkit-react/src/labels.js";
 
 const TICKETS = "Id;Team;Opened;Hours;Zip\n1001;Network;10.11.2026;1,5;01067\n1002;Server;11.11.2026;2,25;10115\n1003;Network;12.11.2026;4;01067\n\n1004;Client;13.11.2026;0,5;20095\n";
 const CSV = "text/csv";
@@ -21,7 +23,7 @@ async function preview(dialog) {
     await expect(dialog.getByTestId("import-preview")).toBeVisible();
     return dialog.getByTestId("import-preview").evaluate((box) => ({
         columns: [...box.querySelectorAll("thead th")].map((th) => th.firstChild.textContent),
-        types: [...box.querySelectorAll("thead select")].map((s) => s.value),
+        types: [...box.querySelectorAll("thead select[data-testid^='import-type-']")].map((s) => s.value),
         rows: [...box.querySelectorAll("tbody tr")].map((tr) => [...tr.children].map((td) => td.textContent))
     }));
 }
@@ -87,6 +89,57 @@ test("a CSV dropped onto the report: the overlay, the preview with types and not
     await expect.poll(() => fieldNames(page)).toEqual(["Id", "Team", "Opened", "Hours", "Zip"]);
     await page.getByTestId("redo").click();
     await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+});
+
+test("a column whose numbers fit both decimal marks: the preview offers both, as what the file's example is with each, in English and German; Load data takes the one picked", async ({ page }) => {
+    // a comma between values: "1,234" reads with a decimal point (1234) and a note says it also fits the comma
+    const sales = { name: "sales.csv", type: CSV, text: 'Region,Sales,Units\nNorth,"1,234",3\nSouth,"2,500",4\n' };
+    await page.goto("?data=sales&import");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    await dropFiles(page, page.getByTestId("pivot-table"), [sales]);
+    const dialog = page.getByRole("dialog", { name: "Load sales.csv" });
+    expect((await preview(dialog)).rows.map((r) => r[1])).toEqual(["1,234", "2,500"]);
+    // only the column the note names has the choice, with the note's mark; its options say what "1,234" is with each
+    await expect(dialog.locator("[data-testid^='import-mark-']")).toHaveCount(1);
+    const mark = dialog.getByTestId("import-mark-1");
+    await expect(mark).toHaveAccessibleName(fill(importEn.markOf, { column: "Sales" }));
+    await expect(mark).toHaveValue(".");
+    await expect(mark.locator("option")).toHaveText([fill(importEn.marks.point, { example: "1,234", value: "1234" }), fill(importEn.marks.comma, { example: "1,234", value: "1.234" })]);
+    const note = dialog.locator("li[data-code='DECIMAL_MARK']");
+    await expect(note).toHaveText(fill(importEn.notes.DECIMAL_MARK, { column: "Sales", decimal: ".", example: "1,234" }));
+    // the comma: the rows and the note follow, the choice keeps the focus
+    await mark.focus();
+    await mark.selectOption(",");
+    await expect.poll(async () => (await preview(dialog)).rows.map((r) => r[1])).toEqual(["1.234", "2.5"]);
+    await expect(note).toHaveText(fill(importEn.notes.DECIMAL_MARK, { column: "Sales", decimal: ",", example: "1,234" }));
+    await expect(mark).toBeFocused();
+    await expect(mark).toHaveValue(",");
+    // as text the column has no mark; a number again, it keeps the mark picked
+    await dialog.getByTestId("import-type-1").selectOption("string");
+    await expect(dialog.locator("[data-testid^='import-mark-']")).toHaveCount(0);
+    await dialog.getByTestId("import-type-1").selectOption("number");
+    await expect(mark).toHaveValue(",");
+    expect((await preview(dialog)).rows.map((r) => r[1])).toEqual(["1.234", "2.5"]);
+    // Load data: the report sums the numbers as picked, 3.73 with two decimals (with the point it is 3,734.00)
+    await dialog.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(page)).toEqual(["Region", "Sales", "Units"]);
+    await drag(page, page.locator('.pk-field[data-field="Sales"]'), page.locator('[data-zone="values"]'));
+    await expect.poll(() => chips(page, "values")).toEqual(["Sum of Sales"]);
+    await expect.poll(async () => (await tableRows(page)).at(-1)?.at(-1)).toBe("3.73");
+
+    // German: a German locale reads the comma first; the options and the numbers in German
+    await page.goto("?data=sales&lang=de&import");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    await dropFiles(page, page.getByTestId("pivot-table"), [sales]);
+    const deDialog = page.getByRole("dialog", { name: "sales.csv laden" });
+    const deMark = deDialog.getByTestId("import-mark-1");
+    await expect(deMark).toHaveAccessibleName(fill(importDe.markOf, { column: "Sales" }));
+    await expect(deMark).toHaveValue(",");
+    await expect(deMark.locator("option")).toHaveText([fill(importDe.marks.point, { example: "1,234", value: "1234" }), fill(importDe.marks.comma, { example: "1,234", value: "1,234" })]);
+    expect((await preview(deDialog)).rows.map((r) => r[1])).toEqual(["1,234", "2,5"]);
+    await deMark.selectOption(".");
+    await expect.poll(async () => (await preview(deDialog)).rows.map((r) => r[1])).toEqual(["1.234", "2.500"]);
+    await expect(deDialog.locator("li[data-code='DECIMAL_MARK']")).toHaveText(fill(importDe.notes.DECIMAL_MARK, { column: "Sales", decimal: ".", example: "1,234" }));
 });
 
 test("the Data menu by keyboard: where the data comes from, Load data… opens the file chooser, Escape cancels the preview and the focus goes back", async ({ page }) => {
