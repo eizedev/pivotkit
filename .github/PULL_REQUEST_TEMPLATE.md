@@ -6,7 +6,7 @@
 
 - [ ] Linked issue; for a new feature, the answers to the five questions
 - [ ] New or changed tests fail without this change; no test weakened
-- [ ] Docs, upgrading notes and `CHANGELOG.md` describe the new state
+- [ ] Docs and upgrading notes describe the new state; `CHANGELOG.md` entry if you can (optional)
 - [ ] Reviewed before opening by someone who did not write it (strongly recommended, mandatory for the maintainer's own AI agents; for AI-written code a person or a separate AI session), and I read, ran and understand all of it
 
 ## Test plan

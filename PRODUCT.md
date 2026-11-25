@@ -108,7 +108,8 @@ same for everyone. [CONTRIBUTING.md](CONTRIBUTING.md) has the commands.
 
 - A linked issue. For a new feature, also the answers to the five questions.
 - Tests that fail without the change and pass with it. No test weakened to pass.
-- Docs, upgrading notes and changelogs that describe the new state.
+- Docs and upgrading notes that describe the new state. A changelog entry is welcome;
+  [CONTRIBUTING.md](CONTRIBUTING.md#changelog-and-commits) says what happens without one.
 - Strongly recommended: an independent review before you open the pull request. Have code an AI
   assistant wrote reviewed by a reviewer that did not write it (a person or a separate AI session),
   and read, run and understand it yourself. The maintainer reviews every pull request neutrally

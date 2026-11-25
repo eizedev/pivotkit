@@ -29,7 +29,7 @@ npx playwright install   # once, for the browser tests
 2. Create a branch named after the change: `feat/...`, `fix/...` or `docs/...`.
 3. Write the test first for a fix. Watch it fail, then fix the code.
 4. Run the checks below.
-5. Update the docs and the changelog.
+5. Update the docs, and the changelog if you can.
 6. Open a pull request.
 
 ## Check your change
@@ -42,6 +42,10 @@ npm run types
 npm test
 npm run growth
 ```
+
+`npm run growth` fails when a function, the unused exports or a docs page grows. If it fails on an
+entry that is already in `scripts/growth-baseline.json`, say so in the pull request and leave it to
+the maintainer. A new entry is yours to fix.
 
 Then, depending on what you changed:
 
@@ -91,7 +95,8 @@ After `uvx zensical@<version> build --strict`, `node scripts/check-readme-links.
 
 ## Changelog and commits
 
-- Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed.
+- Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed. It is welcome,
+  not required: if it is missing, the maintainer adds it before the merge.
 - Use Conventional Commits with the package as scope: `feat(core): ...`, `fix(react): ...`.
 
 ## Pull request
