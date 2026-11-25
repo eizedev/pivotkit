@@ -17,7 +17,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   - pivotkit-core's Excel number formats load with the export: the export group grows by 0.8 KiB to
     13.2 KiB ([#772](https://github.com/eizedev/pivotkit/issues/772)).
   - The German words of the HTML report's filters and summary load with the report, not with the
-    first load: the report group grows by 3.3 KiB to 29.6 KiB, its budget to 29.7 KiB
+    first load: the report group grows by 3.4 KiB to 29.7 KiB, its budget to 29.7 KiB
     ([#798](https://github.com/eizedev/pivotkit/issues/798)).
 - The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
 
