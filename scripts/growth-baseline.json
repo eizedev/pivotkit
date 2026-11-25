@@ -1,7 +1,7 @@
 {
     "docs": {
         "pages": {
-            "docs/concepts/charts.md": [315],
+            "docs/concepts/charts.md": [318],
             "docs/concepts/limits.md": [430],
             "docs/getting-started/kubernetes.md": [486],
             "docs/learn.md": [458],
@@ -14,9 +14,9 @@
             "docs/reference/rest.md": [972],
             "docs/reference/sources.md": [984],
             "docs/security.md": [896],
-            "docs/use/charts.md": [481]
+            "docs/use/charts.md": [487]
         },
-        "totalLines": 24081
+        "totalLines": 24091
     },
     "functions": {
         "complexity": {
