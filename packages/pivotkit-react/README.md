@@ -28,6 +28,9 @@ npm install pivotkit-react react react-dom echarts
   app also imports pivotkit-core itself, use a version inside that range. npm shares one copy only
   when the ranges overlap.
 
+pivotkit is 0.x: a minor release can break things. [Versioning](https://pivotkit.eize.dev/versioning/)
+says how each break is marked and what to do.
+
 ## Example
 
 ```jsx

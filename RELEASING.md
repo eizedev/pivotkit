@@ -118,6 +118,9 @@ npm stage approve <stage-id>   # or: npm stage reject <stage-id>
 ### 5. GitHub release
 
 - Publish a GitHub release for each tag, with a short text and a link to the CHANGELOG.
+- Start one discussion for the whole release, not one per tag: publish the pivotkit-react release
+  with `--discussion-category "Announcements"`. Its text sums up the release and links the release
+  of every package.
 - A release also publishes the documentation site (`.github/workflows/docs.yml`).
 - The site build uses the newest release tag on main, whichever release started it.
 - To publish the site by hand: Actions, Docs site, Run workflow, input `tag`.

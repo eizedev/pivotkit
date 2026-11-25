@@ -15,7 +15,8 @@ build a report by dragging fields and take it to Excel. The same report renders 
 </picture></a>
 
 **[Try the live demo](https://pivotkit.eize.dev/demo/)** · [Documentation](https://pivotkit.eize.dev/) ·
-[Comparison](https://pivotkit.eize.dev/compare/) · [Releases](#releases-and-changelogs)
+[Comparison](https://pivotkit.eize.dev/compare/) · [Releases](#releases-and-changelogs) ·
+[Discussions](https://github.com/eizedev/pivotkit/discussions)
 
 [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/pivotkit-react?label=pivotkit-react)](https://www.npmjs.com/package/pivotkit-react)
@@ -31,6 +32,11 @@ build a report by dragging fields and take it to Excel. The same report renders 
   from curl or PowerShell, the [MCP server](https://pivotkit.eize.dev/getting-started/mcp/) from an AI client.
 - **You develop:** put the report in your application or make reports from code:
   [Embed pivotkit](https://pivotkit.eize.dev/embed/).
+
+> [!NOTE]
+> pivotkit is 0.x. A minor release (0.y to 0.y+1) can break things. Each break is marked
+> **Breaking** in the changelog, and [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/)
+> says what to do. [Versioning](https://pivotkit.eize.dev/versioning/) has the full promise.
 
 ## What pivotkit does
 
@@ -142,6 +148,13 @@ list them with their notes. Each package keeps a `CHANGELOG.md`:
 [server](packages/pivotkit-server/CHANGELOG.md), [mcp](packages/pivotkit-mcp/CHANGELOG.md).
 Before you update, read [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/).
 [Versioning](https://pivotkit.eize.dev/versioning/) says which releases may break things.
+
+## Questions and help
+
+- Questions, ideas and what you built with pivotkit:
+  [Discussions](https://github.com/eizedev/pivotkit/discussions).
+- Bugs and concrete feature requests: [issues](https://github.com/eizedev/pivotkit/issues).
+- Security problems: report them [privately](https://github.com/eizedev/pivotkit/security/advisories/new).
 
 ## License
 

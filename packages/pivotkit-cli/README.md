@@ -14,6 +14,9 @@ the `PATH`, so every line starts with `npx pivotkit-cli`.
 
 Node 24 or later. It brings pivotkit-core, pivotkit-node, pivotkit-report, pivotkit-xlsx and ECharts.
 
+pivotkit is 0.x: a minor release can break things. [Versioning](https://pivotkit.eize.dev/versioning/)
+says how each break is marked and what to do.
+
 ## Example
 
 ```bash

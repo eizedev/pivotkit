@@ -20,6 +20,9 @@ npm install pivotkit-element
   `dist/THIRD_PARTY_LICENSES.txt`.
 - Browsers: Chrome 111, Firefox 113, Safari 16.4 or later.
 
+pivotkit is 0.x: a minor release can break things. [Versioning](https://pivotkit.eize.dev/versioning/)
+says how each break is marked and what to do.
+
 ## Example
 
 ```html

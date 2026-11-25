@@ -12,6 +12,9 @@ It holds what the command line [pivotkit-cli](https://www.npmjs.com/package/pivo
 Its exports may change in any release. Use `pivotkit-cli/files` and `pivotkit-cli/rest` instead.
 They re-export the same names and follow [versioning](https://pivotkit.eize.dev/versioning/).
 
+pivotkit is 0.x: a minor release can break things. [Versioning](https://pivotkit.eize.dev/versioning/)
+says how each break is marked and what to do.
+
 ## License
 
 [MIT](https://github.com/eizedev/pivotkit/blob/main/LICENSE)

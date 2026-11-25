@@ -26,6 +26,9 @@ npm install pivotkit-core
 - `pivotkit-core/import` reads CSV and JSON files into a table. For Excel workbooks, add the plugin
   [pivotkit-xlsx](https://www.npmjs.com/package/pivotkit-xlsx).
 
+pivotkit is 0.x: a minor release can break things. [Versioning](https://pivotkit.eize.dev/versioning/)
+says how each break is marked and what to do.
+
 ## Example
 
 ```js
