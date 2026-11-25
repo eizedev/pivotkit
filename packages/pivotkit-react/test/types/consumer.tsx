@@ -10,8 +10,10 @@ const templates: Template[] = [{ name: "By region", view: { rows: ["Region"] } }
 const publish = (name: string, view: PivotView): Promise<string> => Promise.resolve(`${name}:${view.rows?.length ?? 0}`);
 const store: PivotReportProps = { templates, templateStore: "browser", storageKey: "sales", canPublish: true, onPublishTemplate: publish, onSaveTemplate: (name, view, where) => [name, view.rows, where.scope], onDeleteTemplate: (name, where) => where.scope === "shared" && name };
 const onCell = (c: CellClick): number => c.count + c.rows.length + c.row.length;
-// the tip ids a host checks its `tips` list against; a notice is no tip
-const allowed: string[] = TIP_IDS.filter((id) => !NOTICE_IDS.includes(id));
+// a host checks the tips its users configured: known tips pass, a notice (which always shows) or a typo is reported
+const configured = ["showAs", "filterEmpty", "cels"];
+const allowed: string[] = configured.filter((id) => TIP_IDS.includes(id));
+const rejected: string[] = configured.filter((id) => !TIP_IDS.includes(id)).map((id) => (NOTICE_IDS.includes(id) ? `${id}: a notice, always shown` : `${id}: no tip`));
 const props: PivotReportProps = { data: [{ Region: "North", Units: 3 }], templates, theme: "dark", locale: "de-DE", height: 480, limits: { cells: 10_000 }, importLimits: { rows: 1_000 } };
 const de: string = LABELS.de.zones.rows;
 const menuText: string = LABELS.en.cancel;
