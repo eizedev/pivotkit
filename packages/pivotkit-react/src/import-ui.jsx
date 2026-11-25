@@ -166,7 +166,7 @@ function pickedTable(base, types, marks) {
 /**
  * Which decimal mark a column's numbers are written in, while they fit both (the reader's note
  * DECIMAL_MARK): a question with the note's example above a choice of what it reads as with each
- * mark (markTexts), such as "1234 (thousands)" and "1.234 (decimal)". The question is the select's
+ * mark (markTexts), such as "1234 (thousands)" and "1 point 234". The question is the select's
  * label, so clicking it focuses the select. A note without the example's two numbers offers no choice.
  * @param {{ name: string, index: number, mark: Record<string, unknown>, t: import("./import-labels.js").ImportTexts, locale: string,
  *   formName: string, onMark: (mark: string) => void }} props  `mark`: the note's params

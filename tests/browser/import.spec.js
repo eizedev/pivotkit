@@ -138,7 +138,7 @@ test("a column whose numbers fit both decimal marks: the preview asks what the f
     await expect(mark).toHaveAccessibleName(`${question} ${fill(importEn.markOf, { column: "Sales" })}`);
     await expect(mark).toHaveAttribute("title", `${question} 1234 (thousands)`);
     await expect(mark).toHaveValue(".");
-    await expect(mark.locator("option")).toHaveText(["1234 (thousands)", "1.234 (decimal)"]);
+    await expect(mark.locator("option")).toHaveText(["1234 (thousands)", "1 point 234"]);
     await dialog.getByTestId("import-question-1").click();
     await expect(mark).toBeFocused();
     await expect(mark).toHaveValue(".");
@@ -150,12 +150,12 @@ test("a column whose numbers fit both decimal marks: the preview asks what the f
     await dialog.getByTestId("import-type-1").focus();
     await page.keyboard.press("Tab");
     await expect(mark).toBeFocused();
-    await page.keyboard.type("1.");
+    await page.keyboard.type("1 p");
     await expect(mark).toHaveValue(",");
     await expect.poll(async () => (await preview(dialog)).rows.map((r) => r[1])).toEqual(["1.234", "2.5"]);
     await expect(note).toHaveText(fill(importEn.notes.DECIMAL_MARK, { column: "Sales", decimal: ",", example: "1,234" }));
     await expect(mark).toBeFocused();
-    await expect(mark).toHaveAttribute("title", `${question} 1.234 (decimal)`);
+    await expect(mark).toHaveAttribute("title", `${question} 1 point 234`);
     // as text the column has no mark; a number again, it keeps the mark picked
     await dialog.getByTestId("import-type-1").selectOption("string");
     await expect(dialog.locator("select[data-testid^='import-mark-']")).toHaveCount(0);

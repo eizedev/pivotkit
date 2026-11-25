@@ -4338,7 +4338,7 @@
     margin-top: 4px;
 }
 
-/* the decimal mark choice shows its whole option ("1.234 (decimal)"): its column widens for it */
+/* the decimal mark choice shows its whole option ("1234 (thousands)"): its column widens for it */
 .pk-import th .pk-import-mark {
     min-width: max-content;
 }

@@ -33,13 +33,12 @@ export const en = {
     someColumns: "The first {shown} of {count} columns are shown; the others keep the type and decimal mark found.",
     typeOf: "Type of {column}",
     types: { string: "Text", number: "Number", date: "Date", boolean: "Yes/No" },
-    // a number column whose values fit both decimal marks: the question above its choice, whose options
-    // are what the note's example reads as with each mark (markOption: {value}, and whether the example's
-    // separator is the decimal mark, with {whole} and {fraction} the example's digits on each side of it,
-    // or groups thousands); markOf follows the question for a screen reader
+    // a number column whose values fit both decimal marks: the question above its choice and the
+    // choice's two options; docs/reference/localisation.md has their placeholders. The decimal reading
+    // is spelt out: "1,234" next to “1,234” means would read as "1,234 means 1,234"
     markOf: "(decimal mark of {column})",
     markQuestion: "“{example}” means",
-    markOption: { decimal: "{value} (decimal)", thousands: "{value} (thousands)" },
+    markOption: { decimal: "{whole} point {fraction}", thousands: "{value} (thousands)" },
     yes: "Yes",
     no: "No",
     noRows: "The file holds no rows.",
@@ -123,7 +122,6 @@ export const de = {
     types: { string: "Text", number: "Zahl", date: "Datum", boolean: "Ja/Nein" },
     markOf: "(Dezimalzeichen von {column})",
     markQuestion: "„{example}“ bedeutet",
-    // the decimal reading spelt out: "1,234" next to „1,234“ bedeutet would read as "1,234 means 1,234"
     markOption: { decimal: "{whole} Komma {fraction}", thousands: "{value} (Tausender)" },
     yes: "Ja",
     no: "Nein",
@@ -199,7 +197,8 @@ export function importLabels(labels) {
  * The texts of a column's decimal mark choice from its note DECIMAL_MARK: the mark read, the question with the note's
  * example, the full text for a tooltip and the two options, each the example's value with that mark in
  * `locale`, without grouping. Null when the params lack a finite number for either mark or a mark of
- * "." or "," (a plugin's own note): such a note offers no choice.
+ * "." or "," (a plugin's own note), or the texts lack `markQuestion` or `markOption`: such a note
+ * offers no choice.
  * @param {Record<string, unknown>} params  the note's params: decimal, example, point, comma
  * @param {ImportTexts} texts
  * @param {string} locale
@@ -213,9 +212,14 @@ export function markTexts(params, texts, locale) {
     if (decimal !== "." && decimal !== ",") {
         return null;
     }
+    const forms = /** @type {Record<string, unknown>} */ (texts.markOption ?? {});
+    if (typeof texts.markQuestion !== "string" || typeof forms.decimal !== "string" || typeof forms.thousands !== "string") {
+        return null;
+    }
     // the separator in the example (it has one: only "1,234" or "1.234" with a sign read as different
     // numbers): the decimal mark when the option's mark is that character. The digits on each side come
-    // from the example as written, so "2.500" is "2 Komma 500", not the 2.5 of `point`
+    // from the example as written, sign and trailing zeros kept, so "-2.500" is "-2 point 500", not the
+    // -2.5 of `point`: the person finds their own digits again, and no locale puts its mark back in
     const text = String(example);
     const separator = text.includes(",") ? "," : ".";
     const at = text.lastIndexOf(separator);

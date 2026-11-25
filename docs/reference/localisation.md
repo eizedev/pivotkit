@@ -99,6 +99,16 @@ The texts of [loading data](../use/load-data.md) are `labels.dataImport`. They c
 - the readers' notes per note code, in `labels.dataImport.notes`
 - a file over a limit, in `overLimit`, with the limit's words in `limitWhat`
 - `workbookCells`, for when a workbook's texts and formats reach `importCells`
+- the decimal mark choice of a column whose numbers fit both marks, such as `1,234`:
+    - `markQuestion` is the question above the choice, with the note's value as written in `{example}`.
+    - `markOption.thousands` and `markOption.decimal` are the two options: the separator read as a
+      thousands separator or as the decimal mark. Both get `{value}`, that reading's number in the
+      locale's digits without grouping, and `{whole}` and `{fraction}`, the digits on each side of the
+      separator as written.
+    - The decimal text must not show the separator, so not `{value}`: in a locale that writes `1,234`
+      it repeats the question, as in "“1,234” means 1,234". Spell the mark out, as in
+      `"{whole} point {fraction}"`.
+    - `markOf` follows the question for a screen reader, with the column's name in `{column}`.
 
 They load with the import UI, English and German in one file. A host's own language takes English
 there unless its `labels` give `dataImport`.
