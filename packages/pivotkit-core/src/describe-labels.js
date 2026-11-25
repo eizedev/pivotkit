@@ -5,7 +5,7 @@
  */
 
 import { PivotkitError } from "./errors.js";
-import { GROUPING_NAMES, REPORT_LABELS } from "./labels.js";
+import { GROUPING_NAMES, PLURAL_CATEGORIES, REPORT_LABELS } from "./labels.js";
 import { RELATIVE_UNITS } from "./relative.js";
 import { isPlainObject } from "./util.js";
 
@@ -325,7 +325,8 @@ function isLanguage(tag) {
  * What is wrong with words a host passes, or null: each key must be one of DESCRIBE_LABELS' (English
  * or German; a table English leaves null, such as `aggregators`, takes the German table's keys), each
  * word a text where those have a text and a table where they have a table; `lang` a language tag.
- * Null and undefined keep the base's word.
+ * A table of forms by count (Counted, RangeForms: it has `one` and `other`) takes every plural
+ * category of Intl.PluralRules ("few" for `lang` "pl"). Null and undefined keep the base's word.
  * @param {object} words
  * @param {object[]} [shapes]  the tables at this depth in English and German
  * @param {string} [path]
@@ -337,7 +338,8 @@ export function wordsProblem(words, shapes = [DESCRIBE_LABELS.en, DESCRIBE_LABEL
             continue;
         }
         const at = path ? `${path}.${key}` : key;
-        const kinds = shapes.filter((s) => Object.hasOwn(s, key) && s[key] !== null).map((s) => s[key]);
+        const counted = PLURAL_CATEGORIES.includes(key) && shapes.some((s) => Object.hasOwn(s, "one") && Object.hasOwn(s, "other"));
+        const kinds = counted ? [""] : shapes.filter((s) => Object.hasOwn(s, key) && s[key] !== null).map((s) => s[key]);
         const tables = kinds.filter(isPlainObject);
         const text = kinds.some((k) => typeof k === "string");
         if (!kinds.length) {
@@ -359,7 +361,8 @@ export function wordsProblem(words, shapes = [DESCRIBE_LABELS.en, DESCRIBE_LABEL
 
 /**
  * `words` over `base` at every depth: a table given in part keeps the base's other entries; null and
- * undefined keep the base's. Check `words` with wordsProblem first. Each table of the result is frozen.
+ * undefined keep the base's. Check `words` with wordsProblem first. Each table of the result is a
+ * frozen copy: a host's table is never kept by reference.
  * @param {object} base
  * @param {object} words
  * @returns {any}
@@ -371,7 +374,7 @@ export function mergeWords(base, words) {
             continue;
         }
         const own = Object.hasOwn(out, key) ? out[key] : undefined;
-        out[key] = isPlainObject(own) && isPlainObject(value) ? mergeWords(own, value) : value;
+        out[key] = isPlainObject(value) ? mergeWords(isPlainObject(own) ? own : {}, value) : value;
     }
     return Object.freeze(out);
 }

@@ -246,6 +246,28 @@ test("describeView and describeLabels refuse a key they do not know and a word o
     }
 });
 
+test("describeView's labels: a table of forms by count takes every plural category of its lang", () => {
+    const top = (count, labels) => describeView({ version: 2, filters: [{ field: "Region", type: "top", count, by: { field: "Units", agg: "sum" } }] }, data, { labels }).filters[0].text;
+    const pl = { lang: "pl", top: { one: "jeden {field}", few: "kilka {count} {field}", many: "wiele {count} {field}", other: "inne {count} {field}" } };
+    assert.deepEqual([1, 3, 5].map((n) => top(n, pl)), ["jeden Region", "kilka 3 Region", "wiele 5 Region"]);
+    const ru = { lang: "ru", invalid: { one: "{count} ошибка", few: "{count} ошибки", many: "{count} ошибок", other: "{count}" }, ranges: { last: { day: { one: "последний {count} день", few: "последние {count} дня", many: "последние {count} дней", other: "{count}" } } } };
+    assert.match(describeView({ version: 2, rows: ["Nope", "Gone"] }, data, { labels: ru }).text, /^2 ошибки /);
+    assert.equal(describeView({ version: 2, filters: [{ field: "Date", type: "relative", direction: "last", count: 3, unit: "day" }] }, data, { labels: ru }).filters[0].text, "Date is in the последние 3 дня (blanks dropped)");
+    // a key that is no plural category stays refused, and a plural category outside such a table too
+    assert.throws(() => describeView({ version: 2 }, data, { labels: { top: { one: "a", nope: "b" } } }), (e) => e instanceof PivotkitError && e.message === "describeView: options.labels.top.nope is not a word of describeView");
+    assert.throws(() => describeView({ version: 2 }, data, { labels: { blanks: { few: "b" } } }), (e) => e instanceof PivotkitError && e.message === "describeView: options.labels.blanks.few is not a word of describeView");
+});
+
+test("describeLabels: the result is a frozen copy; changing the host's tables afterwards changes nothing", () => {
+    const own = { blanks: { exclude: "no blanks" }, top: { one: "the top {field}", other: "top {count} {field}" }, aggregators: { sum: "Sum" } };
+    const words = describeLabels("en-US", own);
+    own.blanks.exclude = "changed";
+    own.top.one = "changed";
+    own.aggregators.sum = "changed";
+    assert.deepEqual([words.blanks.exclude, /** @type {any} */ (words.top).one, words.aggregators?.sum], ["no blanks", "the top {field}", "Sum"]);
+    assert.ok(Object.isFrozen(words.top) && Object.isFrozen(words.aggregators) && Object.isFrozen(words.blanks));
+});
+
 test("describeView in German: no parentheses inside parentheses, in a filter or the whole sentence", () => {
     const filters = [
         { field: "Date", type: "relative", direction: "last", count: 2, unit: "year", calendar: false, anchor: "latest" },

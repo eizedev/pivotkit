@@ -19,7 +19,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   default, word for word ([#798](https://github.com/eizedev/pivotkit/issues/798)).
 - `describeLabels(locale, own)` puts a host's own words over the locale's, at any depth. Words that
   name their language (`lang`) go over that language's. Words `describeView` would refuse throw
-  `INVALID_ARGUMENT`.
+  `INVALID_ARGUMENT`. A table of forms by count takes every plural category of its `lang` ("few"
+  for Polish), and the result is a frozen copy.
 
 ### Changed
 
