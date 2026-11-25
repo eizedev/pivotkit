@@ -12,7 +12,8 @@
  * (use-share-link.js).
  *
  * The hooks Report calls, by concern (each file says what it holds). Effects run in call order:
- * useViewLoading fills the ref a link reads (use-share-link.js) before its own effects run.
+ * useViewLoading fills the ref a link reads (use-share-link.js) in a layout effect, so it is filled
+ * before useShareLink's layout effect opens a link at mount.
  *
  * - use-host-props.js: the host's props compared by value, and the warnings about them
  * - use-report-size.js, use-drawer.js: width and height classes, Enlarge, the field list's drawer
