@@ -10,9 +10,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 - A rows request (`POST /api/v1/sources/records`) that finds every place taken waits up to
   `rest.records.waitMs` (default 5 s, 0 to 60 s) for one, first come first served, before 503
-  `BUSY`. One slow reader no longer keeps everyone else at 503 `BUSY`: a person who waits gets the
-  place once the reader is cut at `rest.records.writeMs`. Raise a proxy's time limit for this route
-  by `waitMs`.
+  `BUSY`. A request that is answered within that time no longer turns the next person away; a slow
+  reader still holds the place up to `rest.records.writeMs` (10 s). `waitMs: 0` keeps the old
+  behavior. Raise a proxy's time limit for this route by `waitMs`.
 
 ### Fixed
 

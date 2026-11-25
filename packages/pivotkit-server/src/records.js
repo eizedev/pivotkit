@@ -117,7 +117,7 @@ export function createRecords(context) {
      */
     async function placeFor(person, signal) {
         const now = places.take(person);
-        if (now) {
+        if (now || bounds.waitMs <= 0) {
             return now;
         }
         context.log.debug("rows: a request waits for a place", { held: places.held(), waiting: places.waiting() });
