@@ -40,8 +40,8 @@ A source's own template wins over `output.template`. Without either, the built-i
 | `{{generated}}` | text | When it was made, in the locale and time zone ("Nov 13, 2026, 10:00 AM"; fixed with `now`). |
 | `{{dataAsOf}}` | text | When the data is from, in the locale and time zone with the zone named ("Nov 15, 2026, 8:00 AM UTC"), from `dataAsOf`; empty without it. The REST service and the MCP server pass it. |
 | `{{rows}}` | text | The data's rows ("8 rows"). When the filters leave rows out, the rows they keep of them ("6 of 8 rows"). Empty where the policy withholds the row count (`rows: false`). |
-| `{{filters}}` | text | The view's filters in words, or "None". |
-| `{{summary}}` | text | The view in one sentence ("sum of Units by Region"). |
+| `{{filters}}` | text | The view's filters in words, or "None", in the report's language. |
+| `{{summary}}` | text | The view in one sentence, in the report's language ("sum of Units by Region", "Summe von Units nach Region"). |
 | `{{lang}}`, `{{dir}}` | text | The locale ("de-DE") and its direction (`ltr`, `rtl`). |
 | `{{style}}` | markup | The report's `<style>`: tokens, table, print rules. |
 | `{{chart}}` | markup | The chart in a `<figure>`, or nothing. |

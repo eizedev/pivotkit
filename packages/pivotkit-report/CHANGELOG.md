@@ -6,6 +6,11 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- A German HTML report writes its filters and its summary (`{{filters}}`, `{{summary}}` and the
+  page description) in German. They were English (#798).
+
 ## [0.6.0] - 2026-11-24
 
 ### Fixed

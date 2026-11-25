@@ -6,7 +6,7 @@
  * template throw PivotkitError.
  */
 
-import { PivotkitError, closest, computePivot, describeView, encode, fromViewFile, normalize, outsideLimits, reportLabels, toGrid } from "pivotkit-core";
+import { PivotkitError, closest, computePivot, describeLabels, describeView, encode, fromViewFile, normalize, outsideLimits, reportLabels, toGrid } from "pivotkit-core";
 import { isDataAsOf, toCsvBytes, toJson, toXlsx } from "pivotkit-core/export";
 import { DEFAULT_TEMPLATE } from "./default-template.js";
 import { htmlTable } from "./html-table.js";
@@ -344,7 +344,8 @@ export async function render(view, data, options = {}) {
             const inner = options.chartEmbed === "inline" ? chart.svg : `<img alt="${escapeHtml(`${texts.chart}: ${title}`)}" width="${size?.width}" height="${size?.height}" src="data:image/svg+xml;base64,${base64(new TextEncoder().encode(chart.svg))}">`;
             chartHtml = `<figure class="pk-report-chart">${inner}${note}</figure>`;
         }
-        const described = describeView(normalized.view, data2, { ...(limits ? { limits } : {}) });
+        // the filters and the summary in the report's language, as its other words
+        const described = describeView(normalized.view, data2, { labels: describeLabels(grid.locale), ...(limits ? { limits } : {}) });
         const timeZone = options.timeZone ?? grid.timeZone ?? "UTC";
         // "6 of 8 rows" while a filter leaves rows out, as pivotkit-react's row count says; the data's
         // row count picks the form. With rowCount false neither {{rows}} nor the details say it.

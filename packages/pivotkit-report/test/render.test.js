@@ -179,6 +179,10 @@ test("a German report: German words around the table, the locale's numbers and C
     assert.match(html.text, /Durchschnitt von Price/);
     assert.match(html.text, /Gesamtergebnis/);
     assert.ok(bodyCells(html.text).some((c) => c[0] === "North" && c[1] === "14,00"));
+    // the filters and the summary in German too
+    const filtered = await render({ ...view, filters: [{ field: "Units", type: "compare", op: ">=", value: 2 }] }, SALES, { format: "html", ...FIXED, locale: "de-DE" });
+    assert.match(filtered.text, /<dt>Filter<\/dt><dd>Units ist mindestens 2 \(ohne leere Werte\)<\/dd>/);
+    assert.match(filtered.text, /<meta name="description" content="Durchschnitt von Price nach Region \(Filter: Units ist mindestens 2 \(ohne leere Werte\)\)">/);
     const csv = await render(view, SALES, { format: "csv", ...FIXED, locale: "de-DE" });
     assert.ok(csv.text.includes("North;14\r\n"));
     const rtl = await render(view, SALES, { format: "html", ...FIXED, locale: "ar-EG" });
