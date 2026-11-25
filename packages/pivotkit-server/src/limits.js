@@ -83,7 +83,7 @@ export function createPlaces(size) {
         /**
          * A place for a holder, or null when all are held or the holder holds one: a function that
          * gives it back (once).
-         * @param {string} holder  a caller's client (large bodies), a person's identity key (rows)
+         * @param {string} holder  a caller's limit key (large bodies), a person's identity key (rows)
          */
         take(holder) {
             if (holders.size >= size || holders.has(holder)) {
@@ -104,8 +104,8 @@ export function createPlaces(size) {
 }
 
 /**
- * The places for large bodies (createPlaces), by the caller's client, so one caller cannot take
- * every place itself.
+ * The places for large bodies (createPlaces), by the caller's limit key (limitKeyOf: the person, or
+ * the client of a token without one), so one caller cannot take every place itself.
  * @param {number} [size]
  */
 export const createLargeBodies = (size = LARGE_BODIES) => createPlaces(size);

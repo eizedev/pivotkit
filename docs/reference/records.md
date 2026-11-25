@@ -154,7 +154,7 @@ limit wins.
   4 MiB ([sizing](#records-sizing)), which needs about 3.5 Mbit/s within 10 s.
 - `auth.toolScopes` cannot name this route, since it is no operation. `rest.requiredScopes` and the
   source's `scopes` apply.
-- The places for [large bodies](rest.md#data) count per client, so they are not used here.
+- The places for [large bodies](rest.md#data) are not used here.
 - One request holds a [compute worker](mcp.md#configuration) while its answer is written. Keep
   `concurrency` below `compute.workers`, so reports still find a worker. `check-config` warns
   otherwise.

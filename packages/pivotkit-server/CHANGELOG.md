@@ -6,6 +6,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- A large REST body (over 2 MiB, for a profile with `data: true`) takes its place per person, as
+  the rate limit counts. Two people who sign in through one OAuth client can each send one at once.
+  Before, they shared one place. A token without a person still counts per token or client.
+
 ## [0.5.0] - 2026-11-24
 
 ### Added
