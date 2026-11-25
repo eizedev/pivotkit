@@ -249,6 +249,19 @@ test("decorateOption: grouped bars (#913): a label with no room over its bar or 
     assert.ok(150 - 5 - label.distance + label.offset[1] <= pixelOf(90_000), JSON.stringify(label));
 });
 
+test("decorateOption: dense grouped bars (#913): the chart's highest and lowest label are placed first, before the other series' labels take their room", () => {
+    const style = { getPropertyValue: () => "" };
+    // three series over six months; the chart's lowest (13) and highest (100) are B's, the second series
+    const values = { A: [40, 89, 84, 34, 91, 65], B: [31, 60, 13, 100, 73, 57], C: [51, 68, 22, 22, 99, 78] };
+    const rows = encode(Object.entries(values).flatMap(([Team, list]) => list.map((N, i) => ({ Month: `m${i + 1}`, Team, N }))));
+    const r = computePivot(rows, { rows: ["Month"], cols: ["Team"], values: [{ field: "N", agg: "sum" }], sort: [], formatting: { locale: "en-US" }, chart: { type: "bar", referenceLines: ON } });
+    const out = decorateOption(toEChartsOption(r), style, { width: 360, height: 300 });
+    const shown = out.series.flatMap((s) => (s.markPoint?.data ?? []).filter((d) => d.label.show !== false).map((d) => text(d.label)));
+    assert.ok(shown.includes("▲ 100") && shown.includes("▼ 13"), shown.join(", "));
+    // lossy: not every label has room
+    assert.ok(shown.length < 6, shown.join(", "));
+});
+
 test("decorateOption: a label reads over a line it crosses, outlined in the background's colour", () => {
     const style = { getPropertyValue: (name) => (name === "--pk-surface" ? "#101418" : "") };
     const out = decorateOption(toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } })), style, { width: 800, height: 480 });
