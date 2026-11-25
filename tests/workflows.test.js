@@ -318,6 +318,48 @@ test("the publish job installs npm only from a tarball with the integrity commit
     assert.deepEqual(Object.keys(step).sort(), ["env", "name", "run"], "nothing changes how the step runs: no if, continue-on-error or working-directory");
 });
 
+// The check above holds only while nothing else in the job decides which npm runs or what it fetches:
+// an allowlist of the package manager calls, the actions and the settings of the publish job (#724)
+test("the publish job runs no package manager call, action or setting beyond its allowlist", () => {
+    const release = workflow("release.yml");
+    const job = jobOf("release.yml", "publish");
+    const allowed = new Set([
+        'npm install --global "$file" --offline --ignore-scripts --no-audit --no-fund',
+        'test "$(npm --version)" = "$NPM_VERSION" || { echo "npm $(npm --version) is installed, not $NPM_VERSION"; exit 1; }',
+        // names npm only in its message
+        'test "$actual" = "$NPM_INTEGRITY" || { echo "npm $NPM_VERSION tarball has $actual, release.yml expects $NPM_INTEGRITY"; exit 1; }',
+        'npm stage publish "./pack/$TARBALL" --provenance --access public --ignore-scripts 2>&1 | tee stage.log'
+    ]);
+    // an echo line that runs nothing (no command substitution, no unescaped backtick) only writes text
+    // the name as a command, also as a path (/usr/bin/npm), not inside a word or a file name (npm-11.21.1.tgz)
+    const call = /(^|[^\w.-])(npm|npx|corepack|pnpm|yarn)(?=\s|$|[;)|&])/;
+    const textOnly = (line) => /^echo\s/.test(line) && !line.includes("$(") && !/(^|[^\\])`/.test(line);
+    for (const step of job.steps) {
+        for (const line of commandsOf(step)) {
+            if (call.test(line) && !textOnly(line)) assert.ok(allowed.has(line), `the publish job runs a package manager outside the allowlist: ${line}`);
+        }
+    }
+    // a later step's PATH or environment would decide which npm runs
+    assert.deepEqual(stringsOf(job).filter((text) => /GITHUB_(PATH|ENV)\b/.test(text)), [], "the publish job writes to GITHUB_PATH or GITHUB_ENV");
+    // only these actions, and setup-node with these inputs alone (no cache, no other registry)
+    assert.deepEqual(job.steps.filter((step) => step.uses).map((step) => step.uses.split("@")[0]), ["actions/download-artifact", "actions/setup-node"], "the publish job uses other actions");
+    const setupNode = job.steps.find((step) => String(step.uses).startsWith("actions/setup-node@"));
+    assert.deepEqual(setupNode.with, { "node-version": "24", "registry-url": "https://registry.npmjs.org" }, "setup-node takes other inputs in the publish job");
+    // nothing changes the shell, the directory or the environment npm runs in
+    assert.equal(release.env, undefined, "release.yml sets env for every job");
+    assert.equal(release.defaults, undefined, "release.yml sets defaults for every job");
+    assert.equal(job.env, undefined, "the publish job sets env");
+    assert.equal(job.defaults, undefined, "the publish job sets defaults");
+    assert.equal(job.container, undefined, "the publish job runs in a container");
+    const envNames = new Set(["TAG", "TARBALL", "INTEGRITY", "NPM_VERSION", "NPM_INTEGRITY"]);
+    for (const step of job.steps) {
+        const where = `publish "${step.name ?? step.uses}"`;
+        assert.equal(step.shell, undefined, `${where} sets a shell`);
+        assert.equal(step["working-directory"], undefined, `${where} sets a working directory`);
+        for (const name of Object.keys(step.env ?? {})) assert.ok(envNames.has(name), `${where} sets env ${name}, which may change how npm runs`);
+    }
+});
+
 // The trusted publisher on npm allows staging only (RELEASING.md): a plain npm publish
 // would fail at release time, after the tag is pushed
 test("the release workflow stages on npm and never publishes directly", () => {

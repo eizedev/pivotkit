@@ -97,6 +97,7 @@ Release packages in this order. It follows their run-time dependencies.
 - `publish` runs the npm version that `NPM_VERSION` pins in `.github/workflows/release.yml`.
   It installs npm only from a tarball whose integrity matches `NPM_INTEGRITY` there.
 - To raise npm, change both values in one commit. `npm view npm@<version> dist.integrity` prints the integrity.
+  Take it on a machine you trust, not in a CI run: CI compares against it and cannot check it.
 - The run's summary names the tarball and its integrity.
 - To check the staged tarball itself, fetch it with `npm stage download <stage-id>`.
   `echo "sha512-$(openssl dgst -sha512 -binary <file> | openssl base64 -A)"` must print the summary's integrity.
@@ -184,7 +185,7 @@ For the container image:
 - Provenance attests the workflow and the commit. It does not prove `dist/` is unaltered.
 - `build` packs before lint, types and tests run. Only tsc and the package's own build run before the pack.
 - `publish` checks the tarball's integrity, and that its name and version match the tag.
-- `publish` installs nothing a registry resolves by name: npm itself comes from a tarball with a committed integrity.
+- `publish` installs npm only from a tarball whose sha512 is committed in `release.yml`. Node comes from `setup-node`.
 - No check compares a package's imports with the lowest core version its range admits.
   Exact ranges and `check-release.js` cover that instead.
 - `npm run pack:check` shows what would be published. It fails while a package is `"private": true`.
