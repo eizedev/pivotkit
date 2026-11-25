@@ -6,6 +6,15 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** a key read from a file that starts with a UTF-8 byte order mark is refused. Before,
+  the mark (U+FEFF) became part of the key. This holds for the secrets given as a `{ "file" }`
+  reference: `output.downloads.key`, `audit.key`, a backend's sign-in, the upload store's headers
+  and the download sign-in's client secret. The start, `check-config` and `key new --if-missing` say
+  so and name the file. Save it as UTF-8 without the mark. Download links made with such a key stop
+  working, and audit hashes made with it change. A token file's mark is still trimmed.
+
 ### Fixed
 
 - A host that passes `env` to `createContext` or `serve()` gets the `{ env }` secrets of a backend's
