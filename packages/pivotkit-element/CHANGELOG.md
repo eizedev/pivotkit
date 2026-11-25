@@ -6,6 +6,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Fixed
+
+- An element added to the page again while a link is in the page's address opens the link. Before,
+  it threw a `TypeError` and showed nothing, as pivotkit-react did
+  ([#735](https://github.com/eizedev/pivotkit/issues/735)).
+
 ## [0.10.0] - 2026-11-24
 
 ### Changed

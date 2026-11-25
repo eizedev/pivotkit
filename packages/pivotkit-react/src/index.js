@@ -258,3 +258,5 @@
  */
 
 export { PivotReport } from "./PivotReport.jsx";
+// the ids a host may list in `tips` (TIP_IDS) and those of the notices, which always show (NOTICE_IDS)
+export { NOTICE_IDS, TIP_IDS } from "./tip-state.js";
