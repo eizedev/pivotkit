@@ -6,6 +6,10 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Changed
+
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
 ### Fixed
 
 - An element added to the page again while a link is in the page's address opens the link. Before,

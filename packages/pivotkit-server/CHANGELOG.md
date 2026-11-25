@@ -21,6 +21,7 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `rest.records.writeMs`, 10 s) still outlasts the wait, and the others get 503 `BUSY`. Raise
   `waitMs` or `rest.records.concurrency` for that. `waitMs: 0` keeps the old behavior. Raise a
   proxy's time limit for this route by `waitMs`.
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
 
 ### Fixed
 
