@@ -16,7 +16,7 @@
             "docs/security.md": [896],
             "docs/use/charts.md": [481]
         },
-        "totalLines": 24133
+        "totalLines": 24068
     },
     "functions": {
         "complexity": {
@@ -357,8 +357,6 @@
         "packages/pivotkit-server/src/stats.js exports LOOKS_LENGTH",
         "packages/pivotkit-server/src/upload.js exports ANSWER_BYTES",
         "packages/pivotkit-server/src/upload.js exports LINK_MAX",
-        "packages/pivotkit-server/src/upload.js exports UPLOAD_QUEUE_MAX",
-        "packages/pivotkit-server/src/upload.js exports UPLOAD_SLOTS",
         "packages/pivotkit-server/src/upload.js exports addressCheck",
         "packages/pivotkit-server/src/views.js exports MAX_VIEWS",
         "packages/pivotkit-server/src/views.js exports VIEW_BYTES",

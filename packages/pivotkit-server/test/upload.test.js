@@ -704,8 +704,10 @@ test("the slot queue is capped: an upload beyond 32 waiting ones fails at once, 
     const { context, log } = await contextOf(presignOptions());
     try {
         const waiting = Array.from({ length: 34 }, () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }));
-        // every one of the 34 holds a slot or waits for one: on a slow runner some are still on their way
-        await until(() => held.length >= UPLOAD_SLOTS && uploadsWaiting(context) >= UPLOAD_QUEUE_MAX, { tries: 500, every: 10 });
+        // only a full queue makes the next call's refusal certain: on a slow runner some of the 34 are still on their way
+        await until(() => held.length >= UPLOAD_SLOTS && uploadsWaiting(context) >= UPLOAD_QUEUE_MAX, {
+            message: `the queue did not fill to ${UPLOAD_QUEUE_MAX} waiting uploads`
+        });
         const started = Date.now();
         const refused = await failureOf(withRequestId("Queue_Full0", () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false })));
         // far below the upload's timeMs (30 s) that a queued call would wait

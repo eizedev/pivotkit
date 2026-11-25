@@ -184,9 +184,9 @@ export function uploadExpiryOf(value, now = Date.now()) {
 const slots = new WeakMap();
 
 /**
- * How many of the context's uploads wait for a slot (tests: a test that fills the queue waits for
- * this instead of guessing when every upload has reached it).
+ * How many of the context's uploads wait for a slot (tests).
  * @param {object} context
+ * @returns {number}
  */
 export const uploadsWaiting = (context) => slots.get(context)?.waiting.length ?? 0;
 
