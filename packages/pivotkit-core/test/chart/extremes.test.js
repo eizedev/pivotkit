@@ -227,6 +227,28 @@ test("decorateOption: grouped bars (#913): a point's label stands over its own b
     assert.ok(stacked.series.some((s) => (s.markPoint?.data ?? []).some((d) => d.label.show !== false)));
 });
 
+test("decorateOption: grouped bars (#913): a label with no room over its bar or beside its dot stands over its group's highest bar", () => {
+    const style = { getPropertyValue: () => "" };
+    // A's high (50,000) next to a taller B (90,000) in m1; B's own high is in m2, so m1's group has room above
+    const rows = encode([
+        { Month: "m1", Team: "A", N: 50_000 },
+        { Month: "m1", Team: "B", N: 90_000 },
+        { Month: "m1", Team: "C", N: 10_000 },
+        { Month: "m2", Team: "A", N: 20_000 },
+        { Month: "m2", Team: "B", N: 100_000 },
+        { Month: "m2", Team: "C", N: 40_000 }
+    ]);
+    const r = computePivot(rows, { rows: ["Month"], cols: ["Team"], values: [{ field: "N", agg: "sum" }], sort: [], formatting: { locale: "en-US" }, chart: { type: "bar", referenceLines: ON } });
+    // the real heights: 100,000 at 50 px, 0 at 250 px
+    const pixelOf = (v) => 250 - v * 0.002;
+    const out = decorateOption(toEChartsOption(r), style, { width: 360, height: 300, pixelOf });
+    const label = out.series[0].markPoint.data.find((d) => d.name === "max").label;
+    assert.notEqual(label.show, false, JSON.stringify(label));
+    assert.equal(label.position, "top");
+    // moved up from A's top (150 px): the label's foot (its distance above the 5 px dot) above B's top (70 px)
+    assert.ok(150 - 5 - label.distance + label.offset[1] <= pixelOf(90_000), JSON.stringify(label));
+});
+
 test("decorateOption: a label reads over a line it crosses, outlined in the background's colour", () => {
     const style = { getPropertyValue: (name) => (name === "--pk-surface" ? "#101418" : "") };
     const out = decorateOption(toEChartsOption(pivot({ chart: { type: "line", referenceLines: ON } })), style, { width: 800, height: 480 });

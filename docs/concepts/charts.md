@@ -216,8 +216,8 @@ A series' lines take its colour. The lines of no series, a target and a stack's 
   colour. A palette colour such as yellow is too light for text, so the dot alone takes it.
 - `decorateOption` keeps the labels inside the plot: the value axis reaches past them
   (`dataMin`, `dataMax`). A label that would take the axis across zero sits beside its dot.
-- Labels that would cover each other or another bar of a group move beside their dots, or are
-  left out. With `pixelOf` it uses the real heights after a first draw.
+- Labels that would cover each other or another bar of a group move beside their dots, then above
+  the group's highest bar, else are left out. With `pixelOf` it uses the real heights.
 - With more than 8 series, only the chart's highest and lowest value keep a label. Every dot stays.
 - The labels and dots get an outline in `--pk-surface`, so they read over a line.
 

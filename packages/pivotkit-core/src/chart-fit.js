@@ -365,6 +365,33 @@ function acrossBar(bars, point, box) {
 }
 
 /**
+ * How far (px, up: negative) a label over its dot (`box`) moves to stand over the highest bar of its
+ * category's group (groupedBars), POINT_HALO above it; 0 when it stands there already or no group is.
+ * @param {{ index: number, y0: number }[]} bars
+ * @param {number} index  the point's category
+ * @param {{ y1: number }} box
+ */
+function overGroup(bars, index, box) {
+    const tops = bars.filter((r) => r.index === index).map((r) => r.y0);
+    return tops.length ? Math.min(0, Math.min(...tops) - POINT_HALO - box.y1) : 0;
+}
+
+/**
+ * How far (px) a label's box at `pos` moves into the plot. Beside a dot near the plot's top or bottom
+ * edge: up or down. Above or below a dot at the plot's first or last category: sideways. Over its
+ * group ("raised"): up by `lift`, and sideways as above.
+ * @param {string} pos
+ * @param {{ x0: number, x1: number, y0: number, y1: number }} box
+ * @param {{ width: number, top: number, bottom: number, lift: number }} plot
+ */
+function intoPlot(pos, box, { width, top, bottom, lift }) {
+    const beside = pos === "right" || pos === "left";
+    const dy = pos === "raised" ? lift : beside ? Math.min(0, bottom - box.y1) || Math.max(0, top - box.y0) : 0;
+    const dx = beside ? 0 : Math.max(0, -box.x0) || Math.min(0, width - box.x1);
+    return { dx, dy };
+}
+
+/**
  * The labels of the high and low points (pivotkit-core's markPoint): kept inside the plot and apart.
  * - The value axis reaches past each label at the plot's ends: `dataMin` and `dataMax` in values, from
  *   a plot estimated a fifth smaller than the chart leaves, as ECharts' nice ticks may stretch it. A
@@ -372,8 +399,9 @@ function acrossBar(bars, point, box) {
  * - With more than POINT_LABEL_SERIES series, only the chart's highest and lowest value keep a label;
  *   every dot stays.
  * - Two labels that would cover each other, another point's dot or another bar (grouped bars, #913),
- *   move: the later one beside its dot (right, then left), else it is left out. The dot stays; the
- *   tooltip and the text alternative name the value. Each point sits over its own bar (barSlots).
+ *   move: the later one beside its dot (right, then left), then over the highest bar of its group,
+ *   else it is left out: in dense grouped bars some labels are left out. The dot stays; the tooltip
+ *   and the text alternative name the value. Each point sits over its own bar (barSlots).
  *   `pixelOf` gives each value's real height after a first draw; without it the heights are
  *   estimated on the same plot.
  * Horizontal bars: each bar has a band of its own, so only the axis's reach is set.
@@ -486,15 +514,20 @@ export function pointLabels(series, { width, height, grid, fontSize, horizontal,
         // over no other label and no other dot; beside its dot, within the plot's width (a label above
         // or below a dot stays within its category's band, the plot's margin takes the rest)
         const free = (/** @type {Box} */ b, /** @type {string} */ p) => (p === "top" || p === "bottom" || (b.x0 >= 0 && b.x1 <= band * categories)) && !placed.some((o) => overlap(o, b)) && !dots.some((d, j) => j !== k && overlap(d, b)) && !acrossBar(bars, i, b);
-        const pos = [...new Set([own, "right", "left"])].find((p) => free(boxOf(i, p), p));
+        // over the highest bar of its group: a label over its dot, within the plot
+        const lift = own === "top" ? overGroup(bars, i.index, boxOf(i, "top")) : 0;
+        const raised = (/** @type {Box} */ b) => ({ ...b, y0: b.y0 + lift, y1: b.y1 + lift });
+        const boxAt = (/** @type {string} */ p) => (p === "raised" ? raised(boxOf(i, "top")) : boxOf(i, p));
+        const candidates = [...new Set([own, "right", "left"]), ...(lift ? ["raised"] : [])];
+        const pos = candidates.find((p) => (p !== "raised" || boxAt(p).y0 >= plotTop) && free(boxAt(p), p === "raised" ? "top" : p));
         if (pos) {
-            const box = boxOf(i, pos);
-            // beside a dot near the plot's top or bottom edge: moved up or down into the plot
-            const dy = pos === "right" || pos === "left" ? Math.min(0, plotBottom - box.y1) || Math.max(0, plotTop - box.y0) : 0;
-            // above or below a dot at the plot's first or last category: moved sideways into the plot
-            const dx = pos === "top" || pos === "bottom" ? Math.max(0, -box.x0) || Math.min(0, band * categories - box.x1) : 0;
-            placed.push({ x0: box.x0 + dx, x1: box.x1 + dx, y0: box.y0 + dy, y1: box.y1 + dy });
-            if (pos !== (i.d.label?.position ?? "top") || dy || dx) moves.set(i.d, { position: pos, ...(dy || dx ? { offset: [dx, dy] } : {}) });
+            const box = boxAt(pos);
+            const { dx, dy } = intoPlot(pos, box, { width: band * categories, top: plotTop, bottom: plotBottom, lift });
+            // the raised box has its lift already
+            const shift = pos === "raised" ? 0 : dy;
+            placed.push({ x0: box.x0 + dx, x1: box.x1 + dx, y0: box.y0 + shift, y1: box.y1 + shift });
+            const at = pos === "raised" ? "top" : pos;
+            if (at !== (i.d.label?.position ?? "top") || dy || dx) moves.set(i.d, { position: at, ...(dy || dx ? { offset: [dx, dy] } : {}) });
         } else {
             moves.set(i.d, { show: false });
         }
