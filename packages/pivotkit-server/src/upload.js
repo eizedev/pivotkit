@@ -233,9 +233,10 @@ async function inSlot(context, deadline, fn) {
  * The operator's headers with their secrets read now (a rotated secret works without a restart).
  * @param {import("./options/upload.js").UploadHeaders} headers
  * @param {any} options
+ * @param {Record<string, string | undefined>} env  where an { env } secret is read (the context's)
  * @returns {Promise<Record<string, string>>}
  */
-async function operatorHeaders(headers, options) {
+async function operatorHeaders(headers, options, env) {
     /** @type {Record<string, string>} */
     const out = {};
     for (const [name, value] of Object.entries(headers)) {
@@ -243,7 +244,7 @@ async function operatorHeaders(headers, options) {
             out[name] = value;
             continue;
         }
-        const secret = await readSecret(value.value, options).catch(() => {
+        const secret = await readSecret(value.value, options, env).catch(() => {
             throw new UploadFailure("SECRET", false);
         });
         out[name] = `${value.prefix ?? ""}${secret}`;
@@ -329,7 +330,7 @@ export async function upload(context, file, meta) {
     const fetch = uploadMeans.fetch;
     const rules = { allowPrivate: settings.intranet, maxBytes: ANSWER_BYTES };
     return inSlot(context, deadline, async () => {
-        const headers = await operatorHeaders(settings.headers, context.options);
+        const headers = await operatorHeaders(settings.headers, context.options, context.env);
         /** @type {URL} */
         let target;
         /** @type {Record<string, string>} */
