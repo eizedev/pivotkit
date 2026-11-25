@@ -143,7 +143,7 @@ A new name is one table entry plus its tests:
 | Date grouping or bin unit | `DERIVED` in `derive.js` | |
 | Filter type | `FILTERS` in `filters.js` | |
 | "Show values as" | `SHOW_AS` in `show-as.js` | |
-| Format | `FORMAT_NAMES` and `formatterFor` in `format.js` | its Excel code in `excelNumberFormat` |
+| Format | `FORMAT_NAMES` and `formatterFor` in `format.js` | its Excel code in `excelNumberFormat` (`excel-format.js`) |
 | View key | a section in `view.js`, in `SECTIONS` and `emptyView()` | a migration if old views change |
 
 - An aggregator that stores a value per row sets `keepsValues`. It counts heavier against `work`.
