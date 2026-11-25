@@ -82,12 +82,12 @@ report: the report itself, field list included, is at least 1,024 pixels wide.
 ![A treemap of 20 countries by population, each tile named with its value](../assets/screenshots/chart-treemap-dark.png#only-dark)
 
 - Each tile shows its name and value. A small tile cuts the text with "…". The tooltip shows both.
-- A row with a total of 0 or less gets no tile.
+  A row with a total of 0 or less gets no tile.
 - The colours only tell the tiles apart. They do not stand for a value.
-- The text on a tile is on a plate in the background's colour and reads alike on every tile.
+- The text stands in the tile's middle on a plate in the background's colour. Too wide for its
+  tile, it has no plate and takes black, white or the theme's text colour, whichever reads.
 - It has no legend. **Chart settings › Series** hides a tile or sets its colour.
-- With a field on Columns, a tile adds up every column, as a pie does.
-- A click on a tile opens no rows.
+- With a field on Columns, a tile adds up every column, as a pie does. A click opens no rows.
 
 The icon of the tab **Chart** shows the type drawn. In **Chart settings**, a screen reader hears the
 group of types as "Chart type: Bars". "Automatic" says what it draws now, such as "Now: Lines". A
@@ -332,8 +332,8 @@ target you set. High and low points mark the highest and the lowest value of eac
 - A label never stretches the axis across zero. Near zero, it sits beside its dot.
 - Labels have an outline in the background's colour, so they read over a line.
 - A stack marks the highest and lowest total, in the neutral colour of a target.
-- Labels that would cover each other or another bar of a group move beside their dots. A label
-  that still has no room is left out. Its dot stays, and the tooltip names the value.
+- Labels that would cover each other or another bar of a group move beside their dots or above
+  the group. In dense grouped bars some labels are left out; the tooltip has the value.
 - With more than 8 series, every dot stays, but only the chart's highest and lowest value keep a
   label.
 - Where two categories share the highest value, the first one gets the dot. A series whose values

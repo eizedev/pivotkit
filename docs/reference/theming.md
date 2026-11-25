@@ -220,7 +220,9 @@ The chart reads these tokens in the current theme:
 | The title's size and weight | `--pk-chart-title-size`, `--pk-weight-strong` |
 | Its other text: the axes, the legend, the labels on bars, slices and cells, the heatmap's scale | `--pk-chart-text-size` |
 | The text on a treemap's tiles, on a plate | `--pk-text` on `--pk-surface` |
-| The numbers on a heatmap's cells: the first that reaches 4.5:1 on the cell, else black or white | `--pk-text`, `--pk-surface` |
+| The numbers on a heatmap's cells, and a treemap's text too wide for a plate: the first that reaches 4.5:1 on the cell, else black or white | `--pk-text`, `--pk-surface` |
+| The labels of high and low points, with an outline around the letters | `--pk-muted`, outlined in `--pk-surface` |
+| The labels of reference lines | `--pk-muted` |
 | The corners of bars and pie slices | `--pk-radius-chart` |
 | The corners of the tooltip | `--pk-radius-card` |
 | The tooltip's total line and the series under the pointer | `--pk-border`, `--pk-weight-strong` |
@@ -228,6 +230,11 @@ The chart reads these tokens in the current theme:
 | The slice "Other (n)" of a pie without a legend ([many slices](../use/charts.md#many-slices)) | `--pk-chart-other` |
 | The axis line | `--pk-chart-axis`, else `--pk-border` |
 | The grid | `--pk-grid`, else `--pk-border` |
+
+Black (`#000000`) and white (`#ffffff`) are fixed values, not tokens. Without a `--pk-surface` the
+chart can draw, a treemap has no plates, and each label takes the ink that reads on its tile. That
+is a missing `--pk-surface`, or in pivotkit-report on its own a form ECharts does not read, such as
+`oklch()` or `color-mix()`. A missing `--pk-surface` also leaves the points' labels without an outline.
 
 The heatmap's colours work in any form the browser reads, `oklch()` too. The chart mixes the colour
 of each cell from them. It takes them as plain sRGB colours: a colour's alpha is dropped, and a

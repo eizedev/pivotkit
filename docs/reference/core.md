@@ -464,7 +464,7 @@ area with `stackPercent`.
 | `tooltipFormatter` | Builds the tooltip's formatter. Leave it out for a chart without a tooltip, such as an SVG. |
 | `readColor` | `(color) => color \| null`: a heatmap colour as ECharts can mix it. ECharts reads hex, `rgb()`, `hsl()` and some names only, and another form, such as `oklch()`, turns the cells black. An end with `null` takes `DEFAULT_THEME.colorScale`'s colour. |
 | `zoom`, `zoomAt`, `timeline`, `touch` | The zoom slider of a chart on a screen. See below. |
-| `pixelOf` | `(value) => px`: a value's height in the drawn chart, such as ECharts' `convertToPixel` after a first draw. The labels of the reference lines then sit at their lines. |
+| `pixelOf`, `tileOf` | After a first draw. `pixelOf`: `(value) => px`, a value's height in the drawn chart, such as ECharts' `convertToPixel`: the labels of the reference lines then sit at their lines. `tileOf`: `(index) => { width, height, fill } \| null`, a treemap item's tile, such as `drawnTiles(chart)` gives: each label then stands in its tile's middle. |
 
 It adds the theme's colours from the tokens, and:
 
@@ -480,11 +480,11 @@ It adds the theme's colours from the tokens, and:
 - A legend moved below a narrow chart.
 - The category axis laid out for the chart's size (`categoryLabelLayout`: straight, slanted or every
   n-th, `chart.axisLabels`). The option's `axisEvery` says when every n-th label is written.
-- Room on the right for the values at the end of horizontal bars, and fewer value ticks where a
-  narrow axis needs them.
-- A heatmap's row names and cell numbers where its cells have room, each number in `--pk-text`,
-  `--pk-surface`, black or white: the first that reads at 4.5:1 on its cell (`labelColorOn`).
-- A treemap's labels in `--pk-text` on a plate in `--pk-surface`, alike on every tile.
+- Room on the right for the values at the end of horizontal bars, fewer value ticks on a narrow axis.
+- A heatmap's row names and numbers where its cells have room, each number in the first of
+  `--pk-text` and `--pk-surface` that reads at 4.5:1, else `#000000` or `#ffffff` (`labelColorOn`). A
+  treemap's labels in `--pk-text` on a plate in `--pk-surface`; a label too wide for its tile
+  (`tileOf`), or any without a `--pk-surface` it can draw, has no plate and takes the cell's ink.
 
 pivotkit-react adds its DOM tooltip through `tooltipFormatter`. Its `readColor` turns any colour the
 browser reads into `#rrggbb`. pivotkit-report's keeps the colours ECharts reads. Any other one

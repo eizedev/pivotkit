@@ -9,18 +9,28 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 ### Changed
 
 - The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+- `labelColorOn(fill, candidates)` can return `#000000` or `#ffffff`, not one of the candidates, where
+  none reaches 4.5:1 on the fill ([#914](https://github.com/eizedev/pivotkit/issues/914)).
+
+### Added
+
+- `decorateOption` takes `tileOf`, a treemap's tiles after a first draw, and `drawnTiles(chart)`
+  reads them from an ECharts instance. A treemap's labels then stand in their tiles' middle.
 
 ### Fixed
 
 - Text on coloured fills reads at 4.5:1 or more in both themes
   ([#914](https://github.com/eizedev/pivotkit/issues/914)):
   - A treemap writes its labels in `--pk-text` on a plate in `--pk-surface`, the same on every tile.
+    A label too wide for its tile has no plate and takes the ink that reads on the tile, so no plate
+    stands without words. Without a `--pk-surface` the chart can draw, no label has a plate.
   - A heatmap's numbers take `--pk-text` or `--pk-surface`, else black or white, whichever reaches
     4.5:1 on the cell. `labelColorOn` gives black or white where neither candidate reaches it.
 - High and low points ([#913](https://github.com/eizedev/pivotkit/issues/913)):
   - The ▲ and ▼ take the text colour, as the value does. A light series colour made them hard to read.
   - In grouped bars a label no longer crosses another bar of its group. It moves beside its dot or
-    is left out, and the tooltip names the value.
+    above the group's highest bar. In dense grouped bars some labels are left out; the tooltip has
+    the value.
 - Reference lines ([#913](https://github.com/eizedev/pivotkit/issues/913)):
   - On a chart narrower than 480 px, a label writes the value instead of the line's name; a trend
     keeps its name.

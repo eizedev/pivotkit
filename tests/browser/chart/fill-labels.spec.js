@@ -52,16 +52,57 @@ const contrasts = async (page, labels) => {
 /** Eight regions, one tile each, and a host's light grey and near black among the colours. */
 const REGIONS = ["Central", "West", "North", "South", "East", "Alps", "Coast", "Islands"].map((Region, i) => ({ Region, Revenue: 4000 - i * 380 }));
 const HOST = { Central: "#d9d9d9", West: "#1f1f1f" };
+/** Twenty countries by population: wide tiles and tiles too narrow for a name on a plate. */
+const COUNTRIES = [["India", 1450], ["China", 1410], ["United States", 340], ["Indonesia", 283], ["Pakistan", 251], ["Nigeria", 232], ["Brazil", 212], ["Bangladesh", 173], ["Russian Federation", 143], ["Ethiopia", 132], ["Mexico", 130], ["Japan", 124], ["Egypt, Arab Rep.", 116], ["Philippines", 115], ["Congo, Dem. Rep.", 109], ["Viet Nam", 101], ["Iran, Islamic Rep.", 91], ["Turkiye", 85], ["Germany", 83], ["Thailand", 71]].map(([Country, Population]) => ({ Country, Population }));
 
 for (const theme of ["light", "dark"]) {
-    test(`treemap, ${theme}: every label on a plate, 4.5:1 on it, the same on every tile`, async ({ page }) => {
+    test(`treemap, ${theme}: every label 4.5:1 on what is under it, one look on every plate`, async ({ page }) => {
         await page.goto("pages/host.html");
         await mountReport(page, { id: "fill-report", rows: REGIONS, view: { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "treemap" } }, theme, height: 480, props: { colorMap: HOST } });
         const labels = await contrasts(page, await labelsOnMarks(await chartOf(page, "fill-report", "treemap")));
         expect(labels.length).toBeGreaterThanOrEqual(16);
         for (const l of labels) expect(l.ratio, `${l.text}: ${l.ink} on ${l.fill}`).toBeGreaterThanOrEqual(TEXT_MIN);
-        expect(labels.every((l) => l.plated)).toBe(true);
-        expect(new Set(labels.map((l) => `${l.ink} on ${l.fill}`)).size).toBe(1);
+        // one look on every plate; a label too wide for its tile has none
+        expect(new Set(labels.filter((l) => l.plated).map((l) => `${l.ink} on ${l.fill}`)).size).toBe(1);
+        expect(labels.filter((l) => l.plated).length).toBeGreaterThanOrEqual(labels.length / 2);
+    });
+
+    test(`treemap, ${theme}, 390 px: each label in its tile's middle, no plate without words`, async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 900 });
+        await page.goto("pages/host.html");
+        await mountReport(page, { id: "fill-report", rows: COUNTRIES, view: { rows: ["Country"], values: [{ field: "Population", agg: "sum" }], display: "chart", chart: { type: "treemap" } }, theme, height: 560 });
+        const tiles = await inChart(await chartOf(page, "fill-report", "treemap"), (chart) => {
+            const out = [];
+            for (const el of chart.getZr().storage.getDisplayList(true)) {
+                const text = el.getTextContent?.();
+                if (!text || text.ignore || text.invisible || !el.style?.fill) continue;
+                const box = el.getBoundingRect().clone();
+                box.applyTransform(el.getComputedTransform());
+                const parts = text.childrenRef?.() ?? [];
+                const words = [];
+                for (const p of parts.filter((p) => p.type === "tspan" && p.style?.text?.trim())) {
+                    const r = p.getBoundingRect().clone();
+                    r.applyTransform(text.getComputedTransform());
+                    words.push(r);
+                }
+                const plates = parts.filter((p) => p.type === "rect" && p.style?.fill && p.style.fill !== "transparent").map((p) => {
+                    const r = p.getBoundingRect();
+                    return { width: r.width, words: parts.some((w) => w.type === "tspan" && w.style?.text?.trim() && Math.abs(w.getBoundingRect().y - r.y) < r.height) };
+                });
+                if (!words.length && !plates.length) continue;
+                const y0 = Math.min(...words.map((r) => r.y));
+                const y1 = Math.max(...words.map((r) => r.y + r.height));
+                out.push({ name: words.length ? parts.find((p) => p.type === "tspan")?.style.text : "(none)", tile: [box.y, box.y + box.height], words: words.length ? [y0, y1] : null, plates });
+            }
+            return out;
+        });
+        expect(tiles.length).toBeGreaterThanOrEqual(15);
+        for (const t of tiles) {
+            for (const p of t.plates) expect(p.words, `${t.name}: a plate ${p.width} px wide without words`).toBe(true);
+            if (!t.words) continue;
+            // the words' middle within 2 px of the tile's
+            expect(Math.abs((t.words[0] + t.words[1]) / 2 - (t.tile[0] + t.tile[1]) / 2), `${t.name}: ${JSON.stringify(t)}`).toBeLessThanOrEqual(2);
+        }
     });
 
     test(`heatmap, ${theme}: every number 4.5:1 on the cell ECharts drew`, async ({ page }) => {

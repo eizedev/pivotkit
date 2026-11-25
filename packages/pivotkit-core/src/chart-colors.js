@@ -99,7 +99,7 @@ export const TEXT_CONTRAST = 4.5;
  * side where it reaches TEXT_CONTRAST, else the other. One of them always reaches 4.58:1 on an opaque
  * colour. A fill it cannot read (not hex or rgb()) gives
  * the first candidate. Used for a heatmap's cell numbers; decorateOption puts a treemap's labels on a
- * background of their own instead (platedLabel in chart-style.js).
+ * background of their own instead (treemapLabels in chart-style.js).
  * @param {string} fill
  * @param {string[]} candidates
  */

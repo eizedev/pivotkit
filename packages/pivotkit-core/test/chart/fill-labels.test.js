@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chartThemeFrom, computePivot, encode, toEChartsOption } from "pivotkit-core";
-import { decorateOption, labelColorOn } from "pivotkit-core/chart";
+import { decorateOption, drawnTiles, labelColorOn } from "pivotkit-core/chart";
 import { THEME_TOKENS, contrastOnFill, fillContrasts, unreadable } from "../../../../tests/fill-contrast.js";
 import { MONTH, MONTHLY, REVENUE } from "./fixtures.js";
 
@@ -56,6 +56,52 @@ test("treemap, both themes: every label on a plate in the background colour, the
     // a "}" in a name would end the plate's text in ECharts' markup: it stands between two runs of it
     const [s] = drawn(r, { getPropertyValue: (/** @type {string} */ n) => THEME_TOKENS.light[n] ?? "" }).series;
     assert.equal(s.label.formatter({ name: "A}B", value: 1 }), "{plate|A}}{plate|B}\n{plate|1}");
+});
+
+test("treemap with the tiles of a first draw (tileOf): each label in its tile's middle; a label too wide for its tile on no plate, in the ink that reads on it", () => {
+    const r = computePivot(REGIONS, { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" }, formatting: { locale: "en-US" } });
+    const style = { getPropertyValue: (/** @type {string} */ n) => THEME_TOKENS.light[n] ?? "" };
+    // the first tile wide and tall, the second 30 px wide (no room for "West" on a plate), the others unknown
+    const tiles = [{ width: 300, height: 200, fill: "#2a78d6" }, { width: 30, height: 60, fill: "#1f1f1f" }];
+    const [s] = decorateOption(toEChartsOption(r, { theme: chartThemeFrom(style) }), style, { width: 800, height: 480, tileOf: (i) => tiles[i] ?? null }).series;
+    const [wide, narrow, unknown] = s.data;
+    const line = s.label.rich.plate.lineHeight;
+    // two lines of `line` px in the middle of 200 px: (200 - 2 * line) / 2 above them
+    assert.deepEqual(wide.label.padding, [(200 - 2 * line) / 2, 5, 5, 5]);
+    assert.equal(wide.label.rich, undefined, "on the series' plate");
+    const bare = narrow.label.rich.plate;
+    assert.equal(bare.backgroundColor, "transparent");
+    assert.equal(bare.padding, 0);
+    assert.ok(/** @type {number} */ (contrastOnFill(bare.color, "#1f1f1f")) >= 4.5, bare.color);
+    // two closer lines in the middle of 60 px
+    assert.deepEqual(narrow.label.padding, [(60 - 2 * bare.lineHeight) / 2, 5, 5, 5]);
+    assert.equal(unknown.label, undefined);
+});
+
+test("treemap without a background colour it can draw: no plates, each label in the ink that reads on its tile", () => {
+    const r = computePivot(REGIONS, { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" }, formatting: { locale: "en-US" } });
+    const missing = { getPropertyValue: (/** @type {string} */ n) => (n === "--pk-surface" ? "" : (THEME_TOKENS.light[n] ?? "")) };
+    const unreadableSurface = { getPropertyValue: (/** @type {string} */ n) => (n === "--pk-surface" ? "oklch(0.98 0 0)" : (THEME_TOKENS.light[n] ?? "")) };
+    const readColor = (/** @type {string} */ c) => (c.startsWith("#") ? c : null);
+    for (const style of [missing, unreadableSurface]) {
+        const [s] = decorateOption(toEChartsOption(r, { theme: chartThemeFrom(missing) }), style, { width: 800, height: 480, readColor }).series;
+        assert.equal(s.label.rich.plate, undefined, style.getPropertyValue("--pk-surface"));
+        const out = s.label.formatter({ name: "North", value: 3240, color: "#1f1f1f" });
+        const key = /^\{(\w+)\|/.exec(out)?.[1] ?? "";
+        assert.ok(/** @type {number} */ (contrastOnFill(s.label.rich[key].color, "#1f1f1f")) >= 4.5, out);
+    }
+});
+
+test("drawnTiles: a treemap's tiles by item, its root left out; nothing for another chart", () => {
+    const layouts = [{ width: 800, height: 480 }, { width: 300, height: 200 }, null];
+    const chart = (/** @type {string} */ subType) => ({
+        getModel: () => ({ getSeriesByIndex: () => ({ subType, getData: () => ({ getItemLayout: (/** @type {number} */ i) => layouts[i], getItemVisual: () => ({ fill: "#2a78d6" }) }) }) })
+    });
+    const tileOf = /** @type {(i: number) => unknown} */ (drawnTiles(chart("treemap")));
+    assert.deepEqual(tileOf(0), { width: 300, height: 200, fill: "#2a78d6" });
+    assert.equal(tileOf(1), null);
+    assert.equal(drawnTiles(chart("bar")), undefined);
+    assert.equal(drawnTiles({}), undefined);
 });
 
 /** A colour `t` of the way from `a` to `b` (#rrggbb), mixed as ECharts mixes a visual map's colours: per channel. */

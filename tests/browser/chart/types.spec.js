@@ -79,8 +79,10 @@ for (const [width, theme] of [
         await expect.poll(async () => (await drawnSeries(report))?.[0]?.type).toBe("treemap");
         const [{ tiles, plate }] = await drawnSeries(report);
         expect(tiles.map((t) => t.name).sort()).toEqual(["Central", "East", "North", "South", "West"]);
-        // every label the same: on a plate it reads on at 4.5:1, whatever the tile's colour; no tile has a label style of its own
-        expect(tiles.filter((t) => t.own)).toEqual([]);
+        // every label the same: on a plate it reads on at 4.5:1, whatever the tile's colour. A tile's own
+        // label sets only its padding (the tile's middle) and, too wide for a plate, no plate (fill-labels.spec.js)
+        expect(tiles.flatMap((t) => Object.keys(t.own ?? {}).filter((k) => k !== "padding" && k !== "rich"))).toEqual([]);
+        expect(tiles.filter((t) => t.own?.rich && t.own.rich.plate?.backgroundColor !== "transparent")).toEqual([]);
         const ratio = await contrast(page, plate.color, plate.backgroundColor);
         expect(ratio, `${plate.color} on ${plate.backgroundColor}`).toBeGreaterThanOrEqual(4.5);
         // no tip about pies: a treemap holds many parts

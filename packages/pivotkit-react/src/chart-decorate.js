@@ -8,7 +8,7 @@
  */
 
 import { DEFAULT_THEME } from "pivotkit-core";
-import { decorateOption } from "pivotkit-core/chart";
+import { decorateOption, drawnTiles } from "pivotkit-core/chart";
 import { mergeChartOptions } from "./chart-options.js";
 import { tooltipFormatter, tooltipReferences, valueAddsUp } from "./chart-tooltip.js";
 
@@ -25,7 +25,7 @@ const TOOLTIP_OTHER_LINES = 3;
  * @param {number} [height]  the chart's height in px, for the room around a pie
  * @param {Document} [doc]  the chart's document, for the tooltip's nodes
  * @param {number} [width]  the chart's width in px, for the column names of a heatmap and the category axis
- * @param {{ categoryNames?: string[], axisLabels?: string, zoom?: string, zoomAt?: { start: number, end: number }, timeline?: boolean, touch?: boolean, pixelOf?: (value: number) => number, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, share?: boolean, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined>, lines?: ReturnType<typeof import("pivotkit-core/chart").referenceLines> } }} [extra]
+ * @param {{ categoryNames?: string[], axisLabels?: string, zoom?: string, zoomAt?: { start: number, end: number }, timeline?: boolean, touch?: boolean, pixelOf?: (value: number) => number, tileOf?: (index: number) => { width: number, height: number, fill?: string } | null, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, share?: boolean, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined>, lines?: ReturnType<typeof import("pivotkit-core/chart").referenceLines> } }} [extra]
  *   the categories' whole names (the tooltip's title when the axis writes them shorter), the view's
  *   chart.axisLabels and chart.zoom (the slider, pivotkit-core's chart-zoom.js); tooltip: the view's chart.tooltip and chart.tooltipShare, the chart's hover state (chart.jsx writes the
  *   element under the pointer into `current`, the formatter reads it), the name of a stack's total,
@@ -62,7 +62,8 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
  * them (`hostOptions`, checked, mergeChartOptions), and then the labels of lying reference lines
  * placed at their lines' real heights: after the first draw ECharts knows where each value is
  * (convertToPixel), so the marks are laid out again with it (pivotkit-core's decorateOption,
- * pixelOf) and only the series are set again.
+ * pixelOf) and only the series are set again; a treemap's labels likewise at the middle of the tiles it
+ * drew (drawnTiles).
  * @param {any} instance  the chart's ECharts instance
  * @param {any} option  pivotkit-core's toEChartsOption
  * @param {{ getPropertyValue(name: string): string }} style
@@ -74,8 +75,8 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
 export function drawOption(instance, option, style, doc, extra, hostOptions) {
     /** @type {any} */
     let own = null;
-    const marked = (/** @type {((v: number) => number) | undefined} */ pixelOf) => {
-        const drawn = decorate(option, style, instance.getHeight(), doc, instance.getWidth(), { ...extra, pixelOf });
+    const marked = (/** @type {((v: number) => number) | undefined} */ pixelOf, /** @type {ReturnType<typeof drawnTiles>} */ tileOf = undefined) => {
+        const drawn = decorate(option, style, instance.getHeight(), doc, instance.getWidth(), { ...extra, pixelOf, tileOf });
         own ??= drawn;
         // the option without the report's own axisEvery, which ECharts does not know
         const rest = { ...drawn };
@@ -88,6 +89,9 @@ export function drawOption(instance, option, style, doc, extra, hostOptions) {
     if (lying && (first.series ?? []).some((/** @type {any} */ s) => s.markLine || s.markPoint)) {
         instance.setOption({ series: marked((value) => instance.convertToPixel({ yAxisIndex: 0 }, value)).series });
     }
+    // a treemap's labels in the middle of the tiles it drew
+    const tileOf = drawnTiles(instance);
+    if (tileOf) instance.setOption({ series: marked(undefined, tileOf).series });
     return own;
 }
 

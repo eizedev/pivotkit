@@ -20,7 +20,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 - The chart's text on coloured fills reads in both themes, with pivotkit-core's fix
   ([#913](https://github.com/eizedev/pivotkit/issues/913), [#914](https://github.com/eizedev/pivotkit/issues/914)):
-  a treemap's labels on plates in the background colour, a heatmap's numbers in the ink that reads on
+  a treemap's labels on plates in the background colour, in the middle of their tiles, a heatmap's numbers in the ink that reads on
   each cell, the ▲ and ▼ of high and low points in the text colour.
 - A report mounted again while a link is in the page's address, such as a second report on the page
   or one a host mounts anew on a theme switch, opens the link. Before, it threw a `TypeError` and

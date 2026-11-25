@@ -8,7 +8,7 @@
 
 import { PivotkitError, chartPlan, chartThemeFrom, computePivot, swapAxes, toSeries } from "pivotkit-core";
 // the option from the chart's entry point: a bundle with pivotkit-report keeps it off its first load
-import { decorateOption, toEChartsOption } from "pivotkit-core/chart";
+import { decorateOption, drawnTiles, toEChartsOption } from "pivotkit-core/chart";
 import { BIDI_CONTROLS } from "./texts.js";
 import { LIGHT_TOKENS } from "./tokens.js";
 
@@ -166,9 +166,9 @@ export function chartSvg(result, { echarts, style, width, height, locale, labels
     // black: the light default stands in for it. Every other colour is written into the SVG as it is
     const parse = echarts.color?.parse;
     const readColor = typeof parse === "function" ? (/** @type {string} */ c) => (parse(c.trim()) ? c : null) : undefined;
-    const marked = (/** @type {((v: number) => number) | undefined} */ pixelOf) => {
+    const marked = (/** @type {((v: number) => number) | undefined} */ pixelOf, /** @type {ReturnType<typeof drawnTiles>} */ tileOf = undefined) => {
         // axisEvery is the report's own note, not ECharts'
-        const decorated = decorateOption(option, style, { width, height, categoryNames: series.categories, axisLabels: view.chart.axisLabels, readColor, pixelOf });
+        const decorated = decorateOption(option, style, { width, height, categoryNames: series.categories, axisLabels: view.chart.axisLabels, readColor, pixelOf, tileOf });
         delete decorated.axisEvery;
         return decorated;
     };
@@ -183,6 +183,9 @@ export function chartSvg(result, { echarts, style, width, height, locale, labels
         if (!Array.isArray(first.yAxis) && first.yAxis?.type === "value" && (first.series ?? []).some((/** @type {any} */ s) => s.markLine || s.markPoint)) {
             chart.setOption({ series: marked((v) => chart.convertToPixel({ yAxisIndex: 0 }, v)).series });
         }
+        // a treemap's labels in the middle of the tiles it drew, as on the screen
+        const tileOf = drawnTiles(chart);
+        if (tileOf) chart.setOption({ series: marked(undefined, tileOf).series });
         svg = chart.renderToSVGString();
     } finally {
         chart.dispose();
