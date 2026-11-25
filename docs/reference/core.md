@@ -185,13 +185,13 @@ pivotkit-core ships it as `pivotkit-core/schema/view-2.json`, and the site publi
 ### Describing data and views
 
 Plain, structured summaries for a log, an approver or an LLM that writes or explains views. They are
-JSON with one short English `text` per part, without a locale, and nothing rendered. Values from the
-data are data, and a prompt should mark them as such.
+JSON with one short `text` per part, without a locale, and nothing rendered. The texts are English;
+`describeView` also writes German. Values from the data are data, and a prompt should mark them as such.
 
 | Function | Returns | What |
 | --- | --- | --- |
 | `describeSource(data, { items })` | `{ rows, fields, text }` | Per field: `name`, `type`, and the `aggregators` and filter types (`filters`) that work on it. Encoded data adds `distinct`, `blanks`, the first `items` and `min`/`max` of numbers and dates (dates as ISO days). `items` holds at most `DESCRIBE_LIMITS.items`, 20, each cut at 80 characters. A schema `{ fields }` or a fields array gives the types only (`rows: null`). Rows that are not encoded throw `INVALID_ARGUMENT`, so `encode()` them first. Field names in the `text`s are cut at 80 characters, as items are. |
-| `describeView(view, schema, { limits })` | object | The view as `normalize` reads it, in parts: `rows`, `cols`, `values` with their names, `filters`, `derived`, `sort` and `display`. Each normalized filter has its `text`: `Region is one of "North", "South" (blanks dropped)`. It adds `valid`, `errors` and `warnings` of `validate`, and `text`, the whole view in one sentence. A part with an error is left out of the parts. The `text` of an invalid view starts with `(invalid: n errors, the parts they name are left out)`. |
+| `describeView(view, schema, { limits, labels })` | object | The view as `normalize` reads it, in parts: `rows`, `cols`, `values` with their names, `filters`, `derived`, `sort` and `display`. Each normalized filter has its `text`: `Region is one of "North", "South" (blanks dropped)`. It adds `valid`, `errors` and `warnings` of `validate`, and `text`, the whole view in one sentence. A part with an error is left out of the parts. The `text` of an invalid view starts with `(invalid: n errors, the parts they name are left out)`. `labels` are the words of the texts, English by default: `DESCRIBE_LABELS.de` or `describeLabels("de-DE")` writes `Region ist einer der Werte "North", "South" (ohne leere Werte)`. A key `labels` leaves out stays English. The `errors` and `warnings` stay English. |
 
 ### A view from field names { #view-from-field-names }
 

@@ -77,6 +77,7 @@ Reuse these instead of writing a second version:
 | Every place a view names a field | `mapFieldRefs` in `view-file.js` |
 | A loaded file's source id | `sourceIdOf` in `source-id.js` |
 | Grouping names and report words, en and de | `GROUPING_NAMES`, `REPORT_LABELS` in `labels.js` |
+| describeView's words, en and de | `DESCRIBE_LABELS` in `describe-labels.js` |
 | Chart data and the type "auto" stands for | `toSeries`, `autoChartType` in `chart-series.js` |
 | The ECharts option, loaded with the chart | `toEChartsOption` in `chart.js`, also exported by `chart-style.js` |
 | Chart marks for screen, SVG and print | `decorateOption` in `chart-style.js` |

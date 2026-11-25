@@ -48,6 +48,7 @@
  * @typedef {import("./format.js").Formatter} Formatter
  * @typedef {import("./limits.js").Limits} Limits
  * @typedef {import("./labels.js").Labels} Labels
+ * @typedef {import("./describe-labels.js").DescribeLabels} DescribeLabels
  * @typedef {import("./schema.js").SchemaFieldDefaults} SchemaFieldDefaults
  * @typedef {import("./errors.js").PivotkitErrorCode} PivotkitErrorCode
  * @typedef {import("./view-file.js").ViewFileMeta} ViewFileMeta
@@ -77,6 +78,7 @@ export { formatter, isFormat } from "./format.js";
 export { aggregatorsFor, AGGREGATOR_ALIASES } from "./aggregators.js";
 export { CATALOG } from "./catalog.js";
 export { describeSource, describeView, DESCRIBE_LIMITS } from "./describe.js";
+export { DESCRIBE_LABELS, describeLabels } from "./describe-labels.js";
 export { DEFAULT_LABELS, GROUPING_NAMES, PLURAL_CATEGORIES, REPORT_LABELS, ROW_COUNT_TEXTS, fieldLabel, groupingName, pluralForm, reportLabels, withFieldLabels } from "./labels.js";
 export { fieldDefaultsFromSchema } from "./schema.js";
 export { COLOR_SCALES, DEFAULT_THEME } from "./defaults.js";

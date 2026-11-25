@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DESCRIBE_LIMITS, PivotkitError, describeSource, describeView, encode } from "../src/index.js";
+import { DESCRIBE_LABELS, DESCRIBE_LIMITS, PivotkitError, describeLabels, describeSource, describeView, encode } from "../src/index.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -111,4 +111,50 @@ test("describeView: a comparison and a text rule in words for each operator, wit
     assert.equal(text({ field: "Rep", type: "text", op: "beginsWith", value: "A" }), 'Rep begins with "A", case insensitive, whitespace collapse (blanks dropped)');
     assert.equal(text({ field: "Rep", type: "text", op: "endsWith", value: "n", not: true }), 'Rep does not end with "n", case insensitive, whitespace collapse (blanks dropped)');
     assert.equal(text({ field: "Rep", type: "text", op: "equals", value: "Ann", not: true }), 'Rep does not equal "Ann", case insensitive, whitespace collapse (blanks dropped)');
+});
+
+test("describeView in German: every filter type, the parts and the whole sentence", () => {
+    const de = { labels: DESCRIBE_LABELS.de };
+    const text = (filter) => describeView({ version: 2, filters: [{ blanks: "exclude", ...filter }] }, data, de).filters[0].text;
+    // "=" is the value alone, as in English: "Units ist 5", never "ist ist"
+    assert.equal(text({ field: "Units", type: "compare", op: "=", value: 5 }), "Units ist 5 (ohne leere Werte)");
+    assert.equal(text({ field: "Units", type: "compare", op: "=", value: 5, not: true }), "Units ist nicht 5 (ohne leere Werte)");
+    assert.equal(text({ field: "Units", type: "compare", op: "between", value: 1, value2: 9 }), "Units ist zwischen 1 und 9 (ohne leere Werte)");
+    assert.equal(text({ field: "Date", type: "compare", op: ">", value: "2026-01-01", precision: "month" }), 'Date ist größer als "2026-01-01" (nach Monat) (ohne leere Werte)');
+    assert.equal(text({ field: "Region", type: "in", items: ["North", "South"], blanks: "include" }), 'Region ist einer der Werte "North", "South" (mit leeren Werten)');
+    assert.equal(text({ field: "Region", type: "in", items: [], not: true }), "Region ist keiner der Werte (keine Einträge) (ohne leere Werte)");
+    assert.equal(text({ field: "Region", type: "blank", not: true }), "Region ist nicht leer");
+    assert.equal(text({ field: "Rep", type: "text", op: "contains", value: "a", on: "label" }), 'Rep (wie angezeigt) enthält "a", Groß- und Kleinschreibung egal, Leerraum zusammengefasst (ohne leere Werte)');
+    assert.equal(text({ field: "Rep", type: "text", op: "endsWith", value: "n", not: true, match: { case: "sensitive", whitespace: "exact" } }), 'Rep endet nicht auf "n", Groß- und Kleinschreibung beachtet, Leerraum genau (ohne leere Werte)');
+    assert.equal(text({ field: "Date", type: "relative", direction: "this", unit: "year" }), "Date liegt in diesem Jahr (ohne leere Werte)");
+    assert.equal(text({ field: "Date", type: "relative", direction: "last", count: 1, unit: "month" }), "Date liegt im letzten Monat (ohne leere Werte)");
+    assert.equal(text({ field: "Date", type: "relative", direction: "next", count: 3, unit: "week", anchor: "2026-01-05" }), "Date liegt in den nächsten 3 Wochen (ab 2026-01-05) (ohne leere Werte)");
+    assert.equal(text({ field: "Date", type: "relative", direction: "before", count: 2, unit: "day", calendar: false, includeCurrent: false, anchor: "latest" }), "Date liegt vor den letzten 2 Tagen (gleitend, ohne den laufenden Zeitraum, ab dem letzten Datensatz) (ohne leere Werte)");
+    assert.equal(text({ field: "Region", type: "top", count: 2, by: { field: "Units", agg: "sum" }, ties: "all" }), "die obersten 2 von Region nach Summe von Units, gleiche Werte behalten");
+    assert.equal(text({ field: "Region", type: "value", op: "=", value: 5, by: { field: "Units", agg: "sum" } }), "Region, bei denen Summe von Units 5 ist");
+    const d = describeView({
+        version: 2, rows: ["Region", "Month"], cols: ["Product"], derived: [{ name: "Month", field: "Date", by: "yearMonth" }],
+        values: [{ field: "Units", agg: "sum" }, { agg: "count" }], display: "both", chart: { type: "bar" },
+        filters: [{ field: "Units", type: "compare", op: ">", value: 1 }, { field: "Region", type: "blank", not: true }],
+        sort: [{ field: "Region", by: "value", value: { field: "Units", agg: "sum" }, order: "desc" }, { field: "Product", by: "label", order: "asc" }]
+    }, data, de);
+    assert.equal(d.text, "Summe von Units, Anzahl der Zeilen nach Region > Month über Product (Filter: Units ist größer als 1 (ohne leere Werte); Region ist nicht leer) als Tabelle und Balkendiagramm");
+    assert.deepEqual(d.derived.map((x) => x.text), ["Month: Date nach Monat"]);
+    assert.deepEqual(d.sort.map((x) => x.text), ["Region nach Summe von Units, absteigend", "Product nach Beschriftung, aufsteigend"]);
+    assert.equal(describeView({ version: 2, rows: ["Nope"] }, data, de).text, "(ungültig: 1 Fehler, die Teile, die er nennt, fehlen) Anzahl der Zeilen");
+    assert.equal(describeLabels("de-AT"), DESCRIBE_LABELS.de);
+    assert.equal(describeLabels("fr-FR"), DESCRIBE_LABELS.en);
+});
+
+test("describeView fills its words once: a name or a value that looks like a placeholder stays as it is", () => {
+    const odd = encode([{ "{value}": "{field}", n: 1 }]);
+    for (const labels of [undefined, DESCRIBE_LABELS.de]) {
+        const d = describeView({ version: 2, filters: [{ field: "{value}", type: "text", op: "equals", value: "{field}" }] }, odd, { labels });
+        assert.match(d.filters[0].text, /^\{value\} (equals|ist gleich) "\{field\}"/);
+    }
+});
+
+test("describeView: labels that leave a key out take English for it", () => {
+    const d = describeView({ version: 2, rows: ["Region"], filters: [{ field: "Units", type: "compare", op: ">", value: 1 }] }, data, { labels: { rows: "per {fields}" } });
+    assert.equal(d.text, "count of rows per Region where Units is greater than 1 (blanks dropped)");
 });

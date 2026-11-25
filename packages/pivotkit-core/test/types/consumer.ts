@@ -1,7 +1,7 @@
 // Compiled by `npm run test:types` against the generated declarations, through the package's own
 // exports map: the published types must describe the public API as a TypeScript user sees it.
 import {
-    computePivot, dateUnitFor, describeSource, encode, fieldDefaultsFromSchema, fieldLabel, foldText, GROUPING_NAMES, groupingName, isDateMs, isIdentifierName, LIMITS,
+    computePivot, dateUnitFor, DESCRIBE_LABELS, describeLabels, describeSource, describeView, encode, fieldDefaultsFromSchema, fieldLabel, foldText, GROUPING_NAMES, groupingName, isDateMs, isIdentifierName, LIMITS,
     MAX_DATE_MS, normalize, outsideLimits, PivotkitError, relativeDateRange, renameFields, suggestLayout, toEChartsOption, toGrid, validate, viewFromLayout,
     type ColumnarData, type EncodeIssue, type Grid, type LayoutView, type PivotResult, type SchemaFieldDefaults, type View
 } from "pivotkit-core";
@@ -91,6 +91,8 @@ const noteCodes: string[] = built.notes.map((n) => n.code);
 const renamed: string[] = renameFields(built.view, { Region: "Area" }).unused;
 const unit: string | null = dateUnitFor(0, 86_400_000 * 90);
 const grouped: string = groupingName("Date", "yearMonth", { locale: "de-DE" }) + GROUPING_NAMES.en.name;
+// a view in German words, from the table or a locale; a partial table keeps English for the rest
+const inGerman: string = describeView({ rows: ["Region"] }, described, { labels: describeLabels("de-DE") }).text + describeView({ rows: ["Region"] }, described, { labels: { rows: DESCRIBE_LABELS.de.rows } }).text;
 const identifier: boolean = isIdentifierName("Order No");
 const sourceId: Promise<string> = sourceIdOf("sales.csv", ["Region", "Units"]);
 void normalize(built.view, data);
@@ -108,5 +110,6 @@ void noteCodes;
 void renamed;
 void unit;
 void grouped;
+void inGerman;
 void identifier;
 void sourceId;

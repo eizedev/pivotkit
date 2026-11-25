@@ -1,14 +1,17 @@
 /*
  * Plain, structured summaries of a data set and of a view, for a person reading a log, an approver
  * and an LLM that writes or explains views: what fields there are and what a view does, as JSON with
- * one short English `text` per part. Nothing here is formatted for a locale or rendered; values from
+ * one short `text` per part. The texts are English; describeView also writes German
+ * (DESCRIBE_LABELS in describe-labels.js). Nothing here is formatted for a locale or rendered; values from
  * the data are data (an LLM's prompt should mark them as such), capped in number and length.
  */
 
 import { aggregatorsFor } from "./aggregators.js";
 import { FILTERS } from "./filters.js";
+import { DESCRIBE_LABELS } from "./describe-labels.js";
 import { isEncoded } from "./encode.js";
 import { PivotkitError } from "./errors.js";
+import { fill, pluralForm } from "./labels.js";
 import { isPlainObject, optionsOf } from "./util.js";
 import { normalize, validate, viewFields } from "./view.js";
 
@@ -104,77 +107,103 @@ export function describeSource(data, options) {
     return { rows, fields: summaries, text: `${rows === null ? "" : `${count(rows, "row")}, `}${count(summaries.length, "field")}: ${summaries.map((f) => `${nameText(f.name)} (${f.type})`).join(", ")}` };
 }
 
-/** A value reference in words: "sum of Sales", "count of rows". */
-const refText = (ref) => (ref ? (ref.field ? `${ref.agg} of ${ref.field}` : `${ref.agg} of rows`) : "the first value");
+/** A word of a table by a name from a view (own entries only), else the name itself. */
+const wordOf = (table, name) => (table && Object.hasOwn(table, name) ? table[name] : name);
 
-/** A list of items in words, capped. */
-const itemsText = (items) => {
-    const shown = items.slice(0, 10).map((v) => (typeof v === "string" ? JSON.stringify(valueText(v, "string")) : String(v)));
-    return items.length > 10 ? `${shown.join(", ")} and ${items.length - 10} more` : shown.join(", ");
+/** A value reference in words: "sum of Sales", "count of rows"; German "Summe von Sales". */
+const refText = (ref, words) => {
+    if (!ref) {
+        return words.firstValue;
+    }
+    const agg = wordOf(words.aggregators, ref.agg);
+    return ref.field ? fill(words.valueName, { agg, field: ref.field }) : fill(words.valueOfRows, { agg });
 };
 
-const BLANKS_TEXT = Object.freeze({ exclude: "blanks dropped", include: "blanks kept", only: "only blanks" });
-/** The words of a comparison after "is" or "is not": "Year is 2025", "Year is not greater than 5". */
-const COMPARE_TEXT = Object.freeze({ "=": "", ">": "greater than ", ">=": "at least ", "<": "less than ", "<=": "at most ", between: "between " });
+/** A list of items in words, capped. */
+const itemsText = (items, words) => {
+    const shown = items.slice(0, 10).map((v) => (typeof v === "string" ? JSON.stringify(valueText(v, "string")) : String(v)));
+    return items.length > 10 ? fill(words.more, { items: shown.join(", "), count: items.length - 10 }) : shown.join(", ");
+};
+
+/** A filter's phrase and the values it is filled with: the phrase is built from words first, then filled once, so a name or value that holds "{field}" stays as it is. */
+function filterPhrase(f, words) {
+    const yesNot = (p) => (f.not ? p.not : p.yes);
+    const compared = { value: JSON.stringify(f.value), value2: JSON.stringify(f.value2) };
+    switch (f.type) {
+        case "in":
+            return { phrase: yesNot(words.in), values: { items: itemsText(f.items ?? [], words) || words.noItems } };
+        case "blank":
+            return { phrase: yesNot(words.blank), values: {}, blanks: false };
+        case "text": {
+            const own = fill(yesNot(words.text[f.op]), f.on === "label" ? { field: words.asShown } : {});
+            const phrase = f.match ? fill(words.match, { text: own, case: wordOf(words.cases, f.match.case), whitespace: wordOf(words.whitespace, f.match.whitespace) }) : own;
+            return { phrase, values: { value: JSON.stringify(f.value) } };
+        }
+        case "compare": {
+            const phrase = fill(yesNot(words.compare), { op: words.ops[f.op] });
+            return { phrase: f.precision && f.precision !== "day" ? fill(words.precision, { text: phrase, precision: wordOf(words.precisions, f.precision) }) : phrase, values: compared };
+        }
+        case "relative": {
+            const range = f.direction === "this" ? wordOf(words.ranges.this, f.unit) : pluralForm(words.ranges[f.direction]?.[f.unit], f.count, words.lang);
+            const phrase = fill(yesNot(words.relative), { range });
+            const how = [f.calendar === false ? words.rolling : null, f.includeCurrent === false ? words.currentExcluded : null, f.anchor && f.anchor !== "today" ? fill(words.fromAnchor, { anchor: Object.hasOwn(words.anchors, f.anchor) ? words.anchors[f.anchor] : "{anchor}" }) : null].filter(Boolean);
+            return { phrase: how.length ? fill(words.how, { text: phrase, how: how.join(", ") }) : phrase, values: { count: f.count, anchor: f.anchor } };
+        }
+        case "top": {
+            const phrase = f.bottom ? words.bottom : words.top;
+            return { phrase: f.ties === "all" ? fill(words.tiesKept, { text: phrase }) : phrase, values: { count: f.count, by: refText(f.by, words) }, blanks: false };
+        }
+        case "value":
+            return { phrase: fill(yesNot(words.value), { op: words.ops[f.op] }), values: { by: refText(f.by, words), ...compared }, blanks: false };
+        default:
+            return { phrase: "{field}: {type}", values: { type: f.type }, blanks: false };
+    }
+}
 
 /**
  * One filter of a normalized view in words: "Region is one of \"North\", \"South\" (blanks dropped)".
  * @param {import("./view.js").FilterSpec} f
+ * @param {import("./describe-labels.js").DescribeLabels} [words]  default English
  */
-export function filterText(f) {
-    const not = f.not ? "not " : "";
-    const blanks = f.blanks ? ` (${BLANKS_TEXT[f.blanks]})` : "";
-    const between = (a, b) => `${JSON.stringify(a)} and ${JSON.stringify(b)}`;
-    switch (f.type) {
-        case "in":
-            return `${f.field} is ${not}one of ${itemsText(f.items ?? []) || "(no items)"}${blanks}`;
-        case "blank":
-            return `${f.field} is ${not}blank`;
-        case "text":
-            return `${f.field}${f.on === "label" ? " (as shown)" : ""} ${not ? "does not " : ""}${f.op === "equals" ? (not ? "equal" : "equals") : f.op === "contains" ? (not ? "contain" : "contains") : f.op === "beginsWith" ? (not ? "begin with" : "begins with") : not ? "end with" : "ends with"} ${JSON.stringify(f.value)}${f.match ? `, case ${f.match.case}, whitespace ${f.match.whitespace}` : ""}${blanks}`;
-        case "compare":
-            return `${f.field} ${not ? "is not" : "is"} ${COMPARE_TEXT[f.op]}${f.op === "between" ? between(f.value, f.value2) : JSON.stringify(f.value)}${f.precision && f.precision !== "day" ? ` (by ${f.precision})` : ""}${blanks}`;
-        case "relative": {
-            const range = f.direction === "this" ? `this ${f.unit}` : `${f.direction} ${f.count} ${f.unit}${f.count === 1 ? "" : "s"}`;
-            const how = [f.calendar === false ? "rolling" : null, f.includeCurrent === false ? "current excluded" : null, f.anchor && f.anchor !== "today" ? `from ${f.anchor}` : null].filter(Boolean);
-            return `${f.field} ${not ? "is not" : "is"} in the ${range}${how.length ? ` (${how.join(", ")})` : ""}${blanks}`;
-        }
-        case "top":
-            return `${f.bottom ? "bottom" : "top"} ${f.count} ${f.field} by ${refText(f.by)}${f.ties === "all" ? ", ties kept" : ""}`;
-        case "value":
-            return `${f.field} where ${refText(f.by)} ${not ? "is not" : "is"} ${COMPARE_TEXT[f.op]}${f.op === "between" ? between(f.value, f.value2) : JSON.stringify(f.value)}`;
-        default:
-            return `${f.field}: ${f.type}`;
-    }
+export function filterText(f, words = DESCRIBE_LABELS.en) {
+    const { phrase, values, blanks } = filterPhrase(f, words);
+    const withBlanks = blanks !== false && f.blanks ? fill(words.withBlanks, { text: phrase, blanks: words.blanks[f.blanks] }) : phrase;
+    return fill(withBlanks, { ...values, field: f.field });
 }
 
 /**
  * A view in plain parts: what it shows (rows, columns, values with their names), what it filters (each
  * filter structured, with its words), its groupings, sort and display, whether it is valid against the
- * data and what is wrong (validate()'s errors and warnings), and one short English `text` of it all.
+ * data and what is wrong (validate()'s errors and warnings), and one short `text` of it all.
  * The view is normalized first; the parts are the normalized view's, so a part with an error is left
  * out of them, and `text` of an invalid view starts with "(invalid: n errors, ...)".
+ * The `text`s are English unless `options.labels` gives other words: DESCRIBE_LABELS.de or
+ * describeLabels(locale) for German. A partial `labels` takes English for each key it leaves out.
+ * validate()'s errors and warnings stay English.
  * @param {unknown} input  a view (any input normalize() takes)
  * @param {unknown} schema  encoded data, { fields } or the fields array
- * @param {{ limits?: Partial<import("./limits.js").Limits> }} [options]
+ * @param {{ limits?: Partial<import("./limits.js").Limits>, labels?: Partial<import("./describe-labels.js").DescribeLabels> }} [options]
  */
 export function describeView(input, schema, options) {
     options = optionsOf(options, "describeView");
+    const words = /** @type {import("./describe-labels.js").DescribeLabels} */ ({ ...DESCRIBE_LABELS.en, ...(isPlainObject(options.labels) ? options.labels : {}) });
     const { valid, errors, warnings } = validate(input, schema, options);
     const view = normalize(input, schema, options).view;
-    const values = view.values.map((v) => ({ field: v.field, agg: v.agg, label: v.label, showAs: v.showAs?.type ?? null, text: v.label ?? refText(v) }));
-    const filters = view.filters.map((f) => ({ ...f, text: filterText(f) }));
-    const derived = view.derived.map((d) => ({ ...d, text: `${d.name}: ${d.field} by ${d.by}${d.by === "bin" ? ` of ${d.size}` : ""}` }));
+    const values = view.values.map((v) => ({ field: v.field, agg: v.agg, label: v.label, showAs: v.showAs?.type ?? null, text: v.label ?? refText(v, words) }));
+    const filters = view.filters.map((f) => ({ ...f, text: filterText(f, words) }));
+    const derived = view.derived.map((d) => ({ ...d, text: fill(d.by === "bin" ? words.bins : words.derived, { name: d.name, field: d.field, by: wordOf(words.units, d.by), size: d.size }) }));
     // a sort's column holds one key per column field: a date's key is milliseconds, written as its day
     const types = new Map(viewFields(view, schema).map((f) => [f.name, f.type]));
     const keyText = (key, i) => (types.get(view.cols[i]) === "date" ? (valueText(key, "date") ?? String(key)) : String(key));
-    const sort = view.sort.map((s) => ({ ...s, text: `${s.field} ${s.by === "value" ? `by ${refText(s.value)}${s.column ? ` in the column ${s.column.map(keyText).join(" › ")}` : ""}` : s.by === "custom" ? "in a custom order" : "by label"}, ${s.order === "desc" ? "descending" : "ascending"}` }));
+    const sortPhrase = (s) => (s.by === "value" ? (s.column ? words.sortColumn : words.sortValue) : s.by === "custom" ? words.sortCustom : words.sortLabel);
+    const sort = view.sort.map((s) => ({ ...s, text: fill(sortPhrase(s), { field: s.field, by: s.by === "value" ? refText(s.value, words) : "", column: s.column ? s.column.map(keyText).join(" › ") : "", order: s.order === "desc" ? words.orders.desc : words.orders.asc }) }));
+    const chart = wordOf(words.chartTypes, view.chart.type);
     const parts = [
-        values.length ? values.map((v) => v.text).join(", ") : "count of rows",
-        view.rows.length ? `by ${view.rows.join(" > ")}` : null,
-        view.cols.length ? `across ${view.cols.join(" > ")}` : null,
-        filters.length ? `where ${filters.map((f) => f.text).join("; and ")}` : null,
-        view.display === "table" ? null : `as a ${view.display === "both" ? "table and a " : ""}${view.chart.type === "auto" ? "chart" : `${view.chart.type} chart`}`
+        values.length ? values.map((v) => v.text).join(", ") : words.countRows,
+        view.rows.length ? fill(words.rows, { fields: view.rows.join(" > ") }) : null,
+        view.cols.length ? fill(words.cols, { fields: view.cols.join(" > ") }) : null,
+        filters.length ? fill(words.where, { filters: filters.map((f) => f.text).join(words.and) }) : null,
+        view.display === "table" ? null : fill(view.display === "both" ? words.both : words.chart, { type: chart })
     ];
     return {
         valid,
@@ -187,6 +216,6 @@ export function describeView(input, schema, options) {
         derived,
         sort,
         display: { mode: view.display, chart: view.display === "table" ? null : view.chart.type },
-        text: `${valid ? "" : `(invalid: ${errors.length} error${errors.length === 1 ? "" : "s"}, the parts they name are left out) `}${parts.filter(Boolean).join(" ")}`
+        text: `${valid ? "" : `${fill(pluralForm(words.invalid, errors.length, words.lang), { count: errors.length })} `}${parts.filter(Boolean).join(" ")}`
     };
 }

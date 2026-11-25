@@ -6,6 +6,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `describeView(view, schema, { labels })` writes its texts in German too: `DESCRIBE_LABELS.de`, or
+  `describeLabels(locale)` for a locale's language. English stays the default, word for word.
+
 ## [0.10.0] - 2026-11-24
 
 ### Fixed
