@@ -6,6 +6,14 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `retype(table, types, { decimal })` picks the decimal mark of number columns, `"."` or `","`, by
+  name or position. Their text reads in that mark alone; a value that does not fit it is blank, with
+  a note. The note `DECIMAL_MARK` stays with the mark picked, and its new params `point` and
+  `comma` give the example's number with each mark
+  ([#787](https://github.com/eizedev/pivotkit/issues/787)).
+
 ## [0.10.0] - 2026-11-24
 
 ### Fixed

@@ -382,7 +382,8 @@ export function dateToIso(d) {
 
 /**
  * Converters per type: a cleaned value as read -> a value of the type, or undefined when it does not
- * convert (null stays null).
+ * convert (null stays null). Text a number reads in the hint's decimal mark first, then in the other
+ * one; with `onlyDecimal` (a mark the caller picked for the column) in the hint's mark alone.
  */
 const TO = {
     string(v) {
@@ -390,12 +391,12 @@ const TO = {
         if (v instanceof Date) return dateToIso(v) ?? undefined;
         return String(v);
     },
-    number(v, hints) {
+    number(v, hints, onlyDecimal) {
         if (typeof v === "number") return v;
         if (typeof v === "boolean") return v ? 1 : 0;
         if (typeof v === "string") {
             const first = textToNumber(v, hints.decimal);
-            return first ?? textToNumber(v, hints.decimal === "," ? "." : ",") ?? undefined;
+            return first ?? (onlyDecimal ? undefined : textToNumber(v, hints.decimal === "," ? "." : ",")) ?? undefined;
         }
         return undefined;
     },
@@ -426,9 +427,10 @@ const TO = {
  * @param {unknown[]} raw
  * @param {ImportType} type
  * @param {ImportHints} hints
+ * @param {boolean} [onlyDecimal]  numbers in text read in `hints.decimal` alone
  * @returns {{ values: unknown[], failed: number }}
  */
-export function convertColumn(raw, type, hints) {
+export function convertColumn(raw, type, hints, onlyDecimal = false) {
     if (type === "string" && raw.every((v) => v === null || typeof v === "string")) {
         return { values: raw, failed: 0 };
     }
@@ -441,7 +443,7 @@ export function convertColumn(raw, type, hints) {
             values[i] = null;
             continue;
         }
-        const out = to(v, hints);
+        const out = to(v, hints, onlyDecimal);
         if (out === undefined) {
             values[i] = null;
             failed++;
@@ -458,7 +460,7 @@ export function convertColumn(raw, type, hints) {
  * notation the column's text fits (the hint's decimal mark first when it fits both).
  * @param {unknown[]} raw
  * @param {ImportHints} hints
- * @returns {{ type: ImportType, dateOrder?: "dmy" | "mdy", ambiguousOrder?: boolean, decimal?: "." | ",", ambiguousDecimal?: boolean, example?: string }}
+ * @returns {{ type: ImportType, dateOrder?: "dmy" | "mdy", ambiguousOrder?: boolean, decimal?: "." | ",", ambiguousDecimal?: boolean, example?: string, point?: number, comma?: number }}
  */
 export function inferColumn(raw, hints) {
     let numbers = 0;
@@ -502,8 +504,8 @@ export function inferColumn(raw, hints) {
  * a person makes a text column a number (applyTypes).
  */
 function numberNotations() {
-    /** @type {{ en: boolean, de: boolean, example: string | null }} example: the first value both notations read, as different numbers */
-    const fits = { en: true, de: true, example: null };
+    /** @type {{ en: boolean, de: boolean, example: string | null, point: number, comma: number }} example: the first value both notations read, as different numbers; point, comma: its number in each */
+    const fits = { en: true, de: true, example: null, point: 0, comma: 0 };
     return {
         fits,
         /** @param {string} t */
@@ -517,7 +519,11 @@ function numberNotations() {
             const de = textToNumber(t, ",");
             if (en === null) fits.en = false;
             if (de === null) fits.de = false;
-            if (fits.example === null && en !== null && de !== null && en !== de) fits.example = t;
+            if (fits.example === null && en !== null && de !== null && en !== de) {
+                fits.example = t;
+                fits.point = en;
+                fits.comma = de;
+            }
         },
         /** @param {ImportHints} hints */
         result(hints) {
@@ -527,7 +533,7 @@ function numberNotations() {
             // the column fits both and a value reads as different numbers in them: the choice needs a note.
             // A value only one notation fits ("5,5") decides the column: "1,234" next to it is 1.234, no note.
             const ambiguous = fits.en && fits.de && fits.example !== null;
-            return { type: /** @type {const} */ ("number"), decimal, ...(ambiguous ? { ambiguousDecimal: true, example: fits.example } : {}) };
+            return { type: /** @type {const} */ ("number"), decimal, ...(ambiguous ? { ambiguousDecimal: true, example: fits.example, point: fits.point, comma: fits.comma } : {}) };
         }
     };
 }
@@ -536,7 +542,7 @@ function numberNotations() {
  * The type of a column of text.
  * @param {Array<string | null>} raw
  * @param {ImportHints} hints
- * @returns {{ type: ImportType, dateOrder?: "dmy" | "mdy", ambiguousOrder?: boolean, decimal?: "." | ",", ambiguousDecimal?: boolean, example?: string }}
+ * @returns {{ type: ImportType, dateOrder?: "dmy" | "mdy", ambiguousOrder?: boolean, decimal?: "." | ",", ambiguousDecimal?: boolean, example?: string, point?: number, comma?: number }}
  */
 function inferText(raw, hints) {
     let bool = true;
@@ -883,37 +889,57 @@ function finishTable({ header, columns, rowCount, notes, counts, hints, limits, 
 
 /**
  * The table with its columns typed: `types` (by position, or by name case-insensitively) where given,
- * else the inferred type.
+ * else the inferred type; a number column with a mark in `marks` reads its text in that mark alone.
  * @param {ImportTable} table
  * @param {ReadOptions["types"]} types
  * @param {Array<ReturnType<typeof inferColumn>>} [inferred]
+ * @param {Array<"." | "," | undefined>} [marks]  the decimal mark picked per column, by position
  * @returns {ImportTable}
  */
-function applyTypes(table, types, inferred) {
-    const wanted = typesByPosition(table.columns, types);
+function applyTypes(table, types, inferred, marks = []) {
+    const wanted = /** @type {Array<ImportType | undefined>} */ (byPosition(table.columns, types, IMPORT_TYPES));
     const notes = table.notes.filter((x) => !COLUMN_NOTES.has(x.code));
     const outTypes = [];
     const data = [];
     for (let c = 0; c < table.columns.length; c++) {
         const type = wanted[c] ?? table.detected[c];
-        if (table.types[c] === type && table.data[c] !== undefined) {
+        const mark = type === "number" ? marks[c] : undefined;
+        if (table.types[c] === type && table.data[c] !== undefined && !mark) {
             // the column keeps its type: its values and its notes stay as they are
             outTypes.push(type);
             data.push(table.data[c]);
             notes.push(...table.notes.filter((x) => COLUMN_NOTES.has(x.code) && x.params.column === table.columns[c]));
             continue;
         }
-        const read = readingOf(table.raw[c], type, inferred?.[c], table.hints);
-        // a column read in another notation than the table's hint converts in that notation first
-        const hints = { ...table.hints, ...(read?.decimal ? { decimal: read.decimal } : {}), ...(read?.dateOrder ? { dateOrder: read.dateOrder } : {}) };
-        if (read?.ambiguousOrder) notes.push(note("DATE_ORDER", { column: table.columns[c], order: read.dateOrder }));
-        if (read?.ambiguousDecimal) notes.push(note("DECIMAL_MARK", { column: table.columns[c], decimal: read.decimal, example: read.example }));
-        const { values, failed } = convertColumn(table.raw[c], type, hints);
-        if (failed > 0) notes.push(note("VALUES_NOT_CONVERTED", { column: table.columns[c], type, count: failed }));
+        const typed = typeColumn(table, c, type, inferred?.[c], mark);
+        notes.push(...typed.notes);
         outTypes.push(type);
-        data.push(values);
+        data.push(typed.values);
     }
     return { ...table, types: outTypes, data, notes };
+}
+
+/**
+ * One column's values as `type`, with the notes about how they were read.
+ * @param {ImportTable} table
+ * @param {number} c
+ * @param {ImportType} type
+ * @param {ReturnType<typeof inferColumn> | undefined} own  the column's inferred reading, when its type is the detected one
+ * @param {"." | "," | undefined} mark  the decimal mark picked for the column
+ */
+function typeColumn(table, c, type, own, mark) {
+    const column = table.columns[c];
+    const found = readingOf(table.raw[c], type, own, table.hints);
+    // a picked mark replaces the one found; the note stays while the values fit both, so the choice can go back
+    const read = mark ? { ...(found ?? { type }), decimal: mark } : found;
+    // a column read in another notation than the table's hint converts in that notation first
+    const hints = { ...table.hints, ...(read?.decimal ? { decimal: read.decimal } : {}), ...(read?.dateOrder ? { dateOrder: read.dateOrder } : {}) };
+    const notes = [];
+    if (read?.ambiguousOrder) notes.push(note("DATE_ORDER", { column, order: read.dateOrder }));
+    if (read?.ambiguousDecimal) notes.push(note("DECIMAL_MARK", { column, decimal: read.decimal, example: read.example, point: read.point, comma: read.comma }));
+    const { values, failed } = convertColumn(table.raw[c], type, hints, Boolean(mark));
+    if (failed > 0) notes.push(note("VALUES_NOT_CONVERTED", { column, type, count: failed }));
+    return { values, notes };
 }
 
 /** The notes about one column's reading; applyTypes makes them again when the column's type changes. */
@@ -940,17 +966,26 @@ function readingOf(raw, type, own, hints) {
     return read.type === "number" ? read : undefined;
 }
 
-/** `types` (an array by position or an object by name) as one entry per column; invalid entries are ignored. */
-function typesByPosition(columns, types) {
+/**
+ * A setting per column (`types`, `decimal`) as one entry per column: an array by position or an
+ * object by column name (case-insensitively); entries not in `allowed` are ignored.
+ * @template T
+ * @param {string[]} columns
+ * @param {unknown} given
+ * @param {readonly T[]} allowed
+ * @returns {Array<T | undefined>}
+ */
+function byPosition(columns, given, allowed) {
+    const ok = (v) => allowed.includes(/** @type {T} */ (v));
     const out = new Array(columns.length).fill(undefined);
-    if (Array.isArray(types)) {
+    if (Array.isArray(given)) {
         for (let c = 0; c < columns.length; c++) {
-            if (IMPORT_TYPES.includes(types[c])) out[c] = types[c];
+            if (ok(given[c])) out[c] = given[c];
         }
-    } else if (types && typeof types === "object") {
+    } else if (given && typeof given === "object") {
         const byName = new Map();
-        for (const k of Object.keys(types)) {
-            if (IMPORT_TYPES.includes(types[k])) byName.set(k.toLowerCase(), types[k]);
+        for (const k of Object.keys(given)) {
+            if (ok(given[k])) byName.set(k.toLowerCase(), given[k]);
         }
         columns.forEach((name, c) => {
             out[c] = byName.get(name.toLowerCase());
@@ -959,19 +994,27 @@ function typesByPosition(columns, types) {
     return out;
 }
 
+/** @type {ReadonlyArray<"." | ",">} the decimal marks a caller can pick for a column */
+const MARKS = Object.freeze([".", ","]);
+
 /**
  * The table with other column types, from the values as read (`raw`): what the user picks in a
  * preview, without reading the file again. Values that do not convert are blank, with a note.
+ * `options.decimal` picks the decimal mark of number columns ("." or ","), by position or by column
+ * name: their text reads in that mark alone, a value that does not fit it is blank, with a note. A
+ * column without one keeps its mark while its type stays, and reads in its values' notation again
+ * when its type changes.
  * @param {ImportTable} table
  * @param {ReadOptions["types"]} types  by position or by column name; a missing entry keeps the column's current type
+ * @param {{ decimal?: Array<"." | "," | null | undefined> | Record<string, "." | ","> }} [options]
  * @returns {ImportTable}
  */
-export function retype(table, types) {
+export function retype(table, types, options = {}) {
     if (!table || !Array.isArray(table.columns) || !Array.isArray(table.raw) || table.raw.length !== table.columns.length) {
         throw new PivotkitError("INVALID_ARGUMENT", "retype(table, types): table must be a table read by a reader, with its raw values");
     }
-    const wanted = typesByPosition(table.columns, types);
+    const wanted = /** @type {Array<ImportType | undefined>} */ (byPosition(table.columns, types, IMPORT_TYPES));
     const merged = table.columns.map((_, c) => wanted[c] ?? table.types[c] ?? table.detected[c]);
     const inferred = table.raw.map((values, c) => (merged[c] === table.detected[c] ? inferColumn(values, table.hints) : undefined));
-    return applyTypes(table, merged, inferred);
+    return applyTypes(table, merged, inferred, byPosition(table.columns, options?.decimal, MARKS));
 }

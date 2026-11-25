@@ -34,6 +34,7 @@ const table = await readFile(file, {                  // a File from <input type
 table.notes;                                           // what was read how, and what was changed
 const data = encode(table);                            // { columns, types, data } is encode's input
 const asText = retype(table, { Zip: "string" });       // another type, without reading the file again
+const comma = retype(table, {}, { decimal: { Sales: "," } }); // "1,234" in Sales is 1.234
 ```
 
 In Node, make a `File` from the file's bytes and its name. The name picks the reader:
@@ -203,6 +204,15 @@ first read them, which the table keeps in `table.raw`. So a preview can let a pe
 the file again. Text read as a number goes back to the text the file holds (`1.234,5`). A value that
 does not convert is blank, with a note that counts them.
 
+`retype(table, types, { decimal })` also picks the decimal mark of number columns, `"."` or `","`,
+by column name or by position, as `types` does. It is for a column with the note `DECIMAL_MARK`,
+whose values read as different numbers in the two notations. Its text then reads in that mark
+alone: with `","`, `1,234` is 1.234 and `1.500` is 1500. A value that does not fit the mark is
+blank, with a note that counts them. The note `DECIMAL_MARK` stays and names the mark picked. A
+column keeps its mark while its type stays. When its type changes, it reads in its values' notation
+again unless `decimal` names a mark for it. The mark applies to text only: a number cell of a
+workbook stays as it is.
+
 ## The table
 
 | Key | What |
@@ -244,7 +254,7 @@ file had it. A field that is given must be right. This holds for `hints` too: `d
 | `TEXT_CUT` | Text longer than `limits.textLength` | `count`, `max` |
 | `CHARACTERS_REMOVED` | Control or direction characters | `count` |
 | `DATE_ORDER` | Dates with slashes that fit both orders | `column`, `order` |
-| `DECIMAL_MARK` | A number column with values the two notations read as different numbers: `1,234`, `1.500` | `column`, `decimal`, `example` |
+| `DECIMAL_MARK` | A number column with values the two notations read as different numbers: `1,234`, `1.500` | `column`, `decimal`, `example`, and `point` and `comma`: the example's number with each mark |
 | `VALUES_NOT_CONVERTED` | Values that are not of the column's type | `column`, `type`, `count` |
 | `NUMBERS_TOO_LARGE` | Numbers too large to hold, such as JSON's `1e999`, left empty | `column`, `count` |
 | `NUMBERS_ROUNDED` | Whole numbers over 2^53 and under 1e21 from JSON or a workbook, which may have lost digits | `column`, `count` |
@@ -350,7 +360,7 @@ runs the readers in its own worker needs `worker-src 'self'`, or the worker's or
 | Name | What |
 | --- | --- |
 | `readFile(file, options)` | Reads a `File` or `Blob` with the reader that accepts it. Options: `plugins` (the host's reader plugins), `reader` (one plugin, skipping the choice), `sheet` (a workbook's sheet, by name or 0-based index), `types`, `locale`, `limits`, `signal`, `onProgress`, `name` (the file name for messages, for a `Blob`).<br><small>Returns `Promise<ImportTable>`</small> |
-| `retype(table, types)` | The table with other column types, from `table.raw`.<br><small>Returns `ImportTable`</small> |
+| `retype(table, types, options)` | The table with other column types, from `table.raw`. Options: `decimal` (the decimal mark of number columns, by name or position).<br><small>Returns `ImportTable`</small> |
 | `readerFor(file, plugins)` | The plugin that accepts a `{ name, type }`, or `undefined`. |
 | `loadReader(plugin)` | The plugin's reader module, loaded once and checked (`read`, optional `sheets`). |
 | `validatePlugin(plugin)` | Checks a plugin against the [contract](write-a-plugin.md#the-contract); throws `INVALID_ARGUMENT` that says what is wrong. |
