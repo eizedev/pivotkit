@@ -484,12 +484,15 @@ test("decimal mark choice: the note's example with each mark, in the locale, wit
             { value: ",", text: "1.234 (decimal)" },
         ],
     });
-    // German, the comma read; an example with a point: its point is the decimal mark with "."
+    // German, the comma read: the decimal reading spelt out with "Komma" from the example's digits as written,
+    // so it never repeats the question's "1,234"; an example with a point keeps its trailing zeros and its sign
     assert.deepEqual(markTexts({ ...note, decimal: "," }, de, "de").options, [
         { value: ".", text: "1234 (Tausender)" },
-        { value: ",", text: "1,234 (Dezimal)" },
+        { value: ",", text: "1 Komma 234" },
     ]);
-    assert.equal(markTexts({ ...note, decimal: ",", example: "2.500", point: 2.5, comma: 2500 }, de, "de").title, "„2.500“ bedeutet 2500 (Tausender)");
+    const pointed = markTexts({ ...note, decimal: ",", example: "-2.500", point: -2.5, comma: -2500 }, de, "de");
+    assert.equal(pointed.title, "„-2.500“ bedeutet -2500 (Tausender)");
+    assert.deepEqual(pointed.options.map((o) => o.text), ["-2 Komma 500", "-2500 (Tausender)"]);
     assert.deepEqual(markTexts({ ...note, example: "2.500", point: 2.5, comma: 2500 }, en, "en").options.map((o) => o.text), ["2.5 (decimal)", "2500 (thousands)"]);
     // a plugin's own note: without both numbers as finite numbers, or with another mark, there is no choice
     const { point, comma, ...noNumbers } = note;

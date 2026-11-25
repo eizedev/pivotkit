@@ -71,9 +71,9 @@ export async function load(file: File): Promise<number> {
     void comma;
     void byPosition;
 // a decimal mark is "." or ",", by name in an object or by position in an array
-// @ts-expect-error: ";" is no decimal mark
+// @ts-expect-error ";" is no decimal mark
 retype(table, {}, { decimal: { Sales: ";" } });
-// @ts-expect-error: one mark is not a list or a record of marks
+// @ts-expect-error one mark is not a list or a record of marks
 retype(table, {}, { decimal: "," });
     const columnar: ColumnarData = { columns: again.columns, types: again.types, data: again.data };
     return encode(columnar).length + encode(table).length + table.notes.filter((n) => n.code === "TEXT_CUT").length;

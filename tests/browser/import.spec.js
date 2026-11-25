@@ -177,7 +177,7 @@ test("a column whose numbers fit both decimal marks: the preview asks what the f
     const deMark = deDialog.getByTestId("import-mark-1");
     await expect(deMark).toHaveAccessibleName(`${fill(importDe.markQuestion, { example: "1,234" })} ${fill(importDe.markOf, { column: "Sales" })}`);
     await expect(deMark).toHaveValue(",");
-    await expect(deMark.locator("option")).toHaveText(["1234 (Tausender)", "1,234 (Dezimal)"]);
+    await expect(deMark.locator("option")).toHaveText(["1234 (Tausender)", "1 Komma 234"]);
     expect((await preview(deDialog)).rows.map((r) => r[1])).toEqual(["1,234", "2,5"]);
     await deMark.selectOption(".");
     await expect.poll(async () => (await preview(deDialog)).rows.map((r) => r[1])).toEqual(["1.234", "2.500"]);

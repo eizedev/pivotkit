@@ -34,8 +34,9 @@ export const en = {
     typeOf: "Type of {column}",
     types: { string: "Text", number: "Number", date: "Date", boolean: "Yes/No" },
     // a number column whose values fit both decimal marks: the question above its choice, whose options
-    // are what the note's example reads as with each mark (markOption: {value} and whether the example's
-    // separator is the decimal mark or groups thousands); markOf follows the question for a screen reader
+    // are what the note's example reads as with each mark (markOption: {value}, and whether the example's
+    // separator is the decimal mark, with {whole} and {fraction} the example's digits on each side of it,
+    // or groups thousands); markOf follows the question for a screen reader
     markOf: "(decimal mark of {column})",
     markQuestion: "“{example}” means",
     markOption: { decimal: "{value} (decimal)", thousands: "{value} (thousands)" },
@@ -122,7 +123,8 @@ export const de = {
     types: { string: "Text", number: "Zahl", date: "Datum", boolean: "Ja/Nein" },
     markOf: "(Dezimalzeichen von {column})",
     markQuestion: "„{example}“ bedeutet",
-    markOption: { decimal: "{value} (Dezimal)", thousands: "{value} (Tausender)" },
+    // the decimal reading spelt out: "1,234" next to „1,234“ bedeutet would read as "1,234 means 1,234"
+    markOption: { decimal: "{whole} Komma {fraction}", thousands: "{value} (Tausender)" },
     yes: "Ja",
     no: "Nein",
     noRows: "Die Datei enthält keine Zeilen.",
@@ -211,15 +213,20 @@ export function markTexts(params, texts, locale) {
     if (decimal !== "." && decimal !== ",") {
         return null;
     }
-    // the separator in the example: the decimal mark when the option's mark is that character
-    const separator = String(example).includes(",") ? "," : ".";
+    // the separator in the example (it has one: only "1,234" or "1.234" with a sign read as different
+    // numbers): the decimal mark when the option's mark is that character. The digits on each side come
+    // from the example as written, so "2.500" is "2 Komma 500", not the 2.5 of `point`
+    const text = String(example);
+    const separator = text.includes(",") ? "," : ".";
+    const at = text.lastIndexOf(separator);
+    const sides = { whole: text.slice(0, at) || "0", fraction: text.slice(at + 1) };
     const read = (/** @type {number} */ value) => value.toLocaleString(locale, { useGrouping: false, maximumFractionDigits: 10 });
-    /** @type {Array<{ value: "." | ",", text: string }>} */
-    const options = [
-        { value: ".", text: fill(texts.markOption[separator === "." ? "decimal" : "thousands"], { value: read(point) }) },
-        { value: ",", text: fill(texts.markOption[separator === "," ? "decimal" : "thousands"], { value: read(comma) }) },
-    ];
-    const question = fill(texts.markQuestion, { example: String(example) });
+    const option = (/** @type {"." | ","} */ mark, /** @type {number} */ value) => ({
+        value: mark,
+        text: fill(texts.markOption[separator === mark ? "decimal" : "thousands"], { value: read(value), ...sides }),
+    });
+    const options = [option(".", point), option(",", comma)];
+    const question = fill(texts.markQuestion, { example: text });
     const chosen = options.find((o) => o.value === decimal);
     return { decimal, question, title: `${question} ${chosen?.text}`, options };
 }
