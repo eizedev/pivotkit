@@ -53,7 +53,7 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {boolean} [trusted]  the view is the host's own: the host's limits instead of outsideLimits() (default false)
  * @property {boolean} [strict]  no body when the view has an error (default false: the normalized view is rendered)
  * @property {Partial<import("pivotkit-core").Labels>} [labels]  pivotkit-core's texts (totals, value names)
- * @property {import("pivotkit-core").DescribeLabelsInput} [describeLabels]  html: the words of the filters and the summary (describeView); default those of the locale's language
+ * @property {import("pivotkit-core").DescribeLabelsInput} [describeLabels]  html: the words of the filters and the summary (describeView); default those of the locale's language, and words given in part go over them
  * @property {import("./texts.js").ReportTextsInput} [texts]  the report's words around the table; a count (rowsCount, rowsFiltered) as one text or its plural forms
  * @property {boolean} [rowCount]  html: false leaves the data's row count out of {{rows}} and the details (default true)
  * @property {Record<string, string>} [tokens]  --pk-* colours over the light ones (the chart and the report); html: a template's own CSS over them
@@ -141,8 +141,8 @@ function sizeOf(size) {
     return { width, height };
 }
 
-/** The words of the filters and the summary: the host's, else the locale's language, as the report's other words; their numbers follow the locale. */
-const describeWords = (options, locale) => options.describeLabels ?? describeLabels(locale);
+/** The words of the filters and the summary: the locale's language, as the report's other words, with the host's over them; their numbers follow the locale. */
+const describeWords = (options, locale) => describeLabels(locale, options.describeLabels);
 
 /** "Nov 13, 2026, 10:00 AM" of `now` in the locale and time zone. */
 function generatedText(now, locale, timeZone) {

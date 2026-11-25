@@ -181,8 +181,8 @@ test("a German report: German words around the table, the locale's numbers and C
     assert.ok(bodyCells(html.text).some((c) => c[0] === "North" && c[1] === "14,00"));
     // the filters and the summary in German too, with the locale's numbers and German quotes
     const filtered = await render({ ...view, filters: [{ field: "Units", type: "compare", op: ">=", value: 1.5 }, { field: "Region", type: "in", items: ["North", "South"] }] }, SALES, { format: "html", ...FIXED, locale: "de-DE" });
-    assert.match(filtered.text, /<dt>Filter<\/dt><dd>Units ist mindestens 1,5, ohne leere Werte; Region ist einer der Werte „North“, „South“, ohne leere Werte<\/dd>/);
-    assert.match(filtered.text, /<meta name="description" content="Durchschnitt von Price nach Region; Filter: Units ist mindestens 1,5, ohne leere Werte und Region ist einer der Werte „North“, „South“, ohne leere Werte">/);
+    assert.match(filtered.text, /<dt>Filter<\/dt><dd>Units ist mindestens 1,5, ohne leere Werte; Region ist einer der Werte „North“; „South“, ohne leere Werte<\/dd>/);
+    assert.match(filtered.text, /<meta name="description" content="Durchschnitt von Price nach Region; Filter: Units ist mindestens 1,5, ohne leere Werte; und Region ist einer der Werte „North“; „South“, ohne leere Werte">/);
     const csv = await render(view, SALES, { format: "csv", ...FIXED, locale: "de-DE" });
     assert.ok(csv.text.includes("North;14\r\n"));
     const rtl = await render(view, SALES, { format: "html", ...FIXED, locale: "ar-EG" });
@@ -199,9 +199,12 @@ test("a host's own labels and describeLabels: the table and the filters in the h
     // without describeLabels the filters follow the locale, as before
     const german = await render(view, SALES, { format: "html", ...FIXED, locale: "de-DE", labels: { grandTotal: "Total" } });
     assert.match(german.text, /<dd>Units ist größer als 1,5, ohne leere Werte<\/dd>/);
-    // a part of the words keeps the rest English, as describeView's labels do
+    // a part of the words keeps the rest in the locale's language: English for an English report
     const part = await render(view, SALES, { format: "html", ...FIXED, describeLabels: { compare: { yes: "{field} exceeds {op}" }, ops: { ">": "{value}" } } });
     assert.match(part.text, /<dd>Units exceeds 1\.5 \(blanks dropped\)<\/dd>/);
+    // and German for a German one: the report does not mix languages
+    const germanPart = await render(view, SALES, { format: "html", ...FIXED, locale: "de-DE", describeLabels: { blanks: { exclude: "ohne Leere" } } });
+    assert.match(germanPart.text, /<dd>Units ist größer als 1,5, ohne Leere<\/dd>/);
     await assert.rejects(render(view, SALES, { format: "html", ...FIXED, describeLabels: /** @type {any} */ ("de") }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION" && e.details.option === "describeLabels");
 });
 
