@@ -46,5 +46,5 @@ export async function runResolved(context, op, input, resolved, caller, how = {}
     const template = resolved.template && op === "render_view" && input.format === "html" ? await resolved.template() : undefined;
     const base = { link: resolved.link, template, locale: context.options.locale, timeZone: context.options.timeZone };
     // the signal stays in this thread: base and the spec are posted to a worker
-    return KINDS[/** @type {keyof typeof KINDS} */ (resolved.sourceKind)].run(context.computer, op, withoutExtras(input), resolved, base, caller, context.log, { signal: how.signal });
+    return KINDS[/** @type {keyof typeof KINDS} */ (resolved.sourceKind)].run(context.computer, op, withoutExtras(input), resolved, base, caller, context.log, { signal: how.signal, env: context.env });
 }

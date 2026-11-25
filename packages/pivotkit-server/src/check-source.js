@@ -193,10 +193,10 @@ export async function checkSource(options, id, params, means = {}) {
     const started = Date.now();
     const signal = AbortSignal.timeout(settings.timeMs);
     if (settings.auth?.kind === "tokenExchange") {
-        return exchangeOnly(settings.auth, { id, lines, details, log, fetch: means.fetch });
+        return exchangeOnly(settings.auth, { id, lines, details, log, env, fetch: means.fetch });
     }
     try {
-        const loaded = await loadHttp(settings, values, { signal, limits, log, declared: source.params, caller: callerOf("none", undefined), trace, ...(means.fetch ? { fetch: means.fetch } : {}) });
+        const loaded = await loadHttp(settings, values, { signal, limits, log, env, declared: source.params, caller: callerOf("none", undefined), trace, ...(means.fetch ? { fetch: means.fetch } : {}) });
         if (trace.auth) {
             lines.push(authLine(trace.auth));
         }
@@ -248,7 +248,7 @@ export async function checkSource(options, id, params, means = {}) {
  * check-source of a source whose sign-in is a token exchange: the token endpoint asked with the
  * client's credentials and no person's token; the source itself is not loaded.
  * @param {Extract<import("./options/http.js").BackendAuth, { kind: "tokenExchange" }>} auth
- * @param {{ id: string, lines: string[], details: string[], log: any, fetch?: any }} how
+ * @param {{ id: string, lines: string[], details: string[], log: any, env: Record<string, string | undefined>, fetch?: any }} how
  * @returns {Promise<{ text: string, ok: boolean }>}
  */
 async function exchangeOnly(auth, how) {
@@ -256,7 +256,7 @@ async function exchangeOnly(auth, how) {
     const { lines } = how;
     let ok = false;
     try {
-        const probe = await probeExchange(auth, { id: how.id, log: how.log, trace, ...(how.fetch ? { fetch: how.fetch } : {}) });
+        const probe = await probeExchange(auth, { id: how.id, log: how.log, env: how.env, trace, ...(how.fetch ? { fetch: how.fetch } : {}) });
         lines.push(authLine(trace));
         if (probe.clientRefused) {
             lines.push(`  the token endpoint refused the client ${auth.clientId}: check ${auth.at}.clientId and clientSecret`);

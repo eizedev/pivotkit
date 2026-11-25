@@ -15,6 +15,9 @@ npm install pivotkit-xlsx
   chunk the plugin loads. The licenses are in `dist/THIRD_PARTY_LICENSES.txt`.
 - The package includes TypeScript declarations.
 
+pivotkit is 0.x: a minor release can break things. [Versioning](https://pivotkit.eize.dev/versioning/)
+says how each break is marked, [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/) what to do.
+
 ## Example
 
 ```js

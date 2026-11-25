@@ -16,6 +16,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
     to 26.3 KiB, with the Excel number formats.
   - pivotkit-core's Excel number formats load with the export: the export group grows by 0.8 KiB to
     13.2 KiB ([#772](https://github.com/eizedev/pivotkit/issues/772)).
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
 
 ### Fixed
 
