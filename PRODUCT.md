@@ -117,5 +117,5 @@ same for everyone. [CONTRIBUTING.md](CONTRIBUTING.md) has the commands.
   and read, run and understand it yourself. The maintainer reviews every pull request neutrally
   anyway. What your own review would have found comes back as questions and change requests, and
   it delays the merge.
-- Green CI on the commit that gets merged. A growth check that fails on a known entry is the
-  maintainer's to fix ([CONTRIBUTING.md](CONTRIBUTING.md#check-your-change)).
+- Green CI on the commit that gets merged. On a growth check that fails on a known entry, the
+  maintainer decides ([CONTRIBUTING.md](CONTRIBUTING.md#check-your-change)).

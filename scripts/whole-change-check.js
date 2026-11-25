@@ -11,9 +11,8 @@
 //   CHANGED_FILES                  the changed paths, one per line
 //
 // Exempt are Dependabot's pull requests and release pull requests (RELEASING.md), known by their
-// title: "chore(release): ..." or "chore(<scope>): release ...", the scope optional.
-// eizedev/powershell-universal-components has the same check in build/whole-change-check.js;
-// both work alike.
+// title: "chore(release): ... x.y.z" or "chore(<scope>): release ... x.y.z", the scope optional. The
+// title is the author's word; the review sees it.
 import { isMain } from "./is-main.js";
 
 /** The heading the description needs, without its "## ". */
@@ -36,9 +35,15 @@ export const inScope = (files) => files.filter((file) => SCOPE.some((re) => re.t
 export function sectionText(body) {
     // an unclosed comment hides the rest of the description, on GitHub as here
     const lines = String(body ?? "").replace(/<!--[\s\S]*?(?:-->|$)/g, "").split(/\r?\n/);
-    const start = lines.findIndex((line) => /^ {0,3}##\s+whole-change check\s*#*\s*$/i.test(line));
+    // the level of each heading line, 0 for other lines; a "#" inside a code fence is no heading
+    let fenced = false;
+    const levels = lines.map((line) => {
+        if (/^ {0,3}(?:```|~~~)/.test(line)) fenced = !fenced;
+        return fenced ? 0 : (/^ {0,3}(#{1,6})\s/.exec(line)?.[1].length ?? 0);
+    });
+    const start = lines.findIndex((line, i) => levels[i] === 2 && /^ {0,3}##\s+whole-change check\s*#*\s*$/i.test(line));
     if (start === -1) return null;
-    const end = lines.findIndex((line, i) => i > start && /^ {0,3}#{1,2}\s/.test(line));
+    const end = levels.findIndex((level, i) => i > start && level > 0 && level <= 2);
     return lines.slice(start + 1, end === -1 ? undefined : end).join("\n").trim();
 }
 
@@ -48,7 +53,7 @@ export function sectionText(body) {
  */
 export function exemption({ author = "", title = "" }) {
     if (author === "dependabot[bot]") return "a Dependabot pull request";
-    if (/^chore(?:\(release\)!?:|(?:\([^)]*\))?!?:\s*release\b)/i.test(title)) return "a release pull request";
+    if (/^chore(?:\(release\)!?:|(?:\([^)]*\))?!?:\s*release\b).*\s\d+\.\d+\.\d+$/i.test(title)) return "a release pull request";
     return null;
 }
 

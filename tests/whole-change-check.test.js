@@ -41,6 +41,9 @@ test("the section ends at the next heading of level 1 or 2, not at a sub-heading
     // a heading inside a comment or within a line does not count
     assert.equal(sectionText("<!-- ## Whole-change check\nnot here -->"), null);
     assert.equal(sectionText("Text about ## Whole-change check"), null);
+    // a heading inside a code fence is text
+    assert.equal(sectionText("```\n## Whole-change check\nfake\n```"), null);
+    assert.equal(sectionText("## Whole-change check\n```\n## not a heading\n```\nRead it whole.\n## Test plan"), "```\n## not a heading\n```\nRead it whole.");
 });
 
 test("an unclosed comment hides the rest, as GitHub renders it", () => {
@@ -57,7 +60,7 @@ test("Dependabot and release pull requests are exempt; other titles and authors 
     for (const title of ["chore(release): pivotkit 0.10.0", "chore(pivot): release Pivot 0.10.1", "chore(release)!: pivotkit 1.0.0", "chore: release pivotkit 0.8.1"]) {
         assert.equal(exemption({ author: "someone", title }), "a release pull request", title);
     }
-    for (const [author, title] of [["dependabot", "x"], ["someone", "docs(release): findings of the release review"], ["someone", "feat: release notes page"], ["someone", "chore: released files"]]) {
+    for (const [author, title] of [["dependabot", "x"], ["someone", "docs(release): findings of the release review"], ["someone", "feat: release notes page"], ["someone", "chore: released files"], ["someone", "chore(release): fold the unreleased entries into the 0.9.0 sections"], ["someone", "chore(docs): release notes page"]]) {
         assert.equal(exemption({ author, title }), null, `${author} ${title}`);
     }
     assert.equal(pr("", ["scripts/growth.js"], { author: "dependabot[bot]" }).ok, true);
