@@ -44,7 +44,7 @@ export function agentsFiles(dir = root) {
  */
 export function currentStateDocs() {
     const workspaces = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).workspaces;
-    const guides = ["README.md", "CONTRIBUTING.md", "PRODUCT.md", "RELEASING.md", "SECURITY.md"];
+    const guides = ["README.md", "CONTRIBUTING.md", "PRODUCT.md", "RELEASING.md", "SECURITY.md", "ACCESSIBILITY.md"];
     const files = [
         ...guides,
         ...agentsFiles(),

@@ -1,0 +1,31 @@
+name: Accessibility barrier
+description: Something in a report is hard or impossible to use with a keyboard, a screen reader, zoom or touch.
+labels: ["accessibility"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you tried to do, and what happened
+      description: The part of the report (field list, a menu, the table, the chart, an export) and the steps. Made-up data, no real data.
+    validations:
+      required: true
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Can you still do it?
+      options:
+        - No, it blocks me
+        - Yes, with a workaround
+        - Yes, but it is hard
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Browser, system and assistive technology
+      placeholder: Firefox 145 on Windows 11 with NVDA, keyboard only, zoom 200 %
+  - type: input
+    id: version
+    attributes:
+      label: Package and version, or the docs page
+      placeholder: pivotkit-react 0.10.0, or the playground
