@@ -3,6 +3,7 @@
  * over the host's colorMap. Names match without regard to case; a name in neither keeps the palette's
  * colour. Only a drawn chart needs this module.
  */
+import { EXTREME_INKS } from "./defaults.js";
 
 /**
  * A colour a host may name: hex of 3, 4, 6 or 8 digits, rgb(), rgba(), hsl(), hsla() or a CSS colour
@@ -88,9 +89,17 @@ export function contrastOf(a, b) {
     return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 }
 
+/** The contrast text needs on its background (WCAG 2.2 AA, normal text). */
+export const TEXT_CONTRAST = 4.5;
+
 /**
- * The text colour of `candidates` (the theme's tokens) with the highest WCAG contrast on `fill`: the
- * label on a treemap's tile. A colour it cannot read (not hex or rgb()) gives the first candidate.
+ * The colour of text on a coloured area (#914): of `candidates` (the theme's text and background
+ * colours, one dark and one light), the one with the highest WCAG contrast on `fill`. Where none
+ * reaches TEXT_CONTRAST (a mid blue between the theme's two), white or black: the one on the best ink's
+ * side where it reaches TEXT_CONTRAST, else the other. One of them always reaches 4.58:1 on an opaque
+ * colour. A fill it cannot read (not hex or rgb()) gives
+ * the first candidate. Used for a heatmap's cell numbers; decorateOption puts a treemap's labels on a
+ * background of their own instead (platedLabel in chart-style.js).
  * @param {string} fill
  * @param {string[]} candidates
  */
@@ -99,5 +108,13 @@ export function labelColorOn(fill, candidates) {
     if (!read.length) {
         return candidates[0];
     }
-    return read.reduce((best, x) => (/** @type {number} */ (x.ratio) > /** @type {number} */ (best.ratio) ? x : best)).c;
+    const best = read.reduce((a, x) => (/** @type {number} */ (x.ratio) > /** @type {number} */ (a.ratio) ? x : a));
+    if (/** @type {number} */ (best.ratio) >= TEXT_CONTRAST) {
+        return best.c;
+    }
+    // the extreme on the best ink's side first (a light ink white), so the ink changes side only where it must
+    const [black, white] = EXTREME_INKS;
+    const light = /** @type {number} */ (contrastOf(best.c, black)) > /** @type {number} */ (contrastOf(best.c, white));
+    const [near, far] = light ? [white, black] : [black, white];
+    return /** @type {number} */ (contrastOf(fill, near)) >= TEXT_CONTRAST ? near : far;
 }

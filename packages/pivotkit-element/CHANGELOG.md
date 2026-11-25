@@ -6,6 +6,13 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Changed
+
+- The chart's load group grows by 0.7 KiB gzip with pivotkit-core's fix of text on coloured fills
+  and of high and low points beside grouped bars
+  ([#913](https://github.com/eizedev/pivotkit/issues/913), [#914](https://github.com/eizedev/pivotkit/issues/914)).
+  The first load stays the same.
+
 ### Fixed
 
 - An element added to the page again while a link is in the page's address opens the link. Before,

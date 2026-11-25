@@ -84,7 +84,7 @@ report: the report itself, field list included, is at least 1,024 pixels wide.
 - Each tile shows its name and value. A small tile cuts the text with "…". The tooltip shows both.
 - A row with a total of 0 or less gets no tile.
 - The colours only tell the tiles apart. They do not stand for a value.
-- The text on a tile is light or dark, whichever reads better on its colour.
+- The text on a tile is on a plate in the background's colour and reads alike on every tile.
 - It has no legend. **Chart settings › Series** hides a tile or sets its colour.
 - With a field on Columns, a tile adds up every column, as a pie does.
 - A click on a tile opens no rows.
@@ -311,8 +311,8 @@ target you set. High and low points mark the highest and the lowest value of eac
 - Each line has a label right of the plot, at the line's height. It starts with a short sample of
   the line's dash in the line's colour, then the name and the value, written short as on the axis,
   such as "Target 500K". A label of a line close to another moves just below it.
-- On a chart narrower than 480 px, such as on a phone, the labels name the lines only. A label
-  that cannot sit near its line is left out there; the tooltip still names the line.
+- On a chart narrower than 480 px, such as on a phone, a label writes the value, a trend its name.
+  A label that cannot sit near its line is left out there; the tooltip still names the line.
 - The value axis reaches every line. A target higher than every bar still shows.
 - The tooltip lists the lines at the category with their whole values: a trend with its value there.
 - The chart image, the HTML report and the chart as SVG draw the lines too.
@@ -325,15 +325,15 @@ target you set. High and low points mark the highest and the lowest value of eac
 ![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and a label with ▲ or ▼ and its value](../assets/screenshots/chart-points-light.png#only-light)
 ![A line for each year of monthly temperatures, each year's highest and lowest month marked with a dot and a label with ▲ or ▼ and its value](../assets/screenshots/chart-points-dark.png#only-dark)
 
-- The dot has the series' colour. Its label starts with ▲ for the highest value or ▼ for the
-  lowest, in the same colour, then the value as the table writes it.
+- The dot has the series' colour. Its label, in the text colour, starts with ▲ for the highest
+  value or ▼ for the lowest, then the value as the table writes it.
 - On a line, the highest label sits above its dot and the lowest below it.
 - On bars and areas, both labels sit above the dot. On a bar, that is past the bar's end.
 - A label never stretches the axis across zero. Near zero, it sits beside its dot.
 - Labels have an outline in the background's colour, so they read over a line.
 - A stack marks the highest and lowest total, in the neutral colour of a target.
-- Two labels that would cover each other move beside their dots. A label that still has no room
-  is left out. Its dot stays, and the tooltip names the value.
+- Labels that would cover each other or another bar of a group move beside their dots. A label
+  that still has no room is left out. Its dot stays, and the tooltip names the value.
 - With more than 8 series, every dot stays, but only the chart's highest and lowest value keep a
   label.
 - Where two categories share the highest value, the first one gets the dot. A series whose values

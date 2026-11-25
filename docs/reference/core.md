@@ -482,9 +482,9 @@ It adds the theme's colours from the tokens, and:
   n-th, `chart.axisLabels`). The option's `axisEvery` says when every n-th label is written.
 - Room on the right for the values at the end of horizontal bars, and fewer value ticks where a
   narrow axis needs them.
-- A heatmap's row names and cell numbers where its cells have room.
-- A treemap's labels in `--pk-text` or `--pk-surface`, whichever has the higher contrast on the tile
-  (`labelColorOn(fill, candidates)`). Below 4.5:1, the label gets an outline in the other one.
+- A heatmap's row names and cell numbers where its cells have room, each number in `--pk-text`,
+  `--pk-surface`, black or white: the first that reads at 4.5:1 on its cell (`labelColorOn`).
+- A treemap's labels in `--pk-text` on a plate in `--pk-surface`, alike on every tile.
 
 pivotkit-react adds its DOM tooltip through `tooltipFormatter`. Its `readColor` turns any colour the
 browser reads into `#rrggbb`. pivotkit-report's keeps the colours ECharts reads. Any other one

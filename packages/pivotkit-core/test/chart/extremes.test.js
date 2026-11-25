@@ -119,17 +119,18 @@ test("the ECharts option: a silent markPoint per series, a dot in its colour, �
     assert.deepEqual(a.markPoint.data.map((d) => text(d.label)), ["▲ 40", "▼ 10"]);
     assert.deepEqual(a.markPoint.data.map((d) => d.label.position), ["top", "bottom"]);
     assert.deepEqual(b.markPoint.data.map((d) => text(d.label)), ["▲ 7", "▼ 3"]);
-    // the dot and the glyph in the series' colour; the number in the text colour, which reads on
-    // every background (a palette colour such as yellow does not, as text)
+    // the dot in the series' colour; the glyph and the number in the text colour, which reads on every
+    // background (a series' colour such as a light grey or yellow does not, as text: #913)
     assert.equal(a.markPoint.data[0].itemStyle.color, "#111111");
     assert.equal(b.markPoint.data[0].itemStyle.color, "#222222");
-    assert.equal(b.markPoint.data[0].label.rich.s.color, "#222222");
+    assert.equal(b.markPoint.data[0].label.rich.s.color, undefined, "the glyph takes the label's colour");
     assert.equal(a.markPoint.data[0].label.color, "#333333");
     assert.equal(a.markPoint.data[0].label.fontSize, 15);
-    // a fixed colour (chart.colors) wins over the palette, for the dot and the glyph
+    // a fixed colour (chart.colors) wins over the palette for the dot; the label keeps the text colour
     const fixed = toEChartsOption(pivot({ chart: { type: "line", colors: [{ name: "B", color: "#abcdef" }], referenceLines: ON } }), { theme });
     assert.equal(fixed.series[1].markPoint.data[0].itemStyle.color, "#abcdef");
-    assert.equal(fixed.series[1].markPoint.data[0].label.rich.s.color, "#abcdef");
+    assert.equal(fixed.series[1].markPoint.data[0].label.rich.s.color, undefined);
+    assert.equal(fixed.series[1].markPoint.data[0].label.color, "#333333");
     // nothing switched on: no markPoint
     assert.equal(toEChartsOption(pivot({ chart: { type: "line" } })).series[0].markPoint, undefined);
 });
@@ -201,6 +202,29 @@ test("decorateOption: two labels at one category that would cover each other mov
     // with the real heights (pixelOf) far apart, both stay below their dots
     const far = decorateOption(toEChartsOption(r), style, { width: 390, height: 260, pixelOf: (v) => 1000 - v * 100 });
     assert.deepEqual(lows(far).map((d) => d.label.position), ["bottom", "bottom"]);
+});
+
+test("decorateOption: grouped bars (#913): a point's label stands over its own bar and never across a taller neighbour", () => {
+    const style = { getPropertyValue: () => "" };
+    // three teams side by side per month; A's high (50,000) between a taller B (100,000) and nothing
+    const rows = encode([
+        { Month: "m1", Team: "A", N: 50_000 },
+        { Month: "m1", Team: "B", N: 100_000 },
+        { Month: "m1", Team: "C", N: 10_000 },
+        { Month: "m2", Team: "A", N: 20_000 },
+        { Month: "m2", Team: "B", N: 30_000 },
+        { Month: "m2", Team: "C", N: 40_000 }
+    ]);
+    const r = computePivot(rows, { rows: ["Month"], cols: ["Team"], values: [{ field: "N", agg: "sum" }], sort: [], formatting: { locale: "en-US" }, chart: { type: "bar", referenceLines: ON } });
+    const highOf = (option, i) => option.series[i].markPoint.data.find((d) => d.name === "max");
+    const out = decorateOption(toEChartsOption(r), style, { width: 360, height: 300 });
+    // above A's bar the label would run across B's taller bar, beside it too: left out, the dot stays
+    assert.equal(highOf(out, 0).label.show, false, JSON.stringify(highOf(out, 0).label));
+    // B's high is the tallest bar: its label stays above it
+    assert.notEqual(highOf(out, 1).label.show, false);
+    // one column of bars (stacked) has no neighbours to avoid
+    const stacked = decorateOption(toEChartsOption(computePivot(rows, { rows: ["Month"], cols: ["Team"], values: [{ field: "N", agg: "sum" }], sort: [], chart: { type: "bar", stacked: true, referenceLines: ON } })), style, { width: 360, height: 300 });
+    assert.ok(stacked.series.some((s) => (s.markPoint?.data ?? []).some((d) => d.label.show !== false)));
 });
 
 test("decorateOption: a label reads over a line it crosses, outlined in the background's colour", () => {

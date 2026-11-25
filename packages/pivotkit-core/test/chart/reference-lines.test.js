@@ -282,7 +282,7 @@ test("the labels write the value as the axis does, short", () => {
     assert.equal(referenceLines(r).at(-1).format(1234567), "€1,234,567.00");
 });
 
-test("decorateOption: the labels of lying lines right of the plot, kept apart, with room; a narrow chart writes the names only", () => {
+test("decorateOption: the labels of lying lines right of the plot, kept apart, with room; a narrow chart writes the values only (#913)", () => {
     const style = { getPropertyValue: () => "" };
     // A's average 25 and a target of 26: two labels at nearly the same height
     const r = pivot({ chart: { type: "line", referenceLines: { average: true, trend: true, target: 26 } } });
@@ -297,10 +297,10 @@ test("decorateOption: the labels of lying lines right of the plot, kept apart, w
     const target = shown.find((d) => words(d.label) === "Target 26");
     assert.equal(target.label.offset[1], 0);
     assert.ok(average.label.offset[1] > 10, JSON.stringify(average.label.offset));
-    // narrow: the names alone
+    // narrow: the values alone, which tell one series' average from another's; a trend has its name
     const narrow = decorateOption(toEChartsOption(r), style, { width: 360, height: 480 });
     const names = narrow.series.flatMap((x) => x.markLine?.data ?? []).map((d) => (Array.isArray(d) ? d[0] : d)).filter((d) => d.label.show !== false).map((d) => words(d.label));
-    assert.deepEqual(names.sort(), ["Average", "Average", "Target", "Trend", "Trend"]);
+    assert.deepEqual(names.sort(), ["25", "26", "5", "Trend", "Trend"]);
 });
 
 test("each label carries its line's cue: a sample of its dash in the line's colour", () => {
@@ -317,6 +317,9 @@ test("each label carries its line's cue: a sample of its dash in the line's colo
     const target = b.markLine.data.at(-1).label;
     assert.equal(target.formatter(), "{s|——} Target 80");
     assert.equal(target.rich.s.color, "#999999");
+    // a fixed colour of a series (chart.colors, a host's colorMap) is its line's and its sample's (#913)
+    const fixed = toEChartsOption(pivot({ chart: { type: "line", colors: [{ name: "B", color: "#abcdef" }], referenceLines: { average: true, trend: false, target: null } } }), { theme: { colors: ["#111111", "#222222"] }, colorMap: { A: "#fedcba" } });
+    assert.deepEqual(fixed.series.map((x) => x.markLine.data[0].label.rich.s.color), ["#fedcba", "#abcdef"]);
     // a name from the labels cannot break the markup
     const odd = toEChartsOption(r, { labels: { referenceLines: { average: "Mean {x|y}", trend: "Trend", target: "Target" } } });
     assert.equal(odd.series[0].markLine.data[0].label.formatter(), "{s|– –} Mean xy 25");
@@ -347,7 +350,7 @@ test("decorateOption with the lines' real places (pixelOf): labels at their line
     const same = pivot({ cols: [], values: [{ field: "Revenue", agg: "sum" }, { field: "Revenue", agg: "max" }], chart: { type: "line", referenceLines: { average: true, trend: false, target: 30 } } });
     const flat = (v) => (v > 20 ? 200 : 300);
     const narrow = labelsOf(decorateOption(toEChartsOption(same), style, { width: 360, height: 480, pixelOf: flat }));
-    assert.deepEqual(narrow.map((l) => [l.words, l.show]), [["Average", true], ["Average", true], ["Target", false]]);
+    assert.deepEqual(narrow.map((l) => [l.words, l.show]), [["30", true], ["25", true], ["30", false]]);
 });
 
 test("the lines of no series ride on the last series shown: the legend hides a series' markLine with it", () => {

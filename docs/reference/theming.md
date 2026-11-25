@@ -219,6 +219,8 @@ The chart reads these tokens in the current theme:
 | The heatmap | `--pk-heat-low`/`--pk-heat-high` |
 | The title's size and weight | `--pk-chart-title-size`, `--pk-weight-strong` |
 | Its other text: the axes, the legend, the labels on bars, slices and cells, the heatmap's scale | `--pk-chart-text-size` |
+| The text on a treemap's tiles, on a plate | `--pk-text` on `--pk-surface` |
+| The numbers on a heatmap's cells: the first that reaches 4.5:1 on the cell, else black or white | `--pk-text`, `--pk-surface` |
 | The corners of bars and pie slices | `--pk-radius-chart` |
 | The corners of the tooltip | `--pk-radius-card` |
 | The tooltip's total line and the series under the pointer | `--pk-border`, `--pk-weight-strong` |

@@ -7,12 +7,12 @@
  * reason: a bundle that loads the chart from here keeps the option's code out of its first load.
  */
 
-import { DEFAULT_THEME, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
+import { DEFAULT_THEME, EXTREME_INKS, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
 import { POINT_HALO, barExtent, otherSlices, pieLabelFit, pieLabelTexts, pointLabels, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
 import { AXIS_LABEL_MARGIN, LINE_SAMPLES, categorySlot, groupLabelLine, groupLabelOffset, heatmapFrame, lineLabelText, textWidth } from "./chart-measure.js";
 import { ZOOM_SLIDER, longestNames, zoomRange, zoomSlider, zoomWindow } from "./chart-zoom.js";
-import { contrastOf, labelColorOn } from "./chart-colors.js";
+import { labelColorOn } from "./chart-colors.js";
 
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
@@ -21,11 +21,80 @@ export { labelColorOn };
 
 /** Room (px) beside a combo's plot: the margins and the numbers of its two value axes, estimated. */
 const COMBO_AXES_ROOM = 136;
-/** The contrast text needs on its background (WCAG 2.2 AA, normal text). */
-const TEXT_CONTRAST = 4.5;
 
 /** A copy of an object without the given keys. */
 const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));
+
+/*
+ * Text on a coloured area (#913, #914): it reads against a colour the chart knows.
+ * - A heatmap's cell has one colour of an ordered scale: its number takes labelColorOn's ink for it
+ *   (the theme's text or background colour, else black or white), at least 4.5:1. Along the scale the
+ *   ink changes once, from dark on light cells to light on dark ones.
+ * - A treemap's tiles take any colours of a palette, a host's among them: each label sits on a plate in
+ *   the background colour (--pk-surface), in the text colour (--pk-text). Every label looks the same,
+ *   whatever the tile's colour and in both themes; an ink chosen per tile would flip between dark and
+ *   light from tile to tile.
+ * - A high or low point's label crosses the plot and the bars: an outline in the background colour
+ *   around its letters (POINT_HALO), the same backing as a plate.
+ */
+
+/**
+ * Rich text of ECharts: `text` in the style `key`, line by line. A "}" ends a style's text in ECharts'
+ * markup, so it stands between two runs of the style, in the label's own style.
+ * @param {string} key
+ * @param {unknown} text
+ */
+const styled = (key, text) =>
+    String(text)
+        .split("\n")
+        .map((line) => line.split("}").map((part) => (part ? `{${key}|${part}}` : "")).join("}"))
+        .join("\n");
+
+/**
+ * A treemap's labels on plates (see above): the formatter's lines each on a plate in the background
+ * colour, the text in the text colour, the plate's corners as the tiles'.
+ * @param {any} label  the series' label
+ * @param {{ text?: string, surface?: string, radius: number, fontSize: number }} theme
+ */
+function platedLabel(label, { text, surface, radius, fontSize }) {
+    if (!surface || typeof label?.formatter !== "function") {
+        return label;
+    }
+    const format = label.formatter;
+    // no --pk-text: ECharts' own text colour
+    const ink = text || undefined;
+    return {
+        ...label,
+        color: ink,
+        formatter: (/** @type {any} */ p) => styled("plate", format(p)),
+        rich: { plate: { color: ink, backgroundColor: surface, borderRadius: radius, padding: [2, 4], fontSize, lineHeight: Math.round(fontSize * 1.6) } }
+    };
+}
+
+/**
+ * A heatmap's numbers in the ink that reads on their cell (labelColorOn on the colour ECharts drew it
+ * in): one rich style per ink, so the cells keep their data as they are.
+ * @param {any} label  the series' label
+ * @param {string[]} inks  the theme's text and background colours
+ * @param {((color: string) => string | null) | undefined} readColor
+ */
+function inkedLabel(label, inks, readColor) {
+    if (!inks.length || typeof label?.formatter !== "function") {
+        return { ...label, color: inks[0] };
+    }
+    const format = label.formatter;
+    const all = [...inks, ...EXTREME_INKS];
+    const keyOf = (/** @type {unknown} */ fill) => {
+        const read = typeof fill === "string" ? (readColor ? (readColor(fill) ?? fill) : fill) : null;
+        return `ink${all.indexOf(read ? labelColorOn(read, inks) : inks[0])}`;
+    };
+    return {
+        ...label,
+        color: inks[0],
+        formatter: (/** @type {any} */ p) => styled(keyOf(p.color), format(p)),
+        rich: Object.fromEntries(all.map((c, i) => [`ink${i}`, { color: c }]))
+    };
+}
 
 /**
  * A heatmap's colours as ECharts can mix them. ECharts works out each cell's colour from the scale's
@@ -40,15 +109,18 @@ function heatmapColors(colors, readColor) {
     return colors.map((c, i) => readColor(String(c)) ?? fallback[i === 0 ? 0 : fallback.length - 1]);
 }
 
-/** A chart narrower than this writes a reference line's name alone, without its value. */
+/** A chart narrower than this writes a reference line's value alone, without its name (briefOf). */
 const LINE_VALUE_MIN_WIDTH = 480;
 /** Room (px) between the plot and a reference line's label right of it. */
 const LINE_LABEL_GAP = 6;
 
-/** A reference line's markLine item with its label writing the line's name alone, after its sample. */
+/** The words of a reference line's label on a narrow chart: its value (a trend's name), else its name. */
+const briefOf = (/** @type {any} */ item) => String(item.brief ?? item.name ?? "");
+
+/** A reference line's markLine item with its label writing its brief words alone (briefOf), after its sample. */
 const namesOnly = (/** @type {any} */ d) => {
     const head = Array.isArray(d) ? d[0] : d;
-    const label = { ...head.label, formatter: () => lineLabelText(head.lineStyle?.type, head.name ?? "") };
+    const label = { ...head.label, formatter: () => lineLabelText(head.lineStyle?.type, briefOf(head)) };
     return Array.isArray(d) ? [{ ...head, label }, d[1]] : { ...head, label };
 };
 
@@ -59,7 +131,8 @@ const namesOnly = (/** @type {any} */ d) => {
  * after a first draw): the labels then sit at their lines. Without it the heights are estimated on a
  * scale at most as fine as ECharts' (it never stretches the values over less than half the axis, nor
  * the plot over less than about half the chart), so the labels end at least as far apart as
- * estimated. A chart narrower than LINE_VALUE_MIN_WIDTH writes the names alone, and leaves out a
+ * estimated. A chart narrower than LINE_VALUE_MIN_WIDTH writes the values alone (a trend its name:
+ * briefOf), and leaves out a
  * label that would sit more than one and a half lines from its line; the tooltip has every value. A
  * trend on bars ends at the middle of the last bar: its label moves right by half a bar's band.
  * @param {any[]} series  the decorated series
@@ -82,7 +155,7 @@ function lineLabels(series, { width, height, grid, fontSize, pixelOf }) {
     }
     const narrow = width < LINE_VALUE_MIN_WIDTH;
     // the widest label: its sample, a space and its words
-    const textOf = (/** @type {any} */ item) => `${LINE_SAMPLES[/** @type {keyof typeof LINE_SAMPLES} */ (item.lineStyle?.type)] ?? ""} ${narrow ? String(item.name ?? "") : String(item.label.formatter()).replace(/^\{s\|[^}]*\} /, "")}`;
+    const textOf = (/** @type {any} */ item) => `${LINE_SAMPLES[/** @type {keyof typeof LINE_SAMPLES} */ (item.lineStyle?.type)] ?? ""} ${narrow ? briefOf(item) : String(item.label.formatter()).replace(/^\{s\|[^}]*\} /, "")}`;
     const widest = Math.max(...labels.map((l) => textWidth(textOf(l.item), fontSize)));
     // without the real heights: the values' span (the data, a stack's tops, 0 and the lines) on a coarse scale
     const numbers = series.flatMap((s) => (s.data ?? []).filter((/** @type {unknown} */ v) => typeof v === "number"));
@@ -230,29 +303,19 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
             return { ...s, top, bottom, ...fit, labelLine: fit.labelLine ?? line, itemStyle: { ...s.itemStyle, borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
         }
         if (s.type === "treemap") {
-            // each tile's label in the token that reads best on it, --pk-text or --pk-surface (one is
-            // dark, one light in every theme); the tiles parted by the background's colour
-            const inks = [v("--pk-text"), surface].filter((c) => typeof c === "string" && c !== "");
-            const label = (/** @type {string | undefined} */ fill) => {
-                const read = fill && readColor ? (readColor(fill) ?? fill) : fill;
-                const color = read && inks.length ? labelColorOn(read, inks) : inks[0];
-                // a tile on which neither reaches the contrast text needs (a mid blue): the label gets an
-                // outline in the other token, so it reads against that
-                const ratio = read && color ? contrastOf(read, color) : null;
-                const other = inks.find((c) => c !== color);
-                return { color, ...(ratio !== null && ratio < TEXT_CONTRAST && other ? { textBorderColor: other, textBorderWidth: 2 } : {}) };
-            };
+            // each label on a plate (platedLabel); the tiles parted by the background's colour
             return {
                 ...s,
                 itemStyle: { ...s.itemStyle, borderColor: surface, borderRadius: cell },
-                data: (s.data ?? []).map((/** @type {any} */ d) => ({ ...d, label: { ...d.label, ...label(d.itemStyle?.color) } }))
+                label: platedLabel(s.label, { text: v("--pk-text"), surface, radius: cell, fontSize })
             };
         }
         if (s.type === "heatmap") {
             // numbers only in cells large enough for them (heatmapCellLabels); the tooltip has every one
             const texts = typeof s.label?.formatter === "function" ? s.data.map((/** @type {any} */ d) => s.label.formatter({ value: d })) : [];
             const fits = heatmapCellLabels(option.xAxis?.data?.length ?? 1, option.yAxis?.data?.length ?? 1, width, height, texts, fontSize, cellFrame);
-            return { ...s, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: cell }, label: { ...s.label, show: Boolean(s.label?.show) && fits, color: v("--pk-text") || undefined } };
+            const inks = [v("--pk-text"), surface].filter((c) => typeof c === "string" && c !== "");
+            return { ...s, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: cell }, label: { ...inkedLabel(s.label, inks, readColor), show: Boolean(s.label?.show) && fits } };
         }
         return s;
     });
@@ -262,7 +325,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     if (grid) grid.right += valueLabelRoom(series, fontSize);
     // the labels of lying reference lines: right of the plot, kept apart, with room
     const lines = grid && first(option.yAxis)?.type === "value" ? lineLabels(series, { width, height, grid, fontSize, pixelOf }) : null;
-    // upright lines (horizontal bars) have a row each above the plot; a narrow chart writes their names alone
+    // upright lines (horizontal bars) have a row each above the plot; a narrow chart writes their values alone
     if (grid && !lines && width < LINE_VALUE_MIN_WIDTH) series = series.map((s) => (s.markLine ? { ...s, markLine: { ...s.markLine, data: s.markLine.data.map(namesOnly) } } : s));
     if (lines) {
         grid.right += lines.room;
@@ -271,7 +334,7 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     // the labels of the high and low points: inside the plot (the value axis reaches past them) and apart
     const horizontalBars = first(option.yAxis)?.type === "category";
     const valueKey = horizontalBars ? "xAxis" : "yAxis";
-    const points = grid ? pointLabels(series, { width, height, grid, fontSize, horizontal: horizontalBars, axis: first(option[valueKey]), pixelOf }) : null;
+    const points = grid ? pointLabels(series, { width, height, grid, fontSize, horizontal: horizontalBars, axis: first(option[valueKey]), pixelOf, legend: option.legend }) : null;
     /** @type {Record<string, any>} */
     const reach = {};
     if (points) {
