@@ -104,7 +104,7 @@ test("a column whose numbers fit both decimal marks: the preview offers both, as
     const mark = dialog.getByTestId("import-mark-1");
     await expect(mark).toHaveAccessibleName(fill(importEn.markOf, { column: "Sales" }));
     await expect(mark).toHaveValue(".");
-    await expect(mark.locator("option")).toHaveText([fill(importEn.marks.point, { example: "1,234", value: "1234" }), fill(importEn.marks.comma, { example: "1,234", value: "1.234" })]);
+    await expect(mark.locator("option")).toHaveText([fill(importEn.markReads, { example: "1,234", value: "1234" }), fill(importEn.markReads, { example: "1,234", value: "1.234" })]);
     const note = dialog.locator("li[data-code='DECIMAL_MARK']");
     await expect(note).toHaveText(fill(importEn.notes.DECIMAL_MARK, { column: "Sales", decimal: ".", example: "1,234" }));
     // the comma: the rows and the note follow, the choice keeps the focus
@@ -135,7 +135,7 @@ test("a column whose numbers fit both decimal marks: the preview offers both, as
     const deMark = deDialog.getByTestId("import-mark-1");
     await expect(deMark).toHaveAccessibleName(fill(importDe.markOf, { column: "Sales" }));
     await expect(deMark).toHaveValue(",");
-    await expect(deMark.locator("option")).toHaveText([fill(importDe.marks.point, { example: "1,234", value: "1234" }), fill(importDe.marks.comma, { example: "1,234", value: "1,234" })]);
+    await expect(deMark.locator("option")).toHaveText([fill(importDe.markReads, { example: "1,234", value: "1234" }), fill(importDe.markReads, { example: "1,234", value: "1,234" })]);
     expect((await preview(deDialog)).rows.map((r) => r[1])).toEqual(["1,234", "2,5"]);
     await deMark.selectOption(".");
     await expect.poll(async () => (await preview(deDialog)).rows.map((r) => r[1])).toEqual(["1.234", "2.500"]);

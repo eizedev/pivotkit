@@ -172,6 +172,8 @@ function pickedTable(base, types, marks) {
  */
 function ColumnHead({ name, index, type, mark, t, locale, formName, onType, onMark }) {
     const reads = (value) => Number(value).toLocaleString(locale, { useGrouping: false, maximumFractionDigits: 10 });
+    // a note without the example's two numbers (a plugin's own) offers no choice
+    const choice = mark && typeof mark.point === "number" && typeof mark.comma === "number";
     return (
         <th scope="col">
             {name}
@@ -182,10 +184,10 @@ function ColumnHead({ name, index, type, mark, t, locale, formName, onType, onMa
                     </option>
                 ))}
             </select>
-            {mark ? (
+            {choice ? (
                 <select name={`${formName}-mark-${index}`} value={String(mark.decimal)} aria-label={fill(t.markOf, { column: name })} onChange={(e) => onMark(e.target.value)} data-testid={`import-mark-${index}`}>
-                    <option value=".">{fill(t.marks.point, { example: String(mark.example), value: reads(mark.point) })}</option>
-                    <option value=",">{fill(t.marks.comma, { example: String(mark.example), value: reads(mark.comma) })}</option>
+                    <option value=".">{fill(t.markReads, { example: String(mark.example), value: reads(mark.point) })}</option>
+                    <option value=",">{fill(t.markReads, { example: String(mark.example), value: reads(mark.comma) })}</option>
                 </select>
             ) : null}
         </th>

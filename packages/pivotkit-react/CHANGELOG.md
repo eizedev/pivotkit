@@ -13,9 +13,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ([#720](https://github.com/eizedev/pivotkit/issues/720)).
 - The import preview lets a person pick a column's decimal mark. Under a number column with the
   note `DECIMAL_MARK`, a choice says what the note's example is with each mark, such as
-  "“1,234” = 1234 (decimal point)" and "“1,234” = 1.234 (decimal comma)". The note now points
-  there instead of to the file. New texts `markOf` and `marks` in `labels.dataImport`, English and
-  German ([#787](https://github.com/eizedev/pivotkit/issues/787)).
+  "1234 (“1,234” in the file)" and "1.234 (“1,234” in the file)". The note now points there
+  first. New texts `markOf` and `markReads` in `labels.dataImport`, English and German
+  ([#787](https://github.com/eizedev/pivotkit/issues/787)).
 
 ### Fixed
 
