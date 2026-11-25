@@ -133,7 +133,8 @@ function Badges({ state, view, labels, locale }) {
     }
     if (state.sort) {
         const desc = state.sort.order === "desc";
-        parts.push(<Icon key="sort" name={desc ? "sortDesc" : "sortAsc"} size={12} className="pk-chip-badge" />);
+        // the glyph of the table's sorted header: one glyph for one order
+        parts.push(<Icon key="sort" name={desc ? "arrowDown" : "arrowUp"} size={12} className="pk-chip-badge pk-sort-glyph" />);
     }
     return parts.length ? <>{parts}</> : null;
 }
@@ -149,7 +150,7 @@ function Chip({ id, zone, index, count, field, text, title, typeName, view, type
     const name = words ? `${full}, ${words}` : title;
     const remove = () => onRemove(zone, index, text);
     return (
-        <li ref={setNodeRef} style={style} className={`pk-chip pk-chip-${zone}${isDragging ? " pk-dragging" : ""}`} {...itemProps} data-chip={text}>
+        <li ref={setNodeRef} style={style} className={`pk-chip pk-chip-${zone}${zone === "filters" ? "" : " pk-zone-fill"}${isDragging ? " pk-dragging" : ""}`} {...itemProps} data-chip={text}>
             <span className="pk-handle" {...handleProps} aria-label={fill(labels.dragHandle, { field: text })}>
                 <Icon name="grip" size={16} />
             </span>

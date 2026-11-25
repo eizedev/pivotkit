@@ -91,7 +91,7 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, source
             {zones.length ? (
                 <span className="pk-badges" aria-hidden="true">
                     {zones.map((z) => (
-                        <span key={z} className={`pk-badge pk-badge-${z}`} aria-hidden="true" title={fill(labels.inZone, { zone: labels.zones[z] })}>
+                        <span key={z} className={`pk-badge pk-badge-${z} pk-zone-fill`} aria-hidden="true" title={fill(labels.inZone, { zone: labels.zones[z] })}>
                             <Icon name={/** @type {any} */ (ZONE_ICON[z])} size={12} />
                         </span>
                     ))}
