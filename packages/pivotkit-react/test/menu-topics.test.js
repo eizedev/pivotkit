@@ -6,7 +6,7 @@ import { encode, normalize } from "pivotkit-core";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../src/deferred.js";
 import { setItemFilter, setTopFilter, setValueFilter } from "../src/menu-ops.js";
-import { afterDelete, axisTopics, entryIds, formatLabel, moreTopics, rowFoldTexts, rowName, searchEntries, searchHits, SEARCH_HITS, stepIndex, tableTopics, TOP_COUNTS, topText, typeAheadIndex, valueTopics } from "../src/menu-topics.js";
+import { afterDelete, axisTopics, entryIds, formatLabel, moreTopics, rowFoldTexts, rowName, searchEntries, searchHits, SEARCH_HITS, searchHasMore, stepIndex, tableTopics, TOP_COUNTS, topText, typeAheadIndex, valueTopics } from "../src/menu-topics.js";
 import { MENU } from "./helpers.js";
 
 const data = encode([
@@ -209,6 +209,9 @@ test("search: every choice of every level with its path, and the panels; all wor
     assert.deepEqual(hit("   "), []);
     assert.deepEqual(hit("nothing like this"), []);
     assert.ok(searchHits(entries, "o", "en-US").length <= SEARCH_HITS);
+    assert.equal(searchHasMore(entries, "o", "en-US"), true);
+    assert.equal(searchHasMore(entries, "currency", "en-US"), false);
+    assert.equal(searchHasMore(entries, "   ", "en-US"), false);
     // a field's: the Filter panel is an entry that opens it
     const field = searchEntries(axis(view));
     // the Filter panel's own entries (its rules) are found by its title too
