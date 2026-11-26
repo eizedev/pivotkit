@@ -243,7 +243,7 @@ applies.
 The chip menus have a search above their first level, and `/` focuses it.
 
 - It finds a choice of any level by its text, the titles above it and a few more words (labels
-  `showAsKeywords`, `nameKeywords`, `filterKeywords`).
+  `showAsKeywords`, `nameKeywords`, `filterKeywords`, `shownSeriesKeywords`).
 - It opens a level by its title.
 - For a date field, it also makes hits from a number typed: the quick choices with that count
   ("last 3 years") and a year compared ("from 2022").
