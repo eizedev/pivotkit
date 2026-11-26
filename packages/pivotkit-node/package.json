@@ -1,6 +1,6 @@
 {
   "name": "pivotkit-node",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Internal to pivotkit: the Node.js file handling, REST contract and network readings that the pivotkit command line and pivotkit-server share. Use pivotkit-cli/files and pivotkit-cli/rest instead.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",
@@ -48,9 +48,9 @@
     "prepack": "npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\""
   },
   "dependencies": {
-    "pivotkit-core": "^0.10.0",
-    "pivotkit-report": "^0.6.0",
-    "pivotkit-xlsx": "^0.7.0"
+    "pivotkit-core": "^0.11.0",
+    "pivotkit-report": "^0.7.0",
+    "pivotkit-xlsx": "^0.8.0"
   },
   "devDependencies": {
     "@types/node": "24.19.2"

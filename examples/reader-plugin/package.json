@@ -11,6 +11,6 @@
     "./reader": "./src/reader.js"
   },
   "peerDependencies": {
-    "pivotkit-core": "^0.10.0"
+    "pivotkit-core": "^0.11.0"
   }
 }

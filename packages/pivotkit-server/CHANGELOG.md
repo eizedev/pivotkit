@@ -6,8 +6,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-26
+
 ### Changed
 
+- Depends on `pivotkit-core` `^0.11.0`, `pivotkit-node` `^0.2.0`, `pivotkit-report` `^0.7.0` and
+  `pivotkit-xlsx` `^0.8.0`.
 - **Breaking:** a key read from a file that starts with a UTF-8 byte order mark is refused. Before,
   the mark (U+FEFF) became part of the key. This holds for the secrets given as a `{ "file" }`
   reference: `output.downloads.key`, `audit.key`, a backend's sign-in, the upload store's headers
@@ -1186,7 +1190,8 @@ First release.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.5.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.6.0...HEAD
+[0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.5.0...pivotkit-server@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.4.0...pivotkit-server@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.2...pivotkit-server@0.4.0
 [0.3.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.1...pivotkit-server@0.3.2

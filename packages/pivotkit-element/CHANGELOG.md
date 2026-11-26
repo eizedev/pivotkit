@@ -6,6 +6,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-26
+
 ### Added
 
 - The import preview lets a person pick a column's decimal mark. See pivotkit-react's changelog.
@@ -20,6 +22,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- Bundles pivotkit-core 0.11.0, pivotkit-react 0.11.0 and pivotkit-report 0.7.0.
 - The zones' colours and the field names in the table's header (see pivotkit-react) add 0.7 KiB to
   the first load: 179.7 KiB gzip on an official Node 24 build, within its budget of 182.5 KiB ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - The first load is 3.3 KiB smaller: 179.0 KiB gzip on an official Node 24 build, in 13 files as
@@ -666,7 +669,8 @@ First release.
   thousands separators, CSV percentages and calculations as the table shows them, heatmaps without
   grey empty cells.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.10.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.11.0...HEAD
+[0.11.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.10.0...pivotkit-element@0.11.0
 [0.10.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.9.0...pivotkit-element@0.10.0
 [0.9.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.2...pivotkit-element@0.9.0
 [0.8.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.1...pivotkit-element@0.8.2

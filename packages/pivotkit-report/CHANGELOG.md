@@ -6,6 +6,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-26
+
 ### Added
 
 - `render` takes `describeLabels`, the words of the HTML report's filters and summary. A host that
@@ -16,6 +18,7 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.11.0` (was `^0.10.0`).
 - The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
 
 ### Fixed
@@ -43,7 +46,7 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 - Depends on `pivotkit-core` `^0.10.0` (was `^0.9.0`).
 - **Breaking:** `render` refuses with `INVALID_OPTION` an option of the wrong kind it used to take
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-9)):
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/a1ff8bd8b3e91317d6fae46b074b87d019ebfcb9/docs/getting-started/upgrading.md?plain=1#L114)):
   - `title`, `description` or `source` that is no text. A number as title threw a bare `TypeError`.
   - `labels` or `texts` that is no object.
   - `tableCells` that is no whole number of at least 1 or `Infinity`: `0`, `NaN`, `10.5`, `"100"`.
@@ -299,7 +302,8 @@ First release.
   (`chart`, `chartEmbed`, `bom`, `strict`, `trusted`) takes only those, and `chart: true` without
   `echarts` is an error. `bom: false` writes CSV without a byte order mark.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.6.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.7.0...HEAD
+[0.7.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.6.0...pivotkit-report@0.7.0
 [0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.5.0...pivotkit-report@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.4.0...pivotkit-report@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.3.0...pivotkit-report@0.4.0
