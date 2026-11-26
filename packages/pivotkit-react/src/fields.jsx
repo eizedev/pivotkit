@@ -51,7 +51,7 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, source
                 <Icon name="grip" size={18} />
             </span>
             <span className={`pk-type pk-type-${field.type}`} title={typeLabel}>
-                <Icon name={/** @type {any} */ (TYPE_ICON[field.type] ?? "text")} size={14} />
+                <Icon name={/** @type {any} */ (TYPE_ICON[field.type] ?? "text")} size={16} />
                 <span className="pk-sr">{typeLabel}</span>
             </span>
             <button

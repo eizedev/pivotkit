@@ -211,6 +211,34 @@ test.describe("the table's header names its fields by zone (#920)", () => {
         }
     });
 
+    test("a type icon's letters stand as tall as 11 px text, in the field list and on chips, wide and narrow", async ({ page }) => {
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        for (const width of [1280, 390]) {
+            await page.setViewportSize({ width, height: 900 });
+            await open(page, LAYOUTS[0].view);
+            if (await page.locator(".pk-zone").first().isHidden()) {
+                await page.getByTestId("zone-section").locator(".pk-section-fold").click();
+            }
+            if (width < 640) {
+                await page.getByRole("button", { name: "Fields", exact: true }).first().click();
+            }
+            await expect(page.locator(".pk-field .pk-type-string").first()).toBeVisible();
+            const sizes = await page.evaluate(() => {
+                // the cap height of 11 px text in the report's font
+                const ctx = document.createElement("canvas").getContext("2d");
+                ctx.font = `11px ${getComputedStyle(document.querySelector(".pk-root")).fontFamily}`;
+                const cap = ctx.measureText("H").actualBoundingBoxAscent;
+                // the "A" of the text type's icon spans 12 of its 24 units (icons.jsx)
+                const letters = [...document.querySelectorAll(":is(.pk-field, .pk-chip) .pk-type-string svg")]
+                    .filter((svg) => svg.getClientRects().length)
+                    .map((svg) => (svg.getBoundingClientRect().height * 12) / 24);
+                return { cap, letters };
+            });
+            expect(sizes.letters.length, `${width} px`).toBeGreaterThan(1);
+            expect(Math.min(...sizes.letters), `${width} px`).toBeGreaterThanOrEqual(sizes.cap);
+        }
+    });
+
     test("a host's zone colours, fill share and type colours take effect", async ({ page }) => {
         await open(page, LAYOUTS[0].view);
         await page.addStyleTag({ content: ".pk-root { --pk-zone-rows: #6b2fa0; --pk-zone-tint: 50%; --pk-zone-tint-base: #ffffff; --pk-type-string: #b00020; }" });

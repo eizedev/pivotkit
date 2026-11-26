@@ -155,7 +155,7 @@ function Chip({ id, zone, index, count, field, text, title, typeName, view, type
                 <Icon name="grip" size={16} />
             </span>
             <span className={`pk-type pk-type-${typeName}`} aria-hidden="true">
-                <Icon name={/** @type {any} */ (TYPE_ICON[typeName] ?? "text")} size={13} />
+                <Icon name={/** @type {any} */ (TYPE_ICON[typeName] ?? "text")} size={16} />
             </span>
             <MenuButton
                 label={fill(labels.fieldMenu, { field: text })}
@@ -258,7 +258,7 @@ export function DragChip({ src, typeOf }) {
         <div className="pk-chip pk-overlay">
             <Icon name="grip" size={14} />
             <span className={`pk-type pk-type-${type}`}>
-                <Icon name={/** @type {any} */ (TYPE_ICON[type] ?? "text")} size={13} />
+                <Icon name={/** @type {any} */ (TYPE_ICON[type] ?? "text")} size={16} />
             </span>
             <span className="pk-chip-text">{src.label ?? src.field}</span>
         </div>
