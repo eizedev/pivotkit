@@ -19,7 +19,7 @@ MIT · the report runs in the browser, nothing uploaded
 [I build reports](use/index.md){ .md-button .md-button--primary title="For the people who build reports in an application: load data, fields, filters, charts, export" }
 [I embed or automate pivotkit](embed/index.md){ .md-button .md-button--primary title="For developers: React, web component, engine, reports, the command line, REST and MCP" }
 [I run the services](getting-started/server-in-5-minutes.md){ .md-button .md-button--primary title="For operators: the REST service and the MCP server in a container, with tokens and sources" }
-[Try the live demo](demo.md){ .md-button }
+[Try pivotkit](demo.md){ .md-button title="The live demo in the browser, the playground on your machine, a page of your own, the command line or the services in a container" }
 
 </div>
 
