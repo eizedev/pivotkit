@@ -138,7 +138,8 @@ Docs site: build and preview commands are in [CONTRIBUTING.md](CONTRIBUTING.md#d
 ## Docs and changelogs
 
 - Docs describe the current state. History goes into changelogs, commits and pull requests.
-- Add an `[Unreleased]` entry to the `CHANGELOG.md` of each package you change.
+- Add an `[Unreleased]` entry to the `CHANGELOG.md` of each package you change. An entry from a
+  contributor's pull request ends with `([#n](<pull request link>), thanks @login)`.
 - Use Conventional Commits with the package as scope: `feat(core): ...`.
 - Describe a change people see on the one page that owns its topic. Rewrite that page's
   section instead of adding a paragraph beside the old one.

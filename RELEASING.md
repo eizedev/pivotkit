@@ -118,6 +118,12 @@ npm stage approve <stage-id>   # or: npm stage reject <stage-id>
 ### 5. GitHub release
 
 - Publish a GitHub release for each tag, with a short text and a link to the CHANGELOG.
+- Thank everyone outside the maintainers whose pull request is in the release, also for tests, CI
+  and docs that the CHANGELOG leaves out. End the release text with a section `## Contributors`, one
+  line per person: `@login: #n, #m. Thank you!`. A first contribution says so:
+  `@login made their first contribution: #n. Thank you!`. Find them with
+  `git log --format='%an %s' <previous tag>..<tag> -- packages/<name>` and the pull requests' authors.
+  The round's discussion repeats the section for the whole round.
 - Start one discussion per release round, not one per tag: create the round's last GitHub release
   with `--discussion-category "Announcements"`, for example
   `gh release create pivotkit-mcp@x.y.z --verify-tag --notes-file notes.md --discussion-category "Announcements"`.
