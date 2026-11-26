@@ -114,14 +114,12 @@ type you pick stays.
 **Chart settings** lists the chart types first. Below them is one row per topic: Value labels,
 Legend, Title, Axis, Tooltip, Reference lines, Series and Layout. Each row shows what is set and opens
 a level. **Back**, Escape or the left arrow goes back to the row. A topic the chart has nothing for
-is left out: a pie has no Axis, a heatmap no Legend and no Series. Its colour scale takes the
-legend's place.
+is left out: a pie has no Axis, a heatmap no Series.
 
 A choice applies at once, and the menu stays open, so the chart behind it shows the change. The
 settings stay with the report: in saved views, links and the chart image. They also stay when the
 chart type changes. An **i** explains Group labels, Tooltip, Zoom slider, Series, Stacked to 100 % and the
-labels of a pie. A line under a choice says what it does where its name alone does not: what
-Automatic shows for this chart, what Every n-th leaves out, what Share in the tooltip adds.
+labels of a pie. A line under Automatic, Every n-th and Share in the tooltip says what each does.
 
 ![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series and Layout](../assets/screenshots/chart-display-light.png#only-light)
 ![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series and Layout](../assets/screenshots/chart-display-dark.png#only-dark)

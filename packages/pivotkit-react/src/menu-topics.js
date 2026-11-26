@@ -104,6 +104,25 @@ function moveTopic(view, zone, index, count, labels, name, type, defaults) {
 }
 
 /**
+ * Default order: back to the order of a new view from any sort, by a column too (#917), as Reset
+ * filter does for the filter. That order has no sort entry (A to Z, oldest first), or it is the
+ * host's order, which comes back without one (withHostOrders). Greyed out while the field sorts so.
+ * @param {any} view @param {string} field @param {string} name the field's name in the note
+ * @param {any} sort the field's sort entry, if any
+ * @param {boolean} hosted the host gives the field an order: `hostOrder` (fieldDefaults.order)
+ * @param {any[]} hostOrder
+ * @param {any} labels
+ * @returns {Topic}
+ */
+function defaultOrderTopic(view, field, name, sort, hosted, hostOrder, labels) {
+    // a custom order's items may have taken the field's type: compared entry by entry, as text
+    const isHostOrder = () => sort.by === "custom" && sort.order === "asc" && sort.items.length === hostOrder.length && sort.items.every((x, i) => String(x) === String(hostOrder[i]));
+    const isDefault = !sort || (hosted ? isHostOrder() : sort.by === "label" && sort.order === "asc");
+    const choice = { id: "sort-default", text: labels.sortDefault, icon: "reset", disabled: isDefault, reason: isDefault ? labels.sortIsDefault : undefined, change: () => ({ view: setSort(view, field, null), note: { step: "sort", field: name } }) };
+    return { id: "sortDefault", title: labels.sortOrder, kind: "inline", groups: [{ choices: [choice] }] };
+}
+
+/**
  * The topics of a field's menu on Rows or Columns: sort by label (side by side), sort by a value,
  * Default order, Filter, the grouping of a date or a number, Top items, Name, Move to.
  * @param {{ view: any, zone: string, index: number, field: string, types: Map<string, string>,
@@ -148,9 +167,6 @@ export function axisTopics({ view, zone, index, field, types, labels, locale, st
         byValue.push(sortChoice("custom", labels.sortCustom, "custom", "asc", null, "sortAsc"), sortChoice("custom-desc", labels.sortCustomDesc, "custom", "desc", null, "sortDesc"));
     }
     const otherSort = sort && sort.by !== "label" ? sortText(view, sort, labels, sort.column && encoded ? columnText(view, sort.column, encoded, labels, locale, limits) : undefined) : null;
-    // the order of a new view: no sort entry (A to Z, oldest first), or the host's order, which comes
-    // back without one (withHostOrders); its items may have taken the field's type
-    const isDefault = !sort || (hosted ? sort.by === "custom" && sort.order === "asc" && sort.items.length === hostOrder.length && sort.items.every((x, i) => String(x) === String(hostOrder[i])) : sort.by === "label" && sort.order === "asc");
     /** @type {Topic[]} */
     const topics = [
         {
@@ -165,8 +181,7 @@ export function axisTopics({ view, zone, index, field, types, labels, locale, st
         },
         // one value: largest and smallest first right here; more: a level of their own
         { id: "sortValue", title: labels.sortByValue, kind: byValue.length <= 2 ? "inline" : "menu", icon: "sortDesc", state: otherSort, changed: Boolean(otherSort), groups: [{ choices: byValue }] },
-        // back to that order from any sort, by a column too (#917), as Reset filter does for the filter
-        { id: "sortDefault", title: labels.sortOrder, kind: "inline", groups: [{ choices: [{ id: "sort-default", text: labels.sortDefault, icon: "reset", disabled: isDefault, reason: isDefault ? labels.sortIsDefault : undefined, change: () => ({ view: setSort(view, field, null), note: { step: "sort", field: name } }) }] }] },
+        defaultOrderTopic(view, field, name, sort, hosted, hostOrder, labels),
         filterTopic({ view, field, labels, locale, state, encoded })
     ];
     if (date) {
@@ -624,6 +639,47 @@ export function moreTopics({ labels, tips, explanations, act }) {
 const VALUE_LABELS = Object.freeze({ slices: ["auto", "off", "value", "percent", "both"], other: ["auto", "off", "value"] });
 
 /**
+ * Chart settings' Tooltip: what it covers (bars, lines, areas: the element or all series) and the
+ * share of the total in it (#54), with a line that says what the share adds (#916).
+ * @param {any} chart the view's chart settings @param {boolean} axis the chart has axes @param {any} labels
+ * @param {(key: string, value: string, text: string, id: string) => Choice} pickOf one choice of several
+ * @param {(key: string, text: string, id: string) => Choice} flip a switch
+ * @returns {Topic}
+ */
+function tooltipTopic(chart, axis, labels, pickOf, flip) {
+    const mode = chart.tooltip ?? "auto";
+    const state = [axis ? labels.tooltipNames[mode] : null, chart.tooltipShare ? labels.tooltipShare : null].filter(Boolean).join(", ");
+    return {
+        id: "tooltip",
+        title: labels.tooltip,
+        kind: "menu",
+        info: axis ? "tooltip" : undefined,
+        state: state || null,
+        changed: mode !== "auto" || Boolean(chart.tooltipShare),
+        groups: [...(axis ? [{ choices: ["auto", "axis"].map((v) => pickOf("tooltip", v, labels.tooltipNames[v], `tooltip-${v}`)) }] : []), { choices: [{ ...flip("tooltipShare", labels.tooltipShare, "chart-tooltip-share"), note: labels.chartNotes.share }] }]
+    };
+}
+
+/**
+ * The lines under the choices of Chart settings whose names alone do not say what they do (#916):
+ * what Automatic does on this chart, as pivotkit-core's chart.js draws it, and what Every n-th does.
+ * @param {string} drawn the type drawn @param {boolean} pie a slice type @param {boolean} legend the chart has a legend
+ * @param {any} chart the view's chart settings @param {any} labels
+ * @returns {{ valueLabels: Record<string, string>, legend: Record<string, string>, axisLabels: Record<string, string> }}
+ */
+function chartNotes(drawn, pie, legend, chart, labels) {
+    const say = labels.chartNotes;
+    // a pie's names, or its shares inside; a treemap's names and values; a heatmap's numbers
+    const autoLabels = pie ? (chart.labelPosition === "inside" ? "shares" : "names") : legend ? "none" : drawn;
+    return {
+        valueLabels: { auto: say[autoLabels] },
+        legend: { auto: say[pie ? "legendSlices" : "legend"] },
+        // horizontal bars write their labels straight: Automatic leaves some out, never slants them
+        axisLabels: { auto: say[drawn === "horizontal" ? "axisSide" : "axis"], nth: say.nth }
+    };
+}
+
+/**
  * The topics of Chart settings after its types (#106, #580), each a row with what is set that opens
  * its level: Value labels, Legend, Title (a form), Axis (axis and group labels, the zoom slider),
  * Tooltip (and the share in it), Reference lines (a form), Series (one switch and one colour per
@@ -654,8 +710,7 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
     const flip = (/** @type {string} */ key, /** @type {string} */ text, /** @type {string} */ id, /** @type {string | undefined} */ info = undefined) => ({ id, text, checkbox: true, checked: Boolean(chart[key]), info, run: () => act.display({ [key]: !chart[key] }) });
     // a pie's "percent" on another type draws the value: it shows as "Value" there
     const valueLabels = !pie && (chart.valueLabels === "percent" || chart.valueLabels === "both") ? "value" : chart.valueLabels;
-    // what Automatic writes on this chart (pivotkit-core's chart.js): a pie's names, or its shares inside
-    const autoLabels = pie ? (chart.labelPosition === "inside" ? "shares" : "names") : legend ? "none" : drawn;
+    const notes = chartNotes(drawn, pie, legend, chart, labels);
     /** @type {Topic[]} */
     const topics = [
         {
@@ -664,9 +719,9 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
             kind: "menu",
             state: labels.valueLabelNames[valueLabels],
             changed: valueLabels !== "auto",
-            groups: [{ choices: (pie ? VALUE_LABELS.slices : VALUE_LABELS.other).map((v) => ({ ...pickOf("valueLabels", v, labels.valueLabelNames[v], `labels-${v}`), checked: valueLabels === v, note: v === "auto" ? labels.chartNotes[autoLabels] : undefined })) }]
+            groups: [{ choices: (pie ? VALUE_LABELS.slices : VALUE_LABELS.other).map((v) => ({ ...pickOf("valueLabels", v, labels.valueLabelNames[v], `labels-${v}`), checked: valueLabels === v, note: notes.valueLabels[v] })) }]
         },
-        ...(legend ? [/** @type {Topic} */ ({ id: "legend", title: labels.legend, kind: "menu", state: labels.legendNames[chart.legend], changed: chart.legend !== "auto", groups: [{ choices: ["auto", "bottom", "right", "off"].map((v) => ({ ...pickOf("legend", v, labels.legendNames[v], `legend-${v}`), note: v === "auto" ? labels.chartNotes[pie ? "legendSlices" : "legend"] : undefined })) }] })] : []),
+        ...(legend ? [/** @type {Topic} */ ({ id: "legend", title: labels.legend, kind: "menu", state: labels.legendNames[chart.legend], changed: chart.legend !== "auto", groups: [{ choices: ["auto", "bottom", "right", "off"].map((v) => ({ ...pickOf("legend", v, labels.legendNames[v], `legend-${v}`), note: notes.legend[v] })) }] })] : []),
         { id: "title", title: labels.chartTitle, kind: "panel", state: chart.title || labels.chartTitleNone, changed: Boolean(chart.title) }
     ];
     if (axis) {
@@ -679,27 +734,13 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
             state: [labels.axisLabelNames[chart.axisLabels], ...off].join(", "),
             changed: chart.axisLabels !== "auto" || off.length > 0,
             groups: [
-                // horizontal bars write their labels straight: Automatic leaves some out, never slants them
-                { title: labels.axisLabels, choices: ["auto", "all", "nth"].map((v) => ({ ...pickOf("axisLabels", v, labels.axisLabelNames[v], `axis-${v}`), note: v === "all" ? undefined : labels.chartNotes[v === "nth" ? "nth" : drawn === "horizontal" ? "axisSide" : "axis"] })) },
+                { title: labels.axisLabels, choices: ["auto", "all", "nth"].map((v) => ({ ...pickOf("axisLabels", v, labels.axisLabelNames[v], `axis-${v}`), note: notes.axisLabels[v] })) },
                 ...(groups ? [{ title: labels.groupLabels, choices: ["auto", "on", "off"].map((v) => pickOf("groupLabels", v, labels.groupLabelNames[v], `groups-${v}`, v === "auto" ? "groupLabels" : undefined)) }] : []),
                 { title: labels.zoom, choices: ["auto", "on", "off"].map((v) => pickOf("zoom", v, labels.zoomNames[v], `zoom-${v}`, v === "auto" ? "zoom" : undefined)) }
             ]
         });
     }
-    if (drawn !== "heatmap") {
-        // what the tooltip covers (bars, lines, areas) and the share of the total in it (#54)
-        const mode = chart.tooltip ?? "auto";
-        const state = [axis ? labels.tooltipNames[mode] : null, chart.tooltipShare ? labels.tooltipShare : null].filter(Boolean).join(", ");
-        topics.push({
-            id: "tooltip",
-            title: labels.tooltip,
-            kind: "menu",
-            info: axis ? "tooltip" : undefined,
-            state: state || null,
-            changed: mode !== "auto" || Boolean(chart.tooltipShare),
-            groups: [...(axis ? [{ choices: ["auto", "axis"].map((v) => pickOf("tooltip", v, labels.tooltipNames[v], `tooltip-${v}`)) }] : []), { choices: [{ ...flip("tooltipShare", labels.tooltipShare, "chart-tooltip-share"), note: labels.chartNotes.share }] }]
-        });
-    }
+    if (drawn !== "heatmap") topics.push(tooltipTopic(chart, axis, labels, pickOf, flip));
     if (axis && CHART_TYPES[drawn]?.lines !== false) {
         // Reference lines: a level of switches (Average, Trend, High and low points), the target's row that opens its form
         // (the hidden topic "linesTarget", toolbar-panels.jsx), and why a line is off as a reason
