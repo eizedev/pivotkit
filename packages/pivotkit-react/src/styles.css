@@ -3098,13 +3098,20 @@
     padding-inline-end: 1.1em;
 }
 
+/* the drag grip after such a name moves past the arrow by the arrow's 0.9em, into that padding too,
+   so it does not cover the arrow on hover and a tap on the arrow reaches the sort button */
+.pk-root .pk-table thead th:has(.pk-th-sort) > .pk-th-grip {
+    position: relative;
+    inset-inline-start: 0.9em;
+}
+
 /* the ring hugs the button's box: with the usual offset it would cross into the next cell, the
    arrow ending 0.2em before the cell's edge */
 .pk-root .pk-th-sort:focus-visible {
     outline-offset: 0;
 }
 
-.pk-th-sort:not(.pk-sorted):is(:hover, :focus-visible) .pk-th-arrow {
+.pk-th-sort:not(.pk-sorted):is(:hover, :focus) .pk-th-arrow {
     color: var(--pk-text);
 }
 
