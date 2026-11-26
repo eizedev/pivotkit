@@ -843,7 +843,7 @@ export const SEARCH_HITS = 8;
 
 /**
  * The entries every word of `query` is found in (its text or its path), at most SEARCH_HITS; those
- * whose text starts with the query first, and whether more matches exist.
+ * whose text starts with the query first.
  * @param {SearchEntry[]} entries
  * @param {string} query
  * @param {string} [locale]

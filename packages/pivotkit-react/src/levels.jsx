@@ -466,17 +466,18 @@ function SearchHits({ hits, labels, onPick, onOpen, close, hasMore }) {
             </p>
         );
     }
-    return (<>
-        <MenuList label={labels.searchResults} close={close} testId="menu-search-hits" lang={labels.lang}>
-            {hits.map((h) => (
-                <MenuItem key={h.id} id={`hit-${h.id}`} text={h.choice ? h.text : `${h.text}…`} plain={h.text} checked={h.choice?.checked} icon={h.choice ? h.topic.icon : "chevronRight"} hint={h.path || undefined} haspopup={h.choice ? undefined : "dialog"} onSelect={() => (h.choice ? onPick(h.choice) : onOpen(h.topic.id, undefined, h.focus))} />
-            ))}
-        </MenuList>
-        {hasMore ? (
-            <p className="pk-hint" role="status" data-testid="menu-search-more">
-                {fill(labels.searchMore, { count: SEARCH_HITS })}
-            </p>
-        ) : null}
+    return (
+        <>
+            <MenuList label={labels.searchResults} close={close} testId="menu-search-hits" lang={labels.lang}>
+                {hits.map((h) => (
+                    <MenuItem key={h.id} id={`hit-${h.id}`} text={h.choice ? h.text : `${h.text}…`} plain={h.text} checked={h.choice?.checked} icon={h.choice ? h.topic.icon : "chevronRight"} hint={h.path || undefined} haspopup={h.choice ? undefined : "dialog"} onSelect={() => (h.choice ? onPick(h.choice) : onOpen(h.topic.id, undefined, h.focus))} />
+                ))}
+            </MenuList>
+            {hasMore ? (
+                <p className="pk-hint" role="status" data-testid="menu-search-more">
+                    {fill(labels.searchMore, { count: SEARCH_HITS })}
+                </p>
+            ) : null}
         </>
     );
 }
