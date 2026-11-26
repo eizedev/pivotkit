@@ -491,9 +491,9 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         const column = target.column ? columnNames.get(JSON.stringify(target.column)) : undefined;
         // a sort in words; no entry is the field's default order
         const words = (s) => sortText(view, s ?? { by: hostOrdered(target.field) ? "custom" : "label", order: "asc" }, labels, s?.column ? columnNames.get(JSON.stringify(s.column)) : undefined);
-        // a header keeps its width: its arrow sits in the cell's padding after the text (styles.css
-        // .pk-th-arrow), so twelve months do not widen the table (#70) and a word that fits the
-        // header is not broken for the arrow's room ("Categor" over "y" on a phone)
+        // a header keeps its width: its arrow follows the last word but takes no room, hanging into
+        // the cell's end padding (styles.css .pk-th-arrow), so twelve months do not widen the table
+        // (#70) and a word that fits the header is not broken for the arrow's room ("Categor" over "y")
         // every sortable header shows a mark, so a reader sees that it sorts (#920): the glyph of the
         // order in use (a sort chosen here, or a custom order), in the sort colour; else up and down
         const sorted = state.chosen || state.order === "other";

@@ -1,8 +1,9 @@
 // Sorting by one column from the table (#70): a month's header sorts the cities by that month, the
 // column field's name in the corner sorts the months, a header's arrow shows at rest only once its
-// sort is chosen (on the others on hover and focus, #920), and the arrows widen nothing.
+// sort is chosen (on the others on hover and focus, #920), and the arrows widen nothing on a wide
+// screen. A header's arrow follows the last word of its name, also on a name in two lines.
 import { encodeViewLink } from "pivotkit-core/link";
-import { expect, test } from "./fixtures.js";
+import { animationsSettled, expect, test } from "./fixtures.js";
 
 /** Revenue by region and channel: the regions in Rows, the channels in Columns. */
 const VIEW = { rows: ["Region"], cols: ["Channel"], values: [{ field: "Revenue", agg: "sum" }] };
@@ -72,6 +73,60 @@ for (const width of [1440, 390]) {
         expect(await page.locator(".pk-table thead .pk-th-arrow").count()).toBeGreaterThanOrEqual(12);
         await page.addStyleTag({ content: ".pk-th-arrow { display: none !important; }" });
         expect(await measure()).toEqual(shown);
+    });
+}
+
+test("twelve months at 1440 px: no header wider than without the arrows and the room at their end", async ({ page }) => {
+    // the room a header that sorts keeps at its end for its arrow widens nothing on a wide screen (#70)
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("?data=weather&lang=en");
+    await expect(page.locator(".pk-table thead .pk-th-arrow").first()).toBeVisible();
+    await animationsSettled(page);
+    const widths = () => page.locator(".pk-table thead th").evaluateAll((ths) => ths.map((th) => Math.round(th.getBoundingClientRect().width)));
+    const shown = await widths();
+    expect(shown.length).toBeGreaterThanOrEqual(13);
+    // a header's start padding: what it has at its end too without the room for its arrow
+    const plain = await page.locator(".pk-table thead th:has(.pk-th-sort)").first().evaluate((th) => getComputedStyle(th).paddingLeft);
+    expect(await page.locator(".pk-table thead th:has(.pk-th-sort)").first().evaluate((th) => getComputedStyle(th).paddingRight)).not.toBe(plain);
+    await page.addStyleTag({ content: `.pk-th-arrow { display: none !important; } .pk-table thead th:has(.pk-th-sort) { padding-inline-end: ${plain} !important; }` });
+    expect(await widths()).toEqual(shown);
+});
+
+for (const width of [1440, 390]) {
+    test(`a header's arrow follows the last word of its name, on one line and on two, with a gap to the cell's edge (${width} px)`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto("?data=weather&lang=en");
+        await expect(page.locator(".pk-table thead .pk-th-arrow").first()).toBeVisible();
+        await animationsSettled(page);
+        const headers = await page.locator(".pk-table thead th:has(.pk-th-sort)").evaluateAll((ths) =>
+            ths.map((th) => {
+                const cell = th.getBoundingClientRect();
+                const arrow = th.querySelector(".pk-th-arrow").getBoundingClientRect();
+                const range = document.createRange();
+                range.selectNodeContents(th.querySelector(".pk-th-text"));
+                const lines = [...range.getClientRects()].filter((r) => r.width > 0);
+                const last = lines.at(-1);
+                const middle = (arrow.top + arrow.bottom) / 2;
+                return {
+                    name: th.textContent.trim(),
+                    lines: new Set(lines.map((r) => Math.round(r.top))).size,
+                    // from the end of the last line to the arrow: its gap of 0.1em
+                    after: arrow.left - last.right,
+                    em: Number.parseFloat(getComputedStyle(th).fontSize),
+                    onLastLine: middle > last.top && middle < last.bottom,
+                    edge: cell.right - arrow.right
+                };
+            })
+        );
+        // a name in two lines or more (the corner's "Date by month of year · 2023–2025 combined") and one in one ("Jan")
+        expect(headers.some((h) => h.lines >= 2)).toBe(true);
+        expect(headers.some((h) => h.lines === 1)).toBe(true);
+        for (const h of headers) {
+            expect(h.onLastLine, h.name).toBe(true);
+            expect(Math.abs(h.after - 0.1 * h.em), h.name).toBeLessThanOrEqual(1);
+            // not at the cell's edge: a gap a reader sees
+            expect(h.edge, h.name).toBeGreaterThanOrEqual(2);
+        }
     });
 }
 

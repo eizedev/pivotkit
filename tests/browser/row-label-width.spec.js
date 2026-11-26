@@ -81,7 +81,10 @@ function labelLayout(page) {
                     if (tops(rects) > 1 && wide <= el.getBoundingClientRect().width) broken.push(m[0]);
                 }
             }
-            return { text: el.textContent, lines: tops(range.getClientRects()), cut: el.scrollWidth > el.clientWidth + 1, broken };
+            // a header's name that sorts is inline text in its button (its arrow follows the last
+            // word): an inline box has no client width, so the button is what would cut it
+            const box = getComputedStyle(el).display === "inline" ? el.parentElement : el;
+            return { text: el.textContent, lines: tops(range.getClientRects()), cut: box.scrollWidth > box.clientWidth + 1, broken };
         });
     });
 }

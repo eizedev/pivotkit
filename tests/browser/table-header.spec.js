@@ -221,6 +221,30 @@ test.describe("the table's header names its fields by zone (#920)", () => {
         await expect(arrow).toHaveCSS("color", strong);
     });
 
+    test("a header's focus ring goes round its name and its arrow and stays inside the cell", async ({ page }) => {
+        await open(page, LAYOUTS[0].view);
+        const table = page.getByTestId("pivot-table");
+        await expect(table.locator("thead .pk-th-sort").first()).toBeVisible();
+        const count = await table.locator("thead .pk-th-sort").count();
+        expect(count).toBeGreaterThan(1);
+        for (let i = 0; i < count; i++) {
+            const button = table.locator("thead .pk-th-sort").nth(i);
+            await button.focus();
+            const box = await button.evaluate((b) => {
+                const s = getComputedStyle(b);
+                const ring = Number.parseFloat(s.outlineWidth) + Number.parseFloat(s.outlineOffset);
+                const own = b.getBoundingClientRect();
+                const arrow = b.querySelector(".pk-th-arrow").getBoundingClientRect();
+                const cell = b.closest("th").getBoundingClientRect();
+                return { name: b.textContent, style: s.outlineStyle, holds: arrow.left >= own.left && arrow.right <= own.right + 0.5 && arrow.top >= own.top && arrow.bottom <= own.bottom, inside: [own.left - ring - cell.left, cell.right - (own.right + ring)] };
+            });
+            expect(box.style, box.name).toBe("solid");
+            expect(box.holds, box.name).toBe(true);
+            expect(box.inside[0], box.name).toBeGreaterThanOrEqual(0);
+            expect(box.inside[1], box.name).toBeGreaterThanOrEqual(0);
+        }
+    });
+
     test("a host sets the sort colour with one token: the sorted header's arrow, the sorted chip's and a custom order's mark turn red, the up-down marks stay grey", async ({ page }) => {
         const red = "rgb(220, 38, 38)";
         const table = page.getByTestId("pivot-table");

@@ -45,8 +45,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 ### Changed
 
 - A sort mark stands behind the name of every header that sorts, so readers see that it sorts, as
-  in AG Grid. A header that is not sorted shows an up-down mark (↕) in grey
-  (`--pk-sort-arrow-rest`, 3:1 on the header and on each zone's fill), in the text colour on hover
+  in AG Grid. It follows the name's last word, on a name in two lines too, and keeps a gap to the
+  cell's edge. It takes no room in the text, so no word breaks for it. A header that sorts has
+  0.25em more room at its end. A row of months keeps its width, and a column as wide as its
+  header's name grows by that 0.25em. The focus ring goes round the name and the mark. A header
+  that is not sorted shows an up-down mark (↕) in grey (`--pk-sort-arrow-rest`, 3:1 on the header
+  and on each zone's fill), in the text colour on hover
   and focus. The sorted header shows the arrow of its order, bold, in the sort colour
   (`--pk-sort-arrow`, the accent blue by default; set it to red, say, to change it), the same arrow
   as on the sorted chip. A custom order shows a list beside the arrow of its direction on both. On a
