@@ -26,8 +26,9 @@
     --pk-weight-medium: 500;
     --pk-weight-strong: 600;
     --pk-weight-bold: 700;
-    /* corners: panels and popovers; buttons, chips and fields */
-    --pk-radius: 10px;
+    /* corners: containers (panels, zones and popovers); controls (buttons, chips, fields and a field's
+       name in the table) */
+    --pk-radius: 8px;
     --pk-radius-sm: 7px;
     /* smaller corners, in step with --pk-radius-sm (4, 5 and 6 px by default): links, a picker's
        options, a column's sort button and keys; small parts inside a chip, a cell or a list (a field's
@@ -148,10 +149,28 @@
     --pk-scrim: rgb(10 14 22 / 0.32);
     --pk-scrim-light: rgb(10 14 22 / 0.18);
     --pk-note: #eef3fd;
-    --pk-type-string: #6250d6;
-    --pk-type-number: #1a7f5a;
-    --pk-type-date: #b5560b;
-    --pk-type-boolean: #a3367a;
+    /* a field's type icon (text, number, date, yes/no): neutral by default; a host may colour each */
+    --pk-type-string: var(--pk-muted);
+    --pk-type-number: var(--pk-muted);
+    --pk-type-date: var(--pk-muted);
+    --pk-type-boolean: var(--pk-muted);
+    /* the zones' colours: the icon of a zone's title, of its chips' fill and of its fields' names in
+       the table, and the field list's mark of a zone. For icons only, never for text */
+    --pk-zone-rows: #1d5fcc;
+    --pk-zone-columns: #a85a00;
+    --pk-zone-values: #0b785c;
+    --pk-zone-filters: var(--pk-muted);
+    /* the fill of a chip, of a field's name in the table and of a zone's mark in the field list: this
+       share of its zone's colour mixed into one opaque base, so a zone's fill is the same colour in
+       the zones, in the field list and in the table */
+    --pk-zone-tint: 16%;
+    --pk-zone-tint-base: var(--pk-surface);
+    /* the small controls on a chip (its grip, the arrow of its menu, its x): 3:1 on every fill */
+    --pk-control-icon: var(--pk-muted);
+    /* the arrow of a sorted header and of a sorted chip: one glyph for one order */
+    --pk-sort-arrow: var(--pk-text);
+    /* a field of the field list under the pointer: its background */
+    --pk-field-hover: var(--pk-surface);
     /* chart palette, shared with ECharts */
     --pk-chart-1: #2a78d6;
     --pk-chart-2: #eb6834;
@@ -197,10 +216,9 @@
     --pk-scrim-light: rgb(0 0 0 / 0.3);
     --pk-note: #1e2638;
     --pk-shadow-lg: 0 16px 40px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.4);
-    --pk-type-string: #a99dff;
-    --pk-type-number: #5fd3a3;
-    --pk-type-date: #f2a65a;
-    --pk-type-boolean: #f08cc6;
+    --pk-zone-rows: #8db4ff;
+    --pk-zone-columns: #f2b559;
+    --pk-zone-values: #5fd6ac;
     --pk-heat-low: #1d2735;
     --pk-heat-high: #3987e5;
     --pk-chart-1: #3987e5;
@@ -635,7 +653,7 @@
 }
 
 .pk-field:hover {
-    background: var(--pk-surface);
+    background: var(--pk-field-hover);
     border-color: var(--pk-border);
     box-shadow: var(--pk-shadow);
 }
@@ -749,8 +767,7 @@
     width: 1.45em;
     height: 1.45em;
     border-radius: var(--pk-radius-mark);
-    background: var(--pk-accent-soft);
-    color: var(--pk-accent);
+    color: var(--pk-zone);
 }
 
 /* quiet in the muted colour of an icon button (no opacity on top: it would fall below 3:1) */
@@ -1109,6 +1126,43 @@
     text-transform: uppercase;
 }
 
+/* a zone's colour: its title's icon, its chips' fill, its fields' names in the table and its mark in
+   the field list (--pk-zone is set here, per zone, not by a host: a host sets --pk-zone-rows ...) */
+:is(.pk-zone-rows, .pk-chip-rows, .pk-badge-rows, .pk-th-zone-rows) {
+    --pk-zone: var(--pk-zone-rows);
+}
+
+:is(.pk-zone-cols, .pk-chip-cols, .pk-badge-cols, .pk-th-zone-cols) {
+    --pk-zone: var(--pk-zone-columns);
+}
+
+:is(.pk-zone-values, .pk-chip-values, .pk-badge-values, .pk-th-zone-values) {
+    --pk-zone: var(--pk-zone-values);
+}
+
+:is(.pk-zone-filters, .pk-chip-filters, .pk-badge-filters) {
+    --pk-zone: var(--pk-zone-filters);
+}
+
+.pk-zone-title .pk-icon {
+    color: var(--pk-zone);
+}
+
+/* the fill: opaque, the same colour wherever the zone shows (over a chip's own background).
+   --pk-zone-fill is internal, not a theme token: set the zone's colour, --pk-zone-tint and
+   --pk-zone-tint-base instead */
+.pk-root .pk-zone-fill {
+    --pk-zone-fill: color-mix(in srgb, var(--pk-zone) var(--pk-zone-tint), var(--pk-zone-tint-base));
+    background: var(--pk-zone-fill);
+}
+
+/* a browser without color-mix(): one neutral fill for every zone; the icons keep the zone's colour */
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+    .pk-root .pk-zone-fill {
+        --pk-zone-fill: var(--pk-surface-3);
+    }
+}
+
 .pk-chips {
     display: flex;
     /* beside the head, never below it by its own width: only the head's full width moves it down */
@@ -1137,7 +1191,7 @@
     height: var(--pk-chip-h);
     padding: 0 2px 0 3px;
     border: 1px solid var(--pk-border);
-    border-radius: 999px;
+    border-radius: var(--pk-radius-sm);
     background: var(--pk-surface);
     box-shadow: var(--pk-shadow-sm);
     cursor: grab;
@@ -1155,19 +1209,24 @@
     opacity: 0.35;
 }
 
-.pk-chip-values {
-    border-color: color-mix(in srgb, var(--pk-type-number) 35%, var(--pk-border));
+/* a chip of Rows, Columns or Values: its zone's fill, no frame of its own (a filter's chip stays
+   neutral); its frame shows on hover */
+.pk-chip.pk-zone-fill:not(:hover) {
+    border-color: transparent;
 }
 
+/* the controls on a chip: one colour that keeps 3:1 on every zone's fill */
 .pk-chip .pk-handle {
     height: var(--pk-target);
-    border-radius: 999px;
+    border-radius: var(--pk-radius-mark);
+    color: var(--pk-control-icon);
+    opacity: 1;
 }
 
 .pk-chip .pk-type {
     width: 1.4em;
     height: 1.4em;
-    border-radius: 999px;
+    border-radius: var(--pk-radius-mark);
 }
 
 .pk-chip-label {
@@ -1178,11 +1237,16 @@
     height: 1.8em;
     padding: 0 0.35em 0 0.3em;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--pk-radius-mark);
     background: transparent;
     cursor: pointer;
     font-weight: var(--pk-weight-strong);
     white-space: nowrap;
+}
+
+.pk-chip-label .pk-caret {
+    color: var(--pk-control-icon);
+    opacity: 1;
 }
 
 .pk-chip-label:hover,
@@ -1245,9 +1309,9 @@
     height: max(var(--pk-target), 1.7em);
     padding: 0;
     border: 0;
-    border-radius: 50%;
+    border-radius: var(--pk-radius-mark);
     background: transparent;
-    color: var(--pk-muted);
+    color: var(--pk-control-icon);
     cursor: pointer;
     transition: background var(--pk-duration), color var(--pk-duration);
 }
@@ -2908,7 +2972,7 @@
 
 .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
     width: var(--pk-label-w, max-content);
-    max-width: var(--pk-label-max, max(6em, 30cqi));
+    max-width: var(--pk-label-max, max(calc(6em + var(--pk-th-extra, 0px)), 30cqi));
 }
 
 /* a narrow report: a little less room around each cell, for the labels' least width below, and a
@@ -2918,7 +2982,7 @@
 }
 
 .pk-root[data-pk-size="narrow"] .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
-    max-width: var(--pk-label-max, max(5.5em, 22cqi));
+    max-width: var(--pk-label-max, max(calc(5.5em + var(--pk-th-extra, 0px)), 22cqi));
 }
 
 /* --pk-label-w and --pk-label-max are internal switches that fitLabels sets through data-pk-labels,
@@ -3002,26 +3066,66 @@
     cursor: pointer;
 }
 
-/* a faint arrow at rest says the name sorts, on a desktop too (#70); pointed at or focused, stronger */
+/* the arrow behind the name: only on the header the table is sorted by, in the text's colour and
+   bold; on any other, while it is pointed at or focused, the order a click gives (a touch screen
+   sorts from the field's menu) */
 .pk-th-arrow {
     position: absolute;
     top: 50%;
-    right: 100%;
+    left: 100%;
     width: 0.8em;
     height: 0.8em;
-    margin-right: 0.05em;
-    opacity: 0.35;
+    margin-left: 0.1em;
+    opacity: 0;
     translate: 0 -50%;
     transition: opacity var(--pk-duration);
 }
 
 .pk-th-sort:is(:hover, :focus) .pk-th-arrow {
-    opacity: 0.6;
+    opacity: 1;
 }
 
-.pk-th-sort.pk-sorted .pk-th-arrow {
+/* one glyph for one order: the sorted header's arrow and the sorted chip's */
+:is(.pk-th-sort.pk-sorted .pk-th-arrow, .pk-chip .pk-sort-glyph) {
     opacity: 1;
-    color: var(--pk-accent);
+    color: var(--pk-sort-arrow);
+    stroke-width: 2.75;
+}
+
+/* a field's name in the table: its zone's icon before it and, but for a value name repeated over the
+   columns, its zone's fill; the corner of a chip, so the reader ties the two together. The fill
+   reaches into the cell's padding (the negative margin), and the arrow stays in that padding as on
+   every header (#70): only the icon widens a column. The field's name is text, never in the zone's
+   colour. Where a cap leaves less room than the icon and a word need, the icon stands above the
+   name instead of breaking a word or widening the column. --pk-th-extra (internal, not a theme token):
+   what a value's icon and fill take from its name's room, so a value name's least width (above)
+   still holds a word such as "Population"; the row labels' caps leave it out, their columns are what
+   a phone has to share with the values */
+.pk-table thead .pk-th-field {
+    --pk-th-extra: 2.1em;
+    flex-wrap: wrap;
+    padding: 0.15em 0.4em;
+    margin-inline: -0.4em;
+    border-radius: var(--pk-radius-sm);
+    color: var(--pk-text);
+}
+
+/* a filled name's fill reaches on under its arrow (0.9em after the text) as a shadow, which takes no
+   room: up to 0.05em before the cell's edge (its padding: 0.85em, 0.6em on a narrow report, where the
+   arrow's end stands out of the fill). So the fill widens no column, and fitLabels' caps (table.jsx)
+   hold for the name as for the labels below it */
+.pk-table thead .pk-th-field.pk-zone-fill {
+    --pk-th-tail: 0.4em;
+    box-shadow: var(--pk-th-tail) 0 0 var(--pk-zone-fill);
+}
+
+.pk-root[data-pk-size="narrow"] .pk-table thead .pk-th-field.pk-zone-fill {
+    --pk-th-tail: 0.15em;
+}
+
+.pk-th-zone {
+    flex: none;
+    color: var(--pk-zone);
 }
 
 .pk-td {
@@ -4063,6 +4167,8 @@
     .pk-zone,
     .pk-section-fold,
     .pk-chip,
+    .pk-chip.pk-zone-fill:not(:hover),
+    .pk-zone-fill,
     .pk-btn {
         border: 1px solid CanvasText;
     }

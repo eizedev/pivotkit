@@ -14,6 +14,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- The zones' colours and the field names in the table's header (see pivotkit-react) add 0.7 KiB to
+  the first load: 179.7 KiB gzip on an official Node 24 build, within its budget of 182.5 KiB ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - The first load is 3.3 KiB smaller: 179.0 KiB gzip on an official Node 24 build, in 13 files as
   before (was 182.3 KiB). Its budget stays at 182.5 KiB. The code moved loads on demand, and the
   budgets of the chart, export and report groups rise with it (260.7, 13.7 and 26.8 KiB):

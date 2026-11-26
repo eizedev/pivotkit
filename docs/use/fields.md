@@ -17,8 +17,8 @@ A field in a zone is a **chip**. Its menu changes how the report shows the field
 
 | Part | Where | What it does |
 | --- | --- | --- |
-| **Fields** | left | Every column of the data, with a search and an icon for its type: text, number, date or yes/no. A mark next to a field shows which zone it is in. When the application describes a field, an **i** next to it says what the field means. A long field name takes two lines and breaks between words only. A word too long for its line ends in "…", and pointing at the name shows it whole. |
-| **The zones** | below the toolbar | **Rows**, **Columns**, **Values** and **Filters**, each a shelf: its title, its **i** and **+ Add** on the left, its chips beside them. On a wide report the shelves form a grid of two equal columns: Filters and Columns on top, Rows and Values below. On a narrow one they stand one below the other. A shelf keeps its width when you add a field, and its chips wrap inside it. The **i** next to a zone's title says what the zone does, with an example. More, Help, **Show explanations** switches these off and on. The zones sit under the heading **Fields in the report**, which folds them. **Swap rows and columns** is at the right end of that heading. |
+| **Fields** | left | Every column of the data, with a search and an icon for its type: text, number, date or yes/no. A mark in the zone's colour next to a field shows which zone it is in. When the application describes a field, an **i** next to it says what the field means. A long field name takes two lines and breaks between words only. A word too long for its line ends in "…", and pointing at the name shows it whole. |
+| **The zones** | below the toolbar | **Rows**, **Columns**, **Values** and **Filters**, each a shelf: its title, its **i** and **+ Add** on the left, its chips beside them. Each zone has a colour and an icon, by default blue for Rows, orange for Columns, green for Values. Their chips take a light tint of it; a filter's chip has none. On a wide report the shelves form a grid of two equal columns: Filters and Columns on top, Rows and Values below. On a narrow one they stand one below the other. A shelf keeps its width when you add a field, and its chips wrap inside it. The **i** next to a zone's title says what the zone does, with an example. More, Help, **Show explanations** switches these off and on. The zones sit under the heading **Fields in the report**, which folds them. **Swap rows and columns** is at the right end of that heading. |
 | **The toolbar** | top | Undo, Redo, Start over (Reset, New), the name of the view you loaded, Views, Export and **More**. **More** holds **Help** first, then what does not fit. See [small screens](layout.md#small-screens). |
 | **The result** | below | The tabs **Table**, **Chart** and, on a wide report, **Both** on top, with the settings of the view shown, **Enlarge** and **Full screen** beside them. Tips stand above the tabs, a status line below the result. |
 
@@ -225,8 +225,11 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
     - The header and the row labels stay in place while you scroll.
     - Fields in Rows without a value show their labels only. They have no empty column, and no
       total rows. The arrows still collapse the groups.
+    - Each field's name in the header carries its zone's icon and tint, the same as its chip: Rows
+      above the row labels, Columns left of their items, Values under the items.
     - You can drag field names and value names from the header into a zone.
-    - With one value, its name stands once over all of its columns.
+    - With one value, its name stands once over all of its columns. With two or more, each value's
+      name repeats under each column with its icon and without the tint.
     - The table is as wide as its columns and scrolls sideways when it is wider than the report.
     - Long row labels wrap between words when the table is wider than the report, so on a phone
       numbers stay in view next to them.
