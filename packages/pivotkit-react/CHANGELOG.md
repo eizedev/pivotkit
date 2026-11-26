@@ -6,6 +6,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-26
+
 ### Added
 
 - Each zone has a colour: `--pk-zone-rows`, `--pk-zone-columns`, `--pk-zone-values` and
@@ -46,6 +48,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.11.0` (was `^0.10.0`) and `pivotkit-report` `^0.7.0` (was
+  `^0.6.0`): a host that also lists pivotkit-core updates both together, or it gets two copies.
 - A sort mark stands behind the name of every header that sorts, so readers see that it sorts, as
   in AG Grid. It follows the name's last word, on a name in two lines too, and keeps a gap to the
   cell's edge. It takes no room in the text, so no word breaks for it. A header that sorts has
@@ -1552,7 +1556,8 @@ First release.
   weather (Open-Meteo), countries (World Bank), earthquakes (USGS), Nobel laureates and the release
   cycles of software products (endoflife.date).
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.10.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.11.0...HEAD
+[0.11.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.10.0...pivotkit-react@0.11.0
 [0.10.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.9.0...pivotkit-react@0.10.0
 [0.9.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.2...pivotkit-react@0.9.0
 [0.8.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.1...pivotkit-react@0.8.2
