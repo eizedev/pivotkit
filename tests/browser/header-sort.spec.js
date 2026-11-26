@@ -1,7 +1,7 @@
 // Sorting by a click on a table header (#55): a value's name sorts the innermost row field by it
 // (largest first, smallest first, off), a row field's name toggles A to Z and Z to A; aria-sort, the
 // arrow, the keyboard, Undo, and the same in the web component.
-import { test, expect, chips, drag, tableRows } from "./fixtures.js";
+import { test, expect, chips, drag, tableRows, tokenColor } from "./fixtures.js";
 
 /** Region in Rows, Units in Values. */
 async function regionUnits(page) {
@@ -36,7 +36,10 @@ test.describe("sorting by a click on a header", () => {
         await expect(header).toHaveAttribute("aria-sort", "descending");
         await expect.poll(() => units(page)).toEqual(ascending(await units(page)).reverse());
         await expect(button).toHaveClass(/pk-sorted/);
-        await expect(button.locator(".pk-th-arrow")).toHaveCSS("opacity", "1");
+        // the sorted header's arrow is in the sort colour; neither the pointer nor the focus the click left decides it
+        await page.mouse.move(0, 0);
+        await button.blur();
+        await expect(button.locator(".pk-th-arrow")).toHaveCSS("color", await tokenColor(page, "--pk-sort-arrow"));
         await expect(page.getByTestId("sort-status")).toHaveText("Region sorted: Largest Sum of Units first");
         // the same sort entry the chip menu writes: its name says so
         await expect(page.getByTestId("chip-menu-Region")).toHaveAccessibleName("Region, sorted Largest Sum of Units first");
@@ -81,9 +84,10 @@ test.describe("sorting by a click on a header", () => {
         const header = page.getByRole("columnheader", { name: "Region" });
         const button = header.getByRole("button", { name: "Region" });
         const start = await names(page);
-        // A to Z is the default, not a chosen sort: no aria-sort (one header at a time), the arrow only on hover and focus
+        // A to Z is the default, not a chosen sort: no aria-sort (one header at a time), the up-down mark
         await expect(header).not.toHaveAttribute("aria-sort");
         await expect(button).not.toHaveClass(/pk-sorted/);
+        await expect(button.locator(".pk-th-arrow")).toHaveCSS("color", await tokenColor(page, "--pk-sort-arrow-rest"));
         await button.click();
         await expect(header).toHaveAttribute("aria-sort", "descending");
         await expect.poll(() => names(page)).toEqual([...start].reverse());
@@ -122,8 +126,10 @@ test.describe("sorting by a click on a header", () => {
         await regionUnits(page);
         const header = page.getByRole("columnheader", { name: "Sum of Units" });
         const button = header.getByRole("button", { name: "Sum of Units" });
+        await expect(button.locator(".pk-th-arrow")).toHaveCSS("color", await tokenColor(page, "--pk-sort-arrow-rest"));
         await button.focus();
-        await expect(button.locator(".pk-th-arrow")).not.toHaveCSS("opacity", "0");
+        // focus strengthens the up-down mark to the text's colour; the sort colour is for a sorted header
+        await expect(button.locator(".pk-th-arrow")).toHaveCSS("color", await tokenColor(page, "--pk-text"));
         await page.keyboard.press("Enter");
         await expect(header).toHaveAttribute("aria-sort", "descending");
         await expect(button).toBeFocused();

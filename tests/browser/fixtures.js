@@ -164,6 +164,16 @@ export async function animationsSettled(page) {
     await expect.poll(() => page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length)).toBe(0);
 }
 
+/** A `--pk-*` token's colour as the browser resolves it in the (first) report. */
+export const tokenColor = (page, token) =>
+    page.locator(".pk-root").first().evaluate((root, name) => {
+        const probe = root.appendChild(document.createElement("span"));
+        probe.style.color = `var(${name})`;
+        const color = getComputedStyle(probe).color;
+        probe.remove();
+        return color;
+    }, token);
+
 /**
  * Sets the report's font to Arial, or Liberation Sans on Linux, which has Arial's widths: a test that
  * measures text in pixels (a chip that must wrap or fit at a width) measures the same on every machine.

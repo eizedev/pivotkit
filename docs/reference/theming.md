@@ -122,7 +122,8 @@ size through the element.
 | `--pk-type-string`<br>`--pk-type-number`<br>`--pk-type-date`<br>`--pk-type-boolean` | Field type icons in the field list and on chips. Neutral, so that colour marks the zones only; set one to colour a type | `var(--pk-muted)` each | as light |
 | `--pk-zone-rows`<br>`--pk-zone-columns`<br>`--pk-zone-values`<br>`--pk-zone-filters` | Each zone's colour: its title's icon, its mark in the field list, the icon before a field's name in the table's header, and the tint of its chips and of that name. For icons only, never for text: each keeps 4.6:1 on `--pk-surface-2` (the values colour also on the Grand Total header, `--pk-total-strong`) and 3:1 on its own fill | `#1d5fcc`<br>`#a85a00`<br>`#0b785c`<br>`var(--pk-muted)` | `#8db4ff`<br>`#f2b559`<br>`#5fd6ac`<br>`var(--pk-muted)` |
 | `--pk-zone-tint`<br>`--pk-zone-tint-base` | The fill of a zone's chips, of its marks in the field list and of a field's name in the table's header: an opaque mix of this share of the zone's colour into this base. A filter's chip has no fill. Where the browser has no `color-mix()`, the fill is `--pk-surface-3`; in forced colours it is a frame | `16%`<br>`var(--pk-surface)` | as light |
-| `--pk-control-icon`<br>`--pk-sort-arrow` | A chip's grip, menu arrow and ×; the sort arrow behind the name of the sorted header in the table and on its chip (drawn bold). The controls, a filter's chip and the type icons keep 3:1 on every zone's fill with the default `--pk-muted`: a host that lightens `--pk-muted` or these tokens must check that | `var(--pk-muted)`<br>`var(--pk-text)` | as light |
+| `--pk-control-icon` | A chip's grip, menu arrow and ×. They keep 3:1 on every zone's fill with the default `--pk-muted`, as do a filter's chip and the type icons: a host that lightens `--pk-muted` or this token must check that | `var(--pk-muted)` | as light |
+| `--pk-sort-arrow`<br>`--pk-sort-arrow-rest` | The sort colour: the arrow behind the name of the sorted header in the table and on its chip (drawn bold), a custom order's mark too ([below](#sort-arrows)); the up-down mark behind every other header that sorts, at rest (in `--pk-text` on hover and focus). Each keeps 3:1 on the header and on every zone's fill | `var(--pk-accent)`<br>`var(--pk-muted)` | as light |
 | `--pk-field-hover` | A field's background in the field list on hover | `var(--pk-surface)` | as light |
 | `--pk-chart-1` ... `--pk-chart-8` | Chart series colours, in this order; read by ECharts | `#2a78d6`<br>`#eb6834`<br>`#1baf7a`<br>`#eda100`<br>`#e87ba4`<br>`#008300`<br>`#6250d6`<br>`#e34948` | `#3987e5`<br>`#d95926`<br>`#199e70`<br>`#c98500`<br>`#d55181`<br>`#008300`<br>`#9085e9`<br>`#e66767` |
 | `--pk-chart-axis` | The chart's axis line, apart from the table's lines. Not set, it is `--pk-border` | not set | not set |
@@ -138,6 +139,20 @@ Both themes meet WCAG contrast:
 
 A test of pivotkit-react, `test/contrast.test.js`, checks every pair of the defaults. When you change
 colours, keep those ratios.
+
+### Sort arrows { #sort-arrows }
+
+Every header that sorts shows a mark behind its name. A header that is not sorted shows an up-down
+mark (↕) in `--pk-sort-arrow-rest`. The sorted header shows the arrow of its order (↑ or ↓) in
+`--pk-sort-arrow`, and so does its field's chip. The sort colour is `--pk-accent` by default. Set it
+to give sorted headers a colour of their own, red for example:
+
+```css
+.pk-root { --pk-sort-arrow: #c62828; }   /* pivotkit-react */
+pivot-report { --pk-sort-arrow: #c62828; }   /* the web component */
+```
+
+Keep 3:1 against the header (`--pk-surface-2`) and the zones' fills, in light and dark.
 
 ## Popovers above the page
 

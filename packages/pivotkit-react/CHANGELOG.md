@@ -12,7 +12,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   `--pk-zone-filters` (the values colour is `#0b785c`, so a value's name keeps 4.6:1 on the Grand
   Total column's header too). Its chips, its marks in the field list and a field's name in the
   table's header take a fill mixed from it (`--pk-zone-tint`, 16 %, into `--pk-zone-tint-base`). New
-  tokens for a chip's controls (`--pk-control-icon`), the sort arrow (`--pk-sort-arrow`) and a
+  tokens for a chip's controls (`--pk-control-icon`), the sort colour (`--pk-sort-arrow`, the accent
+  by default), the up-down mark of a header that is not sorted (`--pk-sort-arrow-rest`) and a
   field's hover in the field list (`--pk-field-hover`)
   ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - Each field's name in the table's header carries its zone's icon and fill; with two or more values
@@ -43,9 +44,15 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
-- The sort arrow stands behind a header's name, at rest only on the sorted header, in the text
-  colour and bold, the same arrow as on the sorted chip. A custom order draws no arrow on either.
-  The sorted header's description says its order and what the next click does
+- A sort mark stands behind the name of every header that sorts, so readers see that it sorts, as
+  in AG Grid. A header that is not sorted shows an up-down mark (↕) in grey
+  (`--pk-sort-arrow-rest`, 3:1 on the header and on each zone's fill), in the text colour on hover
+  and focus. The sorted header shows the arrow of its order, bold, in the sort colour
+  (`--pk-sort-arrow`, the accent blue by default; set it to red, say, to change it), the same arrow
+  as on the sorted chip. A custom order shows a list beside the arrow of its direction on both. On a
+  field's filled name the mark stands inside the fill, as far from its end as the zone's icon from
+  its start. In forced colours the marks take the system's text colour. The sorted header's
+  description says its order and what the next click does
   ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - Chips of rows, columns and values have the zone's fill and no coloured frame; a filter's chip
   stays neutral. The field type icons are neutral: `--pk-type-*` default to `--pk-muted` and stay

@@ -167,8 +167,12 @@
     --pk-zone-tint-base: var(--pk-surface);
     /* the small controls on a chip (its grip, the arrow of its menu, its x): 3:1 on every fill */
     --pk-control-icon: var(--pk-muted);
-    /* the arrow of a sorted header and of a sorted chip: one glyph for one order */
-    --pk-sort-arrow: var(--pk-text);
+    /* the arrow of a sorted header and of a sorted chip: one glyph for one order, in the accent; a host
+       sets its own colour here (red, say). 3:1 on the header and on every zone's fill */
+    --pk-sort-arrow: var(--pk-accent);
+    /* the up-down mark of every other header that sorts, at rest: it says the header sorts; 3:1 on
+       the header and on every zone's fill */
+    --pk-sort-arrow-rest: var(--pk-muted);
     /* a field of the field list under the pointer: its background */
     --pk-field-hover: var(--pk-surface);
     /* chart palette, shared with ECharts */
@@ -3047,7 +3051,7 @@
 }
 
 /* the text of a header that sorts (table.jsx): a button as large as the text, so the cell's edges stay
-   free; its arrow shows the order in use, or on hover and focus the one a click gives */
+   free; its arrow shows the order in use, or an up-down mark that it sorts */
 /* its arrow sits in the cell's padding before the text: a row of months keeps its width (#70), and a
    word that fits its header does not break for the arrow's room ("Categor" over "y" on a phone) */
 .pk-th-sort {
@@ -3066,9 +3070,10 @@
     cursor: pointer;
 }
 
-/* the arrow behind the name: only on the header the table is sorted by, in the text's colour and
-   bold; on any other, while it is pointed at or focused, the order a click gives (a touch screen
-   sorts from the field's menu) */
+/* the mark behind the name, on every header that sorts, so a reader sees that it sorts (#920): on
+   the header the table is sorted by (a custom order too) the arrow of its order, bold, in the sort
+   colour; on any other an up-down mark in a quiet grey, in the text's colour while it is pointed at
+   or focused */
 .pk-th-arrow {
     position: absolute;
     top: 50%;
@@ -3076,18 +3081,17 @@
     width: 0.8em;
     height: 0.8em;
     margin-left: 0.1em;
-    opacity: 0;
+    color: var(--pk-sort-arrow-rest);
     translate: 0 -50%;
-    transition: opacity var(--pk-duration);
+    transition: color var(--pk-duration);
 }
 
-.pk-th-sort:is(:hover, :focus) .pk-th-arrow {
-    opacity: 1;
+.pk-th-sort:not(.pk-sorted):is(:hover, :focus) .pk-th-arrow {
+    color: var(--pk-text);
 }
 
 /* one glyph for one order: the sorted header's arrow and the sorted chip's */
 :is(.pk-th-sort.pk-sorted .pk-th-arrow, .pk-chip .pk-sort-glyph) {
-    opacity: 1;
     color: var(--pk-sort-arrow);
     stroke-width: 2.75;
 }
@@ -3121,6 +3125,13 @@
 
 .pk-root[data-pk-size="narrow"] .pk-table thead .pk-th-field.pk-zone-fill {
     --pk-th-tail: 0.15em;
+}
+
+/* a filled name that sorts: its fill reaches on past its mark as far as the zone's icon stands from
+   the fill's start (0.4em; the mark takes 0.9em after the text), drawn as the shadow above, so it
+   takes no room: no column widens and the caps of fitLabels hold (#70) */
+.pk-table thead .pk-th-field.pk-zone-fill:has(> .pk-th-sort) {
+    --pk-th-tail: 0.9em;
 }
 
 .pk-th-zone {
@@ -4182,6 +4193,15 @@
     /* a tab not shown: its transparent border would turn into a frame too */
     .pk-tab:not([aria-selected="true"]) {
         border-color: Canvas;
+    }
+
+    /* the sort marks: an svg keeps its author colour in forced colours (preserve-parent-color), so the
+       grey and the sort colour would stay; the system's text colour instead. The glyph (up-down or
+       the arrow of the order) and the bold stroke still tell a sorted header apart. As specific as
+       the hover rule above (four classes), so it wins at rest, sorted and on hover */
+    .pk-root .pk-th-sort.pk-th-sort .pk-th-arrow,
+    .pk-root .pk-chip.pk-chip .pk-sort-glyph {
+        color: CanvasText;
     }
 }
 

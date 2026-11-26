@@ -48,7 +48,11 @@ const UI = [["--pk-focus", "--pk-surface"], ["--pk-focus", "--pk-surface-2"], ["
     // the edge of a menu's text fields and selects
     ["--pk-input-border", "--pk-surface"], ["--pk-input-border", "--pk-surface-raised"], ["--pk-input-border", "--pk-surface-2"],
     // the rule between a menu's groups: More's groups have no titles, the rule is all that tells them apart (#128)
-    ["--pk-rule", "--pk-surface-raised"], ["--pk-rule", "--pk-surface"], ["--pk-rule", "--pk-surface-2"]];
+    ["--pk-rule", "--pk-surface-raised"], ["--pk-rule", "--pk-surface"], ["--pk-rule", "--pk-surface-2"],
+    // the sort marks of a header (#920), the sorted arrow and the up-down mark of any other: on the
+    // header, on a header pointed at, on a subtotal column's header and on the Grand Total's
+    ["--pk-sort-arrow", "--pk-surface-2"], ["--pk-sort-arrow", "--pk-surface-3"], ["--pk-sort-arrow", "--pk-total"], ["--pk-sort-arrow", "--pk-total-strong"],
+    ["--pk-sort-arrow-rest", "--pk-surface-2"], ["--pk-sort-arrow-rest", "--pk-surface-3"], ["--pk-sort-arrow-rest", "--pk-total"], ["--pk-sort-arrow-rest", "--pk-total-strong"]];
 
 const ZONES = ["--pk-zone-rows", "--pk-zone-columns", "--pk-zone-values", "--pk-zone-filters"];
 const rgbOf = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -73,6 +77,8 @@ for (const [name, theme] of [["light", light], ["dark", dark]]) {
                 ["--pk-text", fill, 4.5],
                 ["--pk-control-icon", fill, 3],
                 ["--pk-sort-arrow", fill, 3],
+                // the up-down mark of a header that sorts stands at the fill's end (#920)
+                ["--pk-sort-arrow-rest", fill, 3],
                 // the focus ring around a filled chip or header name
                 ["--pk-focus", fill, 3]
             ];

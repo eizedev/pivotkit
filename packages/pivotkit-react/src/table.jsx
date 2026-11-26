@@ -17,7 +17,7 @@ import { Icon, ZONE_ICON } from "./icons.jsx";
 import { cornerLabel, headerField, scopeOf } from "./header-cells.js";
 import { fieldLabel } from "pivotkit-core";
 import { fill } from "./labels.js";
-import { refLabel, sortText } from "./names.js";
+import { refLabel, sortGlyph, sortText } from "./names.js";
 import { headerSortState, headerSortTarget, nextHeaderSort, sortOf } from "./view-ops.js";
 import { VIRTUAL_FROM, longestLabels, rowLabelOf, sliceRows, windowOf } from "./virtual.js";
 import { commonCap } from "./label-room.js";
@@ -494,8 +494,10 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         // a header keeps its width: its arrow sits in the cell's padding after the text (styles.css
         // .pk-th-arrow), so twelve months do not widen the table (#70) and a word that fits the
         // header is not broken for the arrow's room ("Categor" over "y" on a phone)
-        // the arrow of the order in use, else of the one a click gives (shown on hover and focus)
-        const down = state.chosen ? state.order === "descending" : next?.order === "desc";
+        // every sortable header shows a mark, so a reader sees that it sorts (#920): the glyph of the
+        // order in use (a sort chosen here, or a custom order), in the sort colour; else up and down
+        const sorted = state.chosen || state.order === "other";
+        const glyph = sorted ? sortGlyph(sortOf(view, target.field)) : "arrowUpDown";
         const click = () => {
             onSort?.(target.field, next);
             setSortNote(fill(labels.headerSorted, { field, order: words(next) }));
@@ -504,13 +506,13 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         const hint = target.ref && next ? fill(next.order === "desc" ? labels.headerSortDesc : labels.headerSortAsc, { value: column ? fill(labels.valueInColumn, { value: refLabel(view, target.ref, labels), column }) : refLabel(view, target.ref, labels) }) : fill(labels.headerSort, { field, order: words(next) });
         return {
             // aria-sort only on the header whose sort was chosen (a custom order too): one at a time (WAI-ARIA APG)
-            sort: state.chosen || state.order === "other" ? state.order : null,
+            sort: sorted ? state.order : null,
             content: (
                 // the order in use, then the next click's, as the button's description (it replaces the
                 // title's), not its name: the name heads every cell below
-                <button type="button" className={`pk-th-sort${state.chosen ? " pk-sorted" : ""}`} aria-description={state.chosen ? `${fill(labels.stateSorted, { order: words(sortOf(view, target.field)) })}. ${hint}` : undefined} title={hint} onClick={click}>
+                <button type="button" className={`pk-th-sort${sorted ? " pk-sorted" : ""}`} aria-description={sorted ? `${fill(labels.stateSorted, { order: words(sortOf(view, target.field)) })}. ${hint}` : undefined} title={hint} onClick={click}>
                     <span className="pk-th-text">{cell.text}</span>
-                    <Icon name={down ? "arrowDown" : "arrowUp"} size={14} className="pk-th-arrow" />
+                    <Icon name={glyph} size={14} className="pk-th-arrow" />
                 </button>
             )
         };
