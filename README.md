@@ -9,9 +9,9 @@ pivotkit is Excel's PivotTable for web applications and the command line. People
 build a report by dragging fields and take it to Excel. The same report renders again in CI.
 
 <a href="https://pivotkit.eize.dev/demo/"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/report-dark.png">
-  <img src="docs/assets/screenshots/report-light.png" width="100%"
-    alt="The pivot report: average temperature of 14 cities by month as a colour scale">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-weather-dark.png">
+  <img src="docs/assets/screenshots/readme-weather-light.png" width="100%"
+    alt="Table and chart side by side: the average temperature of six cities by month as a colour scale, and a line per city">
 </picture></a>
 
 **[Try the live demo](https://pivotkit.eize.dev/demo/)** · [Documentation](https://pivotkit.eize.dev/) ·
@@ -50,6 +50,30 @@ build a report by dragging fields and take it to Excel. The same report renders 
 - A [REST service](https://pivotkit.eize.dev/getting-started/rest/) and an
   [MCP server](https://pivotkit.eize.dev/getting-started/mcp/) make reports from live data. A model
   gets rows only where the policy shows them: [what reaches an AI model](https://pivotkit.eize.dev/model-data/).
+
+<a href="https://pivotkit.eize.dev/demo/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-start-dark.png">
+  <img src="docs/assets/screenshots/readme-start-light.png" width="100%" alt="The live demo's start: the average temperature of 14 cities by month as a colour scale">
+</picture></a>
+
+<table><tr>
+<td width="25%" valign="top"><b>HTML report</b><br><a href="https://pivotkit.eize.dev/demo/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-report-dark.png">
+  <img src="docs/assets/screenshots/readme-report-light.png" width="100%" alt="The HTML report of the export: chart, table, source, filters and time">
+</picture></a></td>
+<td width="25%" valign="top"><a href="https://pivotkit.eize.dev/demo/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-export-dark.png">
+  <img src="docs/assets/screenshots/readme-export-light.png" width="100%" alt="The Export menu: Excel, CSV, HTML report, chart image, print or PDF, copy, source data">
+</picture></a></td>
+<td width="25%" valign="top"><a href="https://pivotkit.eize.dev/demo/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-drill-dark.png">
+  <img src="docs/assets/screenshots/readme-drill-light.png" width="100%" alt="The rows behind one value: a click on Dubai in February 2025 opens them beside the table">
+</picture></a><br>Click a value to see its rows</td>
+<td width="25%" valign="top"><a href="https://pivotkit.eize.dev/demo/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-chart-dark.png">
+  <img src="docs/assets/screenshots/readme-chart-light.png" width="100%" alt="A line chart of monthly revenue with its average, trend and a target">
+</picture></a></td>
+</tr></table>
 
 Every feature: [feature list](https://pivotkit.eize.dev/features/).
 
@@ -165,7 +189,7 @@ The icon, header and social preview in `assets/` and `docs/assets/icon.svg` come
 [eizedev/brand](https://github.com/eizedev/brand). Their licence is
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-The screenshot shows weather data by [Open-Meteo.com](https://open-meteo.com/)
+The screenshots of the weather show data by [Open-Meteo.com](https://open-meteo.com/)
 ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). It contains modified Copernicus Climate
 Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data.
 The playground's real data sets keep the licences of their sources.
