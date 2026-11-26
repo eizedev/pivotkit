@@ -111,10 +111,9 @@ test.describe("the table's header names its fields by zone (#920)", () => {
                     }
                 }
             }
+            // on the header, and on the Grand Total column's darker header as well
             expect(least.iconOnHeader).toBeGreaterThanOrEqual(4.6);
-            // the grand total's header is a shade darker: a value's icon there keeps the 3:1 of a graphic
-            // (WCAG 1.4.11), the light values green measures 4.5:1
-            expect(least.iconOnGrand).toBeGreaterThanOrEqual(3);
+            expect(least.iconOnGrand).toBeGreaterThanOrEqual(4.6);
             expect(least.iconOnFill).toBeGreaterThanOrEqual(3);
             expect(least.nameOnFill).toBeGreaterThanOrEqual(4.5);
             expect(least.controlsOnFill).toBeGreaterThanOrEqual(3);

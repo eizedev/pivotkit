@@ -72,8 +72,12 @@ for (const [name, theme] of [["light", light], ["dark", dark]]) {
                 [zone, fill, 3],
                 ["--pk-text", fill, 4.5],
                 ["--pk-control-icon", fill, 3],
-                ["--pk-sort-arrow", fill, 3]
+                ["--pk-sort-arrow", fill, 3],
+                // the focus ring around a filled chip or header name
+                ["--pk-focus", fill, 3]
             ];
+            // a value's name repeats over the Grand Total column, whose header is darker
+            if (zone === "--pk-zone-values") pairs.push([zone, theme["--pk-total-strong"], 4.6]);
             for (const [fg, bg, least] of pairs) {
                 const ratio = contrast(theme[fg], bg);
                 assert.ok(ratio >= least, `${fg} on ${bg === fill ? `the fill of ${zone}` : bg}: ${ratio.toFixed(2)}`);

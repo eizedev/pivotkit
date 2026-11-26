@@ -158,7 +158,7 @@
        the table, and the field list's mark of a zone. For icons only, never for text */
     --pk-zone-rows: #1d5fcc;
     --pk-zone-columns: #a85a00;
-    --pk-zone-values: #0b7a5c;
+    --pk-zone-values: #0b785c;
     --pk-zone-filters: var(--pk-muted);
     /* the fill of a chip, of a field's name in the table and of a zone's mark in the field list: this
        share of its zone's colour mixed into one opaque base, so a zone's fill is the same colour in
