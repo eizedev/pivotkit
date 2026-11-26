@@ -106,6 +106,10 @@ After `uvx zensical@<version> build --strict`, `node scripts/check-readme-links.
 - Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed. It is welcome,
   not required: if it is missing, the maintainer adds it before the merge. This includes the entries
   a deprecation or a break needs.
+- Once your pull request is open, end your entry with it and your name, after any issue link:
+  `([#123](https://github.com/eizedev/pivotkit/pull/123), thanks @you)`. If you leave it out, the
+  maintainer adds it. Each release also thanks its contributors by name, including those whose change
+  has no entry.
 - Use Conventional Commits with the package as scope: `feat(core): ...`, `fix(react): ...`.
 
 ## Pull request

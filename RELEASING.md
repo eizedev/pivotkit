@@ -117,7 +117,16 @@ npm stage approve <stage-id>   # or: npm stage reject <stage-id>
 
 ### 5. GitHub release
 
-- Publish a GitHub release for each tag, with a short text and a link to the CHANGELOG.
+- Publish a GitHub release for each tag. Its text: a short summary, a link to the CHANGELOG, and a
+  section `## Contributors`.
+- `## Contributors` thanks everyone whose pull request is in the release and who is neither a
+  maintainer (`.github/CODEOWNERS`) nor a bot, also for tests, CI and docs that the CHANGELOG leaves
+  out. One line per person: `@login: #n, #m. Thank you!`, or
+  `@login made their first contribution: #n, #m. Thank you!` when they had no merged pull request
+  here before (`gh pr list --author <login> --state merged`).
+- Find them with `gh pr list --state merged --search "merged:>=<date of the round's previous tag>" --json number,author,files`.
+  A package's release names the pull requests that touch it. Pull requests that touch no package
+  (docs, CI, root tests) go into the round's last release, and the round's discussion names everyone.
 - Start one discussion per release round, not one per tag: create the round's last GitHub release
   with `--discussion-category "Announcements"`, for example
   `gh release create pivotkit-mcp@x.y.z --verify-tag --notes-file notes.md --discussion-category "Announcements"`.
