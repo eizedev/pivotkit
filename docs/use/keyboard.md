@@ -46,9 +46,9 @@ and what changed. In the report itself, **More**, **Help**, **Keyboard shortcuts
       with that heading. A level of choices is a menu. The Filter level says how many items it keeps as
       it changes.
     - The header whose sort you chose says its order and what the next click does: "sorted Largest
-      Sum of Revenue first. Sort by Sum of Revenue: smallest first". A field's name in the header heads
-      its labels or items, and the empty corner names the fields in Rows and Columns. After a click on a header, a
-      screen reader reads out the new order: "Region sorted: Z to A".
+      Sum of Revenue first. Sort by Sum of Revenue: smallest first". A field's name in the header
+      heads its labels or items, and the empty corner names the fields in Rows and Columns. After a
+      click on a header, a screen reader reads out the new order: "Region sorted: Z to A".
     - The chart has a text alternative: type, values, counts, highest and lowest value.
     - A screen reader reads out status messages, such as "Undone: Region removed" or
       "View “Sales” saved". See [status messages](behaviour.md#status-messages).
