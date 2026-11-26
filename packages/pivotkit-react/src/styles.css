@@ -3104,7 +3104,7 @@
     outline-offset: 0;
 }
 
-.pk-th-sort:not(.pk-sorted):is(:hover, :focus) .pk-th-arrow {
+.pk-th-sort:not(.pk-sorted):is(:hover, :focus-visible) .pk-th-arrow {
     color: var(--pk-text);
 }
 
