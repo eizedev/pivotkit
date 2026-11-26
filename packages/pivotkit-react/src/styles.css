@@ -2956,17 +2956,18 @@
 
 /* A long row label wraps instead of pushing every value out of view on a phone. The caps below apply
    only when the table would be wider than its box even with every label wrapped between words
-   (table.jsx: fitLabels, #584). Then each row label column (and the field name above it) gets at
-   least 5.5em, and the largest of two widths: an equal part of 40 % of the main area (85 % without a
-   value column), or --pk-row-room, the widest a label can be beside the value columns. A value's name
-   wraps beyond 30 %. A virtual table needs rows of one height (2.45em, too low for two lines of 1.45),
-   so there a row label is cut with an ellipsis; its full text is the cell's title and, for a tapped
-   label or a focused value, the status line (table.jsx: onRowLabel). */
+   (table.jsx: fitLabels, #584). Then each row label column gets at least 5.5em (the field name above
+   it 5.5em and its icon's room, --pk-th-extra below), and the largest of two widths: an equal part
+   of 40 % of the main area (85 % without a value column), or --pk-row-room, the widest a label can be
+   beside the value columns. A value's name wraps beyond 30 %. A virtual table needs rows of one
+   height (2.45em, too low for two lines of 1.45), so there a row label is cut with an ellipsis; its
+   full text is the cell's title and, for a tapped label or a focused value, the status line
+   (table.jsx: onRowLabel). */
 /* width: max-content keeps a label on one line when the table is merely wider than the report (its
    columns would shrink to the longest word otherwise); only the cap makes it wrap */
 .pk-table :is(tbody th.pk-rowHeader, thead th.pk-corner) .pk-th-content {
     width: var(--pk-label-w, max-content);
-    max-width: var(--pk-label-max, max(5.5em, calc(var(--pk-row-share, 40cqi) / var(--pk-row-cols, 1)), var(--pk-row-room, 0px)));
+    max-width: var(--pk-label-max, max(calc(5.5em + var(--pk-th-extra, 0px)), calc(var(--pk-row-share, 40cqi) / var(--pk-row-cols, 1)), var(--pk-row-room, 0px)));
 }
 
 /* labels without a value column next to them (fields in Rows alone) take the report's width */
@@ -3125,14 +3126,15 @@
    columns, its zone's fill; the corner of a chip, so the reader ties the two together. The fill
    reaches into the cell's padding (the negative margin), and the arrow hangs into the cell's end
    padding as on every header (#70): only the icon widens a column. The field's name is text, never
-   in the zone's colour. Where a cap leaves less room than the icon and a word need, the icon stands above the
-   name instead of breaking a word or widening the column. --pk-th-extra (internal, not a theme token):
-   what a value's icon and fill take from its name's room, so a value name's least width (above)
-   still holds a word such as "Population"; the row labels' caps leave it out, their columns are what
-   a phone has to share with the values */
+   in the zone's colour. The icon stays beside the name's first line, on its baseline (sort button or
+   not, any height of the button): a long name wraps beside the icon, never below it.
+   --pk-th-extra (internal, not a theme token): what a field's icon and fill take from its name's
+   room, so a name's least width (above) still holds a word such as "Population" beside the icon */
 .pk-table thead .pk-th-field {
     --pk-th-extra: 2.1em;
-    flex-wrap: wrap;
+    /* the icon (14px, table.jsx) stands on the text's baseline: this moves its middle down to the text's */
+    --pk-th-zone-shift: calc(7px - 0.35em);
+    align-items: baseline;
     padding: 0.15em 0.4em;
     margin-inline: -0.4em;
     border-radius: var(--pk-radius-sm);
@@ -3153,6 +3155,16 @@
     --pk-th-tail: 0.15em;
 }
 
+/* on a narrow report a row label column's 5.5em must do without the icon's room, or no value stays
+   in view (#584): there a field's name in the corner takes the whole width under its icon once it
+   wraps, so no word breaks */
+.pk-root[data-pk-size="narrow"] .pk-table thead th.pk-corner .pk-th-field {
+    --pk-th-extra: 0px;
+    --pk-th-zone-shift: 0px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
 /* a filled name that sorts: its fill reaches on past its mark as far as the zone's icon stands from
    the fill's start (0.4em; the mark takes 0.9em after the text), drawn as the shadow above, so it
    takes no room: no column widens and the caps of fitLabels hold (#70). On a name as wide as its
@@ -3163,6 +3175,7 @@
 
 .pk-th-zone {
     flex: none;
+    translate: 0 var(--pk-th-zone-shift, 0px);
     color: var(--pk-zone);
 }
 

@@ -7,7 +7,7 @@
 // their fills, a chip's controls 3:1 on its fill: measured as the browser draws them, light and dark, wide and narrow,
 // in English and German.
 import { encodeViewLink } from "pivotkit-core/link";
-import { expect, test, tokenColor } from "./fixtures.js";
+import { expect, pinFont, test, tokenColor, weatherLongName } from "./fixtures.js";
 import { installContrast } from "./contrast.js";
 
 const count = { field: "Ticket", agg: "count" };
@@ -356,6 +356,75 @@ test.describe("the table's header names its fields by zone (#920)", () => {
             expect(sizes.letters.length, `${width} px`).toBeGreaterThan(1);
             expect(Math.min(...sizes.letters), `${width} px`).toBeGreaterThanOrEqual(sizes.cap);
         }
+    });
+
+    test("a long name wraps beside its zone's icon, which stays on the first line: the weather start view's corner in two lines at 1440 px; every name wide, and all but the corner's narrow", async ({ page }) => {
+        const names = () =>
+            page.getByTestId("pivot-table").locator("thead .pk-th-field").evaluateAll((els) =>
+                els.map((el) => {
+                    const icon = el.querySelector(":scope > .pk-th-zone").getBoundingClientRect();
+                    const node = el.querySelector(".pk-th-text").firstChild;
+                    const range = document.createRange();
+                    range.selectNodeContents(node);
+                    const rects = [...range.getClientRects()];
+                    const lines = [...new Set(rects.map((r) => Math.round(r.top)))];
+                    const first = rects.find((r) => Math.round(r.top) === lines[0]);
+                    // a word that breaks over two lines draws two boxes; a line may break after a dash ("2023–")
+                    const broken = [...node.textContent.matchAll(/[^\s–-]+/g)].filter((m) => {
+                        const word = document.createRange();
+                        word.setStart(node, m.index);
+                        word.setEnd(node, m.index + m[0].length);
+                        return new Set([...word.getClientRects()].map((r) => Math.round(r.top))).size > 1;
+                    });
+                    return {
+                        text: node.textContent,
+                        corner: el.closest("th").classList.contains("pk-corner"),
+                        lines: lines.length,
+                        beside: icon.right <= range.getBoundingClientRect().left + 1,
+                        offset: Math.abs(icon.top + icon.height / 2 - (first.top + first.height / 2)),
+                        broken: broken.map((m) => m[0])
+                    };
+                })
+            );
+        const besideAll = (list, at) => {
+            for (const name of list) {
+                expect(name.beside, `${at}: ${name.text}`).toBe(true);
+                expect(name.offset, `${at}: ${name.text}`).toBeLessThanOrEqual(2);
+                expect(name.broken, `${at}: ${name.text}`).toEqual([]);
+            }
+        };
+        // the weather start view: the column field's long name over the row labels. The font is pinned
+        // and set before the window takes its width, so the table fits its labels to that font
+        await page.setViewportSize({ width: 1400, height: 900 });
+        await page.goto(weatherLongName("&lang=en"));
+        await pinFont(page);
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await expect(page.locator('[data-testid="pivot-table"] thead th').first()).toBeVisible();
+        await expect.poll(async () => (await names())[0].lines).toBeLessThanOrEqual(2);
+        const start = await names();
+        expect(start.map((n) => n.text)).toEqual(["Date by month of year · 2023–2025 combined", "City", "Average of Mean °C"]);
+        besideAll(start, "start view, 1440 px");
+
+        // every place a name stands: column fields, five row fields in the corner and a long value name
+        const many = {
+            rows: ["Team", "Category", "Channel", "Status", "SLA met"],
+            cols: ["Priority"],
+            values: [{ ...lead, label: "Average of the lead hours per ticket" }]
+        };
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await open(page, many);
+        const wide = await names();
+        expect(wide.length).toBe(7);
+        besideAll(wide, "five row fields, 1280 px");
+
+        // on a phone a row label column's least width has no room for the icon beside a word (#584): a
+        // corner name takes the column's whole width once it wraps; every other name keeps its icon beside
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto("?data=weather&lang=en");
+        await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", "narrow");
+        const narrow = await names();
+        besideAll(narrow.filter((n) => !n.corner), "start view, 390 px");
+        expect(narrow.flatMap((n) => n.broken)).toEqual([]);
     });
 
     test("a host's zone colours, fill share and type colours take effect", async ({ page }) => {

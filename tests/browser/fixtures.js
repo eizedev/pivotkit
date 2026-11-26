@@ -1,5 +1,7 @@
 // Shared setup: every test fails when the page logs an error or a warning, or throws.
 import { test as base, expect } from "@playwright/test";
+import { toViewFile } from "pivotkit-core";
+import { encodeViewLink } from "pivotkit-core/link";
 import { LABELS, fill } from "../../packages/pivotkit-react/src/labels.js";
 import { en as menuEn } from "../../packages/pivotkit-react/src/menu-labels.js";
 
@@ -173,6 +175,20 @@ export const tokenColor = (page, token) =>
         probe.remove();
         return color;
     }, token);
+
+/**
+ * The weather start view without its short name for the grouping ("Month"): the table's corner and the
+ * chip show the default name, "Date by month of year", with the years it combines, a name long enough
+ * to wrap. `weatherLongName(query)` is its playground address.
+ */
+const WEATHER_LONG_NAME = toViewFile({
+    rows: ["City"],
+    cols: ["Date by month of year"],
+    derived: [{ name: "Date by month of year", field: "Date", by: "month" }],
+    values: [{ field: "Mean °C", agg: "average", format: "number:1" }],
+    totals: { grandTotalRow: false }
+}, {}, { link: true });
+export const weatherLongName = (query = "") => `?data=weather&empty${query}#pivot-playground=${encodeViewLink(WEATHER_LONG_NAME)}`;
 
 /**
  * Sets the report's font to Arial, or Liberation Sans on Linux, which has Arial's widths: a test that

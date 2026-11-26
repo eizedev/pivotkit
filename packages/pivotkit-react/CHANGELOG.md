@@ -17,8 +17,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   field's hover in the field list (`--pk-field-hover`)
   ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - Each field's name in the table's header carries its zone's icon and fill; with two or more values
-  each value's name carries the icon alone. Header cells name the cells they head (`scope`), and the
-  empty corner names the fields in Rows and Columns for a screen reader ([#920](https://github.com/eizedev/pivotkit/issues/920)).
+  each value's name carries the icon alone. A long name wraps beside its icon. In a narrow report
+  (under 640 px), a long row field's name in the corner wraps under its icon, so that a value stays in
+  view. Header cells name the cells they head (`scope`), and the empty corner names the fields in Rows
+  and Columns for a screen reader ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - The package exports `TIP_IDS` and `NOTICE_IDS`, the ids of the tips and of the notices. A host
   that checks a `tips` list no longer reads them from an internal chunk
   ([#720](https://github.com/eizedev/pivotkit/issues/720)).

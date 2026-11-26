@@ -3,7 +3,7 @@
 // sort is chosen (on the others on hover and focus, #920), and the arrows widen nothing on a wide
 // screen. A header's arrow follows the last word of its name, also on a name in two lines.
 import { encodeViewLink } from "pivotkit-core/link";
-import { animationsSettled, expect, test } from "./fixtures.js";
+import { animationsSettled, expect, test, weatherLongName } from "./fixtures.js";
 
 /** Revenue by region and channel: the regions in Rows, the channels in Columns. */
 const VIEW = { rows: ["Region"], cols: ["Channel"], values: [{ field: "Revenue", agg: "sum" }] };
@@ -62,7 +62,7 @@ for (const width of [1440, 390]) {
     test(`twelve months with resting arrows: no header wider, the corner no taller than without arrows (${width} px)`, async ({ page }) => {
         // the weather report: cities in Rows, months in Columns, a long column field's name in the corner
         await page.setViewportSize({ width, height: 900 });
-        await page.goto("?data=weather&lang=en");
+        await page.goto(weatherLongName("&lang=en"));
         await expect(page.locator(".pk-table thead .pk-th-arrow").first()).toBeVisible();
         const measure = () =>
             page.locator(".pk-table thead").evaluate((head) => ({
@@ -95,7 +95,7 @@ test("twelve months at 1440 px: no header wider than without the arrows and the 
 for (const width of [1440, 390]) {
     test(`a header's arrow follows the last word of its name, on one line and on two, with a gap to the cell's edge (${width} px)`, async ({ page }) => {
         await page.setViewportSize({ width, height: 900 });
-        await page.goto("?data=weather&lang=en");
+        await page.goto(weatherLongName("&lang=en"));
         await expect(page.locator(".pk-table thead .pk-th-arrow").first()).toBeVisible();
         await animationsSettled(page);
         const headers = await page.locator(".pk-table thead th:has(.pk-th-sort)").evaluateAll((ths) =>

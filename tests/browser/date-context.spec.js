@@ -4,20 +4,8 @@
 import { readFile } from "node:fs/promises";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
-import { test, expect, openZones } from "./fixtures.js";
+import { test, expect, openZones, weatherLongName as cyclic } from "./fixtures.js";
 
-/**
- * The weather start view without its short name for the grouping: the table's corner and the chip
- * show the default name, "Date by month of year", with the years it combines.
- */
-const CYCLIC = toViewFile({
-    rows: ["City"],
-    cols: ["Date by month of year"],
-    derived: [{ name: "Date by month of year", field: "Date", by: "month" }],
-    values: [{ field: "Mean °C", agg: "average", format: "number:1" }],
-    totals: { grandTotalRow: false }
-}, {}, { link: true });
-const cyclic = (query = "") => `?data=weather&empty${query}#pivot-playground=${encodeViewLink(CYCLIC)}`;
 for (const lang of ["en", "de"]) {
     test(`weather date context and Group level (${lang}) #109`, async ({ page }) => {
         await page.goto(cyclic(`&lang=${lang}`));
