@@ -174,6 +174,7 @@ export const de = {
         moved: "{field} nach {zone} verschoben",
         reordered: "Reihenfolge in {zone}",
         sort: "Sortierung von {field}",
+        sortDefault: "Standardreihenfolge von {field}",
         group: "Gruppierung von {field}",
         rename: "Name von {field}",
         filter: "Filter auf {field}",

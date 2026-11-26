@@ -147,13 +147,14 @@ A row opens the topic's own level in the menu's place. The level's title names t
 that differs from the one the report starts with has a dot before it: "Filter · ● 4 of 12". A
 screen reader hears ", changed" after it.
 
-![A field's menu: sort A to Z and Z to A side by side, sort by the value, then Filter, Top items and Move to, each with what is set](../assets/screenshots/field-menu-light.png#only-light)
-![A field's menu: sort A to Z and Z to A side by side, sort by the value, then Filter, Top items and Move to, each with what is set](../assets/screenshots/field-menu-dark.png#only-dark)
+![A field's menu: sort A to Z and Z to A side by side, sort by the value, Default order, then Filter, Top items and Move to, each with what is set](../assets/screenshots/field-menu-light.png#only-light)
+![A field's menu: sort A to Z and Z to A side by side, sort by the value, Default order, then Filter, Top items and Move to, each with what is set](../assets/screenshots/field-menu-dark.png#only-dark)
 
 | Topic | What it offers |
 | --- | --- |
 | **Sort** | A to Z and Z to A side by side on the first level. For a date they read Oldest and Newest. While the field sorts by a value, the row says by which: "Largest Sum of Revenue first". |
 | Sort by value | With one value in the report: "Largest Sum of Revenue first" and "Smallest Sum of Revenue first" on the first level. With more values, or a custom order: a level **Sort by value**. It has a pair for each value that gives a number. When the field has a custom order, such as the seasons in the order of the year, it also has "Custom order" and "Custom order, reversed". See [sorting](filters.md#sorting). Its row names the sort in use. |
+| Sort order | **Default order** on the first level: the field's own order. See [sorting](filters.md#sorting). Greyed out, with "Already the default order.", while the field sorts this way. |
 | **Filter** | A level that starts with a summary of what shows. Then come, for a date, its quick choices, such as "Last 2 years". For a month-of-the-year grouping these are the years combined. Then the values to keep, and its rules as sentences with what each keeps: the item itself compared, its total compared, a rule on its name. See [filters](filters.md). Its row says what the filter keeps: "4 of 12", "last 2 years (2025; 2026 has no data)", "from 2022", "Sum of Revenue > 1,000". A chip in **Filters** has a menu of its own: Filter, Group for a date, Name, Move to and Remove field. |
 | **Group** (dates) | A level with the data's range on top and three kinds of choice. One item per period: year, quarter, month, week, day. Same period, years combined: quarter, month, week of the year, weekday, hour. Or no grouping. See [dates](values.md#dates-and-number-ranges). |
 | **Number ranges** (numbers) | A level with the size of the ranges and where they start. See [ranges](values.md#number-ranges). |

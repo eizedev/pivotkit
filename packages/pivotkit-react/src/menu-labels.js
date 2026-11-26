@@ -31,7 +31,7 @@ export const en = {
         drillJson: "The rows as JSON objects, with the data's field names and raw values, for a program.",
         groupLabels: "With two or more fields in Rows: the outer field's items written once under the axis, below their categories.",
         chartColors: "A switch shows or hides each series or slice. The colour beside it fixes its colour by name, in the view and in every chart that shows that name.",
-        tooltip: "Automatic: a bar, segment or point shows only itself. Between them, every series shows. Stacked sums and counts also show the total. All series: always every series of that category.",
+        tooltip: "Automatic: a bar, segment or point shows only itself. Between them, every series shows. Stacked sums and counts also show the total. All series: always every series of that category. Share in the tooltip adds the share of sums and counts: of the series' total with one series, of the category's total with several. Not for averages, values below zero or a category with one value left.",
         stackPercent: "Each stack fills the axis; each part shows its share. Value labels show the share too. Only for sums and counts. A stack with parts below zero does not fill the axis, and one that adds up to nothing is left out.",
         zoom: "A slider under the axis shows a part of the categories. Automatic: with more than 20 categories, or when the axis would leave out 3 names or more between two. The arrow keys move it once it has the focus. Off shows every category. Files and prints show every category.",
         labelPosition: "Outside: each slice's name and number next to it. Inside: the number on the slice, the names in the legend; outside when a donut's ring is too thin for it.",
@@ -54,6 +54,11 @@ export const en = {
     sortByValue: "Sort by value",
     sortOldestShort: "Oldest",
     sortNewestShort: "Newest",
+    // back to the order of a new view (#917), and why it is greyed out
+    sortOrder: "Sort order",
+    sortDefault: "Default order",
+    sortIsDefault: "Already the default order.",
+    sortDefaultKeywords: "reset unsorted",
     filterTopic: "Filter",
     filterAll: "All",
     groupTopic: "Group",
@@ -439,6 +444,8 @@ export const en = {
     labelPositionNames: { outside: "Outside", inside: "Inside" },
     axisLabels: "Axis labels",
     axisLabelNames: { auto: "Automatic", all: "All (slanted)", nth: "Every n-th" },
+    // horizontal bars write every name straight (#963)
+    axisLabelAllStraight: "All",
     groupLabels: "Group labels under the axis",
     groupLabelNames: { auto: "Automatic", on: "On", off: "Off" },
     tooltip: "Tooltip",
@@ -451,6 +458,24 @@ export const en = {
     chartAxis: "Axis",
     chartLayout: "Layout",
     tooltipShare: "Share in the tooltip",
+    // the line under a choice of Chart settings that says what it does (#916): what Automatic
+    // writes or where it puts the legend, by chart, Every n-th, All on horizontal bars, the trend
+    // and the share in the tooltip
+    chartNotes: {
+        none: "None; the tooltip shows the numbers.",
+        names: "Each slice's name.",
+        shares: "Each slice's share.",
+        treemap: "Each tile's name and value.",
+        heatmap: "The numbers, up to 200 filled cells, when the cells are large enough.",
+        legend: "Above, with two or more series.",
+        legendSlices: "Above.",
+        axis: "Straight if they fit, else slanted; every n-th if still too many.",
+        axisSide: "All if they fit, else every n-th.",
+        nth: "Straight, with gaps so none overlap.",
+        allStraight: "Every name, straight, even where they overlap.",
+        trend: "A straight line that best fits the values.",
+        share: "Sums and counts with their share of the total, such as 25%. Not for averages."
+    },
     colorOf: "Colour of {name}",
     colorDefault: "Default",
     colorRemove: "Remove",

@@ -210,6 +210,9 @@ The menu of a row or column field offers:
   values, **Sort by value** lists them.
 - **Custom order** sorts in an order the application gives the field, such as the seasons. A field
   with such an order is sorted in it when you place it. Choose A to Z to use names instead.
+- **Default order** takes the field back to its own order: A to Z, oldest first for a date, or the
+  order the application gives it. It is not the report's start view. It ends a sort by a value or by
+  a column too. It is greyed out while the field already sorts this way.
 
 ??? info "Values that cannot sort"
     Values that give no number cannot sort: a list of distinct values, the first or last entry of a

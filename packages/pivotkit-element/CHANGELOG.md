@@ -11,6 +11,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 - The import preview lets a person pick a column's decimal mark. See pivotkit-react's changelog.
   The import group grows to 23.7 KiB gzip on an official Node 24 build, its budget to 23.9 KiB
   ([#787](https://github.com/eizedev/pivotkit/issues/787)).
+- A field's menu has Default order, and Chart settings says what its unclear choices do. See
+  pivotkit-react's changelog. On an official Node 24 build the menus group grows to 60.3 KiB gzip, its budget
+  to 60.3 KiB, and the texts group, with the German menu texts, to 8.7 KiB, its budget to 8.8 KiB
+  ([#916](https://github.com/eizedev/pivotkit/issues/916),
+  [#917](https://github.com/eizedev/pivotkit/issues/917),
+  [#963](https://github.com/eizedev/pivotkit/issues/963)).
 
 ### Changed
 
