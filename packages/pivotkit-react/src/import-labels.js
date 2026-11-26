@@ -30,9 +30,15 @@ export const en = {
     sheet: "Sheet",
     hiddenSheet: "{name} (hidden)",
     firstRows: "The first rows",
-    someColumns: "The first {shown} of {count} columns are shown; the others keep the type found.",
+    someColumns: "The first {shown} of {count} columns are shown; the others keep the type and decimal mark found.",
     typeOf: "Type of {column}",
     types: { string: "Text", number: "Number", date: "Date", boolean: "Yes/No" },
+    // a number column whose values fit both decimal marks: the question above its choice and the
+    // choice's two options; docs/reference/localisation.md has their placeholders. The decimal reading
+    // is spelt out: "1,234" next to “1,234” means would read as "1,234 means 1,234"
+    markOf: "(decimal mark of {column})",
+    markQuestion: "“{example}” means",
+    markOption: { decimal: "{whole} point {fraction}", thousands: "{value} (thousands)" },
     yes: "Yes",
     no: "No",
     noRows: "The file holds no rows.",
@@ -72,7 +78,7 @@ export const en = {
         TEXT_CUT: { one: "{count} value longer than {max} characters was cut.", other: "{count} values longer than {max} characters were cut." },
         CHARACTERS_REMOVED: { one: "Control or text direction characters were removed from {count} value.", other: "Control or text direction characters were removed from {count} values." },
         DATE_ORDER: "Dates in “{column}” were read as {order}; the values fit both.",
-        DECIMAL_MARK: "Numbers in “{column}” were read with “{decimal}” as the decimal mark; some, such as “{example}”, also fit the other mark. If that is wrong, write them with the other mark in the file.",
+        DECIMAL_MARK: "Numbers in “{column}” were read with “{decimal}” as the decimal mark; some, such as “{example}”, also fit the other mark. To change it, pick what “{example}” means under the column's name, or write the numbers with the other mark in the file.",
         VALUES_NOT_CONVERTED: { one: "{count} value in “{column}” cannot be read as {type} and is empty.", other: "{count} values in “{column}” cannot be read as {type} and are empty." },
         NUMBERS_TOO_LARGE: "Numbers in “{column}” too large to hold are empty: {count}.",
         NUMBERS_ROUNDED: "Long whole numbers in “{column}” may have lost digits: {count}. Write IDs as text in the file.",
@@ -111,9 +117,12 @@ export const de = {
     sheet: "Blatt",
     hiddenSheet: "{name} (ausgeblendet)",
     firstRows: "Die ersten Zeilen",
-    someColumns: "Die ersten {shown} von {count} Spalten werden gezeigt; die anderen behalten den erkannten Typ.",
+    someColumns: "Die ersten {shown} von {count} Spalten werden gezeigt; die anderen behalten den erkannten Typ und das erkannte Dezimalzeichen.",
     typeOf: "Typ von {column}",
     types: { string: "Text", number: "Zahl", date: "Datum", boolean: "Ja/Nein" },
+    markOf: "(Dezimalzeichen von {column})",
+    markQuestion: "„{example}“ bedeutet",
+    markOption: { decimal: "{whole} Komma {fraction}", thousands: "{value} (Tausender)" },
     yes: "Ja",
     no: "Nein",
     noRows: "Die Datei enthält keine Zeilen.",
@@ -146,7 +155,7 @@ export const de = {
         TEXT_CUT: { one: "{count} Wert mit mehr als {max} Zeichen wurde gekürzt.", other: "{count} Werte mit mehr als {max} Zeichen wurden gekürzt." },
         CHARACTERS_REMOVED: { one: "Aus {count} Wert wurden Steuer- oder Richtungszeichen entfernt.", other: "Aus {count} Werten wurden Steuer- oder Richtungszeichen entfernt." },
         DATE_ORDER: "Datumswerte in „{column}“ wurden als {order} gelesen; die Werte passen zu beidem.",
-        DECIMAL_MARK: "Zahlen in „{column}“ wurden mit „{decimal}“ als Dezimalzeichen gelesen; einige, etwa „{example}“, passen auch zum anderen Zeichen. Stimmt das nicht, schreib sie in der Datei mit dem anderen Zeichen.",
+        DECIMAL_MARK: "Zahlen in „{column}“ wurden mit „{decimal}“ als Dezimalzeichen gelesen; einige, etwa „{example}“, passen auch zum anderen Zeichen. Zum Ändern wähl unter dem Namen der Spalte, was „{example}“ bedeutet, oder schreib die Zahlen in der Datei mit dem anderen Zeichen.",
         VALUES_NOT_CONVERTED: { one: "{count} Wert in „{column}“ lässt sich nicht als {type} lesen und bleibt leer.", other: "{count} Werte in „{column}“ lassen sich nicht als {type} lesen und bleiben leer." },
         NUMBERS_TOO_LARGE: "Zu große Zahlen in „{column}“ bleiben leer: {count}.",
         NUMBERS_ROUNDED: "Lange ganze Zahlen in „{column}“ haben vielleicht Stellen verloren: {count}. Schreib Kennungen in der Datei als Text.",
@@ -182,6 +191,43 @@ export function importLabels(labels) {
     const out = /** @type {ImportTexts} */ (mergeLabels(base, own));
     done.set(labels, out);
     return out;
+}
+
+/**
+ * The texts of a column's decimal mark choice from its note DECIMAL_MARK: the mark read, the question with the note's
+ * example, the full text for a tooltip and the two options, what the example reads as with each mark.
+ * Null when the params lack a finite number for either mark or a mark of "." or "," (a plugin's own
+ * note), or the texts lack `markQuestion`, `markOption` or `markOf`: such a note offers no choice.
+ * @param {Record<string, unknown>} params  the note's params: decimal, example, point, comma
+ * @param {ImportTexts} texts
+ * @returns {{ decimal: "." | ",", question: string, title: string, options: Array<{ value: "." | ",", text: string }> } | null}
+ */
+export function markTexts(params, texts) {
+    const { decimal, example, point, comma } = params;
+    if (typeof point !== "number" || typeof comma !== "number" || !Number.isFinite(point) || !Number.isFinite(comma)) {
+        return null;
+    }
+    if (decimal !== "." && decimal !== ",") {
+        return null;
+    }
+    const forms = /** @type {Record<string, unknown>} */ (texts.markOption ?? {});
+    if (typeof texts.markQuestion !== "string" || typeof texts.markOf !== "string" || typeof forms.decimal !== "string" || typeof forms.thousands !== "string") {
+        return null;
+    }
+    // the separator in the example (it has one: only "1,234" or "1.234" with a sign read as different
+    // numbers): the decimal mark when the option's mark is that character. Both readings are built from
+    // the example as written, sign and trailing zeros kept: "-2.500" is "-2 point 500" or "-2500", not
+    // the -2.5 of `point` in the locale's notation. The question and both options then show the same
+    // digits and signs, and no locale puts its mark back in
+    const text = String(example);
+    const separator = text.includes(",") ? "," : ".";
+    const at = text.lastIndexOf(separator);
+    const sides = { whole: text.slice(0, at) || "0", fraction: text.slice(at + 1), value: text.slice(0, at) + text.slice(at + 1) };
+    const option = (/** @type {"." | ","} */ mark) => ({ value: mark, text: fill(texts.markOption[separator === mark ? "decimal" : "thousands"], sides) });
+    const options = [option("."), option(",")];
+    const question = fill(texts.markQuestion, { example: text });
+    const chosen = options.find((o) => o.value === decimal);
+    return { decimal, question, title: `${question} ${chosen?.text}`, options };
 }
 
 /**

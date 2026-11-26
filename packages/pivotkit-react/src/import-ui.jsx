@@ -6,9 +6,9 @@
  * result. Loaded on first use (lazy-import.js), with its texts (import-labels.js); the report itself
  * keeps only the button, the drop handlers and the file input.
  *
- * The preview reads the file once; another type for a column is pivotkit-core's retype() of the
- * values as read, another sheet reads the file again. "Load data" encodes the table (the columns as
- * the preview shows them) and hands it to the report, which records the step for Undo.
+ * The preview reads the file once; another type or decimal mark for a column is pivotkit-core's
+ * retype() of the values as read, another sheet reads the file again. "Load data" encodes the table
+ * (the columns as the preview shows them) and hands it to the report, which records the step for Undo.
  */
 
 import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -17,7 +17,7 @@ import { encode } from "pivotkit-core";
 import { IMPORT_TYPES, fileName, retype, shownName, sourceIdOf } from "pivotkit-core/import";
 import { useFormName, useModal } from "./dom.js";
 import { Icon } from "./icons.jsx";
-import { errorText, importLabels, noteText } from "./import-labels.js";
+import { errorText, importLabels, markTexts, noteText } from "./import-labels.js";
 import { formatsOf, readImport, sheetsOf } from "./import-run.js";
 import { fill, messageOf, plural } from "./labels.js";
 import { Group, LayerContext, Option, hasTopLayer, useTopLayer } from "./popover.jsx";
@@ -146,6 +146,78 @@ function cellText(value, type, t, locale) {
 }
 
 /**
+ * The table as the preview shows it: the types and decimal marks the person picked, from the values
+ * as read (a pick that cannot be read that way keeps the table as it was and says why).
+ * @param {import("pivotkit-core/import").ImportTable | null} base
+ * @param {import("pivotkit-core/import").ImportType[] | null} types
+ * @param {Array<"." | "," | undefined> | null} marks
+ */
+function pickedTable(base, types, marks) {
+    if (!base || ((!types || types.every((ty, i) => ty === base.types[i])) && !marks)) {
+        return { table: base, error: null };
+    }
+    try {
+        return { table: retype(base, types ?? base.types, { decimal: marks ?? [] }), error: null };
+    } catch (e) {
+        return { table: base, error: messageOf(e) };
+    }
+}
+
+/**
+ * Which decimal mark a column's numbers are written in, while they fit both (the reader's note
+ * DECIMAL_MARK): a question with the note's example above a choice of what it reads as with each
+ * mark (markTexts), such as "1234 (thousands)" and "1 point 234". The question is the select's
+ * label, so clicking it focuses the select. A note without the example's two numbers offers no choice.
+ * @param {{ name: string, index: number, mark: Record<string, unknown>, t: import("./import-labels.js").ImportTexts,
+ *   formName: string, onMark: (mark: string) => void }} props  `mark`: the note's params
+ */
+function MarkChoice({ name, index, mark, t, formName, onMark }) {
+    const id = useId();
+    const texts = markTexts(mark, t);
+    if (!texts) {
+        return null;
+    }
+    // the visible question names the select, the column follows for a screen reader (Label in Name)
+    return (
+        <>
+            <label htmlFor={id} className="pk-hint" data-testid={`import-question-${index}`}>
+                {texts.question}
+                <span className="pk-sr"> {fill(t.markOf, { column: name })}</span>
+            </label>
+            <select id={id} className="pk-import-mark" name={`${formName}-mark-${index}`} value={texts.decimal} title={texts.title} onChange={(e) => onMark(e.target.value)} data-testid={`import-mark-${index}`}>
+                {texts.options.map((o) => (
+                    <option key={o.value} value={o.value}>
+                        {o.text}
+                    </option>
+                ))}
+            </select>
+        </>
+    );
+}
+
+/**
+ * A column's head in the preview: its name, its type, and the decimal mark of its numbers while
+ * they fit both (MarkChoice).
+ * @param {{ name: string, index: number, type: string, mark: Record<string, unknown> | null, t: import("./import-labels.js").ImportTexts,
+ *   formName: string, onType: (type: string) => void, onMark: (mark: string) => void }} props  `mark`: the note's params
+ */
+function ColumnHead({ name, index, type, mark, t, formName, onType, onMark }) {
+    return (
+        <th scope="col">
+            {name}
+            <select name={`${formName}-type-${index}`} value={type} aria-label={fill(t.typeOf, { column: name })} onChange={(e) => onType(e.target.value)} data-testid={`import-type-${index}`}>
+                {IMPORT_TYPES.map((ty) => (
+                    <option key={ty} value={ty}>
+                        {t.types[ty]}
+                    </option>
+                ))}
+            </select>
+            {mark ? <MarkChoice name={name} index={index} mark={mark} t={t} formName={formName} onMark={onMark} /> : null}
+        </th>
+    );
+}
+
+/**
  * @typedef {object} LoadedData  what "Load data" hands the report
  * @property {import("pivotkit-core").Encoded} encoded
  * @property {{ id: string, name: string }} source  the id for the saved views (pivotkit-core/import's sourceIdOf), the name shown
@@ -182,6 +254,8 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
     const [sheets, setSheets] = useState(/** @type {import("pivotkit-core/import").SheetInfo[]} */ ([]));
     const [read, setRead] = useState(/** @type {{ table: import("pivotkit-core/import").ImportTable, sheet: number | string | undefined } | null} */ (null));
     const [types, setTypes] = useState(/** @type {import("pivotkit-core/import").ImportType[] | null} */ (null));
+    // the decimal marks the person picked, by column; the others as the reader found them
+    const [marks, setMarks] = useState(/** @type {Array<"." | "," | undefined> | null} */ (null));
     const [progress, setProgress] = useState(/** @type {import("pivotkit-core/import").ImportProgress | null} */ (null));
     const [error, setError] = useState(/** @type {string | null} */ (null));
     const [busy, setBusy] = useState(false);
@@ -221,6 +295,7 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
                 if (!controller.signal.aborted) {
                     setRead({ table, sheet });
                     setTypes(null);
+                    setMarks(null);
                 }
             },
             (e) => {
@@ -251,18 +326,7 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
     }, [file]);
 
     const base = current?.table ?? null;
-    // the table as the preview shows it: the types the person picked, from the values as read (a type
-    // that cannot be read that way keeps the types as they were and says why)
-    const typed = useMemo(() => {
-        if (!base || !types || types.every((ty, i) => ty === base.types[i])) {
-            return { table: base, error: null };
-        }
-        try {
-            return { table: retype(base, types), error: null };
-        } catch (e) {
-            return { table: base, error: messageOf(e) };
-        }
-    }, [base, types]);
+    const typed = useMemo(() => pickedTable(base, types, marks), [base, types, marks]);
     const shown = typed.table;
 
     const box = useRef(/** @type {HTMLDivElement | null} */ (null));
@@ -374,6 +438,7 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
                                     setError(null);
                                     setFailed(null);
                                     setTypes(null);
+                                    setMarks(null);
                                     setSheet(Number(e.target.value));
                                 }} data-testid="import-sheet">
                                 {sheets.map((s) => (
@@ -404,22 +469,17 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
                                     <thead>
                                         <tr>
                                             {cols.map((c, i) => (
-                                                <th key={i} scope="col">
-                                                    {c}
-                                                    <select
-                                                        name={`${formName}-type-${i}`}
-                                                        value={shown.types[i]}
-                                                        aria-label={fill(t.typeOf, { column: c })}
-                                                        onChange={(e) => setTypes((old) => (old ?? base?.types ?? []).map((ty, k) => (k === i ? /** @type {import("pivotkit-core/import").ImportType} */ (e.target.value) : ty)))}
-                                                        data-testid={`import-type-${i}`}
-                                                    >
-                                                        {IMPORT_TYPES.map((ty) => (
-                                                            <option key={ty} value={ty}>
-                                                                {t.types[ty]}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                </th>
+                                                <ColumnHead
+                                                    key={i}
+                                                    name={c}
+                                                    index={i}
+                                                    type={shown.types[i]}
+                                                    mark={shown.types[i] === "number" ? (shown.notes.find((n) => n.code === "DECIMAL_MARK" && n.params.column === c)?.params ?? null) : null}
+                                                    t={t}
+                                                    formName={formName}
+                                                    onType={(type) => setTypes((old) => (old ?? base?.types ?? []).map((ty, k) => (k === i ? /** @type {import("pivotkit-core/import").ImportType} */ (type) : ty)))}
+                                                    onMark={(mark) => setMarks((old) => Object.assign([], old, { [i]: mark }))}
+                                                />
                                             ))}
                                         </tr>
                                     </thead>

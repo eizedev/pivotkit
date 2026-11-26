@@ -8,6 +8,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `retype(table, types, { decimal })` picks the decimal mark of number columns, `"."` or `","`, by
+  name or position. Their text reads in that mark alone; a value that does not fit it is blank, with
+  a note. The note `DECIMAL_MARK` stays with the mark picked, and its new params `point` and
+  `comma` give the example's number with each mark
+  ([#787](https://github.com/eizedev/pivotkit/issues/787)).
 - `describeView(view, schema, { labels, locale })` writes its texts in German too: `DESCRIBE_LABELS.de`,
   or `describeLabels(locale)` for a locale's language. German quotes text values („North“) and names
   one whole unit of a relative range as the engine keeps it ("heute", "gestern", "im Vorjahr"; from

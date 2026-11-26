@@ -48,9 +48,9 @@ the header of `scripts/growth.js` explains each check. If it fails:
 
 - on a function or docs page that is already in `scripts/growth-baseline.json` under the same file
   and name, also when your change made it bigger, or on the total of all docs pages: name it in the
-  pull request's summary, for example "growth fails on the known entry `LevelMenu`". The red check
-  is expected, and the maintainer fixes it before the merge. CI skips the later steps of that job,
-  so run `npm test` and `npm run types` locally and say so.
+  pull request's whole-change check with why it grew, for example "growth fails on the known entry
+  `LevelMenu`: ...". The red check is expected, and the maintainer decides before the merge. CI skips
+  the later steps of that job, so run `npm test` and `npm run types` locally and say so.
 - because an entry shrank: run `node scripts/growth.js --update` and commit the baseline.
 - on anything else (a new entry, duplicated code, a renamed or moved function): that one is yours
   to fix.
@@ -111,6 +111,8 @@ After `uvx zensical@<version> build --strict`, `node scripts/check-readme-links.
 ## Pull request
 
 - Link the issue. Write `Fixes #n` in the description, not in commit messages.
+- A change to docs or code fills in the template's whole-change check: what you read whole, and how
+  you reshaped it instead of appending. CI fails without it; editing the description runs it again.
 - Say what you tested.
 - A larger feature is reviewed by a user, an operator and a developer, from the packed packages.
 - An independent review before you open the pull request is strongly recommended.

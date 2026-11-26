@@ -16,7 +16,7 @@
             "docs/security.md": [896],
             "docs/use/charts.md": [487]
         },
-        "totalLines": 24107
+        "totalLines": 24091
     },
     "functions": {
         "complexity": {
@@ -126,7 +126,7 @@
             "packages/pivotkit-react/src/filter-level.jsx Function 'FilterLevel'": [257],
             "packages/pivotkit-react/src/filter-level.jsx Function 'ItemRule'": [136],
             "packages/pivotkit-react/src/filter-level.jsx Function 'RuleEditor'": [209],
-            "packages/pivotkit-react/src/import-ui.jsx Function 'ImportDialog'": [273],
+            "packages/pivotkit-react/src/import-ui.jsx Function 'ImportDialog'": [262],
             "packages/pivotkit-react/src/info.jsx Function 'InfoButton'": [145],
             "packages/pivotkit-react/src/levels.jsx Function 'LevelMenu'": [157],
             "packages/pivotkit-react/src/menu-topics.js Function 'chartTopics'": [128],

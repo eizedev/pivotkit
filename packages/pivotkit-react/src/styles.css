@@ -4430,11 +4430,23 @@
     accent-color: var(--pk-accent);
 }
 
+/* the column heads start at the top: a head with a decimal mark choice is taller than the others;
+   positioned, the box of its screen reader text (.pk-sr) */
+.pk-import th {
+    position: relative;
+    vertical-align: top;
+}
+
 .pk-import th select {
     display: block;
     width: 100%;
     min-width: 7.5em;
     margin-top: 4px;
+}
+
+/* the decimal mark choice shows its whole option ("1234 (thousands)"): its column widens for it */
+.pk-import th .pk-import-mark {
+    min-width: max-content;
 }
 
 .pk-import > .pk-popover-foot {

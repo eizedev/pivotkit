@@ -6,6 +6,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Added
+
+- The import preview lets a person pick a column's decimal mark. See pivotkit-react's changelog.
+  The import group grows to 23.7 KiB gzip on an official Node 24 build, its budget to 23.9 KiB
+  ([#787](https://github.com/eizedev/pivotkit/issues/787)).
+
 ### Changed
 
 - The zones' colours and the field names in the table's header (see pivotkit-react) add 0.7 KiB to
