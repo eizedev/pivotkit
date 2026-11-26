@@ -5,6 +5,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+
+- The menu search says when it shows only the first 8 results.
 
 ## [0.10.0] - 2026-11-24
 

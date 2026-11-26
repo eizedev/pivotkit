@@ -19,7 +19,7 @@ import { ClearInput } from "./clear-input.jsx";
 import { HelpContext } from "./help.js";
 import { Group } from "./popover.jsx";
 import { SettingInfo } from "./section.jsx";
-import { rowName, searchEntries, searchHits, searchHasMore, SEARCH_HITS, stepIndex, typeAheadIndex } from "./menu-topics.js";
+import { rowName, searchEntries, searchHits, SEARCH_HITS, stepIndex, typeAheadIndex } from "./menu-topics.js";
 
 /**
  * A scrolling part of a menu (the first level's list, a topic's level), marked while more of it lies
@@ -581,8 +581,9 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
         const typed = search && query.trim() ? query : "";
         const shown = typed && filter ? filter(typed) : topics;
         const entries = typed && !filter ? searchEntries(topics, query) : null;
-        const hits = entries ? searchHits(entries, query, labels.lang) : null;
-        const hasMore = entries ? searchHasMore(entries, query, labels.lang) : false;
+        const result = entries ? searchHits(entries, query, labels.lang) : null;
+        const hits = result?.hits ?? null;
+        const hasMore = result?.hasMore ?? false;
         const none = typed && filter && !shown.some((t) => !t.hidden && (t.groups ?? []).some((g) => g.choices.length));
         return (
             <>
@@ -616,7 +617,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                 ) : null}
                 <Scroller className="pk-level-first">
                     {hits || none ? (
-                       <SearchHits hits={hits ?? []} labels={labels} onPick={pick} onOpen={open} close={close} hasMore={hasMore} />
+                        <SearchHits hits={hits ?? []} labels={labels} onPick={pick} onOpen={open} close={close} hasMore={hasMore} />
                     ) : (
                         <MenuList label={name} close={close} testId="level-first" lang={labels.lang}>
                             {shown.map((t) => (

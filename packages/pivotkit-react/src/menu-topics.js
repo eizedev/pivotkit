@@ -842,18 +842,19 @@ export function searchEntries(topics, query = "") {
 export const SEARCH_HITS = 8;
 
 /**
- * All matching entries in search order.
+ * The entries every word of `query` is found in (its text or its path), at most SEARCH_HITS; those
+ * whose text starts with the query first, and whether more matches exist.
  * @param {SearchEntry[]} entries
  * @param {string} query
  * @param {string} [locale]
- * @returns {SearchEntry[]}
+ * @returns {{ hits: SearchEntry[], hasMore: boolean }}
  */
-function matchingSearchHits(entries, query, locale) {
+export function searchHits(entries, query, locale) {
     const lower = (s) => s.toLocaleLowerCase(locale);
     const words = lower(query).split(/\s+/).filter(Boolean);
 
     if (!words.length) {
-        return [];
+        return { hits: [], hasMore: false };
     }
 
     const found = entries.filter((e) => {
@@ -861,33 +862,19 @@ function matchingSearchHits(entries, query, locale) {
         return words.every((w) => text.includes(w));
     });
 
+    // a stable sort: the entries with the first word among their own keywords ("percent": the shares
+    // of Show as), then those whose text starts with it, in their order, then the rest
     const own = (/** @type {SearchEntry} */ e) => lower(e.choice?.keywords ?? "").split(/\s+/).includes(words[0]);
     const rank = (/** @type {SearchEntry} */ e) => (own(e) ? 0 : lower(e.text).startsWith(words[0]) ? 1 : 2);
 
-    return [0, 1, 2].flatMap((r) => found.filter((e) => rank(e) === r));
+    const all = [0, 1, 2].flatMap((r) => found.filter((e) => rank(e) === r));
+
+    return {
+        hits: all.slice(0, SEARCH_HITS),
+        hasMore: all.length > SEARCH_HITS,
+    };
 }
 
-/**
- * The first SEARCH_HITS matching entries.
- * @param {SearchEntry[]} entries
- * @param {string} query
- * @param {string} [locale]
- * @returns {SearchEntry[]}
- */
-export function searchHits(entries, query, locale) {
-    return matchingSearchHits(entries, query, locale).slice(0, SEARCH_HITS);
-}
-
-/**
- * Whether more matching entries exist beyond the displayed limit.
- * @param {SearchEntry[]} entries
- * @param {string} query
- * @param {string} [locale]
- * @returns {boolean}
- */
-export function searchHasMore(entries, query, locale) {
-    return matchingSearchHits(entries, query, locale).length > SEARCH_HITS;
-}
 
 /**
  * A row's accessible name: "Filter, 3 of 12, changed" (`changedWord`: ", changed").

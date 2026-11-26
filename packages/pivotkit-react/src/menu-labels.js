@@ -46,7 +46,7 @@ export const en = {
     searchMenuShort: "Search in this menu (key /)",
     searchResults: "Results",
     searchNothing: "Nothing found. Try another word, or clear the search.",
-    searchMore: "Only the first {count} results are shown. Narrow your search to see fewer results.",
+    searchMore: "Only the first {count} results are shown. Type more to narrow the search.",
     // the menu of "+ Add" in a zone: a field there already, one that moves, a second value
     addAlready: "Already in {zone}.",
     addMoves: "Moves it from {zone}.",
