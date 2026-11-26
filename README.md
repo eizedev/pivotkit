@@ -19,7 +19,6 @@ build a report by dragging fields and take it to Excel. The same report renders 
 [Discussions](https://github.com/eizedev/pivotkit/discussions)
 
 [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/pivotkit-react?label=pivotkit-react)](https://www.npmjs.com/package/pivotkit-react)
 [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 ## Start here
@@ -57,26 +56,30 @@ build a report by dragging fields and take it to Excel. The same report renders 
   <img src="docs/assets/screenshots/readme-start-light.png" width="100%" alt="The live demo's start: the average temperature of 14 cities by month as a colour scale">
 </picture></a>
 
-<table><tr>
-<td width="25%" valign="top"><b>HTML report</b><br><a href="https://pivotkit.eize.dev/demo/"><picture>
+<table>
+<tr>
+<td width="50%" valign="top"><b>HTML report</b><br>Ready to print or save as PDF<br><a href="docs/assets/screenshots/readme-report-light.png"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-report-dark.png">
   <img src="docs/assets/screenshots/readme-report-light.png" width="100%" alt="The HTML report of the export: chart, table, source, filters and time">
 </picture></a></td>
-<td width="25%" valign="top"><a href="https://pivotkit.eize.dev/demo/"><picture>
+<td width="50%" valign="top"><b>Export</b><br>Excel, CSV, chart image, copy<br><a href="docs/assets/screenshots/readme-export-light.png"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-export-dark.png">
   <img src="docs/assets/screenshots/readme-export-light.png" width="100%" alt="The Export menu: Excel, CSV, HTML report, chart image, print or PDF, copy, source data">
 </picture></a></td>
-<td width="25%" valign="top"><a href="https://pivotkit.eize.dev/demo/"><picture>
+</tr>
+<tr>
+<td width="50%" valign="top"><b>Drill-down</b><br>Click a value to see its rows<br><a href="docs/assets/screenshots/readme-drill-light.png"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-drill-dark.png">
   <img src="docs/assets/screenshots/readme-drill-light.png" width="100%" alt="The rows behind one value: a click on Dubai in February 2025 opens them beside the table">
-</picture></a><br>Click a value to see its rows</td>
-<td width="25%" valign="top"><a href="https://pivotkit.eize.dev/demo/"><picture>
+</picture></a></td>
+<td width="50%" valign="top"><b>Charts</b><br>Average, trend and target lines<br><a href="docs/assets/screenshots/readme-chart-light.png"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-chart-dark.png">
   <img src="docs/assets/screenshots/readme-chart-light.png" width="100%" alt="A line chart of monthly revenue with its average, trend and a target">
 </picture></a></td>
-</tr></table>
+</tr>
+</table>
 
-Every feature: [feature list](https://pivotkit.eize.dev/features/).
+Open a picture to see it full size. Every feature: [feature list](https://pivotkit.eize.dev/features/).
 
 The report in the browser computes on the rows the host passes and fetches no data. The services fetch
 data from the sources you configure. pivotkit sends nothing home:
@@ -92,21 +95,21 @@ data sources and platforms, and how each was tested.
 
 ## Packages
 
-- [pivotkit-react](packages/pivotkit-react/): the React 18/19 report builder. The host provides React and ECharts.
+- [pivotkit-react](packages/pivotkit-react/) [![npm version of pivotkit-react](https://img.shields.io/npm/v/pivotkit-react?label=npm)](https://www.npmjs.com/package/pivotkit-react): the React 18/19 report builder. The host provides React and ECharts.
   `npm install pivotkit-react react react-dom echarts`
-- [pivotkit-element](packages/pivotkit-element/): the report builder as the web component `<pivot-report>`,
+- [pivotkit-element](packages/pivotkit-element/) [![npm version of pivotkit-element](https://img.shields.io/npm/v/pivotkit-element?label=npm)](https://www.npmjs.com/package/pivotkit-element): the report builder as the web component `<pivot-report>`,
   for Angular, PHP, plain HTML and PowerShell Universal. `npm install pivotkit-element`
-- [pivotkit-core](packages/pivotkit-core/): the engine in plain JavaScript, without UI. `npm install pivotkit-core`
-- [pivotkit-xlsx](packages/pivotkit-xlsx/): a [plugin](https://pivotkit.eize.dev/reference/plugins/) that
+- [pivotkit-core](packages/pivotkit-core/) [![npm version of pivotkit-core](https://img.shields.io/npm/v/pivotkit-core?label=npm)](https://www.npmjs.com/package/pivotkit-core): the engine in plain JavaScript, without UI. `npm install pivotkit-core`
+- [pivotkit-xlsx](packages/pivotkit-xlsx/) [![npm version of pivotkit-xlsx](https://img.shields.io/npm/v/pivotkit-xlsx?label=npm)](https://www.npmjs.com/package/pivotkit-xlsx): a [plugin](https://pivotkit.eize.dev/reference/plugins/) that
   reads Excel workbooks in the browser. `npm install pivotkit-xlsx`
-- [pivotkit-report](packages/pivotkit-report/): [reports without a browser](https://pivotkit.eize.dev/reference/report/)
+- [pivotkit-report](packages/pivotkit-report/) [![npm version of pivotkit-report](https://img.shields.io/npm/v/pivotkit-report?label=npm)](https://www.npmjs.com/package/pivotkit-report): [reports without a browser](https://pivotkit.eize.dev/reference/report/)
   as JSON, CSV, XLSX, SVG or HTML. `npm install pivotkit-report echarts`
-- [pivotkit-cli](packages/pivotkit-cli/): the [command line](https://pivotkit.eize.dev/reference/cli/) `pivotkit`.
+- [pivotkit-cli](packages/pivotkit-cli/) [![npm version of pivotkit-cli](https://img.shields.io/npm/v/pivotkit-cli?label=npm)](https://www.npmjs.com/package/pivotkit-cli): the [command line](https://pivotkit.eize.dev/reference/cli/) `pivotkit`.
   `npm install --global pivotkit-cli`
-- [pivotkit-server](packages/pivotkit-server/): the [REST service](https://pivotkit.eize.dev/reference/rest/),
+- [pivotkit-server](packages/pivotkit-server/) [![npm version of pivotkit-server](https://img.shields.io/npm/v/pivotkit-server?label=npm)](https://www.npmjs.com/package/pivotkit-server): the [REST service](https://pivotkit.eize.dev/reference/rest/),
   also as a [container image](https://pivotkit.eize.dev/reference/container/).
   `npm install --global pivotkit-server pivotkit-mcp`
-- [pivotkit-mcp](packages/pivotkit-mcp/): the [MCP server](https://pivotkit.eize.dev/reference/mcp/),
+- [pivotkit-mcp](packages/pivotkit-mcp/) [![npm version of pivotkit-mcp](https://img.shields.io/npm/v/pivotkit-mcp?label=npm)](https://www.npmjs.com/package/pivotkit-mcp): the [MCP server](https://pivotkit.eize.dev/reference/mcp/),
   over stdio or HTTP. `npx -y pivotkit-mcp`
 
 [pivotkit-node](packages/pivotkit-node/) is internal: the command line and the server share it.
