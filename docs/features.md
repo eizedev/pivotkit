@@ -91,8 +91,8 @@ the short version. The [comparison](compare.md) sets pivotkit beside other pivot
 ## Totals and sorting { #sorting }
 
 - Subtotals and grand totals on or off per axis ([totals](use/fields.md#the-table)).
-- Sorting by label, by any value or in a custom order. A click on a header sorts
-  ([sorting](use/filters.md#sorting)).
+- Sorting by label, by any value or in a custom order, and back to the default order. A click on a
+  header sorts ([sorting](use/filters.md#sorting)).
 
 ## The rows behind a number { #drill-down }
 

@@ -114,7 +114,7 @@ type you pick stays.
 **Chart settings** lists the chart types first. Below them is one row per topic: Value labels,
 Legend, Title, Axis, Tooltip, Reference lines, Series and Layout. Each row shows what is set and opens
 a level. **Back**, Escape or the left arrow goes back to the row. A topic the chart has nothing for
-is left out: a pie has no Axis, a heatmap no Series.
+is left out: a pie has no Axis, a heatmap no Legend or Series.
 
 A choice applies at once, and the menu stays open, so the chart behind it shows the change. The
 settings stay with the report: in saved views, links and the chart image. They also stay when the
