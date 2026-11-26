@@ -6,7 +6,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, generateKeyPairSync } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { unzipSync, strFromU8 } from "fflate";
 import { ConfigError, callerOf, checkConfig, createContext, groupRefusal, offeredScopes, validateOptions } from "pivotkit-server";
@@ -343,6 +343,29 @@ test("options: groupProfiles and defaultProfile name profiles that exist; audit.
     assert.throws(() => validateOptions({ ...base, audit: { subject: "hashed" } }), /audit\.subject: must be one of off, hash, plain; did you mean hash\?/);
     assert.throws(() => validateOptions({ ...base, audit: { subject: "hash", key: "the-key-itself" } }), /audit\.key: must be a reference to a secret/);
     assert.throws(() => validateOptions({ ...base, auth: { ...base.auth, groupProfile: [] } }), /did you mean "groupProfiles"/);
+});
+
+test("check-config: the order warning compares the levels a caller gets per source (#440): a field the source already shows is no difference", async () => {
+    const dir = workspace();
+    mkdirSync(join(dir, "d"));
+    const said = async (sources, files = undefined) => {
+        const options = {
+            baseDir: dir,
+            sources,
+            ...(files ? { files } : {}),
+            policy: { profiles: { finance: { fields: { Sales: "show", amount: "show", Customer: "show" } }, staff: { fields: { Region: "show", Product: "show" } } } },
+            auth: { mode: "oauth", issuer: "https://login.example.com/", resource: "https://pk.example.com/mcp", groupProfiles: [{ group: "finance", profile: "finance" }, { group: "staff", profile: "staff" }], defaultProfile: "staff" }
+        };
+        return factsOf((await checkConfig(options, { http: true, name: "pivotkit-server", rest: true })).text);
+    };
+    const WARNED = /groupProfiles entry 2 \(staff\) shows fields that entry 1 \(finance\) holds back/;
+    // the issue's example: the source shows Region and Product to everyone, so staff shows nothing more
+    assert.doesNotMatch(await said({ sales: { file: "data/sales.csv", policy: { default: "hide", fields: { Region: "show", Product: "show" } } } }), WARNED);
+    assert.doesNotMatch(await said({ sales: { file: "data/sales.csv", policy: { fields: { Region: "show", Product: "show" } } } }), WARNED);
+    // a source that holds Product back from finance: staff shows it, a real difference
+    assert.match(await said({ sales: { file: "data/sales.csv", policy: { default: "summary", fields: { Region: "show" } } } }), WARNED);
+    // files a caller may read count with files.policy
+    assert.match(await said({ sales: { file: "data/sales.csv", policy: { default: "hide", fields: { Region: "show", Product: "show" } } } }, { allowDirs: ["d"], policy: { default: "summary" } }), WARNED);
 });
 
 test("check-config: groups, the default profile, the scopes offered, unreachable sources, wider first entries and the audit", async () => {

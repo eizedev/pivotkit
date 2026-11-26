@@ -60,6 +60,7 @@ npm run pack:check     # what npm pack would publish, checked
 npm run growth         # functions, unused exports, duplication, docs pages may not grow
 ```
 `npm run growth` compares with `scripts/growth-baseline.json`; when an offender shrinks, `node scripts/growth.js --update` lowers it.
+When it fails, [CONTRIBUTING.md](CONTRIBUTING.md#check-your-change) says what to do; a raised baseline needs its reason in the pull request's whole-change check.
 
 One package, the UI and the browser tests. A package's `AGENTS.md` lists its size and benchmark commands:
 

@@ -310,37 +310,51 @@ test("the tab Both on a wide report with the field list: both settings buttons w
     expect(await rowFaults(page)).toEqual([]);
 });
 
+/**
+ * Checks that the tabs and the buttons share one line: every one whole and in the row, Settings beside
+ * the tabs, the last button at the right, the buttons at the line's foot. A second line costs the
+ * table its height (#706, #760).
+ */
+const expectOneLine = async (page) => {
+    expect(await rowFaults(page)).toEqual([]);
+    const row = page.getByTestId("view-tabs-row");
+    const [tab, edge, settings, last] = await Promise.all([page.getByTestId("show-table").boundingBox(), row.boundingBox(), page.getByTestId("view-settings").boundingBox(), page.getByTestId("full-screen").boundingBox()]);
+    // one line: Settings beside the tabs, not above them
+    expect(settings.y + settings.height).toBeGreaterThan(tab.y + 1);
+    expect(settings.x).toBeGreaterThan(tab.x + tab.width);
+    expect(Math.abs(last.x + last.width - (edge.x + edge.width))).toBeLessThanOrEqual(1);
+    // at the foot of the line: the buttons' margin (5 px) and the rule (1 px) below them
+    expect(edge.y + edge.height - (settings.y + settings.height)).toBeLessThanOrEqual(6.5);
+};
+
+// The phones of #760, 390 to 430 px wide, in English and in German, the language with the longest tab names
+const PHONES = ["en", "de"].flatMap((lang) => [390, 393, 412, 430].map((width) => [lang, width]));
+
 test.describe("a touch screen, where every button takes 44 px", () => {
     test.use({ hasTouch: true });
-    for (const [lang, width] of [["en", 390], ["de", 390], ["en", 360], ["de", 360]]) {
+    // a smaller phone: in German the buttons move above the tabs (#943), in English they stay beside them; whole and apart either way
+    for (const [lang, width] of [["en", 360], ["de", 360]]) {
         test(`${width} px, ${lang}: every tab and button whole, in the row and apart (#706)`, async ({ page }) => {
             await openRow(page, lang, width);
             expect(await rowFaults(page)).toEqual([]);
         });
     }
-    // an iPhone in German, the language with the longest tab names: still one line
-    test("390 px, de: the tabs and the buttons share one line", async ({ page }) => {
-        await openRow(page, "de", 390);
-        const [tab, settings] = await Promise.all([page.getByTestId("show-table").boundingBox(), page.getByTestId("view-settings").boundingBox()]);
-        expect(settings.y + settings.height).toBeGreaterThan(tab.y + 1);
-    });
+    for (const [lang, width] of PHONES) {
+        test(`a phone (${lang}, ${width} px): the tabs and the buttons share one line, the buttons at the right, at its foot (#760)`, async ({ page }) => {
+            await openRow(page, lang, width);
+            await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", "narrow");
+            await expectOneLine(page);
+        });
+    }
 });
 
-// with room, narrow or wide, the buttons stay beside the tabs: a narrow report in English, a wide one in German
-// phones in both languages too: the short form fits beside the tabs
-for (const [lang, width, size] of [["en", 320, "narrow"], ["de", 360, "narrow"], ["de", 390, "narrow"], ["en", 600, "narrow"], ["de", 1440, "wide"]]) {
+// with room, narrow or wide, the buttons stay beside the tabs: the phones of #760 and smaller ones in
+// their short form, a wide report in German with the whole names
+for (const [lang, width, size] of [["en", 320, "narrow"], ["de", 360, "narrow"], ...PHONES.map(([lang, width]) => [lang, width, "narrow"]), ["en", 600, "narrow"], ["de", 1440, "wide"]]) {
     test(`a ${size} report with room (${lang}, ${width} px): the tabs and the buttons share one line, the buttons at the right, at its foot (#706)`, async ({ page }) => {
         await openRow(page, lang, width);
         await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", size);
-        expect(await rowFaults(page)).toEqual([]);
-        const row = page.getByTestId("view-tabs-row");
-        const [tab, edge, settings, last] = await Promise.all([page.getByTestId("show-table").boundingBox(), row.boundingBox(), page.getByTestId("view-settings").boundingBox(), page.getByTestId("full-screen").boundingBox()]);
-        // one line: Settings beside the tabs, not above them
-        expect(settings.y + settings.height).toBeGreaterThan(tab.y + 1);
-        expect(settings.x).toBeGreaterThan(tab.x + tab.width);
-        expect(Math.abs(last.x + last.width - (edge.x + edge.width))).toBeLessThanOrEqual(1);
-        // at the foot of the line: the buttons' margin (5 px) and the rule (1 px) below them
-        expect(edge.y + edge.height - (settings.y + settings.height)).toBeLessThanOrEqual(6.5);
+        await expectOneLine(page);
     });
 }
 

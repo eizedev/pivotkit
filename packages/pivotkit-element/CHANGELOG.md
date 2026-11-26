@@ -6,6 +6,45 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Added
+
+- The import preview lets a person pick a column's decimal mark. See pivotkit-react's changelog.
+  The import group grows to 23.7 KiB gzip on an official Node 24 build, its budget to 23.9 KiB
+  ([#787](https://github.com/eizedev/pivotkit/issues/787)).
+- A field's menu has Default order, and Chart settings says what its unclear choices do. See
+  pivotkit-react's changelog. On an official Node 24 build the menus group grows to 60.3 KiB gzip, its budget
+  to 60.3 KiB, and the texts group, with the German menu texts, to 8.7 KiB, its budget to 8.8 KiB
+  ([#916](https://github.com/eizedev/pivotkit/issues/916),
+  [#917](https://github.com/eizedev/pivotkit/issues/917),
+  [#963](https://github.com/eizedev/pivotkit/issues/963)).
+
+### Changed
+
+- The zones' colours and the field names in the table's header (see pivotkit-react) add 0.7 KiB to
+  the first load: 179.7 KiB gzip on an official Node 24 build, within its budget of 182.5 KiB ([#920](https://github.com/eizedev/pivotkit/issues/920)).
+- The first load is 3.3 KiB smaller: 179.0 KiB gzip on an official Node 24 build, in 13 files as
+  before (was 182.3 KiB). Its budget stays at 182.5 KiB. The code moved loads on demand, and the
+  budgets of the chart, export and report groups rise with it (260.7, 13.7 and 26.8 KiB):
+  - The chart's events and each draw load with ECharts: the chart group grows by 1.3 KiB to 260.2 KiB.
+  - pivotkit-core's view description loads with the HTML report: the report group grows by 2.3 KiB
+    to 26.3 KiB, with the Excel number formats.
+  - pivotkit-core's Excel number formats load with the export: the export group grows by 0.8 KiB to
+    13.2 KiB ([#772](https://github.com/eizedev/pivotkit/issues/772)).
+  - The German words of the HTML report's filters and summary load with the report, not with the
+    first load: the report group grows by 3.4 KiB to 29.7 KiB, its budget to 29.7 KiB
+    ([#798](https://github.com/eizedev/pivotkit/issues/798)).
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+- The chart's load group grows by 1.6 KiB to 261.8 KiB gzip with pivotkit-core's fix of text on
+  coloured fills and of high and low points beside grouped bars, its budget to 262.0 KiB
+  ([#913](https://github.com/eizedev/pivotkit/issues/913), [#914](https://github.com/eizedev/pivotkit/issues/914)).
+  The first load stays the same.
+
+### Fixed
+
+- An element added to the page again while a link is in the page's address opens the link. Before,
+  it threw a `TypeError` and showed nothing, as pivotkit-react did
+  ([#735](https://github.com/eizedev/pivotkit/issues/735)).
+
 ## [0.10.0] - 2026-11-24
 
 ### Changed

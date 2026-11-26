@@ -225,6 +225,8 @@ More about the handler:
   use --auth token (or auth.mode token)". A written `auth.mode: "none"` gives no warning.
   `createContext(options, { tokenEnv })` names another. Tokens are read from `env` of
   `createRestHandler`.
+- `createContext(options, { env })` is where the `{ env }` secrets of a backend's sign-in and of
+  `output.upload`'s headers are read, at start and on every use. Default: `process.env`.
 - `loopback` says whether the server listens on loopback only. It decides whether `auth: none` is
   allowed, so it must match the address you listen on.
 - `rest.fetch(request, { address })` takes the client's address for the limit on refused tokens.

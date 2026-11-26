@@ -6,6 +6,29 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `render` takes `describeLabels`, the words of the HTML report's filters and summary. A host that
+  passes its own `labels` passes them too, so the report keeps to one language. Words given in part
+  go over the words of the locale's language. A key `describeView` does not know or a word of the
+  wrong kind throws `INVALID_OPTION` before any work
+  ([#798](https://github.com/eizedev/pivotkit/issues/798)).
+
+### Changed
+
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
+### Fixed
+
+- A German HTML report writes its filters and its summary (`{{filters}}`, `{{summary}}` and the
+  page description) in German, with the locale's numbers ("Units ist mindestens 1,5"). They were
+  English. `{{filters}}` joins German filters with "; und ", as German lists use "; "
+  ([#798](https://github.com/eizedev/pivotkit/issues/798)).
+- The SVG and the HTML report draw text on coloured fills as the screen does, with pivotkit-core's
+  fix ([#913](https://github.com/eizedev/pivotkit/issues/913), [#914](https://github.com/eizedev/pivotkit/issues/914)):
+  a treemap's labels on plates in the middle of their tiles and cut to fit, a heatmap's numbers in the ink that reads on each cell, the ▲ and ▼
+  in the muted text colour (`--pk-muted`).
+
 ## [0.6.0] - 2026-11-24
 
 ### Fixed

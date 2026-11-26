@@ -41,7 +41,7 @@ import { constants, unlinkSync } from "node:fs";
 import { link, lstat, open, realpath, rename, unlink } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { NO_HARD_LINKS } from "pivotkit-node/files";
-import { MAX_SECRET_BYTES, UTF16_TEXT, readSecretHandle, secretValue } from "./secrets.js";
+import { MAX_SECRET_BYTES, UTF16_TEXT, bomProblem, readSecretHandle, secretValue } from "./secrets.js";
 
 /** The random bytes of each kind of secret: a token of 43 base64url characters, a key of 64. */
 export const SECRET_BYTES = Object.freeze({ token: 32, key: 48 });
@@ -310,6 +310,10 @@ async function readKept(target, label, usable, kind, throughLink = false) {
             }
             throw e?.code === "UTF16" ? new SecretFileError("UNUSABLE", `${label}: ${UTF16_TEXT}`) : e;
         });
+        const bom = bomProblem(text, kind);
+        if (bom) {
+            throw new SecretFileError("UNUSABLE", `${label}: ${bom}`);
+        }
         const value = secretValue(text, kind);
         if (!value) {
             return STILL_EMPTY;

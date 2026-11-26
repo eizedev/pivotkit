@@ -6,6 +6,12 @@ All notable changes to `pivotkit-node` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Fixed
+
+- `EISDIR` from `link()` counts as "no hard links", so `writeNew` and `writeSafe` with `exclusive`
+  write in place. libuv reports Windows' `ERROR_INVALID_FUNCTION` as `EISDIR`, the error reported for
+  hard links on FAT and exFAT. This was not tested on Windows.
+
 ## [0.1.0] - 2026-11-24
 
 ### Added

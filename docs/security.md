@@ -604,8 +604,8 @@ and the sign-in above hold for it too. What differs:
     - Everyone else keeps 2 MiB. A body declared larger than any caller may send is refused before
       the token is read.
     - Over all callers, the server reads at most two such large bodies at once, one per caller. A
-      caller is a token by its name, or an OAuth client, however many use it. Another body gets 503
-      `BUSY` with `Retry-After`.
+      caller is a person (an OAuth subject, or a static token's name), else the OAuth client of a
+      token without a subject. Two people of one OAuth client can hold both places. Another body gets 503 `BUSY` with `Retry-After`.
     - A file is parsed in a worker under the time, memory and import limits.
     - A `sha256` of its bytes catches a file altered on the way. `rowCount` catches a cut JSON table.
     - The data is never cached, and no exposure policy applies to it.
@@ -633,9 +633,9 @@ and the sign-in above hold for it too. What differs:
     - The rows land in the host application and in the page. From there, the browser is not access
       control ([pivotkit is not access control](#pivotkit-is-not-access-control)).
     - Each answer is bounded before its first byte: rows and cells, at most `rest.records.concurrency`
-      at once and one per person, `compute.timeMs` for the whole request. A reader that stalls for
-      `rest.records.idleMs`, or has not read the answer within `rest.records.writeMs`, loses its
-      place.
+      at once and one per person, `compute.timeMs` for the whole request. Others wait for a place up
+      to `rest.records.waitMs`. A reader that stalls for `rest.records.idleMs`, or has not read the
+      answer within `rest.records.writeMs`, loses its place.
     - Every answer carries `Cache-Control: no-store` ([headers](reference/rest.md#headers)).
 - **No files by path**: `file:` sources are refused, whatever the MCP server's `files.allowDirs` says.
   Inline results are off unless the operator turns them on, since a program can enumerate through

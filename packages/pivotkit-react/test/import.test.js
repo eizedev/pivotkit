@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { PivotkitError, encode } from "pivotkit-core";
 import { IMPORT_NOTE_CODES, limitError, readFile } from "pivotkit-core/import";
 import { DATA_STEPS, NO_DATA_STEPS, hostHistory, pushData, redoData, undoData, withoutFuture } from "../src/data-history.js";
-import { IMPORT_TEXTS, de, en, errorText, importLabels, noteText } from "../src/import-labels.js";
+import { IMPORT_TEXTS, de, en, errorText, importLabels, markTexts, noteText } from "../src/import-labels.js";
 import { acceptOf, formatsOf, readImport, sheetsOf } from "../src/import-run.js";
 import { backToOriginal, loadData, moveData, restoreData } from "../src/import-steps.js";
 import { KEPT_REPORTS, forgetData, hostIdentity, keepData, keptData } from "../src/data-keep.js";
@@ -481,4 +481,57 @@ test("a loaded file's limits are the host's importLimits over its limits, key by
     for (const worker of [undefined, fakeWorker()]) {
         await assert.rejects(readImport(csv(TICKETS), { worker, limits: fileLimits }), (e) => e instanceof PivotkitError && e.code === "LIMIT_EXCEEDED" && e.details.limit === "rows" && e.details.max === 2);
     }
+});
+
+test("decimal mark choice: what the note's example reads as with each mark, with whether its separator is the decimal mark; no choice without both numbers, a mark or the texts", () => {
+    const note = { column: "Sales", decimal: ".", example: "1,234", point: 1234, comma: 1.234 };
+    assert.deepEqual(markTexts(note, en), {
+        decimal: ".",
+        question: "“1,234” means",
+        title: "“1,234” means 1234 (thousands)",
+        options: [
+            { value: ".", text: "1234 (thousands)" },
+            { value: ",", text: "1 point 234" },
+        ],
+    });
+    // German, the comma read: the decimal reading spelt out with "Komma" from the example's digits as written,
+    // so it never repeats the question's "1,234"; an example with a point keeps its trailing zeros and its sign
+    assert.deepEqual(markTexts({ ...note, decimal: "," }, de).options, [
+        { value: ".", text: "1234 (Tausender)" },
+        { value: ",", text: "1 Komma 234" },
+    ]);
+    const pointed = markTexts({ ...note, decimal: ",", example: "-2.500", point: -2.5, comma: -2500 }, de);
+    assert.equal(pointed.title, "„-2.500“ bedeutet -2500 (Tausender)");
+    assert.deepEqual(pointed.options.map((o) => o.text), ["-2 Komma 500", "-2500 (Tausender)"]);
+    assert.deepEqual(markTexts({ ...note, example: "2.500", point: 2.5, comma: 2500 }, en).options.map((o) => o.text), ["2 point 500", "2500 (thousands)"]);
+    // a plugin's own note: without both numbers as finite numbers, or with another mark, there is no choice
+    const { point, comma, ...noNumbers } = note;
+    for (const params of [noNumbers, { ...note, point: undefined }, { ...note, comma: Number.NaN }, { ...note, point: Infinity }, { ...note, comma: "1.234" }, { ...note, decimal: ";" }, { ...note, decimal: undefined }]) {
+        assert.equal(markTexts(params, en), null, JSON.stringify(params));
+    }
+    assert.ok(point && comma);
+    // texts without the question, its words for a screen reader or both options as text (a caller's own,
+    // unmerged) offer no choice either
+    const broken = [{ markQuestion: undefined }, { markQuestion: 3 }, { markOf: undefined }, { markOf: 3 }, { markOption: undefined }, { markOption: "x" }, { markOption: { decimal: "{whole} point {fraction}" } }];
+    for (const change of broken) {
+        assert.equal(markTexts(note, /** @type {any} */ ({ ...en, ...change })), null, JSON.stringify(change));
+    }
+});
+
+test("decimal mark choice: the question and both options show the example's own characters, in every language, whatever the runtime's locale", () => {
+    const notes = [
+        { column: "Sales", decimal: ".", example: "1,234", point: 1234, comma: 1.234 },
+        { column: "Sales", decimal: ",", example: "-2.500", point: -2.5, comma: -2500 },
+    ];
+    for (const [lang, texts] of Object.entries(IMPORT_TEXTS)) {
+        for (const note of notes) {
+            for (const o of markTexts(note, texts).options) {
+                // never the question's "1,234" again, and no other digits, minus sign (sv-SE's U+2212) or
+                // direction mark (fa-IR's U+200E, ar-EG's U+061C) than the file's
+                assert.ok(!o.text.includes(note.example), `${lang}: ${o.text}`);
+                assert.doesNotMatch(o.text, /[^\x20-\x7e]/, `${lang}: ${JSON.stringify(o.text)}`);
+            }
+        }
+    }
+    assert.deepEqual(markTexts(notes[1], en).options.map((o) => o.text), ["-2 point 500", "-2500 (thousands)"]);
 });

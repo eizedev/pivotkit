@@ -111,6 +111,16 @@ claude plugin update pivotkit-mcp@pivotkit
 
 ## What changed { #changes }
 
+### From 0.10 to 0.11 { #from-0-10 }
+
+The next release, on `main` now. The table lists the changes that need an action.
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| **Breaking:** a key file that starts with a UTF-8 byte order mark is refused | a key's `{ "file" }` (`output.downloads.key`, `audit.key`, a backend's or the upload store's secret) starts with one, as Windows PowerShell 5.1's `-Encoding UTF8` writes it | save the file as UTF-8 without the mark. `check-config` names the file. Download links made with the old key stop working, and audit hashes change |
+| A backend's sign-in and `output.upload`'s headers read `{ "env" }` secrets from the `env` the host passes | a host passes its own `env` to `createContext` or `serve()` without those variables | add the variables to that `env`. The start warns when a backend's sign-in cannot read its secret |
+| The report's corners and type icons: `--pk-radius` is 8 px (was 10 px), chips take `--pk-radius-sm`, and `--pk-type-string`, `--pk-type-number`, `--pk-type-date` and `--pk-type-boolean` default to `--pk-muted` (were one colour each) | a host sets `--pk-radius` or relies on coloured type icons, such as a theme that maps its own colours to these tokens | set `--pk-radius` or the `--pk-type-*` tokens yourself. See [theming](../reference/theming.md#tokens) |
+
 ### From 0.9 to 0.10 { #from-0-9 }
 
 pivotkit-server and pivotkit-mcp move from 0.4 to 0.5 with this release, pivotkit-cli from 0.5 to
@@ -129,7 +139,7 @@ layout, and new options.
 | **Breaking:** the view schema refuses a blank label | you validate stored view files against `view-2.json` or `view-file-2.json`, and a value's `label` or a name in `fieldLabels` is blank | give it a character or remove it; `normalize()` dropped such a label already |
 | **Breaking:** header values refuse the control characters U+0080 to U+009F | a header value in your configuration or secret holds one of them | remove the character. The start or the log names the header |
 | **Breaking:** reports are written with mode 0600 | another user reads the output directory without `output.baseUrl`, such as a backup job | run that reader as the server's user, or set `output.baseUrl`; `chmod 600` older reports to match |
-| Numbers in loaded files read by their decimal mark | people load CSV or Excel files with text numbers such as `1,234` or `1.500` | check the column the note `DECIMAL_MARK` names. A comma-separated file reads `"1,234"` as 1234, where it read as 1.234; an Excel text cell `"1.500"` reads as 1500 in a German locale, where it read as 1.5 |
+| Numbers in loaded files read by their decimal mark | people load CSV or Excel files with text numbers such as `1,234` or `1.500` | check the column the note `DECIMAL_MARK` names; pick its mark in the preview, or with `retype`'s `decimal` ([Changing types and decimal marks](../reference/import.md#retype)). A comma-separated file reads `"1,234"` as 1234, where it read as 1.234; an Excel text cell `"1.500"` reads as 1500 in a German locale, where it read as 1.5 |
 | pivotkit-server answers a little differently | a client keeps `list_sources` file names, relies on the order of `files.list`, or calls `/openapi.json` or the REST metadata with a method other than GET or HEAD | read file names of the second and later `files.allowDirs` without their path; sort `files.list` yourself if you need another order; use GET (other methods get 405 with `Allow: GET, HEAD`). The [pivotkit-server changelog](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-server/CHANGELOG.md) has the details |
 | [Versions move together](#update) | you list pivotkit-core, pivotkit-report or pivotkit-xlsx yourself | update them to the release of pivotkit-react 0.10: core 0.10.0, report 0.6.0, xlsx 0.7.0 |
 

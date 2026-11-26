@@ -10,7 +10,8 @@ name: Release
 #
 # Two jobs:
 # - "build" has no publishing right. It installs, packs and checks; the dependencies run here.
-# - "publish" gets the OIDC token. It installs nothing and stages the tarball "build" made.
+# - "publish" gets the OIDC token. It installs only npm itself, from a tarball whose integrity is
+#   committed here, and stages the tarball "build" made.
 # "build" packs and uploads the tarball before lint and tests run. Only the compilers and bundlers
 # run before the pack: tsc and the package's prepack. "publish" stages only a tarball with the
 # integrity the Pack step recorded.
@@ -132,10 +133,20 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       - name: npm for trusted publishing
         # staged publishing needs npm 11.15.0 or later (npm's documentation, "Staged publishing");
-        # one pinned version instead of whatever ships with the runner's Node
+        # one pinned version instead of whatever ships with the runner's Node. This job holds the
+        # OIDC token, so npm is installed only from a tarball with the integrity committed here
+        # (npm view npm@<version> dist.integrity); npm bundles its dependencies, so the install
+        # fetches nothing else (--offline). RELEASING.md says how to raise the version
+        env:
+          NPM_VERSION: "11.21.1"
+          NPM_INTEGRITY: "sha512-YTzL6QBEJXyHcTu0JiUc7RKMp+mzlJtl7rGLmERaXUQeFHIMc9atdr6G9M9C8vDWbv40epoTQAzNL2/PtZVDhQ=="
         run: |
-          npm install --global npm@11.21.1 --ignore-scripts --no-audit --no-fund
-          npm --version
+          file="$RUNNER_TEMP/npm-$NPM_VERSION.tgz"
+          curl --fail --silent --show-error --location --proto "=https" --output "$file" "https://registry.npmjs.org/npm/-/npm-$NPM_VERSION.tgz"
+          actual="sha512-$(openssl dgst -sha512 -binary "$file" | base64 -w0)"
+          test "$actual" = "$NPM_INTEGRITY" || { echo "npm $NPM_VERSION tarball has $actual, release.yml expects $NPM_INTEGRITY"; exit 1; }
+          npm install --global "$file" --offline --ignore-scripts --no-audit --no-fund
+          test "$(npm --version)" = "$NPM_VERSION" || { echo "npm $(npm --version) is installed, not $NPM_VERSION"; exit 1; }
       - name: Tarball is the one the Pack step made
         # the integrity was recorded right after the pack, before lint, types and tests ran
         env:

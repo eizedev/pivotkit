@@ -292,6 +292,74 @@ test("the release workflow publishes the tarball by a path npm reads as a file",
     }
 });
 
+// The publish job holds the OIDC token, so the npm it runs is installed from a tarball whose sha512 is
+// committed in release.yml, never by a name the registry resolves (#724)
+test("the publish job installs npm only from a tarball with the integrity committed in release.yml", () => {
+    const steps = jobOf("release.yml", "publish").steps;
+    const installs = steps.flatMap((step, index) => commandsOf(step).filter((line) => /\bnpm\s+(install|i|add)\b/.test(line)).map((line) => ({ step, index, line })));
+    assert.equal(installs.length, 1, `the publish job installs with npm in ${installs.length} places, not one: ${JSON.stringify(installs.map(({ line }) => line))}`);
+    const [{ step, index, line }] = installs;
+    assert.equal(line, 'npm install --global "$file" --offline --ignore-scripts --no-audit --no-fund', "npm is installed from the checked file, offline and without scripts");
+    assert.ok(index < stepRunning(steps, "npm stage publish"), "npm is installed before it stages");
+    assert.match(step.env?.NPM_VERSION ?? "", /^\d+\.\d+\.\d+$/, "the step pins NPM_VERSION exactly");
+    // staged publishing needs npm 11.15.0 or later (npm's documentation, "Staged publishing")
+    const [major, minor] = step.env.NPM_VERSION.split(".").map(Number);
+    assert.ok(major > 11 || (major === 11 && minor >= 15), `npm ${step.env.NPM_VERSION} cannot stage: it needs 11.15.0 or later`);
+    assert.match(step.env?.NPM_INTEGRITY ?? "", /^sha512-[A-Za-z0-9+/]{86}==$/, "the step commits NPM_INTEGRITY, npm's dist.integrity");
+    // these commands and no other, in this order: download, compare (fail closed), install, version check
+    assert.deepEqual(commandsOf(step), [
+        'file="$RUNNER_TEMP/npm-$NPM_VERSION.tgz"',
+        'curl --fail --silent --show-error --location --proto "=https" --output "$file" "https://registry.npmjs.org/npm/-/npm-$NPM_VERSION.tgz"',
+        'actual="sha512-$(openssl dgst -sha512 -binary "$file" | base64 -w0)"',
+        'test "$actual" = "$NPM_INTEGRITY" || { echo "npm $NPM_VERSION tarball has $actual, release.yml expects $NPM_INTEGRITY"; exit 1; }',
+        line,
+        'test "$(npm --version)" = "$NPM_VERSION" || { echo "npm $(npm --version) is installed, not $NPM_VERSION"; exit 1; }'
+    ]);
+    assert.deepEqual(Object.keys(step).sort(), ["env", "name", "run"], "nothing changes how the step runs: no if, continue-on-error or working-directory");
+});
+
+// The check above holds only while nothing else in the job decides which npm runs or what it fetches:
+// an allowlist of the package manager calls, the actions and the settings of the publish job (#724)
+test("the publish job runs no package manager call, action or setting beyond its allowlist", () => {
+    const release = workflow("release.yml");
+    const job = jobOf("release.yml", "publish");
+    const allowed = new Set([
+        'npm install --global "$file" --offline --ignore-scripts --no-audit --no-fund',
+        'test "$(npm --version)" = "$NPM_VERSION" || { echo "npm $(npm --version) is installed, not $NPM_VERSION"; exit 1; }',
+        // names npm only in its message
+        'test "$actual" = "$NPM_INTEGRITY" || { echo "npm $NPM_VERSION tarball has $actual, release.yml expects $NPM_INTEGRITY"; exit 1; }',
+        'npm stage publish "./pack/$TARBALL" --provenance --access public --ignore-scripts 2>&1 | tee stage.log'
+    ]);
+    // an echo line that runs nothing (no command substitution, no unescaped backtick) only writes text
+    // the name as a command, also as a path (/usr/bin/npm), not inside a word or a file name (npm-11.21.1.tgz)
+    const call = /(^|[^\w.-])(npm|npx|corepack|pnpm|yarn)(?=\s|$|[;)|&])/;
+    const textOnly = (line) => /^echo\s/.test(line) && !line.includes("$(") && !/(^|[^\\])`/.test(line);
+    for (const step of job.steps) {
+        for (const line of commandsOf(step)) {
+            if (call.test(line) && !textOnly(line)) assert.ok(allowed.has(line), `the publish job runs a package manager outside the allowlist: ${line}`);
+        }
+    }
+    // a later step's PATH or environment would decide which npm runs
+    assert.deepEqual(stringsOf(job).filter((text) => /GITHUB_(PATH|ENV)\b/.test(text)), [], "the publish job writes to GITHUB_PATH or GITHUB_ENV");
+    // only these actions, and setup-node with these inputs alone (no cache, no other registry)
+    assert.deepEqual(job.steps.filter((step) => step.uses).map((step) => step.uses.split("@")[0]), ["actions/download-artifact", "actions/setup-node"], "the publish job uses other actions");
+    const setupNode = job.steps.find((step) => String(step.uses).startsWith("actions/setup-node@"));
+    assert.deepEqual(setupNode.with, { "node-version": "24", "registry-url": "https://registry.npmjs.org" }, "setup-node takes other inputs in the publish job");
+    // nothing changes the shell, the directory or the environment npm runs in
+    assert.equal(release.env, undefined, "release.yml sets env for every job");
+    assert.equal(release.defaults, undefined, "release.yml sets defaults for every job");
+    assert.equal(job.env, undefined, "the publish job sets env");
+    assert.equal(job.defaults, undefined, "the publish job sets defaults");
+    assert.equal(job.container, undefined, "the publish job runs in a container");
+    const envNames = new Set(["TAG", "TARBALL", "INTEGRITY", "NPM_VERSION", "NPM_INTEGRITY"]);
+    for (const step of job.steps) {
+        const where = `publish "${step.name ?? step.uses}"`;
+        assert.equal(step.shell, undefined, `${where} sets a shell`);
+        assert.equal(step["working-directory"], undefined, `${where} sets a working directory`);
+        for (const name of Object.keys(step.env ?? {})) assert.ok(envNames.has(name), `${where} sets env ${name}, which may change how npm runs`);
+    }
+});
+
 // The trusted publisher on npm allows staging only (RELEASING.md): a plain npm publish
 // would fail at release time, after the tag is pushed
 test("the release workflow stages on npm and never publishes directly", () => {
@@ -322,4 +390,32 @@ test("the release workflow holds the OIDC token only behind the npm environment,
     assert.equal(release.permissions?.["id-token"], undefined, "id-token is granted to every job");
     assert.deepEqual(Object.keys(release.on), ["push"], "release.yml runs on other events than push");
     assert.deepEqual(Object.keys(release.on.push), ["tags"], "release.yml runs on a push of something other than tags");
+});
+
+// The whole-change check (scripts/whole-change-check.js) runs again when the description is edited,
+// reads only, and gets the description, title and author through env: an expression in a `run` would
+// put text whoever opens the pull request wrote into the shell script
+test("the whole-change check runs on every pull request event that can fix it, reads only, and takes the pull request only through env", () => {
+    const check = workflow("whole-change-check.yml");
+    assert.deepEqual(Object.keys(check.on), ["pull_request"], "the check runs on another event than pull_request (pull_request_target would hold a write token)");
+    assert.deepEqual([...check.on.pull_request.types].sort(), ["edited", "opened", "reopened", "synchronize"]);
+    assert.equal(check.on.pull_request.paths ?? check.on.pull_request["paths-ignore"] ?? check.on.pull_request.branches, undefined, "the script decides what needs the check, on every base branch as ci.yml");
+    assert.deepEqual(check.permissions, { contents: "read" });
+    assert.notEqual(check.concurrency.group, workflow("ci.yml").concurrency.group, "an edit of the description cancels CI");
+    const steps = Object.values(check.jobs).flatMap((job) => {
+        assert.equal(job.permissions, undefined, "a job of the check asks for more permissions");
+        return job.steps;
+    });
+    for (const step of steps) assert.doesNotMatch(String(step.run ?? ""), /\$\{\{/, `"${step.name ?? step.uses}" has an expression in its run`);
+    const run = steps.find((step) => commandsOf(step).includes("node scripts/whole-change-check.js"));
+    assert.ok(run, "no step runs scripts/whole-change-check.js");
+    assert.deepEqual(run.env, {
+        PR_BODY: "${{ github.event.pull_request.body }}",
+        PR_TITLE: "${{ github.event.pull_request.title }}",
+        PR_AUTHOR: "${{ github.event.pull_request.user.login }}",
+    });
+    assert.ok(commandsOf(run).some((line) => /^CHANGED_FILES="\$\(git -c core\.quotepath=off diff --no-renames --name-only HEAD\^1 HEAD\)"$/.test(line)), "the changed files are not the merge commit's difference to its base");
+    const checkout = steps.find((step) => String(step.uses).startsWith("actions/checkout@"));
+    assert.equal(checkout.with["persist-credentials"], false);
+    assert.equal(checkout.with["fetch-depth"], 2, "without the merge commit's parent there is nothing to compare with");
 });
