@@ -204,11 +204,14 @@ there and listed in `--json`:
 ```text
 error dataMismatch: pivotkit-weather.csv does not have the fields the view uses
   the view uses: City, Date, Mean °C
-  the data has: Date by month of year, Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec, Grand Total
+  the data has: Month, Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec, Grand Total
+  missing: "City" (string); the data has string fields the view does not use: "Month", "Jan": one of them renamed? --map "City=<its new name>"
   it looks like an exported pivot result ("Grand Total", "Average of Mean °C"), not the rows the report was made from:
   in the report, take Export → Source data → All rows as CSV, and give that file to --data
   or give --data the file the report was made from, if you have it
-  and 3 more errors from the missing fields (--json lists them)
+  and 2 more errors from the missing fields (--json lists them)
+error groupingNoSource at derived[0]: unknown source field
+  and 2 more errors from it (--json lists them)
 nothing written: the view has errors.
 ```
 

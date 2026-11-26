@@ -5,9 +5,22 @@ import { readFile } from "node:fs/promises";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
 import { test, expect, openZones } from "./fixtures.js";
+
+/**
+ * The weather start view without its short name for the grouping: the table's corner and the chip
+ * show the default name, "Date by month of year", with the years it combines.
+ */
+const CYCLIC = toViewFile({
+    rows: ["City"],
+    cols: ["Date by month of year"],
+    derived: [{ name: "Date by month of year", field: "Date", by: "month" }],
+    values: [{ field: "Mean °C", agg: "average", format: "number:1" }],
+    totals: { grandTotalRow: false }
+}, {}, { link: true });
+const cyclic = (query = "") => `?data=weather&empty${query}#pivot-playground=${encodeViewLink(CYCLIC)}`;
 for (const lang of ["en", "de"]) {
     test(`weather date context and Group level (${lang}) #109`, async ({ page }) => {
-        await page.goto(`?data=weather&preset=0&lang=${lang}`);
+        await page.goto(cyclic(`&lang=${lang}`));
         await openZones(page);
         await expect(page.getByTestId("date-range")).toContainText("2023");
         await expect(page.getByTestId("date-range")).toContainText("2025");
@@ -38,8 +51,17 @@ test("a single weather year labels cyclic items, not combined years #109", async
     await expect(page.getByTestId("date-range")).toContainText("2023");
 });
 
+test("the weather start view names its month grouping \"Month\", in every language, with no years in the corner", async ({ page }) => {
+    for (const lang of ["en", "de"]) {
+        await page.goto(`?data=weather&preset=0&lang=${lang}`);
+        const table = page.getByTestId("pivot-table");
+        await expect(table.locator("thead")).toContainText("Month");
+        await expect(table).not.toContainText(lang === "en" ? "combined" : "zusammengefasst");
+    }
+});
+
 test("cyclic chip IDs stay stable and downloaded headers omit display-only year context #109", async ({ page }) => {
-    await page.goto("?data=weather&preset=0");
+    await page.goto(cyclic());
     await openZones(page);
     await page.getByTestId("chip-menu-Date by month of year").click();
     await expect(page.locator(".pk-chip-menu")).toBeVisible();
@@ -108,7 +130,7 @@ for (const theme of ["light", "dark"]) {
 }
 
 test("enlarged summary retains cyclic context and Group introduction describes its menu #109", async ({ page }) => {
-    await page.goto("?data=weather&preset=0");
+    await page.goto(cyclic());
     await page.getByTestId("enlarge").click();
     await expect(page.getByTestId("enlarged-fields")).toContainText("2023–2025 combined");
     await page.getByTestId("enlarge").click();
