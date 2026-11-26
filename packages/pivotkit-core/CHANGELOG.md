@@ -44,6 +44,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- The CSV separator note derives its name from the separator character, so it no longer depends on a caller-supplied name.
+
 - Text on coloured fills reads at 4.5:1 or more in both themes
   ([#914](https://github.com/eizedev/pivotkit/issues/914)):
   - A treemap writes its labels in `--pk-text` on a plate in `--pk-surface`, the same on every tile.
@@ -63,8 +65,6 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
     width. Else each writes the value instead of the name; a trend keeps its name.
   - The sample before an average's label takes the series' colour from `colorMap` and
     `chart.colors`, as the line does.
-
-### Fixed
 
 - `describeView` no longer says "current excluded" of a rolling relative range (`calendar: false`).
   The engine counts a rolling range back from the moment itself and ignores `includeCurrent` there,

@@ -59,6 +59,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- The import preview names CSV separators in English and German, including commas, semicolons, tabs and vertical bars.
+
 - A heatmap's Chart settings no longer list Legend. Its colour scale takes the legend's place, so
   none of its choices changed anything
   ([#916](https://github.com/eizedev/pivotkit/issues/916)).

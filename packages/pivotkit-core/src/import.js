@@ -97,7 +97,7 @@ export function validatePlugin(plugin) {
 }
 
 /** The CSV, TSV and text reader of pivotkit-core. */
-export const csvReader = validatePlugin({
+export const csvReader = /* @__PURE__ */ validatePlugin({
     apiVersion: 1,
     kind: "reader",
     name: "csv",
@@ -107,7 +107,7 @@ export const csvReader = validatePlugin({
 });
 
 /** The JSON reader of pivotkit-core. */
-export const jsonReader = validatePlugin({
+export const jsonReader = /* @__PURE__ */ validatePlugin({
     apiVersion: 1,
     kind: "reader",
     name: "json",
@@ -117,7 +117,7 @@ export const jsonReader = validatePlugin({
 });
 
 /** The readers pivotkit-core brings. */
-export const BUILT_IN_READERS = Object.freeze([csvReader, jsonReader]);
+export const BUILT_IN_READERS = /* @__PURE__ */ Object.freeze([csvReader, jsonReader]);
 
 /**
  * The reader for a file: by its name's extension first, then by its media type; the host's plugins
