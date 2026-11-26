@@ -453,7 +453,9 @@ export const en = {
     zoom: "Zoom slider",
     zoomNames: { auto: "Automatic", on: "On", off: "Off" },
     stackPercent: "Stacked to 100 %",
-    shownSeries: "Series",
+    shownSeries: "Entries",
+    // the search still finds Entries by its former name
+    shownSeriesKeywords: "series",
     seriesShownOf: "{shown} of {count} shown",
     chartAxis: "Axis",
     chartLayout: "Layout",

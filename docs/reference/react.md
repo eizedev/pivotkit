@@ -522,7 +522,7 @@ A fixed colour per series or slice name, so a category has the same colour in ev
   browser reads. Any other value is left out.
 - Names match series of bars, lines and areas, and slices of a pie or a donut, without regard to case.
 - A name the chart does not have does nothing. Other series keep the palette's colours.
-- The view's own colours win: Chart settings › Series, the colour beside each series (`chart.colors`).
+- The view's own colours win: Chart settings › Entries, the colour beside each series (`chart.colors`).
 - The chart image, the SVG and the HTML report take the light colours.
 
 The report compares it by value. See [Charts](../concepts/charts.md#fixed-colours).

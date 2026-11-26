@@ -797,6 +797,7 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
             id: "series",
             title: labels.shownSeries,
             kind: "menu",
+            keywords: labels.shownSeriesKeywords,
             info: "chartColors",
             state: fill(labels.seriesShownOf, { shown: String(names.length - hidden), count: String(names.length) }),
             changed: hidden > 0 || own.length > 0,

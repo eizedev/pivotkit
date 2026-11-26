@@ -72,7 +72,7 @@ test.describe("chart extras (#54)", () => {
         expect((await inChart(chartEl, drawnColors)).North).toBe("#123456");
     });
 
-    test("Display › Series: the colour beside a series, picked, stays in the view and wins over the host's; Default gives it back", async ({ page }) => {
+    test("Chart settings › Entries: the colour beside a series, picked, stays in the view and wins over the host's; Default gives it back", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar" }, { colorMap: { Hardware: "#e3000f" } });
         const report = page.locator("#color-report");
         await toolbar(report, "view-settings");
@@ -117,7 +117,7 @@ test.describe("chart extras (#54)", () => {
         expect(await page.evaluate(() => window.__exports.map((e) => e.kind))).toEqual(["copy-chart", "png"]);
     });
 
-    test("Display › Series: a click on the colour reaches the browser's colour field, named with its colour; the focus comes back after a pick", async ({ page }) => {
+    test("Chart settings › Entries: a click on the colour reaches the browser's colour field, named with its colour; the focus comes back after a pick", async ({ page }) => {
         // the native colour picker cannot be driven by a test: the field's own click stands for it, and
         // is stopped there so no picker opens
         const chartEl = await mount(page, { type: "line" }, { view: { ...VIEW, cols: [] } });
@@ -146,7 +146,7 @@ test.describe("chart extras (#54)", () => {
         await expect(level.getByRole("menuitem", { name: "Colour of Sum of Revenue, #aa5500" })).toBeFocused();
     });
 
-    test("Display › Series: each colour starts as the chart draws it; a view's colour for a name not shown can be removed", async ({ page }) => {
+    test("Chart settings › Entries: each colour starts as the chart draws it; a view's colour for a name not shown can be removed", async ({ page }) => {
         const chartEl = await mount(page, { type: "bar", colors: [{ name: "Gone", color: "#123456" }] });
         const report = page.locator("#color-report");
         await toolbar(report, "view-settings");
