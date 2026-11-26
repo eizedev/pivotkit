@@ -1,11 +1,41 @@
 ---
-title: Live demo
-description: Try pivotkit in the browser - the playground with real public data (weather, countries, earthquakes, Nobel laureates, software end of life) and generated business data, and the web component on a plain HTML page.
+title: Try pivotkit
+description: Try pivotkit in five minutes - the live demo in the browser with nothing to install, the playground from a clone, a plain HTML page of your own, the command line, and the REST service and MCP server in a container.
 hide:
   - toc
 ---
 
-# Live demo
+# Try pivotkit
+
+Pick the way that fits. The first one needs nothing but a browser.
+
+1. **In the browser.** The live demo below, the playground with real public data. Nothing to install.
+
+2. **On your machine.** The same playground from the source. You need Node.js 24 or later and git:
+
+    ```bash
+    git clone https://github.com/eizedev/pivotkit.git
+    cd pivotkit
+    npm ci
+    npm run build:playground
+    node examples/playground/serve.js     # runs until Ctrl-C
+    ```
+
+    Open <http://127.0.0.1:4173/>. The web component example is at
+    <http://127.0.0.1:4173/examples/element/>.
+
+3. **On your own page.** [A complete page to copy](getting-started/web-component.md#a-complete-page):
+   one HTML file with `<pivot-report>` and any static server. In a React app:
+   [Getting started: React](getting-started/react.md).
+
+4. **On the command line.** `npx pivotkit-cli example` writes example data and views, and says
+   how to render them as a report: [command line, try it](reference/cli.md#try-it).
+
+5. **The services in a container.** One `docker run` starts the REST service and the MCP server with
+   example data, and a Compose file does the same: [server in 5 minutes](getting-started/server-in-5-minutes.md).
+   The container has the services only, not the report in the browser.
+
+## The live demo { #live-demo }
 
 The playground below is `<PivotReport>` from pivotkit-react. Try it here or full screen.
 
@@ -59,7 +89,7 @@ the end-of-life ones. The sources:
 
 The generated rows come from a fixed seed, so everyone sees the same numbers.
 
-## The playground's URL parameters
+### The playground's URL parameters { #the-playgrounds-url-parameters }
 
 The playground's address says what it shows and changes with it. The Data and Start dropdowns write
 `data` and `start`. Every change of the report writes the view into the fragment. A reload keeps the
@@ -91,7 +121,7 @@ opens the earthquakes per month as a chart in the dark theme.
 | --- | --- |
 | `#pivot-playground=1.…` | The current view in pivotkit's share format, written on every change and read on load. |
 
-## The web component example
+### The web component example { #the-web-component-example }
 
 [The example](playground/examples/element/){ target="_blank" } is a plain HTML page without a build
 step. It has:

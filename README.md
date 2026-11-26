@@ -14,7 +14,7 @@ build a report by dragging fields and take it to Excel. The same report renders 
     alt="The pivot report: average temperature of 14 cities by month as a colour scale">
 </picture></a>
 
-**[Try the live demo](https://pivotkit.eize.dev/demo/)** · [Documentation](https://pivotkit.eize.dev/) ·
+**[Try pivotkit](https://pivotkit.eize.dev/demo/)** · [Documentation](https://pivotkit.eize.dev/) ·
 [Comparison](https://pivotkit.eize.dev/compare/) · [Releases](#releases-and-changelogs) ·
 [Discussions](https://github.com/eizedev/pivotkit/discussions)
 
@@ -24,6 +24,8 @@ build a report by dragging fields and take it to Excel. The same report renders 
 
 ## Start here
 
+- **You want to see it first:** [try pivotkit](https://pivotkit.eize.dev/demo/) in the browser, on
+  your machine, on a page of your own or in a container.
 - **You build reports:** try the [live demo](https://pivotkit.eize.dev/demo/), then the six-step
   [quick start](https://pivotkit.eize.dev/use/quick-start/).
 - **You run the services:** one `docker run` starts the REST service and the MCP server:
