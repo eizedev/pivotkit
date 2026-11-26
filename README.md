@@ -192,5 +192,6 @@ The icon, header and social preview in `assets/` and `docs/assets/icon.svg` come
 The screenshots of the weather show data by [Open-Meteo.com](https://open-meteo.com/)
 ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). It contains modified Copernicus Climate
 Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data.
+The other screenshots show generated sample sales data.
 The playground's real data sets keep the licences of their sources.
 [examples/playground/data/SOURCES.md](examples/playground/data/SOURCES.md) lists them.

@@ -198,8 +198,8 @@ Commands accept every common option, and `pivotkit help <command>` lists the one
 ### When the data does not fit the view { #data-mismatch }
 
 When the data lacks fields the view uses, the first error says so, with both lists and what to do.
-The errors that follow from it (an unknown field, a grouping whose name the data has) are counted
-there and listed in `--json`:
+The errors that follow from it (an unknown field, a grouping whose source field is missing) are
+counted there and listed in `--json`:
 
 ```text
 error dataMismatch: pivotkit-weather.csv does not have the fields the view uses
