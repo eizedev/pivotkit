@@ -1,6 +1,6 @@
 // Sorting by one column from the table (#70): a month's header sorts the cities by that month, the
-// column field's name in the corner sorts the months, every sortable header shows a faint arrow at
-// rest, and the arrows widen nothing.
+// column field's name in the corner sorts the months, a header's arrow shows at rest only once its
+// sort is chosen (on the others on hover and focus, #920), and the arrows widen nothing.
 import { encodeViewLink } from "pivotkit-core/link";
 import { expect, test } from "./fixtures.js";
 
@@ -34,17 +34,20 @@ test("a column's header sorts the rows by that column: largest first, smallest f
     expect(await rowNames(page)).toEqual(before);
 });
 
-test("the column field's name sorts the columns Z to A and back; every sortable header shows a faint arrow", async ({ page }) => {
+test("the column field's name sorts the columns Z to A and back; its arrow shows at rest once it sorts", async ({ page }) => {
     await page.goto(`?data=sales&lang=en&empty#pivot-playground=${encodeViewLink(VIEW)}`);
     await expect(page.locator(".pk-table")).toBeVisible();
     const columns = () => page.locator(".pk-table thead tr").first().locator("th.pk-colHeader").allTextContents();
     const first = await columns();
     const corner = page.locator(".pk-table thead th.pk-corner", { hasText: "Channel" }).locator(".pk-th-sort");
-    // every sortable header shows its arrow at rest, faint
+    // no sort chosen: no arrow at rest (#920)
     const arrows = await page.locator(".pk-table thead .pk-th-arrow").evaluateAll((els) => els.map((e) => Number(getComputedStyle(e).opacity)));
     expect(arrows.length).toBeGreaterThan(3);
-    expect(arrows.every((o) => o > 0 && o < 1)).toBe(true);
+    expect(arrows.every((o) => o === 0)).toBe(true);
     await corner.click();
+    // the sorted header's arrow stays at rest, away from the pointer
+    await page.mouse.move(0, 0);
+    await expect(corner.locator(".pk-th-arrow")).toHaveCSS("opacity", "1");
     expect(await columns()).toEqual([...first].reverse().filter((c) => c !== "Grand Total").concat(first.includes("Grand Total") ? ["Grand Total"] : []));
     await corner.click();
     expect(await columns()).toEqual(first);

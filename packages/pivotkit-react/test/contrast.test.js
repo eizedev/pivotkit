@@ -6,15 +6,23 @@ import { readFileSync } from "node:fs";
 
 const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 
+/** The colour tokens of a block: a #rrggbb, or another token's name for a var() of it. */
 function tokens(selector) {
     const start = css.indexOf(`${selector} {`);
     assert.ok(start !== -1, `no block ${selector}`);
     const block = css.slice(start, css.indexOf("}", start));
-    return Object.fromEntries([...block.matchAll(/(--pk-[\w-]+):\s*(#[0-9a-fA-F]{6})\b/g)].map((m) => [m[1], m[2]]));
+    return Object.fromEntries([...block.matchAll(/(--pk-[\w-]+):\s*(?:(#[0-9a-fA-F]{6})\b|var\((--pk-[\w-]+)\);)/g)].map((m) => [m[1], m[2] ?? m[3]]));
 }
 
-const light = tokens(":where(.pk-root)");
-const dark = { ...light, ...tokens(':where(.pk-root[data-pk-theme="dark"])') };
+/** Each token's colour in a theme: a var() is read in that theme, as the browser resolves it. */
+function resolved(theme) {
+    const colour = (name, seen = 0) => (theme[name]?.startsWith("--") && seen < 10 ? colour(theme[name], seen + 1) : theme[name]);
+    return Object.fromEntries(Object.keys(theme).map((name) => [name, colour(name)]));
+}
+
+const lightTokens = tokens(":where(.pk-root)");
+const light = resolved(lightTokens);
+const dark = resolved({ ...lightTokens, ...tokens(':where(.pk-root[data-pk-theme="dark"])') });
 
 function luminance(hex) {
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
@@ -42,7 +50,41 @@ const UI = [["--pk-focus", "--pk-surface"], ["--pk-focus", "--pk-surface-2"], ["
     // the rule between a menu's groups: More's groups have no titles, the rule is all that tells them apart (#128)
     ["--pk-rule", "--pk-surface-raised"], ["--pk-rule", "--pk-surface"], ["--pk-rule", "--pk-surface-2"]];
 
+const ZONES = ["--pk-zone-rows", "--pk-zone-columns", "--pk-zone-values", "--pk-zone-filters"];
+const rgbOf = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const hexOf = (c) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+/** A zone's fill as styles.css mixes it (.pk-zone-fill): --pk-zone-tint of its colour in --pk-zone-tint-base. */
+function fillOf(theme, zone) {
+    const tint = Number(/--pk-zone-tint:\s*(\d+)%/.exec(css)?.[1]) / 100;
+    assert.ok(tint > 0, "no --pk-zone-tint");
+    const [colour, base] = [rgbOf(theme[zone]), rgbOf(theme["--pk-zone-tint-base"])];
+    return hexOf(colour.map((v, i) => v * tint + base[i] * (1 - tint)));
+}
+
 for (const [name, theme] of [["light", light], ["dark", dark]]) {
+    // the zones' colours are for icons only (#920): 4.6:1 on the table's header, 3:1 on their own fill;
+    // a field's name on the fill is text, the chip's controls and the sort arrow interface colours
+    test(`${name} theme: the zones' colours on the header and their fills; text, controls and the sort arrow on each fill`, () => {
+        for (const zone of ZONES) {
+            const fill = fillOf(theme, zone);
+            const pairs = [
+                [zone, theme["--pk-surface-2"], 4.6],
+                [zone, fill, 3],
+                ["--pk-text", fill, 4.5],
+                ["--pk-control-icon", fill, 3],
+                ["--pk-sort-arrow", fill, 3],
+                // the focus ring around a filled chip or header name
+                ["--pk-focus", fill, 3]
+            ];
+            // a value's name repeats over the Grand Total column, whose header is darker
+            if (zone === "--pk-zone-values") pairs.push([zone, theme["--pk-total-strong"], 4.6]);
+            for (const [fg, bg, least] of pairs) {
+                const ratio = contrast(theme[fg], bg);
+                assert.ok(ratio >= least, `${fg} on ${bg === fill ? `the fill of ${zone}` : bg}: ${ratio.toFixed(2)}`);
+            }
+        }
+    });
+
     test(`${name} theme: text 4.5:1 and interface colours 3:1`, () => {
         for (const [fg, bg] of TEXT) {
             const ratio = contrast(theme[fg], theme[bg]);

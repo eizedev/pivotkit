@@ -119,6 +119,7 @@ The next release, on `main` now. The table lists the changes that need an action
 | --- | --- | --- |
 | **Breaking:** a key file that starts with a UTF-8 byte order mark is refused | a key's `{ "file" }` (`output.downloads.key`, `audit.key`, a backend's or the upload store's secret) starts with one, as Windows PowerShell 5.1's `-Encoding UTF8` writes it | save the file as UTF-8 without the mark. `check-config` names the file. Download links made with the old key stop working, and audit hashes change |
 | A backend's sign-in and `output.upload`'s headers read `{ "env" }` secrets from the `env` the host passes | a host passes its own `env` to `createContext` or `serve()` without those variables | add the variables to that `env`. The start warns when a backend's sign-in cannot read its secret |
+| The report's corners and type icons: `--pk-radius` is 8 px (was 10 px), chips take `--pk-radius-sm`, and `--pk-type-string`, `--pk-type-number`, `--pk-type-date` and `--pk-type-boolean` default to `--pk-muted` (were one colour each) | a host sets `--pk-radius` or relies on coloured type icons, such as a theme that maps its own colours to these tokens | set `--pk-radius` or the `--pk-type-*` tokens yourself. See [theming](../reference/theming.md#tokens) |
 
 ### From 0.9 to 0.10 { #from-0-9 }
 
