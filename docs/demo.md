@@ -9,7 +9,7 @@ hide:
 
 Pick the way that fits. The first one needs nothing but a browser.
 
-1. **In the browser.** The live demo below, the playground with real public data. Nothing to install.
+1. **In the browser.** [The live demo](#live-demo) on this page, the playground with real public data. Nothing to install.
 
 2. **On your machine.** The same playground from the source. You need Node.js 24 or later and git:
 
