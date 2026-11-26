@@ -64,6 +64,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   `--pk-radius-sm`, and `--pk-radius` is 8px (was 10px)
   ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+- Chart settings › **Series** is now **Entries** ("Reihen" is now "Einträge" in German): readers did
+  not know the word "series". The search still finds it by "series" ("Reihen", "Serien"). New text
+  `shownSeriesKeywords`
+  ([#918](https://github.com/eizedev/pivotkit/issues/918)).
 - The chart's ECharts instance, its events and each draw are in `chart-draw.js`, which loads with
   ECharts. A report that never shows a chart no longer loads that code
   ([#772](https://github.com/eizedev/pivotkit/issues/772)).

@@ -693,7 +693,7 @@ function chartNotes(drawn, pie, legend, chart, labels) {
 /**
  * The topics of Chart settings after its types (#106, #580), each a row with what is set that opens
  * its level: Value labels, Legend, Title (a form), Axis (axis and group labels, the zoom slider),
- * Tooltip (and the share in it), Reference lines (a form), Series (one switch and one colour per
+ * Tooltip (and the share in it), Reference lines (a form), Entries (one switch and one colour per
  * series or slice) and Layout (100 % stacks, smooth lines, a pie's label position, the groups of
  * Rows folded). A topic the chart has nothing for is left out. Every choice applies `act.display(patch)`
  * (pivotkit-core's chart settings); the type stays. Reference lines come after Tooltip: a level with
@@ -797,6 +797,7 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
             id: "series",
             title: labels.shownSeries,
             kind: "menu",
+            keywords: labels.shownSeriesKeywords,
             info: "chartColors",
             state: fill(labels.seriesShownOf, { shown: String(names.length - hidden), count: String(names.length) }),
             changed: hidden > 0 || own.length > 0,
