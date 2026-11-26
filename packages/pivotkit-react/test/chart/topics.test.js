@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { encode, normalize } from "pivotkit-core";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../../src/deferred.js";
+import { CHART_TYPES, CHART_TYPE_NAMES } from "../../src/chart-types.js";
 import { chartTopics } from "../../src/menu-topics.js";
 import { rowFolding } from "../../src/view-ops.js";
 import { MENU } from "../helpers.js";
@@ -69,7 +70,8 @@ test("averages: no 100 % stack; lines: smooth lines; a heatmap has no Series; tw
     const only = choices(byId(lt, "series"));
     assert.deepEqual(only.map((c) => [c.text, c.checked, c.disabled, c.reason, c.color.label]), [["Sum of Revenue", true, true, "The only series is always shown", "Colour of Sum of Revenue"]]);
     const heat = norm({ rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "heatmap" } });
-    assert.deepEqual(ids(chartTopics({ view: heat, drawn: "heatmap", labels, names: [], act: { display: () => {} } })), ["valueLabels", "legend", "title"]);
+    // its colour scale takes the legend's place: no Legend, whose choices would change nothing (#916)
+    assert.deepEqual(ids(chartTopics({ view: heat, drawn: "heatmap", labels, names: [], act: { display: () => {} } })), ["valueLabels", "title"]);
     const two = norm({ rows: ["Region", "Country"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "bar" } });
     assert.ok(byId(chartTopics({ view: two, drawn: "bar", labels, names: [], act: { display: () => {} } }), "axis").groups.some((g) => g.title === labels.groupLabels));
 });
@@ -214,4 +216,85 @@ test("a treemap has no legend and no axis; its Series level lists its tiles (#51
     assert.equal(byId(topics, "axis"), undefined);
     assert.ok(byId(topics, "valueLabels"));
     assert.ok(byId(topics, "series"));
+});
+
+/**
+ * The choices of Chart settings whose name says what they do, by id (a number in it stands for any),
+ * with why. Every other choice has a line under it (`note`), a hint beside it or an "i" (#916).
+ */
+const PLAIN = new Map([
+    ["labels-off", "Off"],
+    ["labels-value", "Value"],
+    ["labels-percent", "Percent"],
+    ["labels-both", "Value and percent"],
+    ["legend-bottom", "Bottom"],
+    ["legend-right", "Right"],
+    ["legend-off", "Off"],
+    ["axis-all", "All (slanted)"],
+    ["groups-on", "On, under the group's title Group labels under the axis"],
+    ["groups-off", "Off"],
+    ["zoom-on", "On, under Zoom slider"],
+    ["zoom-off", "Off"],
+    ["tooltip-auto", "the Tooltip's i explains Automatic and All series"],
+    ["tooltip-axis", "the Tooltip's i"],
+    ["line-average", "Average, a reference line"],
+    ["line-trend", "Trend, a reference line"],
+    ["line-extremes", "High and low points"],
+    ["target-remove", "Remove the target"],
+    ["series-N", "a series' own name; the Series i explains its switch and colour"],
+    ["series-N-default", "the colour's Default, with the reset icon"],
+    ["color-stale-N", "Remove"],
+    ["chart-smooth", "Smooth lines"],
+    ["label-position-inside", "the i at Outside explains both"],
+    ["chart-show-each", "Show each Country"],
+    ["chart-show-only", "Show Region only"]
+]);
+
+/** Every choice Chart settings offers, with its actions, over every chart type, in one language. */
+function everyChoice(language) {
+    const view = (type, chart = {}) => norm({ rows: ["Region", "Country"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }, { field: "Price", agg: "sum" }], chart: { ...CHART_TYPES[type].chart, colors: [{ name: "Hardware", color: "#123456" }, { name: "Gone", color: "#abcdef" }], ...chart } });
+    const act = { display: () => {}, expand: () => {}, collapse: () => {} };
+    const folding = { canExpand: true, canCollapse: true, collapsed: 0, why: {} };
+    const settings = CHART_TYPE_NAMES.filter((t) => t !== "auto").flatMap((type) => [
+        { view: view(type), type, lines: { rules: { average: true, trend: true, target: true, extremes: true, notes: [] }, targetText: "" } },
+        // a target the chart cannot draw: Remove the target; a pie's labels inside
+        { view: view(type, { referenceLines: { average: false, trend: false, target: 5, extremes: false }, labelPosition: "inside" }), type, lines: { rules: { average: false, trend: false, target: false, extremes: false, notes: [] }, targetText: "5" } }
+    ]);
+    return settings.flatMap(({ view: v, type, lines }) =>
+        chartTopics({ view: v, drawn: type, labels: language, names: ["Hardware", "Services"], act, lines, folding }).flatMap((topic) => choices(topic).flatMap((c) => [c, ...(c.actions ?? [])].map((choice) => ({ type, topic, choice, id: choice.id.replace(/\d+/g, "N") }))))
+    );
+}
+
+test("every choice of Chart settings says what it does: by its name, or by a line under it, in English and German (#916)", () => {
+    for (const language of [MENU.en, MENU.de]) {
+        const all = everyChoice(language);
+        const unclear = all.filter(({ choice, id }) => !PLAIN.has(id) && !(choice.note || choice.hint || choice.info)).map(({ type, topic, choice }) => `${type}: ${topic.title} › ${choice.text}`);
+        assert.deepEqual([...new Set(unclear)], [], language.lang);
+        // the list names only choices there are
+        assert.deepEqual([...PLAIN.keys()].filter((id) => !all.some((c) => c.id === id)), []);
+    }
+    // each line in German is German, not the English one
+    const en = new Map(everyChoice(MENU.en).map((c) => [`${c.type} ${c.choice.id}`, c.choice.note]));
+    for (const c of everyChoice(MENU.de)) {
+        if (c.choice.note) {
+            assert.notEqual(c.choice.note, en.get(`${c.type} ${c.choice.id}`), c.choice.id);
+        }
+    }
+});
+
+test("what the lines under Automatic say follows the chart: no numbers on bars, a pie's names or shares, the legend above, the axis labels of horizontal bars (#916)", () => {
+    const note = (type, topic, id, chart = {}) => {
+        const view = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { ...CHART_TYPES[type].chart, ...chart } });
+        return choices(byId(chartTopics({ view, drawn: type, labels, names: ["North", "South"], act: { display: () => {} } }), topic)).find((c) => c.id === id).note;
+    };
+    assert.equal(note("bar", "valueLabels", "labels-auto"), "None; the tooltip shows the numbers.");
+    assert.equal(note("pie", "valueLabels", "labels-auto"), "Each slice's name.");
+    assert.equal(note("donut", "valueLabels", "labels-auto", { labelPosition: "inside" }), "Each slice's share.");
+    assert.equal(note("treemap", "valueLabels", "labels-auto"), "Each tile's name and value.");
+    assert.equal(note("heatmap", "valueLabels", "labels-auto"), "The numbers, up to 200 cells.");
+    assert.equal(note("line", "legend", "legend-auto"), "Above, with two or more series.");
+    assert.equal(note("pie", "legend", "legend-auto"), "Above.");
+    assert.equal(note("bar", "axis", "axis-auto"), "Straight if they fit, else slanted, else every n-th.");
+    assert.equal(note("horizontal", "axis", "axis-auto"), "All if they fit, else every n-th.");
+    assert.equal(note("pie", "tooltip", "chart-tooltip-share"), "Each value with its share of the total, such as 25%.");
 });

@@ -6,6 +6,7 @@ import { encode, normalize } from "pivotkit-core";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../src/deferred.js";
 import { setItemFilter, setTopFilter, setValueFilter } from "../src/menu-ops.js";
+import { setSort, withHostOrders } from "../src/view-ops.js";
 import { afterDelete, axisTopics, entryIds, formatLabel, moreTopics, rowFoldTexts, rowName, searchEntries, searchHits, SEARCH_HITS, stepIndex, tableTopics, TOP_COUNTS, topText, typeAheadIndex, valueTopics } from "../src/menu-topics.js";
 import { MENU } from "./helpers.js";
 
@@ -22,10 +23,10 @@ const units = { field: "Units", agg: "sum" };
 
 const axis = (view, field = "Region", extra = {}) => axisTopics({ view, zone: "rows", index: view.rows.indexOf(field), field, types, labels: MENU.en, locale: "en-US", ...extra });
 
-test("a field's first level: sort side by side, by its one value inline, Filter, Top items, Name, Move to; each says what is set", () => {
+test("a field's first level: sort side by side, by its one value inline, Default order, Filter, Top items, Name, Move to; each says what is set", () => {
     const view = norm({ rows: ["Region"], values: [units] });
     const topics = axis(view);
-    assert.deepEqual(topics.map((t) => [t.id, t.kind]), [["sort", "segmented"], ["sortValue", "inline"], ["filter", "panel"], ["top", "panel"], ["name", "panel"], ["move", "menu"]]);
+    assert.deepEqual(topics.map((t) => [t.id, t.kind]), [["sort", "segmented"], ["sortValue", "inline"], ["sortDefault", "inline"], ["filter", "panel"], ["top", "panel"], ["name", "panel"], ["move", "menu"]]);
     const sort = byId(topics, "sort");
     assert.deepEqual(sort.groups[0].choices.map((c) => [c.text, c.checked]), [["A to Z", true], ["Z to A", false]]);
     assert.deepEqual(byId(topics, "sortValue").groups[0].choices.map((c) => c.text), ["Largest Sum of Units first", "Smallest Sum of Units first"]);
@@ -51,6 +52,50 @@ test("a choice changes the view as the menu did: sort, and the history's note", 
     assert.equal(choice(byId(topics, "sortValue"), "sort-value-desc-0").checked, true);
     assert.equal(choice(byId(topics, "sort"), "sort-label-asc").checked, false);
     assert.deepEqual([byId(topics, "sortValue").state, byId(topics, "sortValue").changed], ["Largest Sum of Units first", true]);
+});
+
+test("Default order takes the field back to the order of a new view, from a sort by a value, by one column or by label; greyed out with the reason while it is in it (#917)", () => {
+    const sortDefault = (view, field = "Region", extra) => choice(byId(axis(view, field, extra), "sortDefault"), "sort-default");
+    // a text field: A to Z without a sort entry
+    const fresh = norm({ rows: ["Region"], cols: ["Product"], values: [units] });
+    const off = sortDefault(fresh);
+    assert.deepEqual([off.text, off.icon, off.disabled, off.reason], ["Default order", "reset", true, "Already the default."]);
+    assert.equal(byId(axis(fresh), "sortDefault").title, "Sort order");
+    for (const sort of [{ by: "value", order: "desc", value: units }, { by: "value", order: "asc", value: units, column: ["A"] }, { by: "label", order: "desc" }]) {
+        const sorted = norm(setSort(fresh, "Region", sort));
+        const on = sortDefault(sorted);
+        assert.deepEqual([on.disabled, on.reason], [false, undefined]);
+        const { view, note } = on.change();
+        assert.deepEqual(view, fresh);
+        assert.deepEqual(note, { step: "sort", field: "Region" });
+    }
+    // A to Z written as an entry (a loaded view) is the default too
+    assert.equal(sortDefault(norm(setSort(fresh, "Region", { by: "label", order: "asc" }))).disabled, true);
+    // a date: oldest first
+    const dates = norm({ rows: ["Date"], values: [units] });
+    const newest = choice(byId(axis(dates, "Date"), "sort"), "sort-label-desc").change().view;
+    const back = sortDefault(newest, "Date").change().view;
+    assert.deepEqual(back.sort, []);
+    assert.deepEqual([choice(byId(axis(back, "Date"), "sort"), "sort-label-asc").checked, sortDefault(back, "Date").disabled], [true, true]);
+    // a field in the host's order (fieldDefaults.order): it comes back once the entry is gone, as every view shown gets it (withHostOrders)
+    const order = ["West", "North", "South"];
+    const host = { defaultsOf: (f) => (f === "Region" ? { order } : undefined) };
+    const orderOf = (f) => host.defaultsOf(f)?.order;
+    const hosted = norm(withHostOrders(fresh, orderOf));
+    assert.equal(sortDefault(hosted, "Region", host).disabled, true);
+    const az = norm(choice(byId(axis(hosted, "Region", host), "sort"), "sort-label-asc").change().view);
+    assert.deepEqual(az.sort, [{ field: "Region", by: "label", order: "asc" }]);
+    const reset = sortDefault(az, "Region", host);
+    assert.equal(reset.disabled, false);
+    assert.deepEqual(norm(withHostOrders(reset.change().view, orderOf)), hosted);
+    // another custom order is not the host's: compared item by item, as the field's type writes them
+    assert.equal(sortDefault(norm(setSort(hosted, "Region", { by: "custom", order: "asc", items: ["North", "West", "South"] })), "Region", host).disabled, false);
+    const years = { defaultsOf: () => ({ order: ["3", "1", "7"] }) };
+    const numbers = norm({ rows: ["Units"], values: [{ field: "Region", agg: "count" }], sort: [{ field: "Units", by: "custom", order: "asc", items: [3, 1, 7] }] });
+    assert.equal(sortDefault(numbers, "Units", years).disabled, true);
+    // German
+    const de = choice(byId(axisTopics({ view: fresh, zone: "rows", index: 0, field: "Region", types, labels: MENU.de, locale: "de-DE" }), "sortDefault"), "sort-default");
+    assert.deepEqual([de.text, de.reason], ["Standardreihenfolge", "Schon der Standard."]);
 });
 
 test("several values to sort by: a level of their own; dates sort Oldest and Newest", () => {

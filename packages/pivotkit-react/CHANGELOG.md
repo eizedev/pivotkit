@@ -21,6 +21,17 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   The note points there first. New texts `markOf`, `markQuestion` and `markOption` in
   `labels.dataImport`
   ([#787](https://github.com/eizedev/pivotkit/issues/787)).
+- A field's menu on Rows or Columns has **Default order** ("Standardreihenfolge"), in a group named
+  "Sort order". It takes the field back to the order of a new view: A to Z, oldest first, or the
+  host's order. It ends a sort by a value or by a column too. While the field already sorts this
+  way, it is greyed out with "Already the default.". New texts `sortOrder`, `sortDefault` and
+  `sortIsDefault`
+  ([#917](https://github.com/eizedev/pivotkit/issues/917)).
+- Chart settings says what a choice does where its name alone does not. A line under Automatic says
+  what it shows on this chart: under Value labels, Legend and Axis labels. Lines under Every n-th
+  and Share in the tooltip say what they do. The Tooltip's **i** says what Share in the tooltip
+  adds. New texts `chartNotes`
+  ([#916](https://github.com/eizedev/pivotkit/issues/916)).
 
 ### Changed
 
@@ -29,6 +40,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ([#772](https://github.com/eizedev/pivotkit/issues/772)).
 
 ### Fixed
+
+- A heatmap's Chart settings no longer list Legend. Its colour scale takes the legend's place, so
+  none of its choices changed anything
+  ([#916](https://github.com/eizedev/pivotkit/issues/916)).
 
 - The chart's text on coloured fills reads in both themes, with pivotkit-core's fix
   ([#913](https://github.com/eizedev/pivotkit/issues/913), [#914](https://github.com/eizedev/pivotkit/issues/914)):
