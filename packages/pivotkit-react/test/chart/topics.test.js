@@ -221,6 +221,7 @@ test("a treemap has no legend and no axis; its Series level lists its tiles (#51
 /**
  * The choices of Chart settings whose name says what they do, by id (a number in it stands for any),
  * with why. Every other choice has a line under it (`note`), a hint beside it or an "i" (#916).
+ * Horizontal bars write All straight, so there All needs its line (#963): see `plain`.
  */
 const PLAIN = new Map([
     ["labels-off", "Off"],
@@ -238,7 +239,6 @@ const PLAIN = new Map([
     ["tooltip-auto", "the Tooltip's i explains Automatic and All series"],
     ["tooltip-axis", "the Tooltip's i"],
     ["line-average", "Average, a reference line"],
-    ["line-trend", "Trend, a reference line"],
     ["line-extremes", "High and low points"],
     ["target-remove", "Remove the target"],
     ["series-N", "a series' own name; the Series i explains its switch and colour"],
@@ -249,6 +249,9 @@ const PLAIN = new Map([
     ["chart-show-each", "Show each Country"],
     ["chart-show-only", "Show Region only"]
 ]);
+
+/** Whether a choice of a chart type needs no line: horizontal bars' All is not the slanted All (#963). */
+const plain = (type, id) => PLAIN.has(id) && !(type === "horizontal" && id === "axis-all");
 
 /** Every choice Chart settings offers, with its actions, over every chart type, in one language. */
 function everyChoice(language) {
@@ -268,7 +271,7 @@ function everyChoice(language) {
 test("every choice of Chart settings says what it does: by its name, or by a line under it, in English and German (#916)", () => {
     for (const language of [MENU.en, MENU.de]) {
         const all = everyChoice(language);
-        const unclear = all.filter(({ choice, id }) => !PLAIN.has(id) && !(choice.note || choice.hint || choice.info)).map(({ type, topic, choice }) => `${type}: ${topic.title} › ${choice.text}`);
+        const unclear = all.filter(({ type, choice, id }) => !plain(type, id) && !(choice.note || choice.hint || choice.info)).map(({ type, topic, choice }) => `${type}: ${topic.title} › ${choice.text}`);
         assert.deepEqual([...new Set(unclear)], [], language.lang);
         // the list names only choices there are
         assert.deepEqual([...PLAIN.keys()].filter((id) => !all.some((c) => c.id === id)), []);
@@ -291,10 +294,34 @@ test("what the lines under Automatic say follows the chart: no numbers on bars, 
     assert.equal(note("pie", "valueLabels", "labels-auto"), "Each slice's name.");
     assert.equal(note("donut", "valueLabels", "labels-auto", { labelPosition: "inside" }), "Each slice's share.");
     assert.equal(note("treemap", "valueLabels", "labels-auto"), "Each tile's name and value.");
-    assert.equal(note("heatmap", "valueLabels", "labels-auto"), "The numbers, up to 200 cells.");
+    assert.equal(note("heatmap", "valueLabels", "labels-auto"), "The numbers, up to 200 filled cells, when the cells are large enough.");
     assert.equal(note("line", "legend", "legend-auto"), "Above, with two or more series.");
     assert.equal(note("pie", "legend", "legend-auto"), "Above.");
-    assert.equal(note("bar", "axis", "axis-auto"), "Straight if they fit, else slanted, else every n-th.");
+    assert.equal(note("bar", "axis", "axis-auto"), "Straight if they fit, else slanted; every n-th if still too many.");
     assert.equal(note("horizontal", "axis", "axis-auto"), "All if they fit, else every n-th.");
-    assert.equal(note("pie", "tooltip", "chart-tooltip-share"), "Each value with its share of the total, such as 25%.");
+    // horizontal bars write every name straight: All, not All (slanted) (#963)
+    assert.equal(note("horizontal", "axis", "axis-all"), "Every name, straight, even where they overlap.");
+    assert.equal(note("bar", "axis", "axis-all"), undefined);
+    assert.equal(note("pie", "tooltip", "chart-tooltip-share"), "Sums and counts with their share of the total, such as 25%. Not for averages.");
+    assert.equal(note("line", "lines", "line-trend"), "A straight line that best fits the values.");
+});
+
+test("horizontal bars name All without slanted, in English and German, in the choice and the Axis' state (#963)", () => {
+    for (const [language, all, slanted] of [[MENU.en, "All", "All (slanted)"], [MENU.de, "Alle", "Alle (schräg)"]]) {
+        const axisOf = (type) => byId(chartTopics({ view: norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { ...CHART_TYPES[type].chart, axisLabels: "all" } }), drawn: type, labels: language, names: [], act: { display: () => {} } }), "axis");
+        assert.equal(choices(axisOf("horizontal")).find((c) => c.id === "axis-all").text, all);
+        assert.equal(axisOf("horizontal").state, all);
+        assert.equal(choices(axisOf("bar")).find((c) => c.id === "axis-all").text, slanted);
+    }
+});
+
+test("every chart type says what Automatic writes as value labels, in English and German (#916)", () => {
+    for (const language of [MENU.en, MENU.de]) {
+        for (const type of CHART_TYPE_NAMES.filter((t) => t !== "auto")) {
+            const view = norm({ rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], chart: { ...CHART_TYPES[type].chart } });
+            const auto = choices(byId(chartTopics({ view, drawn: type, labels: language, names: ["North"], act: { display: () => {} } }), "valueLabels")).find((c) => c.id === "labels-auto");
+            assert.equal(typeof auto?.note, "string", `${language.lang} ${type}`);
+            assert.ok(auto.note.length > 0, `${language.lang} ${type}`);
+        }
+    }
 });

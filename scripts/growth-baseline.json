@@ -41,7 +41,6 @@
             "packages/pivotkit-react/src/fields.jsx Function 'FieldPanel'": [29],
             "packages/pivotkit-react/src/filter-level.jsx Function 'FilterLevel'": [56],
             "packages/pivotkit-react/src/import-ui.jsx Function 'ImportDialog'": [39],
-            "packages/pivotkit-react/src/levels.jsx Function 'MenuItem'": [27],
             "packages/pivotkit-react/src/menu-topics.js Function 'axisTopics'": [28],
             "packages/pivotkit-react/src/menu-topics.js Function 'chartTopics'": [62],
             "packages/pivotkit-react/src/popover.jsx Arrow function": [27],

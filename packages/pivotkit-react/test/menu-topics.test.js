@@ -59,7 +59,7 @@ test("Default order takes the field back to the order of a new view, from a sort
     // a text field: A to Z without a sort entry
     const fresh = norm({ rows: ["Region"], cols: ["Product"], values: [units] });
     const off = sortDefault(fresh);
-    assert.deepEqual([off.text, off.icon, off.disabled, off.reason], ["Default order", "reset", true, "Already the default."]);
+    assert.deepEqual([off.text, off.icon, off.disabled, off.reason], ["Default order", "reset", true, "Already the default order."]);
     assert.equal(byId(axis(fresh), "sortDefault").title, "Sort order");
     for (const sort of [{ by: "value", order: "desc", value: units }, { by: "value", order: "asc", value: units, column: ["A"] }, { by: "label", order: "desc" }]) {
         const sorted = norm(setSort(fresh, "Region", sort));
@@ -67,7 +67,10 @@ test("Default order takes the field back to the order of a new view, from a sort
         assert.deepEqual([on.disabled, on.reason], [false, undefined]);
         const { view, note } = on.change();
         assert.deepEqual(view, fresh);
-        assert.deepEqual(note, { step: "sort", field: "Region" });
+        // its own undo text: "default order of Region"
+        assert.deepEqual(note, { step: "sortDefault", field: "Region" });
+        // the search finds it by "reset" and "unsorted" too
+        assert.equal(on.keywords, "reset unsorted");
     }
     // A to Z written as an entry (a loaded view) is the default too
     assert.equal(sortDefault(norm(setSort(fresh, "Region", { by: "label", order: "asc" }))).disabled, true);
@@ -95,7 +98,7 @@ test("Default order takes the field back to the order of a new view, from a sort
     assert.equal(sortDefault(numbers, "Units", years).disabled, true);
     // German
     const de = choice(byId(axisTopics({ view: fresh, zone: "rows", index: 0, field: "Region", types, labels: MENU.de, locale: "de-DE" }), "sortDefault"), "sort-default");
-    assert.deepEqual([de.text, de.reason], ["Standardreihenfolge", "Schon der Standard."]);
+    assert.deepEqual([de.text, de.reason, de.keywords], ["Standardreihenfolge", "Bereits die Standardreihenfolge.", "zurücksetzen unsortiert"]);
 });
 
 test("several values to sort by: a level of their own; dates sort Oldest and Newest", () => {

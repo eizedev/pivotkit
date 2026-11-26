@@ -68,3 +68,43 @@ test("a field in the host's own order: Default order brings that order back, not
     await expect.poll(() => rowNames(page)).toEqual(start);
     await expect(header).toHaveAttribute("aria-sort", "other");
 });
+
+/** The search's hit Default order. */
+const hitOf = (menu) => menu.getByTestId("menu-search-hits").getByRole("menuitem").filter({ hasText: textOf("sortDefault") });
+
+test("the search finds Default order by reset or unsorted, greyed out with its reason as in its level; the line under it is its description, not part of its name", async ({ page }) => {
+    await page.goto(`?data=sales&lang=en&empty#pivot-playground=${encodeViewLink(VIEW)}`);
+    await page.getByTestId("chip-menu-Region").click();
+    const menu = page.locator(".pk-chip-menu");
+    // in its level: the reason is read once, as the description
+    const choice = menu.getByTestId("sort-default");
+    await expect(choice).toHaveAccessibleName(textOf("sortDefault"));
+    await expect(choice).toHaveAccessibleDescription(textOf("sortIsDefault"));
+    const search = menu.getByTestId("menu-search");
+    for (const word of ["reset", "unsorted"]) {
+        await search.fill(word);
+        const hit = hitOf(menu);
+        // its name and its path; the reason is the description only
+        await expect(hit).toHaveAccessibleName(`${textOf("sortDefault")} ${textOf("sortOrder")}`);
+        await expect(hit).toHaveAttribute("aria-disabled", "true");
+        await expect(hit).toHaveAccessibleDescription(textOf("sortIsDefault"));
+    }
+    // Enter on the greyed-out hit does nothing: the search keeps its words, no undo step
+    await search.press("ArrowDown");
+    await expect(hitOf(menu)).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(search).toHaveValue("unsorted");
+    await expect(page.getByTestId("undo")).toBeDisabled();
+    // sorted, the hit is one to pick, and it takes the sort back
+    await search.fill("");
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+    await page.locator(".pk-table thead th", { hasText: /^Online$/ }).locator(".pk-th-sort").click();
+    await expect(page.getByTestId("chip-menu-Region")).toHaveAccessibleName(/^Region, sorted /);
+    await page.getByTestId("chip-menu-Region").click();
+    await menu.getByTestId("menu-search").fill("unsorted");
+    const hit = hitOf(menu);
+    await expect(hit).not.toHaveAttribute("aria-disabled");
+    await hit.click();
+    await expect(page.getByTestId("chip-menu-Region")).toHaveAccessibleName("Region");
+});

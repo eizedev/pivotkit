@@ -119,21 +119,21 @@ is left out: a pie has no Axis, a heatmap no Legend or Series.
 A choice applies at once, and the menu stays open, so the chart behind it shows the change. The
 settings stay with the report: in saved views, links and the chart image. They also stay when the
 chart type changes. An **i** explains Group labels, Tooltip, Zoom slider, Series, Stacked to 100 % and the
-labels of a pie. A line under Automatic, Every n-th and Share in the tooltip says what each does.
+labels of a pie. A line under Automatic, Every n-th, Trend and Share in the tooltip says what each does.
 
 ![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series and Layout](../assets/screenshots/chart-display-light.png#only-light)
 ![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series and Layout](../assets/screenshots/chart-display-dark.png#only-dark)
 
 | Setting | Path | Choices | Default |
 | --- | --- | --- | --- |
-| Value labels | Chart settings › Value labels | Automatic, Off, Value. A pie and a donut also offer Percent and Value and percent. | Automatic: a pie names its slices, or writes each share with its labels inside. A treemap writes each tile's name and value. A heatmap writes the numbers while there are 200 cells or fewer. Bars and lines write nothing. |
+| Value labels | Chart settings › Value labels | Automatic, Off, Value. A pie and a donut also offer Percent and Value and percent. | Automatic: a pie names its slices, or writes each share with its labels inside. A treemap writes each tile's name and value. A heatmap writes the numbers while it has 200 filled cells or fewer and its cells are large enough for them. Bars and lines write nothing. |
 | Legend | Chart settings › Legend | Automatic, Bottom, Right, Off. Not for a treemap or a heatmap. | Automatic: above the chart when there is more than one series. A pie and a donut always have one. |
 | Title | Chart settings › Title | Any text. The × removes it at once. | none |
-| Axis labels | Chart settings › Axis | Automatic, All (slanted), Every n-th | Automatic: straight if the labels fit, else slanted, else every n-th. Horizontal bars keep them straight and leave some out. Every n-th keeps them straight, with gaps so none overlap. |
+| Axis labels | Chart settings › Axis | Automatic, All (slanted), Every n-th. Horizontal bars: All instead of All (slanted). | Automatic: straight if the labels fit, else slanted; every n-th if still too many. Horizontal bars keep them straight and leave some out; their All writes every one straight, even where they overlap. Every n-th keeps them straight, with gaps so none overlap. |
 | Group labels | Chart settings › Axis | Automatic, On, Off. With two or more fields in Rows. | Automatic: shown while the chart has room for them |
 | Zoom slider | Chart settings › Axis | Automatic, On, Off | Automatic: more than 20 categories, or an axis that would leave out 3 names or more between two |
 | Tooltip | Chart settings › Tooltip | Automatic, All series | Automatic: the element under the pointer |
-| Share in the tooltip | Chart settings › Tooltip | on, off. Not for a heatmap. Adds each value's share of the total, such as 25%. | off |
+| Share in the tooltip | Chart settings › Tooltip | on, off. Not for a heatmap. Sums and counts get their share of the total, such as 25%; averages and values below zero get none. See "The share in the tooltip" below. | off |
 | Series | Chart settings › Series | A switch per series, or per slice of a pie or a donut, with its colour beside it. One series is listed for its colour. | all shown, in the palette or the colours your app sets |
 | Stacked to 100 % | Chart settings › Layout | on, off. Stacked bars and areas of sums and counts. | off |
 | Reference lines | Chart settings › Reference lines | Average, Trend, High and low points, Target. Bars, lines and areas. See [below](#reference-lines). | none |

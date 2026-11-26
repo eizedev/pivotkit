@@ -118,7 +118,7 @@ function defaultOrderTopic(view, field, name, sort, hosted, hostOrder, labels) {
     // a custom order's items may have taken the field's type: compared entry by entry, as text
     const isHostOrder = () => sort.by === "custom" && sort.order === "asc" && sort.items.length === hostOrder.length && sort.items.every((x, i) => String(x) === String(hostOrder[i]));
     const isDefault = !sort || (hosted ? isHostOrder() : sort.by === "label" && sort.order === "asc");
-    const choice = { id: "sort-default", text: labels.sortDefault, icon: "reset", disabled: isDefault, reason: isDefault ? labels.sortIsDefault : undefined, change: () => ({ view: setSort(view, field, null), note: { step: "sort", field: name } }) };
+    const choice = { id: "sort-default", text: labels.sortDefault, icon: "reset", keywords: labels.sortDefaultKeywords, disabled: isDefault, reason: isDefault ? labels.sortIsDefault : undefined, change: () => ({ view: setSort(view, field, null), note: { step: "sortDefault", field: name } }) };
     return { id: "sortDefault", title: labels.sortOrder, kind: "inline", groups: [{ choices: [choice] }] };
 }
 
@@ -661,6 +661,17 @@ function tooltipTopic(chart, axis, labels, pickOf, flip) {
 }
 
 /**
+ * The names of the Axis labels choices: horizontal bars never slant their labels, so their All is
+ * "All", not "All (slanted)" (#963).
+ * @param {string} drawn
+ * @param {any} labels
+ * @returns {Record<string, string>}
+ */
+function axisLabelNames(drawn, labels) {
+    return drawn === "horizontal" ? { ...labels.axisLabelNames, all: labels.axisLabelAllStraight } : labels.axisLabelNames;
+}
+
+/**
  * The lines under the choices of Chart settings whose names alone do not say what they do (#916):
  * what Automatic does on this chart, as pivotkit-core's chart.js draws it, and what Every n-th does.
  * @param {string} drawn the type drawn @param {boolean} pie a slice type @param {boolean} legend the chart has a legend
@@ -674,8 +685,8 @@ function chartNotes(drawn, pie, legend, chart, labels) {
     return {
         valueLabels: { auto: say[autoLabels] },
         legend: { auto: say[pie ? "legendSlices" : "legend"] },
-        // horizontal bars write their labels straight: Automatic leaves some out, never slants them
-        axisLabels: { auto: say[drawn === "horizontal" ? "axisSide" : "axis"], nth: say.nth }
+        // horizontal bars write their labels straight: Automatic leaves some out, All lets them overlap (#963)
+        axisLabels: drawn === "horizontal" ? { auto: say.axisSide, all: say.allStraight, nth: say.nth } : { auto: say.axis, nth: say.nth }
     };
 }
 
@@ -726,15 +737,16 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
     ];
     if (axis) {
         const groups = view.rows.length >= 2;
+        const axisNames = axisLabelNames(drawn, labels);
         const off = [groups && chart.groupLabels !== "auto" ? `${labels.groupLabels.toLowerCase()} ${labels.groupLabelNames[chart.groupLabels].toLowerCase()}` : null, chart.zoom !== "auto" ? `${labels.zoom.toLowerCase()} ${labels.zoomNames[chart.zoom].toLowerCase()}` : null].filter(Boolean);
         topics.push({
             id: "axis",
             title: labels.chartAxis,
             kind: "menu",
-            state: [labels.axisLabelNames[chart.axisLabels], ...off].join(", "),
+            state: [axisNames[chart.axisLabels], ...off].join(", "),
             changed: chart.axisLabels !== "auto" || off.length > 0,
             groups: [
-                { title: labels.axisLabels, choices: ["auto", "all", "nth"].map((v) => ({ ...pickOf("axisLabels", v, labels.axisLabelNames[v], `axis-${v}`), note: notes.axisLabels[v] })) },
+                { title: labels.axisLabels, choices: ["auto", "all", "nth"].map((v) => ({ ...pickOf("axisLabels", v, axisNames[v], `axis-${v}`), note: notes.axisLabels[v] })) },
                 ...(groups ? [{ title: labels.groupLabels, choices: ["auto", "on", "off"].map((v) => pickOf("groupLabels", v, labels.groupLabelNames[v], `groups-${v}`, v === "auto" ? "groupLabels" : undefined)) }] : []),
                 { title: labels.zoom, choices: ["auto", "on", "off"].map((v) => pickOf("zoom", v, labels.zoomNames[v], `zoom-${v}`, v === "auto" ? "zoom" : undefined)) }
             ]
@@ -757,7 +769,7 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
         /** @type {Choice[]} */
         const choices = [
             { id: "line-average", text: words.average, checkbox: true, checked: now.average, disabled: !rules.average, reason: rules.average ? undefined : say(total), run: () => set({ average: !now.average }) },
-            { id: "line-trend", text: words.trend, checkbox: true, checked: now.trend, disabled: !rules.trend, reason: rules.trend ? undefined : say([...total, "noTime"]), run: () => set({ trend: !now.trend }) },
+            { id: "line-trend", text: words.trend, checkbox: true, checked: now.trend, disabled: !rules.trend, note: labels.chartNotes.trend, reason: rules.trend ? undefined : say([...total, "noTime"]), run: () => set({ trend: !now.trend }) },
             // the high and low points (#574): where an average is drawn, with its reason where not
             { id: "line-extremes", text: labels.linesExtremes, checkbox: true, checked: Boolean(now.extremes), disabled: !rules.extremes, reason: rules.extremes ? undefined : say(total), run: () => set({ extremes: !now.extremes }) },
             { id: "line-target", text: words.target, hint: now.target !== null ? targetText : labels.targetNone, open: "linesTarget", disabled: !rules.target, reason: rules.target ? undefined : say(["noTotal", "percentStack", "mixedUnits"]) },
