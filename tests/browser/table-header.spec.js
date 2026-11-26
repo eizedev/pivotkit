@@ -163,6 +163,8 @@ test.describe("the table's header names its fields by zone (#920)", () => {
         // and, as the tooltip says, what the next click does
         await expect(sorted).toHaveAccessibleDescription("sorted Largest Count of Ticket first. Sort by Count of Ticket: smallest first");
         await expect(sorted).toHaveAttribute("title", "Sort by Count of Ticket: smallest first");
+        // a reader that skips aria-description still hears the order from the header cell itself
+        await expect(table.locator("thead th", { has: page.locator(".pk-th-sort.pk-sorted") })).toHaveAttribute("aria-sort", "descending");
         const arrow = sorted.locator(".pk-th-arrow");
         await expect(arrow).toHaveCSS("opacity", "1");
         // behind the name
