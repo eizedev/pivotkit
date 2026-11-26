@@ -241,7 +241,7 @@ export function toEChartsOption(result, options) {
 
     if (chart.type === "treemap") {
         // one tile per category, its area its total (as a pie's slice), in its colour; no legend: each
-        // tile is named on it. A tile hidden in Chart settings › Series is left out
+        // tile is named on it. A tile hidden in Chart settings › Entries is left out
         const hidden = Array.isArray(chart.hidden) ? chart.hidden : [];
         const palette = theme.colors ?? [];
         const data = s.categories

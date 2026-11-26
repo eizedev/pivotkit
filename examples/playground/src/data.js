@@ -185,7 +185,10 @@ export const REAL = {
                     cols: ["Date by month of year"],
                     derived: [{ name: "Date by month of year", field: "Date", by: "month" }],
                     values: [{ field: "Mean °C", agg: "average", format: "number:1", conditional: { type: "colorScale", colors: ["#5a8dee", "#f4f4f4", "#e8554e"] } }],
-                    totals: { grandTotalRow: false }
+                    totals: { grandTotalRow: false },
+                    // a short name for the grouping: the table's corner shows "Month" instead of the long
+                    // "Date by month of year · 2023–2025 combined", which wraps over two lines
+                    fieldLabels: { "Date by month of year": "Month" }
                 }
             },
             {

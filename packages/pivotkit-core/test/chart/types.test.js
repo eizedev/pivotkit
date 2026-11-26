@@ -108,7 +108,7 @@ test("treemap: one tile per category, its area its total, each tile in its colou
     assert.equal(s.label.formatter({ name: "North", value: 270_000 }), "North\n270,000");
     assert.equal(option.legend?.show ?? false, false);
     assert.equal(option.tooltip.trigger, "item");
-    // a tile hidden in Chart settings › Series is left out
+    // a tile hidden in Chart settings › Entries is left out
     const hidden = toEChartsOption(computePivot(data, { rows: ["Region"], values: [TWO[0]], chart: { type: "treemap", hidden: ["South"] } }), { theme: THEME });
     assert.deepEqual(
         hidden.series[0].data.map((d) => d.name),

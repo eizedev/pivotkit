@@ -1,12 +1,12 @@
 // The chart type menu's Display settings in levels (#106, #36): a short first level (value labels,
-// legend, title) and topics that open a level (Axis, Tooltip, Series, Layout), each with its state.
+// legend, title) and topics that open a level (Axis, Tooltip, Entries, Layout), each with its state.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { encode, normalize } from "pivotkit-core";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../../src/deferred.js";
 import { CHART_TYPES, CHART_TYPE_NAMES } from "../../src/chart-types.js";
-import { chartTopics } from "../../src/menu-topics.js";
+import { chartTopics, searchEntries, searchHits } from "../../src/menu-topics.js";
 import { rowFolding } from "../../src/view-ops.js";
 import { MENU } from "../helpers.js";
 
@@ -55,9 +55,18 @@ test("a pie: its value labels with percent, the label position under Layout, no 
     assert.deepEqual(choices(byId(topics, "tooltip")).map((c) => c.id), ["chart-tooltip-share"]);
     assert.ok(choices(byId(topics, "valueLabels")).some((c) => c.id === "labels-percent"));
     assert.deepEqual(choices(byId(topics, "layout")).map((c) => c.id), ["label-position-outside", "label-position-inside"]);
-    // one name for the topic: Series, its rows the slices
-    assert.equal(byId(topics, "series").title, "Series");
+    // one name for the topic: Entries, its rows the slices (#918)
+    assert.equal(byId(topics, "series").title, "Entries");
     assert.deepEqual(choices(byId(topics, "series")).map((c) => c.text), ["North", "South"]);
+});
+
+test("Entries is found by its former name too: series in English, Reihen in German (#918)", () => {
+    const view = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "pie" } });
+    for (const [lang, word, title] of [["en", "series", "Entries"], ["de", "reihen", "Einträge"]]) {
+        const topics = chartTopics({ view, drawn: "pie", labels: MENU[lang], names: ["North", "South"], act: { display: () => {} } });
+        const hits = searchHits(searchEntries(topics), word);
+        assert.deepEqual(hits.map((h) => [h.path, h.text]), [[title, "North"], [title, "South"]], lang);
+    }
 });
 
 test("averages: no 100 % stack; lines: smooth lines; a heatmap has no Series; two row fields add group labels", () => {

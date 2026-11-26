@@ -89,7 +89,7 @@ report: the report itself, field list included, is at least 1,024 pixels wide.
 - The colours only tell the tiles apart. They do not stand for a value.
 - Without a background colour the chart can draw, the text has no plate. It then takes the text or
   background colour, else black or white, that reads on its tile ([Theming](../reference/theming.md#chart-colours)).
-- It has no legend. **Chart settings › Series** hides a tile or sets its colour.
+- It has no legend. **Chart settings › Entries** hides a tile or sets its colour.
 - With a field on Columns, a tile adds up every column, as a pie does.
 - A click on a tile opens no rows.
 
@@ -112,17 +112,17 @@ type you pick stays.
 ## Display settings
 
 **Chart settings** lists the chart types first. Below them is one row per topic: Value labels,
-Legend, Title, Axis, Tooltip, Reference lines, Series and Layout. Each row shows what is set and opens
+Legend, Title, Axis, Tooltip, Reference lines, Entries and Layout. Each row shows what is set and opens
 a level. **Back**, Escape or the left arrow goes back to the row. A topic the chart has nothing for
-is left out: a pie has no Axis, a heatmap no Legend or Series.
+is left out: a pie has no Axis, a heatmap no Legend or Entries.
 
 A choice applies at once, and the menu stays open, so the chart behind it shows the change. The
 settings stay with the report: in saved views, links and the chart image. They also stay when the
-chart type changes. An **i** explains Group labels, Tooltip, Zoom slider, Series, Stacked to 100 % and the
+chart type changes. An **i** explains Group labels, Tooltip, Zoom slider, Entries, Stacked to 100 % and the
 labels of a pie. A line under Automatic, Every n-th, All on horizontal bars, Trend and Share in the tooltip says what each does.
 
-![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series and Layout](../assets/screenshots/chart-display-light.png#only-light)
-![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series and Layout](../assets/screenshots/chart-display-dark.png#only-dark)
+![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Entries and Layout](../assets/screenshots/chart-display-light.png#only-light)
+![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Entries and Layout](../assets/screenshots/chart-display-dark.png#only-dark)
 
 | Setting | Path | Choices | Default |
 | --- | --- | --- | --- |
@@ -134,7 +134,7 @@ labels of a pie. A line under Automatic, Every n-th, All on horizontal bars, Tre
 | Zoom slider | Chart settings › Axis | Automatic, On, Off | Automatic: more than 20 categories, or an axis that would leave out 3 names or more between two |
 | Tooltip | Chart settings › Tooltip | Automatic, All series | Automatic: the element under the pointer |
 | Share in the tooltip | Chart settings › Tooltip | on, off. Not for a heatmap. Sums and counts get their share of the total, such as 25%; averages and values below zero get none. See "The share in the tooltip" below. | off |
-| Series | Chart settings › Series | A switch per series, or per slice of a pie or a donut, with its colour beside it. One series is listed for its colour. | all shown, in the palette or the colours your app sets |
+| Entries | Chart settings › Entries | A switch per series, or per slice of a pie or a donut, with its colour beside it. One series is listed for its colour. | all shown, in the palette or the colours your app sets |
 | Stacked to 100 % | Chart settings › Layout | on, off. Stacked bars and areas of sums and counts. | off |
 | Reference lines | Chart settings › Reference lines | Average, Trend, High and low points, Target. Bars, lines and areas. See [below](#reference-lines). | none |
 | Smooth lines | Chart settings › Layout | on, off. Lines and areas. | off |
@@ -273,7 +273,7 @@ every n-th one. The chart image, the SVG, the HTML report and a print always sho
 ![Bars of 40 countries on a phone: the zoom slider under the axis, each country in its window named](../assets/screenshots/chart-zoom-dark.png#only-dark){ width="300" }
 
 Click a series in the legend to hide it. Click it again to show it. A screen reader hears "Software
-hidden" or "Software shown". The view keeps it, and **Undo** takes it back. Chart settings › Series has a
+hidden" or "Software shown". The view keeps it, and **Undo** takes it back. Chart settings › Entries has a
 switch per series, or per slice of a pie, for the keyboard. It lists every series; a long list
 scrolls.
 
@@ -455,7 +455,7 @@ Click a bar, a point, a slice or a heatmap cell, and a small menu opens at it:
     - Only sums and counts get a share, on a pie too, and only when no part is below zero.
 
 ??? info "Fixed colours"
-    In Chart settings › Series, the swatch beside each series or slice shows the colour the chart draws.
+    In Chart settings › Entries, the swatch beside each series or slice shows the colour the chart draws.
     Pick another colour there. A chart of one series lists it too, for its colour. The series keeps
     the colour in every chart of the view, whatever else the chart shows. **Default** gives back the
     colour it had. A colour for a name the chart no longer shows is listed at the end with

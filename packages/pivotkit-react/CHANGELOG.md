@@ -12,7 +12,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   `--pk-zone-filters` (the values colour is `#0b785c`, so a value's name keeps 4.6:1 on the Grand
   Total column's header too). Its chips, its marks in the field list and a field's name in the
   table's header take a fill mixed from it (`--pk-zone-tint`, 16 %, into `--pk-zone-tint-base`). New
-  tokens for a chip's controls (`--pk-control-icon`), the sort arrow (`--pk-sort-arrow`) and a
+  tokens for a chip's controls (`--pk-control-icon`), the sort colour (`--pk-sort-arrow`, the accent
+  by default), the up-down mark of a header that is not sorted (`--pk-sort-arrow-rest`) and a
   field's hover in the field list (`--pk-field-hover`)
   ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - Each field's name in the table's header carries its zone's icon and fill; with two or more values
@@ -45,9 +46,19 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
-- The sort arrow stands behind a header's name, at rest only on the sorted header, in the text
-  colour and bold, the same arrow as on the sorted chip. A custom order draws no arrow on either.
-  The sorted header's description says its order and what the next click does
+- A sort mark stands behind the name of every header that sorts, so readers see that it sorts, as
+  in AG Grid. It follows the name's last word, on a name in two lines too, and keeps a gap to the
+  cell's edge. It takes no room in the text, so no word breaks for it. A header that sorts has
+  0.25em more room at its end. A row of months keeps its width, and a column as wide as its
+  header's name grows by that 0.25em. The focus ring goes round the name and the mark. A header
+  that is not sorted shows an up-down mark (↕) in grey (`--pk-sort-arrow-rest`, 3:1 on the header
+  and on each zone's fill), in the text colour on hover
+  and focus. The sorted header shows the arrow of its order, bold, in the sort colour
+  (`--pk-sort-arrow`, the accent blue by default; set it to red, say, to change it), the same arrow
+  as on the sorted chip. A custom order shows a list beside the arrow of its direction on both. On a
+  field's filled name the mark stands inside the fill, as far from its end as the zone's icon from
+  its start. In forced colours the marks take the system's text colour. The sorted header's
+  description says its order and what the next click does
   ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - Chips of rows, columns and values have the zone's fill and no coloured frame; a filter's chip
   stays neutral. The field type icons are neutral: `--pk-type-*` default to `--pk-muted` and stay
@@ -55,6 +66,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   `--pk-radius-sm`, and `--pk-radius` is 8px (was 10px)
   ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+- Chart settings › **Series** is now **Entries** ("Reihen" is now "Einträge" in German): readers did
+  not know the word "series". The search still finds it by "series" ("Reihen", "Serien"). New text
+  `shownSeriesKeywords`
+  ([#918](https://github.com/eizedev/pivotkit/issues/918)).
 - The chart's ECharts instance, its events and each draw are in `chart-draw.js`, which loads with
   ECharts. A report that never shows a chart no longer loads that code
   ([#772](https://github.com/eizedev/pivotkit/issues/772)).
