@@ -25,9 +25,8 @@ build a report by dragging fields and take it to Excel. The same report renders 
 ## Start here
 
 - **You want to see it first:** [try pivotkit](https://pivotkit.eize.dev/demo/) in the browser, on
-  your machine, on a page of your own or in a container.
-- **You build reports:** try the [live demo](https://pivotkit.eize.dev/demo/), then the six-step
-  [quick start](https://pivotkit.eize.dev/use/quick-start/).
+  the command line, on your machine, on a page of your own or in a container.
+- **You build reports:** the six-step [quick start](https://pivotkit.eize.dev/use/quick-start/).
 - **You run the services:** one `docker run` starts the REST service and the MCP server:
   [server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/).
 - **You use a running server:** the [REST service](https://pivotkit.eize.dev/getting-started/rest/)
