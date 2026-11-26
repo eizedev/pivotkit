@@ -16,8 +16,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   field's hover in the field list (`--pk-field-hover`)
   ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - Each field's name in the table's header carries its zone's icon and fill; with two or more values
-  each value's name carries the icon alone. Header cells name the cells they head (`scope`), and the
-  empty corner names the fields in Rows and Columns for a screen reader ([#920](https://github.com/eizedev/pivotkit/issues/920)).
+  each value's name carries the icon alone. A long name wraps beside its icon. In a narrow report
+  (under 640 px), a long row field's name in the corner wraps under its icon, so that a value stays in
+  view. Header cells name the cells they head (`scope`), and the empty corner names the fields in Rows
+  and Columns for a screen reader ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - The package exports `TIP_IDS` and `NOTICE_IDS`, the ids of the tips and of the notices. A host
   that checks a `tips` list no longer reads them from an internal chunk
   ([#720](https://github.com/eizedev/pivotkit/issues/720)).
@@ -78,11 +80,6 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   or one a host mounts anew on a theme switch, opens the link. Before, it threw a `TypeError` and
   showed nothing, because the link opened before the report was ready for it
   ([#735](https://github.com/eizedev/pivotkit/issues/735)).
-- A long field name in the table's header keeps its zone's icon beside its first line, and only the
-  text wraps. Before, the icon stood on a line of its own above the name. A row field's name in the
-  corner gets room for its icon beside a word. On a phone (a narrow report), a long one there still
-  wraps under its icon, so that a value stays in view
-  ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 
 ## [0.10.0] - 2026-11-24
 
