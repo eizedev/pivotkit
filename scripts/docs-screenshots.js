@@ -21,11 +21,12 @@
 //      writes a decimal point (en_US): Excel formats numbers by its region (AppleLocale).
 //   3. Capture Excel's window only (screencapture -o -l <window id>) and crop it to cells A1:N16.
 import { chromium } from "@playwright/test";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink, hideToasts, openPlayground, openZones, startPlayground } from "./docs-playground.js";
 import { SNAPSHOT_DAY } from "../tests/snapshot-day.js";
+import { DATASETS } from "../examples/playground/src/data.js";
 
 const out = fileURLToPath(new URL("../docs/assets/screenshots/", import.meta.url));
 
@@ -126,6 +127,59 @@ const UNUSED = encodeViewLink({
     chart: { legend: "left" }
 });
 
+/** The weather start view (the playground's first preset), the colour scale of its values. */
+const WEATHER_START = DATASETS.weather.presets[0].view;
+const HEAT = WEATHER_START.values[0].conditional;
+
+/**
+ * The weather start view without its short name for the grouping (fieldLabels): the corner shows the
+ * default name with the years it combines, "Date by month of year · 2023–2025 combined" (docs/use/values.md).
+ */
+const DATE_CONTEXT = encodeViewLink({ ...WEATHER_START, fieldLabels: undefined });
+
+// The README's pictures: the playground at the height of a window, the field list folded, the tips closed.
+/** The weather turned: months as rows, six cities as columns, so the chart draws a line per city. */
+const README_WEATHER = encodeViewLink({
+    rows: ["Date by month of year"],
+    cols: ["City"],
+    derived: WEATHER_START.derived,
+    values: WEATHER_START.values,
+    filters: [{ field: "City", type: "in", items: ["Berlin", "Dubai", "Reykjavik", "Singapore", "Sydney", "Tokyo"] }],
+    totals: { grandTotalRow: false, grandTotalColumn: false },
+    fieldLabels: WEATHER_START.fieldLabels,
+    display: "both",
+    chart: { type: "line" }
+});
+/** The weather start view of 2025 only: the drill-down's title names one year, not combined ones. */
+const README_WEATHER_2025 = encodeViewLink({
+    ...WEATHER_START,
+    derived: [...WEATHER_START.derived, { name: "Year", field: "Date", by: "year" }],
+    filters: [{ field: "Year", type: "in", items: [2025] }]
+});
+/** The generated sales of 2025: revenue per month and category, the table beside stacked bars. */
+const README_SALES = encodeViewLink({
+    rows: ["Month of year"],
+    cols: ["Category"],
+    derived: [{ name: "Month of year", field: "Month", by: "month" }, { name: "Year", field: "Month", by: "year" }],
+    values: [{ field: "Revenue", agg: "sum", format: "compact", conditional: HEAT }],
+    filters: [{ field: "Year", type: "in", items: [2025] }],
+    totals: { grandTotalRow: false },
+    fieldLabels: { "Month of year": "Month" },
+    display: "both",
+    chart: { type: "bar", stacked: true }
+});
+/** Monthly revenue with its reference lines (as `chart-lines`), the month named "Month", no zoom bar. */
+const README_LINES = encodeViewLink({
+    rows: ["Month (Year and month)"],
+    derived: [{ name: "Month (Year and month)", field: "Month", by: "yearMonth" }],
+    values: [{ field: "Revenue", agg: "sum", format: "currency:EUR" }],
+    fieldLabels: { "Month (Year and month)": "Month" },
+    display: "chart",
+    chart: { type: "line", title: "Monthly revenue", referenceLines: { average: true, trend: true, target: 500000 }, zoom: "off" }
+});
+/** The README's window: the report's own height (`height`) fills it below a small margin. */
+const README_QUERY = "height=892";
+
 /** Column subtotals switched on with two fields in Columns: the line before each, and the tip that explains them. */
 const COLUMN_SUBTOTALS = encodeViewLink({
     rows: ["Team"],
@@ -189,6 +243,43 @@ async function toolbar(page, testId) {
     await page.getByTestId(`more-${testId}`).click();
 }
 
+/** The README's frame: tips closed, the field list folded (`fields`: left open), the report at the window's top. */
+async function readmeFrame(page, { fields = false, split = false } = {}) {
+    for (let i = 0; i < 5 && (await page.locator(".pk-tip-x").count()); i++) await page.locator(".pk-tip-x").first().click();
+    if (!fields) await page.getByTestId("collapse-fields").click();
+    // the table beside the chart: the line between them moved left while the table still fits
+    if (split) {
+        const divider = page.getByTestId("split-divider");
+        const scrolls = () => page.locator(".pk-both-table .pk-table-wrap").evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+        await divider.focus();
+        for (let i = 0; i < 6; i++) {
+            await divider.press("ArrowLeft");
+            await page.waitForTimeout(150);
+            if (await scrolls()) {
+                await divider.press("ArrowRight");
+                break;
+            }
+        }
+    }
+    // eslint-disable-next-line no-undef -- runs in the page
+    await page.evaluate(() => document.activeElement?.blur());
+    await toTop(page.locator(".pk-root"));
+}
+
+/** Clicks the first value of Dubai's row: the drill-down panel with the rows behind it. */
+async function drillDubai(page) {
+    await page.locator('[data-testid="pivot-table"] tbody tr[data-r]').filter({ hasText: /^Dubai/ }).locator("td").nth(1).click();
+    await page.getByTestId("drill-panel").waitFor();
+}
+
+/** Export › HTML report: the downloaded file opened as a page, as wide as the docs' report shots. */
+async function htmlReport(page) {
+    await page.getByTestId("export").click();
+    const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-html").click()]);
+    await page.setViewportSize(REPORT_SIZE);
+    await page.setContent(await readFile(await download.path(), "utf8"));
+}
+
 /**
  * A CSV export as a ticket tool on a German Windows writes it (made up here, with a fixed pattern):
  * semicolons, German numbers and dates, a title line above the header, an empty line, postcodes.
@@ -222,7 +313,7 @@ async function dragTickets(page, drop) {
     }
 }
 
-/** @type {{ name: string, query: string, hash?: string, size: typeof WIDE, chart?: boolean, open?: (page: import("@playwright/test").Page) => Promise<void> }[]} */
+/** @type {{ name: string, query: string, hash?: string, size: typeof WIDE, chart?: boolean, fullPage?: boolean, open?: (page: import("@playwright/test").Page) => Promise<void> }[]} */
 const SHOTS = [
     // the quick start (docs/use/quick-start.md): the sales data from an empty report to a chart
     { name: "quick-empty", query: "data=sales&empty", size: WIDE },
@@ -251,7 +342,25 @@ const SHOTS = [
     },
     // the hero of the start page: real data (the weather of 14 cities)
     { name: "report", query: "data=weather", size: WIDE },
-    { name: "date-context", query: "data=weather&height=640", size: WIDE },
+    // the README (README.md): the hero, the start view, then a row of four
+    { name: "readme-weather", query: `data=weather&empty&${README_QUERY}`, hash: README_WEATHER, size: WIDE, chart: true, open: (page) => readmeFrame(page, { split: true }) },
+    { name: "readme-start", query: `data=weather&${README_QUERY}`, size: WIDE, open: (page) => readmeFrame(page) },
+    { name: "readme-report", query: `data=sales&empty&${README_QUERY}`, hash: README_SALES, size: WIDE, chart: true, fullPage: true, open: async (page) => { await readmeFrame(page); await htmlReport(page); } },
+    {
+        name: "readme-export",
+        query: `data=sales&empty&${README_QUERY}`,
+        hash: README_SALES,
+        size: WIDE,
+        chart: true,
+        open: async (page) => {
+            await readmeFrame(page, { split: true });
+            await page.getByTestId("export").click();
+            await page.getByTestId("export-copy-table").waitFor();
+        }
+    },
+    { name: "readme-drill", query: `data=weather&empty&${README_QUERY}`, hash: README_WEATHER_2025, size: WIDE, open: async (page) => { await readmeFrame(page); await drillDubai(page); } },
+    { name: "readme-chart", query: `data=sales&empty&${README_QUERY}`, hash: README_LINES, size: WIDE, chart: true, open: (page) => readmeFrame(page) },
+    { name: "date-context", query: "data=weather&empty&height=640", hash: DATE_CONTEXT, size: WIDE },
     // a value's menu: its first level, one row per topic with what is set
     {
         name: "value-menu",
@@ -851,7 +960,7 @@ try {
             await page.waitForTimeout(600);
             await chartSettled(page);
             const name = `${shot.name}-${theme}.png`;
-            await page.screenshot({ path: `${out}${name}` });
+            await page.screenshot({ path: `${out}${name}`, fullPage: Boolean(shot.fullPage) });
             await page.close();
             console.log(name);
         }

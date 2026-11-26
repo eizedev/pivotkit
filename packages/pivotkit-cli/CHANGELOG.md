@@ -9,6 +9,9 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 ### Changed
 
 - The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+- The view of `pivotkit example weather` names its month grouping "Month" (`fieldLabels`), as the
+  live demo's start view does. The table's corner no longer reads "Date by month of year ·
+  2023–2025 combined", and the table's own CSV has the column "Month".
 
 ## [0.6.0] - 2026-11-24
 
