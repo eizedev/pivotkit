@@ -236,7 +236,7 @@ applies.
 | A field in Filters | Filter, Group (dates), Move to, Remove field | Filter, Group (dates), Move to |
 | A value | Summarize by, Show as, Number format, Highlight (side by side), Name, Move to, Remove field | Summarize by, Show as, Number format, Name, Move to |
 | Table settings | Totals, Rows (Expand all, Collapse all with what it keeps: "Show Region only") | |
-| Chart settings | the chart types, then Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series, Layout | each Display topic. Layout ends with "Show each Country" and "Show Region only" |
+| Chart settings | the chart types, then Value labels, Legend, Title, Axis, Tooltip, Reference lines, Entries, Layout | each Display topic. Layout ends with "Show each Country" and "Show Region only" |
 | More | Help, then the toolbar's buttons that do not fit | Help (Show tips, Show explanations, Show dismissed tips again, Keyboard shortcuts), Keyboard shortcuts |
 | Views | This view (Save "…", Save as…), Shared views, My views (each entry with its Publish and Delete as items next to it), Share this view (Copy link, Copy view as JSON, Download view, Open view file…) | Save as, Open view file, the question before a delete, a publish or a Save over a shared view |
 
