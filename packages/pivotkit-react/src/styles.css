@@ -1148,15 +1148,18 @@
     color: var(--pk-zone);
 }
 
-/* the fill: opaque, the same colour wherever the zone shows (over a chip's own background) */
+/* the fill: opaque, the same colour wherever the zone shows (over a chip's own background).
+   --pk-zone-fill is internal, not a theme token: set the zone's colour, --pk-zone-tint and
+   --pk-zone-tint-base instead */
 .pk-root .pk-zone-fill {
-    background: color-mix(in srgb, var(--pk-zone) var(--pk-zone-tint), var(--pk-zone-tint-base));
+    --pk-zone-fill: color-mix(in srgb, var(--pk-zone) var(--pk-zone-tint), var(--pk-zone-tint-base));
+    background: var(--pk-zone-fill);
 }
 
 /* a browser without color-mix(): one neutral fill for every zone; the icons keep the zone's colour */
 @supports not (color: color-mix(in srgb, red 50%, blue)) {
     .pk-root .pk-zone-fill {
-        background: var(--pk-surface-3);
+        --pk-zone-fill: var(--pk-surface-3);
     }
 }
 
@@ -3093,8 +3096,14 @@
    columns, its zone's fill; the corner of a chip, so the reader ties the two together. The fill
    reaches into the cell's padding (the negative margin), and the arrow stays in that padding as on
    every header (#70): only the icon widens a column. The field's name is text, never in the zone's
-   colour */
+   colour. Where a cap leaves less room than the icon and a word need, the icon stands above the
+   name instead of breaking a word or widening the column. --pk-th-extra (internal, not a theme token):
+   what a value's icon and fill take from its name's room, so a value name's least width (above)
+   still holds a word such as "Population"; the row labels' caps leave it out, their columns are what
+   a phone has to share with the values */
 .pk-table thead .pk-th-field {
+    --pk-th-extra: 2.1em;
+    flex-wrap: wrap;
     padding: 0.15em 0.4em;
     margin-inline: -0.4em;
     border-radius: var(--pk-radius-sm);
@@ -3107,24 +3116,11 @@
    hold for the name as for the labels below it */
 .pk-table thead .pk-th-field.pk-zone-fill {
     --pk-th-tail: 0.4em;
-    box-shadow: var(--pk-th-tail) 0 0 color-mix(in srgb, var(--pk-zone) var(--pk-zone-tint), var(--pk-zone-tint-base));
+    box-shadow: var(--pk-th-tail) 0 0 var(--pk-zone-fill);
 }
 
 .pk-root[data-pk-size="narrow"] .pk-table thead .pk-th-field.pk-zone-fill {
     --pk-th-tail: 0.15em;
-}
-
-/* where a cap leaves less room than the icon and a word need, the icon stands above the name instead
-   of breaking a word or widening the column */
-.pk-table thead .pk-th-field {
-    flex-wrap: wrap;
-}
-
-/* --pk-th-extra (internal, not a theme token): what a value's icon and fill take from its name's room,
-   so a value name's least width (above) still holds a word such as "Population". The row labels'
-   caps leave it out: their columns are what a phone has to share with the values */
-.pk-table thead .pk-th-field {
-    --pk-th-extra: 2.1em;
 }
 
 .pk-th-zone {
