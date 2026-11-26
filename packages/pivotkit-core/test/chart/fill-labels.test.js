@@ -131,21 +131,37 @@ const mix = (/** @type {string} */ a, /** @type {string} */ b, /** @type {number
     return `rgba(${[0, 1, 2].map((i) => Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t)).join(",")},1)`;
 };
 
-test("heatmap, both themes: each number in the ink that reads on its cell, 4.5:1; the ink turns from dark to light once along the scale", () => {
+test("heatmap, both themes: each number in the ink that reads on its cell (inRange and outOfRange), 4.5:1; the ink turns from dark to light once along the scale", () => {
     const r = computePivot(encode(REVENUE), { rows: ["Region"], cols: ["Category"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "heatmap" }, formatting: { locale: "en-US" } });
     const inks = /** @type {Record<string, string[]>} */ ({});
     const measured = fillContrasts((style, tokens, theme) => {
-        const out = drawn(r, style);
+        const base = toEChartsOption(r, { theme: chartThemeFrom(style) });
+        const out = decorateOption({ ...base, visualMap: { ...base.visualMap, outOfRange: { color: [HOST.West, HOST.Central] } } }, style, { width: 800, height: 480 });
+        assert.deepEqual(out.visualMap.outOfRange.color, [HOST.West, HOST.Central]);
         const [s] = out.series;
         const [low, high] = out.visualMap.inRange.color;
-        // the cell's colour ECharts hands the formatter (p.color), from the low end to the high one
-        return Array.from({ length: 11 }, (_, i) => {
-            const fill = mix(low, high, i / 10);
+        const [outLow, outHigh] = out.visualMap.outOfRange.color;
+        const inkOf = (/** @type {string} */ fill) => {
             const key = /^\{(\w+)\|/.exec(s.label.formatter({ value: [0, 0, 12], color: fill }))?.[1] ?? "";
-            const ink = s.label.rich[key]?.color;
+            return s.label.rich[key]?.color;
+        };
+        // the cell's colour ECharts hands the formatter (p.color), from the low end to the high one
+        const inRange = Array.from({ length: 11 }, (_, i) => {
+            const fill = mix(low, high, i / 10);
+            const ink = inkOf(fill);
             (inks[theme] ??= []).push(ink);
             return { name: `cell ${i}`, ink, fill };
         });
+        // cells outside the visual map's range (outOfRange): host neutrals, mid-tones (black/white fallback) and theme fills
+        const outFills = [
+            ...Array.from({ length: 5 }, (_, i) => mix(outLow, outHigh, i / 4)),
+            HOST.North,
+            tokens["--pk-surface-2"],
+            tokens["--pk-border"],
+            tokens["--pk-muted"]
+        ];
+        const outOfRange = outFills.map((fill, i) => ({ name: `outOfRange ${i} (${fill})`, ink: inkOf(fill), fill }));
+        return [...inRange, ...outOfRange];
     });
     assert.deepEqual(unreadable(measured), []);
     // dark or light: closer to black or to white
