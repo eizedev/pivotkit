@@ -16,7 +16,7 @@ import React, { useCallback, useContext, useEffect, useId, useMemo, useRef, useS
 import { fieldLabel } from "pivotkit-core";
 import { LimitsContext, itemsOf } from "./limits-context.js";
 import { MenuPanel } from "./lazy-menus.jsx";
-import { columnText, itemRuleText, layoutSummary, sortText, valueConditionText, valueLabels } from "./names.js";
+import { columnText, itemRuleText, layoutSummary, sortGlyph, sortText, valueConditionText, valueLabels } from "./names.js";
 import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
@@ -131,11 +131,10 @@ function Badges({ state, view, labels, locale }) {
             </span>
         );
     }
-    // the glyph of the table's sorted header: one glyph for one order. A custom order (either way
-    // round) shows no arrow, as its header shows none; its name says it ("sorted Custom order")
-    if (state.sort && state.sort.by !== "custom") {
-        const desc = state.sort.order === "desc";
-        parts.push(<Icon key="sort" name={desc ? "arrowDown" : "arrowUp"} size={12} className="pk-chip-badge pk-sort-glyph" />);
+    // the glyph of the table's sorted header: one glyph for one order, a custom order's too; its
+    // name says the order in words ("sorted Custom order")
+    if (state.sort) {
+        parts.push(<Icon key="sort" name={sortGlyph(state.sort)} size={12} className="pk-chip-badge pk-sort-glyph" />);
     }
     return parts.length ? <>{parts}</> : null;
 }

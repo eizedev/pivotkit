@@ -195,9 +195,13 @@ Type numbers the way the report's own language writes them: "1.000,5" in a Germa
 | A field's name, such as "Region" | Z to A | back to A to Z, then Z to A again |
 
 The **Grand Total** column's name sorts by the whole row. A value's name does nothing while Rows is
-empty. An arrow behind the name of the sorted header shows the order, the same arrow as on the
-field's chip. A custom order has no arrow, on the header or the chip. On any other header the arrow
-shows on hover and on focus, for the order a click gives; the tooltip says what the next click does.
+empty. Every name that sorts has a mark behind it, so you see that it sorts:
+
+- The sorted header shows the arrow of its order, bold and in the sort colour (blue by default), the same arrow as on the field's chip.
+- A custom order shows a list beside the arrow of its direction: up as listed, down reversed.
+- Any other header shows a grey up-down mark (↕). On hover and on focus it takes the text's colour.
+
+The tooltip says what the next click does.
 The keyboard reaches every name with Tab, then Enter.
 
 ### In the field's menu

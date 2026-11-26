@@ -1,12 +1,13 @@
 // The table's header (#920): each field's name carries its zone's icon and fill (a value name repeated
 // over the columns its icon alone), in the same fill as its chip and its mark in the field list; the
 // values stay the lowest column level; the header cells keep their scope, the empty corner names the
-// fields on each axis; the sort arrow stands behind the name, at rest only on the sorted header, in the
-// glyph of the sorted chip. The zones' colours keep 4.6:1 on the header and 3:1 on their fills, a
-// chip's controls 3:1 on its fill: measured as the browser draws them, light and dark, wide and narrow,
+// fields on each axis; a sort mark stands behind the name of every header that sorts: on the sorted
+// header (a custom order too) the sorted chip's arrow in --pk-sort-arrow (the accent), on the others
+// an up-down mark in --pk-sort-arrow-rest. The zones' colours keep 4.6:1 on the header and 3:1 on
+// their fills, a chip's controls 3:1 on its fill: measured as the browser draws them, light and dark, wide and narrow,
 // in English and German.
 import { encodeViewLink } from "pivotkit-core/link";
-import { expect, test } from "./fixtures.js";
+import { expect, test, tokenColor } from "./fixtures.js";
 import { installContrast } from "./contrast.js";
 
 const count = { field: "Ticket", agg: "count" };
@@ -55,7 +56,8 @@ function expected(view, lang, headerRows) {
 /**
  * The least contrast of what the header and the chips draw in the zones' colours, as the browser
  * resolves them: a zone's icon on the header's background and on its fill, a field's name on its
- * fill, a chip's controls (grip, menu arrow, x) on the chip's fill.
+ * fill, a chip's controls (grip, menu arrow, x) on the chip's fill, a header's sort mark (the sorted
+ * arrow and the up-down mark at rest) on its cell and, behind a field's name, on the name's fill as well.
  */
 const contrasts = (page) =>
     page.evaluate(() => {
@@ -66,19 +68,24 @@ const contrasts = (page) =>
         const chips = [...document.querySelectorAll(".pk-chip.pk-zone-fill")];
         const controls = chips.flatMap((chip) => [...chip.querySelectorAll(".pk-handle, .pk-caret, .pk-chip-x")].map((c) => [c, chip]));
         const onGrand = (el) => el.closest("th").classList.contains("pk-grand");
+        const onCell = (marks) => marks.flatMap((a) => [[a, a.closest("th")], ...(a.closest(".pk-zone-fill") ? [[a, a.closest(".pk-zone-fill")]] : [])]);
+        const arrows = onCell([...document.querySelectorAll(".pk-table thead .pk-th-sort:not(.pk-sorted) .pk-th-arrow")]);
+        const sortedArrows = onCell([...document.querySelectorAll(".pk-table thead .pk-th-sort.pk-sorted .pk-th-arrow")]);
         return {
             iconOnHeader: least(header.filter((el) => !onGrand(el)).map((el) => [el.querySelector(".pk-th-zone"), el.closest("th")])),
             iconOnGrand: header.some(onGrand) ? least(header.filter(onGrand).map((el) => [el.querySelector(".pk-th-zone"), el.closest("th")])) : Infinity,
             iconOnFill: least(filled.map((el) => [el.querySelector(".pk-th-zone"), el])),
             nameOnFill: least(filled.map((el) => [el.querySelector(".pk-th-text"), el])),
-            controlsOnFill: controls.length ? least(controls) : Infinity
+            controlsOnFill: controls.length ? least(controls) : Infinity,
+            arrowAtRest: arrows.length ? least(arrows) : Infinity,
+            arrowSorted: sortedArrows.length ? least(sortedArrows) : Infinity
         };
     });
 
 test.describe("the table's header names its fields by zone (#920)", () => {
     for (const layout of LAYOUTS) {
         test(`${layout.name}: icons, fills, scopes and contrast, light and dark, 1280 and 390 px, English and German`, async ({ page }) => {
-            const least = { iconOnHeader: Infinity, iconOnGrand: Infinity, iconOnFill: Infinity, nameOnFill: Infinity, controlsOnFill: Infinity };
+            const least = { iconOnHeader: Infinity, iconOnGrand: Infinity, iconOnFill: Infinity, nameOnFill: Infinity, controlsOnFill: Infinity, arrowAtRest: Infinity, arrowSorted: Infinity };
             for (const theme of ["light", "dark"]) {
                 for (const width of [1280, 390]) {
                     for (const lang of ["en", "de"]) {
@@ -117,6 +124,12 @@ test.describe("the table's header names its fields by zone (#920)", () => {
             expect(least.iconOnFill).toBeGreaterThanOrEqual(3);
             expect(least.nameOnFill).toBeGreaterThanOrEqual(4.5);
             expect(least.controlsOnFill).toBeGreaterThanOrEqual(3);
+            // the up-down mark of every header that sorts, and the sorted header's arrow (#920)
+            expect(least.arrowAtRest).toBeGreaterThanOrEqual(3);
+            expect(least.arrowAtRest).toBeLessThan(Infinity);
+            expect(least.arrowSorted).toBeGreaterThanOrEqual(3);
+            // with two row fields a header sorts the innermost one, so Team's sort by the value is no header's
+            if (layout.view.rows.length === 1) expect(least.arrowSorted).toBeLessThan(Infinity);
             test.info().annotations.push({ type: "contrast", description: JSON.stringify(Object.fromEntries(Object.entries(least).map(([k, v]) => [k, Number(v.toFixed(2))]))) });
         });
     }
@@ -152,7 +165,7 @@ test.describe("the table's header names its fields by zone (#920)", () => {
         expect(heard.columns).toEqual(expect.arrayContaining(["P1 Critical", "Chat", "Count of Ticket"]));
     });
 
-    test("the sort arrow: behind the name, on the sorted header at rest, in the sorted chip's glyph; others on hover and focus", async ({ page }) => {
+    test("the sort mark: behind the name, on the sorted header the sorted chip's arrow in the sort colour; up and down in grey on every other header that sorts", async ({ page }) => {
         await open(page, LAYOUTS[0].view);
         const table = page.getByTestId("pivot-table");
         const sorted = table.locator("thead .pk-th-sort.pk-sorted");
@@ -166,7 +179,10 @@ test.describe("the table's header names its fields by zone (#920)", () => {
         // a reader that skips aria-description still hears the order from the header cell itself
         await expect(table.locator("thead th", { has: page.locator(".pk-th-sort.pk-sorted") })).toHaveAttribute("aria-sort", "descending");
         const arrow = sorted.locator(".pk-th-arrow");
-        await expect(arrow).toHaveCSS("opacity", "1");
+        await expect(arrow).toBeVisible();
+        // the sort colour is the accent by default (#920)
+        await expect(arrow).toHaveCSS("color", await tokenColor(page, "--pk-sort-arrow"));
+        expect(await tokenColor(page, "--pk-sort-arrow")).toBe(await tokenColor(page, "--pk-accent"));
         // behind the name
         const [name, mark] = await Promise.all([sorted.locator(".pk-th-text").boundingBox(), arrow.boundingBox()]);
         expect(mark.x).toBeGreaterThanOrEqual(name.x + name.width - 1);
@@ -175,16 +191,78 @@ test.describe("the table's header names its fields by zone (#920)", () => {
         expect(await glyph.locator("path").getAttribute("d")).toBe(await arrow.locator("path").getAttribute("d"));
         const look = (loc) => loc.evaluate((el) => [getComputedStyle(el).color, getComputedStyle(el).strokeWidth]);
         expect(await look(glyph)).toEqual(await look(arrow));
-        // any other header: no arrow at rest, the order a click gives on hover and on focus
+        // every other header that sorts: an up-down mark at rest, so a reader sees that it sorts, in the
+        // grey of --pk-sort-arrow-rest and drawn thinner; in the text's colour on hover and on focus
+        const rest = await tokenColor(page, "--pk-sort-arrow-rest");
+        const strong = await tokenColor(page, "--pk-sort-arrow");
+        const text = await tokenColor(page, "--pk-text");
+        expect(rest).not.toBe(strong);
+        const others = table.locator("thead .pk-th-sort:not(.pk-sorted) .pk-th-arrow");
+        expect(await others.count()).toBeGreaterThan(1);
+        const upDown = await others.first().locator("path").getAttribute("d");
+        expect(upDown).not.toBe(await arrow.locator("path").getAttribute("d"));
+        expect(await others.evaluateAll((els) => els.map((e) => [getComputedStyle(e).opacity, getComputedStyle(e).visibility, getComputedStyle(e).color, e.querySelector("path").getAttribute("d")]))).toEqual(
+            Array.from({ length: await others.count() }, () => ["1", "visible", rest, upDown])
+        );
+        expect(Number.parseFloat(await others.first().evaluate((e) => getComputedStyle(e).strokeWidth))).toBeLessThan(Number.parseFloat((await look(arrow))[1]));
         const item = table.getByRole("columnheader", { name: "P1 Critical", exact: true }).locator(".pk-th-sort");
         const itemArrow = item.locator(".pk-th-arrow");
-        await expect(itemArrow).toHaveCSS("opacity", "0");
+        await expect(itemArrow).toHaveCSS("color", rest);
         await item.hover();
-        await expect(itemArrow).toHaveCSS("opacity", "1");
+        await expect(itemArrow).toHaveCSS("color", text);
         await page.mouse.move(0, 0);
-        await expect(itemArrow).toHaveCSS("opacity", "0");
+        await expect(itemArrow).toHaveCSS("color", rest);
         await item.focus();
-        await expect(itemArrow).toHaveCSS("opacity", "1");
+        await expect(itemArrow).toHaveCSS("color", text);
+        // the sorted header keeps its sort colour while it is pointed at or focused
+        await sorted.hover();
+        await expect(arrow).toHaveCSS("color", strong);
+        await sorted.focus();
+        await expect(arrow).toHaveCSS("color", strong);
+    });
+
+    test("a header's focus ring goes round its name and its arrow and stays inside the cell", async ({ page }) => {
+        await open(page, LAYOUTS[0].view);
+        const table = page.getByTestId("pivot-table");
+        await expect(table.locator("thead .pk-th-sort").first()).toBeVisible();
+        const count = await table.locator("thead .pk-th-sort").count();
+        expect(count).toBeGreaterThan(1);
+        for (let i = 0; i < count; i++) {
+            const button = table.locator("thead .pk-th-sort").nth(i);
+            await button.focus();
+            const box = await button.evaluate((b) => {
+                const s = getComputedStyle(b);
+                const ring = Number.parseFloat(s.outlineWidth) + Number.parseFloat(s.outlineOffset);
+                const own = b.getBoundingClientRect();
+                const arrow = b.querySelector(".pk-th-arrow").getBoundingClientRect();
+                const cell = b.closest("th").getBoundingClientRect();
+                return { name: b.textContent, style: s.outlineStyle, holds: arrow.left >= own.left && arrow.right <= own.right + 0.5 && arrow.top >= own.top && arrow.bottom <= own.bottom, inside: [own.left - ring - cell.left, cell.right - (own.right + ring)] };
+            });
+            expect(box.style, box.name).toBe("solid");
+            expect(box.holds, box.name).toBe(true);
+            expect(box.inside[0], box.name).toBeGreaterThanOrEqual(0);
+            expect(box.inside[1], box.name).toBeGreaterThanOrEqual(0);
+        }
+    });
+
+    test("a host sets the sort colour with one token: the sorted header's arrow, the sorted chip's and a custom order's mark turn red, the up-down marks stay grey", async ({ page }) => {
+        const red = "rgb(220, 38, 38)";
+        const table = page.getByTestId("pivot-table");
+        const glyph = page.locator('[data-zone="rows"] .pk-chip .pk-sort-glyph');
+        for (const theme of ["light", "dark"]) {
+            for (const sort of [[{ field: "Team", by: "value", order: "desc" }], [{ field: "Team", by: "custom", items: ["Server", "Network"] }]]) {
+                await open(page, { rows: ["Team"], cols: ["Priority"], values: [count], sort }, { theme });
+                const rest = await tokenColor(page, "--pk-sort-arrow-rest");
+                // the default: the accent of the theme
+                await expect(table.locator("thead .pk-th-sort.pk-sorted .pk-th-arrow"), theme).toHaveCSS("color", await tokenColor(page, "--pk-accent"));
+                await page.addStyleTag({ content: ".pk-root { --pk-sort-arrow: #dc2626; }" });
+                await expect(table.locator("thead .pk-th-sort.pk-sorted .pk-th-arrow"), theme).toHaveCSS("color", red);
+                await expect(glyph, theme).toHaveCSS("color", red);
+                const others = table.locator("thead .pk-th-sort:not(.pk-sorted) .pk-th-arrow");
+                expect(await others.count()).toBeGreaterThan(1);
+                expect(new Set(await others.evaluateAll((els) => els.map((e) => getComputedStyle(e).color)))).toEqual(new Set([rest]));
+            }
+        }
     });
 
     test("one glyph for one state: the chip and the table's header agree for no sort, A to Z, Z to A, by a value and a custom order", async ({ page }) => {
@@ -193,9 +271,11 @@ test.describe("the table's header names its fields by zone (#920)", () => {
             ["A to Z", [{ field: "Team", by: "label", order: "asc" }], "Team"],
             ["Z to A", [{ field: "Team", by: "label", order: "desc" }], "Team"],
             ["by a value", [{ field: "Team", by: "value", order: "desc" }], "Count of Ticket"],
-            // a custom order shows no arrow on either; its name says it
-            ["custom", [{ field: "Team", by: "custom", items: ["Server", "Network"] }], null]
+            // a custom order, as listed and reversed: a list beside the arrow of its direction, on both
+            ["custom", [{ field: "Team", by: "custom", items: ["Server", "Network"] }], "Team"],
+            ["custom reversed", [{ field: "Team", by: "custom", order: "desc", items: ["Server", "Network"] }], "Team"]
         ];
+        const glyphs = new Map();
         const table = page.getByTestId("pivot-table");
         const glyph = page.locator('[data-zone="rows"] .pk-chip .pk-sort-glyph');
         const sorted = table.locator("thead .pk-th-sort.pk-sorted");
@@ -208,13 +288,20 @@ test.describe("the table's header names its fields by zone (#920)", () => {
             }
             await expect(sorted, name).toHaveText(header);
             const arrow = sorted.locator(".pk-th-arrow");
-            await expect(arrow, name).toHaveCSS("opacity", "1");
+            await expect(arrow, name).toHaveCSS("color", await tokenColor(page, "--pk-sort-arrow"));
             await expect(glyph, name).toHaveCount(1);
-            expect(await glyph.locator("path").getAttribute("d"), name).toBe(await arrow.locator("path").getAttribute("d"));
+            const d = await arrow.locator("path").getAttribute("d");
+            expect(await glyph.locator("path").getAttribute("d"), name).toBe(d);
+            glyphs.set(name, d);
         }
-        // the custom order still says so to a screen reader, on the chip and on the header cell
-        await expect(page.getByTestId("chip-menu-Team")).toHaveAccessibleName(/sorted Custom order/);
+        // A to Z and a value's smallest first share a glyph, as Z to A and largest first do; a custom
+        // order either way round has a glyph of its own
+        expect(new Set(glyphs.values()).size).toBe(4);
+        expect(glyphs.get("custom reversed")).not.toBe(glyphs.get("custom"));
+        // the custom order says so to a screen reader, on the chip, on the header cell and on its button
+        await expect(page.getByTestId("chip-menu-Team")).toHaveAccessibleName(/sorted Custom order, reversed/);
         await expect(table.locator("thead th", { has: page.locator(".pk-th-sort") }).filter({ hasText: "Team" })).toHaveAttribute("aria-sort", "other");
+        await expect(sorted).toHaveAccessibleDescription("sorted Custom order, reversed. Sort Team: A to Z");
     });
 
     test("a zone's fill is one colour in the field area, the field list and the table; a filter's chip and the type icons stay neutral", async ({ page }) => {
@@ -281,12 +368,46 @@ test.describe("the table's header names its fields by zone (#920)", () => {
         await expect(page.locator('.pk-field[data-field="Team"] .pk-type')).toHaveCSS("color", "rgb(176, 0, 32)");
     });
 
-    test("forced colours: a field's fill becomes a frame", async ({ page, browserName }) => {
+    test("forced colours: a field's fill becomes a frame; the sort marks take the system's text colour", async ({ page, browserName }) => {
         test.skip(browserName !== "chromium", "Playwright emulates forced colours in Chromium only");
         await page.emulateMedia({ forcedColors: "active" });
         await open(page, LAYOUTS[0].view);
         await expect(page.locator(".pk-table thead .pk-th-field.pk-zone-fill").first()).toHaveCSS("border-top-style", "solid");
         await expect(page.locator(".pk-badge.pk-zone-fill").first()).toHaveCSS("border-top-style", "solid");
+        const text = await page.locator(".pk-root").evaluate((root) => {
+            const probe = root.appendChild(document.createElement("span"));
+            probe.style.color = "CanvasText";
+            const color = getComputedStyle(probe).color;
+            probe.remove();
+            return color;
+        });
+        const marks = page.locator(".pk-table thead .pk-th-arrow, .pk-chip .pk-sort-glyph");
+        expect(await marks.count()).toBeGreaterThan(2);
+        expect(new Set(await marks.evaluateAll((els) => els.map((e) => getComputedStyle(e).color)))).toEqual(new Set([text]));
+        const item = page.getByTestId("pivot-table").getByRole("columnheader", { name: "P1 Critical", exact: true }).locator(".pk-th-sort");
+        await item.hover();
+        await expect(item.locator(".pk-th-arrow")).toHaveCSS("color", text);
+    });
+
+    test("a filled name that sorts holds its mark inside the fill, as far from the fill's end as the zone's icon from its start (a wide report)", async ({ page }) => {
+        for (const theme of ["light", "dark"]) {
+            await open(page, LAYOUTS[0].view, { theme });
+            const gaps = await page.locator(".pk-table thead .pk-th-field.pk-zone-fill:has(> .pk-th-sort)").evaluateAll((els) =>
+                els.map((f) => {
+                    const fill = f.getBoundingClientRect();
+                    // the fill runs on past the box as a shadow, which takes no room
+                    const tail = Number(/(-?[\d.]+)px/.exec(getComputedStyle(f).boxShadow)?.[1]);
+                    const icon = f.querySelector(".pk-th-zone").getBoundingClientRect();
+                    const mark = f.querySelector(".pk-th-arrow").getBoundingClientRect();
+                    return [icon.left - fill.left, fill.right + tail - mark.right];
+                })
+            );
+            expect(gaps.length, theme).toBeGreaterThan(1);
+            for (const [start, end] of gaps) {
+                expect(start, theme).toBeGreaterThan(2);
+                expect(Math.abs(end - start), theme).toBeLessThanOrEqual(0.5);
+            }
+        }
     });
 
     test("reflow: at 640 px (1280 px at 200 %) the zones stand in one column and the page does not scroll sideways; at 390 px neither", async ({ page }) => {

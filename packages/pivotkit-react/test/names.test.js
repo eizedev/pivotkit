@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { LABELS } from "../src/labels.js";
 // the German first-load texts: pivotkit-react adds them as it loads (deferred.js)
 import "../src/deferred.js";
-import { fieldAction, groupingName, layoutSummary, valueLabel } from "../src/names.js";
+import { fieldAction, groupingName, layoutSummary, sortGlyph, valueLabel } from "../src/names.js";
 
 const en = LABELS.en;
 
@@ -60,4 +60,17 @@ test("a date grouping is named in words: Date by month, Datum nach Monat", () =>
     assert.equal(groupingName("Amount", "bin", LABELS.en, 100), "Amount (by 100)");
     // a host's labels without unitInName: the unit's own name
     assert.equal(groupingName("Date", "year", { ...LABELS.en, unitInName: undefined }), "Date by Year");
+});
+
+test("one glyph for one order: up and down for A to Z, Z to A and by a value; a custom order a list beside its direction (#920)", () => {
+    const glyphs = [
+        null,
+        { by: "label", order: "asc" },
+        { by: "label", order: "desc" },
+        { by: "value", order: "asc" },
+        { by: "value", order: "desc" },
+        { by: "custom", order: "asc" },
+        { by: "custom", order: "desc" }
+    ].map(sortGlyph);
+    assert.deepEqual(glyphs, ["arrowUp", "arrowUp", "arrowDown", "arrowUp", "arrowDown", "customAsc", "customDesc"]);
 });

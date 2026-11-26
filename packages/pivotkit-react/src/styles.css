@@ -167,8 +167,12 @@
     --pk-zone-tint-base: var(--pk-surface);
     /* the small controls on a chip (its grip, the arrow of its menu, its x): 3:1 on every fill */
     --pk-control-icon: var(--pk-muted);
-    /* the arrow of a sorted header and of a sorted chip: one glyph for one order */
-    --pk-sort-arrow: var(--pk-text);
+    /* the arrow of a sorted header and of a sorted chip: one glyph for one order, in the accent; a host
+       sets its own colour here (red, say). 3:1 on the header and on every zone's fill */
+    --pk-sort-arrow: var(--pk-accent);
+    /* the up-down mark of every other header that sorts, at rest: it says the header sorts; 3:1 on
+       the header and on every zone's fill */
+    --pk-sort-arrow-rest: var(--pk-muted);
     /* a field of the field list under the pointer: its background */
     --pk-field-hover: var(--pk-surface);
     /* chart palette, shared with ECharts */
@@ -3047,16 +3051,19 @@
 }
 
 /* the text of a header that sorts (table.jsx): a button as large as the text, so the cell's edges stay
-   free; its arrow shows the order in use, or on hover and focus the one a click gives */
-/* its arrow sits in the cell's padding before the text: a row of months keeps its width (#70), and a
-   word that fits its header does not break for the arrow's room ("Categor" over "y" on a phone) */
+   free; its arrow shows the order in use, or an up-down mark that it sorts */
+/* a block of text, so its arrow runs on right after the last word, on a name in two lines too, and
+   the text stands in the middle of the button's least height. Its box reaches over the arrow (the
+   end padding) and a little before the text, so the focus ring goes round both; the negative margins
+   take that room back, so the button is as wide in the layout as its text */
 .pk-th-sort {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
+    display: block;
+    align-content: center;
     min-width: 0;
     min-height: var(--pk-target);
-    padding: 0;
+    padding-block: 0;
+    padding-inline: 0.2em 0.9em;
+    margin-inline: -0.2em -0.9em;
     border: 0;
     border-radius: var(--pk-radius-xs);
     background: transparent;
@@ -3066,37 +3073,59 @@
     cursor: pointer;
 }
 
-/* the arrow behind the name: only on the header the table is sorted by, in the text's colour and
-   bold; on any other, while it is pointed at or focused, the order a click gives (a touch screen
-   sorts from the field's menu) */
+/* the mark behind the name, on every header that sorts, so a reader sees that it sorts (#920): on
+   the header the table is sorted by (a custom order too) the arrow of its order, bold, in the sort
+   colour; on any other an up-down mark in a quiet grey, in the text's colour while it is pointed at
+   or focused */
+/* it takes no room: its end margin takes back its gap and width (0.9em), so it hangs into the cell's
+   end padding (below). No column widens for it (a row of months keeps its width, #70), a word that
+   fits its header does not break for it ("Categor" over "y" on a phone), and it never stands on a
+   line of its own */
 .pk-th-arrow {
-    position: absolute;
-    top: 50%;
-    left: 100%;
+    display: inline-block;
     width: 0.8em;
     height: 0.8em;
-    margin-left: 0.1em;
-    opacity: 0;
-    translate: 0 -50%;
-    transition: opacity var(--pk-duration);
+    margin-inline: 0.1em -0.9em;
+    vertical-align: -0.05em;
+    color: var(--pk-sort-arrow-rest);
+    transition: color var(--pk-duration);
 }
 
-.pk-th-sort:is(:hover, :focus) .pk-th-arrow {
-    opacity: 1;
+/* a header that sorts has room for its arrow at its end, and a gap to the cell's edge after it: 1.1em
+   for the 0.9em the arrow hangs out of its text. More specific than the narrow report's padding
+   (0.6em), so it holds there too */
+.pk-root .pk-table thead th:has(.pk-th-sort) {
+    padding-inline-end: 1.1em;
+}
+
+/* the drag grip after such a name moves past the arrow by the arrow's 0.9em, into that padding too,
+   so it does not cover the arrow on hover and a tap on the arrow reaches the sort button */
+.pk-root .pk-table thead th:has(.pk-th-sort) > .pk-th-grip {
+    position: relative;
+    inset-inline-start: 0.9em;
+}
+
+/* the ring hugs the button's box: with the usual offset it would cross into the next cell, the
+   arrow ending 0.2em before the cell's edge */
+.pk-root .pk-th-sort:focus-visible {
+    outline-offset: 0;
+}
+
+.pk-th-sort:not(.pk-sorted):is(:hover, :focus) .pk-th-arrow {
+    color: var(--pk-text);
 }
 
 /* one glyph for one order: the sorted header's arrow and the sorted chip's */
 :is(.pk-th-sort.pk-sorted .pk-th-arrow, .pk-chip .pk-sort-glyph) {
-    opacity: 1;
     color: var(--pk-sort-arrow);
     stroke-width: 2.75;
 }
 
 /* a field's name in the table: its zone's icon before it and, but for a value name repeated over the
    columns, its zone's fill; the corner of a chip, so the reader ties the two together. The fill
-   reaches into the cell's padding (the negative margin), and the arrow stays in that padding as on
-   every header (#70): only the icon widens a column. The field's name is text, never in the zone's
-   colour. Where a cap leaves less room than the icon and a word need, the icon stands above the
+   reaches into the cell's padding (the negative margin), and the arrow hangs into the cell's end
+   padding as on every header (#70): only the icon widens a column. The field's name is text, never
+   in the zone's colour. Where a cap leaves less room than the icon and a word need, the icon stands above the
    name instead of breaking a word or widening the column. --pk-th-extra (internal, not a theme token):
    what a value's icon and fill take from its name's room, so a value name's least width (above)
    still holds a word such as "Population"; the row labels' caps leave it out, their columns are what
@@ -3110,10 +3139,11 @@
     color: var(--pk-text);
 }
 
-/* a filled name's fill reaches on under its arrow (0.9em after the text) as a shadow, which takes no
-   room: up to 0.05em before the cell's edge (its padding: 0.85em, 0.6em on a narrow report, where the
-   arrow's end stands out of the fill). So the fill widens no column, and fitLabels' caps (table.jsx)
-   hold for the name as for the labels below it */
+/* a filled name's fill reaches on past the name as a shadow, which takes no room: 0.8em after the
+   text, 0.05em before the edge of a cell that does not sort (its padding: 0.85em); on a narrow report
+   0.55em (padding 0.6em), so there the end of a sorting name's arrow (0.9em after the text, padding
+   1.1em) stands out of the fill. So the fill widens no column, and fitLabels' caps (table.jsx) hold
+   for the name as for the labels below it */
 .pk-table thead .pk-th-field.pk-zone-fill {
     --pk-th-tail: 0.4em;
     box-shadow: var(--pk-th-tail) 0 0 var(--pk-zone-fill);
@@ -3121,6 +3151,14 @@
 
 .pk-root[data-pk-size="narrow"] .pk-table thead .pk-th-field.pk-zone-fill {
     --pk-th-tail: 0.15em;
+}
+
+/* a filled name that sorts: its fill reaches on past its mark as far as the zone's icon stands from
+   the fill's start (0.4em; the mark takes 0.9em after the text), drawn as the shadow above, so it
+   takes no room: no column widens and the caps of fitLabels hold (#70). On a name as wide as its
+   column it ends 0.2em past the cell's edge (padding 1.1em) */
+.pk-table thead .pk-th-field.pk-zone-fill:has(> .pk-th-sort) {
+    --pk-th-tail: 0.9em;
 }
 
 .pk-th-zone {
@@ -4183,6 +4221,15 @@
     .pk-tab:not([aria-selected="true"]) {
         border-color: Canvas;
     }
+
+    /* the sort marks: an svg keeps its author colour in forced colours (preserve-parent-color), so the
+       grey and the sort colour would stay; the system's text colour instead. The glyph (up-down or
+       the arrow of the order) and the bold stroke still tell a sorted header apart. As specific as
+       the hover rule above (four classes), so it wins at rest, sorted and on hover */
+    .pk-root .pk-th-sort.pk-th-sort .pk-th-arrow,
+    .pk-root .pk-chip.pk-chip .pk-sort-glyph {
+        color: CanvasText;
+    }
 }
 
 .pk-toolbar.pk-wrap .pk-grow {
@@ -4281,6 +4328,12 @@
     .pk-root :is(.pk-chip-x, .pk-info, .pk-field-menu, .pk-handle, .pk-tip-x, .pk-toast-x, .pk-issues-x, .pk-th-sort, .pk-zone-add) {
         min-width: var(--pk-target-touch);
         min-height: var(--pk-target-touch);
+    }
+
+    /* a header's sort button: a finger's width for its text, plus its padding (.pk-th-sort, 1.1em),
+       which its negative margins take back from the layout */
+    .pk-root .pk-th-sort {
+        min-width: calc(var(--pk-target-touch) + 1.1em);
     }
 
     /* every button and row a finger taps: the buttons, the tabs, the zones' heading, a chip, a
