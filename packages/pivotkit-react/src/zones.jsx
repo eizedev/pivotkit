@@ -131,8 +131,8 @@ function Badges({ state, view, labels, locale }) {
             </span>
         );
     }
-    // the glyph of the table's sorted header: one glyph for one order. A custom order has no
-    // direction and draws none, as its header does not; the chip's name still says "Custom order"
+    // the glyph of the table's sorted header: one glyph for one order. A custom order (either way
+    // round) shows no arrow, as its header shows none; its name says it ("sorted Custom order")
     if (state.sort && state.sort.by !== "custom") {
         const desc = state.sort.order === "desc";
         parts.push(<Icon key="sort" name={desc ? "arrowDown" : "arrowUp"} size={12} className="pk-chip-badge pk-sort-glyph" />);

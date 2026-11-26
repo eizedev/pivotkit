@@ -193,7 +193,7 @@ test.describe("the table's header names its fields by zone (#920)", () => {
             ["A to Z", [{ field: "Team", by: "label", order: "asc" }], "Team"],
             ["Z to A", [{ field: "Team", by: "label", order: "desc" }], "Team"],
             ["by a value", [{ field: "Team", by: "value", order: "desc" }], "Count of Ticket"],
-            // a custom order has no direction: neither draws an arrow
+            // a custom order shows no arrow on either; its name says it
             ["custom", [{ field: "Team", by: "custom", items: ["Server", "Network"] }], null]
         ];
         const table = page.getByTestId("pivot-table");
