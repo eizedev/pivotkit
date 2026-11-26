@@ -332,7 +332,10 @@ test.describe("what the usability review found", () => {
         await page.goto("?data=weather&preset=0");
         await chipMenu(page, "City");
         const menu = page.locator(".pk-chip-menu");
-        const settled = () => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+        const settled = async () => {
+            await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+            await menu.evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)));
+        };
         await settled();
         const before = await menu.boundingBox();
         await openLevel(menu, "filter");
