@@ -127,7 +127,7 @@ project's own docs name.
     - first: about 180 KiB gzip, with React inside
     - on the first chart: the chart's code, about 262 KiB gzip, ECharts with it
 
-    Measured with `npm run size -w pivotkit-element` on 2026-11-26. See
+    Measured with `npm run size -w pivotkit-element` on CI's official Node 24 build on 2026-11-26. See
     [bundle size](reference/element.md#bundle-size).
 
 - **Maturity and support**: AG Grid, Flexmonster and WebDataRocks are commercial products with
