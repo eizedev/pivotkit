@@ -119,7 +119,7 @@ is left out: a pie has no Axis, a heatmap no Legend or Series.
 A choice applies at once, and the menu stays open, so the chart behind it shows the change. The
 settings stay with the report: in saved views, links and the chart image. They also stay when the
 chart type changes. An **i** explains Group labels, Tooltip, Zoom slider, Series, Stacked to 100 % and the
-labels of a pie. A line under Automatic, Every n-th, Trend and Share in the tooltip says what each does.
+labels of a pie. A line under Automatic, Every n-th, All on horizontal bars, Trend and Share in the tooltip says what each does.
 
 ![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series and Layout](../assets/screenshots/chart-display-light.png#only-light)
 ![Chart settings: the chart types, then the rows Value labels, Legend, Title, Axis, Tooltip, Reference lines, Series and Layout](../assets/screenshots/chart-display-dark.png#only-dark)

@@ -46,6 +46,8 @@ test("from a sort by a value or by one column: the order of a new view, no arrow
         await expect(sortedHeaders(page)).toHaveCount(0);
         await expect(page.locator(".pk-table thead .pk-th-sort.pk-sorted")).toHaveCount(0);
         await page.getByTestId("undo").click();
+        // the step has its own name
+        await expect(page.locator(".pk-toasts")).toContainText("Undone: default order of Region");
         await expect.poll(() => rowNames(page)).toEqual(sorted);
         await expect(page.getByTestId("chip-menu-Region")).toHaveAccessibleName(/^Region, sorted /);
         await page.getByTestId("undo").click();
