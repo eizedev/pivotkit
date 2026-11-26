@@ -187,6 +187,36 @@ test.describe("the table's header names its fields by zone (#920)", () => {
         await expect(itemArrow).toHaveCSS("opacity", "1");
     });
 
+    test("one glyph for one state: the chip and the table's header agree for no sort, A to Z, Z to A, by a value and a custom order", async ({ page }) => {
+        const cases = [
+            ["no sort", [], null],
+            ["A to Z", [{ field: "Team", by: "label", order: "asc" }], "Team"],
+            ["Z to A", [{ field: "Team", by: "label", order: "desc" }], "Team"],
+            ["by a value", [{ field: "Team", by: "value", order: "desc" }], "Count of Ticket"],
+            // a custom order has no direction: neither draws an arrow
+            ["custom", [{ field: "Team", by: "custom", items: ["Server", "Network"] }], null]
+        ];
+        const table = page.getByTestId("pivot-table");
+        const glyph = page.locator('[data-zone="rows"] .pk-chip .pk-sort-glyph');
+        const sorted = table.locator("thead .pk-th-sort.pk-sorted");
+        for (const [name, sort, header] of cases) {
+            await open(page, { rows: ["Team"], cols: ["Priority"], values: [count], sort });
+            if (header === null) {
+                await expect(sorted, name).toHaveCount(0);
+                await expect(glyph, name).toHaveCount(0);
+                continue;
+            }
+            await expect(sorted, name).toHaveText(header);
+            const arrow = sorted.locator(".pk-th-arrow");
+            await expect(arrow, name).toHaveCSS("opacity", "1");
+            await expect(glyph, name).toHaveCount(1);
+            expect(await glyph.locator("path").getAttribute("d"), name).toBe(await arrow.locator("path").getAttribute("d"));
+        }
+        // the custom order still says so to a screen reader, on the chip and on the header cell
+        await expect(page.getByTestId("chip-menu-Team")).toHaveAccessibleName(/sorted Custom order/);
+        await expect(table.locator("thead th", { has: page.locator(".pk-th-sort") }).filter({ hasText: "Team" })).toHaveAttribute("aria-sort", "other");
+    });
+
     test("a zone's fill is one colour in the field area, the field list and the table; a filter's chip and the type icons stay neutral", async ({ page }) => {
         const view = { ...LAYOUTS[0].view, values: [count, lead], filters: [{ field: "Status", type: "in", items: ["Open"], blanks: "exclude" }] };
         for (const theme of ["light", "dark"]) {

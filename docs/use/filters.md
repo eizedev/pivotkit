@@ -196,9 +196,9 @@ Type numbers the way the report's own language writes them: "1.000,5" in a Germa
 
 The **Grand Total** column's name sorts by the whole row. A value's name does nothing while Rows is
 empty. An arrow behind the name of the sorted header shows the order, the same arrow as on the
-field's chip. On any other header the arrow shows on hover and on focus, for the order a click
-gives; the tooltip says what the next click does. The keyboard reaches every name with Tab, then
-Enter.
+field's chip. A custom order has no arrow, on the header or the chip. On any other header the arrow
+shows on hover and on focus, for the order a click gives; the tooltip says what the next click does.
+The keyboard reaches every name with Tab, then Enter.
 
 ### In the field's menu
 

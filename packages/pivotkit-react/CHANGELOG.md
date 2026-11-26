@@ -24,9 +24,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
-- The sort arrow stands behind a header's name, at rest only on the sorted header, in the text colour
-  and bold, the same arrow as on the sorted chip. The sorted header's description says its order and
-  what the next click does ([#920](https://github.com/eizedev/pivotkit/issues/920)).
+- The sort arrow stands behind a header's name, at rest only on the sorted header, in the text
+  colour and bold, the same arrow as on the sorted chip. A custom order draws no arrow on either.
+  The sorted header's description says its order and what the next click does
+  ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 - Chips of rows, columns and values have the zone's fill and no coloured frame; a filter's chip
   stays neutral. The field type icons are neutral: `--pk-type-*` default to `--pk-muted` and stay
   overridable. They are drawn at 16px, so their letters stand as tall as 11px text. Chips take
