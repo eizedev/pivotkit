@@ -129,8 +129,8 @@ npm stage approve <stage-id>   # or: npm stage reject <stage-id>
   (docs, CI, root tests) go into the round's last release, and the round's discussion names everyone.
 - Announce the round in one discussion of its own, not on a package's release: a discussion made with
   `gh release create --discussion-category` takes that package's title. After the round's last
-  release, create it in Announcements with the title `pivotkit <version of pivotkit-core>`, for
-  example `pivotkit 0.11.0`. Its text sums up the round, links the release of every package in it
+  release, create it in Announcements with the title `pivotkit <version of pivotkit-core>`, such as
+  `pivotkit x.y.z`. Its text sums up the round, links the release of every package in it
   and ends with `## Contributors` for everyone in the round. `gh` has no command for it; use the
   GraphQL API:
 
