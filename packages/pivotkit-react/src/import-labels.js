@@ -65,9 +65,10 @@ export const en = {
     // the preview of a sheet a saved view needs: which view and sheet; another sheet loaded there does not open the view
     sheetForView: "Opening “{name}” needs the sheet “{sheet}”.",
     sheetOther: "“{name}” was not opened: it was made for the sheet “{sheet}”.",
+    separatorNames: { ",": "commas", ";": "semicolons", "\t": "tabs", "|": "vertical bars" },
     notes: {
         ENCODING: "Read as {encoding}.",
-        SEPARATOR: "Values separated by {name}.",
+        SEPARATOR: "Values separated by {separatorName}.",
         LINES_SKIPPED: { one: "{count} line above the column names was skipped (a title block).", other: "{count} lines above the column names were skipped (a title block)." },
         COLUMN_RENAMED: "Column “{from}” is named “{to}”.",
         COLUMN_UNNAMED: "Column {position} has no name; it is named “{to}”.",
@@ -142,9 +143,10 @@ export const de = {
     sheetRefused: "„{name}“ wurde nicht geöffnet: das Blatt „{sheet}“ wurde nicht geladen.",
     sheetForView: "Zum Öffnen von „{name}“ wird das Blatt „{sheet}“ gebraucht.",
     sheetOther: "„{name}“ wurde nicht geöffnet: es wurde für das Blatt „{sheet}“ gemacht.",
+    separatorNames: { ",": "Kommas", ";": "Semikolons", "\t": "Tabs", "|": "senkrechte Striche" },
     notes: {
         ENCODING: "Gelesen als {encoding}.",
-        SEPARATOR: "Werte getrennt durch {name}.",
+        SEPARATOR: "Werte getrennt durch {separatorName}.",
         LINES_SKIPPED: { one: "{count} Zeile über den Spaltennamen wurde übersprungen (ein Titelblock).", other: "{count} Zeilen über den Spaltennamen wurden übersprungen (ein Titelblock)." },
         COLUMN_RENAMED: "Die Spalte „{from}“ heißt jetzt „{to}“.",
         COLUMN_UNNAMED: "Spalte {position} hat keinen Namen; sie heißt jetzt „{to}“.",
@@ -251,7 +253,11 @@ export function noteText(note, texts, where) {
         return String(note.message ?? code);
     }
     const values = Object.fromEntries(Object.entries(p).map(([k, v]) => [k, typeof v === "number" ? v.toLocaleString(where.locale) : String(v ?? "")]));
-    if (code === "DATE_ORDER") {
+    if (code === "SEPARATOR") {
+        values.separatorName = Object.hasOwn(texts.separatorNames, String(p.separator))
+            ? texts.separatorNames[String(p.separator)]
+            : `"${p.separator}"`;
+    } else if (code === "DATE_ORDER") {
         values.order = Object.hasOwn(texts.dateOrders, String(p.order)) ? /** @type {any} */ (texts.dateOrders)[String(p.order)] : values.order;
     } else if (code === "VALUES_NOT_CONVERTED") {
         values.type = Object.hasOwn(texts.types, String(p.type)) ? /** @type {any} */ (texts.types)[String(p.type)] : values.type;

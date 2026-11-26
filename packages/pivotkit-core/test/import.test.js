@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { BUILT_IN_READERS, PLUGIN_API_VERSION, csvReader, jsonReader, loadReader, readFile, readerFor, retype, validatePlugin } from "pivotkit-core/import";
 import { LIMITS, PivotkitError, computePivot, encode, toGrid } from "pivotkit-core";
 
-import { fileName } from "../src/import-table.js";
+import { fileName, noteMessage } from "../src/import-table.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
 
 const fixture = (name) => readFileSync(new URL(`./import-fixtures/${name}`, import.meta.url));
@@ -17,6 +17,14 @@ const col = (table, name) => table.data[table.columns.indexOf(name)];
 const typeOf = (table, name) => table.types[table.columns.indexOf(name)];
 const codes = (table) => table.notes.map((n) => n.code);
 const rejects = (promise, check) => assert.rejects(promise, (e) => e instanceof PivotkitError && check(e));
+
+test("separator note names", () => {
+    assert.equal(noteMessage("SEPARATOR", { separator: "," }), "Values separated by commas.");
+    assert.equal(noteMessage("SEPARATOR", { separator: ";" }), "Values separated by semicolons.");
+    assert.equal(noteMessage("SEPARATOR", { separator: "\t" }), "Values separated by tabs.");
+    assert.equal(noteMessage("SEPARATOR", { separator: "|" }), "Values separated by vertical bars.");
+    assert.equal(noteMessage("SEPARATOR", { separator: ":" }), 'Values separated by ":".');
+});
 
 test("German election results: BOM, semicolons, a title block, German numbers and dates, leading zeros", async () => {
     const t = await readFile(fileOf("kerg2-btw25.csv"));

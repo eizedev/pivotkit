@@ -257,6 +257,8 @@ test("search: every choice of every level with its path, and the panels; all wor
     assert.deepEqual(hit("   "), []);
     assert.deepEqual(hit("nothing like this"), []);
     assert.ok(searchHits(entries, "o", "en-US").length <= SEARCH_HITS);
+    assert.ok(searchHits(entries, "o", "en-US", SEARCH_HITS + 1).length > SEARCH_HITS);
+    assert.ok(searchHits(entries, "currency", "en-US", SEARCH_HITS + 1).length <= SEARCH_HITS);
     // a field's: the Filter panel is an entry that opens it
     const field = searchEntries(axis(view));
     // the Filter panel's own entries (its rules) are found by its title too

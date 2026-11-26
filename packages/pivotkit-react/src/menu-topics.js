@@ -903,14 +903,15 @@ export function searchEntries(topics, query = "") {
 export const SEARCH_HITS = 8;
 
 /**
- * The entries every word of `query` is found in (its text or its path), at most SEARCH_HITS; those
- * whose text starts with the query first.
+ * The entries every word of `query` is found in (its text or its path), at most `limit`
+ * (SEARCH_HITS by default); those whose text starts with the query first.
  * @param {SearchEntry[]} entries
  * @param {string} query
  * @param {string} [locale]
+ * @param {number} [limit]
  * @returns {SearchEntry[]}
  */
-export function searchHits(entries, query, locale) {
+export function searchHits(entries, query, locale, limit = SEARCH_HITS) {
     const lower = (s) => s.toLocaleLowerCase(locale);
     const words = lower(query).split(/\s+/).filter(Boolean);
     if (!words.length) {
@@ -924,7 +925,7 @@ export function searchHits(entries, query, locale) {
     // of Show as), then those whose text starts with it, in their order, then the rest
     const own = (/** @type {SearchEntry} */ e) => lower(e.choice?.keywords ?? "").split(/\s+/).includes(words[0]);
     const rank = (/** @type {SearchEntry} */ e) => (own(e) ? 0 : lower(e.text).startsWith(words[0]) ? 1 : 2);
-    return [0, 1, 2].flatMap((r) => found.filter((e) => rank(e) === r)).slice(0, SEARCH_HITS);
+    return [0, 1, 2].flatMap((r) => found.filter((e) => rank(e) === r)).slice(0, limit);
 }
 
 /**

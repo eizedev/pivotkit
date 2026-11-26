@@ -8,6 +8,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- Menu search tells when more results match beyond the shown limit. See pivotkit-react's changelog.
+  On an official Node 24 build the menus group grows to 60.4 KiB gzip, its budget to 60.5 KiB.
 - The import preview lets a person pick a column's decimal mark. See pivotkit-react's changelog.
   The import group grows to 23.7 KiB gzip on an official Node 24 build, its budget to 23.9 KiB
   ([#787](https://github.com/eizedev/pivotkit/issues/787)).

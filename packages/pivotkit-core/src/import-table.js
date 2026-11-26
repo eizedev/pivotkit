@@ -16,6 +16,13 @@ import { resolveLimits } from "./limits.js";
 import { isDateMs, parseIso } from "./time.js";
 import { CONTROLS, HIDDEN } from "./util.js";
 
+const SEPARATOR_NAMES = Object.freeze({
+    ",": "commas",
+    ";": "semicolons",
+    "\t": "tabs",
+    "|": "vertical bars"
+});
+
 /** The column types a loaded table can have (`encode`'s, without "null"). */
 export const IMPORT_TYPES = Object.freeze(["string", "number", "date", "boolean"]);
 
@@ -194,7 +201,7 @@ export function noteMessage(code, p) {
         case "ENCODING":
             return `Read as ${p.encoding}.`;
         case "SEPARATOR":
-            return `Values separated by ${p.name}.`;
+            return `Values separated by ${SEPARATOR_NAMES[p.separator] ?? `"${p.separator}"`}.`;
         case "LINES_SKIPPED":
             return `${n(p.count)} line(s) above the column names were skipped (a title block).`;
         case "COLUMN_RENAMED":

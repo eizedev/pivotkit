@@ -19,7 +19,7 @@ import { ClearInput } from "./clear-input.jsx";
 import { HelpContext } from "./help.js";
 import { Group, menuItemRole } from "./popover.jsx";
 import { SettingInfo } from "./section.jsx";
-import { rowName, searchEntries, searchHits, stepIndex, typeAheadIndex } from "./menu-topics.js";
+import { rowName, searchEntries, searchHits, SEARCH_HITS, stepIndex, typeAheadIndex } from "./menu-topics.js";
 
 /**
  * A scrolling part of a menu (the first level's list, a topic's level), marked while more of it lies
@@ -460,7 +460,7 @@ function TopicFirst({ topic, labels, onPick, onOpen }) {
  * The search of a menu: every choice of every level, by its text and its path. Enter runs only a hit
  * the arrow keys moved to; nothing found says so.
  */
-function SearchHits({ hits, labels, onPick, onOpen, close }) {
+function SearchHits({ hits, labels, onPick, onOpen, close, hasMore }) {
     if (!hits.length) {
         return (
             <p className="pk-hint pk-level-nothing" role="status" data-testid="menu-search-nothing">
@@ -469,11 +469,77 @@ function SearchHits({ hits, labels, onPick, onOpen, close }) {
         );
     }
     return (
-        <MenuList label={labels.searchResults} close={close} testId="menu-search-hits" lang={labels.lang}>
-            {hits.map((h) => (
-                <MenuItem key={h.id} id={`hit-${h.id}`} text={h.choice ? h.text : `${h.text}…`} plain={h.text} checked={h.choice?.checked} icon={h.choice ? h.topic.icon : "chevronRight"} hint={h.path || undefined} haspopup={h.choice ? undefined : "dialog"} disabled={h.choice?.disabled} reason={h.choice?.reason} note={h.choice?.note} onSelect={() => (h.choice ? onPick(h.choice) : onOpen(h.topic.id, undefined, h.focus))} />
-            ))}
-        </MenuList>
+        <>
+            <MenuList label={labels.searchResults} close={close} testId="menu-search-hits" lang={labels.lang}>
+                {hits.map((h) => (
+                    <MenuItem key={h.id} id={`hit-${h.id}`} text={h.choice ? h.text : `${h.text}…`} plain={h.text} checked={h.choice?.checked} icon={h.choice ? h.topic.icon : "chevronRight"} hint={h.path || undefined} haspopup={h.choice ? undefined : "dialog"} disabled={h.choice?.disabled} reason={h.choice?.reason} note={h.choice?.note} onSelect={() => (h.choice ? onPick(h.choice) : onOpen(h.topic.id, undefined, h.focus))} />
+                ))}
+            </MenuList>
+            {hasMore ? (
+                <p className="pk-hint" role="status" data-testid="menu-search-more">
+                    {fill(labels.searchMore, { count: SEARCH_HITS })}
+                </p>
+            ) : null}
+        </>
+    );
+}
+
+/** The first level of a menu: optional header, search, and either hits or topics. */
+function LevelFirst({ name, labels, topics, query, setQuery, head, foot, search, filter, searchText, box, pick, open, close }) {
+    const typed = search && query.trim() ? query : "";
+    const shown = typed && filter ? filter(typed) : topics;
+    const found = typed && !filter ? searchHits(searchEntries(topics, query), query, labels.lang, SEARCH_HITS + 1) : null;
+    const hits = found ? found.slice(0, SEARCH_HITS) : null;
+    const hasMore = found ? found.length > SEARCH_HITS : false;
+    const none = typed && filter && !shown.some((t) => !t.hidden && (t.groups ?? []).some((g) => g.choices.length));
+    return (
+        <>
+            {head}
+            {search ? (
+                <label className="pk-search pk-level-search">
+                    <Icon name="search" />
+                    <span className="pk-sr">{searchText ?? fill(labels.searchMenu, { name })}</span>
+                    <ClearInput
+                        type="search"
+                        value={query}
+                        placeholder={searchText ?? labels.searchMenuShort}
+                        onChange={setQuery}
+                        clearLabel={labels.clearText}
+                        aria-label={searchText ?? fill(labels.searchMenu, { name })}
+                        autoComplete="off"
+                        // a list to search (filter): the focus starts here, as in the field list
+                        data-autofocus={filter ? "" : undefined}
+                        data-testid="menu-search"
+                        onKeyDown={(e) => {
+                            if (e.key === "ArrowDown") {
+                                // into the hits (or the menu): Enter there runs one
+                                e.preventDefault();
+                                /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector(`.pk-level-first ${ITEM}`))?.focus();
+                            } else if (e.key === "Enter") {
+                                e.preventDefault();
+                            }
+                        }}
+                    />
+                </label>
+            ) : null}
+            <Scroller className="pk-level-first">
+                {hits || none ? (
+                    <SearchHits hits={hits ?? []} labels={labels} onPick={pick} onOpen={open} close={close} hasMore={hasMore} />
+                ) : (
+                    <MenuList label={name} close={close} testId="level-first" lang={labels.lang}>
+                        {shown.map((t) => (
+                            <TopicFirst key={t.id} topic={t} labels={labels} onPick={pick} onOpen={() => open(t.id)} />
+                        ))}
+                        {foot ? (
+                            <>
+                                <div role="separator" className="pk-level-sep" />
+                                {foot}
+                            </>
+                        ) : null}
+                    </MenuList>
+                )}
+            </Scroller>
+        </>
     );
 }
 
@@ -573,61 +639,6 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
             back();
         }
     };
-    const first = () => {
-        const typed = search && query.trim() ? query : "";
-        const shown = typed && filter ? filter(typed) : topics;
-        const hits = typed && !filter ? searchHits(searchEntries(topics, query), query, labels.lang) : null;
-        const none = typed && filter && !shown.some((t) => !t.hidden && (t.groups ?? []).some((g) => g.choices.length));
-        return (
-            <>
-                {head}
-                {search ? (
-                    <label className="pk-search pk-level-search">
-                        <Icon name="search" />
-                        <span className="pk-sr">{searchText ?? fill(labels.searchMenu, { name })}</span>
-                        <ClearInput
-                            type="search"
-                            value={query}
-                            placeholder={searchText ?? labels.searchMenuShort}
-                            onChange={setQuery}
-                            clearLabel={labels.clearText}
-                            aria-label={searchText ?? fill(labels.searchMenu, { name })}
-                            autoComplete="off"
-                            // a list to search (filter): the focus starts here, as in the field list
-                            data-autofocus={filter ? "" : undefined}
-                            data-testid="menu-search"
-                            onKeyDown={(e) => {
-                                if (e.key === "ArrowDown") {
-                                    // into the hits (or the menu): Enter there runs one
-                                    e.preventDefault();
-                                    /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector(`.pk-level-first ${ITEM}`))?.focus();
-                                } else if (e.key === "Enter") {
-                                    e.preventDefault();
-                                }
-                            }}
-                        />
-                    </label>
-                ) : null}
-                <Scroller className="pk-level-first">
-                    {hits || none ? (
-                        <SearchHits hits={hits ?? []} labels={labels} onPick={pick} onOpen={open} close={close} />
-                    ) : (
-                        <MenuList label={name} close={close} testId="level-first" lang={labels.lang}>
-                            {shown.map((t) => (
-                                <TopicFirst key={t.id} topic={t} labels={labels} onPick={pick} onOpen={() => open(t.id)} />
-                            ))}
-                            {foot ? (
-                                <>
-                                    <div role="separator" className="pk-level-sep" />
-                                    {foot}
-                                </>
-                            ) : null}
-                        </MenuList>
-                    )}
-                </Scroller>
-            </>
-        );
-    };
     return (
         <div ref={box} className="pk-levels" onKeyDown={onKeyDown} data-level={level ?? ""}>
             {topic ? (
@@ -658,7 +669,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                     </Scroller>
                 </>
             ) : (
-                first()
+                <LevelFirst name={name} labels={labels} topics={topics} query={query} setQuery={setQuery} head={head} foot={foot} search={search} filter={filter} searchText={searchText} box={box} pick={pick} open={open} close={close} />
             )}
         </div>
     );

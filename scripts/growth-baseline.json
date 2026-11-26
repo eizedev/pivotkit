@@ -16,7 +16,7 @@
             "docs/security.md": [896],
             "docs/use/charts.md": [487]
         },
-        "totalLines": 24091
+        "totalLines": 24143
     },
     "functions": {
         "complexity": {
@@ -127,7 +127,6 @@
             "packages/pivotkit-react/src/filter-level.jsx Function 'RuleEditor'": [209],
             "packages/pivotkit-react/src/import-ui.jsx Function 'ImportDialog'": [262],
             "packages/pivotkit-react/src/info.jsx Function 'InfoButton'": [145],
-            "packages/pivotkit-react/src/levels.jsx Function 'LevelMenu'": [157],
             "packages/pivotkit-react/src/popover.jsx Function 'Popover'": [205],
             "packages/pivotkit-react/src/quick-choices.jsx Function 'QuickChoices'": [349],
             "packages/pivotkit-react/src/table.jsx Function 'PivotTable'": [352],
