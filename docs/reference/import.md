@@ -234,7 +234,7 @@ file had it. A field that is given must be right. This holds for `hints` too: `d
 | Note `code` | When | `params` |
 | --- | --- | --- |
 | `ENCODING` | Always, for text | `encoding` |
-| `SEPARATOR` | Always, for delimited text | `separator`, `name` |
+| `SEPARATOR` | Always, for delimited text | `separator` |
 | `LINES_SKIPPED` | A title block above the header | `count` |
 | `COLUMN_RENAMED` | An empty or repeated name | `position`, `from`, `to` |
 | `COLUMNS_RENAMED_MORE` | More than 20 renamed | `count` |
