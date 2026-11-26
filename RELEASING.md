@@ -127,10 +127,19 @@ npm stage approve <stage-id>   # or: npm stage reject <stage-id>
 - Find them with `gh pr list --state merged --search "merged:>=<date of the round's previous tag>" --json number,author,files`.
   A package's release names the pull requests that touch it. Pull requests that touch no package
   (docs, CI, root tests) go into the round's last release, and the round's discussion names everyone.
-- Start one discussion per release round, not one per tag: create the round's last GitHub release
-  with `--discussion-category "Announcements"`, for example
-  `gh release create pivotkit-mcp@x.y.z --verify-tag --notes-file notes.md --discussion-category "Announcements"`.
-  Its text sums up the round and links the release of every package in it.
+- Announce the round in one discussion of its own, not on a package's release: a discussion made with
+  `gh release create --discussion-category` takes that package's title. After the round's last
+  release, create it in Announcements with the title `pivotkit <version of pivotkit-core>`, such as
+  `pivotkit x.y.z`. Its text sums up the round, links the release of every package in it
+  and ends with `## Contributors` for everyone in the round. `gh` has no command for it; use the
+  GraphQL API:
+
+  ```sh
+  gh api graphql -f query='{repository(owner:"eizedev",name:"pivotkit"){id discussionCategories(first:20){nodes{id name}}}}'
+  gh api graphql -f query='mutation($r:ID!,$c:ID!,$t:String!,$b:String!){createDiscussion(input:{repositoryId:$r,categoryId:$c,title:$t,body:$b}){discussion{url}}}' \
+    -f r=<repository id> -f c=<id of Announcements> -f t="pivotkit x.y.z" -F b=@round.md
+  ```
+
 - A release also publishes the documentation site (`.github/workflows/docs.yml`).
 - The site build uses the newest release tag on main, whichever release started it.
 - To publish the site by hand: Actions, Docs site, Run workflow, input `tag`.
