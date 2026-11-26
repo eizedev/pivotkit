@@ -78,6 +78,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   or one a host mounts anew on a theme switch, opens the link. Before, it threw a `TypeError` and
   showed nothing, because the link opened before the report was ready for it
   ([#735](https://github.com/eizedev/pivotkit/issues/735)).
+- A long field name in the table's header keeps its zone's icon beside its first line, and only the
+  text wraps. Before, the icon stood on a line of its own above the name. A row field's name in the
+  corner gets room for its icon beside a word. On a phone (a narrow report), a long one there still
+  wraps under its icon, so that a value stays in view
+  ([#920](https://github.com/eizedev/pivotkit/issues/920)).
 
 ## [0.10.0] - 2026-11-24
 
