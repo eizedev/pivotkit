@@ -58,19 +58,19 @@ build a report by dragging fields and take it to Excel. The same report renders 
 </picture></a>
 
 <table><tr>
-<td width="25%" valign="top"><b>HTML report</b><br><a href="https://pivotkit.eize.dev/demo/"><picture>
+<td width="25%" valign="top"><b>HTML report</b><br>Ready to print or save as PDF<br><a href="https://pivotkit.eize.dev/demo/"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-report-dark.png">
   <img src="docs/assets/screenshots/readme-report-light.png" width="100%" alt="The HTML report of the export: chart, table, source, filters and time">
 </picture></a></td>
-<td width="25%" valign="top"><a href="https://pivotkit.eize.dev/demo/"><picture>
+<td width="25%" valign="top"><b>Export</b><br>Excel, CSV, chart image, copy<br><a href="https://pivotkit.eize.dev/demo/"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-export-dark.png">
   <img src="docs/assets/screenshots/readme-export-light.png" width="100%" alt="The Export menu: Excel, CSV, HTML report, chart image, print or PDF, copy, source data">
 </picture></a></td>
-<td width="25%" valign="top"><a href="https://pivotkit.eize.dev/demo/"><picture>
+<td width="25%" valign="top"><b>Drill-down</b><br>Click a value to see its rows<br><a href="https://pivotkit.eize.dev/demo/"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-drill-dark.png">
   <img src="docs/assets/screenshots/readme-drill-light.png" width="100%" alt="The rows behind one value: a click on Dubai in February 2025 opens them beside the table">
-</picture></a><br>Click a value to see its rows</td>
-<td width="25%" valign="top"><a href="https://pivotkit.eize.dev/demo/"><picture>
+</picture></a></td>
+<td width="25%" valign="top"><b>Charts</b><br>Average, trend and target lines<br><a href="https://pivotkit.eize.dev/demo/"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-chart-dark.png">
   <img src="docs/assets/screenshots/readme-chart-light.png" width="100%" alt="A line chart of monthly revenue with its average, trend and a target">
 </picture></a></td>
