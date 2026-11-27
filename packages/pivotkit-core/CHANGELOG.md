@@ -6,6 +6,17 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Fixed
+
+- **Breaking:** `describeSource` with an array takes it as fields only when every entry has a string
+  `name` and a `type` of `string`, `number`, `date`, `boolean` or `null`. Anything else throws
+  `INVALID_ARGUMENT` and says to `encode()` the rows. Before, rows with a `name` column were read as
+  fields ("1 field: Alice (string)"), and an entry without a `type` became a `string` field.
+  Affected: a host that passes such an array itself; give each entry its type, or pass the encoded
+  data. Nothing in pivotkit passed one
+  ([#900](https://github.com/eizedev/pivotkit/issues/900),
+  [#990](https://github.com/eizedev/pivotkit/pull/990), thanks @harshita-jangra).
+
 ## [0.11.0] - 2026-11-26
 
 ### Added

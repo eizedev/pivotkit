@@ -111,6 +111,14 @@ claude plugin update pivotkit-mcp@pivotkit
 
 ## What changed { #changes }
 
+### In the next release { #next }
+
+These changes are on `main` and come with the next release.
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| **Breaking:** `describeSource` takes an array as fields only when each entry has a `name` and a `type` of `string`, `number`, `date`, `boolean` or `null`, and throws `INVALID_ARGUMENT` otherwise | you call `describeSource` yourself with a list of fields without a `type`, or with another type | give each entry its type, or pass the data `encode()` returns |
+
 ### From 0.10 to 0.11 { #from-0-10 }
 
 pivotkit-server and pivotkit-mcp move from 0.5 to 0.6 with this release, pivotkit-cli from 0.6 to
