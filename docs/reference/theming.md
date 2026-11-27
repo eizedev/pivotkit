@@ -346,7 +346,7 @@ colours as `theme` to [`toXlsx`](core.md#output).
 
 Export → HTML report also carries your dark colours: the `--pk-*` colours of `DARK_TOKENS` and
 `--pk-scale-mid`, as your dark theme resolves them. A reader whose screen is dark sees your dark
-design in the page, the table, its totals, the colour scale and the data bars. To read them, the
-report shows its dark theme for a moment, whichever theme it shows. It does the same with the light
-theme for the workbook. Paper and a print are light, and the chart keeps the light colours on its
-light card. With pivotkit-report alone, pass them as [`darkTokens`](report.md#options).
+design in the page, the chart, the table, its totals, the colour scale and the data bars. To read
+them, the report shows its dark theme for a moment, whichever theme it shows. It does the same with
+the light theme for the workbook. Paper and a print stay light. With pivotkit-report alone, pass
+them as [`darkTokens`](report.md#options).

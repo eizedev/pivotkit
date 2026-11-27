@@ -112,13 +112,13 @@ test("dark theme: any colour a view gives its scale stays readable under the lig
     }
 });
 
-test("the chart's card keeps the light theme on a dark screen, and the note under a cut chart on it the light muted text", () => {
-    // the card's surface and the note's colour are plain light colours, never a token a dark screen swaps
-    const card = /\.pk-report-chart\{[^}]*background:(#[0-9a-f]{6});/.exec(css);
-    const note = /:where\(\.pk-report-chart\) \.pk-report-note\{color:(#[0-9a-f]{6})\}/.exec(css);
-    assert.ok(card && note, "the card's surface and its note's colour as plain colours");
-    assert.equal(card[1], light["--pk-surface"]);
-    assert.equal(note[1], light["--pk-muted"]);
-    const ratio = contrast(rgbOf(note[1]), rgbOf(card[1]));
-    assert.ok(ratio >= 4.5, `the note on the card: ${ratio.toFixed(2)}`);
+test("the chart's card and its note track the active theme tokens (light and dark)", () => {
+    // card background and note colour use CSS variables so they follow light, dark screen, and print
+    const card = /\.pk-report-chart\{[^}]*background:([^;]+);/.exec(css);
+    const note = /\.pk-report-note\{color:([^;]+);/.exec(css);
+    assert.ok(card && note, "the card's surface and the note's colour");
+    assert.equal(card[1], "var(--pk-surface)");
+    assert.equal(note[1], "var(--pk-muted)");
+    assert.doesNotMatch(css, /:where\(\.pk-report-chart\) \.pk-report-note/);
+    assert.match(css, /\.pk-report-chart img\.pk-chart-dark,\.pk-report-chart svg\.pk-chart-dark\{display:none\}/);
 });

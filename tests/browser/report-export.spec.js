@@ -31,6 +31,49 @@ test.describe("Export menu: HTML report, SVG and print", () => {
         await report.close();
     });
 
+    test("Export -> HTML of a combined table and chart report keeps table and chart synchronized in dark mode (#988)", async ({ page, context }) => {
+        await page.goto("?data=sales");
+        await page.getByTestId("show-both").click();
+        await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
+        await expect(page.getByTestId("pivot-table")).toBeVisible();
+        await toolbar(page, "export");
+        const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-html").click()]);
+        const html = await readFile(await download.path(), "utf8");
+        const report = await context.newPage();
+        const problems = watchConsole(report);
+        const inspect = async (colorScheme, media) => {
+            await report.emulateMedia({ colorScheme, media });
+            await report.setContent(html);
+            return report.evaluate(() => {
+                const imgs = [...document.querySelectorAll(".pk-report-chart img")];
+                return {
+                    tableBg: getComputedStyle(document.querySelector(".pk-th.pk-row")).backgroundColor,
+                    tableColor: getComputedStyle(document.querySelector(".pk-td")).color,
+                    cardBg: getComputedStyle(document.querySelector(".pk-report-chart")).backgroundColor,
+                    shownDark: imgs.filter((i) => getComputedStyle(i).display !== "none").map((i) => i.classList.contains("pk-chart-dark")),
+                    shownSrc: imgs.find((i) => getComputedStyle(i).display !== "none")?.src ?? ""
+                };
+            });
+        };
+        const dark = await inspect("dark", "screen");
+        expect(dark.cardBg).toBe(dark.tableBg);
+        expect(dark.cardBg).not.toBe("rgb(255, 255, 255)");
+        expect(dark.tableColor).not.toBe("rgb(26, 29, 35)");
+        expect(dark.shownDark).toEqual([true]);
+        expect(Buffer.from(dark.shownSrc.split(",")[1], "base64").toString("utf8")).toContain('fill="#16181d"');
+        const light = await inspect("light", "screen");
+        expect(light.cardBg).toBe(light.tableBg);
+        expect(light.cardBg).toBe("rgb(255, 255, 255)");
+        expect(light.shownDark).toEqual([false]);
+        expect(Buffer.from(light.shownSrc.split(",")[1], "base64").toString("utf8")).toContain('fill="#ffffff"');
+        const print = await inspect("dark", "print");
+        expect(print.cardBg).toBe("rgb(255, 255, 255)");
+        expect(print.tableBg).toBe("rgb(255, 255, 255)");
+        expect(print.shownDark).toEqual([false]);
+        expect(problems).toEqual([]);
+        await report.close();
+    });
+
     test("HTML report: a host's font weights go along, in the dark theme too (#201)", async ({ page, context }) => {
         await page.goto("?data=tickets&theme=dark");
         await page.addStyleTag({ content: ".pk-root { --pk-weight-strong: 500; --pk-weight-bold: 800; }" });

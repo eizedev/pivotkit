@@ -50,7 +50,7 @@ for (const [templateName, { template, own, ownDark = {}, theme }] of Object.entr
                     if (theme && media === "screen") {
                         expect(seen.colorScheme, `${name}: the root's colour scheme`).toBe(theme);
                     }
-                    expectReportColours(seen, { name, tokens, light, dark, media, shows });
+                    expectReportColours(seen, { name, tokens, dark, media, shows });
                 }
             });
         }
@@ -116,4 +116,48 @@ test.describe("a host's dark colours (#385)", () => {
         expect(await cells({ tokens: mid }, "dark")).toEqual(plainDark);
         expect(await cells({ tokens: mid, darkTokens: { "--pk-scale-mid": "#00aa00" } }, "dark")).not.toEqual(plainDark);
     });
+});
+
+test.describe("combined table and chart stay theme-synchronized in HTML reports (#988)", () => {
+    const COMBINED = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar" }, display: "both" };
+    const CASES_988 = [
+        { name: "system light + automatic theme", scheme: "light", media: "screen", attr: "", expectDark: false },
+        { name: "system dark + automatic theme", scheme: "dark", media: "screen", attr: "", expectDark: true },
+        { name: "explicit light theme in system dark mode", scheme: "dark", media: "screen", attr: ' data-pk-theme="light"', expectDark: false },
+        { name: "explicit dark theme in system light mode", scheme: "light", media: "screen", attr: ' data-pk-theme="dark"', expectDark: true },
+        { name: "print / PDF remains light even in system dark mode with dark attribute", scheme: "dark", media: "print", attr: ' data-pk-theme="dark"', expectDark: false }
+    ];
+    for (const { name, scheme, media, attr, expectDark } of CASES_988) {
+        test(name, async ({ page }) => {
+            await page.emulateMedia({ colorScheme: scheme, media });
+            const template = attr ? DEFAULT_TEMPLATE.replace("<html ", `<html${attr} `) : DEFAULT_TEMPLATE;
+            const report = await render(COMBINED, ROWS, { format: "html", echarts, template, now: "2026-11-13T10:00:00Z" });
+            await page.setContent(report.text);
+            const active = expectDark ? DARK_TOKENS : LIGHT_TOKENS;
+            const state = await page.evaluate(() => {
+                const imgs = [...document.querySelectorAll(".pk-report-chart img")];
+                return {
+                    bodyBg: getComputedStyle(document.body).backgroundColor,
+                    bodyColor: getComputedStyle(document.body).color,
+                    rowHeaderBg: getComputedStyle(document.querySelector(".pk-th.pk-row")).backgroundColor,
+                    cellColor: getComputedStyle(document.querySelector(".pk-td")).color,
+                    cardBg: getComputedStyle(document.querySelector(".pk-report-chart")).backgroundColor,
+                    visible: imgs.map((i) => ({ dark: i.classList.contains("pk-chart-dark"), display: getComputedStyle(i).display, src: i.src }))
+                };
+            });
+            expect(state.bodyBg).toBe(rgb(active["--pk-surface"]));
+            expect(state.bodyColor).toBe(rgb(active["--pk-text"]));
+            expect(state.rowHeaderBg).toBe(rgb(active["--pk-surface"]));
+            expect(state.cellColor).toBe(rgb(active["--pk-text"]));
+            expect(state.cardBg).toBe(rgb(active["--pk-surface"]));
+            const shown = state.visible.filter((v) => v.display !== "none");
+            const hidden = state.visible.filter((v) => v.display === "none");
+            expect(shown).toHaveLength(1);
+            expect(hidden).toHaveLength(1);
+            expect(shown[0].dark).toBe(expectDark);
+            const svg = Buffer.from(shown[0].src.split(",")[1], "base64").toString("utf8");
+            expect(svg).toContain(`fill="${active["--pk-surface"]}"`);
+            expect(svg).toContain(`fill="${active["--pk-chart-1"]}"`);
+        });
+    }
 });

@@ -133,15 +133,15 @@ export const TOKEN_LENGTH = 200;
 const TOKEN_REF = /^var\((--pk-[a-z0-9-]+)\)$/;
 
 /**
- * The light values a report draws its chart and its cells' colours with: the defaults and the host's
- * `tokens` over them (cleanTokens), a value that is another token alone followed to it, as the
- * defaults' --pk-scale-low and --pk-scale-high are; a value with any other var() keeps the default.
- * A print template's own values come over these through template-style.js, loaded only for one.
- * @param {Record<string, string>} [tokens]  the host's
+ * The colours and layout tokens a report draws its chart and cells with: `base` (light by default)
+ * with `tokens` over it (cleanTokens), a `var(--pk-*)` value followed to its target; a value with
+ * any other var() falls back to `base`.
+ * @param {Record<string, string>} [tokens]
+ * @param {Readonly<Record<string, string>>} [base]
  * @returns {Record<string, string>}
  */
-export function reportTokens(tokens = {}) {
-    const all = { ...BASE_TOKENS, ...cleanTokens(tokens) };
+export function reportTokens(tokens = {}, base = BASE_TOKENS) {
+    const all = { ...base, ...cleanTokens(tokens) };
     /** @param {string} name  @param {number} depth  @returns {string | undefined} */
     const follow = (name, depth = 0) => {
         const value = Object.hasOwn(all, name) ? all[name] : undefined;
@@ -152,7 +152,7 @@ export function reportTokens(tokens = {}) {
     const out = {};
     for (const name of Object.keys(all)) {
         const value = follow(name);
-        const plain = value !== undefined && !/\bvar\(/i.test(value) ? value : BASE_TOKENS[name];
+        const plain = value !== undefined && !/\bvar\(/i.test(value) ? value : base[name];
         if (plain !== undefined) {
             out[name] = plain;
         }

@@ -111,13 +111,31 @@ function endOfBlock(text, i) {
 }
 
 /**
- * The qualified rules at a CSS text's top level with their selector and block, and those inside an
- * @layer block (marked `layered`); other at-rules (their block too) and stray text are left out.
+ * Whether an `@media` prelude applies on a dark screen: `"prefers"` for a dark system scheme
+ * (when not excluding `screen`), `"screen"` for an unconditional screen block (`@media screen` / `all`).
+ * @param {string} prelude
+ * @returns {"prefers" | "screen" | ""}
+ */
+function darkMediaKind(prelude) {
+    const query = prelude.replace(/^@media\b/i, "").trim().toLowerCase();
+    if (/\bprint\b/.test(query) || /\bprefers-color-scheme\s*:\s*light\b/.test(query)) {
+        return "";
+    }
+    if (/\bprefers-color-scheme\s*:\s*dark\b/.test(query)) {
+        return "prefers";
+    }
+    return query === "screen" || query === "all" ? "screen" : "";
+}
+
+/**
+ * The qualified rules at a CSS text's top level with their selector and block, and those inside
+ * `@layer` (marked `layered`) or dark-screen `@media` blocks (marked `media`); other at-rules and stray text are left out.
  * @param {string} css  without comments
  * @param {boolean} [layered]
- * @returns {Array<{ selector: string, block: string, layered: boolean }>}
+ * @param {"prefers" | "screen" | ""} [media]
+ * @returns {Array<{ selector: string, block: string, layered: boolean, media: "prefers" | "screen" | "" }>}
  */
-function topRules(css, layered = false) {
+function topRules(css, layered = false, withDark = false, media = "") {
     const rules = [];
     let start = 0;
     // the first character of the text since `start` that is not a space: "@" starts an at-rule
@@ -138,9 +156,14 @@ function topRules(css, layered = false) {
             const end = endOfBlock(css, i);
             const prelude = css.slice(start, i).trim();
             if (!prelude.startsWith("@") && !prelude.includes(";")) {
-                rules.push({ selector: prelude, block: css.slice(i + 1, end), layered });
+                rules.push({ selector: prelude, block: css.slice(i + 1, end), layered, media });
             } else if (/^@layer\b/i.test(prelude)) {
-                rules.push(...topRules(css.slice(i + 1, end), true));
+                rules.push(...topRules(css.slice(i + 1, end), true, withDark, media));
+            } else if (withDark && !media && /^@media\b/i.test(prelude)) {
+                const kind = darkMediaKind(prelude);
+                if (kind) {
+                    rules.push(...topRules(css.slice(i + 1, end), layered, withDark, kind));
+                }
             }
             start = i = end + 1;
             first = "";
@@ -343,12 +366,12 @@ function allNames(value) {
 }
 
 /**
- * A value with every light-dark(light, dark) replaced by its light colour: the chart and the cells'
- * colours are drawn light, and ECharts reads no light-dark(). A call that is not closed is kept as it
- * is (cleanTokens checks it).
+ * A value with every `light-dark(light, dark)` replaced by one branch (light by default, or dark
+ * when `dark` is true); an unclosed call is kept as it is for `cleanTokens` to check.
  * @param {string} value
+ * @param {boolean} [dark]
  */
-function lightOf(value) {
+function lightOf(value, dark = false) {
     let out = value;
     for (let at = out.search(/\blight-dark\(/i); at !== -1; at = out.search(/\blight-dark\(/i)) {
         const open = at + "light-dark(".length;
@@ -364,22 +387,36 @@ function lightOf(value) {
         if (depth > 0 || comma === -1) {
             return value;
         }
-        out = out.slice(0, at) + out.slice(open, comma).trim() + out.slice(j);
+        const picked = dark ? out.slice(comma + 1, j - 1) : out.slice(open, comma);
+        out = out.slice(0, at) + picked.trim() + out.slice(j);
     }
     return out;
 }
 
-/**
- * The light values a report with this template draws its chart and its cells' colours with: the
- * defaults, the host's `tokens`, the template's own CSS, as the page computes them for `.pk-report`
- * (see the top of this module).
- * @param {import("./template.js").Template} template  from parseTemplate()
- * @param {Record<string, string>} tokens  the host's
- * @param {TokenKit} kit  tokens.js's BASE_TOKENS, REPORT_FONT, TOKEN_LENGTH and cleanTokens
- * @returns {Record<string, string>}
- */
-export function templateTheme(template, tokens, { base: BASE_TOKENS, font: REPORT_FONT, maxLength: TOKEN_LENGTH, clean: cleanTokens }) {
-    // the template as one text, its placeholders empty, and where its last {{style}} stands
+/** Rank above PLAIN for `:root:not([data-pk-theme="light"])` / `:root[data-pk-theme="dark"]` (specificity 0,2,0). */
+const DARK_ROOT = 3;
+
+/** Maps a rule selector and media context onto `{ level, rank }` (or `null` when not applicable). */
+function ruleTarget(selector, media, layered, dark, forcedDark) {
+    if (!dark) {
+        const level = levelOf(selector);
+        if (level === -1) return null;
+        return { level, rank: layered ? LAYERED : level === 0 && selector.trim().toLowerCase() !== ":root" ? HTML : PLAIN };
+    }
+    const s = selector.trim().replace(/\s+/g, " ").toLowerCase();
+    const isNotLight = s === ':root:not([data-pk-theme="light"])' || s === ":root:not([data-pk-theme='light'])" || s === 'html:not([data-pk-theme="light"])' || s === "html:not([data-pk-theme='light'])";
+    const isDarkAttr = s === ':root[data-pk-theme="dark"]' || s === ":root[data-pk-theme='dark']" || s === 'html[data-pk-theme="dark"]' || s === "html[data-pk-theme='dark']";
+    if (isDarkAttr) return forcedDark ? { level: 0, rank: DARK_ROOT } : null;
+    if (media === "screen") return null;
+    if (isNotLight) return forcedDark ? null : { level: 0, rank: DARK_ROOT };
+    if (media === "prefers" && forcedDark) return null;
+    const level = levelOf(selector);
+    if (level === -1) return null;
+    return { level, rank: layered ? LAYERED : level === 0 && s !== ":root" ? HTML : PLAIN };
+}
+
+/** Collects template text, last `{{style}}` offset, and matching `<style>` blocks with `topRules`. */
+function collectTemplateRules(template, maxLength, dark) {
     let text = "";
     let styleAt = -1;
     for (const part of template.parts) {
@@ -389,69 +426,115 @@ export function templateTheme(template, tokens, { base: BASE_TOKENS, font: REPOR
             styleAt = text.length;
         }
     }
-    /** @type {Array<{ level: number, rank: number, at: number, decls: Array<[string, string, boolean]> }>} */
+    const forcedDark = dark && /<html\b[^>]*\bdata-pk-theme\s*=\s*(?:"dark"|'dark'|dark\b)/i.test(text);
     const rules = [];
     for (const m of text.matchAll(ELEMENT)) {
-        if (m[3] === undefined) {
-            continue;
-        }
-        const attribute = (/** @type {string} */ name) => {
+        if (m[3] === undefined) continue;
+        const attr = (/** @type {string} */ name) => {
             const a = new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(m[2] ?? "");
             return a ? (a[1] ?? a[2] ?? a[3]).trim().toLowerCase() : null;
         };
-        const media = attribute("media");
-        const type = attribute("type");
-        if ((media !== null && media !== "" && media !== "all") || (type !== null && type !== "" && type !== "text/css")) {
-            continue;
-        }
-        for (const rule of topRules(withoutComments(m[3]))) {
-            const decls = declarationsOf(rule.block).filter(([, value]) => value.length <= TOKEN_LENGTH);
-            const selectors = rule.selector.split(",");
-            const levels = new Set(selectors.map(levelOf).filter((level) => level !== -1));
-            for (const level of levels) {
-                const html = level === 0 && !selectors.some((sel) => sel.trim().toLowerCase() === ":root");
-                rules.push({ level, rank: rule.layered ? LAYERED : html ? HTML : PLAIN, at: /** @type {number} */ (m.index), decls });
+        const media = attr("media");
+        const type = attr("type");
+        if ((media !== null && media !== "" && media !== "all") || (type !== null && type !== "" && type !== "text/css")) continue;
+        for (const rule of topRules(withoutComments(m[3]), false, dark)) {
+            const decls = declarationsOf(rule.block).filter(([, value]) => value.length <= maxLength);
+            const seen = new Set();
+            for (const sel of rule.selector.split(",")) {
+                const target = ruleTarget(sel, rule.media, rule.layered, dark, forcedDark);
+                const key = target ? `${target.level}:${target.rank}` : "";
+                if (target && !seen.has(key)) {
+                    seen.add(key);
+                    rules.push({ ...target, at: /** @type {number} */ (m.index), decls });
+                }
             }
         }
     }
+    return { styleAt, rules };
+}
+
+/** Collects winning declarations for one cascade level (`:root`, `body`, `.pk-report`). */
+function levelDeclarations(own, styleAt, report, darkReport, fallback, level) {
+    const ordered = [];
+    for (const rank of [LAYERED, HTML, PLAIN]) {
+        const list = own.filter((r) => r.rank === rank);
+        ordered.push(...list.filter((r) => r.at < styleAt).flatMap((r) => r.decls));
+        if (rank === PLAIN && styleAt !== -1) ordered.push(...report[level]);
+        ordered.push(...list.filter((r) => r.at >= styleAt).flatMap((r) => r.decls));
+    }
+    if (level === 0 && darkReport) {
+        const darkOwn = own.filter((r) => r.rank === DARK_ROOT);
+        ordered.push(...darkOwn.filter((r) => r.at < styleAt).flatMap((r) => r.decls));
+        if (styleAt !== -1) ordered.push(...darkReport);
+        ordered.push(...darkOwn.filter((r) => r.at >= styleAt).flatMap((r) => r.decls));
+    }
+    const declared = new Map();
+    for (const important of [false, true]) {
+        for (const [name, value, flag] of ordered) {
+            if (flag === important) declared.set(name, value);
+        }
+    }
+    if (level === 0 && styleAt === -1) {
+        for (const [name, value] of Object.entries(fallback)) {
+            if (name.startsWith("--") && !declared.has(name)) declared.set(name, value);
+        }
+    }
+    return declared;
+}
+
+/**
+ * Shared resolver for both light and dark template themes.
+ * @param {import("./template.js").Template} template
+ * @param {Record<string, string>} tokens
+ * @param {Record<string, string>} darkTokens
+ * @param {TokenKit & { dark?: Readonly<Record<string, string>> }} kit
+ * @returns {Record<string, string>}
+ */
+function resolveTheme(template, tokens, darkTokens, { base: BASE_TOKENS, dark: DARK_TOKENS, font: REPORT_FONT, maxLength: TOKEN_LENGTH, clean: cleanTokens }) {
+    const isDark = Boolean(DARK_TOKENS);
+    const { styleAt, rules } = collectTemplateRules(template, TOKEN_LENGTH, isDark);
     const host = cleanTokens(tokens);
-    // the report's own rules where {{style}} stands: its tokens on :root, its font on body
-    /** @type {Array<Array<[string, string, boolean]>>} */
-    const report = [Object.entries({ ...BASE_TOKENS, ...host }).filter(([name]) => name.startsWith("--")).map(([n, v]) => [n, v, false]), [["font-family", host["font-family"] ?? REPORT_FONT, false]], []];
+    const darkHost = isDark ? cleanTokens(darkTokens) : undefined;
+    const darkReport = isDark ? Object.entries({ ...DARK_TOKENS, ...darkHost }).map(([n, v]) => [n, v, false]) : null;
+    const report = [Object.entries({ ...BASE_TOKENS, ...host }).filter(([n]) => n.startsWith("--")).map(([n, v]) => [n, v, false]), [["font-family", host["font-family"] ?? REPORT_FONT, false]], []];
+    const fallback = isDark ? { ...BASE_TOKENS, ...host, ...DARK_TOKENS, ...darkHost } : { ...BASE_TOKENS, ...host };
     /** @type {Map<string, string | null>} */
     let computed = new Map();
     for (let level = 0; level < LEVELS.length; level++) {
-        // the declarations in the order they apply: before {{style}}, the report's, after it; then the !important ones
-        // (layered rules and html below the rest, whatever their place: they are below the report's too)
         const own = rules.filter((r) => r.level === level);
-        const low = [LAYERED, HTML].flatMap((rank) => own.filter((r) => r.rank === rank).flatMap((r) => r.decls));
-        const plain = own.filter((r) => r.rank === PLAIN);
-        const ordered = [...low, ...plain.filter((r) => r.at < styleAt).flatMap((r) => r.decls), ...(styleAt === -1 ? [] : report[level]), ...plain.filter((r) => r.at >= styleAt).flatMap((r) => r.decls)];
-        /** @type {Map<string, string>} */
-        const declared = new Map();
-        for (const important of [false, true]) {
-            for (const [name, value, flag] of ordered) {
-                if (flag === important) {
-                    declared.set(name, value);
-                }
-            }
-        }
-        if (level === 0 && styleAt === -1) {
-            // no report rules on the page: the defaults stand under the template's own
-            for (const [name, value] of Object.entries({ ...BASE_TOKENS, ...host })) {
-                if (name.startsWith("--") && !declared.has(name)) {
-                    declared.set(name, value);
-                }
-            }
-        }
-        computed = computeLevel(declared, computed);
+        computed = computeLevel(levelDeclarations(own, styleAt, report, darkReport, fallback, level), computed);
     }
     /** @type {Record<string, string>} */
     const values = {};
     for (const [name, value] of computed) {
         if (value !== null && (name.startsWith("--pk-") || name === "font-family")) {
-            values[name] = name === "font-family" ? doubleQuoted(value) : lightOf(value);
+            values[name] = name === "font-family" ? doubleQuoted(value) : lightOf(value, isDark);
         }
     }
-    return { ...BASE_TOKENS, ...cleanTokens(values) };
+    return { ...BASE_TOKENS, ...(DARK_TOKENS ?? {}), ...cleanTokens(values) };
+}
+
+/**
+ * The light values a report with this template draws its chart and its cells' colours with: the
+ * defaults, the host's `tokens`, the template's own CSS, as the page computes them for `.pk-report`.
+ * @param {import("./template.js").Template} template  from parseTemplate()
+ * @param {Record<string, string>} tokens  the host's
+ * @param {TokenKit} kit  tokens.js's BASE_TOKENS, REPORT_FONT, TOKEN_LENGTH and cleanTokens
+ * @returns {Record<string, string>}
+ */
+export function templateTheme(template, tokens, kit) {
+    return resolveTheme(template, tokens, {}, kit);
+}
+
+/**
+ * The dark-screen values a report with this template draws its chart with: defaults, host `tokens`
+ * and `darkTokens`, and the template's own CSS (including dark-screen rules over `{{style}}`).
+ * @param {import("./template.js").Template} template
+ * @param {Record<string, string>} tokens
+ * @param {Record<string, string>} darkTokens
+ * @param {TokenKit & { dark: Readonly<Record<string, string>> }} kit
+ * @returns {Record<string, string>}
+ */
+export function templateDarkTheme(template, tokens, darkTokens, kit) {
+    return resolveTheme(template, tokens, darkTokens, kit);
 }

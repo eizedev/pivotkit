@@ -16,7 +16,7 @@
             "docs/security.md": [896],
             "docs/use/charts.md": [487]
         },
-        "totalLines": 24162
+        "totalLines": 24171
     },
     "functions": {
         "complexity": {
@@ -37,7 +37,7 @@
             "packages/pivotkit-mcp/src/http.js Async function 'route'": [28],
             "packages/pivotkit-react/src/PivotReport.jsx Function 'Report'": [34],
             "packages/pivotkit-react/src/chart-tooltip.js Function 'tooltipContent'": [51],
-            "packages/pivotkit-react/src/export-run.js Async function 'runExport'": [64],
+            "packages/pivotkit-react/src/export-run.js Async function 'runExport'": [63],
             "packages/pivotkit-react/src/fields.jsx Function 'FieldPanel'": [29],
             "packages/pivotkit-react/src/filter-level.jsx Function 'FilterLevel'": [56],
             "packages/pivotkit-react/src/import-ui.jsx Function 'ImportDialog'": [39],
@@ -53,9 +53,8 @@
             "packages/pivotkit-react/src/toolbar.jsx Function 'Toolbar'": [27],
             "packages/pivotkit-report/src/operations.js Async method 'run'": [35],
             "packages/pivotkit-report/src/operations/check-input.js Function 'checkInput'": [47],
-            "packages/pivotkit-report/src/render.js Async function 'render'": [68],
+            "packages/pivotkit-report/src/render.js Async function 'render'": [62],
             "packages/pivotkit-report/src/svg.js Function 'cleanSvg'": [38],
-            "packages/pivotkit-report/src/template-style.js Function 'templateTheme'": [33],
             "packages/pivotkit-report/src/template.js Function 'parseTemplate'": [48],
             "packages/pivotkit-server/src/auth.js Function 'callerOf'": [36],
             "packages/pivotkit-server/src/check-source.js Async function 'checkSource'": [61],

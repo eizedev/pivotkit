@@ -202,11 +202,11 @@ A colour scale whose view names no colours runs through the theme's heat colours
 colour (`--pk-scale-mid`) of your `:root` rule is a light one. It stays out of a dark screen unless
 you set one there too.
 
-The chart uses the light colours and keeps its light card on a dark screen. The note under a cut
-chart stands on that card in your light `--pk-muted`. Set the card's colour through `--pk-surface` in
-your `:root` rule, not with a background on `.pk-report-chart`. The chart's image, its card and the
-note on it all take the light tokens, so a background of its own would leave them on another colour.
-Your own `.pk-report-note` rule colours that note too.
+The chart, its card (`--pk-surface`) and the note under a cut chart (`--pk-muted`) follow the active
+screen theme: dark on a dark screen or `data-pk-theme="dark"`, light on a light screen,
+`data-pk-theme="light"`, and paper. Set the card's colour through `--pk-surface` in your `:root` or
+dark-screen rules, not with a fixed background on `.pk-report-chart`. Your own `.pk-report-note` rule
+colours that note too.
 
 Your dark rules win over the colours a host passes for a dark screen (`darkTokens`), as your `:root`
 rule wins over its light ones.

@@ -100,3 +100,14 @@ test("a long table printed to PDF: several pages, the header row on each, every 
     expect(items).toEqual(rows.map((_, i) => i + 1));
     expect(squeeze(pdf.pages.at(-1).text)).toContain("GrandTotal");
 });
+
+test("combined table and chart printed to PDF stays light even in system dark mode with dark attribute (#988)", async ({ page }) => {
+    const echarts = await import("echarts");
+    const template = DEFAULT_TEMPLATE.replace("<html ", '<html data-pk-theme="dark" ');
+    const both = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar" }, display: "both" };
+    const report = await render(both, ROWS, { format: "html", echarts, template, now: NOW });
+    const { pdf } = await printed(page, report.text, "dark");
+    expect(holds(pdf.pages[0].fills, LIGHT_TOKENS["--pk-text"])).toBe(true);
+    expect(holds(pdf.pages[0].fills, DARK_TOKENS["--pk-surface"])).toBe(false);
+    expect(holds(pdf.pages[0].fills, DARK_TOKENS["--pk-chart-1"])).toBe(false);
+});
