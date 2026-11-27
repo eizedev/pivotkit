@@ -195,7 +195,7 @@ function TargetField({ target, labels, locale, format, onTarget }) {
 /**
  * Chart settings: the types (a pick closes it), then how the chart is drawn, in levels as the other
  * menus (levels.jsx, menu-topics.js chartTopics): a row per topic with what is set, each opening its
- * level (Value labels, Legend, Title, Axis, Tooltip, Reference lines with its Target, Series, Layout
+ * level (Value labels, Legend, Title, Axis, Tooltip, Reference lines with its Target, Entries, Layout
  * with the groups of Rows folded or not). Each choice applies at once and the menu stays open, so the
  * chart behind it shows the change; folding the groups closes it.
  */

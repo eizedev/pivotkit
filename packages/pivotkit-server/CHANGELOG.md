@@ -6,6 +6,43 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-26
+
+### Changed
+
+- Depends on `pivotkit-core` `^0.11.0`, `pivotkit-node` `^0.2.0`, `pivotkit-report` `^0.7.0` and
+  `pivotkit-xlsx` `^0.8.0`.
+- **Breaking:** a key read from a file that starts with a UTF-8 byte order mark is refused. Before,
+  the mark (U+FEFF) became part of the key. This holds for the secrets given as a `{ "file" }`
+  reference: `output.downloads.key`, `audit.key`, a backend's sign-in, the upload store's headers
+  and the download sign-in's client secret. The start, `check-config` and `key new --if-missing` say
+  so and name the file. Save it as UTF-8 without the mark. Download links made with such a key stop
+  working, and audit hashes made with it change. A token file's mark is still trimmed.
+- A rows request (`POST /api/v1/sources/records`) that finds every place taken waits up to
+  `rest.records.waitMs` (default 5 s, 0 to 60 s) for one, first come first served, before 503
+  `BUSY`. A request that is answered within that time no longer turns the next person away. With the
+  defaults, a slow load (up to `compute.timeMs`, 30 s) or a slow reader (up to
+  `rest.records.writeMs`, 10 s) still outlasts the wait, and the others get 503 `BUSY`. Raise
+  `waitMs` or `rest.records.concurrency` for that. `waitMs: 0` keeps the old behavior. Raise a
+  proxy's time limit for this route by `waitMs`.
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
+### Fixed
+
+- A host that passes `env` to `createContext` or `serve()` gets the `{ env }` secrets of a backend's
+  sign-in and of `output.upload`'s headers from that `env`. They were read from `process.env`, at
+  start and on every load. Static tokens and the download key already used it. A host that passes its
+  own `env` must hold those variables in it.
+- One-time download links and the sign-in of download links work when the output directory's file
+  system has no hard links, such as FAT, exFAT and some SMB mounts. There the server creates the file
+  that marks a link or sign-in used in place. Both failed with 500.
+- `check-config` no longer warns that a later `auth.groupProfiles` entry shows fields an earlier one
+  holds back when the source's policy already shows those fields to both. It compares the levels a
+  person gets in each source, and under `files.policy` where `files.allowDirs` is set.
+- A large REST body (over 2 MiB, for a profile with `data: true`) takes its place per person, as
+  the rate limit counts. Two people who sign in through one OAuth client can each send one at once.
+  Before, they shared one place. A token without a person still counts per token or client.
+
 ## [0.5.0] - 2026-11-24
 
 ### Added
@@ -1153,7 +1190,8 @@ First release.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.5.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.6.0...HEAD
+[0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.5.0...pivotkit-server@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.4.0...pivotkit-server@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.2...pivotkit-server@0.4.0
 [0.3.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.1...pivotkit-server@0.3.2

@@ -9,28 +9,34 @@ pivotkit is Excel's PivotTable for web applications and the command line. People
 build a report by dragging fields and take it to Excel. The same report renders again in CI.
 
 <a href="https://pivotkit.eize.dev/demo/"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/report-dark.png">
-  <img src="docs/assets/screenshots/report-light.png" width="100%"
-    alt="The pivot report: average temperature of 14 cities by month as a colour scale">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-weather-dark.png">
+  <img src="docs/assets/screenshots/readme-weather-light.png" width="100%"
+    alt="Table and chart side by side: the average temperature of six cities by month as a colour scale, and a line per city">
 </picture></a>
 
-**[Try the live demo](https://pivotkit.eize.dev/demo/)** · [Documentation](https://pivotkit.eize.dev/) ·
-[Comparison](https://pivotkit.eize.dev/compare/) · [Releases](#releases-and-changelogs)
+**[Try pivotkit](https://pivotkit.eize.dev/demo/)** · [Documentation](https://pivotkit.eize.dev/) ·
+[Comparison](https://pivotkit.eize.dev/compare/) · [Releases](#releases-and-changelogs) ·
+[Discussions](https://github.com/eizedev/pivotkit/discussions)
 
 [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/pivotkit-react?label=pivotkit-react)](https://www.npmjs.com/package/pivotkit-react)
 [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 ## Start here
 
-- **You build reports:** try the [live demo](https://pivotkit.eize.dev/demo/), then the six-step
-  [quick start](https://pivotkit.eize.dev/use/quick-start/).
+- **You want to see it first:** [try pivotkit](https://pivotkit.eize.dev/demo/) in the browser, on
+  the command line, on your machine, on a page of your own or in a container.
+- **You build reports:** the six-step [quick start](https://pivotkit.eize.dev/use/quick-start/).
 - **You run the services:** one `docker run` starts the REST service and the MCP server:
   [server in 5 minutes](https://pivotkit.eize.dev/getting-started/server-in-5-minutes/).
 - **You use a running server:** the [REST service](https://pivotkit.eize.dev/getting-started/rest/)
   from curl or PowerShell, the [MCP server](https://pivotkit.eize.dev/getting-started/mcp/) from an AI client.
 - **You develop:** put the report in your application or make reports from code:
   [Embed pivotkit](https://pivotkit.eize.dev/embed/).
+
+> [!NOTE]
+> pivotkit is 0.x. A minor release (0.y to 0.y+1) can break things. Each break is marked
+> **Breaking** in the changelog, and [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/)
+> says what to do. [Versioning](https://pivotkit.eize.dev/versioning/) has the full promise.
 
 ## What pivotkit does
 
@@ -45,7 +51,35 @@ build a report by dragging fields and take it to Excel. The same report renders 
   [MCP server](https://pivotkit.eize.dev/getting-started/mcp/) make reports from live data. A model
   gets rows only where the policy shows them: [what reaches an AI model](https://pivotkit.eize.dev/model-data/).
 
-Every feature: [feature list](https://pivotkit.eize.dev/features/).
+<a href="https://pivotkit.eize.dev/demo/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-start-dark.png">
+  <img src="docs/assets/screenshots/readme-start-light.png" width="100%" alt="The live demo's start: the average temperature of 14 cities by month as a colour scale">
+</picture></a>
+
+<table>
+<tr>
+<td width="50%" valign="top"><b>HTML report</b><br>Ready to print or save as PDF<br><a href="docs/assets/screenshots/readme-report-light.png"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-report-dark.png">
+  <img src="docs/assets/screenshots/readme-report-light.png" width="100%" alt="The HTML report of the export: chart, table, source, filters and time">
+</picture></a></td>
+<td width="50%" valign="top"><b>Export</b><br>Excel, CSV, chart image, copy<br><a href="docs/assets/screenshots/readme-export-light.png"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-export-dark.png">
+  <img src="docs/assets/screenshots/readme-export-light.png" width="100%" alt="The Export menu: Excel, CSV, HTML report, chart image, print or PDF, copy, source data">
+</picture></a></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><b>Drill-down</b><br>Click a value to see its rows<br><a href="docs/assets/screenshots/readme-drill-light.png"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-drill-dark.png">
+  <img src="docs/assets/screenshots/readme-drill-light.png" width="100%" alt="The rows behind one value: a click on Dubai in February 2025 opens them beside the table">
+</picture></a></td>
+<td width="50%" valign="top"><b>Charts</b><br>Average, trend and target lines<br><a href="docs/assets/screenshots/readme-chart-light.png"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/readme-chart-dark.png">
+  <img src="docs/assets/screenshots/readme-chart-light.png" width="100%" alt="A line chart of monthly revenue with its average, trend and a target">
+</picture></a></td>
+</tr>
+</table>
+
+Open a picture to see it full size. Every feature: [feature list](https://pivotkit.eize.dev/features/).
 
 The report in the browser computes on the rows the host passes and fetches no data. The services fetch
 data from the sources you configure. pivotkit sends nothing home:
@@ -61,21 +95,21 @@ data sources and platforms, and how each was tested.
 
 ## Packages
 
-- [pivotkit-react](packages/pivotkit-react/): the React 18/19 report builder. The host provides React and ECharts.
+- [pivotkit-react](packages/pivotkit-react/) [![npm version of pivotkit-react](https://img.shields.io/npm/v/pivotkit-react?label=npm)](https://www.npmjs.com/package/pivotkit-react): the React 18/19 report builder. The host provides React and ECharts.
   `npm install pivotkit-react react react-dom echarts`
-- [pivotkit-element](packages/pivotkit-element/): the report builder as the web component `<pivot-report>`,
+- [pivotkit-element](packages/pivotkit-element/) [![npm version of pivotkit-element](https://img.shields.io/npm/v/pivotkit-element?label=npm)](https://www.npmjs.com/package/pivotkit-element): the report builder as the web component `<pivot-report>`,
   for Angular, PHP, plain HTML and PowerShell Universal. `npm install pivotkit-element`
-- [pivotkit-core](packages/pivotkit-core/): the engine in plain JavaScript, without UI. `npm install pivotkit-core`
-- [pivotkit-xlsx](packages/pivotkit-xlsx/): a [plugin](https://pivotkit.eize.dev/reference/plugins/) that
+- [pivotkit-core](packages/pivotkit-core/) [![npm version of pivotkit-core](https://img.shields.io/npm/v/pivotkit-core?label=npm)](https://www.npmjs.com/package/pivotkit-core): the engine in plain JavaScript, without UI. `npm install pivotkit-core`
+- [pivotkit-xlsx](packages/pivotkit-xlsx/) [![npm version of pivotkit-xlsx](https://img.shields.io/npm/v/pivotkit-xlsx?label=npm)](https://www.npmjs.com/package/pivotkit-xlsx): a [plugin](https://pivotkit.eize.dev/reference/plugins/) that
   reads Excel workbooks in the browser. `npm install pivotkit-xlsx`
-- [pivotkit-report](packages/pivotkit-report/): [reports without a browser](https://pivotkit.eize.dev/reference/report/)
+- [pivotkit-report](packages/pivotkit-report/) [![npm version of pivotkit-report](https://img.shields.io/npm/v/pivotkit-report?label=npm)](https://www.npmjs.com/package/pivotkit-report): [reports without a browser](https://pivotkit.eize.dev/reference/report/)
   as JSON, CSV, XLSX, SVG or HTML. `npm install pivotkit-report echarts`
-- [pivotkit-cli](packages/pivotkit-cli/): the [command line](https://pivotkit.eize.dev/reference/cli/) `pivotkit`.
+- [pivotkit-cli](packages/pivotkit-cli/) [![npm version of pivotkit-cli](https://img.shields.io/npm/v/pivotkit-cli?label=npm)](https://www.npmjs.com/package/pivotkit-cli): the [command line](https://pivotkit.eize.dev/reference/cli/) `pivotkit`.
   `npm install --global pivotkit-cli`
-- [pivotkit-server](packages/pivotkit-server/): the [REST service](https://pivotkit.eize.dev/reference/rest/),
+- [pivotkit-server](packages/pivotkit-server/) [![npm version of pivotkit-server](https://img.shields.io/npm/v/pivotkit-server?label=npm)](https://www.npmjs.com/package/pivotkit-server): the [REST service](https://pivotkit.eize.dev/reference/rest/),
   also as a [container image](https://pivotkit.eize.dev/reference/container/).
   `npm install --global pivotkit-server pivotkit-mcp`
-- [pivotkit-mcp](packages/pivotkit-mcp/): the [MCP server](https://pivotkit.eize.dev/reference/mcp/),
+- [pivotkit-mcp](packages/pivotkit-mcp/) [![npm version of pivotkit-mcp](https://img.shields.io/npm/v/pivotkit-mcp?label=npm)](https://www.npmjs.com/package/pivotkit-mcp): the [MCP server](https://pivotkit.eize.dev/reference/mcp/),
   over stdio or HTTP. `npx -y pivotkit-mcp`
 
 [pivotkit-node](packages/pivotkit-node/) is internal: the command line and the server share it.
@@ -107,7 +141,7 @@ its first start. Step by step:
 
 ```bash
 docker run -d --name pivotkit -p 127.0.0.1:3333:3333 \
-  -v pivotkit:/var/lib/pivotkit ghcr.io/eizedev/pivotkit:0.5.0
+  -v pivotkit:/var/lib/pivotkit ghcr.io/eizedev/pivotkit:0.6.0
 curl -H "Authorization: Bearer $(docker exec pivotkit pivotkit-server token show admin)" \
   http://127.0.0.1:3333/api/v1/sources
 ```
@@ -143,6 +177,13 @@ list them with their notes. Each package keeps a `CHANGELOG.md`:
 Before you update, read [Upgrading](https://pivotkit.eize.dev/getting-started/upgrading/).
 [Versioning](https://pivotkit.eize.dev/versioning/) says which releases may break things.
 
+## Questions and help
+
+- Questions, ideas and what you built with pivotkit:
+  [Discussions](https://github.com/eizedev/pivotkit/discussions).
+- Bugs and concrete feature requests: [issues](https://github.com/eizedev/pivotkit/issues).
+- Security problems: report them [privately](https://github.com/eizedev/pivotkit/security/advisories/new).
+
 ## License
 
 [MIT](LICENSE). pivotkit draws its charts with [Apache ECharts](https://echarts.apache.org/), licensed
@@ -152,8 +193,9 @@ The icon, header and social preview in `assets/` and `docs/assets/icon.svg` come
 [eizedev/brand](https://github.com/eizedev/brand). Their licence is
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-The screenshot shows weather data by [Open-Meteo.com](https://open-meteo.com/)
+The screenshots of the weather show data by [Open-Meteo.com](https://open-meteo.com/)
 ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). It contains modified Copernicus Climate
 Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data.
+The other screenshots show generated sample sales data.
 The playground's real data sets keep the licences of their sources.
 [examples/playground/data/SOURCES.md](examples/playground/data/SOURCES.md) lists them.

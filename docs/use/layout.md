@@ -207,7 +207,7 @@ their first level stays short:
     **Views** is in levels too. Its first level is the list to scan: This view, Shared views, My views,
     Share this view. Save as…, Open view file… and the questions before a delete or a publish open
     levels of their own. See [views](views.md#the-views-menu). In **Chart settings**, below the chart
-    types, Value labels, Legend, Title, Axis, Tooltip, Series and Layout are rows that open levels. See
+    types, Value labels, Legend, Title, Axis, Tooltip, Entries and Layout are rows that open levels. See
     [charts](charts.md#display-settings). In **More**, **Help** opens a level. The Export menus and
     **Start over** are flat lists. No menu folds.
 

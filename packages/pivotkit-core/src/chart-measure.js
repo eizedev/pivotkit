@@ -133,3 +133,20 @@ export const LINE_SAMPLES = Object.freeze({ dashed: "– –", dotted: "···",
  * @param {string} words
  */
 export const lineLabelText = (type, words) => `{s|${Object.hasOwn(LINE_SAMPLES, type) ? LINE_SAMPLES[/** @type {keyof typeof LINE_SAMPLES} */ (type)] : ""}} ${String(words).replace(/[{}|]/g, "")}`;
+
+/*
+ * A treemap's labels on plates (treemapLabels in chart-style.js). Exported for the browser tests, which
+ * derive from them the smallest tile that must show a label.
+ */
+/** ECharts' padding of a treemap's label inside its tile, left and right, px (its default `label.padding`). */
+export const TILE_LABEL_PADDING = 5;
+/** The room a treemap's lines keep above and below them in their tile, px. */
+export const TILE_EDGE = 1;
+/** A plate's room left and right of its words, px. */
+export const PLATE_SIDE = 2;
+/** The fewest characters a tile writes of a name cut short; with fewer it writes no label. Four, so a cut name is not a stub ("Ind…" beside "India"). */
+export const TILE_MIN_CHARS = 4;
+/** The end of a text cut short: one character, so a narrow tile keeps more of the name. */
+export const ELLIPSIS = "\u2026";
+/** The height of a plate's line at `fontSize`, px. */
+export const plateLine = (/** @type {number} */ fontSize) => Math.round(fontSize * 1.5);

@@ -2,6 +2,7 @@
 // draws must be what the screen's chart draws (pivotkit-core's chartPlan and the report's marks).
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { drawnTiles } from "pivotkit-core/chart";
 import { render } from "pivotkit-report";
 import { FIXED, SALES, echarts, startTags, svgTexts } from "./fixtures.js";
 
@@ -123,15 +124,16 @@ test("reference lines (#48): the SVG puts each label at its line, after a sample
     assert.match(r.text, /fill="#5a6270"[^>]*>——</);
 });
 
-test("high and low points (#574): the SVG and the HTML report draw a dot and a label at each, the glyph in the series' colour", async () => {
+test("high and low points (#574): the SVG and the HTML report draw a dot and a label at each, the glyph in the text colour (#913)", async () => {
     // North 10, South 12, West 4, (blank) 6 units: the highest at South, the lowest at West
     const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", referenceLines: { average: false, trend: false, target: null, extremes: true } } };
     const r = await render(view, SALES, { format: "svg", echarts, ...FIXED });
     const texts = svgTexts(r.text).map((t) => t.trim());
     assert.ok(texts.includes("▲") && texts.includes("12"), texts.join(" | "));
     assert.ok(texts.includes("▼") && texts.includes("4"), texts.join(" | "));
-    // the glyph in the first series' colour (light --pk-chart-1)
-    assert.match(r.text, /fill="#2a78d6"[^>]*>▲</);
+    // the glyph and the value in the text colour (light --pk-muted), not the series' (#913)
+    assert.match(r.text, /fill="#5a6270"[^>]*>▲</);
+    assert.match(r.text, /fill="#5a6270"[^>]*> 12</);
     // the label is placed after a second draw, as on the screen: it stays above the plot's top edge
     const html = await render({ ...view, display: "chart" }, SALES, { format: "html", chart: true, chartEmbed: "inline", echarts, ...FIXED });
     assert.ok(svgTexts(html.text).map((t) => t.trim()).includes("▲"));
@@ -169,6 +171,13 @@ test("a combo and a treemap reach the SVG (#518)", async () => {
     const tiles = svgTexts(t.text).map((x) => x.trim());
     for (const region of ["North", "South", "West"]) {
         assert.ok(tiles.includes(region), `${region}: ${tiles.join(" | ")}`);
+    }
+    // each label in its tile's middle (#913): its name and value as far above as below the tile's centre
+    const lines = [...t.text.matchAll(/<text [^>]*y="([-\d.e]+)" transform="translate\(([^)]+)\)"[^>]*>([^<]*)<\/text>/g)].map(([, y, at, text]) => ({ y: Number(y), at, text }));
+    for (const region of ["North", "South", "West"]) {
+        const name = lines.find((l) => l.text === region);
+        const value = lines.find((l) => l !== name && l.at === name?.at);
+        assert.ok(name && value && Math.abs(name.y + value.y) <= 1, `${region}: ${JSON.stringify([name, value])}`);
     }
 });
 
@@ -221,4 +230,38 @@ test("colorMap takes a pair of colours for light and dark, as the React prop doe
     const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar" } };
     const r = await render(view, SALES, { format: "svg", echarts, colorMap: { A: ["#0a0b0c", "#f0f0f0"] }, ...FIXED });
     assert.ok(r.text.includes('fill="#0a0b0c"') && !r.text.includes('fill="#f0f0f0"'));
+});
+
+test("drawnTiles against ECharts itself: a flat treemap's tiles by item; in a tree with children no tile is taken for another item's", () => {
+    const draw = (/** @type {object[]} */ data) => {
+        const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: 600, height: 400 });
+        chart.setOption({ animation: false, series: [{ type: "treemap", data, breadcrumb: { show: false } }] });
+        return chart;
+    };
+    const flat = draw([{ name: "a", value: 30 }, { name: "b", value: 10 }]);
+    try {
+        const tileOf = /** @type {(i: number, name: string) => { width: number, height: number } | null} */ (drawnTiles(flat));
+        const [a, b] = [tileOf(0, "a"), tileOf(1, "b")];
+        assert.ok(a && b, "both tiles found");
+        // the tiles share the chart in the values' proportion: 3 to 1
+        assert.ok(Math.abs((a.width * a.height) / (b.width * b.height) - 3) < 0.01, `${a.width}x${a.height} ${b.width}x${b.height}`);
+        assert.equal(tileOf(0, "b"), null);
+        assert.equal(tileOf(2, "c"), null);
+    } finally {
+        flat.dispose();
+    }
+    // ECharts lists a tree depth first: an item after one with children is not at its index + 1
+    const nested = draw([{ name: "a", value: 30 }, { name: "b", children: [{ name: "b1", value: 5 }, { name: "b2", value: 5 }] }, { name: "c", value: 10 }]);
+    try {
+        const tileOf = /** @type {(i: number, name: string) => unknown} */ (drawnTiles(nested));
+        assert.ok(tileOf(0, "a"));
+        assert.ok(tileOf(1, "b"));
+        assert.equal(tileOf(2, "c"), null, "b1 sits where c would");
+    } finally {
+        nested.dispose();
+    }
+    const bar = echarts.init(null, null, { renderer: "svg", ssr: true, width: 600, height: 400 });
+    bar.setOption({ xAxis: { data: ["a"] }, yAxis: {}, series: [{ type: "bar", data: [1] }] });
+    assert.equal(drawnTiles(bar), undefined);
+    bar.dispose();
 });

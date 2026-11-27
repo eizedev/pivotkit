@@ -11,6 +11,8 @@ import { test as plain } from "@playwright/test";
 import { chips, drag, expect, tableRows, test, toolbar, watchConsole } from "./fixtures.js";
 import { makeXlsx } from "../../packages/pivotkit-xlsx/test/make-xlsx.js";
 import { dataMenu, dropFiles, fieldNames, fileOf, nextFileChooser, pickThroughMenu } from "./import-helpers.js";
+import { de as importDe, en as importEn } from "../../packages/pivotkit-react/src/import-labels.js";
+import { fill } from "../../packages/pivotkit-react/src/labels.js";
 
 const TICKETS = "Id;Team;Opened;Hours;Zip\n1001;Network;10.11.2026;1,5;01067\n1002;Server;11.11.2026;2,25;10115\n1003;Network;12.11.2026;4;01067\n\n1004;Client;13.11.2026;0,5;20095\n";
 const CSV = "text/csv";
@@ -21,7 +23,7 @@ async function preview(dialog) {
     await expect(dialog.getByTestId("import-preview")).toBeVisible();
     return dialog.getByTestId("import-preview").evaluate((box) => ({
         columns: [...box.querySelectorAll("thead th")].map((th) => th.firstChild.textContent),
-        types: [...box.querySelectorAll("thead select")].map((s) => s.value),
+        types: [...box.querySelectorAll("thead select[data-testid^='import-type-']")].map((s) => s.value),
         rows: [...box.querySelectorAll("tbody tr")].map((tr) => [...tr.children].map((td) => td.textContent))
     }));
 }
@@ -87,6 +89,120 @@ test("a CSV dropped onto the report: the overlay, the preview with types and not
     await expect.poll(() => fieldNames(page)).toEqual(["Id", "Team", "Opened", "Hours", "Zip"]);
     await page.getByTestId("redo").click();
     await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+});
+
+/** Whether a closed select shows its whole text: the chosen option's width, its padding and the arrow fit inside it. */
+const showsWholeText = (select) =>
+    select.evaluate((el) => {
+        const style = getComputedStyle(el);
+        const ctx = document.createElement("canvas").getContext("2d");
+        ctx.font = style.font;
+        const text = ctx.measureText(el.selectedOptions[0].text).width;
+        // the arrow of a native select: at least 16 px in each engine
+        return text + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + 16 <= el.clientWidth;
+    });
+
+/** Whether the type selects of all column heads start on one line, with or without a decimal mark choice. */
+const typesOnOneLine = async (dialog) => {
+    const tops = [];
+    for (const type of await dialog.locator("select[data-testid^='import-type-']").all()) {
+        tops.push(Math.round((await type.boundingBox()).y));
+    }
+    return new Set(tops).size === 1;
+};
+
+/** Whether an element lies inside its column head, not cut off by it. */
+const insideItsHead = (element) =>
+    element.evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        const head = el.closest("th").getBoundingClientRect();
+        return box.left >= head.left && box.right <= head.right;
+    });
+
+// a comma between values: "1,234" reads with a decimal point (1234) and a note says it also fits the comma
+const SALES = { name: "sales.csv", type: CSV, text: 'Region,Sales,Units\nNorth,"1,234",3\nSouth,"2,500",4\n' };
+
+test("a column whose numbers fit both decimal marks: the preview asks what the file's example means, by keyboard too, in English and German; Load data takes the mark picked", async ({ page }) => {
+    await page.goto("?data=sales&import");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    await dropFiles(page, page.getByTestId("pivot-table"), [SALES]);
+    const dialog = page.getByRole("dialog", { name: "Load sales.csv" });
+    expect((await preview(dialog)).rows.map((r) => r[1])).toEqual(["1,234", "2,500"]);
+    // only the column the note names has the choice, with the note's mark: the question with the example above it,
+    // the options what "1,234" is with each mark, without a thousands separator; the question names the select
+    // (the column follows for a screen reader), and a click on it moves the focus to the select
+    await expect(dialog.locator("select[data-testid^='import-mark-']")).toHaveCount(1);
+    const mark = dialog.getByTestId("import-mark-1");
+    const question = fill(importEn.markQuestion, { example: "1,234" });
+    await expect(dialog.getByTestId("import-question-1")).toBeVisible();
+    await expect(mark).toHaveAccessibleName(`${question} ${fill(importEn.markOf, { column: "Sales" })}`);
+    await expect(mark).toHaveAttribute("title", `${question} 1234 (thousands)`);
+    await expect(mark).toHaveValue(".");
+    await expect(mark.locator("option")).toHaveText(["1234 (thousands)", "1 point 234"]);
+    await dialog.getByTestId("import-question-1").click();
+    await expect(mark).toBeFocused();
+    await expect(mark).toHaveValue(".");
+    expect(await typesOnOneLine(dialog)).toBe(true);
+    const note = dialog.locator("li[data-code='DECIMAL_MARK']");
+    await expect(note).toHaveText(fill(importEn.notes.DECIMAL_MARK, { column: "Sales", decimal: ".", example: "1,234" }));
+    // by keyboard: Tab from the type reaches the choice, typing the start of an option picks it (arrow keys open the
+    // list on macOS instead); the rows and the note follow
+    await dialog.getByTestId("import-type-1").focus();
+    await page.keyboard.press("Tab");
+    await expect(mark).toBeFocused();
+    await page.keyboard.type("1 p");
+    await expect(mark).toHaveValue(",");
+    await expect.poll(async () => (await preview(dialog)).rows.map((r) => r[1])).toEqual(["1.234", "2.5"]);
+    await expect(note).toHaveText(fill(importEn.notes.DECIMAL_MARK, { column: "Sales", decimal: ",", example: "1,234" }));
+    await expect(mark).toBeFocused();
+    await expect(mark).toHaveAttribute("title", `${question} 1 point 234`);
+    // as text the column has no mark; a number again, it keeps the mark picked
+    await dialog.getByTestId("import-type-1").selectOption("string");
+    await expect(dialog.locator("select[data-testid^='import-mark-']")).toHaveCount(0);
+    await dialog.getByTestId("import-type-1").selectOption("number");
+    await expect(mark).toHaveValue(",");
+    expect((await preview(dialog)).rows.map((r) => r[1])).toEqual(["1.234", "2.5"]);
+    // Load data: the report sums the numbers as picked, 3.73 with two decimals (with the point it is 3,734.00)
+    await dialog.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(page)).toEqual(["Region", "Sales", "Units"]);
+    await drag(page, page.locator('.pk-field[data-field="Sales"]'), page.locator('[data-zone="values"]'));
+    await expect.poll(() => chips(page, "values")).toEqual(["Sum of Sales"]);
+    await expect.poll(async () => (await tableRows(page)).at(-1)?.at(-1)).toBe("3.73");
+
+    // German: a German locale reads the comma first; the question and the numbers in German
+    await page.goto("?data=sales&lang=de&import");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    await dropFiles(page, page.getByTestId("pivot-table"), [SALES]);
+    const deDialog = page.getByRole("dialog", { name: "sales.csv laden" });
+    const deMark = deDialog.getByTestId("import-mark-1");
+    await expect(deMark).toHaveAccessibleName(`${fill(importDe.markQuestion, { example: "1,234" })} ${fill(importDe.markOf, { column: "Sales" })}`);
+    await expect(deMark).toHaveValue(",");
+    await expect(deMark.locator("option")).toHaveText(["1234 (Tausender)", "1 Komma 234"]);
+    expect((await preview(deDialog)).rows.map((r) => r[1])).toEqual(["1,234", "2,5"]);
+    await deMark.selectOption(".");
+    await expect.poll(async () => (await preview(deDialog)).rows.map((r) => r[1])).toEqual(["1.234", "2.500"]);
+    await expect(deDialog.locator("li[data-code='DECIMAL_MARK']")).toHaveText(fill(importDe.notes.DECIMAL_MARK, { column: "Sales", decimal: ".", example: "1,234" }));
+});
+
+test("on a phone the decimal mark choice and its question show their whole text, in English and German", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const [lang, name] of [["", "Load sales.csv"], ["&lang=de", "sales.csv laden"]]) {
+        await page.goto(`?data=sales&import${lang}`);
+        await expect(page.locator(".pk-root")).toBeVisible();
+        await dataMenu(page);
+        const chooser = nextFileChooser(page);
+        await page.getByTestId("load-file").click();
+        await (await chooser).setFiles({ name: SALES.name, mimeType: CSV, buffer: Buffer.from(SALES.text) });
+        const dialog = page.getByRole("dialog", { name });
+        const mark = dialog.getByTestId("import-mark-1");
+        for (const value of [".", ","]) {
+            await mark.selectOption(value);
+            expect(await showsWholeText(mark), `${lang} ${value}`).toBe(true);
+        }
+        expect(await insideItsHead(dialog.getByTestId("import-question-1")), lang).toBe(true);
+        expect(await insideItsHead(mark), lang).toBe(true);
+        expect(await typesOnOneLine(dialog), lang).toBe(true);
+    }
 });
 
 test("the Data menu by keyboard: where the data comes from, Load data… opens the file chooser, Escape cancels the preview and the focus goes back", async ({ page }) => {

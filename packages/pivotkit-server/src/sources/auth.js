@@ -215,12 +215,12 @@ const signInFailure = (reason) => new SourceError("SOURCE_UNAVAILABLE", { transi
  * reference, never the value).
  * @param {import("../options/http.js").SecretRef} ref
  * @param {{ at: string, baseDir: string | undefined }} auth
- * @param {{ id: string, log: any }} how
+ * @param {{ id: string, log: any, env?: Record<string, string | undefined> }} how  env: where an { env } secret is read (the context's; default process.env)
  * @param {string} key  which secret of the sign-in
  */
 async function secretOf(ref, auth, how, key) {
     try {
-        return await readSecret(ref, { baseDir: auth.baseDir });
+        return await readSecret(ref, { baseDir: auth.baseDir }, how.env);
     } catch (e) {
         if (e instanceof SecretError) {
             warn(how, `the backend's sign-in cannot be made: ${auth.at}.${key}: ${e.message}`, {}, { once: true });
@@ -376,7 +376,7 @@ async function readTokenUrl(issuer, rules, how) {
 /**
  * Client credentials (RFC 6749 4.4): pivotkit's own access token.
  * @param {Extract<import("../options/http.js").BackendAuth, { kind: "clientCredentials" }>} auth
- * @param {{ id: string, log: any, fetch: typeof guardedFetch, trace?: AuthTrace }} how
+ * @param {{ id: string, log: any, env?: Record<string, string | undefined>, fetch: typeof guardedFetch, trace?: AuthTrace }} how
  * @returns {Promise<{ token: string, until: number }>}
  */
 async function clientCredentials(auth, how) {
@@ -412,7 +412,7 @@ async function clientCredentials(auth, how) {
  * The token exchange (RFC 8693) for the signed-in person.
  * @param {Extract<import("../options/http.js").BackendAuth, { kind: "tokenExchange" }>} auth
  * @param {import("../registry.js").Caller} caller
- * @param {{ id: string, log: any, fetch: typeof guardedFetch, trace?: AuthTrace }} how
+ * @param {{ id: string, log: any, env?: Record<string, string | undefined>, fetch: typeof guardedFetch, trace?: AuthTrace }} how
  * @returns {Promise<{ token: string, until: number }>}
  */
 async function tokenExchange(auth, caller, how) {
@@ -457,14 +457,14 @@ function keyOf(auth, caller) {
  * without a signed-in person.
  * @param {import("../options/http.js").BackendAuth | null} auth
  * @param {import("../registry.js").Caller} caller
- * @param {{ signal?: AbortSignal, id: string, log: any, fetch?: typeof guardedFetch, backend?: string, trace?: AuthTrace }} how  backend: the backend's name, on its warnings
+ * @param {{ signal?: AbortSignal, id: string, log: any, env?: Record<string, string | undefined>, fetch?: typeof guardedFetch, backend?: string, trace?: AuthTrace }} how  env: where an { env } secret is read (the context's); backend: the backend's name, on its warnings
  * @returns {Promise<Record<string, string>>}
  */
 export async function backendHeaders(auth, caller, how) {
     if (!auth) {
         return {};
     }
-    const means = { id: how.id, log: how.log, fetch: how.fetch ?? guardedFetch, ...(how.backend ? { backend: how.backend } : {}), ...(how.trace ? { trace: how.trace } : {}) };
+    const means = { id: how.id, log: how.log, env: how.env, fetch: how.fetch ?? guardedFetch, ...(how.backend ? { backend: how.backend } : {}), ...(how.trace ? { trace: how.trace } : {}) };
     if (how.trace) {
         how.trace.kind = auth.kind;
         if (auth.kind === "clientCredentials") {
@@ -542,11 +542,11 @@ export const isPerson = (caller) => typeof caller.subject === "string" && caller
  * check-source for a token exchange, which needs a person's token: the token endpoint asked with the
  * client's credentials and no subject token, to see that it answers and does not refuse the client.
  * @param {Extract<import("../options/http.js").BackendAuth, { kind: "tokenExchange" }>} auth
- * @param {{ id: string, log: any, fetch?: typeof guardedFetch, trace: AuthTrace }} how
+ * @param {{ id: string, log: any, env?: Record<string, string | undefined>, fetch?: typeof guardedFetch, trace: AuthTrace }} how  env: where an { env } secret is read
  * @returns {Promise<{ reached: boolean, clientRefused: boolean }>}  reached: it answered as a token endpoint does (400 with an OAuth error)
  */
 export async function probeExchange(auth, how) {
-    const means = { id: how.id, log: how.log, fetch: how.fetch ?? guardedFetch, trace: how.trace };
+    const means = { id: how.id, log: how.log, env: how.env, fetch: how.fetch ?? guardedFetch, trace: how.trace };
     how.trace.kind = auth.kind;
     const url = auth.tokenUrl ?? (await issuerTokenUrl(/** @type {string} */ (auth.issuer), auth.issuerRules, means));
     how.trace.tokenUrl = url;
@@ -617,8 +617,9 @@ export async function secretsOf(auth, options, env) {
  * @param {import("../config.js").ServerOptions} options
  * @param {any} log
  * @param {(source: any) => import("../options/http.js").BackendAuth | null} authOf  a source's compiled sign-in
+ * @param {Record<string, string | undefined>} env  where an { env } secret is read (the context's)
  */
-export async function warnUnreadableSecrets(options, log, authOf) {
+export async function warnUnreadableSecrets(options, log, authOf, env) {
     const seen = new Set();
     for (const source of Object.values(options.sources ?? {})) {
         const auth = source?.http && options.httpSources?.enabled !== false ? authOf(source) : null;
@@ -626,7 +627,7 @@ export async function warnUnreadableSecrets(options, log, authOf) {
             continue;
         }
         seen.add(auth);
-        for (const secret of await secretsOf(auth, options, process.env)) {
+        for (const secret of await secretsOf(auth, options, env)) {
             if (secret.problem) {
                 log.warn(`a backend's sign-in cannot be made: ${secret.at}: ${secret.problem}; its sources answer SOURCE_UNAVAILABLE until it is there`);
             }

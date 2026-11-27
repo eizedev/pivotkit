@@ -17,7 +17,7 @@ import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { ClearInput } from "./clear-input.jsx";
 import { HelpContext } from "./help.js";
-import { Group } from "./popover.jsx";
+import { Group, menuItemRole } from "./popover.jsx";
 import { SettingInfo } from "./section.jsx";
 import { rowName, searchEntries, searchHits, stepIndex, typeAheadIndex } from "./menu-topics.js";
 
@@ -202,12 +202,13 @@ export function MenuList({ label, labelledBy, describedBy, className, close, chi
  *   label?: string, className?: string, disabled?: boolean, reason?: string, haspopup?: "menu" | "dialog", level?: string,
  *   description?: string | null, current?: boolean, note?: string, children?: React.ReactNode }} props
  *   `plain`: the text type-ahead matches; `start`: takes Tab first; `level`: the topic it opens;
- *   `note`: a line under the text of an entry that can be chosen, read with it (what a pick does);
+ *   `note`: a line under the text of an entry that can be chosen (what a pick does); it and `reason` are
+ *   read as the entry's description, not as part of its name;
  *   `description`: an explanation a screen reader reads with it (the "i" next to it shows it);
  *   `current`: the entry shown now (the view loaded), with a check and aria-current
  */
 export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, danger, testId, start, plain, label, className, disabled, reason, haspopup, level, description, current, note, children }) {
-    const role = checked === undefined ? "menuitem" : checkbox ? "menuitemcheckbox" : "menuitemradio";
+    const role = menuItemRole(checked, checkbox);
     const reasonId = useId();
     // the line under the text: why it is off, or what choosing it does
     const sub = disabled ? reason : note;
@@ -236,7 +237,8 @@ export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, da
             <span className="pk-option-text">
                 {text}
                 {sub ? (
-                    <span id={reasonId} className="pk-option-hint" data-testid={`${testId ?? id}-${disabled ? "reason" : "note"}`}>
+                    // out of the name (aria-hidden): a screen reader reads it once, as the description (aria-describedby)
+                    <span id={reasonId} className="pk-option-hint" aria-hidden="true" data-testid={`${testId ?? id}-${disabled ? "reason" : "note"}`}>
                         {sub}
                     </span>
                 ) : null}
@@ -469,7 +471,7 @@ function SearchHits({ hits, labels, onPick, onOpen, close }) {
     return (
         <MenuList label={labels.searchResults} close={close} testId="menu-search-hits" lang={labels.lang}>
             {hits.map((h) => (
-                <MenuItem key={h.id} id={`hit-${h.id}`} text={h.choice ? h.text : `${h.text}…`} plain={h.text} checked={h.choice?.checked} icon={h.choice ? h.topic.icon : "chevronRight"} hint={h.path || undefined} haspopup={h.choice ? undefined : "dialog"} onSelect={() => (h.choice ? onPick(h.choice) : onOpen(h.topic.id, undefined, h.focus))} />
+                <MenuItem key={h.id} id={`hit-${h.id}`} text={h.choice ? h.text : `${h.text}…`} plain={h.text} checked={h.choice?.checked} icon={h.choice ? h.topic.icon : "chevronRight"} hint={h.path || undefined} haspopup={h.choice ? undefined : "dialog"} disabled={h.choice?.disabled} reason={h.choice?.reason} note={h.choice?.note} onSelect={() => (h.choice ? onPick(h.choice) : onOpen(h.topic.id, undefined, h.focus))} />
             ))}
         </MenuList>
     );

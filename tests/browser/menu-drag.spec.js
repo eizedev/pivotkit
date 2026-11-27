@@ -8,7 +8,8 @@
 import { encodeViewLink } from "pivotkit-core/link";
 import { chipMenu, chips, expect, openRules, openZones, tableRows, test, toolbar, twoFrames } from "./fixtures.js";
 
-const MONTH = "Date by month of year";
+/** The start view's month grouping, by its short name (fieldLabels). */
+const MONTH = "Month";
 const MEAN = "Average of Mean °C";
 const ZONES = ["filters", "cols", "rows", "values"];
 

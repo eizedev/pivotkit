@@ -53,7 +53,7 @@ test("chartCut and tableCut findings are left out for a view over a summary fiel
         const r = await call(client, "render_view", { source: "people", view: { rows: ["Name"], values: [{ field: "Salary", agg: "sum" }], display: "chart" }, format: "svg" });
         assert.equal(r.data.ok, true);
         assert.deepEqual(r.data.findings.filter((f) => f.code === "chartCut"), []);
-        assert.doesNotMatch(r.text, /60|50 of/);
+        assert.doesNotMatch(r.text, /\b(60|50) of\b/);
     });
 });
 

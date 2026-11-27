@@ -98,27 +98,45 @@ const shadowStyles = {
 };
 
 /**
- * pivotkit-core's index.js without its re-export of toEChartsOption. esbuild's code splitting puts a
- * file into the chunks of every entry whose static import records reach it. A re-export
- * (`export { x } from "./x.js"`) is such a record, whatever names the importer uses, and
- * "sideEffects": false does not change it. Tree shaking only drops a file nothing uses at all. So
- * chart.js, used by the chart, would land in the first load: the first load imports index.js, and
- * index.js re-exports chart.js. Nothing else holds it there: no namespace import, no `export *`.
- * The chart loads the option from pivotkit-core/chart instead (pivotkit-react's echarts.js,
- * pivotkit-report's svg.js), so the option's code goes to the chart group. A bundled import of
- * toEChartsOption from "pivotkit-core" then fails the build; so does a change of the line below.
+ * pivotkit-core's index.js without the re-exports that only chunks loaded on demand use. esbuild's
+ * code splitting puts a file into the chunks of every entry whose static import records reach it. A
+ * re-export (`export { x } from "./x.js"`) is such a record, whatever names the importer uses, and
+ * "sideEffects": false does not change it. Tree shaking only drops a file nothing uses at all. So a
+ * file only the chart or the HTML report uses would land in the first load: the first load imports
+ * index.js, and index.js re-exports it. Nothing else holds these files there: no namespace import, no
+ * `export *` outside REPORT_CORE.
+ * - chart.js (toEChartsOption): the chart loads the option from pivotkit-core/chart instead
+ *   (pivotkit-react's echarts.js, pivotkit-report's svg.js), so the option's code goes to the chart group.
+ * - describe.js (describeView and the rest) and describe-labels.js (its English and German words):
+ *   only pivotkit-report uses them. Its imports of "pivotkit-core" get the barrel with these lines
+ *   (REPORT_CORE), which only the report's chunk reaches.
+ * A bundled named or namespace import of these names from "pivotkit-core" anywhere else fails the
+ * build (logOverride below); so does a change of the lines below. A dynamic import("pivotkit-core")
+ * would not: none exists, keep it so.
  */
-const BARREL_CHART_LINE = 'export { toEChartsOption } from "./chart.js";\n';
-const chartOffBarrel = {
-    name: "chart-off-barrel",
+const BARREL_OFF = Object.freeze({
+    chart: 'export { toEChartsOption } from "./chart.js";\n',
+    report: 'export { describeSource, describeView, DESCRIBE_LIMITS } from "./describe.js";\nexport { DESCRIBE_LABELS, describeLabels } from "./describe-labels.js";\n'
+});
+const CORE_SRC = join(here, "..", "pivotkit-core", "src");
+/** The virtual module pivotkit-report's imports of "pivotkit-core" resolve to: the barrel with BARREL_OFF.report. */
+const REPORT_CORE = "pivotkit-element:report-core";
+const barrelOff = {
+    name: "barrel-off",
     setup(build) {
         build.onLoad({ filter: /pivotkit-core[\\/]src[\\/]index\.js$/ }, async (args) => {
-            const code = await readFile(args.path, "utf8");
-            if (!code.includes(BARREL_CHART_LINE)) {
-                throw new Error(`pivotkit-element build: pivotkit-core's index.js has no line ${JSON.stringify(BARREL_CHART_LINE.trim())}`);
+            let code = await readFile(args.path, "utf8");
+            for (const line of Object.values(BARREL_OFF)) {
+                if (!code.includes(line)) {
+                    throw new Error(`pivotkit-element build: pivotkit-core's index.js has no line ${JSON.stringify(line.trim())}`);
+                }
+                code = code.replace(line, "");
             }
-            return { contents: code.replace(BARREL_CHART_LINE, ""), loader: "js" };
+            return { contents: code, loader: "js" };
         });
+        build.onResolve({ filter: /^pivotkit-core$/ }, (args) => (/pivotkit-report[\\/]src[\\/]/.test(args.importer) ? { path: REPORT_CORE, namespace: "report-core" } : undefined));
+        // resolved from pivotkit-core's src/, as index.js resolves its own lines
+        build.onLoad({ filter: /.*/, namespace: "report-core" }, () => ({ contents: `export * from "pivotkit-core";\n${BARREL_OFF.report}`, loader: "js", resolveDir: CORE_SRC }));
     }
 };
 
@@ -151,7 +169,9 @@ export const options = {
     // the license texts go into one file (licenses() below), not into comments of the bundle
     legalComments: "none",
     metafile: true,
-    plugins: [shadowStyles, chartOffBarrel, deferredLate],
+    plugins: [shadowStyles, barrelOff, deferredLate],
+    // a namespace import of a name barrelOff removes would be undefined at run time: fail the build
+    logOverride: { "import-is-undefined": "error" },
     logLevel: "warning"
 };
 
@@ -180,7 +200,7 @@ async function licenses(metafile) {
 /**
  * The most a page may load per group, gzip, in KiB, as CI's official Node build measures it.
  * - The first load ("initial") is a hard line. A feature that needs room there makes it by moving
- *   something out of the first load. Only the maintainer raises it; #772 makes room again.
+ *   something out of the first load. Only the maintainer raises it.
  * - The groups loaded later keep about 0.5 KiB above what CI measures.
  * - A change that takes a group over its budget raises it on purpose, with the measure and the reason
  *   in the commit. The commits that raised each budget: `git log -p -- build.js`.
@@ -188,7 +208,7 @@ async function licenses(metafile) {
  *   can make the first load larger.
  * `--size` fails above it.
  */
-export const SIZE_BUDGET_KIB = { initial: 182.5, chart: 259.5, export: 12.6, link: 7.5, menus: 59.6, texts: 8.5, unused: 6.5, import: 23.2, report: 24.5, template: 3, lang: 6.2, tips: 1.8 };
+export const SIZE_BUDGET_KIB = { initial: 182.5, chart: 262.0, export: 13.7, link: 7.5, menus: 60.3, texts: 8.8, unused: 6.5, import: 23.9, report: 29.7, template: 3, lang: 6.2, tips: 1.8 };
 
 /**
  * The load group of each chunk a page loads on demand, by its file name (esbuild's `[name]-[hash]`),

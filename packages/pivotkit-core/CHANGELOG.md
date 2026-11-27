@@ -6,6 +6,66 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-26
+
+### Added
+
+- `retype(table, types, { decimal })` picks the decimal mark of number columns, `"."` or `","`, by
+  name or position. Their text reads in that mark alone; a value that does not fit it is blank, with
+  a note. The note `DECIMAL_MARK` stays with the mark picked, and its new params `point` and
+  `comma` give the example's number with each mark
+  ([#787](https://github.com/eizedev/pivotkit/issues/787)).
+- `describeView(view, schema, { labels, locale })` writes its texts in German too: `DESCRIBE_LABELS.de`,
+  or `describeLabels(locale)` for a locale's language. German quotes text values („North“) and names
+  one whole unit of a relative range as the engine keeps it ("heute", "gestern", "im Vorjahr"; from
+  an anchor "am Tag davor"). It separates the items of a list with "; ", so a decimal comma stays in
+  its number ("1; 2,5; 3"), joins filters with "; und ", and writes true and false as "Ja" and "Nein".
+  `labels` given in part keep English for the rest, at any depth. `labels` that are not an object,
+  or with a key it does not know or a word of the wrong kind, throw `INVALID_OPTION`. `locale` writes
+  the numbers of filter values as the locale does, without grouping (`1,5`). English stays the
+  default, word for word ([#798](https://github.com/eizedev/pivotkit/issues/798)).
+- `describeLabels(locale, own)` puts a host's own words over the locale's, at any depth. Words that
+  name their language (`lang`) go over that language's. Words `describeView` would refuse throw
+  `INVALID_ARGUMENT`. A table of forms by count takes every plural category of its `lang` ("few"
+  for Polish), and the result is a frozen copy.
+- `decorateOption` takes `tileOf(index, name)`, a treemap's tiles after a first draw, and
+  `drawnTiles(chart)` reads them from an ECharts instance. A treemap's labels then stand in their
+  tiles' middle, cut to fit.
+
+### Changed
+
+- The Excel number format codes (`excelNumberFormat`) are in a file of their own, `excel-format.js`.
+  A bundle that splits by file keeps them out of a page's first load until an export needs them
+  ([#772](https://github.com/eizedev/pivotkit/issues/772)). The public API is unchanged.
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+- `labelColorOn(fill, candidates)` can return `#000000` or `#ffffff`, not one of the candidates, where
+  none reaches 4.5:1 on the fill ([#914](https://github.com/eizedev/pivotkit/issues/914)).
+
+### Fixed
+
+- Text on coloured fills reads at 4.5:1 or more in both themes
+  ([#914](https://github.com/eizedev/pivotkit/issues/914)):
+  - A treemap writes its labels in `--pk-text` on a plate in `--pk-surface`, the same on every tile.
+    With `tileOf`, a name wider than its tile ends in "…" and a value that does not fit is left out;
+    a cut name keeps at least 4 characters. A tile with less room, or lower than a line, has no label,
+    so no plate stands without words.
+    Without a `--pk-surface` the chart can draw, no label has a plate.
+  - A heatmap's numbers take `--pk-text` or `--pk-surface`, else black or white, whichever reaches
+    4.5:1 on the cell. `labelColorOn` gives black or white where neither candidate reaches it.
+- High and low points ([#913](https://github.com/eizedev/pivotkit/issues/913)):
+  - The ▲ and ▼ take the muted text colour (`--pk-muted`), as the value does. A light series colour made them hard to read.
+  - In grouped bars a label no longer crosses another bar of its group. It moves beside its dot or
+    above the group's highest bar. In dense grouped bars the chart's highest and lowest are placed
+    first and some other labels are left out; the tooltip has the value.
+- Reference lines ([#913](https://github.com/eizedev/pivotkit/issues/913)):
+  - On a chart narrower than 480 px, the labels keep the lines' names where all fit in 30 % of the
+    width. Else each writes the value instead of the name; a trend keeps its name.
+  - The sample before an average's label takes the series' colour from `colorMap` and
+    `chart.colors`, as the line does.
+- `describeView` no longer says "current excluded" of a rolling relative range (`calendar: false`).
+  The engine counts a rolling range back from the moment itself and ignores `includeCurrent` there,
+  so the text said something the filter does not do.
+
 ## [0.10.0] - 2026-11-24
 
 ### Fixed
@@ -74,12 +134,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   (`pattern: "\\S"`). Affected: a host that validates stored view files against the published
   schemas `view-2.json` or `view-file-2.json`. A stored view with a blank label no longer passes
   there; `normalize()` reported it before as now, and dropped the label. What to do: give the label a
-  character or remove it ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-9)).
+  character or remove it ([upgrading](https://github.com/eizedev/pivotkit/blob/a1ff8bd8b3e91317d6fae46b074b87d019ebfcb9/docs/getting-started/upgrading.md?plain=1#L114)).
 - `encodeViewLink` counts the view in bytes, as `decodeViewLink` does: a view of many non-ASCII
   characters gave a link that `decodeViewLink` refused. The messages say "bytes".
 - **Breaking:** `viewFromLayout` throws `INVALID_ARGUMENT` for a filter with a cycle or a BigInt, not a
   `TypeError`. Affected: a host that catches that `TypeError`; catch `PivotkitError` instead
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-9)).
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/a1ff8bd8b3e91317d6fae46b074b87d019ebfcb9/docs/getting-started/upgrading.md?plain=1#L114)).
 - Reading a file:
   - The readers read UTF-16 big endian without a byte order mark, as they read little endian.
   - Zero characters at the end of a file are padding and go. Several of them refused the file.
@@ -97,7 +157,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   `DECIMAL_MARK`. A German locale or a semicolon file still reads 1.234.
 - **Breaking:** `toViewFile` throws `PivotkitError` `INVALID_ARGUMENT` for a view that is no
   object, as every function does for a programmer's error
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-9)). It threw a `TypeError`.
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/a1ff8bd8b3e91317d6fae46b074b87d019ebfcb9/docs/getting-started/upgrading.md?plain=1#L114)). It threw a `TypeError`.
   Affected: a host that catches `TypeError` from `toViewFile`. What to do: catch `PivotkitError`
   (code `INVALID_ARGUMENT`) instead.
 - `PivotkitError` extends `CodedError` of `pivotkit-core/internal`, the base of every error class
@@ -747,7 +807,8 @@ First release.
   a cell, so a UI can leave a blank cell without rows unclickable.
 - `grid.showAs`: per value its "show values as" type, or null.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.10.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.11.0...HEAD
+[0.11.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.10.0...pivotkit-core@0.11.0
 [0.10.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.9.0...pivotkit-core@0.10.0
 [0.9.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.8.0...pivotkit-core@0.9.0
 [0.8.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.7.0...pivotkit-core@0.8.0

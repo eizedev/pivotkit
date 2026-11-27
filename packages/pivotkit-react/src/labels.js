@@ -227,6 +227,7 @@ export const en = {
         moved: "{field} moved to {zone}",
         reordered: "order in {zone}",
         sort: "sort of {field}",
+        sortDefault: "default order of {field}",
         group: "grouping of {field}",
         rename: "name of {field}",
         filter: "filter on {field}",

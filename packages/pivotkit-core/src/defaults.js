@@ -30,6 +30,12 @@ export const DEFAULT_THEME = Object.freeze({
 });
 
 /**
+ * Black and white: the inks text on a coloured fill falls back to where neither of the theme's reaches
+ * 4.5:1 on it (labelColorOn). No theme sets them: one of the two always reaches 4.58:1 on an opaque colour.
+ */
+export const EXTREME_INKS = Object.freeze(/** @type {const} */ (["#000000", "#ffffff"]));
+
+/**
  * The colour scales a report builder picks in the value menu (Highlight › Colour scale), low to high,
  * as a view's `conditional.colors`. The theme's own scale (light to dark in its accent) has no colours.
  * Blue to orange first: the pair that people with red-green colour blindness tell apart. A cell mixes

@@ -6,6 +6,32 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-26
+
+### Added
+
+- `render` takes `describeLabels`, the words of the HTML report's filters and summary. A host that
+  passes its own `labels` passes them too, so the report keeps to one language. Words given in part
+  go over the words of the locale's language. A key `describeView` does not know or a word of the
+  wrong kind throws `INVALID_OPTION` before any work
+  ([#798](https://github.com/eizedev/pivotkit/issues/798)).
+
+### Changed
+
+- Depends on `pivotkit-core` `^0.11.0` (was `^0.10.0`).
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
+### Fixed
+
+- A German HTML report writes its filters and its summary (`{{filters}}`, `{{summary}}` and the
+  page description) in German, with the locale's numbers ("Units ist mindestens 1,5"). They were
+  English. `{{filters}}` joins German filters with "; und ", as German lists use "; "
+  ([#798](https://github.com/eizedev/pivotkit/issues/798)).
+- The SVG and the HTML report draw text on coloured fills as the screen does, with pivotkit-core's
+  fix ([#913](https://github.com/eizedev/pivotkit/issues/913), [#914](https://github.com/eizedev/pivotkit/issues/914)):
+  a treemap's labels on plates in the middle of their tiles and cut to fit, a heatmap's numbers in the ink that reads on each cell, the ▲ and ▼
+  in the muted text colour (`--pk-muted`).
+
 ## [0.6.0] - 2026-11-24
 
 ### Fixed
@@ -20,7 +46,7 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 - Depends on `pivotkit-core` `^0.10.0` (was `^0.9.0`).
 - **Breaking:** `render` refuses with `INVALID_OPTION` an option of the wrong kind it used to take
-  ([upgrading](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-9)):
+  ([upgrading](https://github.com/eizedev/pivotkit/blob/a1ff8bd8b3e91317d6fae46b074b87d019ebfcb9/docs/getting-started/upgrading.md?plain=1#L114)):
   - `title`, `description` or `source` that is no text. A number as title threw a bare `TypeError`.
   - `labels` or `texts` that is no object.
   - `tableCells` that is no whole number of at least 1 or `Infinity`: `0`, `NaN`, `10.5`, `"100"`.
@@ -276,7 +302,8 @@ First release.
   (`chart`, `chartEmbed`, `bom`, `strict`, `trusted`) takes only those, and `chart: true` without
   `echarts` is an error. `bom: false` writes CSV without a byte order mark.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.6.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.7.0...HEAD
+[0.7.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.6.0...pivotkit-report@0.7.0
 [0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.5.0...pivotkit-report@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.4.0...pivotkit-report@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.3.0...pivotkit-report@0.4.0

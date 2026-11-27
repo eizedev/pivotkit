@@ -522,7 +522,7 @@ A fixed colour per series or slice name, so a category has the same colour in ev
   browser reads. Any other value is left out.
 - Names match series of bars, lines and areas, and slices of a pie or a donut, without regard to case.
 - A name the chart does not have does nothing. Other series keep the palette's colours.
-- The view's own colours win: Chart settings › Series, the colour beside each series (`chart.colors`).
+- The view's own colours win: Chart settings › Entries, the colour beside each series (`chart.colors`).
 - The chart image, the SVG and the HTML report take the light colours.
 
 The report compares it by value. See [Charts](../concepts/charts.md#fixed-colours).
@@ -767,8 +767,8 @@ The notes, in the order the report shows them, and when:
 | `menus` | tip | The empty report, before the first drag. | |
 | `cells` | tip | A table with values, until a value was opened once. | |
 
-The texts are `labels.tips` and `labels.tipActions` ([Localisation](localisation.md)). The ids in
-`tips`, `dismissedTips` and `onTipDismiss` are those of the tips. Notices cannot be switched off.
+The texts are `labels.tips` and `labels.tipActions` ([Localisation](localisation.md)). The tip ids are
+the export `TIP_IDS`. Notices (`NOTICE_IDS`) always show; `tips` and `dismissedTips` ignore their ids.
 
 The report reads the stored dismissals (`storageKey`) after the first render. This also holds when
 the report is rendered on a server and hydrated. The server and the first client render show the

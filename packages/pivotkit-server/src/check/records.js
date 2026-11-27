@@ -37,7 +37,7 @@ export async function section(options, _registry, runtime) {
     const reading = new Set(profiles.map(([name]) => name));
     const bounds = recordsBoundsOf(options);
     const items = [heading("Rows (REST): POST /api/v1/sources/records", "Rows")];
-    items.push(plain(`at most ${bounds.maxRows.toLocaleString("en-US")} rows and ${bounds.maxCells.toLocaleString("en-US")} cells per answer, ${bounds.concurrency} at once, idle after ${bounds.idleMs / 1000} s, written within ${bounds.writeMs / 1000} s`));
+    items.push(plain(`at most ${bounds.maxRows.toLocaleString("en-US")} rows and ${bounds.maxCells.toLocaleString("en-US")} cells per answer, ${bounds.concurrency} at once, idle after ${bounds.idleMs / 1000} s, written within ${bounds.writeMs / 1000} s; a request waits up to ${bounds.waitMs / 1000} s for a place`));
     const workers = options.compute?.workers ?? COMPUTE_DEFAULTS.workers;
     if (bounds.concurrency >= workers) {
         items.push(warning(`rest.records.concurrency (${bounds.concurrency}) is not below compute.workers (${workers}): rows requests read by slow clients can hold every worker while reports wait`));

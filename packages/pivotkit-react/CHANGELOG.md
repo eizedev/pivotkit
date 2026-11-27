@@ -6,6 +6,100 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-26
+
+### Added
+
+- Each zone has a colour: `--pk-zone-rows`, `--pk-zone-columns`, `--pk-zone-values` and
+  `--pk-zone-filters` (the values colour is `#0b785c`, so a value's name keeps 4.6:1 on the Grand
+  Total column's header too). Its chips, its marks in the field list and a field's name in the
+  table's header take a fill mixed from it (`--pk-zone-tint`, 16 %, into `--pk-zone-tint-base`). New
+  tokens for a chip's controls (`--pk-control-icon`), the sort colour (`--pk-sort-arrow`, the accent
+  by default), the up-down mark of a header that is not sorted (`--pk-sort-arrow-rest`) and a
+  field's hover in the field list (`--pk-field-hover`)
+  ([#920](https://github.com/eizedev/pivotkit/issues/920)).
+- Each field's name in the table's header carries its zone's icon and fill; with two or more values
+  each value's name carries the icon alone. A long name wraps beside its icon. In a narrow report
+  (under 640 px), a long row field's name in the corner wraps under its icon, so that a value stays in
+  view. Header cells name the cells they head (`scope`), and the empty corner names the fields in Rows
+  and Columns for a screen reader ([#920](https://github.com/eizedev/pivotkit/issues/920)).
+- The package exports `TIP_IDS` and `NOTICE_IDS`, the ids of the tips and of the notices. A host
+  that checks a `tips` list no longer reads them from an internal chunk
+  ([#720](https://github.com/eizedev/pivotkit/issues/720)).
+- The import preview lets a person pick a column's decimal mark. Under a number column with the
+  note `DECIMAL_MARK`, a label asks what the note's example means, such as "“1,234” means". It
+  names the choice, which offers "1234 (thousands)" and "1 point 234" ("1 Komma 234" in German).
+  The note points there first. New texts `markOf`, `markQuestion` and `markOption` in
+  `labels.dataImport`
+  ([#787](https://github.com/eizedev/pivotkit/issues/787)).
+- A field's menu on Rows or Columns has **Default order** ("Standardreihenfolge"), in a group named
+  "Sort order". It takes the field back to its own order: A to Z, oldest first, or the host's
+  order. It ends a sort by a value or by a column too. While the field already sorts this way, it
+  is greyed out with "Already the default order.". The search finds it by "reset" and "unsorted"
+  too, and Undo names it "default order of Region". New texts `sortOrder`, `sortDefault`,
+  `sortIsDefault`, `sortDefaultKeywords` and `steps.sortDefault`
+  ([#917](https://github.com/eizedev/pivotkit/issues/917)).
+- Chart settings says what a choice does where its name alone does not. A line under Automatic says
+  what it shows on this chart: under Value labels, Legend and Axis labels. Lines under Every n-th,
+  Trend and Share in the tooltip say what they do. The Tooltip's **i** says when Share in the
+  tooltip adds a share: for sums and counts, not for averages or values below zero. New texts
+  `chartNotes`
+  ([#916](https://github.com/eizedev/pivotkit/issues/916)).
+
+### Changed
+
+- Depends on `pivotkit-core` `^0.11.0` (was `^0.10.0`) and `pivotkit-report` `^0.7.0` (was
+  `^0.6.0`): a host that also lists pivotkit-core updates both together, or it gets two copies.
+- A sort mark stands behind the name of every header that sorts, so readers see that it sorts, as
+  in AG Grid. It follows the name's last word, on a name in two lines too, and keeps a gap to the
+  cell's edge. It takes no room in the text, so no word breaks for it. A header that sorts has
+  0.25em more room at its end. A row of months keeps its width, and a column as wide as its
+  header's name grows by that 0.25em. The focus ring goes round the name and the mark. A header
+  that is not sorted shows an up-down mark (↕) in grey (`--pk-sort-arrow-rest`, 3:1 on the header
+  and on each zone's fill), in the text colour on hover
+  and focus. The sorted header shows the arrow of its order, bold, in the sort colour
+  (`--pk-sort-arrow`, the accent blue by default; set it to red, say, to change it), the same arrow
+  as on the sorted chip. A custom order shows a list beside the arrow of its direction on both. On a
+  field's filled name the mark stands inside the fill, as far from its end as the zone's icon from
+  its start. In forced colours the marks take the system's text colour. The sorted header's
+  description says its order and what the next click does
+  ([#920](https://github.com/eizedev/pivotkit/issues/920)).
+- Chips of rows, columns and values have the zone's fill and no coloured frame; a filter's chip
+  stays neutral. The field type icons are neutral: `--pk-type-*` default to `--pk-muted` and stay
+  overridable. They are drawn at 16px, so their letters stand as tall as 11px text. Chips take
+  `--pk-radius-sm`, and `--pk-radius` is 8px (was 10px)
+  ([#920](https://github.com/eizedev/pivotkit/issues/920)).
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+- Chart settings › **Series** is now **Entries** ("Reihen" is now "Einträge" in German): readers did
+  not know the word "series". The search still finds it by "series" ("Reihen", "Serien"). New text
+  `shownSeriesKeywords`
+  ([#918](https://github.com/eizedev/pivotkit/issues/918)).
+- The chart's ECharts instance, its events and each draw are in `chart-draw.js`, which loads with
+  ECharts. A report that never shows a chart no longer loads that code
+  ([#772](https://github.com/eizedev/pivotkit/issues/772)).
+
+### Fixed
+
+- A heatmap's Chart settings no longer list Legend. Its colour scale takes the legend's place, so
+  none of its choices changed anything
+  ([#916](https://github.com/eizedev/pivotkit/issues/916)).
+- On horizontal bars, Chart settings › Axis names its choice **All** ("Alle"), not "All (slanted)":
+  those labels are never slanted. A line under it says that it writes every name straight. New text
+  `axisLabelAllStraight`
+  ([#963](https://github.com/eizedev/pivotkit/issues/963)).
+- A menu's search shows a greyed-out choice greyed out, with its reason, as its level does. Before,
+  a hit such as Default order or Reset filter looked like one to pick and did nothing.
+- The line under a menu choice, what it does or why it is greyed out, is read as the choice's
+  description, not as part of its name.
+- The chart's text on coloured fills reads in both themes, with pivotkit-core's fix
+  ([#913](https://github.com/eizedev/pivotkit/issues/913), [#914](https://github.com/eizedev/pivotkit/issues/914)):
+  a treemap's labels on plates in the background colour, in the middle of their tiles and cut to fit, a heatmap's numbers in the ink that reads on
+  each cell, the ▲ and ▼ of high and low points in the muted text colour (`--pk-muted`).
+- A report mounted again while a link is in the page's address, such as a second report on the page
+  or one a host mounts anew on a theme switch, opens the link. Before, it threw a `TypeError` and
+  showed nothing, because the link opened before the report was ready for it
+  ([#735](https://github.com/eizedev/pivotkit/issues/735)).
+
 ## [0.10.0] - 2026-11-24
 
 ### Added
@@ -1462,7 +1556,8 @@ First release.
   weather (Open-Meteo), countries (World Bank), earthquakes (USGS), Nobel laureates and the release
   cycles of software products (endoflife.date).
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.10.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.11.0...HEAD
+[0.11.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.10.0...pivotkit-react@0.11.0
 [0.10.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.9.0...pivotkit-react@0.10.0
 [0.9.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.2...pivotkit-react@0.9.0
 [0.8.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.8.1...pivotkit-react@0.8.2
