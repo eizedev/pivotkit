@@ -53,7 +53,7 @@ for (const [name, { template, own, theme }] of Object.entries(TEMPLATES)) {
                     // paper: dark text on white (Corporate's surface is white too)
                     if (media === "print") expect(seen.body, `${viewName}: paper`).toBe("rgb(255, 255, 255)");
                     if (media === "screen") expect(seen.colorScheme, `${viewName}: colour scheme`).toBe(theme ?? (scheme === "dark" ? "dark" : "light dark"));
-                    expectReportColours(seen, { name: `${name}, ${viewName}`, tokens, light, dark, media, shows });
+                    expectReportColours(seen, { name: `${name}, ${viewName}`, tokens, dark, media, shows });
                 }
             });
         }

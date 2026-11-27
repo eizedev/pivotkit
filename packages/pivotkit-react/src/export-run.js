@@ -207,7 +207,7 @@ function reportTokens(root, report, chart, dark) {
  *   way reaches it; `{ columns }`: only those);
  *   `loadECharts`: chart.jsx's loader of dist/echarts.js (passed in: a module of the menus that
  *   imported chart.jsx would move it out of the first load into a shared chunk);
- *   `colorMap`: the host's colour per series or slice name; the SVG and the HTML report take its light colours
+ *   `colorMap`: the host's colour per series or slice name; SVG/print take light, HTML takes both light and dark
  */
 
 /**
@@ -215,6 +215,10 @@ function reportTokens(root, report, chart, dark) {
  * colour scale's in the HTML report's table (pivotkit-report takes #rgb and #rrggbb only).
  */
 const MIXED_TOKENS = Object.freeze(["--pk-heat-low", "--pk-heat-high", "--pk-scale-low", "--pk-scale-mid", "--pk-scale-high"]);
+
+/** Returns `colorMap` for export: `[light, dark]` pairs kept for HTML, light only for SVG/print. */
+const exportColorMap = (echarts, colorMap, html) =>
+    echarts.colorMapFor(colorMap, "light") ? { colorMap: html ? /** @type {any} */ (colorMap) : echarts.colorMapFor(colorMap, "light") } : {};
 
 /**
  * One export of the Export menu.
@@ -310,8 +314,7 @@ export async function runExport(kind, { fileName, result, encoded, exportData, l
                     ...(source ? { source } : {}),
                     ...(size ? { size } : {}),
                     ...reportTokens(root.current, report, echarts, kind === "html"),
-                    // the host's fixed colours, as the light chart draws them (a file is light)
-                    ...(echarts.colorMapFor(colorMap, "light") ? { colorMap: echarts.colorMapFor(colorMap, "light") } : {}),
+                    ...exportColorMap(echarts, colorMap, kind === "html"),
                     chartEmbed: kind === "print" ? "inline" : "image"
                 });
                 const file = `${base}.${kind === "svg" ? "svg" : "html"}`;

@@ -86,10 +86,11 @@ const measureInPage = () => {
         // the "+" of a collapsed group, drawn by ::before in its own colour
         if (el.classList.contains("pk-collapsed")) texts.push(entry(`+ before ${el.textContent.trim()}`, "background", parse(getComputedStyle(el, "::before").color), bg, el));
     }
-    // a chart drawn inline: its texts' fill on what is behind the chart
+    // a chart drawn inline: its visible SVG texts' fill on what is behind the chart
     for (const el of document.querySelectorAll("svg text")) {
-        if (!el.textContent.trim()) continue;
-        texts.push(entry(el.textContent.trim(), "chart", parse(getComputedStyle(el).fill), backgroundOf(el.closest("svg")), el));
+        const svg = el.closest("svg");
+        if (!el.textContent.trim() || !svg || getComputedStyle(svg).display === "none") continue;
+        texts.push(entry(el.textContent.trim(), "chart", parse(getComputedStyle(el).fill), backgroundOf(svg), el));
     }
     const surface = backgroundOf(document.body);
     const number = (el) => Number(el.textContent.replace(/[^\d.]/g, ""));
@@ -142,13 +143,12 @@ export const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i 
  * This checks that the page is wired to its tokens; whether the token values themselves meet WCAG AA
  * on every surface, scale step and bar is held by pivotkit-report's test/contrast.test.js.
  * @param {Awaited<ReturnType<typeof measure>>} seen
- * @param {{ name: string, tokens: Record<string, string>, light: Record<string, string>, dark: boolean, media: "screen" | "print", shows: string[] }} expected
- *   tokens: the theme the page shows; light: the light theme the chart is drawn in (its card's
- *   surface, its note's colour); dark: a dark screen; shows: what the case must show besides
+ * @param {{ name: string, tokens: Record<string, string>, dark: boolean, media: "screen" | "print", shows: string[] }} expected
+ *   tokens: the theme the page shows; dark: a dark screen; shows: what the case must show besides
  *   ALWAYS_SHOWN (a part's name, "scale cells", "data bars", "chart texts", "collapsed +"), so a
  *   part the page lost fails instead of being left unchecked
  */
-export function expectReportColours(seen, { name, tokens, light, dark, media, shows }) {
+export function expectReportColours(seen, { name, tokens, dark, media, shows }) {
     const shown = {
         ...Object.fromEntries(Object.entries(seen.parts).map(([part, colours]) => [part, colours !== null])),
         "scale cells": seen.scale.length > 0,
@@ -168,18 +168,18 @@ export function expectReportColours(seen, { name, tokens, light, dark, media, sh
         "table text": tokens["--pk-text"],
         "table borders": tokens["--pk-border"],
         "muted text": tokens["--pk-muted"],
-        // the chart is drawn in the light colours: its card keeps the light surface on a dark screen,
-        // and the note on it the light muted text; its border is the page's (none on paper)
-        "chart card": light["--pk-surface"],
+        // the chart, its card and the note on it match the active theme (light or dark screen, light on paper);
+        // its border is the page's (none on paper)
+        "chart card": tokens["--pk-surface"],
         "chart card border": media === "screen" ? tokens["--pk-border"] : null,
-        "chart note": light["--pk-muted"]
+        "chart note": tokens["--pk-muted"]
     };
     for (const [part, hex] of Object.entries(want)) {
         if (seen.parts[part] === null || hex === null) continue;
         expect(seen.parts[part], `${name}: ${part}`).toEqual([rgb(hex)]);
     }
-    // a dark screen: light text on dark grounds everywhere but the chart's light card; else dark on light
-    const mixed = seen.texts.filter((t) => t.lightOnDark !== (dark && !t.inCard)).map((t) => `${t.text.slice(0, 40)} on its ${t.on}`);
+    // dark screen: light text on dark grounds everywhere (including inside the chart's card); else dark on light
+    const mixed = seen.texts.filter((t) => t.lightOnDark !== dark).map((t) => `${t.text.slice(0, 40)} on its ${t.on}`);
     expect(mixed, `${name}: texts in the other theme's polarity`).toEqual([]);
     expect(seen.texts.length, name).toBeGreaterThan(10);
     const low = seen.texts.filter((t) => t.ratio < 4.5).map((t) => `${t.text.slice(0, 40)} on its ${t.on}: ${t.ratio.toFixed(2)}`);

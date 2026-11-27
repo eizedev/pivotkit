@@ -7,7 +7,7 @@ import { strFromU8, unzipSync } from "fflate";
 import { DESCRIBE_LABELS, PivotkitError, encode } from "pivotkit-core";
 import { readFile } from "pivotkit-core/import";
 import xlsxReader from "pivotkit-xlsx";
-import { REPORT_LIMITS, render } from "pivotkit-report";
+import { DARK_TOKENS, LIGHT_TOKENS, REPORT_LIMITS, render } from "pivotkit-report";
 import { FIXED, SALES, bodyCells, echarts, svgTexts } from "./fixtures.js";
 
 const BY_REGION = { rows: ["Region", "Product"], values: [{ field: "Units", agg: "sum" }] };
@@ -343,6 +343,32 @@ test("HTML with the chart: an image of the SVG when the view shows the chart, a 
     assert.ok(without.text.includes("<table"));
     // asked for by name, a chart without ECharts is a wrong option, not a warning
     await assert.rejects(render(view, SALES, { format: "html", chart: true, ...FIXED }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION" && e.details.option === "echarts");
+});
+
+test("HTML chart synchronization (#988): light and dark chart variants follow light/dark tokens and [light, dark] colorMap", async () => {
+    const decodeImg = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
+    const both = await render({ ...BY_REGION, display: "both" }, SALES, { format: "html", echarts, colorMap: { "Sum of Units": ["#114488", "#66aaff"] }, ...FIXED });
+    const imgs = [...both.text.matchAll(/<img [^>]*src="data:image\/svg\+xml;base64,([A-Za-z0-9+/=]+)">/g)];
+    assert.equal(imgs.length, 2, "light and dark chart images");
+    assert.ok(!/class="pk-chart-dark"/.test(imgs[0][0]));
+    assert.match(imgs[1][0], /class="pk-chart-dark"/);
+    const lightSvg = decodeImg(imgs[0][1]);
+    const darkSvg = decodeImg(imgs[1][1]);
+    assert.ok(lightSvg.includes(`fill="${LIGHT_TOKENS["--pk-surface"]}"`) && lightSvg.includes('fill="#114488"'));
+    assert.ok(darkSvg.includes(`fill="${DARK_TOKENS["--pk-surface"]}"`) && darkSvg.includes('fill="#66aaff"'));
+    // darkTokens reach the dark inline chart while light tokens remain on the light SVG
+    const custom = await render({ ...BY_REGION, display: "both" }, SALES, {
+        format: "html",
+        echarts,
+        chartEmbed: "inline",
+        tokens: { "--pk-surface": "#fafafa", "--pk-chart-1": "#c00000" },
+        darkTokens: { "--pk-surface": "#101418", "--pk-chart-1": "#ff7a7a" },
+        ...FIXED
+    });
+    const svgs = custom.text.match(/<svg[\s\S]*?<\/svg>/g) ?? [];
+    assert.equal(svgs.length, 2);
+    assert.ok(!svgs[0].includes('class="pk-chart-dark"') && svgs[0].includes('fill="#fafafa"') && svgs[0].includes('fill="#c00000"'));
+    assert.ok(svgs[1].includes('class="pk-chart-dark"') && svgs[1].includes('fill="#101418"') && svgs[1].includes('fill="#ff7a7a"'));
 });
 
 test("an Excel workbook of a view that shows the chart holds the table and says the chart is not in it (#360)", async () => {

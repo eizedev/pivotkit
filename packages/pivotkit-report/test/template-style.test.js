@@ -18,7 +18,7 @@ const report = (template, options = {}) => render(BARS, SALES, { format: "html",
 
 /** The fills of the chart's marks, the background left out. */
 const fills = (html) => new Set([...html.matchAll(/<path [^>]*fill="(#[0-9a-f]{3,6})"/gi)].map((m) => m[1].toLowerCase()));
-/** The chart's background (the first rect) and the card's background. */
+/** The chart's background (the first rect) and the card's background rule. */
 const backgrounds = (html) => ({ svg: /<rect width="\d+" height="\d+" x="0" y="0" fill="([^"]+)"/.exec(html)?.[1], card: /\.pk-report-chart\{[^}]*background:([^;]+);/.exec(html)?.[1] });
 
 test("the chart takes the template's colours: :root after {{style}}, var() of the template's own properties, !important", async () => {
@@ -26,8 +26,8 @@ test("the chart takes the template's colours: :root after {{style}}, var() of th
     const marks = fills(r.text);
     assert.ok(marks.has("#c0392b") && marks.has("#7a1f5c"), [...marks].join(" "));
     assert.ok(!marks.has(LIGHT_TOKENS["--pk-chart-1"]), "not the default first colour");
-    // the card around the image is the image's own background
-    assert.deepEqual(backgrounds(r.text), { svg: "#fffdf7", card: "#fffdf7" });
+    // the card follows --pk-surface while the light SVG is drawn on the template's surface
+    assert.deepEqual(backgrounds(r.text), { svg: "#fffdf7", card: "var(--pk-surface)" });
 });
 
 test("body and .pk-report count anywhere, .pk-report over body over :root; a selector list; the font of .pk-report", async () => {
@@ -63,7 +63,7 @@ test("a value that is not safe or does not resolve keeps the default: url(), a c
     // the template's own <style> keeps its text; the chart and the report's rules do not take it
     assert.ok(!r.text.slice(r.text.indexOf("<figure")).includes("example.com"));
     assert.ok(marks.has(LIGHT_TOKENS["--pk-chart-1"]) && marks.has(LIGHT_TOKENS["--pk-chart-2"]), [...marks].join(" "));
-    assert.deepEqual(backgrounds(r.text), { svg: LIGHT_TOKENS["--pk-surface"], card: LIGHT_TOKENS["--pk-surface"] });
+    assert.deepEqual(backgrounds(r.text), { svg: LIGHT_TOKENS["--pk-surface"], card: "var(--pk-surface)" });
 });
 
 test("light-dark() gives the chart its light colour; a var()'s fallback", async () => {
@@ -99,7 +99,7 @@ test("the default template has no CSS of its own: the chart in the default colou
     assert.ok(fills(plain.text).has(LIGHT_TOKENS["--pk-chart-1"]));
     const host = await report(DEFAULT_TEMPLATE, { tokens: { "--pk-chart-1": "#0000ff", "--pk-surface": "#fafafa" } });
     assert.ok(fills(host.text).has("#0000ff"));
-    assert.deepEqual(backgrounds(host.text), { svg: "#fafafa", card: "#fafafa" });
+    assert.deepEqual(backgrounds(host.text), { svg: "#fafafa", card: "var(--pk-surface)" });
 });
 
 test("a heatmap's colours ECharts cannot mix (oklch) keep the default; colours it only writes pass as they are", async () => {
@@ -109,7 +109,7 @@ test("a heatmap's colours ECharts cannot mix (oklch) keep the default; colours i
     console.warn = (...args) => warnings.push(args.join(" "));
     try {
         const heatmap = { ...BARS, chart: { type: "heatmap" } };
-        const svgOf = async (template) => (await render(heatmap, SALES, { format: "html", echarts, chartEmbed: "inline", template, ...FIXED })).text.match(/<svg[\s\S]*<\/svg>/)[0].replace(/ class="[^"]*"/g, "").replace(/zr\d+-/g, "zr-");
+        const svgOf = async (template) => (await render(heatmap, SALES, { format: "html", echarts, chartEmbed: "inline", template, ...FIXED })).text.match(/<svg[\s\S]*?<\/svg>/)[0].replace(/ class="[^"]*"/g, "").replace(/zr\d+-/g, "zr-");
         // the scale is the default's (not mixed towards black), the same image as without the template's CSS
         assert.equal(await svgOf(withCss(css)), await svgOf(DEFAULT_TEMPLATE));
         const bars = await report(withCss(css));
@@ -148,4 +148,15 @@ test("var() is resolved where the page resolves it: a :root property before {{st
     // --pk-chart-2 takes :root's --pk-chart-1, the report's, not .pk-report's
     assert.ok(marks.has("#00aa55") && marks.has(LIGHT_TOKENS["--pk-chart-1"]), [...marks].join(" "));
     assert.match(r.text, /<text [^>]*font-family="Georgia, serif"/);
+});
+
+test("template dark-screen rules and light-dark() reach the dark chart SVG (#988)", async () => {
+    const r = await report(withCss('<style>:root{--pk-surface:#fffaf0}.pk-report{--pk-chart-1:light-dark(#aa0000, #ff8888)}@media screen and (prefers-color-scheme: dark){:root:not([data-pk-theme="light"]){--pk-surface:#1b1712}}</style>'));
+    const svgs = r.text.match(/<svg[\s\S]*?<\/svg>/g) ?? [];
+    assert.equal(svgs.length, 2);
+    assert.ok(svgs[0].includes('fill="#fffaf0"') && svgs[0].includes('fill="#aa0000"'));
+    assert.ok(svgs[1].includes('fill="#1b1712"') && svgs[1].includes('fill="#ff8888"'));
+    const forced = await report(DEFAULT_TEMPLATE.replace("<html ", '<html data-pk-theme="dark" ').replace("{{style}}", '{{style}}<style>@media screen{:root[data-pk-theme="dark"]{--pk-surface:#141820;--pk-chart-1:#8fb4dc}}</style>'));
+    const forcedSvgs = forced.text.match(/<svg[\s\S]*?<\/svg>/g) ?? [];
+    assert.ok(forcedSvgs[1].includes('fill="#141820"') && forcedSvgs[1].includes('fill="#8fb4dc"'));
 });

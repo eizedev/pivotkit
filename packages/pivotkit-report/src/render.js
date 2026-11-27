@@ -14,7 +14,7 @@ import { reportCss } from "./report-css.js";
 import { chartSvg } from "./svg.js";
 import { TEMPLATE_LIMIT, escapeHtml, fillTemplate, parseTemplate } from "./template.js";
 import { countText, fill, textsFor } from "./texts.js";
-import { BASE_TOKENS, REPORT_FONT, TOKEN_LENGTH, cleanTokens, conditionalColors, reportTokens, tokenStyle } from "./tokens.js";
+import { BASE_TOKENS, DARK_TOKENS, REPORT_FONT, TOKEN_LENGTH, cleanTokens, conditionalColors, reportTokens, tokenStyle } from "./tokens.js";
 
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -57,7 +57,7 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {import("./texts.js").ReportTextsInput} [texts]  the report's words around the table; a count (rowsCount, rowsFiltered) as one text or its plural forms
  * @property {boolean} [rowCount]  html: false leaves the data's row count out of {{rows}} and the details (default true)
  * @property {Record<string, string>} [tokens]  --pk-* colours over the light ones (the chart and the report); html: a template's own CSS over them
- * @property {Record<string, string>} [darkTokens]  html: --pk-* colours over the dark ones, for a screen in dark mode (paper and the chart stay light); a template's own CSS over them
+ * @property {Record<string, string>} [darkTokens]  html: --pk-* colours over the dark ones, for a screen in dark mode (paper stays light); a template's own CSS over them
  * @property {string} [title]  the report's title; default the view file's name, the chart's title, "Report"
  * @property {string} [description]  default the view file's description
  * @property {string} [source]  where the data comes from, for the report's details (a file name)
@@ -249,6 +249,30 @@ function checkKinds(options) {
     }
 }
 
+/** Resolves light and (for HTML) dark theme tokens from host tokens and optional custom template. */
+async function resolveThemes(template, options, needDark) {
+    const hostTokens = options.tokens ?? {};
+    if (template && options.template !== undefined) {
+        const { templateTheme, templateDarkTheme } = await import("./template-style.js");
+        const kit = { base: BASE_TOKENS, font: REPORT_FONT, maxLength: TOKEN_LENGTH, clean: cleanTokens };
+        return {
+            theme: templateTheme(template, hostTokens, kit),
+            darkTheme: needDark ? templateDarkTheme(template, hostTokens, options.darkTokens ?? {}, { ...kit, dark: DARK_TOKENS }) : undefined
+        };
+    }
+    const theme = reportTokens(options.tokens);
+    return { theme, darkTheme: needDark ? reportTokens(options.darkTokens, { ...theme, ...DARK_TOKENS }) : undefined };
+}
+
+/** Formats `<figure class="pk-report-chart">` holding light and dark charts plus optional cut note. */
+function htmlChartMarkup(lightSvg, darkSvg, note, alt, size, inline) {
+    const embed = (/** @type {string} */ svg, cls = "") =>
+        inline
+            ? cls ? svg.replace(/^<svg\b/, `<svg class="${cls}"`) : svg
+            : `<img alt="${alt}" width="${size?.width}" height="${size?.height}"${cls ? ` class="${cls}"` : ""} src="data:image/svg+xml;base64,${base64(new TextEncoder().encode(svg))}">`;
+    return `<figure class="pk-report-chart">${embed(lightSvg)}${embed(darkSvg, "pk-chart-dark")}${note}</figure>`;
+}
+
 /**
  * Renders a view over data as a file.
  * @param {unknown} view  a view, a view file or a template { name, view }, as an object or JSON text
@@ -292,15 +316,15 @@ export async function render(view, data, options = {}) {
     const summary = { rows: grid.bodyRows.length, columns: grid.columnCount, sourceRows: data2.length, keptRows: result.rows.length, truncated: false };
     const texts = textsFor(grid.locale, options.texts);
     const title = (options.title ?? (read.name || normalized.view.chart.title || texts.untitled)).trim() || texts.untitled;
-    // the light values the chart and the cells' colours are drawn with: the host's tokens, and over
-    // them the template's own (its CSS is the one place of its design; template-style.js)
+    // the light and dark values the chart and the cells' colours are drawn with: the host's tokens,
+    // and over them the template's own (its CSS is the one place of its design; template-style.js)
     // (template-style.js is loaded only for a template of the host's: a page that renders with the
     // default one, as pivotkit-react's Export menu, never loads it)
-    const theme = template && options.template !== undefined ? (await import("./template-style.js")).templateTheme(template, options.tokens ?? {}, { base: BASE_TOKENS, font: REPORT_FONT, maxLength: TOKEN_LENGTH, clean: cleanTokens }) : reportTokens(options.tokens);
-    const chartOf = () =>
+    const { theme, darkTheme } = await resolveThemes(template, options, format === "html");
+    const chartOf = (palette = theme, colorIndex = 0) =>
         chartSvg(result, {
             echarts: /** @type {any} */ (options.echarts),
-            style: tokenStyle(theme),
+            style: tokenStyle(palette),
             // set for the formats that draw a chart (svg, html), the only callers of chartOf
             .../** @type {{ width: number, height: number }} */ (size),
             locale: grid.locale,
@@ -308,8 +332,8 @@ export async function render(view, data, options = {}) {
             labels: words,
             limits: options.limits,
             now: options.now,
-            // a pair is light and dark (pivotkit-react's colorMap): a report is light
-            colorMap: options.colorMap ? Object.fromEntries(Object.entries(options.colorMap).map(([name, c]) => [name, Array.isArray(c) ? c[0] : c])) : undefined,
+            // a pair is light and dark (pivotkit-react's colorMap): light gets [0], dark HTML chart gets [1]
+            colorMap: options.colorMap ? Object.fromEntries(Object.entries(options.colorMap).map(([name, c]) => [name, Array.isArray(c) ? c[colorIndex] : c])) : undefined,
             maxCategories: REPORT_LIMITS.categories
         });
     const chartCut = (chart) => {
@@ -348,11 +372,11 @@ export async function render(view, data, options = {}) {
         if (wantChart && typeof options.echarts?.init !== "function") {
             issues.push(reportIssue("chartUnavailable", REPORT_TEXTS_EN.chartUnavailable));
         } else if (wantChart) {
-            const chart = chartOf();
+            const chart = chartOf(theme, 0);
+            const darkChart = chartOf(darkTheme, 1);
             chartCut(chart);
             const note = chart.categories < chart.of ? `<figcaption class="pk-report-note">${escapeHtml(fill(texts.chartCut, { shown: number.format(chart.categories), count: number.format(chart.of) }))}</figcaption>` : "";
-            const inner = options.chartEmbed === "inline" ? chart.svg : `<img alt="${escapeHtml(`${texts.chart}: ${title}`)}" width="${size?.width}" height="${size?.height}" src="data:image/svg+xml;base64,${base64(new TextEncoder().encode(chart.svg))}">`;
-            chartHtml = `<figure class="pk-report-chart">${inner}${note}</figure>`;
+            chartHtml = htmlChartMarkup(chart.svg, darkChart.svg, note, escapeHtml(`${texts.chart}: ${title}`), size, options.chartEmbed === "inline");
         }
         const filterWords = describeWords(options, grid.locale);
         const described = describeView(normalized.view, data2, { labels: filterWords, locale: grid.locale, ...(limits ? { limits } : {}) });
@@ -378,7 +402,7 @@ export async function render(view, data, options = {}) {
         };
         const detail = (label, value) => (value ? `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>` : "");
         const markup = {
-            style: `<style>${reportCss({ columns: grid.columnCount, tokens: cleanTokens(options.tokens ?? {}), darkTokens: cleanTokens(options.darkTokens ?? {}), chartSurface: theme["--pk-surface"], chartMuted: theme["--pk-muted"], extra: table.css })}</style>`,
+            style: `<style>${reportCss({ columns: grid.columnCount, tokens: cleanTokens(options.tokens ?? {}), darkTokens: cleanTokens(options.darkTokens ?? {}), extra: table.css })}</style>`,
             chart: chartHtml,
             table: table.html + tableNote,
             details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.dataAsOf, values.dataAsOf)}${counted ? detail(texts.rows, filtered ? fill(texts.rowsKept, kept) : total) : ""}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`
