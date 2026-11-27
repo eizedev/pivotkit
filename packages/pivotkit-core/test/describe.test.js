@@ -31,6 +31,24 @@ test("describeSource: each field's type, items, blanks, range, and what works on
     assert.equal(DESCRIBE_LIMITS.items, 20);
     // rows that are not encoded are no fields: an error that says so, not "0 fields"
     assert.throws(() => describeSource([{ Region: "North" }]), (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT" && /encode\(\)/.test(e.message));
+    for (const raw of [
+        [{ name: "Alice", age: 3 }],
+        [{ name: "Alice", type: 3 }],
+        [{ name: "Alice", type: "customer" }],
+        [{ name: "A", type: "number" }, { name: "Alice", age: 3 }]
+    ]) {
+        assert.throws(() => describeSource(raw), (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT" && /encode\(\)/.test(e.message));
+    }
+    // encoded rows with a `name` column work; encoded.schema.fields and field objects with extra keys pass
+    const namedRows = encode([{ name: "Alice", age: 3 }]);
+    assert.deepEqual(describeSource(namedRows).fields.map((f) => [f.name, f.type]), [["name", "string"], ["age", "number"]]);
+    assert.equal(describeSource(data.schema.fields).fields.length, data.schema.fields.length);
+    const extraFields = describeSource([
+        { name: "Region", type: "string", detected: "string", label: "Area" },
+        { name: "Flag", type: "boolean", extra: true },
+        { name: "Empty", type: "null" }
+    ]);
+    assert.deepEqual(extraFields.fields.map((f) => [f.name, f.type]), [["Region", "string"], ["Flag", "boolean"], ["Empty", "null"]]);
     assert.equal(describeSource([]).fields.length, 0);
     // a field name from the data is capped in the words, as its items are
     const long = describeSource(encode([{ ["N".repeat(500)]: 1 }]));
