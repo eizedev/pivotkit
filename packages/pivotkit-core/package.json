@@ -82,7 +82,7 @@
   },
   "devDependencies": {
     "fast-xml-parser": "5.12.1",
-    "read-excel-file": "9.3.17"
+    "read-excel-file": "9.3.20"
   },
   "types": "./types/index.d.ts",
   "publishConfig": {
