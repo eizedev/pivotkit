@@ -18,7 +18,7 @@ import { keptQuery, loadServer, serverRequestOf } from "./server.js";
 import { warnOnce } from "./warn-once.js";
 
 /** How long the report loads before it says so in words over the skeleton. */
-export const SLOW_MS = 3000;
+const SLOW_MS = 3000;
 
 /**
  * @typedef {object} ServerState  what onServerState gets

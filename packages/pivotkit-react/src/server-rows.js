@@ -73,6 +73,49 @@ export function tokenOf(given) {
 const fresh = (held, now = Date.now()) => held !== null && (held.expiresAt === null || held.expiresAt - EARLY_SECONDS * 1000 > now);
 
 /**
+ * Which state a refused answer is.
+ * @param {number} status
+ * @param {Record<string, any>} problem
+ * @param {string | undefined} code
+ * @returns {FailedState}
+ */
+function stateOf(status, problem, code) {
+    if (status === 401) {
+        return "expired";
+    }
+    if (status === 403 && problem.linkAccess === true) {
+        return "linkRefused";
+    }
+    if (status === 413 || code === "LIMIT_EXCEEDED") {
+        return "large";
+    }
+    if (status === 429 || status === 503) {
+        return "busy";
+    }
+    // 400 (the page's request does not fit the source), 403, 404 (a source the person may not see is not found)
+    return status >= 400 && status < 500 ? "refused" : "unreachable";
+}
+
+/** An object without its undefined values. */
+const defined = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+
+/** A whole number of the problem, else undefined. */
+const whole = (v) => (Number.isSafeInteger(v) ? v : undefined);
+
+/**
+ * What a state keeps of the problem beside its code: the limit of "large", the wait of "busy".
+ * @param {FailedState} state
+ * @param {Record<string, any>} problem
+ */
+function detailsOf(state, problem) {
+    if (state === "large") {
+        return defined({ maxRows: whole(problem.maxRows), maxCells: whole(problem.maxCells) });
+    }
+    const after = Number(problem.retryAfter ?? NaN);
+    return state === "busy" && Number.isFinite(after) && after >= 0 ? { retryAfter: after } : {};
+}
+
+/**
  * The state of a refused answer (a problem of pivotkit-server).
  * @param {number} status
  * @param {Record<string, any> | null} problem
@@ -80,31 +123,11 @@ const fresh = (held, now = Date.now()) => held !== null && (held.expiresAt === n
  * @returns {ServerFailure}
  */
 export function failureOf(status, problem, host) {
-    const code = typeof problem?.code === "string" ? problem.code : undefined;
-    const requestId = typeof problem?.requestId === "string" ? problem.requestId : undefined;
-    const base = { status, host, ...(code ? { code } : {}), ...(requestId ? { requestId } : {}) };
-    if (status === 401) {
-        return { state: "expired", ...base };
-    }
-    if (status === 403 && problem?.linkAccess === true) {
-        return { state: "linkRefused", ...base };
-    }
-    if (status === 413 || code === "LIMIT_EXCEEDED") {
-        const limits = {
-            ...(Number.isSafeInteger(problem?.maxRows) ? { maxRows: problem?.maxRows } : {}),
-            ...(Number.isSafeInteger(problem?.maxCells) ? { maxCells: problem?.maxCells } : {})
-        };
-        return { state: "large", ...base, ...limits };
-    }
-    if (status === 429 || status === 503) {
-        const after = Number(problem?.retryAfter ?? NaN);
-        return { state: "busy", ...base, ...(Number.isFinite(after) && after >= 0 ? { retryAfter: after } : {}) };
-    }
-    // 400 (the page's request does not fit the source), 403, 404 (a source the person may not see is not found)
-    if (status >= 400 && status < 500) {
-        return { state: "refused", ...base };
-    }
-    return { state: "unreachable", ...base };
+    const p = problem ?? {};
+    const code = typeof p.code === "string" ? p.code : undefined;
+    const requestId = typeof p.requestId === "string" ? p.requestId : undefined;
+    const state = stateOf(status, p, code);
+    return /** @type {ServerFailure} */ ({ state, host, ...defined({ status, code, requestId }), ...detailsOf(state, p) });
 }
 
 /**

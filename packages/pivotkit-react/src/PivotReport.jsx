@@ -236,12 +236,23 @@ function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto",
 }
 
 /**
+ * Above a report with a server that shows rows: why reading them again failed (#621, variant B).
+ * @param {{ live?: import("./use-server-rows.js").LiveRows | null, labels: any, locale: string }} props
+ */
+function LiveBanner({ live, labels, locale }) {
+    if (!live?.failure || !live.mod) {
+        return null;
+    }
+    return <live.mod.ServerBanner failure={live.failure} labels={labels} locale={locale} onRetry={live.retry} shownAt={live.loadedAt} />;
+}
+
+/**
  * The report itself, once it has its data.
  * @param {import("./index.js").PivotReportProps & { live?: import("./use-server-rows.js").LiveRows | null }} props
  *   live: the server's rows, where the report has a server (a banner when reading them again failed)
  */
 function Report(props) {
-    const { locale = "en-US", theme = "auto", height = 640, className, label, loading = false, allowImport = false, fileName = "pivot", onExport, exportData = false, drillDownExport = false, live = null } = props;
+    const { locale = "en-US", theme = "auto", height = 640, className, label, loading = false, allowImport = false, fileName = "pivot", onExport, exportData = false, drillDownExport = false } = props;
     const host = useHostProps(props);
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
     // the column with the toolbar, the zones and the result
@@ -324,7 +335,7 @@ function Report(props) {
             onDragLeave={onDrag}
             onDrop={onDrag}
         >
-            {live?.failure && live.mod ? <live.mod.ServerBanner failure={live.failure} labels={labels} locale={locale} onRetry={live.retry} shownAt={live.loadedAt} /> : null}
+            <LiveBanner live={props.live} labels={labels} locale={locale} />
             <LayerContext.Provider value={layerValue}>
               <LimitsContext.Provider value={limits}>
               <FormNameContext.Provider value={formPrefix}>
