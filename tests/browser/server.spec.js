@@ -158,11 +158,85 @@ test("a link that no longer works, a request that does not fit, and a sign-in st
     await expect(state(page)).toContainText("Für den IT-Support: LIMIT_EXCEEDED, Anfrage q3Zr8mT0aXw");
 });
 
-test("busy says how long to wait when the server says so", async ({ page }) => {
-    await page.route(ROUTE, (route) => route.fulfill({ ...json(503, { code: "BUSY", requestId: "q3Zr8mT0aXw" }), headers: { "retry-after": "5" } }));
+/** A busy answer with the server's wait in seconds. */
+const busy = (seconds) => ({ ...json(503, { code: "BUSY", requestId: "q3Zr8mT0aXw" }), headers: { "retry-after": String(seconds) } });
+
+test("busy: the report counts down the server's wait and reads again on its own, once; Try again allows one more", async ({ page }) => {
+    await page.clock.install();
+    const answers = [busy(10), busy(10), busy(10), json(200, ROWS)];
+    let calls = 0;
+    await page.route(ROUTE, (route) => route.fulfill(answers[calls++]));
     await page.goto("pages/element-server.html");
     await expect(state(page)).toHaveAttribute("data-state", "busy");
-    await expect(state(page)).toContainText("Try again in 5 seconds");
+    const countdown = state(page).getByTestId("server-countdown");
+    await expect(countdown).toHaveText("Many reports are loading at the moment. Trying again in 10 s.");
+    // a screen reader hears the wait once, not every second
+    await expect(countdown).toHaveAttribute("aria-hidden", "true");
+    await expect(state(page).locator(".pk-sr")).toHaveText("Many reports are loading at the moment. The report tries again in 10 seconds.");
+    await expect(state(page).getByTestId("server-retry")).toBeVisible();
+    await page.clock.runFor(3000);
+    await expect(countdown).toHaveText(/Trying again in 7 s\.$/);
+    await page.clock.runFor(7000);
+    // the second busy answer: no more automatic tries, the server's wait as before
+    await expect(state(page)).toContainText("Try again in 10 seconds");
+    await expect(countdown).toHaveCount(0);
+    expect(calls).toBe(2);
+    await page.clock.runFor("02:00");
+    expect(calls).toBe(2);
+    // Try again: one more read, and one more automatic try after it
+    await state(page).getByTestId("server-retry").click();
+    await expect(countdown).toHaveText(/Trying again in 10 s\.$/);
+    expect(calls).toBe(3);
+    await page.clock.runFor(10_000);
+    await expect(live(page).getByTestId("pivot-table")).toContainText("North");
+    expect(calls).toBe(4);
+    expect(await states(page)).toEqual(["loading", "busy", "loading", "busy", "loading", "busy", "loading", "ready"]);
+});
+
+test("busy over rows already shown: the banner counts down and the report reads again on its own", async ({ page }) => {
+    await page.clock.install();
+    const answers = [json(200, ROWS), busy(5), json(200, { ...ROWS, data: [["North", "South", "West"], [11, 20, 7]] })];
+    let calls = 0;
+    await page.route(ROUTE, (route) => route.fulfill(answers[calls++]));
+    await page.goto("pages/element-server.html");
+    await expect(live(page).getByTestId("pivot-table")).toContainText("37");
+    await live(page).evaluate((el) => /** @type {any} */ (el).refresh());
+    const banner = live(page).getByTestId("server-banner");
+    await expect(banner).toHaveAttribute("data-state", "busy");
+    await expect(banner.getByTestId("server-countdown")).toHaveText(/Trying again in 5 s\.$/);
+    await expect(live(page).getByTestId("pivot-table")).toContainText("37");
+    await page.clock.runFor(5000);
+    await expect(live(page).getByTestId("pivot-table")).toContainText("38");
+    await expect(banner).toHaveCount(0);
+});
+
+test("busy with a wait over a minute, or none given: no automatic try, the wait as the server said it, in German too", async ({ page }) => {
+    await page.clock.install();
+    let calls = 0;
+    await page.route(ROUTE, (route) => (calls++, route.fulfill(busy(120))));
+    await page.goto("pages/element-server.html?lang=de");
+    await expect(state(page)).toHaveAttribute("data-state", "busy");
+    await expect(state(page)).toContainText("In 120 Sekunden erneut versuchen");
+    await page.clock.runFor("05:00");
+    expect(calls).toBe(1);
+    await page.unroute(ROUTE);
+    await page.route(ROUTE, (route) => (calls++, route.fulfill(json(503, { code: "BUSY" }))));
+    await state(page).getByTestId("server-retry").click();
+    await expect(state(page)).toContainText("In einem Moment erneut versuchen");
+    await page.clock.runFor("05:00");
+    expect(calls).toBe(2);
+});
+
+test("Try again while the report waits for its automatic try reads once, and the wait is gone", async ({ page }) => {
+    await page.clock.install();
+    let calls = 0;
+    await page.route(ROUTE, (route) => (calls++, route.fulfill(calls === 1 ? busy(10) : json(200, ROWS))));
+    await page.goto("pages/element-server.html");
+    await expect(state(page).getByTestId("server-countdown")).toBeVisible();
+    await state(page).getByTestId("server-retry").click();
+    await expect(live(page).getByTestId("pivot-table")).toContainText("North");
+    await page.clock.runFor(20_000);
+    expect(calls).toBe(2);
 });
 
 test.describe("the server's code does not load", () => {

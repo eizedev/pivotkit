@@ -11,6 +11,9 @@
  * - Each state goes to `onServerState` (pivotkit-element: the event pivot-server-state): what
  *   happened, the server's code and request id, the rows and when. Never the token.
  * - The token is kept in a ref of this report only: in memory, for its next request.
+ * - A busy server that says how long to wait (Retry-After, at most AUTO_RETRY_MAX seconds) is asked
+ *   again on its own once that wait has passed, once per request: a second busy answer waits for Try
+ *   again. Try again, another request and rows that came allow the next automatic try.
  */
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -18,7 +21,7 @@ import { keptQuery, serverRequestOf } from "./server-request.js";
 import { warnOnce } from "./warn-once.js";
 // this hook is part of server-module.js: the module is here, and the states' parts come from it
 import * as serverModule from "./server-module.js";
-import { fetchRows } from "./server-rows.js";
+import { fetchRows, retryAtOf } from "./server-rows.js";
 
 /** How long the report loads before it says so in words over the skeleton. */
 const SLOW_MS = 3000;
@@ -45,7 +48,7 @@ const SLOW_MS = 3000;
  * @property {import("./server-rows.js").ServerFailure | null} failure
  * @property {number | null} loadedAt  when the rows shown were read (ms)
  * @property {any} mod  server-module.js (null while it loads or after it failed to: PivotReport.jsx ServerGate)
- * @property {() => void} retry
+ * @property {() => void} retry  the person's Try again
  * @property {Array<[string, string]>} kept  the query entries a copied link keeps (server.js keptQuery)
  */
 
@@ -79,6 +82,22 @@ function useLatest(value) {
 }
 
 /**
+ * Reads again once a busy server's wait has passed (failure.retryAt). Try again, another request and
+ * an unmounted report stop the wait: a new read shows no failure, so the timer goes.
+ * @param {number | undefined} retryAt
+ * @param {() => void} again
+ */
+function useRetryAt(retryAt, again) {
+    useEffect(() => {
+        if (retryAt === undefined) {
+            return undefined;
+        }
+        const wait = setTimeout(again, Math.max(0, retryAt - Date.now()));
+        return () => clearTimeout(wait);
+    }, [retryAt, again]);
+}
+
+/**
  * @param {import("./index.js").PivotReportProps} props
  * @param {boolean} [told]  "loading" went to onServerState already, while this code loaded (PivotReport.jsx ServerGate)
  * @returns {LiveRows}
@@ -102,6 +121,8 @@ export function useServerRows(props, told = false) {
     // the first read's "loading" is the one ServerGate said
     const quiet = useRef(told);
     const [tries, setTries] = useState(0);
+    // the request (key) whose automatic try after a busy answer is used up
+    const autoFor = useRef(/** @type {string | null} */ (null));
     // one read: the request as text and the number of tries; a new one reads the rows again
     const readId = key === null ? null : `${tries}:${key}`;
     const [slowFor, setSlowFor] = useState(/** @type {string | null} */ (null));
@@ -129,12 +150,17 @@ export function useServerRows(props, told = false) {
                 return;
             }
             if (got.ok) {
+                autoFor.current = null;
                 const { rows } = got;
                 setState({ data: rows.data, dataKey: readId, loadedAt: Date.now(), failure: null, done: readId });
                 tell({ state: "ready", rows: rows.rowCount, ...(rows.dataAsOf ? { dataAsOf: rows.dataAsOf } : {}), ...(rows.requestId ? { requestId: rows.requestId } : {}) }, true);
                 return;
             }
-            const f = got.failure;
+            const retryAt = autoFor.current === asked.key ? null : retryAtOf(got.failure);
+            if (retryAt !== null) {
+                autoFor.current = asked.key;
+            }
+            const f = retryAt === null ? got.failure : { ...got.failure, retryAt };
             setState((s) => ({ ...s, failure: f, done: readId }));
             tell({ state: f.state, ...(f.code ? { code: f.code } : {}), ...(f.status ? { status: f.status } : {}), ...(f.requestId ? { requestId: f.requestId } : {}) });
         })()
@@ -154,9 +180,14 @@ export function useServerRows(props, told = false) {
         };
     }, [readId, latest]);
 
-    const retry = useCallback(() => setTries((n) => n + 1), []);
+    const again = useCallback(() => setTries((n) => n + 1), []);
+    const retry = useCallback(() => {
+        autoFor.current = null;
+        again();
+    }, [again]);
     const kept = keptQuery(request);
     const loading = Boolean(server) && !problem && state.done !== readId;
+    useRetryAt(loading || problem ? undefined : state.failure?.retryAt, again);
     return {
         active: Boolean(server),
         data: state.data,

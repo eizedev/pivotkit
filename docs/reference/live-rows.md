@@ -66,8 +66,16 @@ does the report say that the sign-in ended.
 | `signIn` | `getToken` failed without a `problem`: the page's sign-in step, not the report server. |
 | `signInLarge` | The sign-in carries more groups or claims than a browser token holds. |
 | `large` | More rows or values than the server's limit (413 `LIMIT_EXCEEDED`). |
-| `busy` | The server is busy (503, 429). The text names its `Retry-After`. **Try again** reads once more. |
+| `busy` | The server is busy (503, 429). See [busy](#busy). |
 | `unreachable` | No answer, an answer that broke off, or a server error. |
+
+### Busy { #busy }
+
+When the server answers busy with a `Retry-After` of at most 60 seconds, the report counts that wait
+down and then reads again on its own, once. A second busy answer, a longer wait, a wait as a date or
+none at all leave it to **Try again**, which is there all the time. Try again, another request and
+rows that came allow the next automatic try. The automatic read tells `loading` and its outcome, as
+Try again does. A screen reader hears the wait once, not every second.
 
 The texts are under `labels.server` ([localisation](localisation.md)). The network code, the states
 and their texts load on first use, so a report without `server` loads none of it.

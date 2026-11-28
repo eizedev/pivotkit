@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ACCESS_PARAM, paramsText, withQuery } from "../src/share.js";
 import { keptQuery, serverBase, serverRequestOf } from "../src/server-request.js";
-import { failureOf, fetchRows, tokenOf } from "../src/server-rows.js";
+import { AUTO_RETRY_MAX, failureOf, fetchRows, retryAtOf, tokenOf } from "../src/server-rows.js";
 import { de, en, stateWords } from "../src/server-labels.js";
 import { keys } from "./helpers.js";
 
@@ -153,6 +153,31 @@ test("the states' words: the limit and the time in the report's locale, the supp
     const signIn = stateWords({ state: "signIn", host: "" }, en, { locale: "en-US" });
     assert.deepEqual([signIn.title, signIn.action, signIn.support], [en.signIn.title, "reload", null]);
     assert.equal(stateWords({ state: "linkInvalid", code: "NOT_ALLOWED", requestId: "r", host: "h" }, en, { locale: "en-US" }).text, en.linkInvalid.text);
+});
+
+test("a busy server is asked again on its own only when it said how long to wait, and only for a wait up to AUTO_RETRY_MAX", () => {
+    const now = 1_000_000;
+    assert.equal(retryAtOf({ state: "busy", host: "h", retryAfter: 10 }, now), now + 10_000);
+    assert.equal(retryAtOf({ state: "busy", host: "h", retryAfter: AUTO_RETRY_MAX }, now), now + AUTO_RETRY_MAX * 1000);
+    // a longer wait, none given (or a date, which failureOf does not read): Try again only
+    assert.equal(retryAtOf({ state: "busy", host: "h", retryAfter: AUTO_RETRY_MAX + 1 }, now), null);
+    assert.equal(retryAtOf({ state: "busy", host: "h" }, now), null);
+    assert.equal(failureOf(503, { code: "BUSY", retryAfter: "Fri, 27 Nov 2026 10:00:00 GMT" }, "h").retryAfter, undefined);
+    // 0: one second, not at once
+    assert.equal(retryAtOf({ state: "busy", host: "h", retryAfter: 0 }, now), now + 1000);
+    // only busy waits for the server
+    assert.equal(retryAtOf({ state: "unreachable", host: "h", retryAfter: 5 }, now), null);
+});
+
+test("busy with the automatic try: the seconds left are shown, the wait is said once", () => {
+    const failure = { state: /** @type {const} */ ("busy"), code: "BUSY", host: "h", retryAfter: 10, retryAt: 1 };
+    const w = stateWords(failure, en, { locale: "en-US", left: 7 });
+    assert.equal(w.text, "Many reports are loading at the moment. Trying again in 7 s.");
+    assert.equal(w.said, "Many reports are loading at the moment. The report tries again in 10 seconds.");
+    assert.equal(w.action, "retry");
+    assert.equal(stateWords(failure, de, { locale: "de-DE", left: 3 }).text, "Gerade laden viele Berichte. Neuer Versuch in 3 s.");
+    // without the automatic try: the server's wait as before, nothing said apart
+    assert.equal(stateWords({ ...failure, retryAt: undefined }, en, { locale: "en-US" }).said, undefined);
 });
 
 test("the server's texts write IT-Support with a plain hyphen", () => {

@@ -38,6 +38,7 @@ const EARLY_SECONDS = 15;
  * @property {number} [maxRows]  LIMIT_EXCEEDED: the server's row limit
  * @property {number} [maxCells]  LIMIT_EXCEEDED: the server's limit of values
  * @property {number} [retryAfter]  BUSY: seconds the server asks to wait
+ * @property {number} [retryAt]  busy: when the report reads again on its own (retryAtOf), ms since the epoch
  */
 
 /**
@@ -141,6 +142,23 @@ export function failureOf(status, problem, host) {
     const requestId = typeof p.requestId === "string" ? p.requestId : undefined;
     const state = stateOf(status, p, code);
     return /** @type {ServerFailure} */ ({ state, host, ...defined({ status, code, requestId }), ...detailsOf(state, p) });
+}
+
+/** The longest wait of a busy server, in seconds, after which the report reads again on its own. */
+export const AUTO_RETRY_MAX = 60;
+
+/**
+ * When the report reads again on its own after a busy answer, in ms since the epoch, or null. Only
+ * when the server said how long to wait (Retry-After in seconds) and that wait is at most
+ * AUTO_RETRY_MAX: a longer wait, or none given, is left to Try again. A wait of 0 is one second, so a
+ * server that answers busy at once is not asked again at once.
+ * @param {ServerFailure} failure
+ * @param {number} [now]
+ * @returns {number | null}
+ */
+export function retryAtOf(failure, now = Date.now()) {
+    const after = failure.retryAfter;
+    return failure.state === "busy" && after !== undefined && after <= AUTO_RETRY_MAX ? now + Math.max(after, 1) * 1000 : null;
 }
 
 /**
