@@ -6,6 +6,23 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- The browser path ([records](https://pivotkit.eize.dev/reference/records/#records-browser)): `POST
+  /api/v1/sources/records/token` exchanges a person's token for a short-lived browser token that
+  reads the rows of one source with its parameters. Every other route, `/openapi.json` and MCP
+  refuse it. The log names its ID, never its value. An expired one is 401 `INVALID_TOKEN` with
+  `expired: true`.
+- `rest.browser.origins`: pages that read rows with a browser token, with CORS on the rows route
+  only. `rest.browser.minutes` (default 5, at most 60), `rest.browser.key` and
+  `rest.browser.levels`.
+- `create_link` takes `access` (`me`, `signedIn`, `group`), signed into the link's query string as
+  `pk-access`. The exchange route checks it; its refusal carries `linkAccess: true`.
+- With a state directory, the server makes `secrets/browser.key` where a profile reads rows.
+  `key new --for browser` makes one.
+- `check-config` has a section "Browser path".
+- The rows route's 413 `LIMIT_EXCEEDED` holds its limit as `maxRows` or `maxCells`.
+
 ## [0.6.0] - 2026-11-26
 
 ### Changed

@@ -1,6 +1,6 @@
 ---
 title: Rows of a source
-description: The REST route POST /api/v1/sources/records - the rows of a source for a person who signed in, so a host application's backend can show a live pivotkit report - how to turn it on, who gets rows, which fields leave, its limits, a host backend that fetches the rows, the log and sizing.
+description: The REST route POST /api/v1/sources/records - the rows of a source for a person who signed in, so a host application's backend can show a live pivotkit report - how to turn it on, who gets rows, which fields leave, its limits, a host backend that fetches the rows, a page that reads them itself with a browser token, the log and sizing.
 ---
 
 # Rows of a source
@@ -143,7 +143,8 @@ limit wins.
 - Over a row or cell limit, the answer is 413 `LIMIT_EXCEEDED`, for example "this source has too
   many rows to open here (60,000, the limit is 50,000); filter it with a parameter or ask the
   operator". Where the policy hides the row count (`rows: false`), the message leaves the count out.
-  It names a parameter only for a source that takes one the caller sends.
+  It names a parameter only for a source that takes one the caller sends. The problem holds the
+  limit as a number too: `maxRows` or `maxCells`.
 - The server checks the fields and the limits before it writes the first byte.
 - Beyond `concurrency`, a request waits up to `waitMs` for a place, first come first served. After
   that, and at once for a second request of the same person or beyond 32 waiting requests, the
@@ -222,6 +223,100 @@ document.querySelector("pivot-report").data = { columns, types, data };
 - The answer is the person's rows. Keep `Cache-Control: no-store` on your own answer.
 - The page holds every row. The browser is not access control: send only what the person may see.
 - The rows' memory: [sizing](#records-sizing).
+
+## A page reads the rows itself { #records-browser }
+
+A page can read the rows without a backend of its own in between. It holds a short-lived **browser
+token** instead of the person's own token. [Record 0020](../decisions/0020-the-browser-path.md)
+says why it works this way.
+
+1. The page gets the person's token, as for any REST call (OAuth of your issuer, or a [token from
+   another system](tokens.md#external-issuers) with a subject).
+2. It exchanges it at `POST /api/v1/sources/records/token` for a browser token. In most setups the
+   host application's backend makes this call, so the person's token never reaches the page.
+3. The page reads the rows with the browser token. The [components](react.md#server) do steps 3 and
+   4 themselves, with the `getToken()` the page gives them.
+4. On expiry the page asks for a new one.
+
+```bash
+curl -s -H "Authorization: Bearer $PERSON_TOKEN" -H "Content-Type: application/json" \
+  -d '{"source":"sales","params":{"customer":"acme"}}' \
+  https://reports.example.com/api/v1/sources/records/token
+```
+
+```json
+{ "token": "eyJhbGciOiJkaXIi…", "tokenType": "Bearer", "expiresIn": 300,
+  "expiresAt": "2026-11-28T10:47:00Z", "source": "sales" }
+```
+
+| Key | Required | What it is |
+| --- | --- | --- |
+| `source` | yes | A source id the person may read rows of (`records` of the person's profile) |
+| `params` | no | The source's parameters. The token holds them, and reads only these |
+| `access` | no | The `pk-access` value of the link's query string: the link's [access level](#records-access) |
+
+The browser token:
+
+- reads `POST /api/v1/sources/records` for its source and parameters only. Another source or other
+  parameters are 403 `NOT_ALLOWED`.
+- is refused as an unknown token everywhere else: every other route, `/openapi.json`, MCP and the
+  exchange route itself. It cannot make another token.
+- lives `rest.browser.minutes`, never longer than the person's token.
+- is encrypted. It tells the page nothing about the person. The log names its ID, never its value.
+- is never accepted in the address, only in the `Authorization` header.
+- carries the person's issuer, subject, profile and scopes, and only the claims the source's
+  parameters are bound to. A code source gets the groups and claims too.
+
+The exchange route refuses a source whose backend exchanges the person's own token. A browser token
+never carries it. Read such a source [through the host's backend](#records-host).
+
+An expired browser token is 401 `INVALID_TOKEN` with `expired: true`. Get a new one. A refused one
+does not count against the address's limit of failed sign-ins.
+
+### Pages of another origin { #records-browser-origins }
+
+`rest.browser.origins` lists the pages that read rows with a browser token. The server's own origin
+may always. These origins get CORS on the rows route only, and only with a browser token or for the
+preflight. A person's own token from such a page is 403 `FORBIDDEN_ORIGIN`. `rest.cors.origins` is
+separate and unchanged.
+
+### Access levels of a live link { #records-access }
+
+`create_link` takes `access`, the people who may open the link:
+
+| `level` | Who opens the link |
+| --- | --- |
+| `me` | Only the person who made it |
+| `signedIn` | Everyone who signs in and may read the rows (the default) |
+| `group` | The members of `group`, one of the maker's own groups (the `groups` claim) |
+
+- The level goes signed into the link's query string as `pk-access`. The person and the group are
+  in it only as keyed digests.
+- The exchange route checks it. A refusal is 403 `NOT_ALLOWED` with `linkAccess: true`, so a page
+  can tell it from missing rights.
+- `rest.browser.levels` lists the levels an instance offers. A link without `pk-access` opens as
+  `signedIn` where that is offered, and is refused otherwise.
+- A level only narrows who opens the link. It is no data boundary: everyone reads with their own
+  rights, and could read the same rows without the link.
+- A person of an [external issuer](tokens.md#external-issuers) gets `signedIn` links only.
+
+### Settings { #records-browser-settings }
+
+| Key | Default | What it is |
+| --- | --- | --- |
+| `rest.browser.origins` | none | Pages that read rows with a browser token: exact origins, as for `rest.cors.origins` |
+| `rest.browser.minutes` | 5 | How long a browser token lives (1 to 60) |
+| `rest.browser.key` | made in the state directory | The key of the tokens and of `pk-access`: a secret like `output.downloads.key` (`{ "env" }` or `{ "file" }`, 32 bytes or more) |
+| `rest.browser.levels` | `["signedIn"]` | The access levels live links may carry: `me`, `signedIn`, `group` |
+
+- With a state directory, the server makes the key at the first start where a profile reads rows
+  (`<state>/secrets/browser.key`). Make one yourself with `pivotkit-server key new --for browser`.
+- Without a key and a state directory, the key is random per process. Browser tokens then end on a
+  restart and differ between replicas, and so do the levels of links. `check-config` warns.
+- A new key ends every browser token within a second, without a restart. It also ends the levels
+  of the links made before it.
+- `check-config` has a section "Browser path". It names the lifetime, the pages, the levels and
+  the key, and the sources the browser path refuses.
 
 ## What the log says { #records-log }
 

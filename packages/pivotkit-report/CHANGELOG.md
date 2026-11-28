@@ -6,6 +6,11 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `create_link` takes `access`: the access level of a live link (`me`, `signedIn`, or `group` with
+  `group`). pivotkit-server signs it into the link.
+
 ## [0.7.0] - 2026-11-26
 
 ### Added

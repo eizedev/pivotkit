@@ -174,6 +174,18 @@ names the source in `records`. It is off by default. Once you grant it, this lea
 - The `records` log line names the source, the counts and the profile, never a value.
 - `check-config` lists per profile the sources and the fields that would leave.
 
+With the [browser path](reference/records.md#records-browser) the rows go to the page directly, not
+through the host application's server:
+
+- The browser token is encrypted. It holds the person's issuer, subject, profile and scopes, and the
+  claims the source's parameters are bound to. The page cannot read them.
+- Its log line names the token's ID, never its value or the person, unless `audit.subject` names the
+  person as on every line.
+- A link's access level (`pk-access`) holds the maker or the group only as a keyed digest. It travels
+  in the query string like the [link's parameters](security.md#link-params).
+- The page holds the rows in the browser's memory, as with a host's backend. pivotkit keeps neither
+  the token nor the rows in the browser's storage.
+
 ## Recipients { #recipients }
 
 Whoever holds a token, or signs in with OAuth, receives what its policy allows. The reports written

@@ -43,10 +43,10 @@ random bytes and a key 48, both in base64url (letters, digits, `-` and `_`).
 | `--force` | Replace a file that is there, atomically. [Below](#credentials-force) |
 | `--config <file>` | `token new`: check `--profile` against `policy.profiles`, refuse a file inside `output.dir`, and use `http.publicUrl` in the hints. `token new` and `key new` read no configuration without it, not even `$PIVOTKIT_CONFIG`. `token show` reads `$PIVOTKIT_CONFIG` by default |
 | `--state-dir <dir>` | `token show`: the server's [state directory](#first-start) (default `$PIVOTKIT_STATE_DIR`). With it, `token show admin` prints the token the server made at its first start, without a configuration. Before that start, it exits 1 (`NOT_CREATED`) and makes nothing. `token show token` prints `$PIVOTKIT_TOKEN` where the server uses it, or `$PIVOTKIT_MCP_TOKEN` where only that one is set (pivotkit-mcp, `pivotkit-server mcp`) |
-| `--add` | `token new`: add the token to `auth.tokens` of `--config`. `key new`: name the key as `output.downloads.key` or `audit.key`. Both need `--file`. [Below](#credentials-add) |
+| `--add` | `token new`: add the token to `auth.tokens` of `--config`. `key new`: name the key as `output.downloads.key`, `audit.key` or `rest.browser.key`. Both need `--file`. [Below](#credentials-add) |
 | `--name`, `--profile`, `--scope` | The token's name (default: the file's name without extension), its [profile](rest.md#profiles) and its scopes (`--scope` once per scope) |
 | `--expires <when>` | `token new`: when the token stops working, written as `auth.tokens[].expires`. A date (`2027-01-31` means 00:00 UTC that day), a date-time with a zone (`2027-01-31T08:00:00Z`), or a time from now (`90d`, `12h`, `30m`). [Expiry](#token-expires) |
-| `--for downloads\|audit` | `key new`: the key of the [download links](delivery.md) (`output.downloads.key`, at least 32 bytes) or of the [audit](mcp.md#logging) hash (`audit.key`) |
+| `--for downloads\|audit\|browser` | `key new`: the key of the [download links](delivery.md) (`output.downloads.key`, at least 32 bytes), of the [audit](mcp.md#logging) hash (`audit.key`) or of the [browser tokens](records.md#records-browser) (`rest.browser.key`, at least 32 bytes) |
 | `--json` | One object on stdout, as [pivotkit's](cli.md): `{ "ok", "exitCode", "command", "name", "file", "created", "replaced", "config", "configured", "backup", "token" or "key", "warnings", "error": { "kind", "code", "message" } }`. It holds the value only where it would be printed |
 
 ### What `--if-missing` does { #credentials-if-missing }
@@ -378,6 +378,7 @@ that survive a restart:
 | The token `admin` (every scope, no profile) | `<dir>/secrets/admin.token` | `auth.mode` is not written, so the row above sets `"token"`, `auth.tokens` is empty and `$PIVOTKIT_TOKEN` (pivotkit-mcp: `$PIVOTKIT_MCP_TOKEN`) is not set. A written `auth.mode` `"token"` without a token is refused (below) |
 | The key of the [download links](delivery.md) | `<dir>/secrets/downloads.key` | Links are on and `output.downloads.key` is not set |
 | The [audit](mcp.md#logging) key | `<dir>/secrets/audit.key` | `audit.subject` is `"hash"` and `audit.key` is not set |
+| The key of the [browser tokens](records.md#records-browser) | `<dir>/secrets/browser.key` | A profile reads rows (`records`) and `rest.browser.key` is not set |
 | The [signed tokens'](#signed-tokens) directory | `<dir>/secrets/signed/` | The first `token issue`, not the start |
 
 - The server never makes the state directory itself. It makes only these in it:
@@ -408,7 +409,7 @@ own token. `output.dir` may not be the state directory or hold its `secrets/`.
 `"create": true` on a file reference asks for the same where you name the file:
 
 - `auth.tokens[]`: `{ "name": "bot", "file": "bot.token", "create": true }`
-- `output.downloads.key` and `audit.key`: `{ "file": "download.key", "create": true }`
+- `output.downloads.key`, `audit.key` and `rest.browser.key`: `{ "file": "download.key", "create": true }`
 
 The file is made where it is missing, also without a state directory. Its directory must be there.
 pivotkit refuses `create` with `env`, since it cannot set a variable. It also refuses `create` on a
