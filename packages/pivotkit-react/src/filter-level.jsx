@@ -38,7 +38,7 @@ import {
     RULE_TYPES,
     combinedYearsText,
     conditionKind,
-    dateRuleValue,
+    dateFromInput,
     itemTotals,
     keepsBlanks,
     quickChoice,
@@ -428,7 +428,7 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
     const later = useLater();
     const latest = useLatest({ rule, apply, unset });
     const formName = useFormName();
-    const read = (text) => (fk.item === "number" ? parseNumber(text, locale) : fk.item === "date" ? dateRuleValue(text) : text === "" ? null : Number(text));
+    const read = (text) => (fk.item === "number" ? parseNumber(text, locale) : fk.item === "date" ? dateFromInput(text, { signed: true }) : text === "" ? null : Number(text));
     const entryOf = (x) => {
         if (x.op === "last") {
             const n = readNumber(x.count, { kind: "count", max: CATALOG.relativeMaxCount, labels, locale }).value;

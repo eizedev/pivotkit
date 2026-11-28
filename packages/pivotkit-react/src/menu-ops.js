@@ -664,18 +664,17 @@ export const dateInputValue = (iso) => {
 };
 
 /**
- * What an `<input type="date">` holds as an ISO day ("+010000-01-01" of "10000-01-01"), or null while
- * it is no whole day of a year from 1 that a Date holds.
+ * Read an HTML date field as a canonical ISO day, or null while incomplete or invalid.
+ * Comparison rules also accept year zero and signed years; other date controls stay positive-only.
  * @param {string} text
  */
-export function dateFromInput(text) {
-    const m = /^(\d{4,})-(\d{2})-(\d{2})$/.exec(text);
-    if (!m || Number(m[1]) < 1) {
-        return null;
-    }
-    const iso = `${isoYear(Number(m[1]))}-${m[2]}-${m[3]}`;
-    // a day the month does not have (30 February) reads as another day
-    return Number.isNaN(dayMs(iso)) || isoDay(dayMs(iso)) !== iso ? null : iso;
+export function dateFromInput(text, { signed = false } = {}) {
+    const m = /^(\d{4,}|[+-]\d{6})(-\d{2}-\d{2})$/.exec(text);
+    if (!m || m[1] === "-000000" || (!signed && (!/^\d/.test(text) || Number(m[1]) < 1))) return null;
+    const iso = `${isoYear(Number(m[1]))}${m[2]}`;
+    const ms = dayMs(iso);
+    // Round-tripping rejects impossible days and dates outside Date's range.
+    return Number.isNaN(ms) || isoDay(ms) !== iso ? null : iso;
 }
 
 /**
@@ -740,14 +739,4 @@ export function pointActions(view, point, encoded, labels, locale, { showRows = 
         add("col", view.cols[point.colPath.length - 1], point.colPath[point.colPath.length - 1]);
     }
     return out;
-}
-
-/** Read a complete signed ISO day or the large-year form from an HTML date field. @param {string} text */
-export function dateRuleValue(text) {
-    const m = /^(\d{4,6}|[+-]\d{6})-(\d{2})-(\d{2})$/.exec(text);
-    if (!m || m[1] === "-000000") return null;
-    const year = m[1];
-    const iso = /^\d{5,6}$/.test(year) ? `+${year.padStart(6, "0")}${text.slice(year.length)}` : text;
-    const date = new Date(`${iso}T00:00:00.000Z`);
-    return date.getUTCFullYear() === +year && date.getUTCMonth() + 1 === +m[2] && date.getUTCDate() === +m[3] ? iso : null;
 }
