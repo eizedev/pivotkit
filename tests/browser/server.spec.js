@@ -115,3 +115,28 @@ test("Copy link keeps the parameters the report read and the link's access level
     const link = new URL(await page.evaluate(() => /** @type {any} */ (window).__copied));
     expect([...link.searchParams]).toEqual([["customer", "acme"], ["pk-access", "abc.def"]]);
 });
+
+test("the link's access level shuts this account out: its own message, without the rows route", async ({ page }) => {
+    let calls = 0;
+    await page.route(ROUTE, (route) => (calls++, route.fulfill(json(200, ROWS))));
+    await page.goto("pages/element-server.html?pk-access=abc.def&token=link");
+    await expect(state(page)).toHaveAttribute("data-state", "linkRefused");
+    await expect(state(page)).toContainText("This link is not shared with this account");
+    await expect(state(page)).toContainText("For IT support: NOT_ALLOWED, request q3Zr8mT0aXw");
+    expect(calls).toBe(0);
+    expect(await page.evaluate(() => /** @type {any} */ (window).__asked)).toEqual([{ source: "sales", params: {}, access: "abc.def" }]);
+});
+
+test("the sign-in ends while rows are shown: a banner to reload the page, the rows stay", async ({ page }) => {
+    let refused = false;
+    await page.route(ROUTE, (route) => route.fulfill(refused ? json(401, { code: "INVALID_TOKEN", expired: true }) : json(200, ROWS)));
+    await page.goto("pages/element-server.html?token=once");
+    await expect(live(page).getByTestId("pivot-table")).toContainText("North");
+    refused = true;
+    await live(page).evaluate((el) => /** @type {any} */ (el).refresh());
+    const banner = live(page).getByTestId("server-banner");
+    await expect(banner).toHaveAttribute("data-state", "expired");
+    await expect(banner).toContainText(/because your sign-in has ended\. The report still shows the data from \d{1,2}:\d{2}/);
+    await expect(banner.getByTestId("server-reload")).toBeVisible();
+    await expect(live(page).getByTestId("pivot-table")).toContainText("North");
+});
