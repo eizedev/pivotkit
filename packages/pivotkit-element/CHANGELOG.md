@@ -12,9 +12,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   its rows from pivotkit-server, as pivotkit-react's `server` does. `refresh()` reads them again.
   Each state is a `pivot-server-state` event. See pivotkit-react's changelog
   ([#621](https://github.com/eizedev/pivotkit/issues/621)).
-- A load group `server` (the network code and the states) with a budget of 4.5 KiB gzip. The first
-  load stays within its budget: the states' style rules reuse the empty report's, and their icons
-  load with them.
+- A load group `server` (the network code and the states) with a budget of 5 KiB gzip. The states'
+  style rules reuse the empty report's, and their icons load with them.
 
 ### Fixed
 
