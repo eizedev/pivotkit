@@ -61,6 +61,10 @@ export function createRestSignIn(context, { core, mode, audience, resource, requ
             if (e.status === 503) {
                 return { reason: refusalReason("AUTH_NOT_READY"), refused: problem("AUTH_NOT_READY", e.message, { headers: { "retry-after": "10" } }) };
             }
+            if (e.error === "insufficient_scope") {
+                // a valid token without its issuer's required scopes (auth.issuers): not a bad token
+                return { reason: refusalReason("INSUFFICIENT_SCOPE"), refused: problem("INSUFFICIENT_SCOPE", e.message, { headers: { "www-authenticate": challenge("insufficient_scope", "insufficient scope", [...requiredScopes, .../** @type {any} */ (e).scopes]) } }) };
+            }
             if (wait) {
                 return { reason: refusalReason("RATE_LIMITED"), refused: problem("RATE_LIMITED", "too many refused tokens from this address; wait before you try again", { headers: { "retry-after": String(wait) } }) };
             }

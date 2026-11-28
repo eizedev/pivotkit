@@ -67,10 +67,10 @@ function tokenUrlOf(metadata, signIn) {
  * sign-in link answers 503).
  * @param {NonNullable<import("../options/downloads.js").DownloadSettings["signIn"]>} signIn
  * @param {import("../issuer.js").IssuerRules} rules
- * @param {string | undefined} jwksUri  auth.jwksUri
+ * @param {import("../issuer.js").IssuerEntry | undefined} first  the server's first issuer, whose jwksUri the sign-in takes (signIn.issuer is that issuer)
  * @param {any} log
  */
-export function signInIssuer(signIn, rules, jwksUri, log) {
+export function signInIssuer(signIn, rules, first, log) {
     /** @type {{ metadata: any, tokenUrl: string, jwks: any } | null} */
     let loaded = null;
     let timer = null;
@@ -82,7 +82,7 @@ export function signInIssuer(signIn, rules, jwksUri, log) {
             if (typeof metadata.authorization_endpoint !== "string") {
                 throw new SignInError("the issuer's metadata names no authorization_endpoint");
             }
-            loaded = { metadata, tokenUrl: tokenUrlOf(metadata, signIn), jwks: await remoteKeySet(jwksUriOf(metadata, signIn.issuer, jwksUri), rules, log) };
+            loaded = { metadata, tokenUrl: tokenUrlOf(metadata, signIn), jwks: await remoteKeySet(jwksUriOf(metadata, signIn.issuer, first?.jwksUri, first?.jwksKey), rules, log) };
             log.info("download links: the sign-in issuer's metadata loaded", { issuer: signIn.issuer });
         } catch (e) {
             if (closed) {

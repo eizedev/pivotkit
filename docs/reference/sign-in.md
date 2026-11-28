@@ -8,6 +8,7 @@ description: How callers of pivotkit-server sign in - static and signed tokens o
 This page is for the people who run pivotkit-server and connect it to a sign-in provider:
 
 - [Sign-in](#auth): the modes of the REST service, and OAuth with its resource and scopes.
+- [More than one issuer](#issuers): tokens of several OAuth issuers on one server.
 - [Sign in from the command line](#sign-in-cli): `pivotkit login`, and what the operator sets up.
 - [Authentik step by step](#authentik): a provider for the MCP endpoint and the REST service.
 
@@ -76,6 +77,43 @@ missing one (404 `SOURCE_NOT_FOUND`).
 | `rest.audience` | `[rest.resource]` | The `aud` values a REST token may carry |
 | `rest.requiredScopes` | `auth.requiredScopes` | Scopes every REST call needs |
 | `rest.signIn.clientId` | none | The public client `pivotkit login` signs in with, published in the metadata (OAuth only). Not `output.downloads.signIn.clientId` |
+
+## More than one issuer { #issuers }
+
+A server can accept the tokens of up to 10 OAuth issuers. Authentik, for example, gives each
+application an issuer of its own: a host application's portal and the MCP client each sign in at
+their own provider. List the issuers in `auth.issuers` instead of `auth.issuer` and `auth.jwksUri`
+(both together are refused):
+
+```json
+"auth": {
+  "mode": "oauth",
+  "resource": "https://reports.example.com/mcp",
+  "requiredScopes": ["pivotkit"],
+  "issuers": [
+    { "issuer": "https://auth.example.com/application/o/pivotkit/", "audience": ["<pivotkit's client id>"] },
+    { "issuer": "https://auth.example.com/application/o/portal/", "audience": ["<the portal's client id>"], "requiredScopes": ["pivotkit:portal"] }
+  ]
+}
+```
+
+- A token is checked with the keys of the issuer its `iss` names, exactly as written there, and
+  with no other issuer's keys. A token of an issuer that is not listed is refused.
+- Each entry takes `issuer` (required), `jwksUri`, `audience` and `requiredScopes`. Its `audience`
+  replaces the endpoint's (`auth.audience`, `rest.audience`) for its tokens, on both endpoints. Its
+  `requiredScopes` add to the endpoint's; a token without them gets 403 `insufficient_scope`.
+- Give each issuer a pivotkit scope in `requiredScopes`. Where its `audience` is another
+  application's client ID, every token issued to that application is otherwise valid here.
+- The first issuer is the one the server names to clients: the Protected Resource Metadata, the
+  OpenAPI document, the [download sign-in](delivery.md#sign-in) and `pivotkit login`. Clients of
+  the other issuers are configured with their issuer directly.
+- Only the first issuer's people get [links bound to a sign-in](delivery.md#sign-in-issuer).
+- Every other `auth` setting holds for all issuers: profiles, groups, claims and algorithms. A
+  client ID in `auth.clientProfiles` is the same client at every issuer.
+- `/readyz`, REST and `/mcp` answer 503 until every issuer's metadata and keys are loaded.
+- A [token exchange](sources.md#http-auth) serves the people of one issuer, named in
+  `tokenExchange.issuer`. A person of another issuer does not see the source.
+- `check-config` lists each issuer with its own audience and scopes.
 
 ## Sign in from the command line { #sign-in-cli }
 
@@ -385,6 +423,10 @@ puts the client ID into the access token's `aud`, and the granted scopes into it
   provider, set `rest.audience` to that client ID. Give REST a scope of its own with
   `rest.requiredScopes` and a second scope mapping. A token with both scopes then works on both
   endpoints.
+
+A second application (a portal, a tool with a client of its own) has an issuer of its own in this
+mode. To accept its tokens too, list both providers in [`auth.issuers`](#issuers), each with its own
+client ID as audience.
 
 These settings follow the sources below, checked in November 2026:
 

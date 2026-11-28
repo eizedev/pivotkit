@@ -23,6 +23,7 @@
 import { REST_BASE } from "pivotkit-node/rest";
 import { OPENAPI_PATH, noRouteDetail, restResourceOf } from "../config.js";
 import { resourceMetadataUrlOf } from "../auth.js";
+import { everyIssuerScoped } from "../issuer.js";
 import { allowedHosts } from "../checks.js";
 import { isLoopback, peekSignIn } from "../listen.js";
 import { LARGE_BODIES, bodyTooLargeText, createLargeBodies, createLimits, restBodyBytesAt, restBodyCeilingOf } from "../limits.js";
@@ -51,7 +52,7 @@ export async function createRestHandler(context, runtime = {}) {
     const core = await context.auth({ env: runtime.env, loopback: runtime.loopback ?? isLoopback(options.http?.host ?? "127.0.0.1") });
     const resource = new URL(restResourceOf(options));
     const requiredScopes = rest.requiredScopes ?? authOptions.requiredScopes ?? [];
-    if (mode === "oauth" && !requiredScopes.length && !Object.keys(authOptions.toolScopes ?? {}).length) {
+    if (mode === "oauth" && !everyIssuerScoped(context.options, requiredScopes) && !Object.keys(authOptions.toolScopes ?? {}).length) {
         context.log.warn("REST: no required scopes (rest.requiredScopes, auth.requiredScopes) and no auth.toolScopes: any token of the issuer for the REST audience gets everything its profile allows");
     }
     const limits = createLimits(rest);

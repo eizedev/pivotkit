@@ -81,7 +81,7 @@ same rules for closed sources.
 | `output.downloads.allowInsecureUrl` | false | Links under an `http://` `http.publicUrl` on a host other than loopback. Without it, the server does not start with such an address while links are on: a link is the credential, and it and its cookie would cross the network in clear text. With it, the start and `check-config` warn. Use it only on a network you trust |
 | `output.downloads.signIn.clientId` | none | The browser client the person signs in with. Not `rest.signIn.clientId`, the [command line's client](sign-in.md#sign-in-cli-operator) |
 | `output.downloads.signIn.clientSecret` | none (a public client with PKCE) | Its secret, a secret reference, sent as HTTP Basic (or in the form where the provider only takes `client_secret_post`) |
-| `output.downloads.signIn.issuer` | `auth.issuer` | May be left out. When given, it must be `auth.issuer` exactly, since a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did. The server does not start otherwise, and `check-config` stops with the same message. One that differs only in spelling (a trailing slash, case in the scheme or host, a default port) says to leave it out. Another issuer is refused with a pointer to [an issuer of its own](#sign-in-issuer) |
+| `output.downloads.signIn.issuer` | `auth.issuer` (with [several issuers](sign-in.md#issuers), the first) | May be left out. When given, it must be that issuer exactly, since a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did. The server does not start otherwise, and `check-config` stops with the same message. One that differs only in spelling (a trailing slash, case in the scheme or host, a default port) says to leave it out. Another issuer is refused with a pointer to [an issuer of its own](#sign-in-issuer) |
 | `output.downloads.signIn.scopes` | `["openid"]` | What the sign-in asks for. Must hold `openid` |
 | `output.downloads.signIn.tokenUrl` | the metadata's `token_endpoint` | The token endpoint the code (and the client secret) goes to, `https://`. Without it, the metadata's endpoint must be on the issuer's own origin. Set it for a provider that keeps it on another host |
 
@@ -91,7 +91,8 @@ same rules for closed sources.
 ### An issuer of its own { #sign-in-issuer }
 
 Some providers give each application an issuer of its own. A download sign-in there would need its
-own issuer, different from `auth.issuer`. pivotkit does not support that yet.
+own issuer, different from `auth.issuer`. pivotkit does not support that yet. With
+[several issuers](sign-in.md#issuers), only the first issuer's people get links bound to a sign-in.
 [#441](https://github.com/eizedev/pivotkit/issues/441) tracks it.
 
 Without `http.publicUrl`:

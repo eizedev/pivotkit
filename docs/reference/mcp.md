@@ -824,7 +824,8 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 
 | Key | Default | What it is |
 | --- | --- | --- |
-| `auth.issuer` | - | The issuer, exactly as its metadata writes it (required) |
+| `auth.issuer` | - | The issuer, exactly as its metadata writes it (required, unless `auth.issuers` is set) |
+| `auth.issuers` | none | More than one issuer, instead of `auth.issuer` and `auth.jwksUri` ([more than one issuer](sign-in.md#issuers)) |
 | `auth.resource` | - | The canonical address of the MCP endpoint, for example `https://reports.example.com/mcp` (required) |
 | `auth.audience` | `[resource]` | The `aud` values accepted, for providers that put a client id or an `api://` URI there |
 | `auth.requiredScopes` | none (a warning at start) | Scopes every request needs, for example `["pivotkit"]`. Also the scopes the 401 asks for |

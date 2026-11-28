@@ -1,6 +1,6 @@
 /*
- * check-config's lines for the requests to the OAuth issuer (issuer.js, options/issuer.js): the rules
- * they follow, whether the issuer's host (and auth.jwksUri's) is one the server may reach now, and,
+ * check-config's lines for the requests to the OAuth issuers (issuer.js, options/issuer.js): the rules
+ * they follow, whether each issuer's host (and its jwksUri's) is one the server may reach now, and,
  * with `runtime.discover` (the runners pass issuer.js discover), whether its metadata loads within
  * ISSUER_MS (a WARNING when not: the server starts and keeps trying; nothing secret is sent):
  *
@@ -12,7 +12,7 @@
  * private address, which the server refuses without auth.intranet: true
  */
 
-import { ISSUER_LIMITS, issuerRulesOf } from "../issuer.js";
+import { ISSUER_LIMITS, issuerRulesOf, issuerSchemeProblem, issuersOf } from "../issuer.js";
 import { settingsOf as downloadSettingsOf } from "../options/downloads.js";
 import { resolveRefusal } from "./host.js";
 import { bytesText } from "../text.js";
@@ -91,11 +91,11 @@ async function reachItems(options, runtime) {
     }
     const issuers = new Map();
     // an issuer the start refuses for its scheme is a PROBLEM already (check/access.js)
-    const scheme = URL.canParse(String(options.auth?.issuer)) ? new URL(String(options.auth?.issuer)).protocol : "";
-    if (options.auth?.mode === "oauth" && options.auth.issuer && (scheme === "https:" || options.auth.allowInsecureIssuer)) {
-        // download links (signed in) use the same issuer (options/downloads.js)
-        const links = runtime.http && downloadSettingsOf(options).signIn ? "; download links (signed in) answer 503 too" : "";
-        issuers.set(options.auth.issuer, ["auth.issuer", `callers get 503 until it loads${links}`]);
+    const usable = options.auth?.mode === "oauth" && issuerSchemeProblem(options) === null;
+    for (const [i, { issuer, key }] of (usable ? issuersOf(options) : []).entries()) {
+        // download links (signed in) use the first issuer (options/downloads.js)
+        const links = i === 0 && runtime.http && downloadSettingsOf(options).signIn ? "; download links (signed in) answer 503 too" : "";
+        issuers.set(issuer, [key, `callers get 503 until it loads${links}`]);
     }
     const out = [];
     for (const [issuer, [key, until]] of issuers) {
@@ -158,12 +158,14 @@ export async function section(options, _registry, runtime) {
         items.push(plain(signIn.tokenUrl && URL.canParse(signIn.tokenUrl) ? `download links' token endpoint: on ${new URL(signIn.tokenUrl).host} (output.downloads.signIn.tokenUrl)` : "download links' token endpoint: on the issuer's host only"));
     }
     let issuerRefused = false;
-    for (const [key, text] of /** @type {Array<[string, string | undefined]>} */ ([["auth.issuer", auth.issuer], ["auth.jwksUri", auth.jwksUri], ["output.downloads.signIn.tokenUrl", signIn?.tokenUrl ?? undefined]])) {
+    const issuerKeys = new Set(issuersOf(options).map((e) => e.key));
+    const addresses = /** @type {Array<[string, string | null | undefined]>} */ ([...issuersOf(options).flatMap((e) => [[e.key, e.issuer], [e.jwksKey, e.jwksUri]]), ["output.downloads.signIn.tokenUrl", signIn?.tokenUrl]]);
+    for (const [key, text] of addresses) {
         const said = text ? await hostItem(text, key, rules) : null;
-        issuerRefused ||= key === "auth.issuer" && said?.kind === "problem";
+        issuerRefused ||= issuerKeys.has(key) && said?.kind === "problem";
         // one cause, one warning: an issuer that cannot be looked up is said by the metadata check
         // below, with the connection's error, where the commands ask it
-        if (said && !(said.kind === "warning" && key === "auth.issuer" && typeof runtime.discover === "function")) {
+        if (said && !(said.kind === "warning" && issuerKeys.has(key) && typeof runtime.discover === "function")) {
             items.push(said);
         }
     }

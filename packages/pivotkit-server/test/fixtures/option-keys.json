@@ -122,6 +122,7 @@
                 },
                 "tokenExchange": {
                   "object": {
+                    "issuer": "string",
                     "tokenUrl": "string",
                     "clientId": "string",
                     "clientSecret": {
@@ -524,6 +525,16 @@
       },
       "defaultProfile": "string",
       "offerSourceScopes": "boolean",
+      "issuers": {
+        "list": {
+          "object": {
+            "issuer": "string",
+            "jwksUri": "string",
+            "audience": "strings",
+            "requiredScopes": "strings"
+          }
+        }
+      },
       "intranet": "boolean",
       "signedTokens": {
         "object": {
@@ -672,6 +683,7 @@
                 },
                 "tokenExchange": {
                   "object": {
+                    "issuer": "string",
                     "tokenUrl": "string",
                     "clientId": "string",
                     "clientSecret": {

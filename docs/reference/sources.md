@@ -409,7 +409,8 @@ restart.
 | `clientCredentials.clientId` | - | pivotkit's client at the token endpoint |
 | `clientCredentials.clientSecret` or `.assertion` | - | One of the two, as a secret reference |
 | `clientCredentials.scope`, `.audience`, `.resource` | none | Sent with the token request |
-| `tokenExchange.tokenUrl` | the `token_endpoint` of `auth.issuer`'s metadata | An `https://` address; the metadata's endpoint must be on the issuer's own origin. The metadata is read under the server's issuer rules: an issuer on a private address needs `auth.intranet: true` ([OAuth 2.1](mcp.md#oauth)) |
+| `tokenExchange.issuer` | the server's only issuer | The issuer whose people this exchange serves, one of [`auth.issuers`](sign-in.md#issuers); required when there are several. A person of another issuer does not see the source (`SOURCE_NOT_FOUND`), and their token never goes to this token endpoint |
+| `tokenExchange.tokenUrl` | the `token_endpoint` of that issuer's metadata | An `https://` address; the metadata's endpoint must be on the issuer's own origin. The metadata is read under the server's issuer rules: an issuer on a private address needs `auth.intranet: true` ([OAuth 2.1](mcp.md#oauth)) |
 | `tokenExchange.clientId`, `.clientSecret` | - | pivotkit's confidential client (`client_secret_basic`) |
 | `tokenExchange.audience` or `.resource` | - | The backend the exchanged token is for; at least one |
 | `tokenExchange.scope` | none | The scopes asked for; ask for the narrowest |

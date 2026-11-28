@@ -9,6 +9,7 @@
  */
 
 import { docsLink, docsOf } from "./branding.js";
+import { firstIssuerOf, issuersOf } from "../issuer.js";
 import { isLoopback } from "pivotkit-node/rest";
 import { ConfigError, CREATABLE_SECRET_REF, HTTPS_ISSUER_TEXT, SECRET_REF, throwRange } from "./shared.js";
 
@@ -66,7 +67,7 @@ export const KEYS = Object.freeze({
 export function settingsOf(options) {
     const d = options.output?.downloads ?? {};
     const oauth = options.auth?.mode === "oauth";
-    const signIn = d.signIn?.clientId ? { clientId: d.signIn.clientId, clientSecret: d.signIn.clientSecret ?? null, issuer: d.signIn.issuer ?? options.auth?.issuer ?? "", scopes: d.signIn.scopes ?? [...SIGN_IN_SCOPES], tokenUrl: d.signIn.tokenUrl ?? null } : null;
+    const signIn = d.signIn?.clientId ? { clientId: d.signIn.clientId, clientSecret: d.signIn.clientSecret ?? null, issuer: d.signIn.issuer ?? firstIssuerOf(options) ?? "", scopes: d.signIn.scopes ?? [...SIGN_IN_SCOPES], tokenUrl: d.signIn.tokenUrl ?? null } : null;
     return {
         enabled: d.enabled !== false && !options.output?.baseUrl && Boolean(options.output?.dir),
         expiresMinutes: d.expiresMinutes ?? EXPIRES_MINUTES.default,
@@ -144,6 +145,17 @@ export function validate(options, range = throwRange) {
 }
 
 /**
+ * The server's first issuer (auth.issuer, or the first of auth.issuers: the one it names to clients)
+ * and the key that sets it, for the messages.
+ * @param {import("../config.js").ServerOptions} options
+ * @returns {{ issuer: string | undefined, key: string }}
+ */
+function firstIssuerNamed(options) {
+    const first = issuersOf(options)[0];
+    return { issuer: first?.issuer, key: first?.key ?? "auth.issuer" };
+}
+
+/**
  * The rules between the keys of output.downloads (validate).
  * @param {import("../config.js").ServerOptions} options
  * @param {import("./shared.js").RangeProblem} range
@@ -167,16 +179,19 @@ function validateKeys(options, range) {
         if (options.auth?.mode !== "oauth") {
             throw new ConfigError('output.downloads.signIn: needs auth.mode "oauth" (the person signs in where the MCP client signs in)');
         }
+        const { issuer: firstIssuer, key: firstKey } = firstIssuerNamed(options);
         if (!settings.signIn?.issuer || !httpsOrAllowed(settings.signIn.issuer, options.auth?.allowInsecureIssuer === true)) {
-            // the key the operator set: signIn.issuer, or auth.issuer it follows when it is left out
-            throw new ConfigError(`${d.signIn.issuer !== undefined ? "output.downloads.signIn.issuer" : "auth.issuer"}: ${HTTPS_ISSUER_TEXT}`);
+            // the key the operator set: signIn.issuer, or the first issuer it follows when it is left out
+            throw new ConfigError(`${d.signIn.issuer !== undefined ? "output.downloads.signIn.issuer" : firstKey}: ${HTTPS_ISSUER_TEXT}`);
         }
-        // links are bound to the issuer and subject the MCP or REST token named: the person must sign in at the same issuer
-        if (d.signIn.issuer !== undefined && d.signIn.issuer !== options.auth?.issuer) {
+        // links are bound to the issuer and subject the MCP or REST token named: the person must sign
+        // in at the same issuer, and only the first issuer's callers get a link bound to a sign-in
+        // (delivery.js signedInForDelivery)
+        if (d.signIn.issuer !== undefined && d.signIn.issuer !== firstIssuer) {
             throw new ConfigError(
-                sameIssuer(d.signIn.issuer, options.auth?.issuer)
-                    ? "output.downloads.signIn.issuer: must be auth.issuer exactly; it differs only in its spelling (a trailing slash, upper-case letters in the scheme or host, a default port), and tokens name the issuer as auth.issuer does: leave signIn.issuer out"
-                    : `output.downloads.signIn.issuer: must be auth.issuer (${JSON.stringify(String(options.auth?.issuer))}), not ${JSON.stringify(d.signIn.issuer.slice(0, 200))}: a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did; leave it out. A download sign-in with an issuer of its own (a provider with one issuer per application, such as Authentik) is not supported yet${docsOf(options) === null ? "" : ` (${docsLink(docsOf(options), ISSUER_OF_ITS_OWN)})`}`
+                sameIssuer(d.signIn.issuer, firstIssuer)
+                    ? `output.downloads.signIn.issuer: must be ${firstKey} exactly; it differs only in its spelling (a trailing slash, upper-case letters in the scheme or host, a default port), and tokens name the issuer as ${firstKey} does: leave signIn.issuer out`
+                    : `output.downloads.signIn.issuer: must be ${firstKey} (${JSON.stringify(String(firstIssuer))}), not ${JSON.stringify(d.signIn.issuer.slice(0, 200))}: a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did; leave it out. A download sign-in with an issuer of its own (a provider with one issuer per application, such as Authentik) is not supported yet${docsOf(options) === null ? "" : ` (${docsLink(docsOf(options), ISSUER_OF_ITS_OWN)})`}`
             );
         }
         if (d.signIn.tokenUrl !== undefined && !httpsOrAllowed(d.signIn.tokenUrl, options.auth?.allowInsecureIssuer === true)) {

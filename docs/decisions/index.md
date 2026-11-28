@@ -40,3 +40,4 @@ link each other. [0001](0001-record-decisions.md) has the rules.
 | [0016](0016-link-parameters-in-the-query-string.md) | Link parameters in the page's query string | accepted | 2026-11-19 |
 | [0017](0017-report-snapshots-carry-rows.md) | Report snapshots may carry rows | proposed | 2026-11-18 |
 | [0018](0018-upgrading-page-for-the-newest-release.md) | The upgrading page covers the newest release | accepted | 2026-11-23 |
+| [0019](0019-more-than-one-oauth-issuer.md) | More than one OAuth issuer, each checked on its own | proposed | 2026-11-28 |

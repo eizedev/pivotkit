@@ -6,6 +6,19 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `auth.issuers`: the server accepts the tokens of up to 10 OAuth issuers, for example two
+  Authentik applications with an issuer each ([#587](https://github.com/eizedev/pivotkit/issues/587)).
+  A token is checked with the keys of the issuer its `iss` names only. Each entry can set its own
+  `jwksUri`, `audience` (in place of the endpoint's) and `requiredScopes` (on top of the
+  endpoint's; without them 403 `insufficient_scope`). The first issuer is the one named to clients.
+  `auth.issuer` works as before; both together are refused. REST and MCP answer 503 until every
+  issuer's metadata and keys are loaded.
+- `tokenExchange.issuer`: the issuer whose people a token exchange serves, required with more than
+  one issuer. A person of another issuer does not see such a source, and their token never goes to
+  its token endpoint. `check-config` lists each issuer with its audience and scopes.
+
 ## [0.6.0] - 2026-11-26
 
 ### Changed

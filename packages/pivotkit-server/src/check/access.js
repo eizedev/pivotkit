@@ -20,7 +20,7 @@
 
 import { pathOf, restResourceOf } from "../config.js";
 import { inertTokensText } from "../auth.js";
-import { issuerSchemeProblem } from "../issuer.js";
+import { issuerSchemeProblem, issuersOf } from "../issuer.js";
 import { TOKEN_MIN, tokenFault } from "../secret-rules.js";
 import { connectionLimitsOf, isLoopback } from "../listen.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, secretFileWarning, secretValue, unreadable } from "../secrets.js";
@@ -29,6 +29,20 @@ import { noTokenText } from "../state.js";
 import { expiryOf } from "../signed-tokens.js";
 import { signInItems } from "./operator.js";
 import { heading, plain, problem, secretText, warning } from "./format.js";
+
+/**
+ * The issuers whose tokens the server accepts, one line each: "issuer <url>", with its own audience
+ * and required scopes where auth.issuers gives them; the first is the one the server names to clients.
+ * @param {import("../config.js").ServerOptions} options
+ * @returns {import("./format.js").Item[]}
+ */
+function issuerLines(options) {
+    const issuers = issuersOf(options);
+    return issuers.map((e, i) => {
+        const own = [e.audience ? `audience ${e.audience.join(" ")}` : null, e.requiredScopes.length ? `required scopes ${e.requiredScopes.join(" ")}` : null, issuers.length > 1 && i === 0 ? "named to clients" : null].filter(Boolean);
+        return plain(`issuer ${e.issuer}${own.length ? ` (${own.join(", ")})` : ""}`);
+    });
+}
 
 /** @type {import("./index.js").Section} */
 export async function section(options, _registry, runtime) {
@@ -73,7 +87,7 @@ export async function section(options, _registry, runtime) {
         }
     }
     if (mode === "oauth") {
-        items.push(plain(`issuer ${auth.issuer}`), plain(`resource ${auth.resource}`));
+        items.push(...issuerLines(options), plain(`resource ${auth.resource}`));
         // each endpoint checks its own audience (REST: rest/sign-in.js): both, where REST is served too
         const audience = (auth.audience ?? [auth.resource]).join(" ");
         const restAudience = runtime.rest ? (options.rest?.audience?.length ? options.rest.audience : [restResourceOf(options)]).join(" ") : null;
@@ -84,7 +98,7 @@ export async function section(options, _registry, runtime) {
         }
         items.push(plain(`required scopes: ${auth.requiredScopes?.length ? auth.requiredScopes.join(" ") : "none (any token for this audience)"}`));
         // the start's own test (auth.js createAuthCore)
-        const schemeProblem = issuerSchemeProblem(auth);
+        const schemeProblem = issuerSchemeProblem(options);
         if (schemeProblem) {
             items.push(problem(schemeProblem, stop));
         }

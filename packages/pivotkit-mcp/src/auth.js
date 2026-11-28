@@ -5,7 +5,7 @@
  * - "token": 401 with `WWW-Authenticate: Bearer realm="pivotkit-mcp"` (the name's slug, branding.name,
  *   before "-mcp") and an OAuth error body;
  * - "oauth": the endpoint is an OAuth 2.1 protected resource (MCP authorization, revision
- *   2026-07-28): Protected Resource Metadata (RFC 9728) with the issuer as authorization server, the
+ *   2026-07-28): Protected Resource Metadata (RFC 9728) with the first issuer as authorization server, the
  *   SDK's requireBearerAuth for the 401 and 403 challenges (insufficient_scope for missing scopes),
  *   403 access_denied for a person whose token does not carry their groups (auth.groupProfiles),
  *   503 until the issuer's metadata is loaded. Its audience is auth.resource (the REST service has
@@ -16,7 +16,7 @@
 
 import { OAuthError, getOAuthProtectedResourceMetadataUrl, oauthMetadataResponse, requireBearerAuth } from "@modelcontextprotocol/server";
 import { groupRefusal, offeredScopes } from "pivotkit-server";
-import { AuthRefusal, brandingOfContext, docsLink } from "pivotkit-server/internal";
+import { AuthRefusal, brandingOfContext, docsLink, everyIssuerScoped } from "pivotkit-server/internal";
 
 /** The client of each answer that refused a verified token for its person's groups, for the log line. */
 const refusedClients = new WeakMap();
@@ -70,7 +70,7 @@ export async function createAuth(context, runtime) {
     const resource = new URL(/** @type {string} */ (auth.resource));
     const audience = auth.audience?.length ? auth.audience : [resource.href.replace(/\/$/, ""), resource.href];
     const requiredScopes = auth.requiredScopes ?? [];
-    if (!requiredScopes.length) {
+    if (!everyIssuerScoped(options, requiredScopes)) {
         context.log.warn("auth.requiredScopes is empty: any token of the issuer for this audience is accepted");
     }
     const resourceMetadataUrl = getOAuthProtectedResourceMetadataUrl(resource);
@@ -80,7 +80,8 @@ export async function createAuth(context, runtime) {
             try {
                 return await core.verify(token, { audience, resource });
             } catch (e) {
-                throw e instanceof AuthRefusal ? new OAuthError("invalid_token", e.message) : e;
+                // a valid token without its issuer's required scopes (auth.issuers) is the SDK's 403
+                throw e instanceof AuthRefusal ? new OAuthError(e.error === "insufficient_scope" ? "insufficient_scope" : "invalid_token", e.message) : e;
             }
         }
     };
