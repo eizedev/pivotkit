@@ -16,8 +16,11 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - `rest.browser.origins`: pages that read rows with a browser token, with CORS on the rows route
   only. `rest.browser.minutes` (default 5, at most 60), `rest.browser.key` and
   `rest.browser.levels`.
-- `create_link` takes `access` (`me`, `signedIn`, `group`), signed into the link's query string as
-  `pk-access`. The exchange route checks it; its refusal carries `linkAccess: true`.
+- `create_link` takes `access` (`me`, `signedIn`, `group`), an advisory level signed for the link's
+  source into its query string as `pk-access`. The exchange route checks it; its refusal carries
+  `linkAccess`: `"refused"` or `"invalid"`. A sign-in too large for a browser token is 413
+  `LIMIT_EXCEEDED` with `limit: "token"`. `check-config` warns when `rest.browser.levels` offers
+  `signedIn` beside `me` or `group`.
 - With a state directory, the server makes `secrets/browser.key` where a profile reads rows.
   `key new --for browser` makes one.
 - `check-config` has a section "Browser path".

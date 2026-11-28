@@ -1,6 +1,6 @@
 ---
 title: Rows of a source
-description: The REST route POST /api/v1/sources/records - the rows of a source for a person who signed in, so a host application's backend can show a live pivotkit report - how to turn it on, who gets rows, which fields leave, its limits, a host backend that fetches the rows, a page that reads them itself with a browser token, the log and sizing.
+description: The REST route POST /api/v1/sources/records - the rows of a source for a person who signed in, so a host application's backend can show a live pivotkit report - how to turn it on, who gets rows, which fields leave, its limits, a host backend that fetches the rows, a page that reads them with a browser token, the log and sizing.
 ---
 
 # Rows of a source
@@ -226,17 +226,18 @@ document.querySelector("pivot-report").data = { columns, types, data };
 
 ## A page reads the rows itself { #records-browser }
 
-A page can read the rows without a backend of its own in between. It holds a short-lived **browser
-token** instead of the person's own token. [Record 0020](../decisions/0020-the-browser-path.md)
-says why it works this way.
+The page reads the rows from pivotkit-server directly, with a short-lived **browser token**. Your
+backend still makes that token: it holds the person's own token, which never reaches the page.
+[Record 0020](../decisions/0020-the-browser-path.md) says why it works this way.
 
-1. The page gets the person's token, as for any REST call (OAuth of your issuer, or a [token from
-   another system](tokens.md#external-issuers) with a subject).
-2. It exchanges it at `POST /api/v1/sources/records/token` for a browser token. In most setups the
-   host application's backend makes this call, so the person's token never reaches the page.
-3. The page reads the rows with the browser token. The [components](live-rows.md) do steps 3 and
-   4 themselves, with the `getToken()` the page gives them.
-4. On expiry the page asks for a new one.
+1. Your backend exchanges the person's token at `POST /api/v1/sources/records/token` for a browser
+   token: OAuth of your issuer, or a [token from another system](tokens.md#external-issuers) with a
+   subject.
+2. The page reads the rows with the browser token, and asks your backend for a new one on expiry.
+   The [components](live-rows.md) do this with the `getToken()` the page gives them.
+
+Not yet: a page without any backend of its own, and a page of pivotkit-server that opens a shared
+live link and signs the person in.
 
 ```bash
 curl -s -H "Authorization: Bearer $PERSON_TOKEN" -H "Content-Type: application/json" \
@@ -261,9 +262,8 @@ The browser token:
   parameters are 403 `NOT_ALLOWED`.
 - is refused as an unknown token everywhere else: every other route, `/openapi.json`, MCP and the
   exchange route itself. It cannot make another token.
-- lives `rest.browser.minutes`, never longer than the person's token.
-- is encrypted. It tells the page nothing about the person. The log names its ID, never its value.
-- is never accepted in the address, only in the `Authorization` header.
+- lives [`rest.browser.minutes`](#records-browser-settings), never longer than the person's token.
+- is encrypted, read only from the `Authorization` header, and logged by its ID only.
 - carries the person's issuer, subject, profile and scopes, and only the claims the source's
   parameters are bound to. A code source gets the groups and claims too.
 
@@ -271,14 +271,16 @@ The exchange route refuses a source whose backend exchanges the person's own tok
 never carries it. Read such a source [through the host's backend](#records-host).
 
 An expired browser token is 401 `INVALID_TOKEN` with `expired: true`. Get a new one. A refused one
-does not count against the address's limit of failed sign-ins.
+does not count against the address's limit of failed sign-ins. A sign-in with more groups or claims
+than a browser token holds is 413 `LIMIT_EXCEEDED` with `limit: "token"`.
 
 ### Pages of another origin { #records-browser-origins }
 
 `rest.browser.origins` lists the pages that read rows with a browser token. The server's own origin
 may always. These origins get CORS on the rows route only, and only with a browser token or for the
 preflight. A person's own token from such a page is 403 `FORBIDDEN_ORIGIN`. `rest.cors.origins` is
-separate and unchanged.
+separate and unchanged. Behind a proxy that ends TLS, set `http.publicUrl` to the `https` address:
+the server's own origin comes from it.
 
 ### Access levels of a live link { #records-access }
 
@@ -290,14 +292,17 @@ separate and unchanged.
 | `signedIn` | Everyone who signs in and may read the rows (the default) |
 | `group` | The members of `group`, one of the maker's own groups (the `groups` claim) |
 
-- The level goes signed into the link's query string as `pk-access`. The person and the group are
-  in it only as keyed digests.
-- The exchange route checks it. A refusal is 403 `NOT_ALLOWED` with `linkAccess: true`, so a page
-  can tell it from missing rights.
+A level is advisory, not a data boundary. Rows stay limited to what each person may see, with or
+without the link.
+
+- The level goes signed into the link's query string as `pk-access`, for the link's source only.
+  The person and the group are in it as keyed digests, different for each link.
+- The exchange route checks it. A refusal is 403 `NOT_ALLOWED` with `linkAccess`: `"refused"` when
+  the level shuts this person out, `"invalid"` when the value is not valid, no longer offered, or
+  missing. Then the person needs a new link.
 - `rest.browser.levels` lists the levels an instance offers. A link without `pk-access` opens as
-  `signedIn` where that is offered, and is refused otherwise.
-- A level only narrows who opens the link. It is no data boundary: everyone reads with their own
-  rights, and could read the same rows without the link.
+  `signedIn` where that is offered, and is refused otherwise. So `me` and `group` beside `signedIn`
+  hold only while the link keeps its `pk-access`. `check-config` warns about this mix.
 - A person of an [external issuer](tokens.md#external-issuers) gets `signedIn` links only.
 
 ### Settings { #records-browser-settings }

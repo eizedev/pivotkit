@@ -39,7 +39,7 @@ access level (`pk-access` of the query string) when there is one. It gives:
   the `Authorization` header only, never in an address. It asks again 15 seconds before `expiresAt`.
 - nothing (`null`, `""`): the person must sign in again. The report says so.
 - an error with `problem`, the exchange route's answer: the report shows its state. Any other error
-  counts as a server it cannot reach.
+  is the state `signIn`.
 
 A 401 from the rows route asks `getToken` once more and tries again once. Only when that fails too
 does the report say that the sign-in ended.
@@ -55,15 +55,22 @@ does the report say that the sign-in ended.
 
 | `state` | When |
 | --- | --- |
-| `refused` | The person may not read this source or these parameters (403, 404, 400). |
+| `refused` | The person may not read this source or these parameters (403, 404). |
 | `linkRefused` | The link's [access level](records.md#records-access) shuts this account out. |
+| `linkInvalid` | The link's access level is not valid, no longer offered or missing: ask for a new link. |
+| `unfit` | The request does not fit the source, such as a parameter it does not take (400, 422). |
 | `expired` | `getToken` gave no new token, or the new one was refused too. |
+| `signIn` | `getToken` failed without a `problem`: the page's sign-in step, not the report server. |
+| `signInLarge` | The sign-in carries more groups or claims than a browser token holds. |
 | `large` | More rows or values than the server's limit (413 `LIMIT_EXCEEDED`). |
-| `busy` | The server is busy (503, 429). **Try again** reads once more. |
+| `busy` | The server is busy (503, 429). The text names its `Retry-After`. **Try again** reads once more. |
 | `unreachable` | No answer, an answer that broke off, or a server error. |
 
 The texts are under `labels.server` ([localisation](localisation.md)). The network code, the states
 and their texts load on first use, so a report without `server` loads none of it.
+
+A `url` over `http` that is not this machine gets one warning in the console: the token would cross
+the network in clear text.
 
 Copy link keeps the parameters the report read and `pk-access`. The toast and the share note name the
 parameters: whoever opens the link reads with their own account's rights.

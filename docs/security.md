@@ -782,20 +782,16 @@ operator's, never a caller's:
 
 ## The browser path { #browser-path }
 
-A page can read a report's rows with a [browser token](reference/records.md#records-browser)
-instead of the person's own token:
+A page can read a report's rows with a short-lived [browser token](reference/records.md#records-browser)
+instead of the person's own token. That page says what the token reads, how long it lives and how
+it ends. What it means for an operator:
 
-- The page never needs the person's token. The host's backend can make the exchange.
-- A browser token reads the rows of one source with its parameters, for minutes
-  (`rest.browser.minutes`, 5 by default). Every other route, `/openapi.json` and MCP refuse it. A
-  stolen one reads that one report until it expires.
-- It is only taken from the `Authorization` header. The server refuses it in the address and never
-  logs its value.
-- A new `rest.browser.key` ends every browser token within a second. A deny list for one token is
-  not built.
-- `rest.browser.origins` is a CORS list of its own: the rows route only, browser tokens only. Keep
-  `rest.cors.origins` for pages that send a person's token.
-- A link's access level only narrows who opens a link. Everyone reads with their own rights.
+- Your backend makes the exchange, so the page never holds the person's token. A stolen browser
+  token reads one report until it expires.
+- `rest.browser.origins` is a CORS list of its own. Keep `rest.cors.origins` for pages that send a
+  person's token.
+- A link's [access level](reference/records.md#records-access) is advisory. Everyone reads with
+  their own rights.
 
 ## Parameters in a link { #link-params }
 

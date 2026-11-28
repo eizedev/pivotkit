@@ -1,7 +1,7 @@
 ---
 title: A browser token for the rows of one report
 description: The browser reads a report's rows with a separate short-lived token the server makes for one source, never with a passed-on access token. The components get it through getToken(). This amends 0010 and 0015 for the rows route.
-status: accepted
+status: proposed
 date: 2026-11-28
 ---
 
@@ -31,8 +31,10 @@ Chosen option: a separate short-lived token. Decided on #621:
 
 - The host's backend, or the server's own viewer page, exchanges the person's token at
   pivotkit-server for a browser token.
-- The server signs it with its own key. It is valid only for reading the rows of the report it was
-  made for, for a few minutes, and it can be revoked.
+- The server makes it with its own key. It is valid only for reading the rows of the report it was
+  made for, for a few minutes, and it can be revoked. [0020](0020-the-browser-path.md) refines
+  both: the token is encrypted with the key, not signed, and a new key revokes every token at once.
+  A deny list for one token is not built.
 - At the start, the browser path accepts only this token, never a passed-on access token of the
   host or the identity provider. Loosening this later is not breaking; tightening it would be.
 - The components get the token through `getToken()` and never know where it comes from, so this
@@ -40,8 +42,8 @@ Chosen option: a separate short-lived token. Decided on #621:
 
 Reason recorded on #621: a script in the page can read a token in the browser. A passed-on token
 also works for the host itself and everything else with the same audience. A separate token only
-reads this report, ends on its own and can be revoked. It works the same for every host, with or
-without its own identity provider.
+reads this report, ends on its own and can be revoked (all at once, as 0020 refines it). It works the
+same for every host, with or without its own identity provider.
 
 ### What this changes in earlier records
 

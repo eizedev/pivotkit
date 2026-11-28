@@ -15,9 +15,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   in `allowParams`. The token goes into the `Authorization` header only and is renewed before it
   expires or after a 401 ([#621](https://github.com/eizedev/pivotkit/issues/621)).
 - Its states: a message in place of the report while it shows no rows (no access, the link not
-  shared with this account, the sign-in ended, too much data, the server busy or not reachable), a
-  banner above the report when reading rows again fails, and after 3 seconds a line over the
-  skeleton. Each has a line for IT support with the server's code and request id. `onServerState`
+  shared with this account or no longer working, a link that does not fit, the sign-in ended, failed
+  or too large, too much data, the server busy or not reachable), a banner above the report when
+  reading rows again fails, and after 3 seconds a line over the skeleton. A line for IT support names
+  the server's code and request id where there is one. `onServerState`
   gets every state, never the token. The texts are `labels.server`, English and German
   ([#621](https://github.com/eizedev/pivotkit/issues/621)).
 - Copy link of a report with a server keeps the parameters it read and `pk-access`. The toast and

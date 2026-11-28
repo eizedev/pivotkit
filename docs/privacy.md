@@ -181,8 +181,10 @@ through the host application's server:
   claims the source's parameters are bound to. The page cannot read them.
 - Its log line names the token's ID, never its value or the person, unless `audit.subject` names the
   person as on every line.
-- A link's access level (`pk-access`) holds the maker or the group only as a keyed digest. It travels
-  in the query string like the [link's parameters](security.md#link-params).
+- A link's access level (`pk-access`) holds the maker or the group only as a keyed digest, different
+  for each link. It travels in the query string like the [link's parameters](security.md#link-params).
+- Copy link keeps the parameters in the address. Its toast and the share note show their values, such
+  as `customer: acme`, to the person who copies the link.
 - The page holds the rows in the browser's memory, as with a host's backend. pivotkit keeps neither
   the token nor the rows in the browser's storage.
 
