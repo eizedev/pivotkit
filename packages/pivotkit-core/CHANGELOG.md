@@ -16,6 +16,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   data. Nothing in pivotkit passed one
   ([#900](https://github.com/eizedev/pivotkit/issues/900),
   [#990](https://github.com/eizedev/pivotkit/pull/990), thanks @harshita-jangra).
+- `labelColorOn` measures a translucent ink as it is drawn, mixed with the fill under it: a theme's
+  `rgba(0, 0, 0, 0.87)` counted as black before. It reads colours with alpha as `#rgba`,
+  `#rrggbbaa` and `rgb(r g b / a)` too
+  ([#1000](https://github.com/eizedev/pivotkit/issues/1000)).
 
 ## [0.11.0] - 2026-11-26
 
