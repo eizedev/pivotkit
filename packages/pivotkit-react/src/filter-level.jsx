@@ -398,6 +398,9 @@ function ItemPicker({ items, value, onChange, label, testId, labels, locale }) {
     );
 }
 
+/** A saved comparison value as the rule field shows it; numbers follow the report locale. */
+const itemRuleText = (value, kind, locale) => value === undefined ? "" : kind === "number" ? numberText(value, locale) : String(value);
+
 /**
  * A rule on the item itself: "Released (Year) [is from] [2022]", "Price [is between] [10] and
  * [20]", for dates also "Released [is in the last] [5] [years]" (a relative range). The value is a
@@ -409,14 +412,13 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
     const narrow = useContext(LayerContext).size === "narrow";
     const words = fk.dates ? labels.dateOps : labels.valueOps;
     const ops = fk.dates ? [...RULE_OPS.compare, "last"] : RULE_OPS.compare;
-    const textOf = (v) => (v === undefined ? "" : fk.item === "number" ? numberText(v, locale) : String(v));
     const compared = rule?.type === "compare" ? rule : null;
     const ranged = rule?.type === "relative" ? rule : null;
     const [expandedDates] = useState(() => [compared?.value, compared?.value2].some((v) => /^(?:[+-]|0000-)/.test(String(v))) || (fk.item === "date" && items.some((i) => typeof i.value === "number" && (new Date(i.value).getUTCFullYear() < 1 || new Date(i.value).getUTCFullYear() > 9999))));
     const [s, setS] = useState(() => ({
         op: ranged ? "last" : compared ? ruleOp(compared) : ">=",
-        a: textOf(compared?.value),
-        b: textOf(compared?.value2),
+        a: itemRuleText(compared?.value, fk.item, locale),
+        b: itemRuleText(compared?.value2, fk.item, locale),
         count: numberText(ranged?.count ?? 5, locale),
         unit: ranged?.unit ?? "year"
     }));
@@ -454,7 +456,7 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
     };
     const restore = () => {
         later.cancel();
-        const was = { a: textOf(compared?.value), b: textOf(compared?.value2), count: numberText(ranged?.count ?? 5, locale) };
+        const was = { a: itemRuleText(compared?.value, fk.item, locale), b: itemRuleText(compared?.value2, fk.item, locale), count: numberText(ranged?.count ?? 5, locale) };
         if (s.a === was.a && s.b === was.b && s.count === was.count) {
             return false;
         }

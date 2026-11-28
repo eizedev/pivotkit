@@ -328,6 +328,7 @@ for (const theme of ["light", "dark"]) for (const width of [1280, 390]) test(`si
         }
         createRoot(section).render(React.createElement(Example));
     });
+    await expect(page.locator("#expanded-rule-report .pk-root")).toBeVisible();
     await openZones(page.locator("#expanded-rule-report"));
     await page.locator("#expanded-rule-report").getByTestId("chip-menu-Date").click();
     await page.getByTestId("topic-filter").click();
@@ -357,6 +358,7 @@ for (const theme of ["light", "dark"]) for (const width of [1280, 390]) test(`sa
         }
         createRoot(section).render(React.createElement(Example));
     });
+    await expect(page.locator("#expanded-rule-report .pk-root")).toBeVisible();
     await openZones(page.locator("#expanded-rule-report"));
     await page.locator("#expanded-rule-report").getByTestId("chip-menu-Date").click();
     await page.getByTestId("topic-filter").click();
