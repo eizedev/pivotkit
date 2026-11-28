@@ -576,7 +576,7 @@ CI runs the same command on Node 24 and measures the same numbers. It fails when
 | When a view has unused parts (their plain words: English, and German for a German report) | 2 | 18 KiB | 6 KiB |
 | With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 6 | 60 KiB | 23.7 KiB |
 | With `allow-import`, the worker of a CSV or JSON file (`dist/import-worker.js`, one file) | 1 | 29 KiB | 12 KiB |
-| With `server-url`, on the first read (the network code, the states with their English and German texts) | 1 | 11 KiB | 3.9 KiB |
+| With `server-url`, on the first read (the network code, the states with their English and German texts) | 1 | 11 KiB | 4 KiB |
 
 A page that copies `dist/` by hand deploys all of it, `dist/chunks/` included:
 
