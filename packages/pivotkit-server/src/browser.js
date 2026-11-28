@@ -10,8 +10,9 @@
  * 4. the link's access level (link-access.js), where the request carries one;
  * 5. the token (browser-tokens.js), rest.browser.minutes long, never past the person's own token.
  *
- * The answer is { token, tokenType, expiresIn, expiresAt, source }. The request's log line names the
- * token's ID, never its value. A browser token cannot make another one: only the rows route reads it.
+ * The answer is { token, tokenType, expiresIn, expiresAt, source }. A refusal by the link's access
+ * level is NOT_ALLOWED with `linkAccess: true`, so a page tells it from missing rights. The request's
+ * log line names the token's ID, never its value. A browser token cannot make another one: only the rows route reads it.
  */
 
 import { OperationError, checkInput } from "pivotkit-report/operations";
@@ -23,7 +24,8 @@ import { browserSettingsOf } from "./options/browser.js";
 import { checkDepth } from "./input-depth.js";
 import { checkLinkAccess } from "./link-access.js";
 import { recordsRefusal } from "./records.js";
-import { json } from "./rest/problem.js";
+import { json, problemsFor } from "./rest/problem.js";
+import { brandingOfContext } from "./branding.js";
 import { RECORDS_PATH } from "./rest/routes.js";
 import { exchangesToken } from "./sources/auth.js";
 import { PARAMS_INPUT } from "./sources/input.js";
@@ -70,6 +72,7 @@ export function createBrowserPath(context) {
     const settings = browserSettingsOf(options);
     const browserOrigins = new Set(settings.origins);
     const ownOrigin = publicOriginOf(options);
+    const { problemOf } = problemsFor(brandingOfContext(context).docs);
 
     /**
      * The answer of the exchange route (the body read and parsed; the caller signed in).
@@ -91,7 +94,15 @@ export function createBrowserPath(context) {
         const params = input.params ?? {};
         // the parameters as the source's rules take them for this person, before a token holds them
         await context.registry.resolve(input.source, caller, { files: false, surface: "rest" }, params);
-        await checkLinkAccess(tokens.keys, options, caller, input.access);
+        try {
+            await checkLinkAccess(tokens.keys, options, caller, input.access);
+        } catch (e) {
+            // the link's level shuts this person out, which is not the source's rights: `linkAccess` tells a page which it is
+            if (e instanceof OperationError) {
+                return problemOf(e, { extra: { linkAccess: true } });
+            }
+            throw e;
+        }
         const claims = Object.values(source?.params ?? {}).flatMap((p) => (p && typeof p === "object" && typeof p.claim === "string" ? [p.claim] : []));
         const issued = await tokens.issue(caller, { source: input.source, params, code: typeof source?.load === "function", claims });
         if (!issued) {

@@ -48,7 +48,7 @@ async function serverOf(extra = {}) {
     const options = {
         sources: {
             sales: { file: "data/sales.csv", link: `${PAGE}/report`, policy: { fields: { Customer: "hide" } } },
-            team: { load: async (params) => [{ Region: String(params.team), Sales: 1 }], params: { team: { type: "string" } }, policy: { default: "show" } }
+            team: { load: async (params) => [{ Region: String(params.team), Sales: 1 }], params: { team: { type: "string" } }, policy: { default: "show" } },
         },
         policy: { profiles: PROFILES },
         auth: { mode: "token", tokens: [{ name: "ops", env: "OPS", profile: "staff" }], externalIssuers: [{ issuer: PSU.issuer, typ: PSU.typ, scopes: ["pivotkit:read"], profiles: Object.keys(PROFILES), profile: "staff", keys: [{ kid: PSU.kid, publicKey: { file: "keys/psu.pub" } }] }], ...(extra.auth ?? {}) },
@@ -133,6 +133,7 @@ test("only a person who may read the source's rows gets a browser token, and a b
         const plain = await exchange(server, await person({ profile: "plain" }), { source: "sales" });
         assert.equal(plain.status, 403);
         assert.equal(plain.data.code, "NOT_ALLOWED");
+        assert.equal(plain.data.linkAccess, undefined, "missing rights are no link refusal");
         const missing = await exchange(server, await person(), { source: "nothing-here" });
         assert.deepEqual([missing.status, missing.data.code, missing.data.detail], [plain.status, plain.data.code, missing.data.detail], "a missing source answers as one the caller may not read");
         const token = (await exchange(server, await person(), { source: "sales" })).data.token;
@@ -164,9 +165,41 @@ test("every route but the rows route, /openapi.json and MCP refuse a browser tok
         // never in the address, not even on the rows route
         const inAddress = await call(`${server.api}/sources/records?access_token=${encodeURIComponent(token)}`, { body: { source: "sales" } });
         assert.equal(inAddress.status, 401);
+        // a download link's token is in its path and has its own syntax: a browser token opens nothing there
+        assert.notEqual((await fetch(`${server.url}/downloads/${encodeURIComponent(token)}`)).status, 200);
         assert.ok(!JSON.stringify(server.log).includes(token));
     } finally {
         await server.close();
+    }
+});
+
+test("the exchange route refuses a source whose backend exchanges the person's token", async () => {
+    const local = await localIssuer();
+    const dir = workspace({ "sales.csv": CSV });
+    const vms = { http: { url: "https://api.example.test/vms", auth: { tokenExchange: { audience: "a", clientId: "p", clientSecret: { env: "X" } } } }, policy: { default: "hide", fields: { Name: "show" } } };
+    const server = await restServer(
+        {
+            sources: { sales: { file: "data/sales.csv", policy: { fields: { Customer: "hide" } } }, vms },
+            policy: { profiles: { staff: { ...PROFILES.staff, records: ["sales", "vms"] } } },
+            auth: { mode: "oauth", issuer: local.url, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"], defaultProfile: "staff" },
+            http: { publicUrl: "https://pk.example.com/" },
+            baseDir: dir
+        },
+        { env: { X: "secret" } }
+    );
+    const ana = () => local.token({ claims: { client_id: "host-app" }, aud: "https://pk.example.com/api/v1", sub: "ana" });
+    try {
+        await untilReady(server, 100);
+        const got = await exchange(server, await ana(), { source: "vms" });
+        assert.equal(got.status, 403, JSON.stringify(got.data));
+        assert.equal(got.data.code, "NOT_ALLOWED");
+        assert.match(got.data.detail, /exchanges your own token/);
+        assert.equal(got.data.token, undefined);
+        // the other sources still get one
+        assert.equal((await exchange(server, await ana(), { source: "sales" })).status, 200);
+    } finally {
+        await server.close();
+        await local.close();
     }
 });
 
@@ -313,6 +346,8 @@ test("access levels: create_link signs the level into the link, and the exchange
         const bob = await exchange(server, await as("bob"), { source: "sales", access: mine.value });
         assert.equal(bob.status, 403);
         assert.equal(bob.data.code, "NOT_ALLOWED");
+        // the link shuts bob out, not his rights: a page says so in its own words
+        assert.equal(bob.data.linkAccess, true);
 
         const team = await linkOf({ level: "group", group: "sales-team" });
         assert.equal(team.made.status, 200, JSON.stringify(team.made.data));
