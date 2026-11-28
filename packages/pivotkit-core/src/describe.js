@@ -14,7 +14,7 @@ import { isEncoded } from "./encode.js";
 import { PivotkitError } from "./errors.js";
 import { numberFormat } from "./intl.js";
 import { fill, pluralForm } from "./labels.js";
-import { isPlainObject, optionsOf, resolveLocale } from "./util.js";
+import { get, isPlainObject, optionsOf, resolveLocale, shown } from "./util.js";
 import { normalize, validate, viewFields } from "./view.js";
 import { FIELD_TYPES } from "./view-file.js";
 
@@ -54,6 +54,30 @@ const nameText = (name) => /** @type {string} */ (valueText(name, "string"));
  * @property {string} text
  */
 
+/** Validates a field-definition list (`data` array or `schema.fields`) and names the first wrong entry. */
+function checkFieldList(list, prefix, rawArray) {
+    const allowed = FIELD_TYPES.join(", ");
+    for (let i = 0; i < list.length; i++) {
+        const entry = list[i];
+        const at = `${prefix}[${i}]`;
+        const name = get(entry, "name");
+        if (typeof name !== "string") {
+            const hint = rawArray ? `pass encoded data (encode() the rows first), { fields }, or an array of { name, type } (allowed types: ${allowed})` : `must be { name, type } with a string name; allowed types: ${allowed}`;
+            throw new PivotkitError("INVALID_ARGUMENT", `describeSource: ${at} ${rawArray ? "has no string name; " : ""}${hint}`);
+        }
+        const type = get(entry, "type");
+        const label = JSON.stringify(nameText(name));
+        if (type === undefined) {
+            const tail = rawArray ? ` (allowed types: ${allowed}); encode() the rows first if passing raw rows` : `; allowed types: ${allowed}`;
+            throw new PivotkitError("INVALID_ARGUMENT", `describeSource: ${at} (${label}) has no type${tail}`);
+        }
+        if (typeof type !== "string" || !/** @type {readonly string[]} */ (FIELD_TYPES).includes(type)) {
+            const shownType = typeof type === "string" ? JSON.stringify(shown(type)) : shown(type);
+            throw new PivotkitError("INVALID_ARGUMENT", `describeSource: ${at} (${label}) has unknown type ${shownType}; allowed types: ${allowed}`);
+        }
+    }
+}
+
 /**
  * The fields of a data set: type, and with encoded data the number of rows, distinct items, blanks,
  * the first items and the smallest and largest value; the aggregators and filter types each works
@@ -65,12 +89,19 @@ const nameText = (name) => /** @type {string} */ (valueText(name, "string"));
  */
 export function describeSource(data, options) {
     options = optionsOf(options, "describeSource");
-    const isFieldDef = (f) => isPlainObject(f) && typeof f.name === "string" && typeof f.type === "string" && FIELD_TYPES.includes(f.type);
-    if (Array.isArray(data) && data.length > 0 && !data.every(isFieldDef)) {
-        throw new PivotkitError("INVALID_ARGUMENT", "describeSource takes encoded data, a schema or an array of { name, type }; encode() the rows first");
-    }
     const cap = Number.isInteger(options.items) && /** @type {number} */ (options.items) >= 0 ? /** @type {number} */ (options.items) : DESCRIBE_LIMITS.items;
     const encoded = isEncoded(data) ? data : null;
+    if (!encoded) {
+        const schemaFields = get(data, "fields");
+        const nestedFields = get(get(data, "schema"), "fields");
+        if (Array.isArray(data)) {
+            checkFieldList(data, "data", true);
+        } else if (Array.isArray(schemaFields)) {
+            checkFieldList(schemaFields, "fields", false);
+        } else if (Array.isArray(nestedFields)) {
+            checkFieldList(nestedFields, "schema.fields", false);
+        }
+    }
     const fields = encoded ? encoded.schema.fields : viewFields(/** @type {any} */ ({ derived: [] }), data);
     const summaries = fields.map((f) => {
         const type = typeof f.type === "string" ? f.type : "string";
