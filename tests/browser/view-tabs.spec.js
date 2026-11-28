@@ -444,12 +444,15 @@ test("the host's zones start state: folded or open over the report's height; the
     await page.goto("pages/element-two.html");
     const report = page.locator("#tickets");
     const fold = report.getByTestId("layout-summary");
-    await fold.waitFor();
+    await report.locator('[data-testid="pivot-table"]').waitFor();
+    await expect(fold).toHaveAttribute("aria-expanded", "true");
+    await twoFrames(page);
     await report.evaluate((el) => el.setAttribute("zones", "folded"));
     await expect(fold).toHaveAttribute("aria-expanded", "false");
     await fold.click();
     await expect(fold).toHaveAttribute("aria-expanded", "true");
     await report.evaluate((el) => el.setAttribute("zones", "open"));
+    await twoFrames(page);
     await expect(fold).toHaveAttribute("aria-expanded", "true");
     await report.evaluate((el) => el.setAttribute("zones", "folded"));
     await expect(fold).toHaveAttribute("aria-expanded", "false");
