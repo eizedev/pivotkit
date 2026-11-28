@@ -19,6 +19,7 @@ import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "
 import { CATALOG, LIMITS, fieldLabel, formatter } from "pivotkit-core";
 import { LimitsContext, itemsOf } from "./limits-context.js";
 import { ClearInput } from "./clear-input.jsx";
+import { useDateInput } from "./use-date-input.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { activeIn, useFormName } from "./dom.js";
 import { FILTER_LIST_MAX, keyOf, ValueList } from "./filter.jsx";
@@ -417,7 +418,7 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
     const ops = fk.dates ? [...RULE_OPS.compare, "last"] : RULE_OPS.compare;
     const compared = rule?.type === "compare" ? rule : null;
     const ranged = rule?.type === "relative" ? rule : null;
-    const [expandedDates] = useState(() => [compared?.value, compared?.value2].some((v) => /^(?:[+-]|0000-)/.test(String(v))) || ctx.expandedDates);
+    const expandedDates = useDateInput(compared, ctx.expandedDates);
     const [s, setS] = useState(() => ({
         op: ranged ? "last" : compared ? ruleOp(compared) : ">=",
         a: itemRuleText(compared?.value, fk.item, locale),
