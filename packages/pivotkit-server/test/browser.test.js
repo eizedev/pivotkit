@@ -275,7 +275,7 @@ test("a new rest.browser.key ends every browser token within a second", async ()
         const started = Date.now();
         // asked every 100 ms, so the person's rate limit is not what answers
         await until(async () => (await rows(server, token, { source: "sales" })).status === 401, { tries: 50, every: 100, message: "the old key's token still reads rows" });
-        assert.ok(Date.now() - started < KEY_READ_MS * 3);
+        assert.ok(Date.now() - started < KEY_READ_MS * 3); // wall time: the key is read again every KEY_READ_MS of the clock
         const fresh = (await exchange(server, await person(), { source: "sales" })).data.token;
         assert.equal((await rows(server, fresh, { source: "sales" })).status, 200);
     } finally {
