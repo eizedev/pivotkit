@@ -69,7 +69,7 @@
   },
   "dependencies": {
     "echarts": "6.1.0",
-    "jose": "6.2.17",
+    "jose": "6.2.18",
     "pivotkit-core": "^0.11.0",
     "pivotkit-node": "^0.2.0",
     "pivotkit-report": "^0.7.0",
