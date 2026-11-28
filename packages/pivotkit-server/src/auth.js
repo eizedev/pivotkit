@@ -606,7 +606,7 @@ async function oauthCore(options, { env, log }) {
         if (held) {
             return held;
         }
-        log.debug("oauth: token refused", { reason: "UNKNOWN_ISSUER" });
+        log.debug("oauth: token refused", { reason: "UNKNOWN_ISSUER", expected: { issuers: [...keys.keys()] } });
         throw new AuthRefusal(401, "invalid_token", NOT_FOR_THIS_SERVER);
     };
     /** A 403 insufficient_scope for a token without its issuer's own required scopes (auth.issuers[i].requiredScopes). */
@@ -630,6 +630,12 @@ async function oauthCore(options, { env, log }) {
         auditName: (iss, subject) => auditText(audit, iss, subject),
         /** Whether every issuer's metadata and keys are loaded. */
         ready,
+        /**
+         * The required scopes of the issuer a token names in iss, unverified (auth.issuers[i].requiredScopes;
+         * empty for another token): what a 403 insufficient_scope asks for on top of the endpoint's.
+         * @param {string} token
+         */
+        issuerScopes: (token) => keysOf(token)?.entry.requiredScopes ?? [],
         /** The first issuer's metadata document, once loaded. */
         metadata: () => all[0].metadata(),
         /**

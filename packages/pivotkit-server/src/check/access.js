@@ -20,7 +20,7 @@
 
 import { pathOf, restResourceOf } from "../config.js";
 import { inertTokensText } from "../auth.js";
-import { issuerSchemeProblem, issuersOf } from "../issuer.js";
+import { everyIssuerScoped, issuerSchemeProblem, issuersOf } from "../issuer.js";
 import { TOKEN_MIN, tokenFault } from "../secret-rules.js";
 import { connectionLimitsOf, isLoopback } from "../listen.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, secretFileWarning, secretValue, unreadable } from "../secrets.js";
@@ -42,6 +42,18 @@ function issuerLines(options) {
         const own = [e.audience ? `audience ${e.audience.join(" ")}` : null, e.requiredScopes.length ? `required scopes ${e.requiredScopes.join(" ")}` : null, issuers.length > 1 && i === 0 ? "named to clients" : null].filter(Boolean);
         return plain(`issuer ${e.issuer}${own.length ? ` (${own.join(", ")})` : ""}`);
     });
+}
+
+/**
+ * The endpoint's required scopes (auth.requiredScopes), or what holds without them: each issuer's own
+ * (issuerLines) where every issuer has some, else any token for the audience.
+ * @param {import("../config.js").ServerOptions} options
+ * @returns {import("./format.js").Item}
+ */
+function requiredScopesLine(options) {
+    const scopes = options.auth?.requiredScopes ?? [];
+    const none = everyIssuerScoped(options, []) ? "none at the endpoint (each issuer's own above)" : "none (any token for this audience)";
+    return plain(`required scopes: ${scopes.length ? scopes.join(" ") : none}`);
 }
 
 /** @type {import("./index.js").Section} */
@@ -96,7 +108,7 @@ export async function section(options, _registry, runtime) {
         } else if (audience !== auth.resource) {
             items.push(plain(`audience: ${audience}`));
         }
-        items.push(plain(`required scopes: ${auth.requiredScopes?.length ? auth.requiredScopes.join(" ") : "none (any token for this audience)"}`));
+        items.push(requiredScopesLine(options));
         // the start's own test (auth.js createAuthCore)
         const schemeProblem = issuerSchemeProblem(options);
         if (schemeProblem) {

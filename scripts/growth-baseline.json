@@ -59,7 +59,7 @@
             "packages/pivotkit-report/src/template.js Function 'parseTemplate'": [48],
             "packages/pivotkit-server/src/auth.js Function 'callerOf'": [36],
             "packages/pivotkit-server/src/check-source.js Async function 'checkSource'": [61],
-            "packages/pivotkit-server/src/check/access.js Async function 'section'": [59],
+            "packages/pivotkit-server/src/check/access.js Async function 'section'": [57],
             "packages/pivotkit-server/src/check/downloads.js Async function 'links'": [54],
             "packages/pivotkit-server/src/check/http.js Async function 'section'": [53],
             "packages/pivotkit-server/src/check/inline.js Async function 'section'": [32],

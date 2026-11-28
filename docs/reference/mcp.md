@@ -630,7 +630,7 @@ import { createHmac } from "node:crypto";
 createHmac("sha256", key).update(JSON.stringify([issuer, subject])).digest("hex").slice(0, 16);
 ```
 
-`issuer` is the token's `iss` exactly as the server checks it (`auth.issuer`), `subject` the value
+`issuer` is the token's `iss` exactly as the server checks it (`auth.issuer` or an `auth.issuers` entry), `subject` the value
 of `auth.subjectClaim`.
 
 ## Streamable HTTP { #http }
@@ -810,7 +810,7 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
   256 KiB of keys. A larger key set is refused, and no token verifies against it.
 - Link-local and cloud metadata addresses are never reached. Loopback and private addresses are
   reached only with `auth.intranet: true`, for an issuer in your LAN or cluster (Keycloak,
-  Authentik). An IP address as the host works only in `auth.issuer` or `auth.jwksUri` itself.
+  Authentik). An IP address as the host works only in an issuer or a `jwksUri` the operator wrote.
 - A refused request is a warning in the log that names the setting. `check-config` prints a PROBLEM
   for an issuer on such an address. For a certificate of your own authority, set
   `NODE_EXTRA_CA_CERTS` to its file.
@@ -836,7 +836,7 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 | `auth.scopeClaim` | `scope`, else `scp` | The claim the scopes are read from |
 | `auth.subjectClaim` | `sub` | The claim that names the person: the identity a code source's kept data, a download link and the request limits are bound to. Name a claim the provider does not let users change (not a profile field such as a nickname). A claim a person could edit would let them act as someone else or open new limits for themselves. A token without it (or with an empty one, or one over 256 characters) has no identity, and nothing is kept for it. Some providers give a different `sub` per application. For those, name another claim: for Microsoft Entra ID, for example, `oid`. Check your provider's documentation |
 | `auth.algorithms` | RS256, PS256, ES256, EdDSA | Accepted signature algorithms |
-| `auth.jwksUri` | the issuer's | Another place for the keys |
+| `auth.jwksUri` | the issuer's | Another place for the keys (with `auth.issuers`, each entry's `jwksUri`) |
 | `auth.requireTyp` | none | Require a token type, for example `at+jwt` (rejects ID tokens where the provider marks access tokens) |
 | `auth.clockTolerance` | 30 | Seconds of clock difference |
 | `auth.intranet` | false | The issuer (and `jwksUri`) may be on a loopback or private address: an issuer in your LAN or cluster |

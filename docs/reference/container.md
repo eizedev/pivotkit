@@ -288,7 +288,7 @@ The provider must put `https://reports.example.com/api/v1` into the `aud` of tok
 service. In Keycloak that is an audience mapper, in Entra ID the application ID URI.
 [MCP: OAuth](mcp.md#oauth) has provider examples. The image must reach the issuer over HTTPS.
 
-Until the server has loaded the issuer's keys, `/readyz` answers 503. The server tries again after 2,
+Until the server has loaded the keys of every issuer, `/readyz` answers 503. The server tries again after 2,
 4, 8 seconds and so on, with a wait of up to one minute. After a long outage of the issuer, it can take up to a
 minute to be ready again.
 

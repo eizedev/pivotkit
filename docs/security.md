@@ -545,7 +545,8 @@ gets at each level, and how to set them per client.
       describes. The server checks JWT access tokens for signature, issuer, audience (the server
       itself), expiry and algorithm, and never passes them on. Scopes apply per tool and per source.
       With [more than one issuer](reference/sign-in.md#issuers), a token is checked with the keys,
-      audience and scopes of the issuer its `iss` names only.
+      audience and scopes of the issuer its `iss` names only, and every listed issuer is trusted
+      for scopes, groups and claims as `auth.issuer` is.
 
     The server requests the issuer's metadata, its keys and the download sign-in's token endpoint
     under the rules of every other outbound request: no redirects, sizes capped, link-local and

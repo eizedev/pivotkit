@@ -155,7 +155,7 @@ Register at the provider:
 The link holds the person only as a keyed digest of the link's own random part, the issuer and the
 subject. It does not tell who it is for, and two links of one person cannot be tied to each other.
 
-ID tokens must be signed with a key from the issuer's key set: `auth.jwksUri`, else the metadata's
+ID tokens must be signed with a key from the issuer's key set: its `jwksUri`, else the metadata's
 `jwks_uri` on the issuer's origin, as for access tokens (RS256, ES256 and the like). Tokens signed
 with the client secret (HS256) are not accepted. The issuer's metadata, keys and token endpoint are
 requested under the rules of [the server's issuer](mcp.md#oauth), so an issuer on a private address

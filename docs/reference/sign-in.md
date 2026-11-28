@@ -106,10 +106,13 @@ their own provider. List the issuers in `auth.issuers` instead of `auth.issuer` 
   application's client ID, every token issued to that application is otherwise valid here.
 - The first issuer is the one the server names to clients: the Protected Resource Metadata, the
   OpenAPI document, the [download sign-in](delivery.md#sign-in) and `pivotkit login`. Clients of
-  the other issuers are configured with their issuer directly.
+  the other issuers get their issuer and token by their own means; `pivotkit login` signs in at the
+  first issuer only.
 - Only the first issuer's people get [links bound to a sign-in](delivery.md#sign-in-issuer).
-- Every other `auth` setting holds for all issuers: profiles, groups, claims and algorithms. A
-  client ID in `auth.clientProfiles` is the same client at every issuer.
+- Every listed issuer is trusted as fully as `auth.issuer`: the scopes, groups, client IDs and
+  claims its tokens carry pick profiles (`scopeProfiles`, `groupProfiles`, `clientProfiles`) and
+  fill parameters bound to claims, as the first issuer's do. List only issuers whose admins you
+  trust with that. A client ID is the same client at every issuer.
 - `/readyz`, REST and `/mcp` answer 503 until every issuer's metadata and keys are loaded.
 - A [token exchange](sources.md#http-auth) serves the people of one issuer, named in
   `tokenExchange.issuer`. A person of another issuer does not see the source.

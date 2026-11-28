@@ -584,7 +584,7 @@ settings change, so check the current documentation of your provider's version.
       bindings of the backend's application.
     - Leave out `resource`. Authentik rejects a request with `resource` with `invalid_target`.
     - Set `scope`. Without it, the issued token has no scopes. `check-config` warns about that.
-    - Without `tokenUrl`, pivotkit takes the token endpoint from the metadata of `auth.issuer`.
+    - Without `tokenUrl`, pivotkit takes the token endpoint from the metadata of the exchange's issuer.
       Authentik's token endpoint is a global path, `/application/o/token/`
       ([OAuth2 provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)).
 
@@ -612,8 +612,8 @@ settings change, so check the current documentation of your provider's version.
     - The person's token must also hold pivotkit's client id, because Keycloak exchanges a token
       only for a client in its `aud`. A second audience mapper adds it.
     - The `audience` is the backend's client id. Keycloak does not take the `resource` parameter.
-    - Without `tokenUrl`, pivotkit takes the token endpoint from the metadata of `auth.issuer` (the
-      realm).
+    - Without `tokenUrl`, pivotkit takes the token endpoint from the metadata of the exchange's
+      issuer (the realm).
 
     ```json
     "auth": { "tokenExchange": {
@@ -700,7 +700,7 @@ The sources that use it answer `SOURCE_UNAVAILABLE` until it is there.
 
 - a secret file other users of the machine can read, on Linux and macOS (Windows has no such modes)
 - a token endpoint on a loopback or private address without `intranet: true`
-- a token exchange's `tokenUrl` on another host than `auth.issuer`, since the person's token goes
+- a token exchange's `tokenUrl` on another host than its issuer's, since the person's token goes
   there
 - a token exchange without `scope`, since some providers, Authentik among them, then issue a token
   without scopes

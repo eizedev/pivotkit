@@ -26,8 +26,8 @@ another?
 
 ## Decision Outcome
 
-Chosen option: a list, `auth.issuers`, because it needs no change at the provider and keeps each
-issuer's trust apart.
+Chosen option: a list, `auth.issuers`, because it needs no change at the provider and checks each
+issuer's tokens with that issuer's keys only.
 
 - A token is routed by its `iss`, matched exactly, and checked with that issuer's keys only.
 - An entry's `audience` replaces the endpoint's for its tokens. Its `requiredScopes` add to the
@@ -52,7 +52,8 @@ the listed issuers.
 
 - Whether a provider accepts a token exchange with a subject token of another provider.
 - A token exchange for the people of several issuers, with a client per issuer.
-- Profiles per issuer. `clientProfiles` and the other profile settings hold for every issuer.
+- Profiles or caps per issuer. Every listed issuer is trusted as `auth.issuer` is: its scopes,
+  groups, client IDs and claims pick profiles and fill claim-bound parameters.
 - Whether tokens of a loaded issuer should pass while another issuer is still unreachable.
 
 ### Consequences

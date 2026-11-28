@@ -19,6 +19,14 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   one issuer. A person of another issuer does not see such a source, and their token never goes to
   its token endpoint. `check-config` lists each issuer with its audience and scopes.
 
+### Changed
+
+- A token exchange sends a person's token only when their issuer is the exchange's issuer. A host
+  that builds callers with `callerOf("oauth", ...)` passes the issuer exactly as `auth.issuer` writes
+  it ([#587](https://github.com/eizedev/pivotkit/issues/587)).
+- The messages for a missing or malformed `auth.issuer` name `auth.issuers` too, and the issuer is
+  checked before the download sign-in and the HTTP sources that depend on it.
+
 ## [0.6.0] - 2026-11-26
 
 ### Changed

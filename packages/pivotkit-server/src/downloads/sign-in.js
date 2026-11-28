@@ -2,7 +2,7 @@
  * The sign-in of a "signIn" link: the issuer's metadata and keys, loaded in the background, the
  * redirect to the issuer (code flow, PKCE, state and nonce in the signed cookie) and the callback,
  * which sends the file only to the person the link is for. Every request to the issuer goes
- * through issuer.js, under the rules of auth.issuer.
+ * through issuer.js, under the rules of the server's issuers (issuer.js issuerRulesOf).
  */
 
 import { createHash, randomBytes } from "node:crypto";

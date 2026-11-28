@@ -6,6 +6,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { callerOf, checkConfig, createContext, present, validateOptions } from "pivotkit-server";
 import { exchangeTokenFor } from "../../src/auth.js";
+import { signedInForDelivery } from "../../src/delivery.js";
 import { call, factsOf, mcpInitialize, mcpToolWorks, restServer, untilReady, workspace } from "../helpers.js";
 import { localIssuer } from "./local-issuer.js";
 import { until } from "../../../../tests/until.js";
@@ -68,7 +69,7 @@ test("auth.issuers: an issuer's own audience replaces the endpoints' for its tok
         assert.match(unscoped.headers.get("www-authenticate"), /error="insufficient_scope".*scope="pivotkit pivotkit:b"/);
         const mcp = await mcpInitialize(server, await b.token({ aud: "pivotkit-b", sub: "ben" }));
         assert.equal(mcp.status, 403);
-        assert.match(String(mcp.headers.get("www-authenticate")), /insufficient_scope/);
+        assert.match(String(mcp.headers.get("www-authenticate")), /error="insufficient_scope".*scope="pivotkit pivotkit:b"/);
         assert.equal(await mcpToolWorks(server, await b.token({ ...scoped, aud: "pivotkit-b" })), true);
     } finally {
         await server.close();
@@ -91,6 +92,31 @@ test("auth.issuers: until every issuer's metadata and keys are loaded, /readyz, 
         delete b.routes["/.well-known/openid-configuration"];
         await server.close();
     }
+});
+
+test("auth.issuers: an entry's jwksUri is where that issuer's keys are read, in place of its metadata's jwks_uri", async () => {
+    // b's metadata names a key set on another origin, which is refused unless the entry names one
+    b.metadata = { jwks_uri: "https://keys.example.test/jwks" };
+    b.routes["/own-keys"] = { keys: [b.jwk] };
+    b.asked = [];
+    const server = await serverOf(authOf([{ issuer: a.url }, { issuer: b.url, jwksUri: `${b.url}/own-keys` }]));
+    try {
+        assert.equal((await call(`${server.api}/sources`, { token: await b.token({ aud: REST_RESOURCE, sub: "ben" }) })).status, 200);
+        assert.ok(b.asked.includes("/own-keys"), JSON.stringify(b.asked));
+    } finally {
+        b.metadata = {};
+        delete b.routes["/own-keys"];
+        await server.close();
+    }
+});
+
+test("links and stores bound to a sign-in: only the first issuer's people, whose sign-in the server checks", () => {
+    const options = { auth: authOf([{ issuer: "https://a.example.test/" }, { issuer: "https://b.example.test/" }]) };
+    const person = (issuer) => callerOf("oauth", { token: "t", clientId: "claude", scopes: ["pivotkit"], expiresAt: Math.floor(Date.now() / 1000) + 600, extra: { subject: "ana", issuer } });
+    assert.equal(signedInForDelivery(person("https://a.example.test/"), options), true);
+    assert.equal(signedInForDelivery(person("https://b.example.test/"), options), false);
+    // with one issuer, as before: every verified caller is that issuer's
+    assert.equal(signedInForDelivery(person("https://b.example.test/"), { auth: { mode: "oauth", issuer: "https://b.example.test/" } }), true);
 });
 
 test("options: auth.issuers is a list of distinct https issuers, not beside auth.issuer; a token exchange names its issuer when there are several", async () => {

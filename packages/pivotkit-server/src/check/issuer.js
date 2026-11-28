@@ -90,9 +90,13 @@ async function reachItems(options, runtime) {
         return [];
     }
     const issuers = new Map();
-    // an issuer the start refuses for its scheme is a PROBLEM already (check/access.js)
-    const usable = options.auth?.mode === "oauth" && issuerSchemeProblem(options) === null;
-    for (const [i, { issuer, key }] of (usable ? issuersOf(options) : []).entries()) {
+    // an issuer the start refuses for its scheme is a PROBLEM already (check/access.js); the other
+    // issuers are still checked, each on its own
+    const usable = (issuer) => issuerSchemeProblem({ auth: { issuer, allowInsecureIssuer: options.auth?.allowInsecureIssuer } }) === null;
+    for (const [i, { issuer, key }] of (options.auth?.mode === "oauth" ? issuersOf(options) : []).entries()) {
+        if (!usable(issuer)) {
+            continue;
+        }
         // download links (signed in) use the first issuer (options/downloads.js)
         const links = i === 0 && runtime.http && downloadSettingsOf(options).signIn ? "; download links (signed in) answer 503 too" : "";
         issuers.set(issuer, [key, `callers get 503 until it loads${links}`]);

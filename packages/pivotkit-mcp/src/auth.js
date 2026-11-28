@@ -16,7 +16,7 @@
 
 import { OAuthError, getOAuthProtectedResourceMetadataUrl, oauthMetadataResponse, requireBearerAuth } from "@modelcontextprotocol/server";
 import { groupRefusal, offeredScopes } from "pivotkit-server";
-import { AuthRefusal, brandingOfContext, docsLink, everyIssuerScoped } from "pivotkit-server/internal";
+import { AuthRefusal, bearerOf, brandingOfContext, docsLink, everyIssuerScoped } from "pivotkit-server/internal";
 
 /** The client of each answer that refused a verified token for its person's groups, for the log line. */
 const refusedClients = new WeakMap();
@@ -87,7 +87,20 @@ export async function createAuth(context, runtime) {
     };
     // the audience is checked by the core (resource or a configured audience); the verifier then
     // reports the canonical resource, so the SDK's own resource check agrees with it
-    const gateOf = requireBearerAuth({ verifier, requiredScopes, resourceMetadataUrl, expectedResource: resource });
+    // one gate per set of scopes a 403 asks for: the endpoint's, and an issuer's own on top for its
+    // tokens (auth.issuers[i].requiredScopes), so the challenge names every scope the token lacks
+    /** @type {Map<string, ReturnType<typeof requireBearerAuth>>} */
+    const gates = new Map();
+    /** @param {Request} request */
+    const gateOf = (request) => {
+        const bearer = bearerOf(request);
+        const scopes = [...new Set([...requiredScopes, ...("token" in bearer ? core.issuerScopes(bearer.token) : [])])];
+        const key = scopes.join(" ");
+        if (!gates.has(key)) {
+            gates.set(key, requireBearerAuth({ verifier, requiredScopes: scopes, resourceMetadataUrl, expectedResource: resource }));
+        }
+        return /** @type {ReturnType<typeof requireBearerAuth>} */ (gates.get(key))(request);
+    };
     return {
         mode,
         resourceMetadataUrl,
