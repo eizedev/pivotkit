@@ -4,6 +4,7 @@ import { DESCRIBE_LABELS, DESCRIBE_LIMITS, PivotkitError, describeLabels, descri
 import { COMPARE_OPS, COMPARE_PRECISIONS, TEXT_OPS } from "../src/filters.js";
 import { RELATIVE_DIRECTIONS, RELATIVE_UNITS } from "../src/relative.js";
 import { CHART_TYPES } from "../src/view.js";
+import { FIELD_TYPES } from "../src/view-file.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -30,19 +31,46 @@ test("describeSource: each field's type, items, blanks, range, and what works on
     assert.equal(describeSource([{ name: "A", type: "number" }]).rows, null);
     assert.equal(DESCRIBE_LIMITS.items, 20);
     // rows that are not encoded are no fields: an error that says so, not "0 fields"
-    assert.throws(() => describeSource([{ Region: "North" }]), (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT" && /encode\(\)/.test(e.message));
-    for (const raw of [
-        [{ name: "Alice", age: 3 }],
-        [{ name: "Alice", type: 3 }],
-        [{ name: "Alice", type: "customer" }],
-        [{ name: "A", type: "number" }, { name: "Alice", age: 3 }]
+    assert.throws(() => describeSource([{ Region: "North" }]), (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT" && /data\[0\]/.test(e.message) && /encode\(\)/.test(e.message));
+    const allowedText = FIELD_TYPES.join(", ");
+    // non-string names, missing type, or non-field entries in direct arrays keep encode() hint and name first wrong entry + allowed types
+    for (const [input, where] of [
+        [[1], /data\[0\]/],
+        [[{ name: 123, type: "string" }], /data\[0\]/],
+        [[{ name: "Alice", age: 3 }], /data\[0\] \("Alice"\)/],
+        [[{ name: "A", type: "number" }, { name: "Alice", age: 3 }], /data\[1\] \("Alice"\)/]
     ]) {
-        assert.throws(() => describeSource(raw), (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT" && /encode\(\)/.test(e.message));
+        assert.throws(() => describeSource(input), (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT" && where.test(e.message) && e.message.includes(allowedText) && /encode\(\)/.test(e.message));
     }
-    // encoded rows with a `name` column work; encoded.schema.fields and field objects with extra keys pass
+    // schema/unknown/non-string type errors name the first wrong entry + allowed types and never suggest encode()
+    for (const [input, where] of [
+        [[{ name: "Alice", type: 3 }], /data\[0\] \("Alice"\)/],
+        [[{ name: "Alice", type: "customer" }], /data\[0\] \("Alice"\)/],
+        [[{ name: "A", type: "Number" }], /data\[0\] \("A"\)/],
+        [[{ name: "A", type: "number" }, { name: "Bad1", type: "Number" }, { name: "Bad2" }], /data\[1\] \("Bad1"\)/],
+        [{ fields: [{ name: "A" }] }, /fields\[0\] \("A"\)/],
+        [{ fields: [{ name: "A", type: "number" }, { name: "B", type: "Number" }] }, /fields\[1\] \("B"\)/],
+        [{ fields: [{ name: "A", type: "number" }, { name: "Bad1", type: "bogus" }, { name: "Bad2" }] }, /fields\[1\] \("Bad1"\)/],
+        [{ fields: [{ Region: "North" }] }, /fields\[0\]/],
+        [{ fields: [null] }, /fields\[0\]/],
+        [{ schema: { fields: [{ name: "A" }] } }, /schema\.fields\[0\] \("A"\)/],
+        [{ schema: { fields: [{ name: "A", type: "number" }, { name: "B", type: "Number" }] } }, /schema\.fields\[1\] \("B"\)/]
+    ]) {
+        assert.throws(
+            () => describeSource(input),
+            (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT" && where.test(e.message) && e.message.includes(allowedText) && !/encode\(\)/.test(e.message),
+            JSON.stringify(input)
+        );
+    }
+    // encoded rows with a `name` column work; { fields }, { schema: { fields } }, encoded.schema.fields and field objects with extra keys pass
     const namedRows = encode([{ name: "Alice", age: 3 }]);
     assert.deepEqual(describeSource(namedRows).fields.map((f) => [f.name, f.type]), [["name", "string"], ["age", "number"]]);
     assert.equal(describeSource(data.schema.fields).fields.length, data.schema.fields.length);
+    assert.equal(describeSource({ fields: [{ name: "A", type: "number", extra: true }] }).fields.length, 1);
+    assert.equal(describeSource({ fields: [] }).fields.length, 0);
+    const nestedSchema = describeSource({ schema: { fields: [{ name: "A", type: "number" }] } });
+    assert.equal(nestedSchema.rows, null);
+    assert.deepEqual(nestedSchema.fields.map((f) => [f.name, f.type]), [["A", "number"]]);
     const extraFields = describeSource([
         { name: "Region", type: "string", detected: "string", label: "Area" },
         { name: "Flag", type: "boolean", extra: true },
