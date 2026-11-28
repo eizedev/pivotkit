@@ -100,9 +100,9 @@ function ChartTitle({ title, labels, onDisplay }) {
 }
 
 /**
- * The colour each series or slice is drawn with, by name, from the chart's ECharts option: its own
- * colour where it has one (a fixed one, chart.colors or the host's colorMap), else the palette's of its
- * place, as ECharts gives it.
+ * The colour each series, slice or treemap tile is drawn with, by name, from the chart's ECharts
+ * option: its own colour where it has one (a fixed one, chart.colors or the host's colorMap; a tile's
+ * as pivotkit-core darkened it for its text), else the palette's of its place, as ECharts gives it.
  * @param {any} instance  the chart's ECharts instance
  * @returns {Map<string, string>}
  */
@@ -112,7 +112,7 @@ function colorsDrawn(instance) {
     const palette = Array.isArray(option?.color) ? option.color : [];
     const of = (/** @type {any} */ item, /** @type {number} */ i) => item?.itemStyle?.color ?? palette[i % Math.max(1, palette.length)];
     for (const [i, s] of (option?.series ?? []).entries()) {
-        if (s.type === "pie") {
+        if (s.type === "pie" || s.type === "treemap") {
             (s.data ?? []).forEach((/** @type {any} */ d, /** @type {number} */ j) => out.set(String(d.name), of(d, j)));
         } else {
             out.set(String(s.name), of(s, i));

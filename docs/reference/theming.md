@@ -261,8 +261,8 @@ A treemap writes every tile's text in `--pk-chart-tile-text`, as ECharts does by
 which that colour does not reach `--pk-chart-tile-contrast` (4.6:1) is mixed with black, for a dark
 text with white, only as far as it takes. This holds for the palette and for your own colours
 (`colorMap`, Chart settings › Entries): a pale colour, such as `#d9d9d9`, shows darker on its tile.
-Entries keeps the colour you set; the tooltip's mark shows the tile as drawn. Both colours are read
-as the screen draws them, without their alpha. To keep every tile's colour as it is, set
+Entries' colour field keeps the colour you set; its dot and the tooltip's mark show the tile. Both
+are read as the screen draws them, without their alpha. To keep every tile's colour as it is, set
 `--pk-chart-tile-contrast: 0`; the contrast is then yours.
 
 The chart reads these tokens when it draws. It draws again when the theme changes, when a stylesheet

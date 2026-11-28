@@ -89,8 +89,8 @@ report: the report itself, field list included, is at least 1,024 pixels wide.
 - A row with a total of 0 or less gets no tile.
 - The colours only tell the tiles apart. They do not stand for a value.
 - The text's colour, size and weight, its padding and the contrast are tokens ([Theming](../reference/theming.md#chart-colours)).
-- It has no legend. **Chart settings › Entries** hides a tile or sets its colour, which a pale tile
-  shows darker too; Entries and the tooltip show the colour you set and the one drawn.
+- It has no legend. **Chart settings › Entries** hides a tile or sets its colour. A pale colour is
+  drawn darker: the dot in Entries shows the tile, and the colour field keeps the colour you set.
 - With a field on Columns, a tile adds up every column, as a pie does.
 - A click on a tile opens no rows.
 

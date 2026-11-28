@@ -24,12 +24,13 @@ import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind
  * `reason`; `info`: the id of its explanation (labels.settingInfo). `open`: the id of a topic whose
  * level it opens (after `run`; Back puts the focus on `backTo`, else on the choice), instead of applying; `actions`: an entry's own actions next to it
  * (choices themselves, drawn as icon buttons with `label`); `color`: a colour field beside it, a menu
- * item that opens the browser's colour picker (`pick` gets #rrggbb); `current`: the entry shown now. A switch
+ * item that opens the browser's colour picker (`pick` gets #rrggbb), its dot in `shown` where the chart draws
+ * another colour than `value`; `current`: the entry shown now. A switch
  * (`checkbox`) keeps its level open after it, so people flip several in a row.
  * @typedef {{ id: string, text: string, change?: () => { view: any, note: any } | null, run?: () => void, checked?: boolean,
  *   hint?: string, icon?: string, closes?: boolean, checkbox?: boolean, disabled?: boolean, reason?: string, info?: string,
  *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string,
- *   color?: { id: string, value: string, label: string, pick: (color: string) => void },
+ *   color?: { id: string, value: string, shown?: string, label: string, pick: (color: string) => void },
  *   tags?: Array<{ icon: string, text: string }>, className?: string, note?: string, scale?: string[] }} Choice
  * `tags`: small marks after the text (the zones a field is in), hidden from assistive technology;
  * `scale`: the colours of a colour scale, low to high, drawn as a strip after the text;
@@ -691,6 +692,21 @@ function chartNotes(drawn, pie, legend, chart, labels) {
 }
 
 /**
+ * The colour beside an entry of Chart settings › Entries: the view's colour for its name, else the
+ * one the chart draws. A treemap draws a pale colour darker for its text (pivotkit-core's tileFill):
+ * the dot shows the tile, the field keeps the colour set.
+ * @param {string} name
+ * @param {number} i  its place in the list
+ * @param {{ mine: { color: string } | undefined, drawnColors: Map<string, string>, drawn: string, labels: any, recolor: (name: string, color: string | null) => void }} how
+ * @returns {NonNullable<Choice["color"]>}
+ */
+function entryColor(name, i, { mine, drawnColors, drawn, labels, recolor }) {
+    const drawnNow = drawnColors.get(name) ?? "";
+    const value = mine?.color ?? drawnNow;
+    return { id: `series-${i}-color`, value, shown: drawn === "treemap" && drawnNow ? drawnNow : value, label: fill(labels.colorOf, { name }), pick: (color) => recolor(name, color) };
+}
+
+/**
  * The topics of Chart settings after its types (#106, #580), each a row with what is set that opens
  * its level: Value labels, Legend, Title (a form), Axis (axis and group labels, the zoom slider),
  * Tooltip (and the share in it), Reference lines (a form), Entries (one switch and one colour per
@@ -814,7 +830,7 @@ export function chartTopics({ view, drawn, labels, names, act, lines = { rules: 
                             checked: only || !now.includes(name),
                             ...(only ? { disabled: true, reason: labels.seriesOnly } : {}),
                             run: () => act.display({ hidden: hiddenAfter(now, name, now.includes(name)) }),
-                            color: { id: `series-${i}-color`, value: mine?.color ?? drawnColors.get(name) ?? "", label: fill(labels.colorOf, { name }), pick: (/** @type {string} */ c) => recolor(name, c) },
+                            color: entryColor(name, i, { mine, drawnColors, drawn, labels, recolor }),
                             ...(mine ? { actions: [{ id: `series-${i}-default`, text: labels.colorDefault, label: `${labels.colorDefault}: ${name}`, icon: "reset", run: () => recolor(name, null) }] } : {})
                         };
                     })
