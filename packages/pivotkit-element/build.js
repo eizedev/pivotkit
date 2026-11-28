@@ -208,7 +208,7 @@ async function licenses(metafile) {
  *   can make the first load larger.
  * `--size` fails above it.
  */
-export const SIZE_BUDGET_KIB = { initial: 182.5, chart: 262.0, export: 13.7, link: 7.5, menus: 60.3, texts: 8.8, unused: 6.5, import: 23.9, report: 29.7, template: 3, lang: 6.2, tips: 1.8 };
+export const SIZE_BUDGET_KIB = { initial: 182.5, chart: 262.0, export: 13.7, link: 7.5, menus: 60.3, texts: 8.8, unused: 6.5, import: 23.9, report: 29.7, template: 3, lang: 6.2, tips: 1.8, server: 4.5 };
 
 /**
  * The load group of each chunk a page loads on demand, by its file name (esbuild's `[name]-[hash]`),
@@ -226,7 +226,8 @@ export const CHUNK_GROUPS = Object.freeze([
     ["report", /^report-run-/],
     ["template", /^template-style-/],
     ["lang", /^labels-[a-z]+-/],
-    ["tips", /^tips-/]
+    ["tips", /^tips-/],
+    ["server", /^server-module-/]
 ]);
 
 /**
@@ -239,7 +240,8 @@ export const CHUNK_GROUPS = Object.freeze([
  * the chart as SVG and printing, pivotkit-report with ECharts' SVG renderer, beyond the chart group;
  * "template": pivotkit-report's reading of a print template's own CSS, which the element never loads;
  * "lang": the first load's texts of a language besides English, before a report in it renders;
- * "tips": the tips' table, right after the first render).
+ * "tips": the tips' table, right after the first render; "server": a report's rows from pivotkit-server
+ * (server-url), the network code with its states' texts and parts).
  * @param {import("esbuild").Metafile} metafile
  * @returns {{ group: string, files: string[] }[]}
  */

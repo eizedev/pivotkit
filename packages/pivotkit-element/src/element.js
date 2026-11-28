@@ -14,7 +14,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { PivotReport } from "pivotkit-react";
 import { EVENTS, emit, request } from "./events.js";
-import { ATTRIBUTES, OBJECT_PROPS, fromAttribute, localeOf, toAttribute } from "./props.js";
+import { ATTRIBUTES, OBJECT_PROPS, fromAttribute, localeOf, paramNames, toAttribute } from "./props.js";
 import { adoptStyles } from "./styles.js";
 
 // the event names, so this entry has the same exports as the one that defines the tag
@@ -130,6 +130,19 @@ export { EVENTS };
  */
 
 /**
+ * @typedef {object} ServerState  the detail of pivot-server-state: a report with server-url, what it does now
+ * @property {"loading" | "ready" | "refused" | "linkRefused" | "expired" | "large" | "unreachable" | "busy"} state
+ *   "linkRefused": the link's access level shuts this account out; "expired": getToken() gave no new token
+ * @property {string} source
+ * @property {boolean} shown  the report shows rows from an earlier read meanwhile
+ * @property {string} [code]  the server's error code
+ * @property {number} [status]
+ * @property {string} [requestId]  to quote to IT support
+ * @property {number} [rows]  "ready": the rows read
+ * @property {string} [dataAsOf]  "ready": as the server says
+ */
+
+/**
  * @typedef {object} ReaderPlugin  a reader plugin of pivotkit-core/import, contract version 1 (pivotkit-xlsx)
  * @property {1} apiVersion
  * @property {"reader"} kind
@@ -212,6 +225,8 @@ export class PivotReportElement extends Base {
     #lastView;
     /** The React key of the report: a new start view (defaultView) mounts a new report. */
     #start = { key: 0, json: "null" };
+    /** refresh() calls: a new count reads the server's rows again */
+    #refreshes = 0;
 
     constructor() {
         super();
@@ -631,6 +646,56 @@ export class PivotReportElement extends Base {
     }
 
     /**
+     * The address of the pivotkit-server the report reads its rows from (https://reports.example.com),
+     * with `server-source` and `getToken`: the page names it in its own markup or code, never from a
+     * link. The server's rows take the place of `data`.
+     */
+    get serverUrl() {
+        return /** @type {string | undefined} */ (this.#read("server-url"));
+    }
+    set serverUrl(value) {
+        this.#write("server-url", value);
+    }
+
+    /** The source whose rows the report reads from `server-url` ("sales"). */
+    get serverSource() {
+        return /** @type {string | undefined} */ (this.#read("server-source"));
+    }
+    set serverSource(value) {
+        this.#write("server-source", value);
+    }
+
+    /**
+     * The source's parameters the page's query string may set, comma-separated ("customer, year"):
+     * the report reads only these of it. None by default.
+     */
+    get serverParams() {
+        return /** @type {string | undefined} */ (this.#read("server-params"));
+    }
+    set serverParams(value) {
+        this.#write("server-params", value);
+    }
+
+    /**
+     * Gives a browser token for the report's request `{ source, params, access }`: its text, or the
+     * exchange route's answer, or a promise of either. Called at the start and when the token
+     * expired; nothing (null, "") means the person must sign in again. A property only.
+     */
+    get getToken() {
+        return /** @type {((request: { source: string, params: Record<string, string>, access?: string }) => unknown) | null} */ (this.#values.getToken ?? null);
+    }
+    /** @param {((request: { source: string, params: Record<string, string>, access?: string }) => unknown) | null | undefined} value */
+    set getToken(value) {
+        this.#set("getToken", value);
+    }
+
+    /** Reads the server's rows again (`server-url`); the report shows the rows it has until the new ones are there. */
+    refresh() {
+        this.#refreshes++;
+        this.#update();
+    }
+
+    /**
      * Where the import worker of allow-import is served (a URL, relative to the page, of the page's
      * origin): for an app that bundles the element and serves dist/import-worker.js at a path of its
      * own (a base href). Default (null): next to the element's own module. A property only.
@@ -817,7 +882,9 @@ export class PivotReportElement extends Base {
             allowImport: this.allowImport,
             plugins: Array.isArray(v.plugins) ? v.plugins : undefined,
             onDataLoad: this.#onDataLoad,
-            importWorker: this.#startImportWorker
+            importWorker: this.#startImportWorker,
+            server: this.serverUrl ? { url: this.serverUrl, source: this.serverSource ?? "", getToken: /** @type {any} */ (v.getToken), allowParams: paramNames(this.serverParams), refreshKey: this.#refreshes } : undefined,
+            onServerState: this.#onServerState
         };
     }
 
@@ -853,6 +920,9 @@ export class PivotReportElement extends Base {
     #onSourceSwitch = (request) => {
         emit(this, EVENTS.sourceSwitch, request);
     };
+
+    /** Every state of a report with a server: loading, ready, or why no rows came; never the token. @param {ServerState} state */
+    #onServerState = (state) => emit(this, EVENTS.serverState, state);
 
     /** false (the file is not loaded) when a listener called preventDefault() on a load @param {DataLoad} load */
     #onDataLoad = (load) => emit(this, EVENTS.dataLoad, load, { cancelable: load.cause === "load" });
