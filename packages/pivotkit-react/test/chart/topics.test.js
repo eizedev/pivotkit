@@ -64,7 +64,7 @@ test("Entries is found by its former name too: series in English, Reihen in Germ
     const view = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "pie" } });
     for (const [lang, word, title] of [["en", "series", "Entries"], ["de", "reihen", "Einträge"]]) {
         const topics = chartTopics({ view, drawn: "pie", labels: MENU[lang], names: ["North", "South"], act: { display: () => {} } });
-        const hits = searchHits(searchEntries(topics), word);
+        const hits = searchHits(searchEntries(topics), word).hits;
         assert.deepEqual(hits.map((h) => [h.path, h.text]), [[title, "North"], [title, "South"]], lang);
     }
 });

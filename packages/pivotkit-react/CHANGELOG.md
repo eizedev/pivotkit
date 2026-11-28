@@ -44,6 +44,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   palette's colour had an empty swatch and its colour field started at black, and a pale colour set
   there showed lighter than its tile. The picker opens on the colour set, and a hidden tile keeps
   its colour in the list ([#1009](https://github.com/eizedev/pivotkit/issues/1009)).
+- The menu search says when it shows only the first 8 results.
 
 ## [0.11.0] - 2026-11-26
 

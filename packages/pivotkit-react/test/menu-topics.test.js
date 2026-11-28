@@ -248,7 +248,7 @@ test("the words of folding the groups of Rows: the fields' names, the plain word
 test("search: every choice of every level with its path, and the panels; all words must match; the start of a text first", () => {
     const view = norm({ rows: ["Region"], values: [units] });
     const entries = searchEntries(valueTopics({ view, index: 0, types, labels: MENU.en, locale: "en-US" }));
-    const hit = (q) => searchHits(entries, q, "en-US").map((e) => `${e.text} | ${e.path}`);
+    const hit = (q) => searchHits(entries, q, "en-US").hits.map((e) => `${e.text} | ${e.path}`);
     assert.deepEqual(hit("currency"), ["Currency | Number format"]);
     assert.deepEqual(hit("compact"), ["Compact (1.2K) | Number format › More formats"]);
     // the path counts: "format" finds the formats, the words in any order
@@ -256,13 +256,16 @@ test("search: every choice of every level with its path, and the panels; all wor
     assert.deepEqual(hit("name"), ["Name | "]);
     assert.deepEqual(hit("   "), []);
     assert.deepEqual(hit("nothing like this"), []);
-    assert.ok(searchHits(entries, "o", "en-US").length <= SEARCH_HITS);
+    assert.ok(searchHits(entries, "o", "en-US").hits.length <= SEARCH_HITS);
+    assert.equal(searchHits(entries, "o", "en-US").hasMore, true);
+    assert.equal(searchHits(entries, "currency", "en-US").hasMore, false);
+    assert.equal(searchHits(entries, "   ", "en-US").hasMore, false);
     // a field's: the Filter panel is an entry that opens it
     const field = searchEntries(axis(view));
     // the Filter panel's own entries (its rules) are found by its title too
     // ("Filter by name" and "Filter by total" start with the words, the rules have them in their path)
-    assert.deepEqual(searchHits(field, "filt", "en-US").map((e) => [e.id, Boolean(e.choice)]), [["open-filter", false], ["open-filter-text", false], ["open-filter-value", false], ["open-filter-rules", false], ["move-filters", true]]);
-    assert.deepEqual(searchHits(field, "move col", "en-US").map((e) => e.id), ["move-cols"]);
+    assert.deepEqual(searchHits(field, "filt", "en-US").hits.map((e) => [e.id, Boolean(e.choice)]), [["open-filter", false], ["open-filter-text", false], ["open-filter-value", false], ["open-filter-rules", false], ["move-filters", true]]);
+    assert.deepEqual(searchHits(field, "move col", "en-US").hits.map((e) => e.id), ["move-cols"]);
 });
 
 test("the keys of a menu: arrows around the ends, Home and End; type-ahead moves on with one letter, stays with more", () => {
@@ -307,13 +310,13 @@ test("the Views menu's entries: ids by group, name and repeat; after a delete th
 test("search: the shares of Show as come first for percent and %; the conditions and Top 5 are entries; rename finds Name", () => {
     const view = norm({ rows: ["Region"], values: [units] });
     const value = searchEntries(valueTopics({ view, index: 0, types, labels: MENU.en, locale: "en-US" }));
-    const first = (q) => searchHits(value, q, "en-US").map((e) => e.text);
+    const first = (q) => searchHits(value, q, "en-US").hits.map((e) => e.text);
     assert.equal(first("percent")[0], "% of grand total");
     assert.ok(first("percent").includes("Percent"), "the format of that name is still found");
     assert.equal(first("%")[0], "% of grand total");
     assert.deepEqual(first("rename"), ["Name"]);
     const field = searchEntries(axis(view));
-    const hits = (q) => searchHits(field, q, "en-US");
+    const hits = (q) => searchHits(field, q, "en-US").hits;
     assert.deepEqual(hits("filter by name").map((e) => [e.id, e.focus]), [["open-filter-text", "conditions"]]);
     assert.ok(hits("filter by total").some((e) => e.id === "open-filter-value" && e.focus === "conditions"));
     // "rule" finds the rules, and opens the level on them

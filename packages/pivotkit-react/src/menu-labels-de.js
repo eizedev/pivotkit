@@ -40,6 +40,7 @@ export const de = {
     searchMenuShort: "In diesem Menü suchen (Taste /)",
     searchResults: "Treffer",
     searchNothing: "Nichts gefunden. Ein anderes Wort versuchen oder die Suche leeren.",
+    searchMore: "Nur die ersten {count} Treffer. Mehr Wörter grenzen die Suche ein.",
     addAlready: "Bereits in {zone}.",
     addMoves: "Verschiebt es aus {zone}.",
     addSecond: "Fügt einen zweiten Wert davon hinzu.",

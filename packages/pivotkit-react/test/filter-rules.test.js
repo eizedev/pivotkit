@@ -274,7 +274,7 @@ test("the data's share of a range names no day from today on: they have no data 
 
 test("search: quick choices with the count typed, a year compared, and the rules by name; they apply at once", () => {
     const topics = axisTopics({ view: byYear, zone: "rows", index: 0, field: YEAR, types, labels: MENU.en, locale: "en-US", encoded: data });
-    const hits = (q) => searchHits(searchEntries(topics, q), q, "en-US");
+    const hits = (q) => searchHits(searchEntries(topics, q), q, "en-US").hits;
     const years = relativeDateRange("year", 2);
     const last2 = hits("last 2 years")[0];
     // the words of the chip, with a capital (the data's share of the range included)
@@ -285,12 +285,12 @@ test("search: quick choices with the count typed, a year compared, and the rules
     assert.deepEqual(filtersOf(last2.choice.change().view, YEAR, RULE_TYPES), [{ field: YEAR, type: "relative", unit: "year", count: 2, not: false, blanks: "exclude" }]);
     // a range counted back from the latest record (2025): the search's choices count from it too
     const anchored = axisTopics({ view: setQuickRange(byYear, YEAR, { unit: "year", count: 1, anchor: "latest" }), zone: "rows", index: 0, field: YEAR, types, labels: MENU.en, locale: "en-US", encoded: data });
-    const hit = searchHits(searchEntries(anchored, "last 3 years"), "last 3 years", "en-US")[0];
+    const hit = searchHits(searchEntries(anchored, "last 3 years"), "last 3 years", "en-US").hits[0];
     assert.equal(hit.text, chip({ unit: "year", count: 3, anchor: "latest" }).replace(/^l/, "L"));
     assert.deepEqual(filtersOf(hit.choice.change().view, YEAR, RULE_TYPES), [{ field: YEAR, type: "relative", unit: "year", count: 3, anchor: "latest", not: false, blanks: "exclude" }]);
     // a cyclic grouping has no quick choices to find
     const cyclic = axisTopics({ view: byCyclic, zone: "rows", index: 0, field: CYCLIC, types, labels: MENU.en, locale: "en-US", encoded: data });
-    assert.equal(searchHits(searchEntries(cyclic, "last 2 years"), "last 2 years", "en-US").length, 0);
+    assert.equal(searchHits(searchEntries(cyclic, "last 2 years"), "last 2 years", "en-US").hits.length, 0);
     // a year grouping: no months
     assert.equal(hits("last 2 months").length, 0);
     const from = hits("from 2022")[0];
@@ -302,18 +302,18 @@ test("search: quick choices with the count typed, a year compared, and the rules
     assert.ok(hits("rule").some((e) => e.id === "open-filter-value"));
     // a date field: months too, and a year as its first or last day
     const raw = axisTopics({ view: norm({ rows: ["Released"] }), zone: "rows", index: 0, field: "Released", types, labels: MENU.en, locale: "en-US", encoded: data });
-    const rawHits = (q) => searchHits(searchEntries(raw, q), q, "en-US");
+    const rawHits = (q) => searchHits(searchEntries(raw, q), q, "en-US").hits;
     assert.equal(rawHits("last 6 months").length, 1);
     // a date field compares days: no year entry, whose chip would say a day ("from Jan 1, 2022")
     assert.equal(rawHits("up to 2022").length, 0);
     assert.equal(rawHits("from 2022").length, 0);
     // German words
     const de = axisTopics({ view: byYear, zone: "rows", index: 0, field: YEAR, types, labels: MENU.de, locale: "de-DE", encoded: data });
-    assert.equal(searchHits(searchEntries(de, "ab 2022"), "ab 2022", "de-DE")[0].text, "Ab 2022");
-    assert.ok(searchHits(searchEntries(de, "letzte 3 jahre"), "letzte 3 jahre", "de-DE")[0].text.startsWith("Letzte 3 Jahre ("));
+    assert.equal(searchHits(searchEntries(de, "ab 2022"), "ab 2022", "de-DE").hits[0].text, "Ab 2022");
+    assert.ok(searchHits(searchEntries(de, "letzte 3 jahre"), "letzte 3 jahre", "de-DE").hits[0].text.startsWith("Letzte 3 Jahre ("));
     // a text field gets none of them; nothing typed, nothing made
     const text = axisTopics({ view: norm({ rows: ["Region"] }), zone: "rows", index: 0, field: "Region", types, labels: MENU.en, locale: "en-US", encoded: data });
-    assert.equal(searchHits(searchEntries(text, "last 2 years"), "last 2 years", "en-US").length, 0);
+    assert.equal(searchHits(searchEntries(text, "last 2 years"), "last 2 years", "en-US").hits.length, 0);
     assert.equal(searchEntries(topics).some((e) => e.id.startsWith("quick-")), false);
 });
 
@@ -550,7 +550,7 @@ test("search: a quick choice found takes the place of the one set, keeps a range
     const view = norm(setRule(setQuickRange(byYear, YEAR, { unit: "year", count: 5, blanks: "include" }, null), YEAR, null, rule));
     assert.equal(quickChoice(view, YEAR, fk).count, 5);
     const topics = axisTopics({ view, zone: "rows", index: 0, field: YEAR, types, labels: MENU.en, locale: "en-US", encoded: data });
-    const hit = searchHits(searchEntries(topics, "last 3 years"), "last 3 years", "en-US")[0];
+    const hit = searchHits(searchEntries(topics, "last 3 years"), "last 3 years", "en-US").hits[0];
     const ranges = filtersOf(hit.choice.change().view, YEAR, ["relative"]);
     assert.deepEqual(ranges.map((f) => [f.count, f.not, f.blanks]), [[3, false, "include"], [1, true, "include"]]);
 });
@@ -594,7 +594,7 @@ test("Counted back from: every relative range of the field takes the reference, 
 test("search: the rule on the name is found by its operators, \"does not begin with\" among them (review)", () => {
     for (const [L, locale, q] of [[MENU.en, "en-US", "does not begin"], [MENU.en, "en-US", "not end with"], [MENU.de, "de-DE", "beginnt nicht"]]) {
         const topics = axisTopics({ view: norm({ rows: ["Region"] }), zone: "rows", index: 0, field: "Region", types, labels: L, locale, encoded: data });
-        assert.deepEqual(searchHits(searchEntries(topics, q), q, locale).map((e) => e.id), ["open-filter-text"], q);
+        assert.deepEqual(searchHits(searchEntries(topics, q), q, locale).hits.map((e) => e.id), ["open-filter-text"], q);
     }
 });
 
