@@ -8,11 +8,15 @@
  *     pages that read rows with one: https://intranet.example.com (rest.browser.origins)
  *     access levels of live links: signedIn (rest.browser.levels)
  *     key from the file secrets/browser.key
+ *     viewer page: https://reports.example.com/live/<source> (rest.browser.viewer)
+ *       register https://reports.example.com/live/_/callback at the provider for the client pivotkit-web
+ *       the sign-in asks for openid pivotkit: its access token must be one the REST service accepts
  *
  * A PROBLEM for a key that cannot be used: no browser token is made then. A WARNING for a random key
  * (tokens and levels end on a restart and differ between replicas), for rest.browser while no profile
  * reads rows, for a source whose backend exchanges the person's token: the browser path refuses it, and
- * for signedIn beside me or group: a link without its level then opens for every signed-in person.
+ * for signedIn beside me or group: a link without its level then opens for every signed-in person,
+ * and for a viewer page without pivotkit-element installed next to the server (it answers 503).
  *
  * check/index.js says what a section returns.
  */
@@ -24,6 +28,10 @@ import { makeKey } from "../auth.js";
 import { madeAtStart, readSecret, secretFileWarning } from "../secrets.js";
 import { exchangesToken } from "../sources/auth.js";
 import { heading, idsText, plain, problem, secretText, warning } from "./format.js";
+import { publicOriginOf } from "../config.js";
+import { settingsOf } from "../options/downloads.js";
+import { VIEWER_PATH, VIEWER_CALLBACK_PATH } from "../viewer.js";
+import { viewerAssets } from "../viewer/assets.js";
 
 /** @type {import("./index.js").Section} */
 export async function section(options, _registry, runtime) {
@@ -66,5 +74,28 @@ export async function section(options, _registry, runtime) {
     if (exchanging.length) {
         items.push(warning(`the browser path refuses ${idsText(exchanging)}: its backend exchanges the person's own token, which a browser token never carries; its rows come through the host application's backend`));
     }
+    if (settings.viewer) {
+        items.push(...(await viewerItems(options)));
+    }
     return { items, upgrade: [] };
+}
+
+/**
+ * The viewer page's lines: where it is, what to register at the provider, what its sign-in asks for,
+ * and whether pivotkit-element is installed next to the server.
+ * @param {any} options
+ */
+async function viewerItems(options) {
+    const host = options.http?.host ?? "127.0.0.1";
+    const base = publicOriginOf(options) ?? `http://${host.includes(":") ? `[${host}]` : host}:${options.http?.port ?? 3333}`;
+    const signIn = /** @type {NonNullable<ReturnType<typeof settingsOf>["signIn"]>} */ (settingsOf(options).signIn);
+    const items = [
+        plain(`viewer page: ${base}${VIEWER_PATH}/<source> (rest.browser.viewer); a source's link opens it when it is that address`),
+        plain(`register ${base}${VIEWER_CALLBACK_PATH} at the provider for the client ${signIn.clientId}`, 2),
+        plain(`the sign-in asks for ${signIn.scopes.join(" ")} (output.downloads.signIn.scopes): its access token must be one the REST service accepts, with its audience and required scopes`, 2)
+    ];
+    if (!(await viewerAssets()).ready) {
+        items.push(warning("the viewer page needs pivotkit-element installed next to pivotkit-server (npm install pivotkit-element): until then it answers 503"));
+    }
+    return items;
 }

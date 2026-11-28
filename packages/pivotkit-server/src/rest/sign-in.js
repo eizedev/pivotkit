@@ -94,7 +94,17 @@ export function createRestSignIn(context, { core, browser, mode, audience, resou
         if (!bearer.token) {
             throw new AuthRefusal(401, "invalid_token", bearer.refused ?? "no token");
         }
-        const authInfo = await core.verify(bearer.token, { audience, resource });
+        return verifyToken(bearer.token);
+    }
+
+    /**
+     * An OAuth access token, as verifyBearer checks a bearer's: also the viewer page's, from its
+     * sign-in (viewer.js), so a person reads there with the rights the REST service gives them.
+     * @param {string} token
+     * @returns {Promise<SignIn>}  an AuthRefusal is thrown
+     */
+    async function verifyToken(token) {
+        const authInfo = await core.verify(token, { audience, resource });
         if (!requiredScopes.every((s) => authInfo.scopes.includes(s))) {
             return { reason: refusalReason("INSUFFICIENT_SCOPE"), refused: problem("INSUFFICIENT_SCOPE", `this service needs the scopes ${requiredScopes.join(" ")}`, { headers: { "www-authenticate": challenge("insufficient_scope", "insufficient scope") } }) };
         }
@@ -126,5 +136,5 @@ export function createRestSignIn(context, { core, browser, mode, audience, resou
         return problem("INSUFFICIENT_SCOPE", `${operation} needs the scopes ${scopes.join(" ")}`, mode === "oauth" ? { headers: { "www-authenticate": challenge("insufficient_scope", `${operation} needs more scopes`, [...requiredScopes, ...scopes]) } } : {});
     }
 
-    return { authenticate, refuse, insufficientScope };
+    return { authenticate, verifyToken, refuse, insufficientScope };
 }

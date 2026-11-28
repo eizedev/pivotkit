@@ -123,10 +123,15 @@ export const keySource = (settings, options, env) => sharedKeySource({ ref: sett
 
 /**
  * A signed map of short entries in one cookie: the sign-ins under way (by their state) and the
- * one-time downloads this browser may repeat (by their nonce). `__Host-` and Secure on https.
+ * one-time downloads this browser may repeat (by their nonce). `__Host-` and Secure on https. Each
+ * route has its own name ("dl" for the download links, "live" for the viewer page, viewer.js), so a
+ * sign-in started at one route never completes at the other.
+ * @param {() => Promise<{ cookie: Buffer }>} keyOf
+ * @param {boolean} secure
+ * @param {string} [route]
  */
-export function cookieJar(keyOf, secure) {
-    const name = secure ? "__Host-pivotkit-dl" : "pivotkit-dl";
+export function cookieJar(keyOf, secure, route = "dl") {
+    const name = secure ? `__Host-pivotkit-${route}` : `pivotkit-${route}`;
     return {
         /** The entries of a request's cookie whose signature holds and that have not expired. */
         async read(request) {

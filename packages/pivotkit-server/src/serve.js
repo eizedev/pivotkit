@@ -19,6 +19,7 @@ import { BODY_BYTES, connectionLimitsOf, isLoopback, refusedText, serveFetch } f
 import { bodyBytesOf } from "./limits.js";
 import { DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
 import { createRestHandler } from "./rest/handler.js";
+import { createViewerHandler } from "./viewer.js";
 import { bytesText } from "./text.js";
 import { problemsFor } from "./rest/problem.js";
 import { brandingAnswer, docsOf } from "./branding.js";
@@ -168,15 +169,18 @@ function readinessNotes(log) {
 /**
  * The problem answer to a body that cannot be read (400) or is too large (413), from the family of
  * its path: the download links, MCP, REST, else the server's own.
- * @param {{ downloads: any, mcp: any, rest: any, problem: (code: string, detail: string) => Response }} families
+ * @param {{ downloads: any, viewer: any, mcp: any, rest: any, problem: (code: string, detail: string) => Response }} families
  * @param {400 | 413} status
  * @param {string} path
  * @param {Record<string | symbol, any>} [info]
  */
-function familyProblem({ downloads, mcp, rest, problem }, status, path, info) {
+function familyProblem({ downloads, viewer, mcp, rest, problem }, status, path, info) {
     const route = path.split("?")[0];
     if (downloads.handles(route)) {
         return downloads.problem(status, path, info);
+    }
+    if (viewer?.handles(route)) {
+        return viewer.problem(status, path, info);
     }
     if (mcp && !rest?.handles(route) && mcp.problem) {
         return mcp.problem(status, path, info);
@@ -190,8 +194,8 @@ function familyProblem({ downloads, mcp, rest, problem }, status, path, info) {
 /**
  * The combined fetch handler of a set of options: REST and, if enabled, MCP over one context.
  * @param {import("./config.js").ServerOptions} options
- * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown }, loopback: boolean }} runtime
- * @returns {Promise<import("./listen.js").FetchHandler & { context: any, enable: string[], downloads: ReturnType<typeof createDownloadHandler>, close(): Promise<void> }>}
+ * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown }, loopback: boolean, viewerFiles?: { ownDir?: string, elementDir?: string | null } }} runtime
+ * @returns {Promise<import("./listen.js").FetchHandler & { context: any, enable: string[], downloads: ReturnType<typeof createDownloadHandler>, listening(url: string): void, close(): Promise<void> }>}
  */
 export async function createServerHandler(options, runtime) {
     const asked = options.http?.enable;
@@ -208,6 +212,8 @@ export async function createServerHandler(options, runtime) {
     let made = null;
     /** @type {any} */
     let rest = null;
+    /** @type {any} */
+    let viewer = null;
     try {
         // the download links' route: before REST and MCP (a browser's form POST carries an Origin
         // that is not an MCP client's), shared with pivotkit-mcp's handler on this context
@@ -215,6 +221,9 @@ export async function createServerHandler(options, runtime) {
         made = downloads;
         const isDownload = (request) => downloads.handles(new URL(request.url).pathname);
         rest = enable.includes("rest") ? await createRestHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
+        // the viewer page of live links (rest.browser.viewer): it reads the person's rights as the REST service does
+        viewer = rest ? await createViewerHandler(context, rest.viewer, { env: runtime.env, loopback: runtime.loopback, files: runtime.viewerFiles }) : null;
+        const isViewer = (request) => viewer?.handles(new URL(request.url).pathname) ?? false;
         // the answers of this handler name the operator's documentation (branding.js)
         const { problem, hostProblem } = problemsFor(context.branding.docs);
         // a path nobody serves names the REST service and its OpenAPI document by their full address;
@@ -253,6 +262,9 @@ export async function createServerHandler(options, runtime) {
                 if (isDownload(request)) {
                     return downloads.precheck(request, info);
                 }
+                if (isViewer(request)) {
+                    return viewer.precheck(request, info);
+                }
                 if (rest && isRest(request)) {
                     return rest.precheck(request, info);
                 }
@@ -277,6 +289,9 @@ export async function createServerHandler(options, runtime) {
                 }
                 if (isDownload(request)) {
                     return downloads.fetch(request, info);
+                }
+                if (isViewer(request)) {
+                    return viewer.fetch(request, info);
                 }
                 if (rest && isRest(request)) {
                     return rest.fetch(request, info);
@@ -311,9 +326,15 @@ export async function createServerHandler(options, runtime) {
             fetch: hosted.fetch,
             /** @type {import("./listen.js").FetchHandler["release"]} */
             release: (info) => rest?.release(info),
-            problem: (status, path, info) => familyProblem({ downloads, mcp, rest, problem }, status, path, info),
+            problem: (status, path, info) => familyProblem({ downloads, viewer, mcp, rest, problem }, status, path, info),
+            /** @param {string} url */
+            listening(url) {
+                downloads.listening(url);
+                viewer?.listening(url);
+            },
             async close() {
                 downloads.close();
+                viewer?.close();
                 await rest?.close();
                 await mcp?.close();
                 await context.close();
@@ -321,6 +342,7 @@ export async function createServerHandler(options, runtime) {
         };
     } catch (e) {
         made?.close();
+        viewer?.close();
         await rest?.close().catch(() => undefined);
         await context.close();
         throw e;
@@ -331,7 +353,8 @@ export async function createServerHandler(options, runtime) {
  * Serves REST (and MCP) over HTTP. With a state directory (runtime.stateDir, state.js) a token and
  * keys that are missing are made first.
  * @param {import("./config.js").ServerOptions} given
- * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown }, stateDir?: string | null }} runtime
+ * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown }, stateDir?: string | null, viewerFiles?: { ownDir?: string, elementDir?: string | null } }} runtime
+ *   viewerFiles: where the viewer page's files are, in place of its own and pivotkit-element's (tests)
  * @returns {Promise<{ port: number, url: string, context: any, enable: string[], close(): Promise<void> }>}
  */
 export async function serve(given, runtime) {
@@ -341,7 +364,7 @@ export async function serve(given, runtime) {
     if (!isLoopback(host) && (options.auth?.mode ?? "none") === "none" && !options.auth?.allowUnauthenticated) {
         throw new ConfigError(openAddressRefusal(host));
     }
-    const handler = await createServerHandler(options, { env: runtime.env, stderr: runtime.stderr, loopback: isLoopback(host) });
+    const handler = await createServerHandler(options, { env: runtime.env, stderr: runtime.stderr, loopback: isLoopback(host), viewerFiles: runtime.viewerFiles });
     logNotes(handler.context.log, notes);
     let listening;
     try {
@@ -353,7 +376,7 @@ export async function serve(given, runtime) {
         throw e;
     }
     const url = `http://${host.includes(":") ? `[${host}]` : host}:${listening.port}`;
-    handler.downloads.listening(url);
+    handler.listening(url);
     // what would fail on the first call is said now: a source file that is not there, a test issuer
     for (const s of await handler.context.registry.check()) {
         if (!s.exists) {

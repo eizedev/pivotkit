@@ -43,7 +43,7 @@ import { answer, precheck, release } from "./stages.js";
  * The REST service of a context.
  * @param {any} context  createContext's
  * @param {{ env?: Record<string, string | undefined>, loopback?: boolean }} [runtime]  env: where static tokens are read (default process.env); loopback: whether the server listens on loopback only
- * @returns {Promise<{ fetch(request: Request, info?: { address?: string }): Promise<Response>, precheck(request: Request, info?: { address?: string }): Promise<Response | null>, problem(status: 400 | 413, path: string, info?: Record<string | symbol, any>): Response, release(info: Record<string | symbol, any>): void, handles(path: string): boolean, close(): Promise<void>, openapi(): Record<string, unknown> }>}
+ * @returns {Promise<{ viewer: Parameters<typeof import("../viewer.js").createViewerHandler>[1], fetch(request: Request, info?: { address?: string }): Promise<Response>, precheck(request: Request, info?: { address?: string }): Promise<Response | null>, problem(status: 400 | 413, path: string, info?: Record<string | symbol, any>): Response, release(info: Record<string | symbol, any>): void, handles(path: string): boolean, close(): Promise<void>, openapi(): Record<string, unknown> }>}
  */
 export async function createRestHandler(context, runtime = {}) {
     const options = context.options;
@@ -114,6 +114,8 @@ export async function createRestHandler(context, runtime = {}) {
 
     return {
         handles,
+        // the viewer page's part (viewer.js): a person's access token checked as a bearer's, and the exchange route's steps
+        viewer: { verifyToken: service.signIn.verifyToken, exchange: browser.exchange },
         openapi: service.discovery.openapi,
         precheck: routes.precheck,
         fetch: routes.fetch,

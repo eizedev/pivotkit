@@ -646,7 +646,8 @@
           "key": {
             "custom": "fn"
           },
-          "levels": "strings"
+          "levels": "strings",
+          "viewer": "boolean"
         }
       }
     }

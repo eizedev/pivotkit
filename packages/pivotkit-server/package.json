@@ -51,6 +51,7 @@
   "files": [
     "bin",
     "src",
+    "viewer",
     "types",
     "README.md",
     "CHANGELOG.md",

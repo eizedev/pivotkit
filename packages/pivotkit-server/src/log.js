@@ -287,7 +287,7 @@ export async function logUnanswered(log, scope, response, fields = {}) {
 }
 
 /** The events whose level and outcome follow their status (or `ok`). */
-const OUTCOME_EVENTS = new Set(["call", "request", "download", "records", "refused"]);
+const OUTCOME_EVENTS = new Set(["call", "request", "download", "records", "viewer", "refused"]);
 
 /**
  * A log on a stream.
@@ -378,6 +378,8 @@ export function createLog(settings, stream, { service = "pivotkit-server", versi
         request: outcomeLine("request", (entry, ok) => `${nameOf(entry.operation)} ${ok ? "ok" : "failed"}`),
         /** A file handed out: by a REST caller's file route or a download link. */
         download: outcomeLine("download", (_entry, ok) => (ok ? "file sent" : "download failed")),
+        /** A sign-in of the viewer page (viewer.js): a browser token made for a live link, or why not. Never the token, only its id. */
+        viewer: outcomeLine("viewer", (_entry, ok) => (ok ? "viewer signed in" : "viewer sign-in failed")),
         /** The rows of a source handed out (records.js): written once its answer ended, whole or cut. Counts only, never a value. */
         records: outcomeLine("records", (_entry, ok) => (ok ? "rows sent" : "rows cut off")),
         /** An HTTP request refused before it reached a tool (Host, Origin, token, size, limits): its `reason`. */
