@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DESCRIBE_LABELS, DESCRIBE_LIMITS, PivotkitError, describeLabels, describeSource, describeView, encode, relativeDateRange } from "../src/index.js";
+import { DESCRIBE_LABELS, DESCRIBE_LIMITS, PivotkitError, describeLabels, describeSource, describeView, encode, relativeDateRange, suggestLayout } from "../src/index.js";
 import { COMPARE_OPS, COMPARE_PRECISIONS, TEXT_OPS } from "../src/filters.js";
 import { RELATIVE_DIRECTIONS, RELATIVE_UNITS } from "../src/relative.js";
 import { CHART_TYPES } from "../src/view.js";
@@ -386,5 +386,16 @@ test("describeView has words for every unit, direction, operator, precision and 
                 assert.equal(text, `count of rows as a ${type === "auto" ? "chart" : `${type} chart`}`);
             }
         }
+    }
+});
+
+test("expanded source description days and minutes remain usable for layout suggestions", () => {
+    for (const dates of [["+010000-02-29", "+010001-03-01"], ["-000001-01-01T12:30", "0002-01-01T14:15"]]) {
+        const description = describeSource(encode(dates.map((Date) => ({Date}))));
+        const field = description.fields[0];
+        assert.deepEqual(field.items, dates);
+        assert.equal(field.min, dates[0]);
+        assert.equal(field.max, dates[1]);
+        assert.ok(!suggestLayout(description).notes.some((n) => n.code === "noSuggestion"));
     }
 });

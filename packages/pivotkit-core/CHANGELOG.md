@@ -8,6 +8,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- Preserve signed expanded-year days and minutes in descriptions, relative anchors and ranges.
+
 - **Breaking:** `describeSource` with an array takes it as fields only when every entry has a string
   `name` and a `type` of `string`, `number`, `date`, `boolean` or `null`. Anything else throws
   `INVALID_ARGUMENT` and says to `encode()` the rows. Before, rows with a `name` column were read as

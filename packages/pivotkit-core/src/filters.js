@@ -164,7 +164,7 @@ export function relativeDateRange(unit, count, options) {
     if (whole(from) && whole(to)) {
         return { from: Number.isFinite(from) ? isoDay(from) : null, to: isoDay(to - MS_PER_DAY) };
     }
-    const minute = (ms) => new Date(ms).toISOString().slice(0, 16);
+    const minute = (ms) => new Date(ms).toISOString().slice(0, -8);
     return { from: Number.isFinite(from) ? minute(from) : null, to: minute(to - 1) };
 }
 
@@ -192,7 +192,7 @@ function anchorText(anchor) {
     if (!isDateMs(ms)) {
         return null;
     }
-    return ms % MS_PER_DAY === 0 ? isoDay(ms) : new Date(ms).toISOString().slice(0, 19);
+    return ms % MS_PER_DAY === 0 ? isoDay(ms) : new Date(ms).toISOString().slice(0, -5);
 }
 
 /**

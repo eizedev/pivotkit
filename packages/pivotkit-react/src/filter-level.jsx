@@ -38,6 +38,7 @@ import {
     RULE_TYPES,
     combinedYearsText,
     conditionKind,
+    dateRuleValue,
     itemTotals,
     keepsBlanks,
     quickChoice,
@@ -411,6 +412,7 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
     const textOf = (v) => (v === undefined ? "" : fk.item === "number" ? numberText(v, locale) : String(v));
     const compared = rule?.type === "compare" ? rule : null;
     const ranged = rule?.type === "relative" ? rule : null;
+    const [expandedDates] = useState(() => [compared?.value, compared?.value2].some((v) => /^(?:[+-]|0000-)/.test(String(v))) || (fk.item === "date" && items.some((i) => typeof i.value === "number" && (new Date(i.value).getUTCFullYear() < 1 || new Date(i.value).getUTCFullYear() > 9999))));
     const [s, setS] = useState(() => ({
         op: ranged ? "last" : compared ? ruleOp(compared) : ">=",
         a: textOf(compared?.value),
@@ -421,7 +423,7 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
     const later = useLater();
     const latest = useLatest({ rule, apply, unset });
     const formName = useFormName();
-    const read = (text) => (fk.item === "number" ? parseNumber(text, locale) : fk.item === "date" ? (/^\d{4,}-\d{2}-\d{2}$/.test(text) ? text : null) : text === "" ? null : Number(text));
+    const read = (text) => (fk.item === "number" ? parseNumber(text, locale) : fk.item === "date" ? dateRuleValue(text) : text === "" ? null : Number(text));
     const entryOf = (x) => {
         if (x.op === "last") {
             const n = readNumber(x.count, { kind: "count", max: CATALOG.relativeMaxCount, labels, locale }).value;
@@ -466,7 +468,7 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
             return <NumberField value={s[key]} onChange={(t) => change({ [key]: t }, true)} onKeyDown={keys} onBlur={later.now} problem={problem} label={label} testId={testId} className="pk-field-label pk-narrow-input" />;
         }
         if (fk.item === "date") {
-            return <input type="date" name={`${formName}-${key}`} value={s[key]} onChange={(e) => change({ [key]: e.target.value })} aria-label={label} data-testid={testId} />;
+            return <input type={expandedDates ? "text" : "date"} name={`${formName}-${key}`} value={s[key]} onChange={(e) => change({ [key]: e.target.value })} aria-label={label} data-testid={testId} />;
         }
         // a grouping: one of its items ("2022", "Mar 2025"), or the view's own when the data has it no more
         const listed = items.filter((i) => typeof i.value === "number");

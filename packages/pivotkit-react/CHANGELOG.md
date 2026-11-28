@@ -6,6 +6,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- Count complete expanded-year days in relative quick choices.
+
 ## [0.11.0] - 2026-11-26
 
 ### Added
@@ -915,8 +919,6 @@ What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/
 - Reset's note "Back to the start view" has **Undo**, as New's has. In More, a letter jumps to the
   next entry that starts with it, as in the other menus, and Layout is a checkbox item
   (`menuitemcheckbox`), not one of a set of choices.
-
-### Fixed
 
 - A loaded file shown again after a new mount lost its view when the host mounted the report twice in
   a row (PowerShell Universal's `Sync-UDElement`, two mounts within about 30 ms) or mounted it again
