@@ -11,7 +11,7 @@
  * The texts are server-labels.js's. Every colour is a --pk-* token (styles.css: .pk-server-*).
  */
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Icon } from "./icons.jsx";
 import { serverLabels, stateWords } from "./server-labels.js";
 
@@ -49,12 +49,38 @@ const LOOK = Object.freeze({
  */
 
 /**
+ * The whole seconds until `at` (ms since the epoch), counted down as each one passes; null without `at`.
+ * @param {number | undefined} at
+ * @returns {number | null}
+ */
+function useSecondsLeft(at) {
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        if (at === undefined) {
+            return undefined;
+        }
+        /** @type {ReturnType<typeof setTimeout>} */
+        let tick;
+        const step = () => {
+            const t = Date.now();
+            setNow(t);
+            // the next tick when the next whole second is up
+            tick = setTimeout(step, Math.max(0, at - t) % 1000 || 1000);
+        };
+        step();
+        return () => clearTimeout(tick);
+    }, [at]);
+    return at === undefined ? null : Math.max(0, Math.ceil((at - now) / 1000));
+}
+
+/**
  * The words and the button of a state.
  * @param {StateProps & { compact?: boolean }} props
  */
 function StateBody({ failure, labels, locale, onRetry, shownAt = null, compact = false }) {
     const t = serverLabels(labels);
-    const w = stateWords(failure, t, { locale, shownAt });
+    const left = useSecondsLeft(failure.retryAt);
+    const w = stateWords(failure, t, { locale, shownAt, left });
     const look = LOOK[failure.state] ?? LOOK.unreachable;
     const button =
         w.action === "reload" ? (
@@ -75,7 +101,16 @@ function StateBody({ failure, labels, locale, onRetry, shownAt = null, compact =
             </span>
             <div className="pk-server-words">
                 <h2 className="pk-server-title">{w.title}</h2>
-                <p className="pk-server-text">{w.text}</p>
+                {w.said ? (
+                    <>
+                        <p className="pk-server-text" aria-hidden="true" data-testid="server-countdown">
+                            {w.text}
+                        </p>
+                        <p className="pk-sr">{w.said}</p>
+                    </>
+                ) : (
+                    <p className="pk-server-text">{w.text}</p>
+                )}
                 {button ? <div className="pk-empty-actions">{button}</div> : null}
                 {w.support ? <p className="pk-server-support">{w.support}</p> : null}
             </div>

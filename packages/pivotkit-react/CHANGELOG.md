@@ -17,10 +17,14 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - Its states: a message in place of the report while it shows no rows (no access, the link not
   shared with this account or no longer working, a link that does not fit, the sign-in ended, failed
   or too large, too much data, the server busy or not reachable), a banner above the report when
-  reading rows again fails, and after 3 seconds a line over the skeleton. A line for IT support names
-  the server's code and request id where there is one. `onServerState`
-  gets every state, never the token. The texts are `labels.server`, English and German
+  reading rows again fails, and after 3 seconds a line over the skeleton. A line for IT support
+  names the server's code and request id where there is one. `onServerState` gets every state,
+  never the token. The texts are `labels.server`, English and German
   ([#621](https://github.com/eizedev/pivotkit/issues/621)).
+- A busy server's `Retry-After` of up to 60 seconds is counted down, and the report then reads
+  again on its own, once; **Try again** stays. A host with its own language adds the new texts
+  `labels.server.busy.textAuto` and `saidAuto`
+  ([#1018](https://github.com/eizedev/pivotkit/issues/1018)).
 - Copy link of a report with a server keeps the parameters it read and `pk-access`. The toast and
   the share note name the parameters ([#621](https://github.com/eizedev/pivotkit/issues/621)).
 - The rows' state, the network code, the states and their texts load on first use

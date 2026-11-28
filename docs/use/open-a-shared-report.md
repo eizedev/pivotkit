@@ -31,6 +31,7 @@ The report works as every pivotkit report does: move fields, filter, show a char
 | **Not signed in**, **Sign-in failed** or **Sign-in page out of date** | You cancelled the sign-in, it did not complete, or the page used it already. | Choose **Sign in again**. |
 | **The sign-in for this report did not work** | The sign-in service let you in, but the report server could not read your rights. | Reload the page. If it keeps happening, tell your IT support. |
 | **Too many sign-ins** | Many sign-ins came from your network in a short time. | Wait a minute, then sign in again. |
+| **The report server is busy** | Many reports are loading at the moment. | Wait. When the report counts down, it tries again by itself once. Otherwise choose **Try again** a little later. |
 | **Report page not available** | The report server cannot show reports in the browser yet. | Tell your IT support, with the request id on the page. |
 
 A message for IT support ends with a line "For IT support:" with a code and a request id. Give

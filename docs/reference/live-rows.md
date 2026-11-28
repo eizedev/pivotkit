@@ -66,8 +66,23 @@ does the report say that the sign-in ended.
 | `signIn` | `getToken` failed without a `problem`: the page's sign-in step, not the report server. |
 | `signInLarge` | The sign-in carries more groups or claims than a browser token holds. |
 | `large` | More rows or values than the server's limit (413 `LIMIT_EXCEEDED`). |
-| `busy` | The server is busy (503, 429). The text names its `Retry-After`. **Try again** reads once more. |
+| `busy` | The server is busy (503, 429). See [busy](#busy). |
 | `unreachable` | No answer, an answer that broke off, or a server error. |
+
+### Busy { #busy }
+
+When the server answers busy with a `Retry-After` of at most 60 seconds, the report counts that wait
+down and then reads again on its own, once. **Try again** is there all the time. The report does not
+try on its own when:
+
+- the next answer is busy again;
+- the wait is longer than 60 seconds;
+- `Retry-After` gives a date or no whole number of seconds, or is missing.
+
+After **Try again**, a new request, or rows that came, the report may try on its own once more. The
+60 seconds are fixed. `onServerState` and `pivot-server-state` tell `busy`, then `loading` when the
+report reads again on its own, then its outcome, as with Try again. A screen reader hears the wait
+once, not every second.
 
 The texts are under `labels.server` ([localisation](localisation.md)). The network code, the states
 and their texts load on first use, so a report without `server` loads none of it.

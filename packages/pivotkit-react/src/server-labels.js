@@ -63,7 +63,11 @@ export const en = {
         title: "The report server is busy",
         text: "Many reports are loading at the moment. Try again in a moment. If it keeps happening, tell your IT support.",
         // the server said how long to wait (Retry-After)
-        textAfter: "Many reports are loading at the moment. Try again in {seconds} seconds. If it keeps happening, tell your IT support."
+        textAfter: "Many reports are loading at the moment. Try again in {seconds} seconds. If it keeps happening, tell your IT support.",
+        // the report tries again on its own once that wait has passed; {seconds} counts down
+        textAuto: "Many reports are loading at the moment. Trying again in {seconds} s.",
+        // what a screen reader hears of it, once: the count is not read out every second
+        saidAuto: "Many reports are loading at the moment. The report tries again in {seconds} seconds."
     },
     support: "For IT support: {code}, request {id}",
     supportCode: "For IT support: {code}",
@@ -120,7 +124,9 @@ export const de = {
     busy: {
         title: "Der Berichtsserver ist ausgelastet",
         text: "Gerade laden viele Berichte. In einem Moment erneut versuchen. Passiert es wieder, dem IT-Support Bescheid geben.",
-        textAfter: "Gerade laden viele Berichte. In {seconds} Sekunden erneut versuchen. Passiert es wieder, dem IT-Support Bescheid geben."
+        textAfter: "Gerade laden viele Berichte. In {seconds} Sekunden erneut versuchen. Passiert es wieder, dem IT-Support Bescheid geben.",
+        textAuto: "Gerade laden viele Berichte. Neuer Versuch in {seconds} s.",
+        saidAuto: "Gerade laden viele Berichte. Der Bericht versucht es in {seconds} Sekunden erneut."
     },
     support: "Für den IT-Support: {code}, Anfrage {id}",
     supportCode: "Für den IT-Support: {code}",
@@ -151,11 +157,12 @@ export function serverLabels(labels) {
 }
 
 /**
- * The words of a state: heading, sentence, button, support line.
+ * The words of a state: heading, sentence, button, support line. `said` is the sentence a screen
+ * reader hears where it differs from the one shown (a count that changes every second).
  * @param {import("./server-rows.js").ServerFailure} failure
  * @param {ServerTexts} t
- * @param {{ locale: string, shownAt?: number | null }} how  shownAt: when the rows shown were loaded (a banner)
- * @returns {{ title: string, text: string, action: "reload" | "retry" | null, support: string | null }}
+ * @param {{ locale: string, shownAt?: number | null, left?: number | null }} how  shownAt: when the rows shown were loaded (a banner); left: seconds until the automatic try (failure.retryAt)
+ * @returns {{ title: string, text: string, said?: string, action: "reload" | "retry" | null, support: string | null }}
  */
 export function stateWords(failure, t, how) {
     const time = how.shownAt ? new Date(how.shownAt).toLocaleTimeString(how.locale, { hour: "2-digit", minute: "2-digit" }) : null;
@@ -177,9 +184,25 @@ export function stateWords(failure, t, how) {
         case "large":
             return { title: t.large.title, text: failure.maxRows ? fill(t.large.text, { limit: count(failure.maxRows) }) : t.large.textValues, action: null, support };
         case "busy":
-            return { title: t.busy.title, text: failure.retryAfter ? fill(t.busy.textAfter, { seconds: count(failure.retryAfter) }) : t.busy.text, action: "retry", support };
+            return busyWords(failure, t, count, how.left, support);
         default:
             return { title: t.unreachable.title, text: time ? fill(t.unreachableData.text, { time }) : t.unreachable.text, action: "retry", support: time ? null : support };
     }
 }
 
+/**
+ * The words of "busy": with the automatic try, the seconds left (shown) and the wait (said once);
+ * else the server's wait, or none.
+ * @param {import("./server-rows.js").ServerFailure} failure
+ * @param {ServerTexts} t
+ * @param {(n: number) => string} count
+ * @param {number | null | undefined} left
+ * @param {string | null} support
+ */
+function busyWords(failure, t, count, left, support) {
+    const words = { title: t.busy.title, action: /** @type {const} */ ("retry"), support };
+    if (failure.retryAt !== undefined && typeof left === "number") {
+        return { ...words, text: fill(t.busy.textAuto, { seconds: count(left) }), said: fill(t.busy.saidAuto, { seconds: count(Math.max(1, Math.ceil(failure.retryAfter ?? left))) }) };
+    }
+    return { ...words, text: failure.retryAfter ? fill(t.busy.textAfter, { seconds: count(failure.retryAfter) }) : t.busy.text };
+}
