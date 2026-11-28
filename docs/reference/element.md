@@ -309,7 +309,7 @@ data it shows, keep those scripts off the page, as you would for the data itself
 | `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), the field list collapsed or opened (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
 | `pivot-source-switch` | "Switch to “name” and load" for a view made for one of `sources`: show that data with `view` as its start view. [More](#event-pivot-source-switch)<br><small>`detail`: `{ source, view, name }`</small> |
 | `pivot-data-load` | The data shown changed (with `allow-import`): a file loaded (cancelable), the page's data again, one of those undone or redone, or the file shown again after the element was put back. [More](#event-pivot-data-load)<br><small>`detail`: `{ cause, source, file, sheet, rows, columns, notes }`</small> |
-| `pivot-server-state` | A report with `server-url`: loading, ready, or why no rows came (`refused`, `linkRefused`, `expired`, `large`, `busy`, `unreachable`). Never the token.<br><small>`detail`: `{ state, source, shown, code, status, requestId, rows, dataAsOf }`. `shown`: the report shows rows from an earlier read</small> |
+| `pivot-server-state` | A report with `server-url`: loading, ready, or why no rows came ([states](live-rows.md#states)). Never the token.<br><small>`detail`: `{ state, source, shown, code, status, requestId, rows, dataAsOf }`. `shown`: the report shows rows from an earlier read</small> |
 
 The template events wait for the page's answer. Call `event.detail.respondWith(promise)` in the
 listener itself. A later call throws `InvalidStateError`.

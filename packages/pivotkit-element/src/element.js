@@ -131,8 +131,8 @@ export { EVENTS };
 
 /**
  * @typedef {object} ServerState  the detail of pivot-server-state: a report with server-url, what it does now
- * @property {"loading" | "ready" | "refused" | "linkRefused" | "expired" | "large" | "unreachable" | "busy"} state
- *   "linkRefused": the link's access level shuts this account out; "expired": getToken() gave no new token
+ * @property {"loading" | "ready" | "refused" | "linkRefused" | "linkInvalid" | "unfit" | "expired" | "signIn" | "signInLarge" | "large" | "unreachable" | "busy"} state
+ *   the failed states as docs/reference/live-rows.md lists them
  * @property {string} source
  * @property {boolean} shown  the report shows rows from an earlier read meanwhile
  * @property {string} [code]  the server's error code

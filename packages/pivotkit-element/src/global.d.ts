@@ -24,7 +24,7 @@ export interface PivotReportEventMap {
     "pivot-source-switch": CustomEvent<SourceSwitch>;
     /** The data shown changed (with `allow-import`): a file loaded (`preventDefault()` refuses it), the page's data again, or one of those undone or redone. */
     "pivot-data-load": CustomEvent<DataLoad>;
-    /** A report with `server-url`: loading, ready, or why no rows came (refused, linkRefused, expired, large, unreachable, busy), with the server's code and request id. */
+    /** A report with `server-url`: loading, ready, or why no rows came (the states of the live rows reference), with the server's code and request id. */
     "pivot-server-state": CustomEvent<ServerState>;
 }
 
