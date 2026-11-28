@@ -45,13 +45,16 @@ const REGIONS = ["Central", "West", "North", "South", "East", "Alps", "Coast", "
 const HOST = { Central: "#d9d9d9", West: "#1f1f1f", North: "gold" };
 /** The room around a tile's text at the default --pk-chart-tile-padding, px. */
 const PADDING = 8;
-/** The smallest tile that writes a label at the report's 14 px text, from pivotkit-core's measures (treemapLabels). */
-const TILE_MIN = {
-    width: textWidth(`${"M".repeat(TILE_MIN_CHARS)}${ELLIPSIS}`, 14) * BOLD_WIDTH + 2 * PADDING,
-    height: tileLine(14) + PADDING
-};
-/** Narrower than this no cut name fits, even of the narrowest characters (lower case): no label. */
-const TILE_NONE_WIDTH = textWidth(`${"a".repeat(TILE_MIN_CHARS)}${ELLIPSIS}`, 14) * BOLD_WIDTH + 2 * PADDING;
+/**
+ * The smallest tile that writes a label at `fontSize`, from pivotkit-core's measures (treemapLabels):
+ * room for the fewest characters of a cut name as bold capitals (the widest) and one line, between
+ * the padding on every side; `none`: narrower than this no cut name fits, even of lower case.
+ */
+const tileMin = (fontSize) => ({
+    width: textWidth(`${"M".repeat(TILE_MIN_CHARS)}${ELLIPSIS}`, fontSize) * BOLD_WIDTH + 2 * PADDING,
+    height: tileLine(fontSize) + 2 * PADDING,
+    none: textWidth(`${"a".repeat(TILE_MIN_CHARS)}${ELLIPSIS}`, fontSize) * BOLD_WIDTH + 2 * PADDING
+});
 /** Twenty countries by population: wide tiles and tiles too narrow for a name. */
 const COUNTRIES = [["India", 1450], ["China", 1410], ["United States", 340], ["Indonesia", 283], ["Pakistan", 251], ["Nigeria", 232], ["Brazil", 212], ["Bangladesh", 173], ["Russian Federation", 143], ["Ethiopia", 132], ["Mexico", 130], ["Japan", 124], ["Egypt, Arab Rep.", 116], ["Philippines", 115], ["Congo, Dem. Rep.", 109], ["Viet Nam", 101], ["Iran, Islamic Rep.", 91], ["Turkiye", 85], ["Germany", 83], ["Thailand", 71]].map(([Country, Population]) => ({ Country, Population }));
 
@@ -77,6 +80,8 @@ for (const theme of ["light", "dark"]) {
         await page.goto("pages/host.html");
         await mountReport(page, { id: "fill-report", rows: COUNTRIES, view: { rows: ["Country"], values: [{ field: "Population", agg: "sum" }], display: "chart", chart: { type: "treemap" } }, theme, height: 560 });
         const chartEl = await chartOf(page, "fill-report", "treemap");
+        // the size the chart writes the tiles' text at (--pk-chart-tile-size, the page's)
+        const min = tileMin(await inChart(chartEl, (chart) => chart.getOption().series[0].label.rich.name.fontSize));
         const tiles = await inChart(chartEl, (chart) => {
             const out = [];
             for (const el of chart.getZr().storage.getDisplayList(true)) {
@@ -100,11 +105,10 @@ for (const theme of ["light", "dark"]) {
         let below = 0;
         for (const t of tiles) {
             const size = `${Math.round(t.tile.width)} x ${Math.round(t.tile.height)} px`;
-            // a tile with room for the fewest characters of a cut name, as bold capitals (the widest),
-            // and for one line, shows words
-            if (t.tile.width >= TILE_MIN.width && t.tile.height >= TILE_MIN.height) expect(t.words.length, `a tile of ${size} without words`).toBeGreaterThan(0);
+            // a tile with room for the fewest characters of a cut name and one line shows words
+            if (t.tile.width >= min.width && t.tile.height >= min.height) expect(t.words.length, `a tile of ${size} without words`).toBeGreaterThan(0);
             // a tile too narrow even for lower case, or lower than a line, shows none
-            if (t.tile.width < TILE_NONE_WIDTH || t.tile.height < TILE_MIN.height) {
+            if (t.tile.width < min.none || t.tile.height < min.height) {
                 below++;
                 expect(t.words, `${t.name}: words on a tile of ${size}`).toEqual([]);
             }

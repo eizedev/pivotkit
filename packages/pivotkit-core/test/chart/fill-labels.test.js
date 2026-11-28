@@ -135,9 +135,9 @@ test("treemap with the tiles of a first draw (tileOf): each label at its tile's 
         Central: { width: 300, height: 200 },
         // 30 px wide: not even "Wes…" fits
         West: { width: 30, height: 60 },
-        // 26 px tall: no line fits under the 8 px padding; 27 px: one line of 19 px does
-        North: { width: 300, height: 26 },
-        South: { width: 300, height: 27 },
+        // 34 px tall: no line of 19 px fits between the 8 px padding above and below; 35 px: one does
+        North: { width: 300, height: 34 },
+        South: { width: 300, height: 35 },
         // 64 px wide and 60 px tall: "Isla…" fits, the value "1,340" too, and two lines
         Islands: { width: 64, height: 60 },
         // 62 px wide: "Coa…" would fit, but a name cut to 3 characters is a stub: no label

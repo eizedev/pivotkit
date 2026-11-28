@@ -164,10 +164,13 @@ function treemapLabels(s, { ink, floor, fontSize, padding, weights, tileColor },
         if (!tile || !format) return item;
         const width = tile.width - 2 * padding;
         const [first, ...rest] = String(format(d)).split("\n");
-        const name = tile.height >= padding + line ? fitText(first, width / bold, fontSize) : null;
+        // ECharts gives the text the tile less the padding on every side, and leaves out a line that
+        // does not fit that height whole
+        const lines = Math.floor((tile.height - 2 * padding) / line);
+        const name = lines >= 1 ? fitText(first, width / bold, fontSize) : null;
         if (name === null) return { ...item, label: { ...d.label, show: false } };
         // the value below the name where its line fits whole, and the tile's height holds it
-        const value = rest.filter((t) => textWidth(t, fontSize) <= width).slice(0, Math.max(0, Math.floor((tile.height - padding) / line) - 1));
+        const value = rest.filter((t) => textWidth(t, fontSize) <= width).slice(0, lines - 1);
         const text = words([name, ...value]);
         return { ...item, label: { ...d.label, formatter: () => text } };
     });
