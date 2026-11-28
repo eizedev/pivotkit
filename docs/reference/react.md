@@ -69,6 +69,8 @@ Installation and a first example are in [Getting started with React](../getting-
 | `plugins` | `ReaderPlugin[]` |  | Reader plugins for more formats ([pivotkit-xlsx](plugins.md#pivotkit-xlsx) for Excel); CSV, TSV, text and JSON are built in. [More](#prop-plugins) |
 | `onDataLoad` | `({ cause, source, file, sheet, rows, columns, notes }) => unknown` |  | The data shown changed: a file loaded (returning `false` refuses it), the host's data shown again, one of those undone or redone, or the file shown again after a new mount. [More](#prop-ondataload) |
 | `importWorker` | `() => Worker` |  | Starts a module worker that runs `pivotkit-react/import-worker`, so CSV and JSON files are read off the page. [More](#prop-importworker) |
+| `server` | `{ url, source, getToken, allowParams?, refreshKey? }` |  | The report reads its rows from pivotkit-server with a browser token from `getToken()`, in place of `data`. [More](#server) |
+| `onServerState` | `({ state, source, shown, code?, status?, requestId?, rows?, dataAsOf? }) => void` |  | Each state of a report with `server`: loading, ready, or why no rows came. Never the token. [More](#server) |
 
 Exports: `PivotReport` and these types:
 
@@ -728,6 +730,67 @@ is not there.
 Without `importWorker`, the page reads the file. The readers give the page a turn every 16,384 rows,
 so progress and **Cancel** still work. pivotkit-element starts its own worker.
 
+## A report that reads its rows from pivotkit-server { #server }
+
+`server` points the report at a source of [pivotkit-server](records.md#records-browser). The report
+reads the rows itself, with a short-lived browser token that the page's `getToken()` gives. They
+take the place of `data`; a report with both shows the server's rows and says so once in the
+console.
+
+```jsx
+const getToken = async (request) => {
+    // your backend exchanges the person's token at POST /api/v1/sources/records/token
+    const answer = await fetch("/my-backend/pivotkit-token", { method: "POST", body: JSON.stringify(request) });
+    if (!answer.ok) throw Object.assign(new Error("refused"), { problem: await answer.json() });
+    return answer.json(); // { token, expiresAt, … } as the exchange route answers, or the token alone
+};
+<PivotReport server={{ url: "https://reports.example.com", source: "sales", getToken, allowParams: ["customer"] }} />
+```
+
+| Key | What it is |
+| --- | --- |
+| `url` | The server's address, `http` or `https`, without a user name. Your code names it; a link never does. |
+| `source` | The source id. A view link's own source does not change it. |
+| `getToken` | `({ source, params, access? }) => token`, or a promise of it. See below. |
+| `allowParams` | The source's parameters the page's query string may set (`?customer=acme`). None by default. A name given twice counts once, with its first value. |
+| `refreshKey` | Any value: a new one reads the rows again, while the report keeps showing the ones it has. |
+
+`getToken` gets what to read: the source, the parameters from the query string, and the link's
+access level (`pk-access` of the query string) when there is one. It gives:
+
+- the exchange route's answer, or the token as a text. The report keeps it in memory and sends it in
+  the `Authorization` header only, never in an address. It asks again 15 seconds before `expiresAt`.
+- nothing (`null`, `""`): the person must sign in again. The report says so.
+- an error with `problem`, the exchange route's answer: the report shows its state. Any other error
+  counts as a server it cannot reach.
+
+A 401 from the rows route asks `getToken` once more and tries again once. Only when that fails too
+does the report say that the sign-in ended.
+
+What the report shows:
+
+- While it loads, its skeleton. After 3 seconds, one line over it says that a large report takes a
+  few seconds.
+- No rows yet and a refusal: a message in place of the report. It says what happened, what the
+  person can do, and a line for IT support with the server's code and request id.
+- Rows already, and reading them again failed: a banner above the report says from when the rows
+  are.
+
+| `state` | When |
+| --- | --- |
+| `refused` | The person may not read this source or these parameters (403, 404, 400). |
+| `linkRefused` | The link's [access level](records.md#records-access) shuts this account out. |
+| `expired` | `getToken` gave no new token, or the new one was refused too. |
+| `large` | More rows or values than the server's limit (413 `LIMIT_EXCEEDED`). |
+| `busy` | The server is busy (503, 429). **Try again** reads once more. |
+| `unreachable` | No answer, an answer that broke off, or a server error. |
+
+The texts are under `labels.server` ([localisation](localisation.md)). The network code, the states
+and their texts load on first use, so a report without `server` loads none of it.
+
+Copy link keeps the parameters the report read and `pk-access`. The toast and the share note name the
+parameters: whoever opens the link reads with their own account's rights.
+
 ## Tips
 
 The report shows short notes above the table or the chart. They sit in the flow, never over the
@@ -808,6 +871,7 @@ loaded view ([parts of a view that were not used](../use/behaviour.md#parts-of-a
 - `dist/menu-texts-de.js` for a German report: the menus' German texts. It loads with the menus, or
   when the locale changes to German.
 - `dist/import-ui.js` with `allowImport`: loading data, on its first use, with `pivotkit-core/import`
+- `dist/chunks/server-module-*.js` with `server`: the network code and the states, on the first read
 
 `dist/index.js` also imports `dist/deferred.js` at once: the German texts of the first render and the
 tips' table. It is a file of its own, so pivotkit-element can load these parts later: its build

@@ -85,6 +85,10 @@ pivotkit-react's `build.js`). pivotkit does not support older browsers.
 | `importLimits` |  | `Partial<Limits>` | `limits` | The limits of a file loaded with `allow-import`, merged key by key over `limits`. The page's data keeps `limits`. As the [`importLimits`](react.md#prop-importlimits) prop. |
 | `plugins` |  | `ReaderPlugin[]` |  | Reader plugins for more formats with `allow-import`: [pivotkit-xlsx](plugins.md#pivotkit-xlsx) for Excel. CSV, TSV, text and JSON are built in. |
 | `importWorkerUrl` |  | `string \| URL \| null` | `null`: next to the element's code | Where the import worker of `allow-import` (`dist/import-worker.js`) is served, relative to the page and of the page's origin: for an app that bundles the element and serves the file at a path of its own. A URL of another origin is refused (said once in the console), and files are read on the page. [More](#prop-allowimport) |
+| `serverUrl` | `server-url` | `string` |  | The pivotkit-server the report reads its rows from, in place of `data`, with `server-source` and `getToken`. The page names it; a link never does. [More](#prop-serverurl) |
+| `serverSource` | `server-source` | `string` |  | The source whose rows the report reads ("sales"). |
+| `serverParams` | `server-params` | `string` |  | The source's parameters the page's query string may set, comma-separated (`server-params="customer, year"`). None by default. |
+| `getToken` |  | `(request) => token` |  | Gives the browser token for `{ source, params, access }`. [More](#prop-serverurl) |
 
 Properties with an attribute reflect it, as native elements do. `report.theme = "dark"` sets
 `theme="dark"`, and `null` removes it.
@@ -100,7 +104,8 @@ The element parses `view` and `default-view` as JSON objects. It ignores a text 
 writes a console warning. Setting the property does not write the attribute.
 
 These are properties only: `data`, `dataKey`, `templates`, `sources`, `labels`, `fieldDefaults`,
-`limits`, `importLimits`, `plugins`, `dismissedTips`, `chartOptions`, `colorMap` and `importWorkerUrl`.
+`limits`, `importLimits`, `plugins`, `dismissedTips`, `chartOptions`, `colorMap`, `importWorkerUrl`
+and `getToken`.
 
 A view is user input either way. pivotkit-core normalizes it against the data, and it cannot run code.
 
@@ -182,6 +187,32 @@ Attribute: `source-id`. Type: `string`.
 The id of the data shown, such as "sales". It goes into the [view files](view-file.md) and links the
 report shares. A view made for another source asks before it loads
 ([Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers)).
+
+### `serverUrl` { #prop-serverurl }
+
+Attributes: `server-url`, `server-source`, `server-params`. Property only: `getToken`.
+
+The report reads its rows from [pivotkit-server](records.md#records-browser) with a browser token,
+as the React prop [`server`](react.md#server) does. It shows the server's rows in place of `data`.
+
+```html
+<pivot-report server-url="https://reports.example.com" server-source="sales" server-params="customer"></pivot-report>
+<script type="module">
+  const report = document.querySelector("pivot-report");
+  report.getToken = async (request) => {
+    const answer = await fetch("/my-backend/pivotkit-token", { method: "POST", body: JSON.stringify(request) });
+    if (!answer.ok) throw Object.assign(new Error("refused"), { problem: await answer.json() });
+    return answer.json();
+  };
+</script>
+```
+
+- `getToken` works as in the [React reference](react.md#server). Until it is set, the report waits.
+- `report.refresh()` reads the rows again. The report keeps showing the rows it has meanwhile, and a
+  banner says from when they are if the new read fails.
+- Each state is a `pivot-server-state` event.
+- The page's [Content-Security-Policy](#content-security-policy) needs the server's origin in
+  `connect-src`, and the server needs the page's origin in [`rest.browser.origins`](records.md#records-browser-origins).
 
 ### `allowImport` { #prop-allowimport }
 
@@ -304,6 +335,7 @@ data it shows, keep those scripts off the page, as you would for the data itself
 | `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), the field list collapsed or opened (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
 | `pivot-source-switch` | "Switch to “name” and load" for a view made for one of `sources`: show that data with `view` as its start view. [More](#event-pivot-source-switch)<br><small>`detail`: `{ source, view, name }`</small> |
 | `pivot-data-load` | The data shown changed (with `allow-import`): a file loaded (cancelable), the page's data again, one of those undone or redone, or the file shown again after the element was put back. [More](#event-pivot-data-load)<br><small>`detail`: `{ cause, source, file, sheet, rows, columns, notes }`</small> |
+| `pivot-server-state` | A report with `server-url`: loading, ready, or why no rows came (`refused`, `linkRefused`, `expired`, `large`, `busy`, `unreachable`). Never the token.<br><small>`detail`: `{ state, source, shown, code, status, requestId, rows, dataAsOf }`. `shown`: the report shows rows from an earlier read</small> |
 
 The template events wait for the page's answer. Call `event.detail.respondWith(promise)` in the
 listener itself. A later call throws `InvalidStateError`.
@@ -570,6 +602,7 @@ CI runs the same command on Node 24 and measures the same numbers. It fails when
 | When a view has unused parts (their plain words: English, and German for a German report) | 2 | 18 KiB | 6 KiB |
 | With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 6 | 60 KiB | 23.7 KiB |
 | With `allow-import`, the worker of a CSV or JSON file (`dist/import-worker.js`, one file) | 1 | 29 KiB | 12 KiB |
+| With `server-url`, on the first read (the network code, the states with their English and German texts) | 1 | 11 KiB | 3.9 KiB |
 
 A page that copies `dist/` by hand deploys all of it, `dist/chunks/` included:
 
