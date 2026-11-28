@@ -43,6 +43,7 @@ import { brandingOfContext } from "./branding.js";
 import { browserBindingOf, sameParams } from "./browser-tokens.js";
 import { asOfMembers } from "./sources/as-of.js";
 import { isPerson } from "./sources/auth.js";
+import { normalizeParams } from "./sources/params.js";
 import { runResolved } from "./sources/index.js";
 import { PARAMS_INPUT } from "./sources/input.js";
 import { checkViewText, findNamedView, isViewName } from "./views.js";
@@ -120,8 +121,9 @@ export function recordsRefusal(options, caller, id) {
  * (the token's where the request names none). A caller without a browser token sends what it likes.
  * @param {import("./registry.js").Caller} caller
  * @param {Record<string, any>} input
+ * @param {Record<string, unknown> | undefined} sources  options.sources
  */
-function boundInput(caller, input) {
+function boundInput(caller, input, sources) {
     const bound = browserBindingOf(caller);
     if (!bound) {
         return input;
@@ -132,7 +134,10 @@ function boundInput(caller, input) {
     if (input.params === undefined) {
         return { ...input, params: { ...bound.params } };
     }
-    if (!sameParams(input.params, bound.params)) {
+    // compared as the source's rules take them: "5" and 5 for a number are the same parameter
+    const declared = /** @type {any} */ (sources?.[input.source])?.params;
+    const taken = (params) => normalizeParams(declared, params, caller, input.source);
+    if (!sameParams(taken(input.params), taken(bound.params))) {
         throw new OperationError("NOT_ALLOWED", "this browser token was made for other params; get a token for these");
     }
     return input;
@@ -187,7 +192,7 @@ export function createRecords(context) {
         if (refused) {
             throw refused;
         }
-        input = boundInput(caller, input);
+        input = boundInput(caller, input, options.sources);
         const person = /** @type {string} */ (identityKey(caller));
         const release = await placeFor(person, how.signal);
         if (!release) {

@@ -48,7 +48,7 @@ async function serverOf(extra = {}) {
     const options = {
         sources: {
             sales: { file: "data/sales.csv", link: `${PAGE}/report`, policy: { fields: { Customer: "hide" } } },
-            team: { load: async (params) => [{ Region: String(params.team), Sales: 1 }], params: { team: { type: "string" } }, policy: { default: "show" } },
+            team: { load: async (params) => [{ Region: String(params.team), Sales: 1 }], params: { team: { type: "string" }, year: { type: "number" } }, policy: { default: "show" } },
         },
         policy: { profiles: PROFILES },
         auth: { mode: "token", tokens: [{ name: "ops", env: "OPS", profile: "staff" }], externalIssuers: [{ issuer: PSU.issuer, typ: PSU.typ, scopes: ["pivotkit:read"], profiles: Object.keys(PROFILES), profile: "staff", keys: [{ kid: PSU.kid, publicKey: { file: "keys/psu.pub" } }] }], ...(extra.auth ?? {}) },
@@ -116,6 +116,10 @@ test("a browser token reads only its own source and params", async () => {
         const other = await rows(server, north, { source: "team", params: { team: "south" } });
         assert.equal(other.status, 403);
         assert.equal(other.data.code, "NOT_ALLOWED");
+        // compared as the source takes them: a number sent as text is the same parameter
+        const year = (await exchange(server, await person(), { source: "team", params: { team: "north", year: "2026" } })).data.token;
+        assert.equal((await rows(server, year, { source: "team", params: { year: 2026, team: "north" } })).status, 200);
+        assert.equal((await rows(server, year, { source: "team", params: { team: "north", year: 2025 } })).status, 403);
         const elsewhere = await rows(server, north, { source: "sales" });
         assert.equal(elsewhere.status, 403);
         assert.equal(elsewhere.data.code, "NOT_ALLOWED");
