@@ -12,8 +12,10 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   its rows from pivotkit-server, as pivotkit-react's `server` does. `refresh()` reads them again.
   Each state is a `pivot-server-state` event. See pivotkit-react's changelog
   ([#621](https://github.com/eizedev/pivotkit/issues/621)).
-- A load group `server` (the network code and the states) with a budget of 5 KiB gzip. The states'
-  style rules reuse the empty report's, and their icons load with them.
+- A load group `server` with a budget of 6.6 KiB gzip: the rows' state, the network code and the
+  states load once `server-url` is set. A page without it loads none of them; the first load is
+  181.7 KiB gzip on an official Node 24 build. The states' style rules reuse the empty report's,
+  and their icons load with them. The menus' budget is 61 KiB, for the share note's parameters.
 
 ### Fixed
 

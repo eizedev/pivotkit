@@ -164,3 +164,23 @@ test("busy says how long to wait when the server says so", async ({ page }) => {
     await expect(state(page)).toHaveAttribute("data-state", "busy");
     await expect(state(page)).toContainText("Try again in 5 seconds");
 });
+
+test.describe("the server's code does not load", () => {
+    // one pattern: test.use reads an array of two as a value and its options
+    test.use({ ignoreConsole: [/^Failed to load resource|the server's code did not load|Loading failed for the module/] });
+
+    test("the report says so in place of the rows, and Try again loads it and reads them", async ({ page }) => {
+        let blocked = true;
+        await page.route("**/chunks/server-module-*.js", (route) => (blocked ? route.abort("connectionrefused") : route.continue()));
+        await page.route(ROUTE, (route) => route.fulfill(json(200, ROWS)));
+        await page.goto("pages/element-server.html");
+        await expect(state(page)).toHaveAttribute("data-state", "unreachable");
+        await expect(state(page)).toContainText("This menu could not be loaded.");
+        expect(await states(page)).toEqual(["loading", "unreachable"]);
+        blocked = false;
+        await state(page).getByRole("button", { name: "Try again" }).click();
+        await expect(live(page).getByTestId("pivot-table")).toContainText("North");
+        await expect(state(page)).toHaveCount(0);
+        expect(await states(page)).toEqual(["loading", "unreachable", "loading", "ready"]);
+    });
+});

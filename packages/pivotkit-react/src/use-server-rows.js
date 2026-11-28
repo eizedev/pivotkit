@@ -14,8 +14,11 @@
  */
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { keptQuery, loadServer, serverRequestOf } from "./server.js";
+import { keptQuery, serverRequestOf } from "./server-request.js";
 import { warnOnce } from "./warn-once.js";
+// this hook is part of server-module.js: the module is here, and the states' parts come from it
+import * as serverModule from "./server-module.js";
+import { fetchRows } from "./server-rows.js";
 
 /** How long the report loads before it says so in words over the skeleton. */
 const SLOW_MS = 3000;
@@ -41,7 +44,7 @@ const SLOW_MS = 3000;
  * @property {boolean} slow  loading for longer than SLOW_MS
  * @property {import("./server-rows.js").ServerFailure | null} failure
  * @property {number | null} loadedAt  when the rows shown were read (ms)
- * @property {any} mod  server-module.js once loaded, else null
+ * @property {any} mod  server-module.js (null while it loads or after it failed to: PivotReport.jsx ServerGate)
  * @property {() => void} retry
  * @property {Array<[string, string]>} kept  the query entries a copied link keeps (server.js keptQuery)
  */
@@ -77,9 +80,10 @@ function useLatest(value) {
 
 /**
  * @param {import("./index.js").PivotReportProps} props
+ * @param {boolean} [told]  "loading" went to onServerState already, while this code loaded (PivotReport.jsx ServerGate)
  * @returns {LiveRows}
  */
-export function useServerRows(props) {
+export function useServerRows(props, told = false) {
     const server = props.server;
     const search = useSyncExternalStore(never, searchHere, () => null);
     const read = search === null ? null : serverRequestOf(server, search);
@@ -93,10 +97,10 @@ export function useServerRows(props) {
     }
     const key = request?.key ?? null;
     const [state, setState] = useState(() => /** @type {Rows} */ ({ data: undefined, dataKey: undefined, loadedAt: null, failure: null, done: null }));
-    // the network code with the states' parts, once loaded: the slow line needs it before an answer
-    const [mod, setMod] = useState(/** @type {typeof import("./server-module.js") | null} */ (null));
     const latest = useLatest({ getToken: server?.getToken, onState: props.onServerState, request, shown: state.data !== undefined });
     const held = useRef(/** @type {import("./server-rows.js").HeldToken | null} */ (null));
+    // the first read's "loading" is the one ServerGate said
+    const quiet = useRef(told);
     const [tries, setTries] = useState(0);
     // one read: the request as text and the number of tries; a new one reads the rows again
     const readId = key === null ? null : `${tries}:${key}`;
@@ -113,13 +117,14 @@ export function useServerRows(props) {
          * @param {boolean} [shown]  the report shows rows; by default as it did when this read began
          */
         const tell = (detail, shown = latest.current.shown) => latest.current.onState?.({ source: asked.source, shown, ...detail });
-        tell({ state: "loading" });
+        if (!quiet.current) {
+            tell({ state: "loading" });
+        }
+        quiet.current = false;
         const slow = setTimeout(() => setSlowFor(readId), SLOW_MS);
         (async () => {
-            const loaded = await loadServer();
-            setMod(loaded);
             const getToken = () => /** @type {import("./server.js").ServerConnection["getToken"]} */ (latest.current.getToken);
-            const got = await loaded.fetchRows(asked, { getToken, held, signal: controller.signal });
+            const got = await fetchRows(asked, { getToken, held, signal: controller.signal });
             if (controller.signal.aborted) {
                 return;
             }
@@ -137,8 +142,8 @@ export function useServerRows(props) {
                 if (controller.signal.aborted) {
                     return;
                 }
-                // the module did not load (offline, or the host did not deploy the chunks)
-                warnOnce(`pivotkit: the server's code did not load: ${error instanceof Error ? error.message : String(error)}`);
+                // fetchRows answers every failure of the network itself: this is a mistake in the code
+                warnOnce(`pivotkit: reading the server's rows failed: ${error instanceof Error ? error.message : String(error)}`);
                 setState((s) => ({ ...s, failure: { state: "unreachable", host: hostOf(asked.base) }, done: readId }));
                 tell({ state: "unreachable" });
             })
@@ -148,21 +153,6 @@ export function useServerRows(props) {
             controller.abort();
         };
     }, [readId, latest]);
-
-    useEffect(() => {
-        if (!problem) {
-            return undefined;
-        }
-        // a mistake of the page: the report says it cannot reach its server (the console says why)
-        let live = true;
-        loadServer().then(
-            (loaded) => live && setMod(loaded),
-            () => {}
-        );
-        return () => {
-            live = false;
-        };
-    }, [problem]);
 
     const retry = useCallback(() => setTries((n) => n + 1), []);
     const kept = keptQuery(request);
@@ -175,7 +165,7 @@ export function useServerRows(props) {
         slow: loading && slowFor === readId,
         failure: problem ? { state: "unreachable", host: "" } : !loading ? state.failure : null,
         loadedAt: state.loadedAt,
-        mod,
+        mod: serverModule,
         retry,
         kept
     };

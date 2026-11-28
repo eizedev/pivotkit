@@ -23,8 +23,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ([#621](https://github.com/eizedev/pivotkit/issues/621)).
 - Copy link of a report with a server keeps the parameters it read and `pk-access`. The toast and
   the share note name the parameters ([#621](https://github.com/eizedev/pivotkit/issues/621)).
-- The network code, the states and their texts load on first use
-  (`dist/chunks/server-module-*.js`). A report without `server` loads none of it.
+- The rows' state, the network code, the states and their texts load on first use
+  (`dist/chunks/server-module-*.js`). A report without `server` loads none of it; a report with one
+  shows its skeleton until it is here.
 
 ### Changed
 

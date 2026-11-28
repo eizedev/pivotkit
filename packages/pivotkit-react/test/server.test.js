@@ -3,7 +3,8 @@
 // same code against a real pivotkit-server is in the repository's tests/browser-path.test.js.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ACCESS_PARAM, keptQuery, paramsText, serverBase, serverRequestOf, withQuery } from "../src/server.js";
+import { ACCESS_PARAM, paramsText, withQuery } from "../src/share.js";
+import { keptQuery, serverBase, serverRequestOf } from "../src/server-request.js";
 import { failureOf, fetchRows, tokenOf } from "../src/server-rows.js";
 import { de, en, stateWords } from "../src/server-labels.js";
 import { keys } from "./helpers.js";

@@ -41,6 +41,7 @@ import { AboveResult } from "./above-result.jsx";
 import { FieldSlot } from "./fields.jsx";
 import { labelsHere, langOf, onLabels, requestLabels, resolveLabels } from "./labels.js";
 import { DEFERRED } from "./deferred.js";
+import { loadServer, serverNow } from "./server.js";
 import { MenuPanel } from "./lazy-menus.jsx";
 import { LayerContext } from "./popover.jsx";
 import { HelpContext } from "./help.js";
@@ -65,7 +66,6 @@ import { usePlacing } from "./use-placing.js";
 import { useReportLabels } from "./use-report-labels.js";
 import { useReportSize } from "./use-report-size.js";
 import { useSavedViews } from "./use-saved-views.js";
-import { useServerRows } from "./use-server-rows.js";
 import { useShareLink } from "./use-share-link.js";
 import { useKeepData, useShownData } from "./use-shown-data.js";
 import { useSteps } from "./use-steps.js";
@@ -94,9 +94,75 @@ const rowsOf = (d) => (Array.isArray(d) ? d.length : (d?.data?.[0]?.length ?? 0)
  * @param {import("./index.js").PivotReportProps} outer
  */
 export function PivotReport(outer) {
-    // a report with a server reads its rows itself (use-server-rows.js): they take the place of `data`
-    const live = useServerRows(outer);
-    const props = live.active ? { ...outer, data: live.data, dataKey: live.dataKey, encoded: undefined, loading: live.loading } : outer;
+    // a report with a server reads its rows itself, with code that loads on first use
+    return outer.server ? <ServerGate outer={outer} /> : <ReportBody outer={outer} live={null} />;
+}
+
+/**
+ * A report with a `server` until server-module.js is here: the skeleton, then the report with its
+ * server's rows (server-report.jsx). A failed load is the state "unreachable" with Try again, which
+ * loads it again (lazy.js). A server render shows the skeleton, as before the first answer.
+ * @param {{ outer: import("./index.js").PivotReportProps }} props
+ */
+function ServerGate({ outer }) {
+    const [mod, setMod] = useState(() => serverNow());
+    // "loading" went to onServerState while the code loads: the first read does not say it again
+    const [told, setTold] = useState(false);
+    const [failed, setFailed] = useState(0);
+    const [tries, setTries] = useState(0);
+    // the page's current onServerState, without loading again for a new function
+    const onState = useRef(outer.onServerState);
+    useEffect(() => {
+        onState.current = outer.onServerState;
+    });
+    const source = typeof outer.server?.source === "string" ? outer.server.source.trim() : "";
+    useEffect(() => {
+        if (mod) {
+            return undefined;
+        }
+        let live = true;
+        onState.current?.({ source, shown: false, state: "loading" });
+        loadServer().then(
+            (m) => {
+                if (live) {
+                    setTold(true);
+                    setMod(m);
+                }
+            },
+            (error) => {
+                if (!live) {
+                    return;
+                }
+                // offline, or the host did not deploy the chunks
+                warnOnce(`pivotkit: the server's code did not load: ${error instanceof Error ? error.message : String(error)}`);
+                onState.current?.({ source, shown: false, state: "unreachable" });
+                setFailed((n) => n + 1);
+            }
+        );
+        return () => {
+            live = false;
+        };
+    }, [mod, tries, source]);
+    const retry = useCallback(() => setTries((n) => n + 1), []);
+    if (mod) {
+        return <mod.ServerReport outer={outer} Body={ReportBody} told={told} />;
+    }
+    const waiting = { ...outer, data: undefined, dataKey: undefined, encoded: undefined, loading: true };
+    if (failed > tries) {
+        // FailedState without the module: what a menu says then, no support line
+        const live = /** @type {import("./use-server-rows.js").LiveRows} */ ({ active: true, data: undefined, dataKey: undefined, loading: false, slow: false, failure: { state: "unreachable", host: "" }, loadedAt: null, mod: null, retry, kept: [] });
+        return <ReportBody outer={waiting} live={live} />;
+    }
+    return <ReportBody outer={waiting} live={null} />;
+}
+
+/**
+ * The report, its skeleton or why its server gave no rows.
+ * @param {{ outer: import("./index.js").PivotReportProps, live: import("./use-server-rows.js").LiveRows | null }} args
+ *   live: the server's rows, where the report has a server; they take the place of `data`
+ */
+function ReportBody({ outer, live }) {
+    const props = live?.active ? { ...outer, data: live.data, dataKey: live.dataKey, encoded: undefined, loading: live.loading } : outer;
     const { loading = false, data, encoded } = props;
     // a large data set: the skeleton paints first, the encoding runs after it (a frame later)
     const [deferred, setDeferred] = useState(() => !encoded && rowsOf(data) > DEFER_ROWS);
@@ -117,46 +183,17 @@ export function PivotReport(outer) {
     const texts = useLabelsOf(props.locale);
     // a server's refusal before any rows: the message, and the report has not started (Try again
     // goes back to the skeleton, and the start view meets the rows when they come)
-    if (live.active && live.failure && live.data === undefined && texts.shown) {
-        return <FailedReport {...props} locale={texts.locale} live={live} />;
+    if (live?.active && live.failure && live.data === undefined && texts.shown) {
+        return <WaitingReport {...props} locale={texts.locale} failed={live} />;
     }
     const waiting = Boolean(loading) || deferred || !texts.shown;
     if (!waiting && !started) {
         setStarted(true);
     }
     if (waiting && !started) {
-        return <WaitingReport {...props} locale={texts.locale} silent={!texts.shown} slow={live.slow ? live.mod : null} />;
+        return <WaitingReport {...props} locale={texts.locale} silent={!texts.shown} slow={live?.slow ? live.mod : null} />;
     }
-    return <Report {...props} locale={texts.locale} live={live.active ? live : null} />;
-}
-
-/**
- * The report's frame with why its server gave no rows, in place of the whole report (#621, variant A).
- * @param {import("./index.js").PivotReportProps & { live: import("./use-server-rows.js").LiveRows }} props
- */
-function FailedReport({ locale = "en-US", labels: customLabels, theme = "auto", height = 640, className, label, live }) {
-    const root = useRef(/** @type {HTMLDivElement | null} */ (null));
-    const labelsKey = JSON.stringify(customLabels ?? null);
-    const labels = useMemo(() => resolveLabels(locale, JSON.parse(labelsKey)), [locale, labelsKey]);
-    const themeName = useResolvedTheme(theme, root);
-    const failure = /** @type {NonNullable<typeof live.failure>} */ (live.failure);
-    return (
-        <div ref={root} className={`pk-root${className ? ` ${className}` : ""}`} data-pk-theme={themeName} lang={labels.lang} role="region" aria-label={label || labels.report} style={{ height }}>
-            {live.mod ? (
-                <live.mod.ServerMessage failure={failure} labels={labels} locale={locale} onRetry={live.retry} />
-            ) : (
-                // the server's own code did not load: what a menu says then
-                <div className="pk-server-full" role="alert" data-testid="server-state" data-state={failure.state}>
-                    <div className="pk-empty">
-                        <p className="pk-server-text">{labels.menuFailed}</p>
-                        <button type="button" className="pk-btn" onClick={live.retry}>
-                            <span className="pk-btn-text">{labels.tryAgain}</span>
-                        </button>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+    return <Report {...props} locale={texts.locale} live={live?.active ? live : null} />;
 }
 
 /**
@@ -218,19 +255,41 @@ function useTipsTable() {
 
 /**
  * The report's frame with the skeleton in it, before the report has its data; `silent` while its
- * language's texts load: no word at all, so the report never says anything in English first.
- * @param {import("./index.js").PivotReportProps & { silent?: boolean, slow?: any }} props
+ * language's texts load: no word at all, so the report never says anything in English first. With
+ * `failed`, why its server gave no rows, in place of the skeleton (#621, variant A).
+ * @param {import("./index.js").PivotReportProps & { silent?: boolean, slow?: any, failed?: import("./use-server-rows.js").LiveRows | null }} props
  *   slow: server-module.js, once loading the server's rows takes a while (its words over the skeleton)
  */
-function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto", height = 640, className, label, silent = false, slow = null }) {
+function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto", height = 640, className, label, silent = false, slow = null, failed = null }) {
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
     const labelsKey = JSON.stringify(customLabels ?? null);
     const labels = useMemo(() => resolveLabels(locale, JSON.parse(labelsKey)), [locale, labelsKey]);
     const themeName = useResolvedTheme(theme, root);
     return (
         <div ref={root} className={`pk-root${className ? ` ${className}` : ""}`} data-pk-theme={themeName} lang={silent ? undefined : labels.lang} role="region" aria-label={label || (silent ? undefined : labels.report)} style={{ height }}>
-            <Skeleton full text={silent ? "" : labels.loadingReport} />
-            {slow && !silent ? <slow.SlowLine labels={labels} /> : null}
+            {failed ? <FailedState failed={failed} labels={labels} locale={locale} /> : <Skeleton full text={silent ? "" : labels.loadingReport} />}
+            {slow && !silent && !failed ? <slow.SlowLine labels={labels} /> : null}
+        </div>
+    );
+}
+
+/**
+ * Why the server gave no rows: its message (server-module.js), or, when that code did not load, what a
+ * menu says then.
+ * @param {{ failed: import("./use-server-rows.js").LiveRows, labels: any, locale: string }} props
+ */
+function FailedState({ failed, labels, locale }) {
+    const failure = /** @type {NonNullable<typeof failed.failure>} */ (failed.failure);
+    return failed.mod ? (
+        <failed.mod.ServerMessage failure={failure} labels={labels} locale={locale} onRetry={failed.retry} />
+    ) : (
+        <div className="pk-server-full" role="alert" data-testid="server-state" data-state={failure.state}>
+            <div className="pk-empty">
+                <p className="pk-server-text">{labels.menuFailed}</p>
+                <button type="button" className="pk-btn" onClick={failed.retry}>
+                    <span className="pk-btn-text">{labels.tryAgain}</span>
+                </button>
+            </div>
         </div>
     );
 }

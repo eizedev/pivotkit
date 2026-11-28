@@ -14,7 +14,8 @@
  *   Only when getToken() gives nothing, or its token is refused too, is the state "expired".
  */
 
-import { ROWS_PATH } from "./server.js";
+/** The rows route and the exchange route under a server's address. */
+const ROWS_PATH = "/api/v1/sources/records";
 
 /** Seconds before its expiry at which a token is no longer sent. */
 const EARLY_SECONDS = 15;

@@ -18,7 +18,7 @@ import { Icon } from "./icons.jsx";
 import { fill, hostFailure } from "./labels.js";
 import { Option } from "./popover.jsx";
 import { Section, SettingInfo } from "./section.jsx";
-import { paramsText } from "./server.js";
+import { paramsText } from "./share.js";
 import { shareActions } from "./share-actions.js";
 import { SHORTCUTS } from "./tip-state.js";
 import { LevelMenu } from "./levels.jsx";

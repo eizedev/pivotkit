@@ -9,7 +9,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT } from "jose";
 import { fetchRows } from "../packages/pivotkit-react/src/server-rows.js";
-import { serverRequestOf } from "../packages/pivotkit-react/src/server.js";
+import { serverRequestOf } from "../packages/pivotkit-react/src/server-request.js";
 import { call, restServer, workspace } from "../packages/pivotkit-server/test/helpers.js";
 
 const CSV = ["Region,Customer,Sales", "North,acme,10", "South,acme,20", "West,beta,7"].join("\n") + "\n";

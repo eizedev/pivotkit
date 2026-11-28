@@ -8,8 +8,7 @@
 import { toViewFile, viewFileName, viewFileText } from "pivotkit-core";
 import { copyText, safeFileName, saveBlob } from "./files.js";
 import { fill } from "./labels.js";
-import { linkNow, loadCheck, loadLink, readLinkParam, shareBase, viewFromObject, viewFromText, withLinkParam } from "./share.js";
-import { paramsText, withQuery } from "./server.js";
+import { linkNow, loadCheck, loadLink, paramsText, readLinkParam, shareBase, viewFromObject, viewFromText, withLinkParam, withQuery } from "./share.js";
 import { sheetOfSource } from "./sheet-views.js";
 import { VERSION } from "./version.js";
 
@@ -19,7 +18,7 @@ const here = () => (typeof location !== "undefined" ? location.href : undefined)
 /**
  * @typedef {object} ShareContext  what the report passes (use-share-link.js)
  * @property {boolean} canLink  the host allows links (shareLink) and the page has an address
- * @property {Array<[string, string]>} [keepQuery]  query entries a copied link keeps (a report with a server: server.js keptQuery)
+ * @property {Array<[string, string]>} [keepQuery]  query entries a copied link keeps (a report with a server: server-request.js keptQuery)
  * @property {(() => void) | undefined} prepare  starts loading pivotkit-core/link, so a copy happens in the click
  * @property {any} view  the view shown
  * @property {string | null} viewName  the loaded view's name
