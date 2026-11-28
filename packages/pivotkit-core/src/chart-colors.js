@@ -50,20 +50,36 @@ export function colorLookup(viewColors, hostMap, palette) {
 }
 
 /**
- * A colour's red, green and blue (0 to 255) from #rgb, #rrggbb or rgb()/rgba(); null for any other form.
+ * A colour's red, green and blue (0 to 255) and its alpha (0 to 1) from #rgb, #rgba, #rrggbb,
+ * #rrggbbaa or rgb()/rgba(), with commas or with spaces and a slash, the alpha a number or a
+ * percentage; null for any other form.
  * @param {string} color
- * @returns {[number, number, number] | null}
+ * @returns {[number, number, number, number] | null}
  */
-function rgbOf(color) {
+function rgbaOf(color) {
     const c = String(color).trim();
-    const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c);
+    const hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(c);
     if (hex) {
-        const h = hex[1].length === 3 ? [...hex[1]].map((d) => d + d).join("") : hex[1];
-        return /** @type {[number, number, number]} */ ([0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)));
+        const h = hex[1].length <= 4 ? [...hex[1]].map((d) => d + d).join("") : hex[1];
+        const [r, g, b, a = 255] = (h.match(/../g) ?? []).map((x) => parseInt(x, 16));
+        return [r, g, b, a / 255];
     }
-    const rgb = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)/i.exec(c);
-    return rgb ? [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])] : null;
+    const rgb = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)(?:\s*[,/]\s*(\d*\.?\d+)(%?))?\s*\)$/i.exec(c);
+    if (!rgb) {
+        return null;
+    }
+    const alpha = rgb[4] === undefined ? 1 : Number(rgb[4]) / (rgb[5] ? 100 : 1);
+    return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3]), Math.min(1, Math.max(0, alpha))];
 }
+
+/**
+ * `color` as it shows on `under`: a translucent colour mixed with what is under it by its alpha, as a
+ * canvas draws it; an opaque one as it is. `under` counts as opaque.
+ * @param {[number, number, number, number]} color
+ * @param {[number, number, number, number]} under
+ * @returns {[number, number, number]}
+ */
+const shownOn = ([r, g, b, a], under) => /** @type {[number, number, number]} */ ([r, g, b].map((v, i) => v * a + under[i] * (1 - a)));
 
 /** WCAG 2's relative luminance of a colour's red, green and blue. */
 function luminance(/** @type {[number, number, number]} */ rgb) {
@@ -75,17 +91,19 @@ function luminance(/** @type {[number, number, number]} */ rgb) {
 }
 
 /**
- * WCAG 2's contrast of two colours (1 to 21); null when one is no hex or rgb() colour.
- * @param {string} a
- * @param {string} b
+ * WCAG 2's contrast of text in `ink` on `background` (1 to 21), as it is drawn: a translucent ink (a
+ * theme's `rgba(0, 0, 0, 0.87)`) is mixed with the background first. The background's own alpha is
+ * not counted: it is measured as opaque. Null when one is no hex or rgb() colour.
+ * @param {string} ink
+ * @param {string} background
  */
-export function contrastOf(a, b) {
-    const x = rgbOf(a);
-    const y = rgbOf(b);
+export function contrastOf(ink, background) {
+    const x = rgbaOf(ink);
+    const y = rgbaOf(background);
     if (!x || !y) {
         return null;
     }
-    const [l1, l2] = [luminance(x), luminance(y)];
+    const [l1, l2] = [luminance(shownOn(x, y)), luminance(shownOn([y[0], y[1], y[2], 1], y))];
     return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 }
 
@@ -104,7 +122,7 @@ export const TEXT_CONTRAST = 4.5;
  * @param {string[]} candidates
  */
 export function labelColorOn(fill, candidates) {
-    const read = candidates.map((c) => ({ c, ratio: contrastOf(fill, c) })).filter((x) => x.ratio !== null);
+    const read = candidates.map((c) => ({ c, ratio: contrastOf(c, fill) })).filter((x) => x.ratio !== null);
     if (!read.length) {
         return candidates[0];
     }
@@ -112,9 +130,11 @@ export function labelColorOn(fill, candidates) {
     if (/** @type {number} */ (best.ratio) >= TEXT_CONTRAST) {
         return best.c;
     }
-    // the extreme on the best ink's side first (a light ink white), so the ink changes side only where it must
+    // the extreme on the best ink's side first (a light ink white), so the ink changes side only where it
+    // must; the ink's side as it shows on the fill (a translucent ink mixed with it)
     const [black, white] = EXTREME_INKS;
-    const light = /** @type {number} */ (contrastOf(best.c, black)) > /** @type {number} */ (contrastOf(best.c, white));
+    const shown = luminance(shownOn(/** @type {[number, number, number, number]} */ (rgbaOf(best.c)), /** @type {[number, number, number, number]} */ (rgbaOf(fill))));
+    const light = (shown + 0.05) / 0.05 > 1.05 / (shown + 0.05);
     const [near, far] = light ? [white, black] : [black, white];
-    return /** @type {number} */ (contrastOf(fill, near)) >= TEXT_CONTRAST ? near : far;
+    return /** @type {number} */ (contrastOf(near, fill)) >= TEXT_CONTRAST ? near : far;
 }

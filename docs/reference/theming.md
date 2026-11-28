@@ -256,6 +256,11 @@ and of `--pk-muted` on `--pk-surface` is the theme's: the chart does not change 
 is a missing `--pk-surface`, or in pivotkit-report on its own a form ECharts does not read, such as
 `oklch()` or `color-mix()`. A missing `--pk-surface` also leaves the points' labels without an outline.
 
+The chart reads these tokens when it draws. It draws again when the theme changes, when a stylesheet
+loads, and when a `<style>` or `<link>` comes into or leaves the page or the report's shadow root. A
+token changed any other way, such as by a class on `<html>` or by `insertRule()`, shows at the
+chart's next draw: a new size, view or theme.
+
 The heatmap's colours work in any form the browser reads, `oklch()` too. The chart mixes the colour
 of each cell from them. It takes them as plain sRGB colours: a colour's alpha is dropped, and a
 colour outside sRGB, such as a P3 one, is clipped to its nearest sRGB colour. The HTML report and the SVG of the Export menu get them as the screen draws

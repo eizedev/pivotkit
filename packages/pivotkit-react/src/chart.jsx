@@ -80,7 +80,10 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const latest = useRef({ series, onPoint, onInstance, onLines, onLegend, type, menuOpen });
     // the legend and the zoom slider between draws (chart-legend.js); a new window size draws again
     const keeper = useRef(/** @type {any} */ (null));
-    const [zoomed, setZoomed] = useState(0);
+    // the tokens a draw read: changed without a theme switch, they draw again (chart-tokens.js)
+    const tokens = useRef(/** @type {any} */ (null));
+    // counts the draws the instance asks for: a new zoom window, changed tokens
+    const [redraws, setRedraws] = useState(0);
     // the zoom slider's window and place, for its keyboard control (chart-legend.js zoomKeyProps)
     const [zoomKeys, setZoomKeys] = useState(/** @type {any} */ (null));
     // what the text alternative says: the series shown, and whether they are a 100 % stack's shares
@@ -111,9 +114,10 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                 }
                 lib.current = echarts;
                 // the instance with its events (chart-draw.js, loaded with ECharts)
-                const started = echarts.startChart(el.current, { latest, hover, tapped, touched, waiting, anchor }, { redraw: () => setZoomed((n) => n + 1), onWindow: setZoomKeys, onBox: setBox });
+                const started = echarts.startChart(el.current, { latest, hover, tapped, touched, waiting, anchor }, { redraw: () => setRedraws((n) => n + 1), onWindow: setZoomKeys, onBox: setBox });
                 chart.current = started.instance;
                 keeper.current = started.keeper;
+                tokens.current = started.tokens;
                 stop = started.stop;
                 setReady(true);
             },
@@ -135,13 +139,13 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
             return;
         }
         // the option, its reference lines and the report's marks (chart-draw.js, loaded with ECharts)
-        const drawn = lib.current.drawChart(chart.current, root.current, { result, series, labels, locale, themeName, chartOptions, colorMap, drawAs, itemType: ITEM_TYPES.includes(type), maxCategories: MAX_CATEGORIES }, { keeper: keeper.current, hover, tapped, warned });
+        const drawn = lib.current.drawChart(chart.current, root.current, { result, series, labels, locale, themeName, chartOptions, colorMap, drawAs, itemType: ITEM_TYPES.includes(type), maxCategories: MAX_CATEGORIES }, { keeper: keeper.current, tokens: tokens.current, hover, tapped, warned });
         setLinesText(drawn.lines?.text ?? "");
         latest.current.onLines?.(drawn.lines?.checks ?? null);
         setShown(drawn.shown);
         setEvery(drawn.axisEvery);
         // box: the axis labels, a pie and a heatmap are laid out again when the size changes
-    }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, colorMap, drawAs, zoomed, type]);
+    }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, colorMap, drawAs, redraws, type]);
 
     // after the draw: a draw while the menu is open keeps the tooltip away too
     useTooltipHeld(chart, ready, menuOpen);

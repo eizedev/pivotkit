@@ -1,0 +1,63 @@
+// A host's --pk-* tokens that change after the chart's first draw, without a theme switch (#1000): a
+// stylesheet that loads late, a <style> added later. The chart draws again in the new tokens, as a
+// fresh render with them draws it.
+import { expect, test } from "../fixtures.js";
+import { chartOf, inChart, mountReport, ROWS, VIEW } from "./report.js";
+
+/** A host's colours: the first series and the chart's text. */
+const LATE = ".pk-root { --pk-chart-1: #8a2be2; --pk-muted: #6b1d1d; }";
+
+/** What the chart drew with: its palette and the colour of its axis names. */
+const drawnColours = (chartEl) =>
+    inChart(chartEl, (chart) => {
+        const option = chart.getOption();
+        const axis = [option.xAxis, option.yAxis].flat().find((a) => a?.type === "category");
+        return { palette: option.color, axisText: axis?.axisLabel?.color ?? null };
+    });
+
+/** Mounts the bar chart in light, waits for its first draw, then returns it. */
+async function firstDraw(page) {
+    await page.goto("pages/host.html");
+    await mountReport(page, { id: "late-report", rows: ROWS, view: { ...VIEW, chart: { type: "bar" } }, theme: "light", height: 480 });
+    const chartEl = await chartOf(page, "late-report", "bar");
+    expect((await drawnColours(chartEl)).palette[0]).not.toBe("#8a2be2");
+    return chartEl;
+}
+
+/** The chart draws again in the late tokens, and as a report mounted with them from the start. */
+async function expectRedrawn(page, chartEl) {
+    await expect.poll(async () => (await drawnColours(chartEl)).palette[0]).toBe("#8a2be2");
+    const late = await drawnColours(chartEl);
+    expect(late.axisText).toBe("#6b1d1d");
+    await mountReport(page, { id: "late-report", rows: ROWS, view: { ...VIEW, chart: { type: "bar" } }, theme: "light", height: 480 });
+    expect(late).toEqual(await drawnColours(await chartOf(page, "late-report", "bar")));
+}
+
+test("a stylesheet that loads after the first draw: the chart draws again in its tokens", async ({ page }) => {
+    let release;
+    const held = new Promise((done) => (release = done));
+    // the stylesheet's answer waits until the chart has drawn
+    await page.route("**/late-tokens.css", async (route) => {
+        await held;
+        await route.fulfill({ contentType: "text/css", body: LATE });
+    });
+    const chartEl = await firstDraw(page);
+    await page.evaluate(() => {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "late-tokens.css";
+        document.head.append(link);
+    });
+    release();
+    await expectRedrawn(page, chartEl);
+});
+
+test("a <style> added after the first draw (it has no load event): the chart draws again in its tokens", async ({ page }) => {
+    const chartEl = await firstDraw(page);
+    await page.evaluate((css) => {
+        const style = document.createElement("style");
+        style.textContent = css;
+        document.head.append(style);
+    }, LATE);
+    await expectRedrawn(page, chartEl);
+});
