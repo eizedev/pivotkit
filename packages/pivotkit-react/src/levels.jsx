@@ -303,9 +303,10 @@ function ChoiceItem({ choice: c, onPick, start }) {
  * browser's colour picker, a hidden colour field. The colour applies once it is picked (the field's
  * "change" event), not on every step while the picker is open: one step to undo per colour. The focus
  * comes back to the item. A new colour from outside (the chart drawn again, Undo) is set on the field.
- * @param {{ id: string, value: string, label: string, pick: (color: string) => void }} props
+ * The dot shows `shown`, the colour drawn, where it differs from the field's (a treemap's pale tile).
+ * @param {{ id: string, value: string, shown?: string, label: string, pick: (color: string) => void }} props
  */
-function ColorPick({ id, value, label, pick }) {
+function ColorPick({ id, value, shown, label, pick }) {
     const field = useRef(/** @type {HTMLInputElement | null} */ (null));
     const button = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const latest = useRef(pick);
@@ -332,7 +333,7 @@ function ColorPick({ id, value, label, pick }) {
         <>
             <button ref={button} type="button" role="menuitem" tabIndex={-1} className="pk-icon-btn pk-color-pick" aria-label={value ? `${label}, ${value}` : label} aria-haspopup="dialog" title={label} data-pk-item={id} data-pk-text={label} data-testid={id} onClick={() => field.current?.click()}>
                 {/* a dot in the colour (as the legend's and the tooltip's markers), set through the CSSOM, which a strict Content-Security-Policy allows */}
-                <span className="pk-dot" aria-hidden="true" ref={(el) => el?.style.setProperty("background-color", value || "transparent")} />
+                <span className="pk-dot" aria-hidden="true" ref={(el) => el?.style.setProperty("background-color", shown || value || "transparent")} />
             </button>
             <input ref={field} type="color" className="pk-sr" tabIndex={-1} aria-hidden="true" defaultValue={value || undefined} data-testid={`${id}-field`} />
         </>

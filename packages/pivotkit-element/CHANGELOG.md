@@ -22,6 +22,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 - The chart draws again when its `--pk-*` tokens change without a theme switch, and measures a
   translucent text colour as drawn. See pivotkit-react's and pivotkit-core's changelogs
   ([#1000](https://github.com/eizedev/pivotkit/issues/1000)).
+- Chart settings › Entries of a treemap shows each tile's colour. See pivotkit-react's changelog
+  ([#1009](https://github.com/eizedev/pivotkit/issues/1009)).
 
 ## [0.11.0] - 2026-11-26
 

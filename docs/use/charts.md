@@ -89,8 +89,8 @@ report: the report itself, field list included, is at least 1,024 pixels wide.
 - A row with a total of 0 or less gets no tile.
 - The colours only tell the tiles apart. They do not stand for a value.
 - The text's colour, size and weight, its padding and the contrast are tokens ([Theming](../reference/theming.md#chart-colours)).
-- It has no legend. **Chart settings › Entries** hides a tile or sets its colour, which a pale tile
-  shows darker too; Entries and the tooltip show the colour you set and the one drawn.
+- It has no legend. **Chart settings › Entries** hides a tile or sets its colour. A pale colour is
+  drawn darker: the dot in Entries and the tooltip show the tile, the picker opens on your colour.
 - With a field on Columns, a tile adds up every column, as a pie does.
 - A click on a tile opens no rows.
 
@@ -456,7 +456,7 @@ Click a bar, a point, a slice or a heatmap cell, and a small menu opens at it:
     - Only sums and counts get a share, on a pie too, and only when no part is below zero.
 
 ??? info "Fixed colours"
-    In Chart settings › Entries, the swatch beside each series or slice shows the colour the chart draws.
+    In Chart settings › Entries, the dot beside each series, slice or tile shows the colour the chart draws.
     Pick another colour there. A chart of one series lists it too, for its colour. The series keeps
     the colour in every chart of the view, whatever else the chart shows. **Default** gives back the
     colour it had. A colour for a name the chart no longer shows is listed at the end with

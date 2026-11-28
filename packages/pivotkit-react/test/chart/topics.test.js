@@ -121,6 +121,17 @@ test("Tooltip has the share as a switch; Series has a colour beside each series,
     assert.equal(series.changed, true);
 });
 
+test("Entries of a treemap: the dot shows the tile as drawn, darker for a pale colour; the field keeps the colour set (#1009)", () => {
+    const view = norm({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap", colors: [{ name: "South", color: "#ffd700" }] } });
+    const drawnColors = new Map([["North", "#2974d0"], ["South", "#877200"]]);
+    const entries = (drawn) => byId(chartTopics({ view, drawn, labels, names: ["North", "South"], act: { display: () => {} }, drawnColors }), "series").groups[0].choices;
+    const [north, south] = entries("treemap");
+    assert.deepEqual([north.color.value, north.color.shown], ["#2974d0", "#2974d0"]);
+    assert.deepEqual([south.color.value, south.color.shown], ["#ffd700", "#877200"]);
+    // bars draw the colour set as it is: the dot shows it at once after a pick, before the chart is drawn again
+    assert.equal(entries("bar")[1].color.shown, "#ffd700");
+});
+
 test("Reference lines: a level after Tooltip on bars, lines and areas: Average and Trend switches, a Target row that opens its form, the reasons (#48)", () => {
     const patches = [];
     const of = (referenceLines, { type = "bar", rules = { average: true, trend: true, target: true, notes: [] }, targetText = "" } = {}) => {

@@ -38,6 +38,20 @@ const drawnColors = (chart) => {
 };
 const lastChart = (page) => page.evaluate(() => window.__views.at(-1)?.chart);
 
+/** The colour ECharts draws each tile of a treemap with, by name (its root, named for the series, left out). */
+const tileColors = (chart) => {
+    const series = chart.getModel().getSeriesByIndex(0);
+    const data = series.getData();
+    const out = {};
+    for (let i = 0; i < data.count(); i++) {
+        if (data.getName(i) !== series.name) out[data.getName(i)] = data.getItemVisual(i, "style").fill;
+    }
+    return out;
+};
+
+/** #rrggbb as getComputedStyle writes it. */
+const rgbOf = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ")})`;
+
 test.describe("chart extras (#54)", () => {
     test.beforeEach(async ({ page }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
@@ -160,6 +174,32 @@ test.describe("chart extras (#54)", () => {
         await expect(level).toContainText("Colours of names not shown");
         await level.getByRole("menuitem", { name: "Remove: Gone" }).click();
         await expect.poll(() => lastChart(page).then((c) => c?.colors)).toEqual([]);
+    });
+
+    test("Chart settings › Entries of a treemap (#1009): each dot shows its tile's colour; a pale colour set stays in its field", async ({ page }) => {
+        const chartEl = await mount(page, { type: "treemap", colors: [{ name: "North", color: "#ffd700" }] }, { view: { rows: ["Region"], values: VIEW.values, display: "chart" } });
+        const tiles = await inChart(chartEl, tileColors);
+        expect(Object.keys(tiles).sort()).toEqual(["East", "North", "South"]);
+        // the gold is too pale for the tiles' text: drawn darker
+        expect(tiles.North).not.toBe("#ffd700");
+        const report = page.locator("#color-report");
+        await toolbar(report, "view-settings");
+        await report.getByTestId("topic-series").click();
+        const level = report.getByTestId("level-series");
+        for (const [name, fill] of Object.entries(tiles)) {
+            const swatch = level.getByRole("menuitem", { name: new RegExp(`^Colour of ${name}, `) });
+            await expect(swatch.locator(".pk-dot")).toHaveCSS("background-color", rgbOf(fill));
+        }
+        // the palette's tiles: the field starts from the colour drawn
+        await expect(level.getByRole("menuitem", { name: `Colour of East, ${tiles.East}` }).locator("xpath=following-sibling::input[1]")).toHaveValue(tiles.East);
+        // North: the dot shows the tile (above), the field and the name keep the gold set
+        const north = level.getByRole("menuitem", { name: "Colour of North, #ffd700" });
+        await expect(north.locator("xpath=following-sibling::input[1]")).toHaveValue("#ffd700");
+        // a hidden tile leaves the chart, and keeps its colour in the list, to be shown again
+        await level.getByRole("menuitemcheckbox", { name: "East" }).click();
+        await expect.poll(() => lastChart(page).then((c) => c?.hidden)).toEqual(["East"]);
+        await settled(chartEl);
+        await expect(level.getByRole("menuitem", { name: `Colour of East, ${tiles.East}` }).locator(".pk-dot")).toHaveCSS("background-color", rgbOf(tiles.East));
     });
 
     test("Display › Tooltip › Share in the tooltip: a bar's share of its category, a slice's share of the pie", async ({ page }) => {

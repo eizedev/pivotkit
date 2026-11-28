@@ -100,9 +100,9 @@ function ChartTitle({ title, labels, onDisplay }) {
 }
 
 /**
- * The colour each series or slice is drawn with, by name, from the chart's ECharts option: its own
- * colour where it has one (a fixed one, chart.colors or the host's colorMap), else the palette's of its
- * place, as ECharts gives it.
+ * The colour each series, slice or treemap tile is drawn with, by name, from the chart's ECharts
+ * option: its own colour where it has one (a fixed one, chart.colors or the host's colorMap; a tile's
+ * as pivotkit-core darkened it for its text), else the palette's of its place, as ECharts gives it.
  * @param {any} instance  the chart's ECharts instance
  * @returns {Map<string, string>}
  */
@@ -112,7 +112,7 @@ function colorsDrawn(instance) {
     const palette = Array.isArray(option?.color) ? option.color : [];
     const of = (/** @type {any} */ item, /** @type {number} */ i) => item?.itemStyle?.color ?? palette[i % Math.max(1, palette.length)];
     for (const [i, s] of (option?.series ?? []).entries()) {
-        if (s.type === "pie") {
+        if (s.type === "pie" || s.type === "treemap") {
             (s.data ?? []).forEach((/** @type {any} */ d, /** @type {number} */ j) => out.set(String(d.name), of(d, j)));
         } else {
             out.set(String(s.name), of(s, i));
@@ -208,7 +208,8 @@ export function ChartSettingsPanel({ view, plan, encoded, lineChecks, labels, lo
     const lines = view.chart.referenceLines;
     const plain = plan?.chart && encoded ? referenceLineRules(plan.swap ? swapAxes(view) : view, { ...view.chart, ...plan.chart }, encoded) : { average: true, trend: true, target: true, extremes: true };
     const rules = lineChecks ?? { ...plain, notes: ["table"] };
-    // the colour each series or slice is drawn with, as #rrggbb, read again after each draw of the chart
+    // the colour each series, slice or tile is drawn with, as #rrggbb, read again after each draw of the
+    // chart; a name the draw leaves out (a treemap's hidden tile) keeps the colour it was drawn with last
     const [drawnColors, setDrawnColors] = useState(/** @type {Map<string, string>} */ (new Map()));
     useEffect(() => {
         const instance = colors?.chart?.current;
@@ -216,7 +217,7 @@ export function ChartSettingsPanel({ view, plan, encoded, lineChecks, labels, lo
             return undefined;
         }
         const ctx = instance.getDom?.()?.ownerDocument?.createElement("canvas").getContext("2d") ?? null;
-        const read = () => setDrawnColors(new Map([...colorsDrawn(instance)].map(([name, c]) => [name, hexColor(String(c), ctx) ?? ""])));
+        const read = () => setDrawnColors((before) => new Map([...before, ...[...colorsDrawn(instance)].map(([name, c]) => /** @type {[string, string]} */ ([name, hexColor(String(c), ctx) ?? ""]))]));
         read();
         instance.on("finished", read);
         return () => instance.off("finished", read);
