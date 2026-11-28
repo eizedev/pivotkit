@@ -25,6 +25,8 @@ import { requestId } from "./request-id.js";
 import { identityBasisOf } from "./auth.js";
 import { NAMED_VIEW_OPERATIONS, checkCarriedView, viewListFor, withNamedView } from "./views.js";
 import { mayReadRecords } from "./records.js";
+import { ACCESS_PARAM, linkAccessOf } from "./link-access.js";
+import { withLinkQuery } from "./link-params.js";
 
 export { OUTPUT_MARK, draftCap, prune } from "./output.js";
 
@@ -512,6 +514,11 @@ const STEPS = {
     async create_link(args, context, caller, how) {
         // link: the params the source's linkParams allow go into the page's query (link-params.js)
         const resolved = await resolveFor(context, args, caller, { ...how, link: true });
+        if (args.access !== undefined && resolved.link) {
+            // the level of a live link, signed into its query (link-access.js); the exchange route checks it
+            const value = await linkAccessOf(context.browserTokens.keys, context.options, caller, args.access);
+            resolved.link = { ...resolved.link, url: withLinkQuery(resolved.link.url, [[ACCESS_PARAM, value]]) };
+        }
         const { outcome, policy, ...read } = await compute(context, "create_link", args, resolved, caller, { ...how, link: true });
         const notCarried = notCarriedFinding(resolved.link?.notCarried ?? []);
         const result = shownResult(outcome, policy, read, outcome.result.ok && notCarried ? [notCarried] : []);

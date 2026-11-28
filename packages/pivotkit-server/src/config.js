@@ -108,6 +108,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {number} [concurrency]  requests of one caller at once (default 4)
  * @property {{ maxBytes?: number }} [data]  the largest body of a caller that may send data (default 10 MiB, at most 64 MiB)
  * @property {{ maxRows?: number, maxCells?: number, concurrency?: number, waitMs?: number, idleMs?: number, writeMs?: number }} [records]  the rows route's bounds (options/records.js RECORDS_DEFAULTS)
+ * @property {{ origins?: string[], minutes?: number, key?: { env?: string, file?: string, create?: boolean }, levels?: string[] }} [browser]  the browser path: browser tokens and the pages that read rows with them (options/browser.js)
  */
 
 /**

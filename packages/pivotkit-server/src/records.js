@@ -40,6 +40,7 @@ import { PIECE_CHARS } from "./records-writer.js";
 import { requestId } from "./request-id.js";
 import { SAFE_HEADERS, problemOf as plainProblemOf, problemsFor } from "./rest/problem.js";
 import { brandingOfContext } from "./branding.js";
+import { browserBindingOf, sameParams } from "./browser-tokens.js";
 import { asOfMembers } from "./sources/as-of.js";
 import { isPerson } from "./sources/auth.js";
 import { runResolved } from "./sources/index.js";
@@ -93,6 +94,50 @@ const RECORDS_WAITING = 32;
  */
 export const mayReadRecords = (options, caller, id) => isPerson(caller) && recordsOfProfile(options, caller.profile).includes(id);
 
+/**
+ * Why a caller may not read the rows of a source, or null: no person, or a profile that does not
+ * name the source. A source that is not there answers alike, so nobody probes for ids. The exchange
+ * route (browser.js) refuses with the same words.
+ * @param {import("./config.js").ServerOptions} options
+ * @param {import("./registry.js").Caller} caller
+ * @param {string} id
+ * @returns {OperationError | null}
+ */
+export function recordsRefusal(options, caller, id) {
+    if (!isPerson(caller)) {
+        return new OperationError("NOT_ALLOWED", identityBasisOf(caller)?.[0] === "local" ? "this server has no sign-in, and rows go only to a person who signed in (auth.mode oauth, or auth.externalIssuers)" : "rows go only to a person who signed in: an OAuth token with a subject, or a host application's token for its person (auth.externalIssuers); static and signed tokens get none");
+    }
+    if (!Object.hasOwn(options.sources ?? {}, id) || !recordsOfProfile(options, caller.profile).includes(id)) {
+        // the caller's own profile by name: a placeholder in angle brackets would reach a caller as "policy.profiles..records"
+        const where = caller.profile ? `in your profile (policy.profiles.${caller.profile}.records)` : "per profile (policy.profiles), and your sign-in has no profile";
+        return new OperationError("NOT_ALLOWED", `your sign-in may not read the rows of this source; the operator grants it ${where}`);
+    }
+    return null;
+}
+
+/**
+ * A rows request as a browser token lets it through: the token's source only, and its parameters
+ * (the token's where the request names none). A caller without a browser token sends what it likes.
+ * @param {import("./registry.js").Caller} caller
+ * @param {Record<string, any>} input
+ */
+function boundInput(caller, input) {
+    const bound = browserBindingOf(caller);
+    if (!bound) {
+        return input;
+    }
+    if (input.source !== bound.source) {
+        throw new OperationError("NOT_ALLOWED", "this browser token reads the rows of another source; get a token for this one");
+    }
+    if (input.params === undefined) {
+        return { ...input, params: { ...bound.params } };
+    }
+    if (!sameParams(input.params, bound.params)) {
+        throw new OperationError("NOT_ALLOWED", "this browser token was made for other params; get a token for these");
+    }
+    return input;
+}
+
 /** A field's name in a message: cleaned and capped, as other messages name fields. */
 const nameText = (name) => findingText(String(name)).slice(0, 80);
 
@@ -138,15 +183,11 @@ export function createRecords(context) {
         if (input.fields !== undefined && input.view !== undefined) {
             throw new OperationError("INVALID_INPUT", "give fields or a view, not both");
         }
-        if (!isPerson(caller)) {
-            throw new OperationError("NOT_ALLOWED", identityBasisOf(caller)?.[0] === "local" ? "this server has no sign-in, and rows go only to a person who signed in (auth.mode oauth, or auth.externalIssuers)" : "rows go only to a person who signed in: an OAuth token with a subject, or a host application's token for its person (auth.externalIssuers); static and signed tokens get none");
+        const refused = recordsRefusal(options, caller, input.source);
+        if (refused) {
+            throw refused;
         }
-        if (!Object.hasOwn(options.sources ?? {}, input.source) || !recordsOfProfile(options, caller.profile).includes(input.source)) {
-            // a source that is not there answers alike: no probing for ids
-            // the caller's own profile by name: a placeholder in angle brackets would reach a caller as "policy.profiles..records"
-            const where = caller.profile ? `in your profile (policy.profiles.${caller.profile}.records)` : "per profile (policy.profiles), and your sign-in has no profile";
-            throw new OperationError("NOT_ALLOWED", `your sign-in may not read the rows of this source; the operator grants it ${where}`);
-        }
+        input = boundInput(caller, input);
         const person = /** @type {string} */ (identityKey(caller));
         const release = await placeFor(person, how.signal);
         if (!release) {
@@ -191,7 +232,8 @@ export function createRecords(context) {
             const prefix = `${JSON.stringify(members).slice(0, -1)},"data":[`;
             writer.write(chosen.columns, PIECE_CHARS);
             const started = Date.now();
-            const line = { ...callerFields(caller), ...(id ? { requestId: id } : {}), source: input.source, profile: caller.profile, rows: head.rows, columns: columns.length };
+            const token = browserBindingOf(caller)?.id;
+            const line = { ...callerFields(caller), ...(id ? { requestId: id } : {}), ...(token ? { token } : {}), source: input.source, profile: caller.profile, rows: head.rows, columns: columns.length };
             const stream = answerStream(prefix, writer, bounds, (outcome) => {
                 release();
                 // a cut answer went out as 200 already: its line has no status, so it is a warning

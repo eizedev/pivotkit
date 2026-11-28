@@ -29,7 +29,7 @@ import { CodedError } from "pivotkit-core/internal";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { OperationError } from "pivotkit-report/operations";
 import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
-import { auditText, noteAudit } from "./log.js";
+import { auditText, auditedText, noteAudit } from "./log.js";
 import { AUDIT_KEY_MIN, TOKEN_DISTINCT_MIN, TOKEN_MIN, TOKEN_SYNTAX, keyProblem, tokenFault } from "./secret-rules.js";
 import { UTF16_TEXT, readSecret, readSecretFile, secretValue, unreadable } from "./secrets.js";
 import { discover, issuerRulesOf, jwksUriOf, refuseIssuerScheme, remoteKeySet } from "./issuer.js";
@@ -74,6 +74,8 @@ export class AuthRefusal extends CodedError {
         this.name = "AuthRefusal";
         this.status = status;
         this.error = error;
+        /** a browser token this server made that ran out (browser.js): its page gets a new one */
+        this.expired = false;
     }
 }
 
@@ -780,7 +782,7 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
         // a person signed in at another system: the issuer by name, the person by subject
         const caller = { scopes, client, profile, subject: authInfo.extra.subject, issuer: authInfo.extra.issuer };
         noteAudit(caller, authInfo.extra.audit);
-        known.set(caller, { basis: ["external", String(authInfo.extra.issuer), String(authInfo.extra.subject)], token: null });
+        known.set(caller, { basis: ["external", String(authInfo.extra.issuer), String(authInfo.extra.subject)], token: null, expiresAt: Number.isFinite(authInfo.expiresAt) ? Math.floor(authInfo.expiresAt) : null });
         return caller;
     }
     if (authInfo.token === "" || mode === "token") {
@@ -898,4 +900,34 @@ export async function exchangeTokenFor(caller, request) {
     }
     const answer = await (request.fetch ?? guardedFetch)(request.url, { method: "POST", headers, body: form.toString(), ...(request.signal ? { signal: request.signal } : {}), ...(request.timeMs ? { timeMs: request.timeMs } : {}), ...(request.maxBytes ? { maxBytes: request.maxBytes } : {}), ...(request.allowPrivate !== undefined ? { allowPrivate: request.allowPrivate } : {}), ...(request.allowIpLiterals ? { allowIpLiterals: true } : {}) });
     return { ...answer, subjectExpiresAt: entry.expiresAt ?? null };
+}
+
+/**
+ * What a browser token (browser-tokens.js) keeps of a person: the parts of the identity, when the
+ * person's own token expires, and what the caller holds. Null for a caller that is no person with an
+ * identity of its own. The person's access token never goes into it.
+ * @param {import("./registry.js").Caller} caller
+ * @returns {{ basis: string[], expiresAt: number | null, audit: string | null, caller: { scopes: string[] | null, client: string, profile: string | null, subject: string, issuer: string | null, groups?: string[], claims?: Record<string, string | number | boolean> } } | null}
+ */
+export function browserGrantOf(caller) {
+    const entry = caller && typeof caller === "object" ? known.get(caller) : undefined;
+    if (!entry?.basis || entry.basis[0] === "token" || entry.basis[0] === "signed" || entry.basis[0] === "local" || typeof caller.subject !== "string") {
+        return null;
+    }
+    const held = { scopes: caller.scopes === null ? null : [...caller.scopes], client: caller.client, profile: caller.profile ?? null, subject: caller.subject, issuer: caller.issuer ?? null, ...(caller.groups ? { groups: [...caller.groups] } : {}), ...(caller.claims ? { claims: { ...caller.claims } } : {}) };
+    return { basis: [...entry.basis], expiresAt: entry.expiresAt ?? null, audit: auditedText(caller), caller: held };
+}
+
+/**
+ * The caller of a browser token: the person browserGrantOf kept, with the same identity, so places,
+ * caches and limits count one person. It holds no access token, so a source that exchanges the
+ * person's token (exchangeTokenFor) refuses it.
+ * @param {NonNullable<ReturnType<typeof browserGrantOf>>} grant
+ * @returns {import("./registry.js").Caller}
+ */
+export function browserCallerOf({ basis, audit, caller: held }) {
+    const caller = { scopes: held.scopes === null ? null : new Set(held.scopes), client: held.client, profile: held.profile, subject: held.subject, issuer: held.issuer, ...(held.groups ? { groups: [...held.groups] } : {}), ...(held.claims ? { claims: Object.freeze({ ...held.claims }) } : {}) };
+    noteAudit(caller, audit);
+    known.set(caller, { basis: [...basis], token: null });
+    return caller;
 }

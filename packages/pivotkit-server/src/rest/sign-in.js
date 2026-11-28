@@ -17,10 +17,10 @@ import { refusalReason } from "../log.js";
 /**
  * The REST service's sign-in.
  * @param {any} context  createContext's
- * @param {{ core: any, mode: "none" | "token" | "oauth", audience: string[], resource: URL, requiredScopes: string[], metadataUrl: string | null, limits: ReturnType<typeof import("../limits.js").createLimits>, slug: string, problem: import("./problem.js").Problem }} how
- *   core: context.auth's; mode: auth.mode; metadataUrl: the Protected Resource Metadata's address under OAuth; slug: the realm of a static token's challenge (branding)
+ * @param {{ core: any, browser: ReturnType<typeof import("../browser.js").createBrowserPath>, mode: "none" | "token" | "oauth", audience: string[], resource: URL, requiredScopes: string[], metadataUrl: string | null, limits: ReturnType<typeof import("../limits.js").createLimits>, slug: string, problem: import("./problem.js").Problem }} how
+ *   core: context.auth's; browser: the browser path's sign-in of the rows route (browser.js); mode: auth.mode; metadataUrl: the Protected Resource Metadata's address under OAuth; slug: the realm of a static token's challenge (branding)
  */
-export function createRestSignIn(context, { core, mode, audience, resource, requiredScopes, metadataUrl, limits, slug, problem }) {
+export function createRestSignIn(context, { core, browser, mode, audience, resource, requiredScopes, metadataUrl, limits, slug, problem }) {
     const authOptions = context.options.auth ?? {};
     let warnedAddress = false;
 
@@ -53,10 +53,19 @@ export function createRestSignIn(context, { core, mode, audience, resource, requ
         // (tokens have at least 32 random characters: the limit slows scripts, guessing gets nowhere)
         const wait = address ? limits.blocked(address) : 0;
         try {
+            // a browser token is read on the rows route only (browser.js); everywhere else it is an unknown token
+            const browserToken = browser.tokenOf(request);
+            if (browserToken !== null) {
+                return { caller: await browser.callerOf(browserToken) };
+            }
             return mode === "token" ? { caller: callerOf(mode, await core.check(request), authOptions) } : await verifyBearer(request);
         } catch (e) {
             if (!(e instanceof AuthRefusal)) {
                 throw e;
+            }
+            if (e.expired) {
+                // a token of this server that ran out: not counted against the address, its page renews it
+                return { reason: refusalReason("INVALID_TOKEN", request), refused: problem("INVALID_TOKEN", e.message, { headers: { "www-authenticate": challenge("invalid_token", e.message) }, extra: { expired: true } }) };
             }
             if (e.status === 503) {
                 return { reason: refusalReason("AUTH_NOT_READY"), refused: problem("AUTH_NOT_READY", e.message, { headers: { "retry-after": "10" } }) };

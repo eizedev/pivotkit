@@ -4,17 +4,20 @@
  * /api/v1. Every request passes, in this order:
  *
  * 1. the Host check (DNS rebinding);
- * 2. CORS: a request with an Origin must come from rest.cors.origins (none by default); a preflight
- *    (OPTIONS) is answered here, before authentication;
+ * 2. CORS: a request with an Origin must come from rest.cors.origins (none by default), or, for the
+ *    rows route with a browser token, from rest.browser.origins or the server's own origin
+ *    (browser.js); a preflight (OPTIONS) is answered here, before authentication;
  * 3. the route (404, 405);
  * 4. the refused-token limit of the address, then authentication (bearer only: a cookie, Basic or a
  *    token in the address is never read), the REST audience and required scopes (OAuth): sign-in.js;
+ *    the rows route reads a browser token first (browser.js);
  * 5. the caller's rate limit and concurrency, the operation's scopes (auth.toolScopes);
  * 6. the body: JSON (body.js) or, for a caller that may send data, multipart/form-data with a file
  *    (multipart.js), capped (the server's body limit; rest.data.maxBytes for a caller that may send data, limits.js),
  *    checked against the operation's input schema;
  * 7. present() (policy, output, inline), for the file route the file itself (answer-file.js), or
- *    for the rows route the source's rows, written in pieces (records.js).
+ *    for the rows route the source's rows, written in pieces (records.js), or for the exchange route
+ *    a browser token (browser.js).
  *
  * stages.js runs these steps in this order; this file makes what they share and hands the
  * stages to createRouteHandler.
@@ -30,6 +33,7 @@ import { problemsFor, withRequestIdMember } from "./problem.js";
 import { brandingOfContext } from "../branding.js";
 import { createRouteHandler } from "../route-handler.js";
 import { createRecords } from "../records.js";
+import { createBrowserPath } from "../browser.js";
 import { createRestSignIn } from "./sign-in.js";
 import { PRM_PATH, createDiscovery } from "./discovery.js";
 import { answer, precheck, release } from "./stages.js";
@@ -55,6 +59,7 @@ export async function createRestHandler(context, runtime = {}) {
         context.log.warn("REST: no required scopes (rest.requiredScopes, auth.requiredScopes) and no auth.toolScopes: any token of the issuer for the REST audience gets everything its profile allows");
     }
     const limits = createLimits(rest);
+    const browser = createBrowserPath(context);
     /** @type {import("./stages.js").RestService} */
     const service = {
         context,
@@ -74,6 +79,7 @@ export async function createRestHandler(context, runtime = {}) {
         limits,
         signIn: createRestSignIn(context, {
             core,
+            browser,
             audience: rest.audience?.length ? rest.audience : [resource.href.replace(/\/$/, ""), resource.href],
             resource,
             requiredScopes,
@@ -85,7 +91,9 @@ export async function createRestHandler(context, runtime = {}) {
         }),
         discovery: createDiscovery(context, { core, mode, resource, requiredScopes, branding, problem }),
         // the rows route's places (rest.records.concurrency, one per person)
-        records: createRecords(context)
+        records: createRecords(context),
+        // the exchange route and the rows route's browser tokens and origins (browser.js)
+        browser
     };
 
     // the scope, the refused line of an unlogged error, the id in the answer's header and problem body

@@ -70,6 +70,13 @@ export function noteAudit(caller, text) {
 }
 
 /**
+ * The subject text noteAudit kept for a caller, or null (audit.subject off).
+ * @param {object} caller
+ * @returns {string | null}
+ */
+export const auditedText = (caller) => audited.get(caller) ?? null;
+
+/**
  * The caller's fields for a log line: only CALLER_LOG_FIELDS, only texts, and `subject` where the
  * operator's audit setting named the person when the token was verified.
  * @param {Partial<import("./registry.js").Caller> | null | undefined} caller

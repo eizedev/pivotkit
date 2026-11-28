@@ -380,12 +380,21 @@ export const OPERATIONS = Object.freeze({
     create_link: {
         name: "create_link",
         title: "Create a link to a view",
-        description: "Makes a link that opens the view (or a layout: a view by field names) in the source's report page, where the person sees the data with their own rights. Works only for sources whose list_sources entry says link: true. The view is checked first; a view with errors gets no link. Where the entry names linkParams, the link carries those params (such as a customer) in the page's query string, and create_link takes no others.",
+        description: "Makes a link that opens the view (or a layout: a view by field names) in the source's report page, where the person sees the data with their own rights. Works only for sources whose list_sources entry says link: true. The view is checked first; a view with errors gets no link. Where the entry names linkParams, the link carries those params (such as a customer) in the page's query string, and create_link takes no others. access narrows who may open a live link: only the person who makes it (me), every signed-in person (signedIn) or a group of the sign-in (group); each reader still sees only what their own rights allow.",
         cli: null,
         http: { method: "POST", path: "/views/link" },
         needs: ["data", "link"],
         annotations: { readOnly: true, idempotent: true, writesFile: false },
-        input: object({ source: SOURCE, view: VIEW, layout: LAYOUT, name: { type: "string", maxLength: 200, description: "The view's name, shown on the page." } }, ["source"]),
+        input: object(
+            {
+                source: SOURCE,
+                view: VIEW,
+                layout: LAYOUT,
+                name: { type: "string", maxLength: 200, description: "The view's name, shown on the page." },
+                access: object({ level: { type: "string", enum: ["me", "signedIn", "group"], description: "me: only you; signedIn: every person who signs in; group: the members of one of your groups." }, group: { type: "string", minLength: 1, maxLength: 200, description: "With level group: one of your own groups." } }, ["level"])
+            },
+            ["source"]
+        ),
         output: object({ ok: { type: "boolean" }, url: { type: "string" }, findings: FINDINGS, uses: USES }, ["ok", "findings"]),
         run: async (input, env) => {
             checkViewOrLayout(input);

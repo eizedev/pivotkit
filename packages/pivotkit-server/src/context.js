@@ -20,6 +20,7 @@ import { createRegistry } from "./registry.js";
 import { checkTemplates } from "./print-template.js";
 import { checkViews } from "./views.js";
 import { callerOf, createAuthCore, identityKey } from "./auth.js";
+import { createBrowserTokens } from "./browser-tokens.js";
 import { offersOf } from "./sources/input.js";
 import { httpSettingsOf } from "./options/http.js";
 import { sourceCacheOf } from "./options/code.js";
@@ -71,6 +72,7 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  * @property {string} version
  * @property {Record<string, string | undefined>} env  where a backend's sign-in reads its { env } secrets (runtime.env, default process.env)
  * @property {(how: { env?: Record<string, string | undefined>, loopback: boolean }) => Promise<any>} auth
+ * @property {ReturnType<typeof createBrowserTokens>} browserTokens  the browser tokens and the key of the link access levels (browser-tokens.js), one per context: REST makes the tokens, and create_link over REST and MCP signs the levels with the same key
  * @property {() => Promise<{ ok: boolean, checks: Record<string, boolean> }>} ready
  * @property {() => Promise<void>} countAutoValues  after start: read each file source the automatic rule applies to and log its "values" fields
  * @property {() => Promise<void>} close
@@ -215,6 +217,7 @@ export async function createContext(options, runtime = {}) {
         authMode: options.auth?.mode ?? "none",
         version: VERSION,
         env,
+        browserTokens: createBrowserTokens(options, { env }),
 
         /**
          * The authentication every HTTP front end of this context shares, built on first use.

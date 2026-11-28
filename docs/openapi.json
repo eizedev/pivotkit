@@ -130,6 +130,80 @@
         }
       }
     },
+    "/api/v1/sources/records/token": {
+      "post": {
+        "operationId": "issueBrowserToken",
+        "summary": "Get a browser token for the rows of a source",
+        "description": "Exchanges a person's token for a short-lived browser token that reads the rows of this source with these params only (POST /sources/records), and nothing else. For a person who may read the source's rows. Call it from the page's backend or the server's viewer page; the page passes the token to the report through getToken().",
+        "tags": [
+          "sources"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueBrowserTokenInput"
+              },
+              "example": {
+                "source": "sales",
+                "params": {
+                  "region": "North"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The browser token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueBrowserTokenOutput"
+                },
+                "example": {
+                  "token": "eyJhbGciOiJkaXIi...",
+                  "tokenType": "Bearer",
+                  "expiresIn": 300,
+                  "expiresAt": "2026-11-28T08:05:00Z",
+                  "source": "sales"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Problem415"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        }
+      }
+    },
     "/api/v1/sources": {
       "get": {
         "operationId": "listSources",
@@ -4080,6 +4154,30 @@
             "type": "string",
             "maxLength": 200,
             "description": "The view's name, shown on the page."
+          },
+          "access": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "string",
+                "enum": [
+                  "me",
+                  "signedIn",
+                  "group"
+                ],
+                "description": "me: only you; signedIn: every person who signs in; group: the members of one of your groups."
+              },
+              "group": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "With level group: one of your own groups."
+              }
+            },
+            "required": [
+              "level"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -4840,6 +4938,75 @@
           }
         },
         "additionalProperties": true
+      },
+      "IssueBrowserTokenInput": {
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^(?!file:)",
+            "description": "A source id from GET /sources whose records is true."
+          },
+          "params": {
+            "type": "object",
+            "maxProperties": 16,
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "maxLength": 256
+            },
+            "description": "Values for the source's parameters; list_sources names them. A source with required params needs them in every call."
+          },
+          "access": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "The pk-access value of the link's query string, where it has one: the link's access level."
+          }
+        }
+      },
+      "IssueBrowserTokenOutput": {
+        "type": "object",
+        "required": [
+          "token",
+          "tokenType",
+          "expiresIn",
+          "expiresAt",
+          "source"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The browser token: send it as Authorization: Bearer to POST /api/v1/sources/records, for this source and these params only."
+          },
+          "tokenType": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          },
+          "expiresIn": {
+            "type": "integer",
+            "description": "Seconds until it expires."
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "When it expires: ISO 8601 in UTC."
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "responses": {

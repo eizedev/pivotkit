@@ -5,7 +5,7 @@
  *                             [--expires <when>] [--if-missing | --force] [--print]
  *                             [--config <file> [--add]] [--json]
  *   pivotkit-server token show <name> [--config <file>] [--state-dir <dir>] [--json]
- *   pivotkit-server key new --for downloads|audit [--file <path>] [--if-missing | --force] [--print] [--json]
+ *   pivotkit-server key new --for downloads|audit|browser [--file <path>] [--if-missing | --force] [--print] [--json]
  *
  * and, in token-admin.js (loaded only for them), the signed tokens the server issues and the list of
  * every token: token issue|list|revoke|remove, key new|remove --for signing.
@@ -43,7 +43,8 @@ import { DOCS_SITE } from "./options/branding.js";
 /** Where the configuration names a key of each use (secret-rules.js KEY_USES), for the hints. */
 const KEY_OPTIONS = Object.freeze({
     downloads: { option: "output.downloads.key", snippet: (file) => `"output": { "downloads": { "key": { "file": ${JSON.stringify(file)} } } }`, after: "The server reads it again within a second: no restart. Links made with an earlier key stop working." },
-    audit: { option: "audit.key", snippet: (file) => `"audit": { "subject": "hash", "key": { "file": ${JSON.stringify(file)} } }`, after: "The server reads it at start: restart it." }
+    audit: { option: "audit.key", snippet: (file) => `"audit": { "subject": "hash", "key": { "file": ${JSON.stringify(file)} } }`, after: "The server reads it at start: restart it." },
+    browser: { option: "rest.browser.key", snippet: (file) => `"rest": { "browser": { "key": { "file": ${JSON.stringify(file)} } } }`, after: "The server reads it again within a second: no restart. Browser tokens and the access levels of live links made with an earlier key stop working." }
 });
 
 /** --json and --help: every command has them. */
@@ -101,7 +102,7 @@ const FLAGS = Object.freeze({
         ...OUTPUT_FLAGS
     },
     "key new": {
-        for: { type: "string", value: "downloads|audit|signing", text: "What the key is for: output.downloads.key, audit.key, or signing tokens (token issue) (required)." },
+        for: { type: "string", value: "downloads|audit|browser|signing", text: "What the key is for: output.downloads.key, audit.key, rest.browser.key, or signing tokens (token issue) (required)." },
         file: { type: "string", value: "path", text: "Write the key to this file (mode 0600, one line) instead of printing it." },
         "if-missing": { type: "boolean", text: "Keep a file that is there (checked: a key the server can use) and exit 0." },
         force: { type: "boolean", text: "Replace a file that is there." },
@@ -119,7 +120,7 @@ const FLAGS = Object.freeze({
 });
 
 /** The usage line of each command, by its name in FLAGS. */
-const USAGE = Object.freeze({ "token new": "pivotkit-server token new [options]", "token show": "pivotkit-server token show <name> [options]", "token issue": "pivotkit-server token issue [options]", "token list": "pivotkit-server token list [options]", "token revoke": "pivotkit-server token revoke <id or name> [options]", "token remove": "pivotkit-server token remove <id or name> [options]", "key new": "pivotkit-server key new --for downloads|audit|signing [options]", "key remove": "pivotkit-server key remove <key id> --for signing [options]" });
+const USAGE = Object.freeze({ "token new": "pivotkit-server token new [options]", "token show": "pivotkit-server token show <name> [options]", "token issue": "pivotkit-server token issue [options]", "token list": "pivotkit-server token list [options]", "token revoke": "pivotkit-server token revoke <id or name> [options]", "token remove": "pivotkit-server token remove <id or name> [options]", "key new": "pivotkit-server key new --for downloads|audit|browser|signing [options]", "key remove": "pivotkit-server key remove <key id> --for signing [options]" });
 
 /** The help of `token` or `key`. */
 function helpOf(group) {
@@ -475,7 +476,7 @@ function tokenHints({ values, entry, options, backup, secret }) {
 }
 
 /** The usage line of `key new`, for its errors. */
-const KEY_USAGE = "pivotkit-server key new --for downloads|audit [--file <path>] [--config <file> --add], or --for signing [--config <file>]";
+const KEY_USAGE = "pivotkit-server key new --for downloads|audit|browser [--file <path>] [--config <file> --add], or --for signing [--config <file>]";
 
 /**
  * `key new`.
@@ -504,6 +505,9 @@ async function keyNew(argv, io) {
     if (secret.replaced && values.for === "downloads") {
         warnings.push(`${values.file} replaced: download links made with the old key stop working within a second`);
     }
+    if (secret.replaced && values.for === "browser") {
+        warnings.push(`${values.file} replaced: browser tokens and the access levels of live links made with the old key stop working within a second`);
+    }
     const written = added && !("done" in added) ? await writeConfig(added, values) : null;
     const backup = written?.backup ?? null;
     warnings.push(...(added && "notes" in added ? added.notes : []), ...(written?.warnings ?? []));
@@ -524,10 +528,10 @@ async function keyNew(argv, io) {
 }
 
 /**
- * output.downloads.key or audit.key named in the configuration; refused where it is set already,
- * unless --if-missing (`same`) finds it naming this file.
+ * output.downloads.key, audit.key or rest.browser.key named in the configuration; refused where it
+ * is set already, unless --if-missing (`same`) finds it naming this file.
  * @param {any} raw  the configuration's JSON
- * @param {"downloads" | "audit"} use
+ * @param {"downloads" | "audit" | "browser"} use
  * @param {{ file: string }} ref
  * @param {string} config  as given, for messages
  * @param {false | ((a: unknown, b: unknown) => boolean)} same
@@ -536,9 +540,15 @@ async function keyNew(argv, io) {
 function withKey(raw, use, ref, config, same) {
     /** @type {string[]} */
     const notes = [];
-    const there = use === "downloads" ? raw.output?.downloads?.key : raw.audit?.key;
+    const there = use === "downloads" ? raw.output?.downloads?.key : use === "browser" ? raw.rest?.browser?.key : raw.audit?.key;
     if (there && same && same(there.file, ref.file)) {
         return { done: /** @type {const} */ (true) };
+    }
+    if (use === "browser") {
+        if (there) {
+            throw usage("DUPLICATE", `rest.browser.key is set already in ${config}; replace its file's value with --force instead`);
+        }
+        return { next: { ...raw, rest: { ...raw.rest, browser: { ...raw.rest?.browser, key: ref } } }, notes };
     }
     if (use === "downloads") {
         if (raw.output?.downloads?.key) {
