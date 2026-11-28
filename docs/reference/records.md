@@ -333,8 +333,8 @@ as [Open a shared live report](../use/open-a-shared-report.md).
 1. Set `"rest": { "browser": { "viewer": true } }`.
 2. Set the source's `link` to the page: `"link": "https://reports.example.com/live/sales"`.
    `create_link` then gives that address with the view, the `linkParams` and `pk-access`.
-3. Install pivotkit-element next to pivotkit-server: `npm install pivotkit-element`. The page serves
-   its built files. Without them it answers 503 and the log warns. Its version must be in the range
+3. Install pivotkit-element next to pivotkit-server: `npm install pivotkit-element`. The
+   [container image](container.md#oauth) holds it already. The page serves its built files. Without them it answers 503 and the log warns. Its version must be in the range
    pivotkit-server names as an optional peer dependency; an older report cannot read rows from the
    server, and the log and `check-config` warn.
 4. The sign-in is the one of [sign-in links](delivery.md#sign-in), with its client
