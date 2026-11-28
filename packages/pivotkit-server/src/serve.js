@@ -168,19 +168,17 @@ function readinessNotes(log) {
 
 /**
  * The problem answer to a body that cannot be read (400) or is too large (413), from the family of
- * its path: the download links, MCP, REST, else the server's own.
- * @param {{ downloads: any, viewer: any, mcp: any, rest: any, problem: (code: string, detail: string) => Response }} families
+ * its path: the server's own pages (download links, viewer page), MCP, REST, else the server's own.
+ * @param {{ pages: any[], mcp: any, rest: any, problem: (code: string, detail: string) => Response }} families
  * @param {400 | 413} status
  * @param {string} path
  * @param {Record<string | symbol, any>} [info]
  */
-function familyProblem({ downloads, viewer, mcp, rest, problem }, status, path, info) {
+function familyProblem({ pages, mcp, rest, problem }, status, path, info) {
     const route = path.split("?")[0];
-    if (downloads.handles(route)) {
-        return downloads.problem(status, path, info);
-    }
-    if (viewer?.handles(route)) {
-        return viewer.problem(status, path, info);
+    const page = pages.find((p) => p.handles(route));
+    if (page) {
+        return page.problem(status, path, info);
     }
     if (mcp && !rest?.handles(route) && mcp.problem) {
         return mcp.problem(status, path, info);
@@ -189,6 +187,35 @@ function familyProblem({ downloads, viewer, mcp, rest, problem }, status, path, 
         return rest.problem(status, path, info);
     }
     return status === 413 ? problem("BODY_TOO_LARGE", BODY_TOO_LARGE_TEXT) : problem("INVALID_INPUT", "the request cannot be read");
+}
+
+/**
+ * /healthz and /readyz, after the Host check: a probe writes no line; /readyz one when readiness changes.
+ * @param {any} context
+ * @param {ReturnType<typeof allowedHosts>} hosts
+ * @param {ReturnType<typeof problemsFor>["hostProblem"]} hostProblem
+ * @returns {(request: Request) => Promise<Response | null>}  null for every other request
+ */
+function healthRoute(context, hosts, hostProblem) {
+    const noteReadiness = readinessNotes(context.log);
+    return async (request) => {
+        const path = new URL(request.url).pathname;
+        if ((request.method !== "GET" && request.method !== "HEAD") || (path !== "/healthz" && path !== "/readyz")) {
+            return null;
+        }
+        const refused = hostRefusal(request, hosts);
+        if (refused) {
+            return hostProblem(context.log, request, refused);
+        }
+        // a probe's answer is not a refusal: no line of its own, none from the HTTP edge's check
+        noteAnswered();
+        if (path === "/healthz") {
+            return Response.json({ ok: true }, { headers: { "cache-control": "no-store" } });
+        }
+        const ready = await context.ready();
+        noteReadiness(ready);
+        return Response.json(ready, { status: ready.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
+    };
 }
 
 /**
@@ -219,11 +246,12 @@ export async function createServerHandler(options, runtime) {
         // that is not an MCP client's), shared with pivotkit-mcp's handler on this context
         const downloads = createDownloadHandler(context, { env: runtime.env, loopback: runtime.loopback });
         made = downloads;
-        const isDownload = (request) => downloads.handles(new URL(request.url).pathname);
         rest = enable.includes("rest") ? await createRestHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
         // the viewer page of live links (rest.browser.viewer): it reads the person's rights as the REST service does
         viewer = rest ? await createViewerHandler(context, rest.viewer, { env: runtime.env, loopback: runtime.loopback, files: runtime.viewerFiles }) : null;
-        const isViewer = (request) => viewer?.handles(new URL(request.url).pathname) ?? false;
+        // the server's own pages, each with its own sign-in and answers
+        const pages = viewer ? [downloads, viewer] : [downloads];
+        const pageOf = (request) => pages.find((p) => p.handles(new URL(request.url).pathname));
         // the answers of this handler name the operator's documentation (branding.js)
         const { problem, hostProblem } = problemsFor(context.branding.docs);
         // a path nobody serves names the REST service and its OpenAPI document by their full address;
@@ -234,36 +262,14 @@ export async function createServerHandler(options, runtime) {
         const hosts = allowedHosts(options);
         const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
 
-        const noteReadiness = readinessNotes(context.log);
+        const health = healthRoute(context, hosts, hostProblem);
 
-        /** /healthz and /readyz, after the Host check: a probe writes no line; /readyz one when readiness changes. */
-        async function health(request) {
-            const path = new URL(request.url).pathname;
-            if ((request.method !== "GET" && request.method !== "HEAD") || (path !== "/healthz" && path !== "/readyz")) {
-                return null;
-            }
-            const refused = hostRefusal(request, hosts);
-            if (refused) {
-                return hostProblem(context.log, request, refused);
-            }
-            // a probe's answer is not a refusal: no line of its own, none from the HTTP edge's check
-            noteAnswered();
-            if (path === "/healthz") {
-                return Response.json({ ok: true }, { headers: { "cache-control": "no-store" } });
-            }
-            const ready = await context.ready();
-            noteReadiness(ready);
-            return Response.json(ready, { status: ready.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
-        }
-
-        /** The routes, in order: health, download links, REST, MCP. */
+        /** The routes, in order: health, the server's own pages, REST, MCP. */
         const routes = {
             async precheck(request, info) {
-                if (isDownload(request)) {
-                    return downloads.precheck(request, info);
-                }
-                if (isViewer(request)) {
-                    return viewer.precheck(request, info);
+                const page = pageOf(request);
+                if (page) {
+                    return page.precheck(request, info);
                 }
                 if (rest && isRest(request)) {
                     return rest.precheck(request, info);
@@ -287,11 +293,9 @@ export async function createServerHandler(options, runtime) {
                 if (early) {
                     return early;
                 }
-                if (isDownload(request)) {
-                    return downloads.fetch(request, info);
-                }
-                if (isViewer(request)) {
-                    return viewer.fetch(request, info);
+                const page = pageOf(request);
+                if (page) {
+                    return page.fetch(request, info);
                 }
                 if (rest && isRest(request)) {
                     return rest.fetch(request, info);
@@ -326,15 +330,13 @@ export async function createServerHandler(options, runtime) {
             fetch: hosted.fetch,
             /** @type {import("./listen.js").FetchHandler["release"]} */
             release: (info) => rest?.release(info),
-            problem: (status, path, info) => familyProblem({ downloads, viewer, mcp, rest, problem }, status, path, info),
-            /** @param {string} url */
+            problem: (status, path, info) => familyProblem({ pages, mcp, rest, problem }, status, path, info),
+            /** @param {string} url  the address the server listens on: the pages' base on loopback without http.publicUrl */
             listening(url) {
-                downloads.listening(url);
-                viewer?.listening(url);
+                pages.forEach((p) => p.listening(url));
             },
             async close() {
-                downloads.close();
-                viewer?.close();
+                pages.forEach((p) => p.close());
                 await rest?.close();
                 await mcp?.close();
                 await context.close();

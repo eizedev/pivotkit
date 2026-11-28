@@ -7,7 +7,7 @@
 
 import { readdir, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** The viewer's own files, next to src/. */
@@ -37,7 +37,7 @@ async function filesOf(dir) {
     const entries = await readdir(dir, { recursive: true, withFileTypes: true });
     return entries
         .filter((e) => e.isFile() && /\.(js|css)$/.test(e.name) && e.name !== "import-worker.js")
-        .map((e) => join(e.parentPath, e.name).slice(dir.length + 1).split("\\").join("/"));
+        .map((e) => relative(dir, join(e.parentPath, e.name)).split(sep).join("/"));
 }
 
 /**

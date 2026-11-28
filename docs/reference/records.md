@@ -236,8 +236,8 @@ backend still makes that token: it holds the person's own token, which never rea
 2. The page reads the rows with the browser token, and asks your backend for a new one on expiry.
    The [components](live-rows.md) do this with the `getToken()` the page gives them.
 
-Not yet: a page without any backend of its own, and a page of pivotkit-server that opens a shared
-live link and signs the person in.
+Without a page of your own, the server's [viewer page](#records-viewer) opens a live link and signs
+the person in itself.
 
 ```bash
 curl -s -H "Authorization: Bearer $PERSON_TOKEN" -H "Content-Type: application/json" \
@@ -313,6 +313,7 @@ without the link.
 | `rest.browser.minutes` | 5 | How long a browser token lives (1 to 60) |
 | `rest.browser.key` | made in the state directory | The key of the tokens and of `pk-access`: a secret like `output.downloads.key` (`{ "env" }` or `{ "file" }`, 32 bytes or more) |
 | `rest.browser.levels` | `["signedIn"]` | The access levels live links may carry: `me`, `signedIn`, `group` |
+| `rest.browser.viewer` | `false` | The server's own [viewer page](#records-viewer) for live links, at `/live/<source>` |
 
 - With a state directory, the server makes the key at the first start where a profile reads rows
   (`<state>/secrets/browser.key`). Make one yourself with `pivotkit-server key new --for browser`.
@@ -323,11 +324,53 @@ without the link.
 - `check-config` has a section "Browser path". It names the lifetime, the pages, the levels and
   the key, and the sources the browser path refuses.
 
+### The viewer page { #records-viewer }
+
+The viewer page is pivotkit-server's own page for a live link: `http.publicUrl` + `/live/<source>`.
+It signs the person in, makes the browser token on the server, and shows the report. People see it
+as [Open a shared live report](../use/open-a-shared-report.md).
+
+1. Set `"rest": { "browser": { "viewer": true } }`.
+2. Set the source's `link` to the page: `"link": "https://reports.example.com/live/sales"`.
+   `create_link` then gives that address with the view, the `linkParams` and `pk-access`.
+3. Install pivotkit-element next to pivotkit-server: `npm install pivotkit-element`. The page serves
+   its built files. Without them it answers 503 and the log warns.
+4. The sign-in is the one of [sign-in links](delivery.md#sign-in), with its client
+   `output.downloads.signIn`. At the provider, add the redirect URI
+   `https://reports.example.com/live/_/callback` to that client: `http.publicUrl` +
+   `/live/_/callback`.
+5. The sign-in must give an access token the REST service accepts: list the service's scopes in
+   `output.downloads.signIn.scopes` beside `openid`, such as `["openid", "pivotkit"]`, and make the
+   provider issue the token for the REST service's audience. The page reads the person's rights
+   from it as from a bearer: `rest.requiredScopes`, the groups, the profile.
+
+```json
+{
+  "sources": { "sales": { "file": "data/sales.csv", "link": "https://reports.example.com/live/sales", "linkParams": ["customer"] } },
+  "output": { "downloads": { "signIn": { "clientId": "pivotkit-web", "scopes": ["openid", "pivotkit"] } } },
+  "rest": { "browser": { "viewer": true, "levels": ["me", "group"] } },
+  "http": { "publicUrl": "https://reports.example.com" }
+}
+```
+
+- Opening the link, a link preview or a HEAD starts no sign-in. The page's script does, and keeps
+  the view of the fragment in the tab's `sessionStorage` meanwhile.
+- The callback checks the ID token as a sign-in link does. The access token of the same answer must
+  name the same issuer and subject. The page gets only the browser token, never the person's tokens.
+- A short cookie, `__Host-pivotkit-live`, holds the sign-in under way. The answer clears it. No
+  session follows: when the report needs a new browser token, the page signs in again.
+- The page needs `auth.mode` `"oauth"` and an `https` `http.publicUrl`. On loopback it may go
+  without one. Its policy allows no inline script or style
+  ([security](../security.md#viewer-page)).
+- `check-config` names the page's address, the redirect URI to register and the scopes, and warns
+  without pivotkit-element.
+
 ## What the log says { #records-log }
 
 Every answer that started ends with a `records` line: the source, the rows and columns, the profile,
 `client` and `ms`, how long the answer took to read. With `audit.subject` it names the person too.
-It never holds a value. An answer cut off has `outcome: "error"` and `reason`: `idle`, `slow` (not
+It never holds a value. A sign-in on the [viewer page](#records-viewer) ends with a `viewer` line:
+the browser token's ID, or the `code` and `reason` of a refusal. An answer cut off has `outcome: "error"` and `reason`: `idle`, `slow` (not
 read within `writeMs`), `client` (the reader left), `timeout` or `error`.
 
 ## Sizing { #records-sizing }

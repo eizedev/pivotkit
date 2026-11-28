@@ -187,6 +187,10 @@ through the host application's server:
   as `customer: acme`, to the person who copies the link.
 - The page holds the rows in the browser's memory, as with a host's backend. pivotkit keeps neither
   the token nor the rows in the browser's storage.
+- The server's [viewer page](reference/records.md#records-viewer) signs the person in itself. A
+  signed cookie holds the sign-in under way for up to 10 minutes: its random values and the link's
+  path and query, so a link's parameters too. The answer clears it, and no session follows. The tab's
+  `sessionStorage` keeps the link's view and the view shown, until the tab closes.
 
 ## Recipients { #recipients }
 

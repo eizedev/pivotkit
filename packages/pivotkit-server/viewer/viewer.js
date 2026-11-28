@@ -5,7 +5,9 @@
 //   keeps it (sessionStorage) and goes to the sign-in, which comes back with the report's page.
 // - "report": signed in. The browser token is in the block; it stays in memory only. The link's
 //   address and view go back into the address bar, so a reload or Copy link uses the link, and the
-//   report reads its rows with the token. When it expires, the page signs in again.
+//   report reads its rows with the token. When the report asks for another (it reads again after
+//   the token expired), the page signs in again, and the report comes back with the view the person
+//   had (persist-view), not the link's.
 // - any other: a sign-in that failed; its button signs in again with the link this tab opened.
 
 const STORE = "pivotkit-live:";
@@ -73,6 +75,8 @@ async function showReport(page) {
     // the page's height less its header; on a phone the report grows and the page scrolls
     report.setAttribute("height", "100%");
     report.setAttribute("grow", "on");
+    // the tab keeps the view shown, so a sign-in on expiry brings it back
+    report.setAttribute("persist-view", "session");
     if (page.lang === "de") {
         report.setAttribute("locale", "de-DE");
     }
@@ -81,7 +85,9 @@ async function showReport(page) {
         const first = answer;
         answer = null;
         if (!first) {
-            // the token ran out: sign in again; the page leaves, so no answer comes
+            // a new token: sign in again; the page leaves, so no answer comes. Without the
+            // link's view, the report opens with the one it keeps for this tab
+            session.set(`view:${page.to}`, "");
             signIn(page.to);
             return new Promise(() => {});
         }

@@ -6,17 +6,17 @@
             "docs/getting-started/kubernetes.md": [488],
             "docs/learn.md": [458],
             "docs/model-data.md": [571],
-            "docs/privacy.md": [517],
+            "docs/privacy.md": [521],
             "docs/reference/cli.md": [751],
             "docs/reference/core.md": [674],
             "docs/reference/mcp.md": [1000],
             "docs/reference/react.md": [864],
             "docs/reference/rest.md": [977],
             "docs/reference/sources.md": [985],
-            "docs/security.md": [914],
+            "docs/security.md": [929],
             "docs/use/charts.md": [487]
         },
-        "totalLines": 24750
+        "totalLines": 24905
     },
     "functions": {
         "complexity": {
@@ -251,7 +251,6 @@
         "packages/pivotkit-report/src/report-css.js exports PRINT_WIDE",
         "packages/pivotkit-report/src/report-css.js exports SCALE_MIX",
         "packages/pivotkit-server/src/branding.js exports ICON_MAX_BYTES",
-        "packages/pivotkit-server/src/branding.js exports ICON_PATH",
         "packages/pivotkit-server/src/branding.js exports pngOf",
         "packages/pivotkit-server/src/branding.js exports slugOf",
         "packages/pivotkit-server/src/check/access.js exports section",

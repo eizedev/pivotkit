@@ -8,7 +8,8 @@ date: 2026-11-28
 # 0021 The browser path for live reports
 
 Sources: [#621](https://github.com/eizedev/pivotkit/issues/621),
-[the decision on #621](https://github.com/eizedev/pivotkit/issues/621#issuecomment-7231514614)
+[the decision on #621](https://github.com/eizedev/pivotkit/issues/621#issuecomment-7231514614),
+the maintainer's decision on the viewer page's sign-in (2026-11-28)
 
 ## Context and Problem Statement
 
@@ -26,6 +27,11 @@ page use it. Everything here is open to change before it is accepted.
 - CORS for the browser path through a setting of its own.
 - An access level as a page setting, checked in the browser.
 - An access level signed into the link, checked when the token is made.
+- The viewer page runs the sign-in inside the page: the code flow with PKCE in the browser, a public
+  client, the person's token in the page (A).
+- The server signs the person in, as for the download links, and hands the page only the browser
+  token (B).
+- The server signs the person in and keeps a session in a cookie (C).
 
 ## Decision Outcome
 
@@ -92,10 +98,29 @@ page use it. Everything here is open to change before it is accepted.
 
 ### The viewer page
 
-- The server's own page for a live link, with the server's own sign-in, on the server's origin.
-- Its Content-Security-Policy allows no inline script or style, and its tests run over stored
-  titles, labels and branding.
-- It is built after the design.
+Chosen: B, the [download links' sign-in](../reference/delivery.md#sign-in).
+
+- `http.publicUrl` + `/live/<source>` is the server's own page for a live link. It is off unless
+  `rest.browser.viewer` is set.
+- Opening it starts nothing: a link preview signs nobody in. Its script goes to the sign-in.
+- The server runs the code flow with PKCE, `state` and `nonce`, on the download links' client with
+  one more redirect URI. The code is the download links', not a second flow.
+- A short cookie of its own holds the sign-in under way. The answer clears it. No session follows.
+- The callback reads the person's rights from the access token of the same answer, as the REST
+  service reads a bearer's, for the issuer and subject of the ID token. It makes the browser token of
+  0020 for the link's source, parameters and access level.
+- The page gets that browser token only, never the person's own token. When the report needs a new
+  one, the page signs in again.
+- Its Content-Security-Policy allows no inline script or style. Its tests run over stored titles
+  and branding.
+
+Not built, and a possible later option each:
+
+- A, the sign-in in the page: the person's token would be in the page, readable by its scripts,
+  for as long as it lives. It needs a second client, public, at every provider.
+- C, a session in a cookie: the server would keep state per person, a cookie would read rows on its
+  own, and the page would need protection against cross-site requests. Nothing needs it while a
+  sign-in at the provider is quick.
 
 ### Consequences
 
@@ -106,3 +131,7 @@ page use it. Everything here is open to change before it is accepted.
 - Bad: a level other than signed-in needs `rest.browser.key` or a state directory, or links stop
   working after a restart. A new key also ends the levels of the links made before it.
 - Bad: an encrypted token cannot be read for debugging. The log has its ID.
+- Good: the viewer page needs no page or backend of the host, and no second client.
+- Bad: without a session, the viewer page goes to the provider again on every reload and whenever
+  the report needs a new browser token. That is quick while the person is signed in there.
+- Bad: the viewer page needs pivotkit-element installed next to the server.

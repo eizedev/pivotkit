@@ -23,6 +23,12 @@ export const SIGN_IN_SECONDS = 600;
 /** The most entries the cookie holds (parallel sign-ins and repeats); the oldest go first. */
 const COOKIE_ENTRIES = 8;
 
+/**
+ * The longest value the cookie gets (its entries and its signature): browsers keep a cookie up to
+ * 4096 bytes with its name, and read() takes no longer one. Beyond it, the oldest entries go first.
+ */
+const COOKIE_VALUE_CHARS = 3900;
+
 /** A token as it may appear in a path: checked before anything else is done with it. */
 export const TOKEN_SYNTAX = /^([A-Za-z0-9_-]{16,600})\.([A-Za-z0-9_-]{43})$/;
 
@@ -159,9 +165,13 @@ export function cookieJar(keyOf, secure, route = "dl") {
         },
         /** The Set-Cookie header for a map of entries (the newest COOKIE_ENTRIES), or one that clears it. */
         async write(map) {
-            const entries = Object.entries(map)
+            let entries = Object.entries(map)
                 .sort((a, b) => a[1].x - b[1].x)
                 .slice(-COOKIE_ENTRIES);
+            // 44: the signature and its dot
+            while (entries.length > 1 && b64(JSON.stringify(Object.fromEntries(entries))).length + 44 > COOKIE_VALUE_CHARS) {
+                entries = entries.slice(1);
+            }
             const attributes = `Path=/; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
             if (!entries.length) {
                 return `${name}=; Max-Age=0; ${attributes}`;

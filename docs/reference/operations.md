@@ -108,7 +108,7 @@ Lines of calls, requests, downloads and refusals add:
 | `saved` | `call`, `request` | `false` for a `render_view` with `save: false`, which writes no file ([inline only](mcp.md#inline-only)) |
 | `reason` | `refused` | Why the request was refused. The values are listed [below the table](#reasons) |
 | `limit`, `size` | `refused` | For `body_too_large`: the bytes allowed and the declared size. For `rate_limited` after sign-in, `limit` is `rate` (the caller's own bucket), `clientRate` (the bucket of one OAuth client's people together, eight times as large), `concurrency` (the caller's own requests at once) or `clientShare` (the requests of one OAuth client's people together, eight times `concurrency`). A `download` line with `code` `RATE_LIMITED` is a sign-in callback over 20 a minute from one address. Behind a proxy, that needs `http.trustProxy`, or everyone shares the proxy's address. Limits count per person. The line names the person as `subject` only with `audit.subject` |
-| `path` | `refused` | The route family that refused it (`/api/v1`, `/openapi.json`, `/mcp`, `/downloads`), never the path the request asked for |
+| `path` | `refused` | The route family that refused it (`/api/v1`, `/openapi.json`, `/mcp`, `/downloads`, `/live`), never the path the request asked for |
 | `error`, `refusal`, `detail` | `refused` | For a request the MCP protocol layer refused: its error's class, the SDK's fixed name for the refusal (such as `name-header-mismatch`) and, only at `debug`, its message, which can quote the request's body |
 | `host`, `origin` | `refused` | For `reason` `host` or `origin`: the Host or Origin the request sent (at most 100 characters) |
 | `hint` | `refused` | For `reason` `host`: how to allow the name (`http.allowHosts`, `--allow-host` or `http.publicUrl`) |
@@ -197,6 +197,7 @@ time=2026-11-15T11:12:45.066Z level=warn event=request msg="describe_source fail
 | `call` | An MCP tool call |
 | `request` | A REST request that reached an operation |
 | `download` | A file handed out: by the REST file route or a [download link](delivery.md) (`via: "link"`) |
+| `viewer` | A sign-in on the [viewer page](records.md#records-viewer): the browser token's ID (`token`), or the refusal's `code`, `reason` and `linkAccess` |
 | `refused` | A request refused before it reached an operation, with its `reason` |
 | `warning` | Something the operator should look at: a backend that failed, refused connections, a setting that does not fit, a static token's file that cannot be used, with the cause (at most once a minute per token) |
 | `info` | Something that changed: the issuer's metadata loaded, old reports deleted (to make room, or by `output.maxAgeDays`: one line per sweep, "reports and schedule drafts no longer waiting older than N days deleted", with the counts `reports` and `drafts` and `maxAgeDays`; or by `output.draftMaxAgeDays`: "schedule drafts still waiting for approval older than N days deleted", with `drafts` and `draftMaxAgeDays`) |

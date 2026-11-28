@@ -24,6 +24,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - With a state directory, the server makes `secrets/browser.key` where a profile reads rows.
   `key new --for browser` makes one.
 - `check-config` has a section "Browser path".
+- The viewer page ([records](https://pivotkit.eize.dev/reference/records/#records-viewer)):
+  `rest.browser.viewer` serves `/live/<source>`, the server's own page for a live link. It signs
+  the person in with the download links' client (one more redirect URI, `/live/_/callback`), reads
+  their rights from the access token of that sign-in, and shows the report with a browser token
+  only. No session follows. It needs pivotkit-element installed next to the server. The log has a
+  `viewer` line per sign-in; `check-config` names the redirect URI and the scopes.
 - The rows route's 413 `LIMIT_EXCEEDED` holds its limit as `maxRows` or `maxCells`.
 - `auth.issuers`: the server accepts the tokens of up to 10 OAuth issuers, for example two
   Authentik applications with an issuer each ([#587](https://github.com/eizedev/pivotkit/issues/587)).

@@ -8,12 +8,13 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
 import { ACCESS_PARAM } from "../src/link-access.js";
 import { VIEWER_CSP } from "../src/viewer/pages.js";
+import { viewerAssets } from "../src/viewer/assets.js";
 import { call, factsOf, restServer, tempDir, untilReady, workspace } from "./helpers.js";
 import { localIssuer } from "./auth/local-issuer.js";
 import { until } from "../../../tests/until.js";
@@ -263,7 +264,7 @@ test("viewer: stored titles and branding are escaped in every page; the sign-in 
         }
         assert.match(html, /<h1 class="title">Sales &#60;\/script&#62;&#60;script&#62;alert\(1\)&#60;\/script&#62; &#34;&#62;&#60;img/);
         // the sign-in returns to a page of this route only: never another address
-        for (const to of ["https://evil.example/live/sales", "//evil.example/live/sales", "/live/../api/v1/sources", "/live/_/callback", "/downloads/x", "/live/sales#x", `/live/sales?${"a".repeat(5000)}`]) {
+        for (const to of ["https://evil.example/live/sales", "//evil.example/live/sales", "/live/../api/v1/sources", "/live/_/callback", "/downloads/x", "/live/sales#x", `/live/sales?${"a".repeat(2100)}`]) {
             const r = await fetch(`${server.url}/live/_/sign-in?to=${encodeURIComponent(to)}`, { redirect: "manual" });
             assert.equal(r.status, 404, to);
             assert.equal(r.headers.get("location"), null);
@@ -285,6 +286,48 @@ test("viewer: stored titles and branding are escaped in every page; the sign-in 
     } finally {
         await server.close();
     }
+});
+
+test("viewer: a long link signs in; parallel sign-ins keep the newest in a cookie a browser keeps", async () => {
+    const viewer = await viewerServer();
+    const { server } = viewer;
+    try {
+        const long = (n) => `/live/team?team=north&x${n}=${"a".repeat(2030)}`.slice(0, 2048);
+        const alone = await signedIn(viewer, long(0), "alice");
+        assert.equal(alone.data.to, long(0));
+        assert.ok(alone.data.token?.token);
+        // three tabs sign in at once: the browser sends the cookie of the ones before
+        let cookie = "";
+        const started = [];
+        for (const n of [1, 2, 3]) {
+            const r = await fetch(`${server.url}/live/_/sign-in?to=${encodeURIComponent(long(n))}`, { redirect: "manual", headers: { cookie } });
+            assert.equal(r.status, 302);
+            const set = r.headers.get("set-cookie") ?? "";
+            assert.ok(set.split(";")[0].length <= 4096, `the cookie fits a browser: ${set.length}`);
+            cookie = cookieOf(r);
+            started.push(signInAt(/** @type {string} */ (r.headers.get("location")), "alice"));
+        }
+        // the newest completes; the oldest made room for it
+        const newest = dataOf(await (await viewer.callback(started[2].code, started[2].state, cookie)).text());
+        assert.equal(newest.to, long(3));
+        assert.ok(newest.token?.token);
+        assert.equal((await viewer.callback(started[0].code, started[0].state, cookie)).status, 400);
+    } finally {
+        await server.close();
+    }
+});
+
+test("viewer: the page's own files and pivotkit-element's built ones, from where they are installed", async () => {
+    const assets = await viewerAssets();
+    for (const name of ["viewer.js", "viewer.css"]) {
+        const file = await assets.answer(name, true);
+        assert.equal(file?.status, 200, name);
+    }
+    // the element is a workspace package here; built only after npm run build:playground
+    const built = existsSync(new URL("../../pivotkit-element/dist/index.js", import.meta.url));
+    assert.equal(assets.ready, built);
+    assert.equal((await assets.answer("element/index.js", true))?.status ?? 404, built ? 200 : 404);
+    assert.equal(await assets.answer("element/import-worker.js", true), null, "the import worker is not the page's");
 });
 
 test("viewer: off by default; without pivotkit-element the page says it is not available; the options need the sign-in client", async () => {

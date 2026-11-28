@@ -5,6 +5,9 @@ description: A pivotkit-react report or pivotkit-element that reads its rows fro
 
 # Live rows in the browser
 
+A page of your own gives the report its browser token. Without one, pivotkit-server's
+[viewer page](records.md#records-viewer) opens a live link and signs the person in itself.
+
 ## pivotkit-react { #server }
 
 `server` points the report at a source of [pivotkit-server](records.md#records-browser). The report

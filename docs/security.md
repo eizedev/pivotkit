@@ -798,6 +798,21 @@ it ends. What it means for an operator:
 - A link's [access level](reference/records.md#records-access) is advisory. Everyone reads with
   their own rights.
 
+### The viewer page { #viewer-page }
+
+The [viewer page](reference/records.md#records-viewer) is a page of the server's own origin. It
+holds a browser token, so what may run in it matters:
+
+- Its `Content-Security-Policy` header allows only the server's own files: no inline script or
+  style, no frames around it (`frame-ancestors 'none'`), no forms, no other origin to connect to.
+- It escapes every stored text: `branding.name` and a source's title. Its data is a JSON block with
+  `<`, `>` and `&` escaped. Tests run with titles and names that try to break out.
+- It serves only its own script and style and pivotkit-element's built files, from a list made at
+  start. Its sign-in returns only to a `/live/` page of this server.
+- The page gets the browser token alone, never the person's tokens
+  ([how it signs in](reference/records.md#records-viewer)). The token is never in an address, a
+  cookie or the log.
+
 ## Parameters in a link { #link-params }
 
 A link from `create_link` carries the values of the parameters in `sources.<id>.linkParams` in the

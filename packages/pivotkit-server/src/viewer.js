@@ -14,8 +14,8 @@
  *    (browser.js) for a browser token of the link's source, parameters and access level.
  * 4. The answer is the page with the report: the token is in its data block, never in an address,
  *    a cookie or the log. The script takes it into memory, puts the link's address and view back in
- *    the address bar, and gives it to the report as its getToken(). When it expires, the page signs
- *    in again (step 1). The person's access token never reaches the browser.
+ *    the address bar, and gives it to the report as its getToken(). When the report asks for
+ *    another, the page signs in again (step 1). The person's access token never reaches the browser.
  *
  * /live/_/ holds the page's script and style and the built pivot-report element (viewer/assets.js).
  */
@@ -45,14 +45,14 @@ import { viewerAssets } from "./viewer/assets.js";
 export { VIEWER_PATH } from "./viewer/pages.js";
 
 /** Where the sign-in starts and returns. */
-export const SIGN_IN_PATH = `${OWN_PATH}/sign-in`;
+const SIGN_IN_PATH = `${OWN_PATH}/sign-in`;
 export const VIEWER_CALLBACK_PATH = `${OWN_PATH}/callback`;
 
 /** The largest body a request of the page may carry: it sends none. */
 const VIEWER_BODY_BYTES = 1024;
 
-/** The longest link the sign-in takes back (its path and query). */
-const LINK_CHARS = 4096;
+/** The longest link the sign-in takes back (its path and query): with it, a sign-in's entry still fits the cookie. */
+const LINK_CHARS = 2048;
 
 /** A link's path and query as the sign-in takes it back: a page of this route, never another address. */
 const LINK_SYNTAX = /^\/live\/([A-Za-z0-9][A-Za-z0-9_.-]{0,63})(\?[^#\s]*)?$/;
@@ -84,47 +84,37 @@ function linkInputOf(options, to) {
 }
 
 /**
- * The viewer page of a context.
+ * What the page needs of its context: its settings, the files, the sign-in route and its steps.
  * @param {any} context
- * @param {{ verifyToken(token: string): Promise<{ caller: any } | { refused: Response, reason: string }>, exchange(input: Record<string, any>, caller: any, how: { entry: Record<string, unknown> }): Promise<Response> }} rest  the REST service's sign-in and exchange route (rest/handler.js)
- * @param {{ env?: Record<string, string | undefined>, loopback?: boolean, files?: Parameters<typeof viewerAssets>[0] }} [runtime]  files: other directories of the page's files (tests)
+ * @param {{ env?: Record<string, string | undefined>, loopback?: boolean, files?: Parameters<typeof viewerAssets>[0] }} runtime
  */
-export async function createViewerHandler(context, rest, runtime = {}) {
+async function viewerSetup(context, runtime) {
     const options = context.options;
     const brand = brandingOfContext(context);
-    const { problemOf } = problemsFor(brand.docs);
     const enabled = browserSettingsOf(options).viewer;
     const downloads = settingsOf(options);
     const env = runtime.env ?? process.env;
     const loopback = runtime.loopback ?? isLoopback(options.http?.host ?? "127.0.0.1");
-    const hosts = allowedHosts(options);
-    const subjectClaim = options.auth?.subjectClaim ?? "sub";
     const assets = enabled ? await viewerAssets(runtime.files) : null;
     const state = { base: publicOriginOf(options) };
     const issuerRules = issuerRulesOf(options);
     const signInRules = downloads.signIn?.tokenUrl ? Object.freeze({ ...issuerRules, origins: [...issuerRules.origins, new URL(downloads.signIn.tokenUrl).origin] }) : issuerRules;
     const issuer = enabled && downloads.signIn ? signInIssuer(downloads.signIn, issuerRules, issuersOf(options)[0], context.log) : null;
-    const keys = keySource(downloads, options, env);
-    const secure = () => (state.base ?? "").startsWith("https:");
-    const jar = cookieJar(keys, secure(), "live");
-
     if (enabled && assets && !assets.ready) {
         context.log.warn("viewer page: pivotkit-element is not installed next to pivotkit-server (or not built), so /live/ answers 503; install pivotkit-element");
     }
     if (enabled && !state.base && !loopback) {
         context.log.warn("viewer page: http.publicUrl is not set and the server listens on an address other than loopback, so /live/ answers 404; set http.publicUrl");
     }
-
     /** A sign-in's log line: never the token, a code, a state or a cookie; its id where one was made. */
     /** @param {Record<string, any>} line  answer: the page's code, whose status the line takes */
     const log = ({ answer: shown, ...entry }) => context.log.viewer({ via: "viewer", requestId: requestId() ?? newRequestId(), ...entry, status: entry.ok ? 200 : (STATUSES[/** @type {keyof typeof STATUSES} */ (shown)] ?? entry.status ?? 400) });
-
     /** @type {import("./downloads/sign-in.js").SignInRoute} */
     const route = {
         name: "viewer page",
         context,
         settings: downloads,
-        jar,
+        jar: cookieJar(keySource(downloads, options, env), (state.base ?? "").startsWith("https:"), "live"),
         log,
         answer: (request, code, headers) => answerPage(brand, request, code, headers),
         markersDir: () => (outputDir(context) ? join(/** @type {string} */ (outputDir(context)), ".pivotkit-downloads") : null),
@@ -136,32 +126,87 @@ export async function createViewerHandler(context, rest, runtime = {}) {
     };
     // a sign-in of this page holds the link it came from
     const steps = createSignInSteps(route, (entry) => entry.k === "live" && typeof entry.to === "string" && LINK_SYNTAX.test(entry.to));
+    return { options, brand, enabled, loopback, assets, state, issuer, log, steps };
+}
+
+/**
+ * The person's rights, read from the access token of the sign-in's answer as the REST service reads
+ * a bearer's, for the person the ID token names. A page's data where they cannot be read.
+ * @param {{ verifyToken(token: string): Promise<{ caller: any } | { refused: Response, reason: string }> }} rest
+ * @param {{ claims: Record<string, any>, accessToken?: string }} verified  the sign-in's
+ * @param {any} context
+ * @returns {Promise<{ caller: any } | { data: Record<string, unknown>, line: Record<string, unknown> }>}
+ */
+async function rightsOf(rest, verified, context) {
+    const { claims, accessToken } = verified;
+    if (!accessToken) {
+        // the operator's setup: the sign-in client's answer has no access token for this server
+        context.log.warn("viewer page: the sign-in's token endpoint gave no access token, so the page cannot read the person's rights; give output.downloads.signIn the scopes of this server (see the viewer page's setup)");
+        return { data: { failed: true }, line: { status: 401, code: "SIGN_IN_FAILED", reason: "accessToken" } };
+    }
+    let signedIn;
+    try {
+        signedIn = await rest.verifyToken(accessToken);
+    } catch (e) {
+        // a token the REST service refuses (another audience, expired): the sign-in client's, not the person's doing
+        context.log.debug("viewer page: the sign-in's access token was refused", { reason: String(/** @type {any} */ (e)?.message ?? "invalid").slice(0, 120) });
+        return { data: { failed: true }, line: { status: 401, code: "INVALID_TOKEN", reason: "accessToken" } };
+    }
+    if ("refused" in signedIn) {
+        // valid, without this service's scopes or the person's groups: the person may not read here
+        const problem = await signedIn.refused.json();
+        return { data: { problem: { ...problem, requestId: requestId() ?? newRequestId() } }, line: { status: signedIn.refused.status, code: problem.code, reason: signedIn.reason } };
+    }
+    const subject = subjectOf(claims[context.options.auth?.subjectClaim ?? "sub"]);
+    if (!subject || claims.iss !== signedIn.caller.issuer || subject !== signedIn.caller.subject) {
+        // the ID token and the access token of one answer name another person: never read with either
+        return { data: { failed: true }, line: { status: 401, code: "SIGN_IN_FAILED", reason: "subject" } };
+    }
+    return { caller: signedIn.caller };
+}
+
+/**
+ * The browser token of a person who signed in, as the exchange route answers it: the page's data
+ * with the token, or with a problem the report shows as its state (the link not shared with this
+ * account, no access), and the log line.
+ * @param {{ exchange(input: Record<string, any>, caller: any, how: { entry: Record<string, unknown> }): Promise<Response> }} rest
+ * @param {(e: unknown) => Response} problemOf
+ * @param {ReturnType<typeof linkInputOf>} input
+ * @param {any} caller
+ */
+async function tokenFor(rest, problemOf, input, caller) {
+    const entry = /** @type {Record<string, unknown>} */ ({});
+    let answer;
+    try {
+        answer = await rest.exchange({ source: input.source, params: input.params, ...(input.access !== undefined ? { access: input.access } : {}) }, caller, { entry });
+    } catch (e) {
+        if (!(e instanceof OperationError)) {
+            throw e;
+        }
+        answer = problemOf(e);
+    }
+    const body = await answer.json();
+    if (answer.ok) {
+        return { data: { token: { token: body.token, expiresAt: body.expiresAt } }, line: { ok: true, token: entry.token } };
+    }
+    return { data: { problem: { ...body, requestId: requestId() ?? newRequestId() } }, line: { ok: false, status: answer.status, code: body.code, ...(body.linkAccess ? { linkAccess: body.linkAccess } : {}) } };
+}
+
+/**
+ * The viewer page of a context.
+ * @param {any} context
+ * @param {{ verifyToken(token: string): Promise<{ caller: any } | { refused: Response, reason: string }>, exchange(input: Record<string, any>, caller: any, how: { entry: Record<string, unknown> }): Promise<Response> }} rest  the REST service's sign-in and exchange route (rest/handler.js)
+ * @param {{ env?: Record<string, string | undefined>, loopback?: boolean, files?: Parameters<typeof viewerAssets>[0] }} [runtime]  files: other directories of the page's files (tests)
+ */
+export async function createViewerHandler(context, rest, runtime = {}) {
+    const { options, brand, enabled, loopback, assets, state, issuer, log, steps } = await viewerSetup(context, runtime);
+    const { problemOf } = problemsFor(brand.docs);
+    const hosts = allowedHosts(options);
 
     /** The page of a link before the sign-in: nothing of the source in it yet, since nobody signed in. */
     function startPage(request) {
         const lang = languageOf(request);
         return viewerPage(brand, lang, { ...TEXTS[lang].signingIn, data: { step: "start" }, head: request.method === "HEAD" });
-    }
-
-    /**
-     * The browser token of a person who signed in, as the exchange route answers it: the token, or a
-     * problem the report shows as its state (the link not shared with this account, no access).
-     * @param {Record<string, any>} input
-     * @param {any} caller
-     * @param {Record<string, unknown>} entry  the log line's
-     */
-    async function tokenFor(input, caller, entry) {
-        let answer;
-        try {
-            answer = await rest.exchange({ source: input.source, params: input.params, ...(input.access !== undefined ? { access: input.access } : {}) }, caller, { entry });
-        } catch (e) {
-            if (!(e instanceof OperationError)) {
-                throw e;
-            }
-            answer = problemOf(e);
-        }
-        const body = await answer.json();
-        return answer.ok ? { token: { token: body.token, expiresAt: body.expiresAt } } : { problem: { ...body, requestId: requestId() ?? newRequestId() }, status: answer.status, code: body.code };
     }
 
     /** The callback: the person signed in, their rights read, a browser token made, the report's page. */
@@ -175,42 +220,13 @@ export async function createViewerHandler(context, rest, runtime = {}) {
         if ("reason" in verified) {
             return verified.reason === "notReady" ? fail("SIGN_IN_NOT_READY") : fail("SIGN_IN_FAILED", { reason: verified.reason });
         }
-        const { claims, accessToken } = verified;
         const input = linkInputOf(options, entry.to);
-        const lang = languageOf(request);
-        const report = (data) => viewerPage(brand, lang, { heading: data.problem ? brand.name : input.title, report: true, headers: { "set-cookie": cookie }, data: { step: "report", to: entry.to, source: input.source, params: input.names, ...data } });
-        if (!accessToken) {
-            // the operator's setup: the sign-in client's answer has no access token for this server
-            context.log.warn("viewer page: the sign-in's token endpoint gave no access token, so the page cannot read the person's rights; give output.downloads.signIn the scopes of this server (see the viewer page's setup)");
-            log({ ok: false, status: 401, code: "SIGN_IN_FAILED", reason: "accessToken" });
-            return report({ failed: true });
-        }
-        let signedIn;
-        try {
-            signedIn = await rest.verifyToken(accessToken);
-        } catch (e) {
-            // a token the REST service refuses (another audience, expired): the sign-in client's, not the person's doing
-            context.log.debug("viewer page: the sign-in's access token was refused", { reason: String(/** @type {any} */ (e)?.message ?? "invalid").slice(0, 120) });
-            log({ ok: false, status: 401, code: "INVALID_TOKEN", reason: "accessToken" });
-            return report({ failed: true });
-        }
-        if ("refused" in signedIn) {
-            // valid, without this service's scopes or the person's groups: the person may not read here
-            const problem = await signedIn.refused.json();
-            log({ ok: false, status: signedIn.refused.status, code: problem.code, reason: signedIn.reason });
-            return report({ problem: { ...problem, requestId: requestId() ?? newRequestId() } });
-        }
-        const { caller } = signedIn;
-        const subject = subjectOf(claims[subjectClaim]);
-        if (!subject || claims.iss !== caller.issuer || subject !== caller.subject) {
-            // the ID token and the access token of one answer name another person: never read with either
-            log({ ok: false, status: 401, code: "SIGN_IN_FAILED", reason: "subject" });
-            return report({ failed: true });
-        }
-        const line = /** @type {Record<string, unknown>} */ ({});
-        const made = await tokenFor(input, caller, line);
-        log(made.token ? { ok: true, token: line.token } : { ok: false, status: made.status, code: made.code, ...(made.problem?.linkAccess ? { linkAccess: made.problem.linkAccess } : {}) });
-        return report(made.token ? { token: made.token } : { problem: made.problem });
+        const rights = await rightsOf(rest, verified, context);
+        const shown = "caller" in rights ? await tokenFor(rest, problemOf, input, rights.caller) : { data: rights.data, line: { ok: false, ...rights.line } };
+        log(shown.line);
+        // a person refused learns nothing of the report: the heading is the operator's name then
+        const heading = shown.data.token ? input.title : brand.name;
+        return viewerPage(brand, languageOf(request), { heading, report: true, headers: { "set-cookie": cookie }, data: { step: "report", to: entry.to, source: input.source, params: input.names, ...shown.data } });
     }
 
     /** The answer of a request after its precheck. */

@@ -145,7 +145,8 @@ Register at the provider:
 
 1. A client for the browser (`signIn.clientId`), public with PKCE or confidential with a secret,
    with the redirect URI `https://reports.example.com/downloads/callback`. That is `http.publicUrl` +
-   `/downloads/callback`, and `check-config` prints it.
+   `/downloads/callback`, and `check-config` prints it. The [viewer page](records.md#records-viewer)
+   of live links signs in with the same client and adds its own redirect URI.
 2. Make the client resolve the same subject as the MCP client: `auth.subjectClaim` (default `sub`) is
    read from both tokens. Providers that give each application its own `sub` need a claim that is the
    same for every application, for example `oid` with Microsoft Entra ID. Check your provider's
