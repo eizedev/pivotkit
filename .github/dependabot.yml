@@ -64,6 +64,14 @@ updates:
     labels: ["dependencies"]
     commit-message:
       prefix: "build(deps)"
+    groups:
+      # Angular's packages are released together and require the same version of each other
+      angular:
+        patterns: ["@angular/*"]
+    ignore:
+      # @angular/build requires the TypeScript minor it was built for; Angular updates raise it
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
   - package-ecosystem: "docker"
     # the container image's base images (docker/Dockerfile), pinned by digest
     directory: "/docker"
