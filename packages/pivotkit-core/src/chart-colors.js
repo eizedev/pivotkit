@@ -50,20 +50,39 @@ export function colorLookup(viewColors, hostMap, palette) {
 }
 
 /**
- * A colour's red, green and blue (0 to 255) from #rgb, #rrggbb or rgb()/rgba(); null for any other form.
+ * A colour's red, green and blue (0 to 255) and its alpha (0 to 1) from #rgb, #rgba, #rrggbb,
+ * #rrggbbaa or rgb()/rgba(), with commas or with spaces and a slash, the alpha a number or a
+ * percentage; null for any other form.
  * @param {string} color
- * @returns {[number, number, number] | null}
+ * @returns {[number, number, number, number] | null}
  */
-function rgbOf(color) {
+function rgbaOf(color) {
     const c = String(color).trim();
-    const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c);
+    const hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(c);
     if (hex) {
-        const h = hex[1].length === 3 ? [...hex[1]].map((d) => d + d).join("") : hex[1];
-        return /** @type {[number, number, number]} */ ([0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)));
+        const h = hex[1].length <= 4 ? [...hex[1]].map((d) => d + d).join("") : hex[1];
+        const [r, g, b, a = 255] = (h.match(/../g) ?? []).map((x) => parseInt(x, 16));
+        return [r, g, b, a / 255];
     }
-    const rgb = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)/i.exec(c);
-    return rgb ? [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])] : null;
+    const rgb = /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)(?:\s*[,/]\s*(\d*\.?\d+)(%?))?\s*\)$/i.exec(c);
+    if (!rgb) {
+        return null;
+    }
+    const alpha = rgb[4] === undefined ? 1 : Number(rgb[4]) / (rgb[5] ? 100 : 1);
+    return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3]), Math.min(1, Math.max(0, alpha))];
 }
+
+/**
+ * `color` as it shows on `under`: a translucent colour mixed with what is under it by its alpha, as a
+ * canvas draws it; an opaque one as it is. `under` counts as opaque.
+ * @param {[number, number, number, number]} color
+ * @param {[number, number, number, number]} under
+ * @returns {[number, number, number]}
+ */
+const shownOn = ([r, g, b, a], under) => /** @type {[number, number, number]} */ ([r, g, b].map((v, i) => v * a + under[i] * (1 - a)));
+
+/** Whether text of luminance `l` has more contrast with black, (l + 0.05) / 0.05, than with white, 1.05 / (l + 0.05). */
+const lightSide = (/** @type {number} */ l) => (l + 0.05) / 0.05 > 1.05 / (l + 0.05);
 
 /** WCAG 2's relative luminance of a colour's red, green and blue. */
 function luminance(/** @type {[number, number, number]} */ rgb) {
@@ -75,17 +94,19 @@ function luminance(/** @type {[number, number, number]} */ rgb) {
 }
 
 /**
- * WCAG 2's contrast of two colours (1 to 21); null when one is no hex or rgb() colour.
- * @param {string} a
- * @param {string} b
+ * WCAG 2's contrast of text in `ink` on `background` (1 to 21), as it is drawn: a translucent ink (a
+ * theme's `rgba(0, 0, 0, 0.87)`) is mixed with the background first. The background's own alpha is
+ * not counted: it is measured as opaque. Null when one is no hex or rgb() colour.
+ * @param {string} ink
+ * @param {string} background
  */
-export function contrastOf(a, b) {
-    const x = rgbOf(a);
-    const y = rgbOf(b);
+export function contrastOf(ink, background) {
+    const x = rgbaOf(ink);
+    const y = rgbaOf(background);
     if (!x || !y) {
         return null;
     }
-    const [l1, l2] = [luminance(x), luminance(y)];
+    const [l1, l2] = [luminance(shownOn(x, y)), luminance(shownOn([y[0], y[1], y[2], 1], y))];
     return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 }
 
@@ -98,13 +119,13 @@ export const TEXT_CONTRAST = 4.5;
  * reaches TEXT_CONTRAST (a mid blue between the theme's two), white or black: the one on the best ink's
  * side where it reaches TEXT_CONTRAST, else the other. One of them always reaches 4.58:1 on an opaque
  * colour. A fill it cannot read (not hex or rgb()) gives
- * the first candidate. Used for a heatmap's cell numbers; decorateOption puts a treemap's labels on a
- * background of their own instead (treemapLabels in chart-style.js).
+ * the first candidate. Used for a heatmap's cell numbers; a treemap keeps one text colour and darkens its
+ * tiles instead (tileFill).
  * @param {string} fill
  * @param {string[]} candidates
  */
 export function labelColorOn(fill, candidates) {
-    const read = candidates.map((c) => ({ c, ratio: contrastOf(fill, c) })).filter((x) => x.ratio !== null);
+    const read = candidates.map((c) => ({ c, ratio: contrastOf(c, fill) })).filter((x) => x.ratio !== null);
     if (!read.length) {
         return candidates[0];
     }
@@ -112,9 +133,44 @@ export function labelColorOn(fill, candidates) {
     if (/** @type {number} */ (best.ratio) >= TEXT_CONTRAST) {
         return best.c;
     }
-    // the extreme on the best ink's side first (a light ink white), so the ink changes side only where it must
+    // the extreme on the best ink's side first (a light ink white), so the ink changes side only where it
+    // must; the ink's side as it shows on the fill (a translucent ink mixed with it)
     const [black, white] = EXTREME_INKS;
-    const light = /** @type {number} */ (contrastOf(best.c, black)) > /** @type {number} */ (contrastOf(best.c, white));
+    const ink = /** @type {[number, number, number, number]} */ (rgbaOf(best.c));
+    const light = lightSide(luminance(shownOn(ink, /** @type {[number, number, number, number]} */ (rgbaOf(fill)))));
     const [near, far] = light ? [white, black] : [black, white];
-    return /** @type {number} */ (contrastOf(fill, near)) >= TEXT_CONTRAST ? near : far;
+    return /** @type {number} */ (contrastOf(near, fill)) >= TEXT_CONTRAST ? near : far;
+}
+
+/** A colour's red, green and blue (0 to 255, rounded) as #rrggbb. */
+export const hexOf = (/** @type {number[]} */ rgb) => `#${rgb.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+
+/**
+ * The colour a treemap's tile is drawn in so that its text in `ink` reads `floor`:1 on it (#984): the
+ * tile's own colour where the ink reaches it, else that colour mixed, a hundredth at a time, with black
+ * (a light ink) or white (a dark ink), only as far as the ink needs. Where no mix reaches `floor` (a
+ * grey ink and a high floor), black or white. A floor of 1 or less, and a colour or ink it cannot read
+ * (not hex or rgb()), keep the tile's colour; alpha is not read, so both count as opaque.
+ * @param {string} tile
+ * @param {string} ink
+ * @param {number} floor
+ * @returns {string}
+ */
+export function tileFill(tile, ink, floor) {
+    // alpha is dropped: tile and ink count as opaque
+    const from = rgbaOf(tile)?.slice(0, 3);
+    const text = rgbaOf(ink);
+    if (!from || !text || !(floor > 1) || /** @type {number} */ (contrastOf(ink, tile)) >= floor) {
+        return tile;
+    }
+    // a light ink (more contrast on black than on white) reads on a darker tile, a dark one on a lighter
+    const [black, white] = EXTREME_INKS;
+    const to = /** @type {number} */ (contrastOf(ink, black)) > /** @type {number} */ (contrastOf(ink, white)) ? [0, 0, 0] : [255, 255, 255];
+    for (let step = 1; step < 100; step++) {
+        const mixed = hexOf(from.map((v, i) => v + ((to[i] - v) * step) / 100));
+        if (/** @type {number} */ (contrastOf(ink, mixed)) >= floor) {
+            return mixed;
+        }
+    }
+    return hexOf(to);
 }

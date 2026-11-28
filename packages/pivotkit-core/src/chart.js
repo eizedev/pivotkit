@@ -269,7 +269,7 @@ export function toEChartsOption(result, options) {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    // the name and the value on the tile; decorateOption gives each label the colour that reads on it
+                    // the name and the value on the tile; decorateOption writes it at the tile's top left in the tile text's colour
                     label: { show: labels !== "off", formatter: (p) => `${p.name}\n${fmt(p.value)}`, overflow: "truncate", fontSize: textStyle.fontSize },
                     upperLabel: { show: false },
                     itemStyle: { gapWidth: 2 }

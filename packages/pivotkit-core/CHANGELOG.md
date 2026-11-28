@@ -6,6 +6,17 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Changed
+
+- A treemap writes its labels as ECharts does: the name in bold and the value below it, at each
+  tile's top left, in `--pk-chart-tile-text` (white) on every tile. A tile too light for the text is
+  mixed with black just far enough for `--pk-chart-tile-contrast` (4.6:1) with `tileFill`; a host's
+  own colours too. The labels no longer stand on a plate in `--pk-surface`. New tokens set the
+  text's size, weight and padding (`--pk-chart-tile-size`, `--pk-chart-tile-weight`,
+  `--pk-chart-tile-padding`); `--pk-chart-tile-contrast: 0` keeps every tile's colour.
+  `decorateOption` takes `parseColor` (ECharts' `color.parse`), so a tile in a colour name or
+  `hsl()` is darkened too ([#984](https://github.com/eizedev/pivotkit/issues/984)).
+
 ### Fixed
 
 - **Breaking:** `describeSource` with an array takes it as fields only when every entry has a string
@@ -16,6 +27,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   data. Nothing in pivotkit passed one
   ([#900](https://github.com/eizedev/pivotkit/issues/900),
   [#990](https://github.com/eizedev/pivotkit/pull/990), thanks @harshita-jangra).
+- `labelColorOn` measures a translucent ink as it is drawn, mixed with the fill under it: a theme's
+  `rgba(0, 0, 0, 0.87)` counted as black before. It reads colours with alpha as `#rgba`,
+  `#rrggbbaa` and `rgb(r g b / a)` too
+  ([#1000](https://github.com/eizedev/pivotkit/issues/1000)).
 
 ## [0.11.0] - 2026-11-26
 

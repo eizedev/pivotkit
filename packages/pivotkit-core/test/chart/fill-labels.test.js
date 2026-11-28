@@ -1,10 +1,12 @@
-// Text on coloured fills (#913, #914), in both themes: a treemap's labels on plates, a heatmap's
+// Text on coloured fills (#913, #914, #984), in both themes: a treemap's labels in white on tiles
+// darkened where they need it, a heatmap's
 // numbers in the ink that reads on their cell, the labels of high and low points and reference lines in
 // the text colour. Every label reaches 4.5:1 on what is under it (tests/fill-contrast.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chartThemeFrom, computePivot, encode, toEChartsOption } from "pivotkit-core";
 import { decorateOption, drawnTiles, labelColorOn } from "pivotkit-core/chart";
+import { contrastOf, tileFill } from "../../src/chart-colors.js";
 import { THEME_TOKENS, contrastOnFill, fillContrasts, unreadable } from "../../../../tests/fill-contrast.js";
 import { MONTH, MONTHLY, REVENUE } from "./fixtures.js";
 
@@ -35,44 +37,143 @@ test("labelColorOn: the theme's ink that reads best; where neither reaches 4.5:1
     assert.deepEqual(unreadable(measured), []);
 });
 
-test("treemap, both themes: every label on a plate in the background colour, the same on every tile; 4.5:1 on it", () => {
+test("contrast with a translucent ink (#1000): measured as drawn, mixed with what is under it", () => {
+    // rgba(0, 0, 0, 0.87) on white draws a dark grey (33, 33, 33), not black
+    const grey = contrastOf("rgb(33.15, 33.15, 33.15)", "#ffffff");
+    for (const ink of ["rgba(0, 0, 0, 0.87)", "rgb(0 0 0 / 87%)", "rgba(0,0,0,.87)"]) {
+        assert.ok(Math.abs(/** @type {number} */ (contrastOf(ink, "#ffffff")) - /** @type {number} */ (grey)) < 1e-9, ink);
+    }
+    assert.ok(/** @type {number} */ (contrastOf("rgba(0, 0, 0, 0.87)", "#ffffff")) < 21);
+    // hex with alpha: #0008 and #00000088 are black at 8/15 and 136/255
+    assert.equal(contrastOf("#0008", "#ffffff"), contrastOf("#00000088", "#ffffff"));
+    assert.ok(/** @type {number} */ (contrastOf("#00000088", "#ffffff")) < /** @type {number} */ (contrastOf("#000000", "#ffffff")));
+    // an opaque ink measures as before, either way round
+    assert.equal(contrastOf("#1a1d23", "#eda100"), contrastOf("#eda100", "#1a1d23"));
+    // on a mid blue an opaque black would read 4.8:1, black at 60 % does not: labelColorOn takes black
+    // instead of the translucent ink
+    assert.ok(/** @type {number} */ (contrastOf("rgba(0, 0, 0, 0.6)", "#2a78d6")) < 4.5);
+    assert.equal(labelColorOn("#2a78d6", ["rgba(0, 0, 0, 0.6)", "#ffffff"]), "#000000");
+    // a translucent light ink stays on the light side: white, where white reads
+    assert.equal(labelColorOn("#6250d6", ["#1a1d23", "rgba(255, 255, 255, 0.5)"]), "#ffffff");
+});
+
+/** A tile's colour and its label's, as decorateOption gives them: every tile of the series. */
+const tilesOf = (/** @type {any} */ s) => s.data.map((/** @type {any} */ d) => ({ name: d.name, ink: s.label.color, fill: d.itemStyle.color }));
+/** A style of the light theme's tokens with `extra` over them. */
+const lightWith = (/** @type {Record<string, string>} */ extra = {}) => ({ getPropertyValue: (/** @type {string} */ n) => extra[n] ?? THEME_TOKENS.light[n] ?? "" });
+
+test("treemap, both themes (#984): every label white, in one look; a tile white does not read on darkened to 4.6:1, no further", () => {
     const r = computePivot(REGIONS, { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" }, formatting: { locale: "en-US" } });
     for (const colorMap of [undefined, HOST]) {
         const measured = fillContrasts((style) => {
             const [s] = drawn(r, style, colorMap ? { colorMap } : {}).series;
-            // one look: no tile has a label colour or an outline of its own
-            assert.deepEqual(s.data.filter((/** @type {any} */ d) => d.label), []);
+            // one look: no plate, no outline, no tile with a label colour of its own
+            assert.equal(s.label.color, "#ffffff");
             assert.equal(s.label.textBorderWidth, undefined);
-            const plate = s.label.rich.plate;
-            assert.equal(s.label.formatter({ name: "North", value: 3240 }), "{plate|North}\n{plate|3,240}");
-            return [{ name: `plate${colorMap ? " (host colours)" : ""}`, ink: plate.color, fill: plate.backgroundColor }];
+            assert.equal(s.label.position, "insideTopLeft");
+            assert.deepEqual(Object.keys(s.label.rich).sort(), ["name", "value"]);
+            assert.equal(s.label.formatter({ name: "North", value: 3240 }), "{name|North}\n{value|3,240}");
+            return tilesOf(s).map((/** @type {any} */ t) => ({ ...t, name: `${t.name}${colorMap ? " (host colours)" : ""}` }));
         });
-        assert.deepEqual(unreadable(measured), []);
-        assert.deepEqual(measured.map((m) => [m.theme, m.ink, m.fill]), [
-            ["light", THEME_TOKENS.light["--pk-text"], THEME_TOKENS.light["--pk-surface"]],
-            ["dark", THEME_TOKENS.dark["--pk-text"], THEME_TOKENS.dark["--pk-surface"]]
-        ]);
+        assert.deepEqual(unreadable(measured, 4.6), []);
     }
-    // a "}" in a name would end the plate's text in ECharts' markup: it stands between two runs of it
-    const [s] = drawn(r, { getPropertyValue: (/** @type {string} */ n) => THEME_TOKENS.light[n] ?? "" }).series;
-    assert.equal(s.label.formatter({ name: "A}B", value: 1 }), "{plate|A}}{plate|B}\n{plate|1}");
+    // a tile on which white reads keeps its colour; the others are darkened only as far as it takes:
+    // one hundredth less and white would not reach 4.6:1
+    const [s] = drawn(r, lightWith()).series;
+    // the tiles in the palette's order (the names sorted: Alps the first colour)
+    const fills = tilesOf(s).map((/** @type {any} */ t) => t.fill);
+    const palette = PALETTE(THEME_TOKENS.light);
+    palette.forEach((color, i) => {
+        if (/** @type {number} */ (contrastOf("#ffffff", color)) >= 4.6) {
+            assert.equal(fills[i], color, `${color}: white reads on it`);
+        } else {
+            const ratio = /** @type {number} */ (contrastOf("#ffffff", fills[i]));
+            assert.ok(ratio >= 4.6 && ratio < 4.75, `${color} as ${fills[i]}: ${ratio.toFixed(2)}, darkened just enough`);
+        }
+    });
+    // #008300 and #6250d6 read white as they are; #eda100 (yellow) does not
+    assert.deepEqual([fills[5], fills[6]], ["#008300", "#6250d6"]);
+    assert.notEqual(fills[3], "#eda100");
+    // a "}" in a name would end the name's text in ECharts' markup: it stands between two runs of it
+    assert.equal(s.label.formatter({ name: "A}B", value: 1 }), "{name|A}}{name|B}\n{value|1}");
 });
 
-test("treemap with the tiles of a first draw (tileOf): each label on a plate in its tile's middle, cut to the tile with an ellipsis; none where fewer than 4 characters fit", () => {
+test("tileFill: the tile as it is where the ink reads; else mixed with black for a light ink, white for a dark one; a floor of 0 or a colour it cannot read keeps it", () => {
+    assert.equal(tileFill("#6250d6", "#ffffff", 4.6), "#6250d6");
+    const yellow = tileFill("#eda100", "#ffffff", 4.6);
+    assert.ok(/** @type {number} */ (contrastOf("#ffffff", yellow)) >= 4.6, yellow);
+    // a dark ink on a near black: the tile lightened
+    const light = tileFill("#1f1f1f", "#111111", 4.6);
+    assert.ok(/** @type {number} */ (contrastOf("#111111", light)) >= 4.6 && /** @type {number} */ (contrastOf("#ffffff", light)) < 4.6, light);
+    assert.equal(tileFill("#eda100", "#ffffff", 0), "#eda100");
+    assert.equal(tileFill("gold", "#ffffff", 4.6), "gold");
+    // a floor no mix reaches (a mid grey ink): black, the darkest
+    assert.equal(tileFill("#eda100", "#808080", 21), "#000000");
+});
+
+test("treemap: a host's colour in any form ECharts reads (a name, hsl(), #rgb) is darkened too, through ECharts' parser", () => {
     const r = computePivot(REGIONS, { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" }, formatting: { locale: "en-US" } });
-    const style = { getPropertyValue: (/** @type {string} */ n) => THEME_TOKENS.light[n] ?? "" };
+    const style = lightWith();
+    const colorMap = { Central: "gold", West: "hsl(50, 100%, 50%)", North: "#fc0" };
+    // ECharts' color.parse, for these three
+    const parsed = /** @type {Record<string, number[]>} */ ({ gold: [255, 215, 0, 1], "hsl(50, 100%, 50%)": [255, 213, 0, 1], "#fc0": [255, 204, 0, 1] });
+    const parseColor = (/** @type {string} */ c) => parsed[c] ?? null;
+    const [s] = decorateOption(toEChartsOption(r, { theme: chartThemeFrom(style), colorMap }), style, { width: 800, height: 480, parseColor }).series;
+    for (const t of tilesOf(s).filter((/** @type {any} */ t) => t.name in colorMap)) {
+        assert.ok(/** @type {number} */ (contrastOf(t.ink, t.fill)) >= 4.6, `${t.name}: ${t.fill}`);
+    }
+});
+
+test("treemap: a named text colour is read through parseColor, so the tiles still keep the contrast; a weight out of 1 to 1000 falls back", () => {
+    const r = computePivot(REGIONS, { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" }, formatting: { locale: "en-US" } });
+    const style = lightWith({ "--pk-chart-tile-text": "white", "--pk-chart-tile-weight": "0", "--pk-weight-normal": "5000" });
+    const parseColor = (/** @type {string} */ c) => (c === "white" ? [255, 255, 255, 1] : /^#[0-9a-f]{6}$/i.test(c) ? [0, 1, 2].map((i) => parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16)).concat(1) : null);
+    const [s] = decorateOption(toEChartsOption(r, { theme: chartThemeFrom(style) }), style, { width: 800, height: 480, parseColor }).series;
+    assert.equal(s.label.color, "white");
+    for (const t of tilesOf(s)) assert.ok(/** @type {number} */ (contrastOf("#ffffff", t.fill)) >= 4.6, `${t.name}: ${t.fill}`);
+    const [plain] = drawn(r, lightWith()).series;
+    assert.equal(s.label.rich.name.fontWeight, plain.label.rich.name.fontWeight);
+    assert.equal(s.label.rich.value.fontWeight, plain.label.rich.value.fontWeight);
+});
+
+test("treemap: the tokens set the text's colour, its contrast, size, weights and padding; --pk-chart-tile-contrast 0 keeps every colour", () => {
+    const r = computePivot(REGIONS, { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" }, formatting: { locale: "en-US" } });
+    const palette = PALETTE(THEME_TOKENS.light);
+    const host = lightWith({ "--pk-chart-tile-text": "#111111", "--pk-chart-tile-size": "16px", "--pk-chart-tile-weight": "700", "--pk-weight-normal": "300", "--pk-chart-tile-padding": "4px" });
+    const [s] = drawn(r, host).series;
+    assert.equal(s.label.color, "#111111");
+    assert.deepEqual(s.label.rich.name, { fontSize: 16, lineHeight: 22, fontWeight: 700, color: "#111111" });
+    assert.deepEqual(s.label.rich.value, { fontSize: 16, lineHeight: 22, fontWeight: 300, color: "#111111" });
+    assert.equal(s.label.padding, 4);
+    // a dark text: a tile too dark for it is lightened
+    assert.deepEqual(unreadable(tilesOf(s).map((/** @type {any} */ t) => ({ theme: "light", ...t, ratio: contrastOf(t.ink, t.fill) })), 4.6), []);
+    // a higher floor darkens more; 0 keeps the palette's colours as they are
+    const [strict] = drawn(r, lightWith({ "--pk-chart-tile-contrast": "7" })).series;
+    assert.deepEqual(unreadable(tilesOf(strict).map((/** @type {any} */ t) => ({ theme: "light", ...t, ratio: contrastOf(t.ink, t.fill) })), 7), []);
+    const [off] = drawn(r, lightWith({ "--pk-chart-tile-contrast": "0" })).series;
+    assert.deepEqual(tilesOf(off).map((/** @type {any} */ t) => t.fill), palette);
+    // without any token: DEFAULT_THEME's white, 4.6:1, 8 px and the chart's text size
+    const [bare] = drawn(r, { getPropertyValue: () => "" }).series;
+    assert.equal(bare.label.color, "#ffffff");
+    assert.equal(bare.label.padding, 8);
+    assert.equal(bare.label.rich.name.fontSize, 14);
+});
+
+test("treemap with the tiles of a first draw (tileOf): each label at its tile's top left, cut to the tile with an ellipsis, the value whole or not at all; none where fewer than 4 characters or no line fit", () => {
+    const r = computePivot(REGIONS, { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" }, formatting: { locale: "en-US" } });
+    const style = lightWith();
     /** @type {Record<string, { width: number, height: number }>} */
     const tiles = {
         Central: { width: 300, height: 200 },
         // 30 px wide: not even "Wes…" fits
         West: { width: 30, height: 60 },
-        // 20 px tall: no line fits; 23 px: one does, with a pixel above and below
-        North: { width: 300, height: 20 },
-        South: { width: 300, height: 23 },
-        // 56 px wide and 40 px tall: "Isla…" fits, the value "1,340" too, but a line only
-        Islands: { width: 56, height: 40 },
-        // 50 px wide: "Coa…" would fit, but a name cut to 3 characters is a stub: no label
-        Coast: { width: 50, height: 60 }
+        // 34 px tall: no line of 19 px fits between the 8 px padding above and below; 35 px: one does
+        North: { width: 300, height: 34 },
+        South: { width: 300, height: 35 },
+        // 64 px wide and 60 px tall: "Isla…" fits, the value "1,340" too, and two lines
+        Islands: { width: 64, height: 60 },
+        // 62 px wide: "Coa…" would fit, but a name cut to 3 characters is a stub: no label
+        Coast: { width: 58, height: 60 }
     };
     /** @type {Array<[number, string]>} */
     const asked = [];
@@ -81,19 +182,15 @@ test("treemap with the tiles of a first draw (tileOf): each label on a plate in 
     const byName = Object.fromEntries(s.data.map((/** @type {any} */ d) => [d.name, d]));
     // asked by item and name, so a tile is never another item's
     assert.deepEqual(asked, s.data.map((/** @type {any} */ d, /** @type {number} */ i) => [i, d.name]));
-    const line = s.label.rich.plate.lineHeight;
-    // two lines of `line` px in the middle of the tile's 200 px, on the series' plate
-    assert.deepEqual(byName.Central.label.padding, [(200 - 2 * line) / 2, 5, 0, 5]);
-    assert.equal(byName.Central.label.formatter(), "{plate|Central}\n{plate|4,000}");
-    assert.equal(byName.Central.label.rich, undefined, "on the series' plate");
-    // cut with an ellipsis, on the plate; the value, with no line left, left out whole, not cut
-    assert.equal(byName.Islands.label.formatter(), "{plate|Isla…}");
-    assert.deepEqual(byName.Islands.label.padding, [(40 - line) / 2, 5, 0, 5]);
-    // no empty plate where nothing fits: the tooltip has the value
+    assert.equal(byName.Central.label.formatter(), "{name|Central}\n{value|4,000}");
+    assert.equal(byName.Central.label.rich, undefined, "in the series' styles");
+    assert.equal(byName.Islands.label.formatter(), "{name|Isla…}\n{value|1,340}");
+    // no label where nothing fits: the tooltip has the value
     assert.equal(byName.West.label.show, false);
     assert.equal(byName.Coast.label.show, false);
     assert.equal(byName.North.label.show, false);
-    assert.equal(byName.South.label.formatter(), "{plate|South}");
+    // one line: the name, the value left out whole, not cut
+    assert.equal(byName.South.label.formatter(), "{name|South}");
     // a tile not drawn yet: the series' label
     assert.equal(byName.East.label, undefined);
 });
@@ -109,20 +206,6 @@ test("drawnTiles: a treemap's tiles by item and name, its root left out; nothing
     assert.equal(tileOf(1, "A"), null);
     assert.equal(drawnTiles(chart("bar")), undefined);
     assert.equal(drawnTiles({}), undefined);
-});
-
-test("treemap without a background colour it can draw: no plates, each label in the ink that reads on its tile", () => {
-    const r = computePivot(REGIONS, { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" }, formatting: { locale: "en-US" } });
-    const missing = { getPropertyValue: (/** @type {string} */ n) => (n === "--pk-surface" ? "" : (THEME_TOKENS.light[n] ?? "")) };
-    const unreadableSurface = { getPropertyValue: (/** @type {string} */ n) => (n === "--pk-surface" ? "oklch(0.98 0 0)" : (THEME_TOKENS.light[n] ?? "")) };
-    const readColor = (/** @type {string} */ c) => (c.startsWith("#") ? c : null);
-    for (const style of [missing, unreadableSurface]) {
-        const [s] = decorateOption(toEChartsOption(r, { theme: chartThemeFrom(missing) }), style, { width: 800, height: 480, readColor }).series;
-        assert.equal(s.label.rich.plate, undefined, style.getPropertyValue("--pk-surface"));
-        const out = s.label.formatter({ name: "North", value: 3240, color: "#1f1f1f" });
-        const key = /^\{(\w+)\|/.exec(out)?.[1] ?? "";
-        assert.ok(/** @type {number} */ (contrastOnFill(s.label.rich[key].color, "#1f1f1f")) >= 4.5, out);
-    }
 });
 
 /** A colour `t` of the way from `a` to `b` (#rrggbb), mixed as ECharts mixes a visual map's colours: per channel. */

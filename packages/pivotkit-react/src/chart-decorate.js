@@ -31,7 +31,7 @@ const TOOLTIP_OTHER_LINES = 3;
  *   element under the pointer into `current`, the formatter reads it), the name of a stack's total,
  *   the lines that say how many series were cut, each series' value (whether it adds up) and the
  *   chart's reference lines (pivotkit-core's referenceLines), named at the category;
- *   parseColor: ECharts' colour parser, for a heatmap's colours (screenColor)
+ *   parseColor: ECharts' colour parser, for a heatmap's colours (screenColor) and a treemap's tiles
  * @returns {any}  the option; `axisEvery` (not ECharts') is n when the category axis writes every n-th label
  */
 export function decorate(option, style, height = 480, doc = undefined, width = 800, extra = {}) {
@@ -52,7 +52,7 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
     const references = tooltip.lines?.length ? tooltipReferences(tooltip.lines, (option.series || []).map((/** @type {any} */ s) => String(s.name ?? "")), reference) : [];
     const options = { series, share: Boolean(tooltip.share), seriesTotals, mode: tooltip.mode, totalLabel: tooltip.totalLabel, moreLabel: tooltip.moreLabel, moreInTotalLabel: tooltip.moreInTotalLabel, maxLines, references, hoverOf: () => hover?.current ?? null };
     const readColor = doc && parseColor ? screenColor(doc, parseColor) : undefined;
-    const drawn = decorateOption(option, style, { height, width, ...rest, readColor, tooltipFormatter: doc ? (context) => tooltipFormatter(doc, { ...context, ...options }) : undefined });
+    const drawn = decorateOption(option, style, { height, width, ...rest, readColor, parseColor, tooltipFormatter: doc ? (context) => tooltipFormatter(doc, { ...context, ...options }) : undefined });
     // on the screen the tooltip stays inside the chart
     return doc ? { ...drawn, tooltip: { ...drawn.tooltip, confine: true } } : drawn;
 }
@@ -62,8 +62,8 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
  * them (`hostOptions`, checked, mergeChartOptions), and then the labels of lying reference lines
  * placed at their lines' real heights: after the first draw ECharts knows where each value is
  * (convertToPixel), so the marks are laid out again with it (pivotkit-core's decorateOption,
- * pixelOf) and only the series are set again; a treemap's labels likewise at the middle of the tiles it
- * drew (drawnTiles).
+ * pixelOf) and only the series are set again; a treemap's labels likewise to fit the tiles it drew
+ * (drawnTiles).
  * @param {any} instance  the chart's ECharts instance
  * @param {any} option  pivotkit-core's toEChartsOption
  * @param {{ getPropertyValue(name: string): string }} style
@@ -89,7 +89,7 @@ export function drawOption(instance, option, style, doc, extra, hostOptions) {
     if (lying && (first.series ?? []).some((/** @type {any} */ s) => s.markLine || s.markPoint)) {
         instance.setOption({ series: marked((value) => instance.convertToPixel({ yAxisIndex: 0 }, value)).series });
     }
-    // a treemap's labels in the middle of the tiles it drew
+    // a treemap's labels fitted to the tiles it drew
     const tileOf = drawnTiles(instance);
     if (tileOf) instance.setOption({ series: marked(undefined, tileOf).series });
     return own;
@@ -140,10 +140,10 @@ export function screenColor(doc, parse) {
 
 /**
  * The tokens the chart reads as lengths in px (chartThemeFrom, decorateOption): the title's and the
- * other text's size, the marks' corners, the zoom slider's thickness (a control's, a finger's). A computed custom property keeps the calc(), max() and em it
+ * other text's size, a treemap tile's text size and padding, the marks' corners, the zoom slider's thickness (a control's, a finger's). A computed custom property keeps the calc(), max() and em it
  * was written with, so the report resolves them first.
  */
-export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-chart-text-size", "--pk-radius-chart", "--pk-target", "--pk-target-touch"]);
+export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-chart-text-size", "--pk-chart-tile-size", "--pk-chart-tile-padding", "--pk-radius-chart", "--pk-target", "--pk-target-touch"]);
 
 /**
  * Tokens that are lengths, in px as the report resolves them (em of its font): a probe inside the root
@@ -182,12 +182,21 @@ export function tokenLengths(root, names = LENGTH_TOKENS) {
 
 /**
  * The report's computed style with its length tokens in px: what chartThemeFrom and pivotkit-core's
- * decorateOption read.
+ * decorateOption read. `names` gathers the names read, so a draw knows which tokens it depends on
+ * (chart-tokens.js).
  * @param {HTMLElement} root
- * @returns {{ getPropertyValue(name: string): string }}
+ * @returns {{ getPropertyValue(name: string): string, names: Set<string> }}
  */
 export function chartStyle(root) {
     const style = getComputedStyle(root);
     const lengths = tokenLengths(root);
-    return { getPropertyValue: (name) => lengths[name] ?? style.getPropertyValue(name) };
+    /** @type {Set<string>} */
+    const names = new Set();
+    return {
+        names,
+        getPropertyValue: (name) => {
+            names.add(name);
+            return lengths[name] ?? style.getPropertyValue(name);
+        }
+    };
 }

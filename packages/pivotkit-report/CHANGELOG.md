@@ -11,6 +11,13 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 - `create_link` takes `access`: the access level of a live link (`me`, `signedIn`, or `group` with
   `group`). pivotkit-server signs it into the link.
 
+### Changed
+
+- The SVG and the HTML report draw a treemap's labels as the screen does: white at each tile's top
+  left, a tile too light for them darker. `LIGHT_TOKENS` and `DARK_TOKENS` hold
+  `--pk-chart-tile-text` and `--pk-chart-tile-contrast`, `WEIGHT_TOKENS` `--pk-chart-tile-weight`.
+  A host's `--pk-chart-tile-size` and `--pk-chart-tile-padding` in `tokens` apply as well ([#984](https://github.com/eizedev/pivotkit/issues/984)).
+
 ## [0.7.0] - 2026-11-26
 
 ### Added
