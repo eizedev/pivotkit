@@ -17,7 +17,7 @@ import { expiryOf } from "./signed-tokens.js";
 import { FRAGMENTS, composeSlots } from "./options/index.js";
 import { SERVER_LIMITS } from "./server-limits.js";
 import { PAGE } from "./options/branding.js";
-import { CREATE_NEEDS_FILE, ConfigError, configErrorOf } from "./options/shared.js";
+import { CREATE_NEEDS_FILE, ConfigError, checkOrigins, configErrorOf } from "./options/shared.js";
 import { linkParamsProblem } from "./link-params.js";
 
 /** The error of a wrong option (options/shared.js, so a fragment can throw it without importing this module). */
@@ -417,17 +417,7 @@ function rules(options, range) {
     if (options.rest?.resource) {
         resourceUrlOf(options.rest.resource, "rest.resource");
     }
-    for (const [i, origin] of (options.rest?.cors?.origins ?? []).entries()) {
-        let url = null;
-        try {
-            url = new URL(origin);
-        } catch {
-            // reported below
-        }
-        if (!url || url.origin !== origin || (url.protocol !== "https:" && url.protocol !== "http:")) {
-            throw new ConfigError(`rest.cors.origins[${i}]: an origin is scheme, host and port as a browser sends it (https://app.example.com), without a path${origin === "*" ? '; "*" is not accepted: list each origin' : ""}`);
-        }
-    }
+    checkOrigins(options.rest?.cors?.origins, "rest.cors.origins", "https://app.example.com");
     if (options.http?.publicUrl) {
         publicUrlOf(options.http.publicUrl);
     }

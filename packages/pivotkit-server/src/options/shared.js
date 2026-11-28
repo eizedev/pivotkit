@@ -99,3 +99,24 @@ export const SECRET_REF = Object.freeze({ custom: (/** @type {unknown} */ ref) =
  * file where it is missing (state.js), or `{ "env": "NAME" }` (output.downloads.key, audit.key).
  */
 export const CREATABLE_SECRET_REF = Object.freeze({ custom: (/** @type {unknown} */ ref) => secretRefProblems(ref, true) });
+
+/**
+ * Checks a list of browser origins as a browser sends them (scheme, host and port, no path, never
+ * "*"); throws ConfigError naming the entry. rest.cors.origins and rest.browser.origins use it.
+ * @param {string[] | undefined} list
+ * @param {string} path  the option's path
+ * @param {string} example  an origin for the message
+ */
+export function checkOrigins(list, path, example) {
+    for (const [i, origin] of (list ?? []).entries()) {
+        let url = null;
+        try {
+            url = new URL(origin);
+        } catch {
+            // reported below
+        }
+        if (!url || url.origin !== origin || (url.protocol !== "https:" && url.protocol !== "http:")) {
+            throw new ConfigError(`${path}[${i}]: an origin is scheme, host and port as a browser sends it (${example}), without a path${origin === "*" ? '; "*" is not accepted: list each origin' : ""}`);
+        }
+    }
+}

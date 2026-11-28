@@ -11,12 +11,8 @@
  *   first, in constant time: a forged token, an unknown one and one of another key get the same 404.
  */
 
-import { createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";
-import { ConfigError } from "../options/shared.js";
-import { makeKey } from "../auth.js";
-import { readSecret } from "../secrets.js";
-
-import { keyProblem } from "../secret-rules.js";
+import { createHash, createHmac, hkdfSync, timingSafeEqual } from "node:crypto";
+import { keySource as sharedKeySource } from "../key-source.js";
 
 /** How long the same browser may repeat a one-time download, in seconds. */
 export const REPEAT_SECONDS = 120;
@@ -113,46 +109,17 @@ export function readToken(keys, token) {
 // JSON of the list, not a separator: no nonce, issuer and subject can be cut differently to the same text
 export const subjectDigest = (keys, n, issuer, subject) => mac(keys.subject, JSON.stringify([n, issuer, subject]));
 
-/** How long a read of output.downloads.key is used before it is read again, in milliseconds. */
-export const KEY_READ_MS = 1000;
+export { KEY_READ_MS } from "../key-source.js";
 
 /**
- * The keys of output.downloads.key, read again at most every KEY_READ_MS (a rotated secret works
- * without a restart, within a second; links of the old key stop working) and derived once per value;
- * a random key without one. A read, and a failed one, is shared by the requests in that time, so a
- * flood of links (forged ones too) does not read the file for each.
+ * The keys of output.downloads.key (key-source.js): read again at most every KEY_READ_MS, so a
+ * rotated secret works without a restart and links of the old key stop working; a random key
+ * without one.
  * @param {import("../options/downloads.js").DownloadSettings} settings
  * @param {{ baseDir?: string }} options
  * @param {Record<string, string | undefined>} env
  */
-export function keySource(settings, options, env) {
-    if (!settings.key) {
-        const keys = subkeysOf(randomBytes(32));
-        return async () => keys;
-    }
-    let last = { value: "", keys: /** @type {any} */ (null) };
-    const ref = settings.key;
-    const read = async () => {
-        const value = await readSecret(ref, options, env);
-        const why = keyProblem("downloads")(value);
-        if (why) {
-            throw new ConfigError(`output.downloads.key (${ref.env ? `$${ref.env}` : `the file ${ref.file}`}) is ${why}; make one with: ${makeKey("downloads")}`);
-        }
-        if (value !== last.value) {
-            last = { value, keys: subkeysOf(Buffer.from(value, "utf8")) };
-        }
-        return last.keys;
-    };
-    /** @type {{ at: number, keys: Promise<any> } | null} */
-    let held = null;
-    return () => {
-        const now = Date.now();
-        if (!held || now - held.at >= KEY_READ_MS) {
-            held = { at: now, keys: read() };
-        }
-        return held.keys;
-    };
-}
+export const keySource = (settings, options, env) => sharedKeySource({ ref: settings.key, setting: "output.downloads.key", use: "downloads", derive: subkeysOf }, options, env);
 
 /**
  * A signed map of short entries in one cookie: the sign-ins under way (by their state) and the
