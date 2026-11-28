@@ -98,6 +98,7 @@ size through the element.
 | `--pk-radius-card`<br>`--pk-radius-chart` | The chart's tooltip and the HTML report's chart card; the chart's bars and pie slices (a heatmap's cells three quarters of it) | `8px`<br>`var(--pk-radius-xs)` (4 px) | as light |
 | `--pk-font-mono` | The code font of the text field a view's JSON is pasted into | `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` | as light |
 | `--pk-chart-title-size`<br>`--pk-chart-text-size` | The chart's title; its other text: the axes, the legend and the labels on the marks ([below](#chart-colours)) | `max(16px, var(--pk-font-size))`<br>`var(--pk-small)` | as light |
+| `--pk-chart-tile-size`<br>`--pk-chart-tile-weight`<br>`--pk-chart-tile-padding` | The text on a treemap's tiles: its size, the weight of a tile's name (the value takes `--pk-weight-normal`), the room between it and the tile's edge | `var(--pk-chart-text-size)`<br>`var(--pk-weight-strong)`<br>`8px` | as light |
 | `--pk-focus-width`<br>`--pk-focus-offset`<br>`--pk-glow-width`<br>`--pk-ring-width` | The focus ring's width and its gap to the control (in a list, a cell or a segmented button it sits inside the control, as wide); the soft ring around a focused text field and a zone a field is dragged over; the inset ring of a zone a field is dropped on to remove it (a clickable cell's hover ring is three quarters of it, a file drop's one and a half) | `2px`<br>`2px`<br>`3px`<br>`2px` | as light |
 | `--pk-shadow`<br>`--pk-shadow-lg` | Chips and buttons; popovers, drawer, drag preview | see `styles.css` | see `styles.css` |
 | `--pk-row-h` | Height of a table row | `2.45em` | as light |
@@ -129,6 +130,7 @@ size through the element.
 | `--pk-chart-axis` | The chart's axis line, apart from the table's lines. Not set, it is `--pk-border` | not set | not set |
 | `--pk-chart-reference` | The chart's reference lines of no series: a target, the lines of a stack's total. A series' own lines take its colour | `var(--pk-muted)` | `var(--pk-muted)` |
 | `--pk-chart-other` | The slice "Other (n)" that holds a pie's smallest slices when their labels have no room | `var(--pk-muted)` | `#6b7280` |
+| `--pk-chart-tile-text`<br>`--pk-chart-tile-contrast` | The text on a treemap's tiles; the contrast it keeps on each tile. A tile too light for the text is drawn darker (lighter for a dark text) just that far; `0` keeps every tile's colour ([below](#chart-colours)) | `#ffffff`<br>`4.6` | as light |
 | `--pk-heat-low`<br>`--pk-heat-high` | Heatmap scale, and a colour scale in the table whose view names no colours (through `--pk-scale-low` and `--pk-scale-high`) | `#eaf1fb`<br>`#2a78d6` | `#1d2735`<br>`#3987e5` |
 | `--pk-layer-z` | The z-index of the layer of menus, sheets and popups, only in a browser without the Popover API ([below](#popovers-above-the-page)) | `50` | as light |
 
@@ -238,7 +240,7 @@ The chart reads these tokens in the current theme:
 | The heatmap | `--pk-heat-low`/`--pk-heat-high` |
 | The title's size and weight | `--pk-chart-title-size`, `--pk-weight-strong` |
 | Its other text: the axes, the legend, the labels on bars, slices and cells, the heatmap's scale | `--pk-chart-text-size` |
-| The text on a treemap's tiles, on a plate ([treemap](../use/charts.md#treemap)) | `--pk-text` on `--pk-surface` |
+| The text on a treemap's tiles ([treemap](../use/charts.md#treemap)): its colour and the contrast it keeps; its size, the name's weight and the value's, its padding | `--pk-chart-tile-text`, `--pk-chart-tile-contrast`; `--pk-chart-tile-size`, `--pk-chart-tile-weight`, `--pk-weight-normal`, `--pk-chart-tile-padding` |
 | The numbers on a heatmap's cells: of the two, the one with the higher contrast on the cell if it reaches 4.5:1, else black or white | `--pk-text`, `--pk-surface` |
 | The labels of high and low points, with an outline around the letters | `--pk-muted`, outlined in `--pk-surface` |
 | The labels of reference lines | `--pk-muted` |
@@ -252,9 +254,14 @@ The chart reads these tokens in the current theme:
 
 Black (`#000000`) and white (`#ffffff`) are fixed values, not tokens. The contrast of `--pk-text`
 and of `--pk-muted` on `--pk-surface` is the theme's: the chart does not change them. Without a
-`--pk-surface` the chart can draw, a treemap's text has no plate and takes a heatmap's ink. That
-is a missing `--pk-surface`, or in pivotkit-report on its own a form ECharts does not read, such as
-`oklch()` or `color-mix()`. A missing `--pk-surface` also leaves the points' labels without an outline.
+`--pk-surface`, the points' labels have no outline.
+
+A treemap writes every tile's text in `--pk-chart-tile-text`, as ECharts does by default. A tile on
+which that colour does not reach `--pk-chart-tile-contrast` (4.6:1) is mixed with black, for a dark
+text with white, only as far as it takes. This holds for the palette and for your own colours
+(`colorMap`, Chart settings › Entries): a pale colour, such as `#d9d9d9`, shows darker on its tile.
+Entries keeps the colour you set; the tooltip's mark shows the tile as drawn. To keep every tile's colour as it is, set
+`--pk-chart-tile-contrast: 0` and pick a text colour that reads on all of them.
 
 The heatmap's colours work in any form the browser reads, `oklch()` too. The chart mixes the colour
 of each cell from them. It takes them as plain sRGB colours: a colour's alpha is dropped, and a

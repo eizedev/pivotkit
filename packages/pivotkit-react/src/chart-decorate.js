@@ -31,7 +31,7 @@ const TOOLTIP_OTHER_LINES = 3;
  *   element under the pointer into `current`, the formatter reads it), the name of a stack's total,
  *   the lines that say how many series were cut, each series' value (whether it adds up) and the
  *   chart's reference lines (pivotkit-core's referenceLines), named at the category;
- *   parseColor: ECharts' colour parser, for a heatmap's colours (screenColor)
+ *   parseColor: ECharts' colour parser, for a heatmap's colours (screenColor) and a treemap's tiles
  * @returns {any}  the option; `axisEvery` (not ECharts') is n when the category axis writes every n-th label
  */
 export function decorate(option, style, height = 480, doc = undefined, width = 800, extra = {}) {
@@ -52,7 +52,7 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
     const references = tooltip.lines?.length ? tooltipReferences(tooltip.lines, (option.series || []).map((/** @type {any} */ s) => String(s.name ?? "")), reference) : [];
     const options = { series, share: Boolean(tooltip.share), seriesTotals, mode: tooltip.mode, totalLabel: tooltip.totalLabel, moreLabel: tooltip.moreLabel, moreInTotalLabel: tooltip.moreInTotalLabel, maxLines, references, hoverOf: () => hover?.current ?? null };
     const readColor = doc && parseColor ? screenColor(doc, parseColor) : undefined;
-    const drawn = decorateOption(option, style, { height, width, ...rest, readColor, tooltipFormatter: doc ? (context) => tooltipFormatter(doc, { ...context, ...options }) : undefined });
+    const drawn = decorateOption(option, style, { height, width, ...rest, readColor, parseColor, tooltipFormatter: doc ? (context) => tooltipFormatter(doc, { ...context, ...options }) : undefined });
     // on the screen the tooltip stays inside the chart
     return doc ? { ...drawn, tooltip: { ...drawn.tooltip, confine: true } } : drawn;
 }
@@ -140,10 +140,10 @@ export function screenColor(doc, parse) {
 
 /**
  * The tokens the chart reads as lengths in px (chartThemeFrom, decorateOption): the title's and the
- * other text's size, the marks' corners, the zoom slider's thickness (a control's, a finger's). A computed custom property keeps the calc(), max() and em it
+ * other text's size, a treemap tile's text size and padding, the marks' corners, the zoom slider's thickness (a control's, a finger's). A computed custom property keeps the calc(), max() and em it
  * was written with, so the report resolves them first.
  */
-export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-chart-text-size", "--pk-radius-chart", "--pk-target", "--pk-target-touch"]);
+export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-chart-text-size", "--pk-chart-tile-size", "--pk-chart-tile-padding", "--pk-radius-chart", "--pk-target", "--pk-target-touch"]);
 
 /**
  * Tokens that are lengths, in px as the report resolves them (em of its font): a probe inside the root

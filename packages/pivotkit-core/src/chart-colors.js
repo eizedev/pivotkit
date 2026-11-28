@@ -118,3 +118,35 @@ export function labelColorOn(fill, candidates) {
     const [near, far] = light ? [white, black] : [black, white];
     return /** @type {number} */ (contrastOf(fill, near)) >= TEXT_CONTRAST ? near : far;
 }
+
+/** A colour's red, green and blue (0 to 255, rounded) as #rrggbb. */
+export const hexOf = (/** @type {number[]} */ rgb) => `#${rgb.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+
+/**
+ * The colour a treemap's tile is drawn in so that its text in `ink` reads `floor`:1 on it (#984): the
+ * tile's own colour where the ink reaches it, else that colour mixed, a hundredth at a time, with black
+ * (a light ink) or white (a dark ink), only as far as the ink needs. Where no mix reaches `floor` (a
+ * grey ink and a high floor), black or white. A floor of 1 or less, and a colour or ink it cannot read
+ * (not hex or rgb()), keep the tile's colour.
+ * @param {string} tile
+ * @param {string} ink
+ * @param {number} floor
+ * @returns {string}
+ */
+export function tileFill(tile, ink, floor) {
+    const from = rgbOf(tile);
+    const text = rgbOf(ink);
+    if (!from || !text || !(floor > 1) || /** @type {number} */ (contrastOf(ink, tile)) >= floor) {
+        return tile;
+    }
+    // a light ink (more contrast on black than on white) reads on a darker tile, a dark one on a lighter
+    const [black, white] = EXTREME_INKS;
+    const to = /** @type {number} */ (contrastOf(ink, black)) > /** @type {number} */ (contrastOf(ink, white)) ? [0, 0, 0] : [255, 255, 255];
+    for (let step = 1; step < 100; step++) {
+        const mixed = hexOf(from.map((v, i) => v + ((to[i] - v) * step) / 100));
+        if (/** @type {number} */ (contrastOf(ink, mixed)) >= floor) {
+            return mixed;
+        }
+    }
+    return hexOf(to);
+}

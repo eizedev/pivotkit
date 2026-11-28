@@ -47,6 +47,11 @@
        legend, labels): secondary text, at least 14 px (chart-decorate.js resolves both to px) */
     --pk-chart-title-size: max(16px, var(--pk-font-size));
     --pk-chart-text-size: var(--pk-small);
+    /* a treemap tile's text: its size, the weight of its name and the room around it
+       (chart-decorate.js resolves the lengths to px) */
+    --pk-chart-tile-size: var(--pk-chart-text-size);
+    --pk-chart-tile-weight: var(--pk-weight-strong);
+    --pk-chart-tile-padding: 8px;
     /* the focus ring: its width and its gap to the control (inside a list, a cell or a segmented
        button it sits inside the control, as wide); the soft ring around a focused text field and a zone
        a field is dragged over */
@@ -188,6 +193,10 @@
     --pk-chart-reference: var(--pk-muted);
     /* the slice "Other (n)" that holds a pie's smallest slices when their labels have no room */
     --pk-chart-other: var(--pk-muted);
+    /* the text on a treemap's tiles, in both themes, and the contrast it keeps: a tile too light for
+       it is darkened just that far (0 keeps every tile's colour) */
+    --pk-chart-tile-text: #ffffff;
+    --pk-chart-tile-contrast: 4.6;
 }
 
 :where(.pk-root[data-pk-theme="dark"]) {

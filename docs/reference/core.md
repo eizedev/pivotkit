@@ -461,9 +461,9 @@ area with `stackPercent`.
 | `categoryNames` | The categories' whole names: the tooltip's title where the axis writes them shorter. |
 | `axisLabels` | The view's `chart.axisLabels`. |
 | `tooltipFormatter` | Builds the tooltip's formatter. Leave it out for a chart without a tooltip, such as an SVG. |
-| `readColor` | `(color) => color \| null`: a heatmap colour as ECharts can mix it. ECharts reads hex, `rgb()`, `hsl()` and some names only, and another form, such as `oklch()`, turns the cells black. An end with `null` takes `DEFAULT_THEME.colorScale`'s colour. |
+| `readColor`, `parseColor` | `readColor`: `(color) => color \| null`: a heatmap colour as ECharts can mix it. ECharts reads hex, `rgb()`, `hsl()` and some names only, and another form, such as `oklch()`, turns the cells black. An end with `null` takes `DEFAULT_THEME.colorScale`'s colour. `parseColor`: `(color) => [r, g, b, a] \| null`, such as ECharts' `color.parse`: a treemap's tile in a name or `hsl()` is then darkened for its text too. Without it, only hex and `rgb()` tiles are. |
 | `zoom`, `zoomAt`, `timeline`, `touch` | The zoom slider of a chart on a screen. See below. |
-| `pixelOf`, `tileOf` | After a first draw. `pixelOf`: `(value) => px`, a value's height in the drawn chart, such as ECharts' `convertToPixel`: the labels of the reference lines then sit at their lines. `tileOf`: `(index, name) => { width, height } \| null`, the tile of a treemap's item `index` named `name`, such as `drawnTiles(chart)` gives: each label then stands in its tile's middle, cut to fit. `drawnTiles` gives `null` for an item it cannot match by name, such as in a tree with children. |
+| `pixelOf`, `tileOf` | After a first draw. `pixelOf`: `(value) => px`, a value's height in the drawn chart, such as ECharts' `convertToPixel`: the labels of the reference lines then sit at their lines. `tileOf`: `(index, name) => { width, height } \| null`, the tile of a treemap's item `index` named `name`, such as `drawnTiles(chart)` gives: each label then writes what fits its tile. `drawnTiles` gives `null` for an item it cannot match by name, such as in a tree with children. |
 
 It adds the theme's colours from the tokens, and:
 
@@ -482,8 +482,8 @@ It adds the theme's colours from the tokens, and:
 - Room on the right for the values at the end of horizontal bars, fewer value ticks on a narrow axis.
 - A heatmap's row names and numbers where its cells have room. Each number takes the one of
   `--pk-text` and `--pk-surface` with the higher contrast on its cell if it reaches 4.5:1, else
-  `#000000` or `#ffffff` (`labelColorOn`). A treemap's labels on a plate, cut to their tiles with
-  `tileOf`, as [Charts › Treemap](../use/charts.md#treemap) describes.
+  `#000000` or `#ffffff` (`labelColorOn`). A treemap's labels and tiles, the labels cut to their
+  tiles with `tileOf`, as [Charts › Treemap](../use/charts.md#treemap) describes.
 
 pivotkit-react adds its DOM tooltip through `tooltipFormatter`. Its `readColor` turns any colour the
 browser reads into `#rrggbb`. pivotkit-report's keeps the colours ECharts reads. Any other one

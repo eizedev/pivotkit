@@ -168,7 +168,7 @@ export function chartSvg(result, { echarts, style, width, height, locale, labels
     const readColor = typeof parse === "function" ? (/** @type {string} */ c) => (parse(c.trim()) ? c : null) : undefined;
     const marked = (/** @type {((v: number) => number) | undefined} */ pixelOf, /** @type {ReturnType<typeof drawnTiles>} */ tileOf = undefined) => {
         // axisEvery is the report's own note, not ECharts'
-        const decorated = decorateOption(option, style, { width, height, categoryNames: series.categories, axisLabels: view.chart.axisLabels, readColor, pixelOf, tileOf });
+        const decorated = decorateOption(option, style, { width, height, categoryNames: series.categories, axisLabels: view.chart.axisLabels, readColor, parseColor: parse, pixelOf, tileOf });
         delete decorated.axisEvery;
         return decorated;
     };

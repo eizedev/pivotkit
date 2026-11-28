@@ -10,9 +10,9 @@
 import { DEFAULT_THEME, EXTREME_INKS, HEATMAP_GRID_BOTTOM, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, categoryLabelWidth, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
 import { POINT_HALO, barExtent, otherSlices, pieLabelFit, pieLabelTexts, pointLabels, valueAxisSplit, valueLabelRoom } from "./chart-fit.js";
-import { AXIS_LABEL_MARGIN, ELLIPSIS, LINE_SAMPLES, PLATE_SIDE, TILE_EDGE, TILE_LABEL_PADDING, TILE_MIN_CHARS, categorySlot, groupLabelLine, groupLabelOffset, heatmapFrame, lineLabelText, plateLine, textWidth } from "./chart-measure.js";
+import { AXIS_LABEL_MARGIN, BOLD_WIDTH, ELLIPSIS, LINE_SAMPLES, TILE_MIN_CHARS, categorySlot, groupLabelLine, groupLabelOffset, heatmapFrame, lineLabelText, textWidth, tileLine } from "./chart-measure.js";
 import { ZOOM_SLIDER, longestNames, zoomRange, zoomSlider, zoomWindow } from "./chart-zoom.js";
-import { labelColorOn } from "./chart-colors.js";
+import { hexOf, labelColorOn, tileFill } from "./chart-colors.js";
 
 export * from "./chart-layout.js";
 export { toEChartsOption } from "./chart.js";
@@ -45,16 +45,16 @@ const COMBO_AXES_ROOM = 136;
 const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));
 
 /*
- * Text on a coloured area (#913, #914): it reads against a colour the chart knows.
+ * Text on a coloured area (#913, #914, #984): it reads against a colour the chart knows.
  * - A heatmap's cell has one colour of an ordered scale: its number takes labelColorOn's ink for it
  *   (the theme's text or background colour, else black or white), at least 4.5:1. Along the scale the
  *   ink changes once, from dark on light cells to light on dark ones.
- * - A treemap's tiles take any colours of a palette, a host's among them: each label sits on a plate in
- *   the background colour (--pk-surface), in the text colour (--pk-text). Every label looks the same,
- *   whatever the tile's colour and in both themes; an ink chosen per tile would flip between dark and
- *   light from tile to tile.
+ * - A treemap's tiles take any colours of a palette, a host's among them: every label is in one colour
+ *   (--pk-chart-tile-text, white), as ECharts writes them, and a tile too light for it is darkened just
+ *   as far as the text needs to keep --pk-chart-tile-contrast (tileFill). Every label looks the same,
+ *   in both themes and after a switch; an ink chosen per tile would flip between dark and light.
  * - A high or low point's label crosses the plot and the bars: an outline in the background colour
- *   around its letters (POINT_HALO), the same backing as a plate.
+ *   around its letters (POINT_HALO).
  */
 
 /**
@@ -99,57 +99,79 @@ function fitText(text, width, fontSize) {
 }
 
 /**
- * A treemap's labels (see above): on plates in the background colour, the text in the text colour, the
- * plates' corners as the tiles', alike on every tile. ECharts gives a tile's label a box of the tile's
- * size and lays rich text out from the box's top. With `tileOf` (the tiles of a first draw) each label
- * writes what fits its tile, in the tile's middle: the name cut short with ELLIPSIS (fitText), the
- * lines after it whole or not at all (a number cut short would mislead), as many lines as plates fit
- * the tile's height. A tile without room for TILE_MIN_CHARS characters or one line writes no label: the
- * tooltip has it. Without `tileOf` the labels stand on plates at the top, ECharts cutting them. Without
- * a background colour it can draw (--pk-surface missing, or `readColor` cannot read it), no plates:
- * each label in the ink that reads on its tile (inkedLabel).
- * @param {any} s  the treemap's series
- * @param {{ text?: string, surface?: string, radius: number, fontSize: number, readColor?: (color: string) => string | null, tileOf?: (index: number, name: string) => { width: number, height: number } | null }} theme
- * @returns {{ label: any, data?: any[] }}
+ * A number from a token, else `fallback`: a font weight (1 to 1000) or a contrast.
+ * @param {string} text
+ * @param {number} fallback
  */
-function treemapLabels(s, { text, surface, radius, fontSize, readColor, tileOf }) {
-    const label = s.label;
-    const plate = surface && readColor ? readColor(surface) : surface;
-    const inks = /** @type {string[]} */ ([text, plate].filter((c) => typeof c === "string" && c !== ""));
-    if (typeof label?.formatter !== "function" || !plate) {
-        return { label: inkedLabel(label, inks, readColor) };
-    }
-    const format = label.formatter;
-    // no --pk-text: ECharts' own text colour
-    const ink = text || undefined;
-    const line = plateLine(fontSize);
-    const out = {
-        label: {
-            ...label,
-            color: ink,
-            formatter: (/** @type {any} */ p) => styled("plate", format(p)),
-            rich: { plate: { fontSize, lineHeight: line, color: ink, backgroundColor: plate, borderRadius: radius, padding: [Math.max(1, (line - fontSize * 1.2) / 2), PLATE_SIDE] } }
-        }
+const numberOr = (text, fallback) => (text !== "" && Number.isFinite(Number(text)) ? Number(text) : fallback);
+
+/**
+ * How a treemap writes on its tiles, from the tokens: the text's colour (--pk-chart-tile-text), the
+ * contrast it keeps (--pk-chart-tile-contrast; 0 keeps every tile's colour), its size
+ * (--pk-chart-tile-size, else the chart's text size `fontSize`), the room around it
+ * (--pk-chart-tile-padding), the name's weight (--pk-chart-tile-weight, else --pk-weight-strong) and
+ * the value's (--pk-weight-normal); DEFAULT_THEME's where a token is missing. A tile's colour is read
+ * as the screen draws it (`readColor`), then as ECharts reads it (`parseColor`, as #rrggbb), so
+ * tileFill can mix it.
+ * @param {(name: string) => string} v  a token's value
+ * @param {{ fontSize: number, readColor?: (color: string) => string | null, parseColor?: (color: string) => unknown }} context
+ */
+function tileLookOf(v, { fontSize, readColor, parseColor }) {
+    const tileColor = (/** @type {string} */ color) => {
+        const shown = readColor ? (readColor(color) ?? color) : color;
+        const rgba = parseColor ? parseColor(shown.trim()) : null;
+        return Array.isArray(rgba) && rgba.length >= 3 ? hexOf(rgba.slice(0, 3)) : shown;
     };
-    if (!tileOf || !Array.isArray(s.data)) return out;
-    const pad = TILE_LABEL_PADDING;
     return {
-        ...out,
-        data: s.data.map((/** @type {any} */ d, /** @type {number} */ i) => {
-            const tile = tileOf(i, d.name);
-            if (!tile) return d;
-            const width = tile.width - 2 * pad - 2 * PLATE_SIDE;
-            // above and below the lines only TILE_EDGE: a tile a line tall keeps its label (the sides keep `pad`)
-            const height = tile.height - 2 * TILE_EDGE;
-            const [first, ...rest] = String(format(d)).split("\n");
-            const name = fitText(first, width, fontSize);
-            const shown = name === null ? [] : [name, ...rest.filter((t) => textWidth(t, fontSize) <= width)].slice(0, Math.floor(height / line));
-            if (!shown.length) return { ...d, label: { ...d.label, show: false } };
-            const top = (tile.height - shown.length * line) / 2;
-            const words = styled("plate", shown.join("\n"));
-            return { ...d, label: { ...d.label, padding: [top, pad, 0, pad], formatter: () => words } };
-        })
+        ink: v("--pk-chart-tile-text") || DEFAULT_THEME.tileText,
+        floor: numberOr(v("--pk-chart-tile-contrast"), DEFAULT_THEME.tileContrast),
+        fontSize: pxOf(v("--pk-chart-tile-size")) ?? fontSize,
+        padding: pxOf(v("--pk-chart-tile-padding")) ?? DEFAULT_THEME.tilePadding,
+        weights: /** @type {[number, number]} */ ([numberOr(v("--pk-chart-tile-weight"), numberOr(v("--pk-weight-strong"), DEFAULT_THEME.strongWeight)), numberOr(v("--pk-weight-normal"), DEFAULT_THEME.normalWeight)]),
+        tileColor
     };
+}
+
+/**
+ * A treemap's labels and tiles (see above): each tile's name, and its value below it, at its top left
+ * in the tile text's colour, the name in the strong weight; each tile's colour darkened where the text
+ * needs it (tileFill). ECharts gives a tile's label a box of the tile's size. With `tileOf` (the tiles
+ * of a first draw) each label writes what fits its tile: the name cut short with ELLIPSIS (fitText),
+ * the value whole or not at all (a number cut short would mislead). A tile without room for
+ * TILE_MIN_CHARS characters or one line writes no label: the tooltip has it. Without `tileOf`, ECharts
+ * cuts the labels.
+ * @param {any} s  the treemap's series
+ * @param {{ ink: string, floor: number, fontSize: number, padding: number, weights: [number, number], tileColor: (color: string) => string }} look
+ *   ink: the text's colour; floor: the contrast it keeps; weights: the name's and the value's;
+ *   tileColor: a tile's colour as contrastOf reads it (hex or rgb()), or as it is
+ * @param {((index: number, name: string) => { width: number, height: number } | null) | undefined} tileOf
+ * @returns {{ label: any, data: any[] }}
+ */
+function treemapLabels(s, { ink, floor, fontSize, padding, weights, tileColor }, tileOf) {
+    const format = typeof s.label?.formatter === "function" ? s.label.formatter : null;
+    const line = tileLine(fontSize);
+    const rich = {
+        name: { fontSize, lineHeight: line, fontWeight: weights[0], color: ink },
+        value: { fontSize, lineHeight: line, fontWeight: weights[1], color: ink }
+    };
+    const words = (/** @type {string[]} */ lines) => [styled("name", lines[0]), ...lines.slice(1).map((t) => styled("value", t))].join("\n");
+    const label = { ...s.label, position: "insideTopLeft", padding, color: ink, rich, ...(format ? { formatter: (/** @type {any} */ p) => words(String(format(p)).split("\n")) } : {}) };
+    const bold = weights[0] >= 600 ? BOLD_WIDTH : 1;
+    const data = (Array.isArray(s.data) ? s.data : []).map((/** @type {any} */ d, /** @type {number} */ i) => {
+        const own = d.itemStyle?.color;
+        const item = typeof own === "string" ? { ...d, itemStyle: { ...d.itemStyle, color: tileFill(tileColor(own), ink, floor) } } : d;
+        const tile = format && tileOf ? tileOf(i, d.name) : null;
+        if (!tile || !format) return item;
+        const width = tile.width - 2 * padding;
+        const [first, ...rest] = String(format(d)).split("\n");
+        const name = tile.height >= padding + line ? fitText(first, width / bold, fontSize) : null;
+        if (name === null) return { ...item, label: { ...d.label, show: false } };
+        // the value below the name where its line fits whole, and the tile's height holds it
+        const value = rest.filter((t) => textWidth(t, fontSize) <= width).slice(0, Math.max(0, Math.floor((tile.height - padding) / line) - 1));
+        const text = words([name, ...value]);
+        return { ...item, label: { ...d.label, formatter: () => text } };
+    });
+    return { label, data };
 }
 
 /**
@@ -321,22 +343,24 @@ function lineLabels(series, { width, height, grid, fontSize, pixelOf }) {
  *   style, or a map of tokens wrapped (pivotkit-report)
  * @param {{ height?: number, width?: number, categoryNames?: string[], axisLabels?: string,
  *   tooltipFormatter?: (context: { valueFormatter?: (v: unknown) => string, shareFormatter?: (v: number) => string, xNames?: string[], yNames?: string[], categoryNames?: string[] }) => unknown,
- *   readColor?: (color: string) => string | null, zoom?: string, zoomAt?: { start: number, end: number }, timeline?: boolean, touch?: boolean,
+ *   readColor?: (color: string) => string | null, parseColor?: (color: string) => unknown, zoom?: string, zoomAt?: { start: number, end: number }, timeline?: boolean, touch?: boolean,
  *   pixelOf?: (value: number) => number, tileOf?: (index: number, name: string) => { width: number, height: number } | null }} [size]
  *   height and width: the chart's size in px (the room around a pie, a heatmap's column names, the
  *   category axis); categoryNames: the categories' whole names (the tooltip's title when the axis
  *   writes them shorter); axisLabels: the view's chart.axisLabels; tooltipFormatter: builds the
  *   tooltip's formatter (pivotkit-react's DOM tooltip), left out for a chart without one (an SVG);
- *   readColor: a heatmap colour as one ECharts can mix, or null (see heatmapColors); zoom: the view's
+ *   readColor: a heatmap colour as one ECharts can mix, or null (see heatmapColors); parseColor:
+ *   ECharts' colour parser (color.parse), so a treemap's tile in any colour ECharts reads (a name,
+ *   hsl()) is measured against its text (tileLookOf); zoom: the view's
  *   chart.zoom, for a chart on a screen (chart-zoom.js); without it every category is drawn; zoomAt:
  *   the slider's window from before; timeline: the categories run along a time line (the first window
  *   shows the latest); touch: a finger points (the slider takes --pk-target-touch); pixelOf: a value's
  *   height in the drawn chart (ECharts' convertToPixel after a first draw), so the labels of the
  *   reference lines sit at their lines (lineLabels); tileOf: a treemap's tile in the drawn chart by
- *   its item (drawnTiles), so each label stands in its tile's middle (treemapLabels)
+ *   its item (drawnTiles), so each label writes what fits its tile (treemapLabels)
  * @returns {any}  the option; `axisEvery` (not ECharts') is n when the category axis writes every n-th label
  */
-export function decorateOption(option, style, { height = 480, width = 800, categoryNames, axisLabels, tooltipFormatter, readColor, zoom, zoomAt, timeline = false, touch = false, pixelOf, tileOf } = {}) {
+export function decorateOption(option, style, { height = 480, width = 800, categoryNames, axisLabels, tooltipFormatter, readColor, parseColor, zoom, zoomAt, timeline = false, touch = false, pixelOf, tileOf } = {}) {
     const extra = { categoryNames, axisLabels };
     const first = (a) => (Array.isArray(a) ? a[0] : a);
     const v = (name) => style.getPropertyValue(name).trim();
@@ -415,12 +439,9 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
             return { ...s, top, bottom, ...fit, labelLine: fit.labelLine ?? line, itemStyle: { ...s.itemStyle, borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
         }
         if (s.type === "treemap") {
-            // each label on a plate (treemapLabels); the tiles parted by the background's colour
-            return {
-                ...s,
-                itemStyle: { ...s.itemStyle, borderColor: surface, borderRadius: cell },
-                ...treemapLabels(s, { text: v("--pk-text"), surface, radius: cell, fontSize, readColor, tileOf })
-            };
+            // the labels in the tile text's colour, a tile darkened where it needs (treemapLabels); the
+            // tiles parted by the background's colour
+            return { ...s, itemStyle: { ...s.itemStyle, borderColor: surface, borderRadius: cell }, ...treemapLabels(s, tileLookOf(v, { fontSize, readColor, parseColor }), tileOf) };
         }
         if (s.type === "heatmap") {
             // numbers only in cells large enough for them (heatmapCellLabels); the tooltip has every one
