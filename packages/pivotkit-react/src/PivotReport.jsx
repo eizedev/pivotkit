@@ -115,12 +115,14 @@ export function PivotReport(outer) {
         };
     }, [deferred]);
     const texts = useLabelsOf(props.locale);
+    // a server's refusal before any rows: the message, and the report has not started (Try again
+    // goes back to the skeleton, and the start view meets the rows when they come)
+    if (live.active && live.failure && live.data === undefined && texts.shown) {
+        return <FailedReport {...props} locale={texts.locale} live={live} />;
+    }
     const waiting = Boolean(loading) || deferred || !texts.shown;
     if (!waiting && !started) {
         setStarted(true);
-    }
-    if (live.active && live.failure && live.data === undefined && texts.shown) {
-        return <FailedReport {...props} locale={texts.locale} live={live} />;
     }
     if (waiting && !started) {
         return <WaitingReport {...props} locale={texts.locale} silent={!texts.shown} slow={live.slow ? live.mod : null} />;

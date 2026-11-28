@@ -53,7 +53,6 @@ export const SLOW_MS = 3000;
  * @property {number | null} loadedAt
  * @property {import("./server-rows.js").ServerFailure | null} failure  of the read `done`
  * @property {string | null} done  the read that answered last (`readId`)
- * @property {typeof import("./server-module.js") | null} mod
  */
 
 /** The page's address does not change under the report: a store nobody needs to subscribe to. */
@@ -93,7 +92,9 @@ export function useServerRows(props) {
         warnOnce("pivotkit: the report has a server and data; it shows the server's rows");
     }
     const key = request?.key ?? null;
-    const [state, setState] = useState(() => /** @type {Rows} */ ({ data: undefined, dataKey: undefined, loadedAt: null, failure: null, done: null, mod: null }));
+    const [state, setState] = useState(() => /** @type {Rows} */ ({ data: undefined, dataKey: undefined, loadedAt: null, failure: null, done: null }));
+    // the network code with the states' parts, once loaded: the slow line needs it before an answer
+    const [mod, setMod] = useState(/** @type {typeof import("./server-module.js") | null} */ (null));
     const latest = useLatest({ getToken: server?.getToken, onState: props.onServerState, request, shown: state.data !== undefined });
     const held = useRef(/** @type {import("./server-rows.js").HeldToken | null} */ (null));
     const [tries, setTries] = useState(0);
@@ -115,20 +116,21 @@ export function useServerRows(props) {
         tell({ state: "loading" });
         const slow = setTimeout(() => setSlowFor(readId), SLOW_MS);
         (async () => {
-            const mod = await loadServer();
+            const loaded = await loadServer();
+            setMod(loaded);
             const getToken = () => /** @type {import("./server.js").ServerConnection["getToken"]} */ (latest.current.getToken);
-            const got = await mod.fetchRows(asked, { getToken, held, signal: controller.signal });
+            const got = await loaded.fetchRows(asked, { getToken, held, signal: controller.signal });
             if (controller.signal.aborted) {
                 return;
             }
             if (got.ok) {
                 const { rows } = got;
-                setState({ data: rows.data, dataKey: readId, loadedAt: Date.now(), failure: null, done: readId, mod });
+                setState({ data: rows.data, dataKey: readId, loadedAt: Date.now(), failure: null, done: readId });
                 tell({ state: "ready", rows: rows.rowCount, ...(rows.dataAsOf ? { dataAsOf: rows.dataAsOf } : {}), ...(rows.requestId ? { requestId: rows.requestId } : {}) }, true);
                 return;
             }
             const f = got.failure;
-            setState((s) => ({ ...s, failure: f, done: readId, mod }));
+            setState((s) => ({ ...s, failure: f, done: readId }));
             tell({ state: f.state, ...(f.code ? { code: f.code } : {}), ...(f.status ? { status: f.status } : {}), ...(f.requestId ? { requestId: f.requestId } : {}) });
         })()
             .catch((error) => {
@@ -154,7 +156,7 @@ export function useServerRows(props) {
         // a mistake of the page: the report says it cannot reach its server (the console says why)
         let live = true;
         loadServer().then(
-            (mod) => live && setState((s) => ({ ...s, mod })),
+            (loaded) => live && setMod(loaded),
             () => {}
         );
         return () => {
@@ -173,7 +175,7 @@ export function useServerRows(props) {
         slow: loading && slowFor === readId,
         failure: problem ? { state: "unreachable", host: "" } : !loading ? state.failure : null,
         loadedAt: state.loadedAt,
-        mod: state.mod,
+        mod,
         retry,
         kept
     };
