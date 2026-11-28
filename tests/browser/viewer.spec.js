@@ -22,8 +22,15 @@ test.afterAll(removeTempDirs);
 const REFUSED_PAGE = /^Failed to load resource: the server responded with a status of 40[034] \(.+\)$/;
 /** Firefox's own request for /favicon.ico, which the page's policy refuses: the browser's, not the page's. */
 const FAVICON = /^\[JavaScript Error: "Content-Security-Policy: .+\/favicon\.ico .+" \{file: "resource:\/\/\/modules\/FaviconLoader\.sys\.mjs"/;
-/** Both, as one: Playwright reads a list of two objects in test.use as a value and its fixture options. */
-const EXPECTED = new RegExp(`${FAVICON.source}|${REFUSED_PAGE.source}`);
+/**
+ * Firefox's warning when Playwright's driver evaluates its own code in a page whose stylesheet is
+ * still loading: the file is "debugger eval code", not the page's script. The page's files are
+ * checked again on every use (no-cache), so a page of the sign-in can be read before its stylesheet
+ * came; fixtures.js ignores the same warning from the driver's own file.
+ */
+const DRIVER_LAYOUT = /^\[JavaScript Warning: "Layout was forced before the page was fully loaded\. If stylesheets are not yet loaded this may cause a flash of unstyled content\." \{file: "debugger eval code" line: \d+\}\]$/;
+/** All, as one: Playwright reads a list of two objects in test.use as a value and its fixture options. */
+const EXPECTED = new RegExp(`${FAVICON.source}|${REFUSED_PAGE.source}|${DRIVER_LAYOUT.source}`);
 test.use({ ignoreConsole: [EXPECTED] });
 
 const CLIENT_ID = "pivotkit-web";
