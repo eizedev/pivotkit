@@ -251,15 +251,16 @@ The chart reads these tokens in the current theme:
 | The grid | `--pk-grid`, else `--pk-border` |
 
 Black (`#000000`) and white (`#ffffff`) are fixed values, not tokens. The contrast of `--pk-text`
-and of `--pk-muted` on `--pk-surface` is the theme's: the chart does not change them. Without a
+and of `--pk-muted` on `--pk-surface` is the theme's: the chart does not change them. It measures a
+translucent text colour, such as `rgba(0, 0, 0, 0.87)`, as drawn on its background. Without a
 `--pk-surface` the chart can draw, a treemap's text has no plate and takes a heatmap's ink. That
 is a missing `--pk-surface`, or in pivotkit-report on its own a form ECharts does not read, such as
 `oklch()` or `color-mix()`. A missing `--pk-surface` also leaves the points' labels without an outline.
 
 The chart reads these tokens when it draws. It draws again when the theme changes, when a stylesheet
-loads, and when a `<style>` or `<link>` comes into or leaves the page or the report's shadow root. A
-token changed any other way, such as by a class on `<html>` or by `insertRule()`, shows at the
-chart's next draw: a new size, view or theme.
+loads or is removed, and when a `<style>` is added or its text changes, in the page or the report's
+shadow root. A token changed any other way, such as by a class on `<html>` or by `insertRule()`,
+shows at the chart's next draw: a new size, view or theme.
 
 The heatmap's colours work in any form the browser reads, `oklch()` too. The chart mixes the colour
 of each cell from them. It takes them as plain sRGB colours: a colour's alpha is dropped, and a

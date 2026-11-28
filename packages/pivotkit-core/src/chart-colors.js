@@ -131,9 +131,11 @@ export function labelColorOn(fill, candidates) {
         return best.c;
     }
     // the extreme on the best ink's side first (a light ink white), so the ink changes side only where it
-    // must; the ink's side as it shows on the fill (a translucent ink mixed with it)
+    // must; the ink's side as it shows on the fill (a translucent ink mixed with it): light when it has
+    // more contrast with black, (L + 0.05) / 0.05, than with white, 1.05 / (L + 0.05)
     const [black, white] = EXTREME_INKS;
-    const shown = luminance(shownOn(/** @type {[number, number, number, number]} */ (rgbaOf(best.c)), /** @type {[number, number, number, number]} */ (rgbaOf(fill))));
+    const ink = /** @type {[number, number, number, number]} */ (rgbaOf(best.c));
+    const shown = luminance(shownOn(ink, /** @type {[number, number, number, number]} */ (rgbaOf(fill))));
     const light = (shown + 0.05) / 0.05 > 1.05 / (shown + 0.05);
     const [near, far] = light ? [white, black] : [black, white];
     return /** @type {number} */ (contrastOf(near, fill)) >= TEXT_CONTRAST ? near : far;
