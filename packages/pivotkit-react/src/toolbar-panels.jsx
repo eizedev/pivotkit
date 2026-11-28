@@ -18,6 +18,7 @@ import { Icon } from "./icons.jsx";
 import { fill, hostFailure } from "./labels.js";
 import { Option } from "./popover.jsx";
 import { Section, SettingInfo } from "./section.jsx";
+import { paramsText } from "./server.js";
 import { shareActions } from "./share-actions.js";
 import { SHORTCUTS } from "./tip-state.js";
 import { LevelMenu } from "./levels.jsx";
@@ -740,7 +741,8 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
                           }
                       ],
                       // what leaves the report with a view: filter values can be values of the data
-                      note: labels.sharePrivacy,
+                      // with a server, the link keeps parameters in its address: say which, and whose rights apply
+                      note: share.canLink && paramsText(share.keepQuery ?? []) ? `${fill(labels.shareKeeps, { params: paramsText(share.keepQuery ?? []) })} ${labels.sharePrivacy}` : labels.sharePrivacy,
                       noteId: "share-privacy"
                   }
               ]

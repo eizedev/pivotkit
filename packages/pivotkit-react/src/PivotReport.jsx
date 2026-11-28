@@ -17,6 +17,7 @@
  *
  * - use-host-props.js: the host's props compared by value, and the warnings about them
  * - use-report-size.js, use-drawer.js: width and height classes, Enlarge, the field list's drawer
+ * - use-server-rows.js (in PivotReport): the rows of a `server`, which take the place of `data`
  * - use-shown-data.js: the host's data encoded, or a loaded file's; useKeepData, what a new mount keeps
  * - use-import.js: the import UI's state (useImport) and the object it works on (useImportApi)
  * - use-view-history.js, use-report-labels.js, use-pivot-result.js, use-fields.js: the view, its
@@ -64,6 +65,7 @@ import { usePlacing } from "./use-placing.js";
 import { useReportLabels } from "./use-report-labels.js";
 import { useReportSize } from "./use-report-size.js";
 import { useSavedViews } from "./use-saved-views.js";
+import { useServerRows } from "./use-server-rows.js";
 import { useShareLink } from "./use-share-link.js";
 import { useKeepData, useShownData } from "./use-shown-data.js";
 import { useSteps } from "./use-steps.js";
@@ -89,9 +91,12 @@ const rowsOf = (d) => (Array.isArray(d) ? d.length : (d?.data?.[0]?.length ?? 0)
  * too) and a later `loading` covers its result only. A language whose texts load on demand
  * (pivotkit-element: deferred-late.js) is waited for: before it the skeleton shows without a word, and
  * a report that changes its language keeps the last one's texts until the new ones are here.
- * @param {import("./index.js").PivotReportProps} props
+ * @param {import("./index.js").PivotReportProps} outer
  */
-export function PivotReport(props) {
+export function PivotReport(outer) {
+    // a report with a server reads its rows itself (use-server-rows.js): they take the place of `data`
+    const live = useServerRows(outer);
+    const props = live.active ? { ...outer, data: live.data, dataKey: live.dataKey, encoded: undefined, loading: live.loading } : outer;
     const { loading = false, data, encoded } = props;
     // a large data set: the skeleton paints first, the encoding runs after it (a frame later)
     const [deferred, setDeferred] = useState(() => !encoded && rowsOf(data) > DEFER_ROWS);
@@ -114,10 +119,42 @@ export function PivotReport(props) {
     if (!waiting && !started) {
         setStarted(true);
     }
-    if (waiting && !started) {
-        return <WaitingReport {...props} locale={texts.locale} silent={!texts.shown} />;
+    if (live.active && live.failure && live.data === undefined && texts.shown) {
+        return <FailedReport {...props} locale={texts.locale} live={live} />;
     }
-    return <Report {...props} locale={texts.locale} />;
+    if (waiting && !started) {
+        return <WaitingReport {...props} locale={texts.locale} silent={!texts.shown} slow={live.slow ? live.mod : null} />;
+    }
+    return <Report {...props} locale={texts.locale} live={live.active ? live : null} />;
+}
+
+/**
+ * The report's frame with why its server gave no rows, in place of the whole report (#621, variant A).
+ * @param {import("./index.js").PivotReportProps & { live: import("./use-server-rows.js").LiveRows }} props
+ */
+function FailedReport({ locale = "en-US", labels: customLabels, theme = "auto", height = 640, className, label, live }) {
+    const root = useRef(/** @type {HTMLDivElement | null} */ (null));
+    const labelsKey = JSON.stringify(customLabels ?? null);
+    const labels = useMemo(() => resolveLabels(locale, JSON.parse(labelsKey)), [locale, labelsKey]);
+    const themeName = useResolvedTheme(theme, root);
+    const failure = /** @type {NonNullable<typeof live.failure>} */ (live.failure);
+    return (
+        <div ref={root} className={`pk-root${className ? ` ${className}` : ""}`} data-pk-theme={themeName} lang={labels.lang} role="region" aria-label={label || labels.report} style={{ height }}>
+            {live.mod ? (
+                <live.mod.ServerMessage failure={failure} labels={labels} locale={locale} onRetry={live.retry} />
+            ) : (
+                // the server's own code did not load: what a menu says then
+                <div className="pk-server-full" role="alert" data-testid="server-state" data-state={failure.state}>
+                    <div className="pk-empty">
+                        <p className="pk-server-text">{labels.menuFailed}</p>
+                        <button type="button" className="pk-btn" onClick={live.retry}>
+                            <span className="pk-btn-text">{labels.tryAgain}</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 }
 
 /**
@@ -180,9 +217,10 @@ function useTipsTable() {
 /**
  * The report's frame with the skeleton in it, before the report has its data; `silent` while its
  * language's texts load: no word at all, so the report never says anything in English first.
- * @param {import("./index.js").PivotReportProps & { silent?: boolean }} props
+ * @param {import("./index.js").PivotReportProps & { silent?: boolean, slow?: any }} props
+ *   slow: server-module.js, once loading the server's rows takes a while (its words over the skeleton)
  */
-function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto", height = 640, className, label, silent = false }) {
+function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto", height = 640, className, label, silent = false, slow = null }) {
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
     const labelsKey = JSON.stringify(customLabels ?? null);
     const labels = useMemo(() => resolveLabels(locale, JSON.parse(labelsKey)), [locale, labelsKey]);
@@ -190,16 +228,18 @@ function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto",
     return (
         <div ref={root} className={`pk-root${className ? ` ${className}` : ""}`} data-pk-theme={themeName} lang={silent ? undefined : labels.lang} role="region" aria-label={label || (silent ? undefined : labels.report)} style={{ height }}>
             <Skeleton full text={silent ? "" : labels.loadingReport} />
+            {slow && !silent ? <slow.SlowLine labels={labels} /> : null}
         </div>
     );
 }
 
 /**
  * The report itself, once it has its data.
- * @param {import("./index.js").PivotReportProps} props
+ * @param {import("./index.js").PivotReportProps & { live?: import("./use-server-rows.js").LiveRows | null }} props
+ *   live: the server's rows, where the report has a server (a banner when reading them again failed)
  */
 function Report(props) {
-    const { locale = "en-US", theme = "auto", height = 640, className, label, loading = false, allowImport = false, fileName = "pivot", onExport, exportData = false, drillDownExport = false } = props;
+    const { locale = "en-US", theme = "auto", height = 640, className, label, loading = false, allowImport = false, fileName = "pivot", onExport, exportData = false, drillDownExport = false, live = null } = props;
     const host = useHostProps(props);
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
     // the column with the toolbar, the zones and the result
@@ -282,6 +322,7 @@ function Report(props) {
             onDragLeave={onDrag}
             onDrop={onDrag}
         >
+            {live?.failure && live.mod ? <live.mod.ServerBanner failure={live.failure} labels={labels} locale={locale} onRetry={live.retry} shownAt={live.loadedAt} /> : null}
             <LayerContext.Provider value={layerValue}>
               <LimitsContext.Provider value={limits}>
               <FormNameContext.Provider value={formPrefix}>
