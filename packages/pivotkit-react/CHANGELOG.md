@@ -920,6 +920,8 @@ What a host checks; the [upgrade page](https://github.com/eizedev/pivotkit/blob/
   next entry that starts with it, as in the other menus, and Layout is a checkbox item
   (`menuitemcheckbox`), not one of a set of choices.
 
+### Fixed
+
 - A loaded file shown again after a new mount lost its view when the host mounted the report twice in
   a row (PowerShell Universal's `Sync-UDElement`, two mounts within about 30 ms) or mounted it again
   before it passed back a view it was told: the report now starts on the kept view history at once,
