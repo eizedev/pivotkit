@@ -8,7 +8,7 @@
  *   2026-07-28): Protected Resource Metadata (RFC 9728) with the first issuer as authorization server, the
  *   SDK's requireBearerAuth for the 401 and 403 challenges (insufficient_scope for missing scopes),
  *   403 access_denied for a person whose token does not carry their groups (auth.groupProfiles),
- *   503 until the issuer's metadata is loaded. Its audience is auth.resource (the REST service has
+ *   503 until the token's own issuer is loaded. Its audience is auth.resource (the REST service has
  *   its own).
  *
  * The token itself is never logged, never passed on, never part of a message.

@@ -8,14 +8,15 @@
  *   request (rotation without a restart); compared as SHA-256 digests in constant time. A bearer no
  *   static token matches may be a signed token the server issued (signed-tokens.js, by its ID in the
  *   log).
- * - "oauth": an OAuth 2.1 protected resource: one or more issuers (auth.issuer or auth.issuers), each
- *   with its metadata (RFC 8414 or OpenID Connect discovery); access tokens as JWTs checked against
- *   the JWKS of the issuer they name with jose (signature, issuer, audience, expiry, algorithms; no
- *   "none", no HMAC). Each endpoint checks its own audience, unless the issuer has one of its own.
- *   The metadata is fetched in the background with retries, each issuer's on its own: `ready()` is
- *   true once one issuer's is there, and a token of an issuer not loaded yet gets 503 while the
- *   loaded issuers' tokens pass (one unreachable provider does not take every sign-in down). Every request to an issuer goes through issuer.js (guardedFetch's rules; a
- *   loopback or private issuer only with auth.intranet).
+ * - "oauth": an OAuth 2.1 protected resource: one or more issuers (auth.issuer or auth.issuers),
+ *   each with its metadata (RFC 8414 or OpenID Connect discovery); access tokens as JWTs checked
+ *   against the JWKS of the issuer they name with jose (signature, issuer, audience, expiry,
+ *   algorithms; no "none", no HMAC). Each endpoint checks its own audience, unless the issuer has
+ *   one of its own. The metadata is fetched in the background with retries, each issuer's on its
+ *   own: `ready()` is true once one issuer's is there, and a token of an issuer not loaded yet gets
+ *   503 while the loaded issuers' tokens pass (one unreachable provider does not take every sign-in
+ *   down). Every request to an issuer goes through issuer.js (guardedFetch's rules; a loopback or
+ *   private issuer only with auth.intranet).
  *
  * The token itself is never logged, never passed on, never part of a message. A caller (callerOf)
  * never holds it: this module keeps an OAuth caller's token in a module-private WeakMap, and the one

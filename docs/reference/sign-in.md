@@ -103,10 +103,11 @@ download sign-in use, because the server names only the first one to clients:
 - Each entry takes `issuer` (required), `jwksUri`, `audience` and `requiredScopes`. Its `audience`
   replaces the endpoint's (`auth.audience`, `rest.audience`) for its tokens on both endpoints, so
   one of its tokens reaches both MCP and REST. Leave it unset where the provider can issue the
-  endpoints' own audiences. Its `requiredScopes` add to the endpoint's; a token without them gets
-  403 `insufficient_scope`.
-- Give each issuer a pivotkit scope in `requiredScopes`. Where its `audience` is another
-  application's client ID, every token issued to that application is otherwise valid here.
+  endpoints' own audiences. Its `requiredScopes` add to the endpoint's `requiredScopes`; a token
+  without them gets 403 `insufficient_scope`.
+- Give each issuer a pivotkit scope, in the endpoint's `requiredScopes` or its own. Leave the
+  endpoint's out when every entry has its own. Where an entry's `audience` is another application's
+  client ID, every token issued to that application is otherwise valid here.
 - The first issuer is the one the server names to clients: the Protected Resource Metadata, the
   OpenAPI document, the [download sign-in](delivery.md#sign-in) and `pivotkit login`. Clients of
   the other issuers get their issuer and token by their own means; `pivotkit login` signs in at the
@@ -121,7 +122,8 @@ download sign-in use, because the server names only the first one to clients:
   yet.
 - Each issuer's metadata and keys load on their own. A token of an issuer that is not loaded yet
   gets 503, and the other issuers' tokens pass. `/readyz` answers 200 once one issuer is loaded and
-  names the others' options in `waiting`, such as `auth.issuers[1].issuer`. The log warns about them, as `check-config` does.
+  names the others' options in `waiting`, such as `auth.issuers[1].issuer`. The log warns about
+  them, as `check-config` does.
 - A [token exchange](sources.md#http-auth) serves the people of one issuer, named in
   `tokenExchange.issuer`. A person of another issuer does not see the source.
 - `check-config` lists each issuer with its own audience and scopes.

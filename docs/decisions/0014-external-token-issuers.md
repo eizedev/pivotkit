@@ -62,5 +62,3 @@ Why there is no deny list and no audience: the tokens are kept short (`maxMinute
 - Operators keep `maxMinutes` low and give each issuer only the scopes and profiles it needs.
 - [0009](0009-server-signed-tokens.md) and [0010](0010-signed-tokens-without-audience.md) cover the
   tokens the server signs itself.
-- [0019](0019-more-than-one-oauth-issuer.md) covers more than one OAuth issuer. An external issuer is
-  not one of them.

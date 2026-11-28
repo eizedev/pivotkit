@@ -1,7 +1,7 @@
 ---
 title: More than one OAuth issuer, each checked on its own
 description: The server accepts the tokens of a list of OAuth issuers. A token is checked with the keys, audience and scopes of the issuer its iss names. The first issuer is the one named to clients, and a token exchange serves the people of one issuer.
-status: proposed
+status: accepted
 date: 2026-11-28
 ---
 
@@ -48,7 +48,8 @@ issuer's tokens with that issuer's keys only.
   own.
 
 This extends [0015](0015-live-rows-for-a-host-page.md): "the configured issuer" there means any of
-the listed issuers.
+the listed issuers. The [external issuers](0014-external-token-issuers.md) of token mode are not
+among them.
 
 ### Not decided
 
@@ -64,5 +65,11 @@ the listed issuers.
 - Bad: an entry's `audience` applies to both MCP and REST. For that issuer the split into an MCP and
   a REST audience is gone: one of its tokens reaches both endpoints. Leave it unset where the
   provider can issue the endpoints' own audiences.
+- Bad: `subjectClaim`, `groupsClaim`, `scopeClaim`, `intranet` and `allowInsecureIssuer` apply to
+  every issuer. Issuers that name a person in different claims, such as Entra ID's `oid` beside
+  Authentik's `sub`, are not supported.
+- Bad: a token that names a configured issuer not loaded yet gets 503, one of an unknown issuer 401.
+  A caller without a valid token can tell that a guessed issuer is configured and down. This is the
+  price of per-issuer readiness, and it is accepted.
 - Bad: a readiness probe that waits for `/readyz` does not see an issuer that is still unreachable;
   the body and a warning name it.

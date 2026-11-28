@@ -132,7 +132,7 @@ test("auth.issuers: while no issuer is loaded, /readyz, REST and MCP answer 503"
     }
 });
 
-test("auth.issuers: a token with a key its issuer does not hold re-reads that issuer only; a key set that moved is followed per issuer", async () => {
+test("auth.issuers: a token with a key its issuer does not hold re-reads that issuer only and starts that issuer's wait, not another's", async () => {
     const server = await serverOf(authOf());
     try {
         // each key set is read on its first token: a's and b's are read before counting

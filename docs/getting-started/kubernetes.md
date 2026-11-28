@@ -442,7 +442,9 @@ With OAuth, the server takes the access tokens of your identity provider instead
 
 The server loads the issuer's metadata and keys over HTTPS. Until then, `/readyz` answers 503. A
 NetworkPolicy cannot name a host, so allow the addresses that `auth.example.com` resolves to from
-inside the cluster, on port 443. Add the rule to the policy's `egress`:
+inside the cluster, on port 443. With [several issuers](../reference/sign-in.md#issuers), allow
+each one: `/readyz` waits for one only, so a missing rule leaves that issuer's tokens at 503
+unnoticed. Add the rule to the policy's `egress`:
 
 ```yaml
     - to:
