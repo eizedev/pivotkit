@@ -9,7 +9,7 @@ date: 2026-11-28
 
 Sources: [#621](https://github.com/eizedev/pivotkit/issues/621),
 [the decision on #621](https://github.com/eizedev/pivotkit/issues/621#issuecomment-7231514614),
-the maintainer's decision on the viewer page's sign-in (2026-11-28)
+the decision on the viewer page's sign-in in [#997](https://github.com/eizedev/pivotkit/pull/997) (2026-11-28)
 
 ## Context and Problem Statement
 

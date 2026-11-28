@@ -340,8 +340,9 @@ as [Open a shared live report](../use/open-a-shared-report.md).
    `https://reports.example.com/live/_/callback` to that client: `http.publicUrl` +
    `/live/_/callback`.
 5. The sign-in must give an access token the REST service accepts: list the service's scopes in
-   `output.downloads.signIn.scopes` beside `openid`, such as `["openid", "pivotkit"]`, and make the
-   provider issue the token for the REST service's audience. The page reads the person's rights
+   `output.downloads.signIn.scopes` beside `openid`, such as `["openid", "pivotkit"]`. Its `aud`
+   must be in `rest.audience`: a provider that puts the client ID there, as Authentik does, needs
+   that client ID in the list ([audience](sign-in.md)). The page reads the person's rights
    from it as from a bearer: `rest.requiredScopes`, the groups, the profile.
 
 ```json

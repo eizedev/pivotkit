@@ -92,7 +92,7 @@ async function viewerItems(options) {
     const items = [
         plain(`viewer page: ${base}${VIEWER_PATH}/<source> (rest.browser.viewer); a source's link opens it when it is that address`),
         plain(`register ${base}${VIEWER_CALLBACK_PATH} at the provider for the client ${signIn.clientId}`, 2),
-        plain(`the sign-in asks for ${signIn.scopes.join(" ")} (output.downloads.signIn.scopes): its access token must be one the REST service accepts, with its audience and required scopes`, 2)
+        plain(`the sign-in asks for ${signIn.scopes.join(" ")} (output.downloads.signIn.scopes): its access token must be one the REST service accepts: its aud in rest.audience, with rest.requiredScopes`, 2)
     ];
     if (!(await viewerAssets()).ready) {
         items.push(warning("the viewer page needs pivotkit-element installed next to pivotkit-server (npm install pivotkit-element): until then it answers 503"));

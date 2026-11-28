@@ -28,7 +28,9 @@ test.use({ ignoreConsole: [EXPECTED] });
 
 const CLIENT_ID = "pivotkit-web";
 const AUDIENCE = "pivotkit-viewer-test";
-const SALES = "Region,Customer,Sales\nNorth,acme,10\nSouth,acme,20\nWest,beta,7\n";
+/** A field whose name tries to become markup: the report shows it as text. */
+const HOSTILE_FIELD = "Note <img src=x onerror=window.pwned=1>";
+const SALES = `Region,Customer,Sales,${HOSTILE_FIELD}\nNorth,acme,10,a\nSouth,acme,20,b\nWest,beta,7,c\n`;
 const VIEW = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
 /** The view as a link carries it, in the fragment. */
 const FRAGMENT = `#pivot=${encodeViewLink(VIEW)}`;
@@ -132,6 +134,10 @@ test("a live link: the page signs in at the provider, shows the report with the 
         // the link's address and view, never the callback's code or a token
         expect(page.url()).toBe(`${viewer.server.url}/live/sales${fragment}`);
         await expect(page.locator("#pk-live")).toHaveCount(0);
+        // a stored label stays text
+        await expect(page.locator("pivot-report").getByText(HOSTILE_FIELD, { exact: true }).first()).toBeVisible();
+        expect(await page.evaluate(() => /** @type {any} */ (window).pwned)).toBeUndefined();
+        expect(await page.locator("pivot-report img[src='x']").count()).toBe(0);
         expect(await violations(page)).toEqual([]);
         // the policy is in force: an inline style is refused (in a page of its own, whose console says so)
         const other = await browser.newContext();

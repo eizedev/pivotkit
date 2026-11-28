@@ -262,6 +262,15 @@ test("viewer: stored titles and branding are escaped in every page; the sign-in 
             assert.doesNotMatch(page, /<style|style=/, "no inline style");
             assert.equal(page.match(/<\/script>/g)?.length, 2, "no text closes the data block");
         }
+        // the link's query is the person's text in the data block: it cannot end the block or start markup
+        const hostileTo = "/live/sales?x=</script><script>alert(9)</script>&y=<!--&z=%E2%80%A8";
+        // as a hand-made request sends it: a browser would encode the "<"
+        const raw = await fetch(`${server.url}/live/_/sign-in?to=${encodeURIComponent(hostileTo)}`, { redirect: "manual" });
+        const grant = signInAt(/** @type {string} */ (raw.headers.get("location")), "alice");
+        const blockHtml = await (await viewer.callback(grant.code, grant.state, cookieOf(raw))).text();
+        assert.equal(dataOf(blockHtml).to, hostileTo);
+        assert.equal(blockHtml.match(/<\/script>/g)?.length, 2);
+        assert.doesNotMatch(blockHtml, /<!--|alert\(9\)<\/script>/);
         assert.match(html, /<h1 class="title">Sales &#60;\/script&#62;&#60;script&#62;alert\(1\)&#60;\/script&#62; &#34;&#62;&#60;img/);
         // the sign-in returns to a page of this route only: never another address
         for (const to of ["https://evil.example/live/sales", "//evil.example/live/sales", "/live/../api/v1/sources", "/live/_/callback", "/downloads/x", "/live/sales#x", `/live/sales?${"a".repeat(2100)}`]) {
@@ -361,5 +370,5 @@ test("check-config: the viewer page's address, what to register at the provider,
         baseDir: workspace({ "sales.csv": CSV })
     };
     const text = factsOf((await checkConfig(options, { http: true, rest: true, env: { BROWSER_KEY }, name: "pivotkit-server" })).text);
-    assert.match(text, /^ {2}viewer page: https:\/\/reports\.example\.com\/live\/<source> \(rest\.browser\.viewer\); a source's link opens it when it is that address\n {4}register https:\/\/reports\.example\.com\/live\/_\/callback at the provider for the client pivotkit-web\n {4}the sign-in asks for openid pivotkit \(output\.downloads\.signIn\.scopes\): its access token must be one the REST service accepts, with its audience and required scopes$/m);
+    assert.match(text, /^ {2}viewer page: https:\/\/reports\.example\.com\/live\/<source> \(rest\.browser\.viewer\); a source's link opens it when it is that address\n {4}register https:\/\/reports\.example\.com\/live\/_\/callback at the provider for the client pivotkit-web\n {4}the sign-in asks for openid pivotkit \(output\.downloads\.signIn\.scopes\): its access token must be one the REST service accepts: its aud in rest\.audience, with rest\.requiredScopes$/m);
 });
