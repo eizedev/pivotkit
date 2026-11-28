@@ -14,16 +14,19 @@
  * @param {Iterable<string>} names
  */
 function tokenSignature(root, names) {
-    const style = getComputedStyle(root);
+    const style = (root.ownerDocument.defaultView ?? window).getComputedStyle(root);
     return [...names, "font-size"].map((name) => `${name}:${style.getPropertyValue(name).trim()}`).join(";");
 }
 
 /** A node that brings a stylesheet: a <style>, or a <link> whose rel names "stylesheet" (in any case, among other words). */
 const isSheet = (/** @type {Node | null} */ node) => node?.nodeName === "STYLE" || (node?.nodeName === "LINK" && /(^|\s)stylesheet(\s|$)/i.test(/** @type {HTMLLinkElement} */ (node).rel));
 
-/** Whether a change removed a stylesheet: that fires no `load`. */
+/** Whether a change removed a stylesheet, or an element holding one: that fires no `load`. */
 function sheetRemoved(/** @type {MutationRecord} */ record) {
-    for (let i = 0; i < record.removedNodes.length; i++) if (isSheet(record.removedNodes[i])) return true;
+    for (let i = 0; i < record.removedNodes.length; i++) {
+        const node = record.removedNodes[i];
+        if (isSheet(node) || (node.nodeType === 1 && /** @type {Element} */ (node).querySelector("style, link"))) return true;
+    }
     return false;
 }
 

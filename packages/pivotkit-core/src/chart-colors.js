@@ -81,6 +81,9 @@ function rgbaOf(color) {
  */
 const shownOn = ([r, g, b, a], under) => /** @type {[number, number, number]} */ ([r, g, b].map((v, i) => v * a + under[i] * (1 - a)));
 
+/** Whether text of luminance `l` has more contrast with black, (l + 0.05) / 0.05, than with white, 1.05 / (l + 0.05). */
+const lightSide = (/** @type {number} */ l) => (l + 0.05) / 0.05 > 1.05 / (l + 0.05);
+
 /** WCAG 2's relative luminance of a colour's red, green and blue. */
 function luminance(/** @type {[number, number, number]} */ rgb) {
     const [r, g, b] = rgb.map((v) => {
@@ -131,12 +134,10 @@ export function labelColorOn(fill, candidates) {
         return best.c;
     }
     // the extreme on the best ink's side first (a light ink white), so the ink changes side only where it
-    // must; the ink's side as it shows on the fill (a translucent ink mixed with it): light when it has
-    // more contrast with black, (L + 0.05) / 0.05, than with white, 1.05 / (L + 0.05)
+    // must; the ink's side as it shows on the fill (a translucent ink mixed with it)
     const [black, white] = EXTREME_INKS;
     const ink = /** @type {[number, number, number, number]} */ (rgbaOf(best.c));
-    const shown = luminance(shownOn(ink, /** @type {[number, number, number, number]} */ (rgbaOf(fill))));
-    const light = (shown + 0.05) / 0.05 > 1.05 / (shown + 0.05);
+    const light = lightSide(luminance(shownOn(ink, /** @type {[number, number, number, number]} */ (rgbaOf(fill)))));
     const [near, far] = light ? [white, black] : [black, white];
     return /** @type {number} */ (contrastOf(near, fill)) >= TEXT_CONTRAST ? near : far;
 }

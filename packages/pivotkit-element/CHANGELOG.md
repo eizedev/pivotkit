@@ -6,6 +6,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Fixed
+
+- The chart draws again when its `--pk-*` tokens change without a theme switch, and measures a
+  translucent text colour as drawn. See pivotkit-react's and pivotkit-core's changelogs
+  ([#1000](https://github.com/eizedev/pivotkit/issues/1000)).
+
 ## [0.11.0] - 2026-11-26
 
 ### Added

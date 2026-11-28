@@ -259,11 +259,12 @@ is a missing `--pk-surface`, or in pivotkit-report on its own a form ECharts doe
 
 The chart reads these tokens when it draws. It draws again when the theme changes, when a stylesheet
 loads or is removed, and when a `<style>` is added or its text changes, in the page or the report's
-shadow root. A token changed any other way, such as by a class on `<html>` or by `insertRule()`,
-shows at the chart's next draw: a new size, view or theme.
+shadow root. A token changed any other way shows at the chart's next draw: a new size, view or
+theme. Such ways are a class on `<html>`, `insertRule()`, `adoptedStyleSheets`, a sheet's `media` or
+`disabled`, and a new root font size under a `rem` token.
 
 The heatmap's colours work in any form the browser reads, `oklch()` too. The chart mixes the colour
-of each cell from them. It takes them as plain sRGB colours: a colour's alpha is dropped, and a
+of each cell from them. It takes them as plain sRGB colours: a scale colour's alpha is dropped, and a
 colour outside sRGB, such as a P3 one, is clipped to its nearest sRGB colour. The HTML report and the SVG of the Export menu get them as the screen draws
 them. pivotkit-report on its own needs a form ECharts reads, see
 [print template](print-template.md#template-design).

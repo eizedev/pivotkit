@@ -64,14 +64,33 @@ test("a <style> added after the first draw: the chart draws again in its tokens"
 
 test("a <style> written into after the first draw, as a CSS-in-JS library appends its rules: the chart draws again", async ({ page }) => {
     const chartEl = await firstDraw(page);
-    await page.evaluate((css) => {
+    // a library's sheet, empty at first; the chart checks it and keeps its colours
+    await page.evaluate(() => {
         const style = document.createElement("style");
-        style.textContent = "/* a library's sheet */";
+        style.id = "library-sheet";
+        style.textContent = "/* empty */";
         document.head.append(style);
-        // after the chart checked the empty sheet: the rules come as text into it
-        requestAnimationFrame(() => style.append(document.createTextNode(css)));
-    }, LATE);
+    });
+    await expect.poll(() => page.evaluate(() => document.getElementById("library-sheet").sheet !== null)).toBe(true);
+    expect((await drawnColours(chartEl)).palette[0]).not.toBe("#8a2be2");
+    // then the rules come as text into it
+    await page.evaluate((css) => document.getElementById("library-sheet").append(document.createTextNode(css)), LATE);
     await expectRedrawn(page, chartEl);
+});
+
+test("an element holding a stylesheet removed after the first draw: the chart draws again without its tokens", async ({ page }) => {
+    await page.goto("pages/host.html");
+    await page.evaluate((css) => {
+        const wrap = document.createElement("div");
+        wrap.id = "theme-wrap";
+        wrap.innerHTML = `<style>${css}</style>`;
+        document.body.append(wrap);
+    }, LATE);
+    await mountReport(page, { id: "late-report", rows: ROWS, view: { ...VIEW, chart: { type: "bar" } }, theme: "light", height: 480 });
+    const chartEl = await chartOf(page, "late-report", "bar");
+    expect((await drawnColours(chartEl)).palette[0]).toBe("#8a2be2");
+    await page.evaluate(() => document.getElementById("theme-wrap").remove());
+    await expect.poll(async () => (await drawnColours(chartEl)).palette[0]).not.toBe("#8a2be2");
 });
 
 test("inside a shadow root: a <style> added there, then its text changed, draws the chart again each time", async ({ page }) => {
