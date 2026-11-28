@@ -16,7 +16,7 @@ import React, { useCallback, useContext, useEffect, useId, useMemo, useRef, useS
 import { fieldLabel } from "pivotkit-core";
 import { LimitsContext, itemsOf } from "./limits-context.js";
 import { MenuPanel } from "./lazy-menus.jsx";
-import { columnText, itemRuleText, layoutSummary, sortText, valueConditionText, valueLabels } from "./names.js";
+import { columnText, itemRuleText, layoutSummary, sortGlyph, sortText, valueConditionText, valueLabels } from "./names.js";
 import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
@@ -131,9 +131,10 @@ function Badges({ state, view, labels, locale }) {
             </span>
         );
     }
+    // the glyph of the table's sorted header: one glyph for one order, a custom order's too; its
+    // name says the order in words ("sorted Custom order")
     if (state.sort) {
-        const desc = state.sort.order === "desc";
-        parts.push(<Icon key="sort" name={desc ? "sortDesc" : "sortAsc"} size={12} className="pk-chip-badge" />);
+        parts.push(<Icon key="sort" name={sortGlyph(state.sort)} size={12} className="pk-chip-badge pk-sort-glyph" />);
     }
     return parts.length ? <>{parts}</> : null;
 }
@@ -149,12 +150,12 @@ function Chip({ id, zone, index, count, field, text, title, typeName, view, type
     const name = words ? `${full}, ${words}` : title;
     const remove = () => onRemove(zone, index, text);
     return (
-        <li ref={setNodeRef} style={style} className={`pk-chip pk-chip-${zone}${isDragging ? " pk-dragging" : ""}`} {...itemProps} data-chip={text}>
+        <li ref={setNodeRef} style={style} className={`pk-chip pk-chip-${zone}${zone === "filters" ? "" : " pk-zone-fill"}${isDragging ? " pk-dragging" : ""}`} {...itemProps} data-chip={text}>
             <span className="pk-handle" {...handleProps} aria-label={fill(labels.dragHandle, { field: text })}>
                 <Icon name="grip" size={16} />
             </span>
             <span className={`pk-type pk-type-${typeName}`} aria-hidden="true">
-                <Icon name={/** @type {any} */ (TYPE_ICON[typeName] ?? "text")} size={13} />
+                <Icon name={/** @type {any} */ (TYPE_ICON[typeName] ?? "text")} size={16} />
             </span>
             <MenuButton
                 label={fill(labels.fieldMenu, { field: text })}
@@ -257,7 +258,7 @@ export function DragChip({ src, typeOf }) {
         <div className="pk-chip pk-overlay">
             <Icon name="grip" size={14} />
             <span className={`pk-type pk-type-${type}`}>
-                <Icon name={/** @type {any} */ (TYPE_ICON[type] ?? "text")} size={13} />
+                <Icon name={/** @type {any} */ (TYPE_ICON[type] ?? "text")} size={16} />
             </span>
             <span className="pk-chip-text">{src.label ?? src.field}</span>
         </div>

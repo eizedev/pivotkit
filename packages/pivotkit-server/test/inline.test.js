@@ -14,7 +14,8 @@ import { presentedInput } from "pivotkit-server/internal";
 import { openApiDocument } from "pivotkit-server/rest";
 import { BODY_BYTES, MAX_BODY_BYTES } from "../src/listen.js";
 import { MCP_DATA_CAP, REST_DATA_BYTES } from "../src/sources/inline.js";
-import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, workspace, runBin } from "./helpers.js";
+import { BY_REGION, OTHER_TOKEN, TOKEN, call, factsOf, raw, restServer, untilReady, workspace, runBin } from "./helpers.js";
+import { localIssuer } from "./auth/local-issuer.js";
 import { cpuClock } from "../../../tests/cpu-time.js";
 import { until } from "../../../tests/until.js";
 import { connect } from "node:net";
@@ -721,6 +722,32 @@ test("one place for a large body per caller: its second gets 503 BUSY while anot
         await until(async () => (await call(`${server.api}/sources/describe`, { token: TOKEN, body: { source: "inline:", data: big } })).status === 200, { message: "its place is free again once it left" });
     } finally {
         await server.close();
+    }
+});
+
+test("a place for a large body per person: two people of one OAuth client hold one each; a person's second gets 503 BUSY (#435)", async () => {
+    const local = await localIssuer();
+    const token = (sub) => local.token({ claims: { client_id: "host-app" }, aud: "https://pk.example.com/api/v1", sub });
+    const options = restOptions(workspace(), { rest: { data: { maxBytes: 4 * 1_048_576 } }, log: "debug", auth: { mode: "oauth", issuer: local.url, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"], defaultProfile: "etl" }, http: { publicUrl: "https://pk.example.com/" } });
+    const server = await restServer(options);
+    const size = 3 * 1_048_576;
+    const url = new URL(`${server.api}/sources/describe`);
+    try {
+        await untilReady(server, 100);
+        const [ana, ben] = [await token("ana"), await token("ben")];
+        const held = request({ agent: false, host: url.hostname, port: url.port, path: url.pathname, method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ana}`, "content-length": String(size) } });
+        held.on("error", () => undefined);
+        held.write("{");
+        await untilPlacesHeld(server, 1);
+        const again = await raw(`${server.api}/sources/describe`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ana}`, "content-length": String(size), connection: "close" } });
+        assert.equal(again.status, 503, "one place per person");
+        assert.equal(again.data.code, "BUSY");
+        const other = await call(`${server.api}/sources/describe`, { token: ben, body: { source: "inline:", data: longRows(25_000) } });
+        assert.equal(other.status, 200, `another person of the same client takes the other place: ${JSON.stringify(other.data)}`);
+        held.destroy();
+    } finally {
+        await server.close();
+        await local.close();
     }
 });
 

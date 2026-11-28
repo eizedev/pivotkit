@@ -69,8 +69,8 @@ function openWith(read, asStep, report, setCheck) {
 /**
  * @param {import("./index.js").PivotReportProps} props
  * @param {{ latest: React.MutableRefObject<LinkReport>, kept: boolean, history: any, encoded: import("pivotkit-core").Encoded,
- *   limits: object | undefined } & ShareParts} report  latest: the report as it is when a link opens (filled after
- *   every render); kept: the report was mounted again with its file's data (data-keep.js): its own view comes back
+ *   limits: object | undefined } & ShareParts} report  latest: the report as it is when a link opens (filled in a
+ *   layout effect after every render); kept: the report was mounted again with its file's data (data-keep.js): its own view comes back
  */
 export function useShareLink(props, report) {
     const { latest, kept, history, encoded, limits } = report;
@@ -167,6 +167,8 @@ function shareContext(props, { view, viewName, data, encoded, limits, root, anno
     const { shareLink, schemaUrl, storageKey, onExport, sources, onSourceSwitch } = props;
     const base = shareBase(shareLink, here()?.href);
     return {
+        // a report with a server: the query entries a copied link keeps (its parameters and access level)
+        keepQuery: /** @type {any} */ (props).live?.kept ?? [],
         canLink: base !== null,
         prepare: base !== null ? () => void loadLink().catch(() => undefined) : undefined,
         view,

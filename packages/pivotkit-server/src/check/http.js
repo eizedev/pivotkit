@@ -34,6 +34,7 @@ import { addressRefusal } from "../sources/fetch.js";
 import { bytesText } from "../text.js";
 import { paramsList } from "../sources/params.js";
 import { personBound, secretsOf } from "../sources/auth.js";
+import { issuersOf } from "../issuer.js";
 import { secretFileWarning } from "../secrets.js";
 import { heading, plain, problem, secretText, warning } from "./format.js";
 
@@ -77,7 +78,8 @@ function authLines(auth, options) {
     return [
         `token exchange for ${target} at ${auth.tokenUrl ? at(auth.tokenUrl) : "the issuer's token endpoint"} as ${auth.clientId}`,
         `client secret from ${secretText(options, auth.clientSecret)}`,
-        `each token reused up to ${auth.maxAgeSeconds} s; only for a signed-in person`
+        // with more than one issuer, whose people (options/http.js exchangeIssuerOf)
+        `each token reused up to ${auth.maxAgeSeconds} s; only for a signed-in person${issuersOf(options).length > 1 ? ` of ${auth.issuer}` : ""}`
     ];
 }
 

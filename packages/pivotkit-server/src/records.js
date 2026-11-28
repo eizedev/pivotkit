@@ -9,7 +9,8 @@
  *    sign-in get NOT_ALLOWED;
  * 2. the right: the caller's profile names the source in `records`. A source that is not there gets
  *    the same NOT_ALLOWED, so the answer says nothing about which sources exist;
- * 3. a place: at most rest.records.concurrency rows requests at once, one per person, else 503 BUSY;
+ * 3. a place: at most rest.records.concurrency rows requests at once, one per person. A person without
+ *    one waits for it up to rest.records.waitMs, first come first, else 503 BUSY;
  * 4. the source for the caller (its scopes, its parameters) and its data, read in a compute worker,
  *    which posts the head: the columns, their types, the row count and a view's fields;
  * 5. what leaves, decided here, never in the worker: only fields at `show` for the caller. A hidden
@@ -39,8 +40,10 @@ import { PIECE_CHARS } from "./records-writer.js";
 import { requestId } from "./request-id.js";
 import { SAFE_HEADERS, problemOf as plainProblemOf, problemsFor } from "./rest/problem.js";
 import { brandingOfContext } from "./branding.js";
+import { browserBindingOf, sameParams } from "./browser-tokens.js";
 import { asOfMembers } from "./sources/as-of.js";
 import { isPerson } from "./sources/auth.js";
+import { normalizeParams } from "./sources/params.js";
 import { runResolved } from "./sources/index.js";
 import { PARAMS_INPUT } from "./sources/input.js";
 import { checkViewText, findNamedView, isViewName } from "./views.js";
@@ -81,6 +84,9 @@ export const RECORDS_OUTPUT = Object.freeze({
 /** How long a caller refused for want of a place waits before it tries again, in seconds. */
 const BUSY_RETRY = "5";
 
+/** The most rows requests that wait for a place at once (rest.records.waitMs); more get BUSY at once. */
+const RECORDS_WAITING = 32;
+
 /**
  * Whether a caller may read the rows of a source: a person whose profile names it.
  * @param {import("./config.js").ServerOptions} options
@@ -88,6 +94,54 @@ const BUSY_RETRY = "5";
  * @param {string} id
  */
 export const mayReadRecords = (options, caller, id) => isPerson(caller) && recordsOfProfile(options, caller.profile).includes(id);
+
+/**
+ * Why a caller may not read the rows of a source, or null: no person, or a profile that does not
+ * name the source. A source that is not there answers alike, so nobody probes for ids. The exchange
+ * route (browser.js) refuses with the same words.
+ * @param {import("./config.js").ServerOptions} options
+ * @param {import("./registry.js").Caller} caller
+ * @param {string} id
+ * @returns {OperationError | null}
+ */
+export function recordsRefusal(options, caller, id) {
+    if (!isPerson(caller)) {
+        return new OperationError("NOT_ALLOWED", identityBasisOf(caller)?.[0] === "local" ? "this server has no sign-in, and rows go only to a person who signed in (auth.mode oauth, or auth.externalIssuers)" : "rows go only to a person who signed in: an OAuth token with a subject, or a host application's token for its person (auth.externalIssuers); static and signed tokens get none");
+    }
+    if (!Object.hasOwn(options.sources ?? {}, id) || !recordsOfProfile(options, caller.profile).includes(id)) {
+        // the caller's own profile by name: a placeholder in angle brackets would reach a caller as "policy.profiles..records"
+        const where = caller.profile ? `in your profile (policy.profiles.${caller.profile}.records)` : "per profile (policy.profiles), and your sign-in has no profile";
+        return new OperationError("NOT_ALLOWED", `your sign-in may not read the rows of this source; the operator grants it ${where}`);
+    }
+    return null;
+}
+
+/**
+ * A rows request as a browser token lets it through: the token's source only, and its parameters
+ * (the token's where the request names none). A caller without a browser token sends what it likes.
+ * @param {import("./registry.js").Caller} caller
+ * @param {Record<string, any>} input
+ * @param {Record<string, unknown> | undefined} sources  options.sources
+ */
+function boundInput(caller, input, sources) {
+    const bound = browserBindingOf(caller);
+    if (!bound) {
+        return input;
+    }
+    if (input.source !== bound.source) {
+        throw new OperationError("NOT_ALLOWED", "this browser token reads the rows of another source; get a token for this one");
+    }
+    if (input.params === undefined) {
+        return { ...input, params: { ...bound.params } };
+    }
+    // compared as the source's rules take them: "5" and 5 for a number are the same parameter
+    const declared = /** @type {any} */ (sources?.[input.source])?.params;
+    const taken = (params) => normalizeParams(declared, params, caller, input.source);
+    if (!sameParams(taken(input.params), taken(bound.params))) {
+        throw new OperationError("NOT_ALLOWED", "this browser token was made for other params; get a token for these");
+    }
+    return input;
+}
 
 /** A field's name in a message: cleaned and capped, as other messages name fields. */
 const nameText = (name) => findingText(String(name)).slice(0, 80);
@@ -103,7 +157,23 @@ export function createRecords(context) {
     const options = context.options;
     const { problem, problemOf } = problemsFor(brandingOfContext(context).docs);
     const bounds = recordsBoundsOf(options);
-    const places = createPlaces(bounds.concurrency);
+    const places = createPlaces(bounds.concurrency, RECORDS_WAITING);
+
+    /**
+     * A place for a person: at once, or after waiting up to rest.records.waitMs (a debug line says
+     * it waits); null: BUSY. A caller that left while it waited gets its signal's reason thrown: no
+     * refusal of a full route, as for a load it left (sources/run.js).
+     * @param {string} person
+     * @param {AbortSignal} [signal]
+     */
+    async function placeFor(person, signal) {
+        const onWait = () => context.log.debug("rows: a request waits for a place", { held: places.held(), waiting: places.waiting() });
+        const release = await places.wait(person, bounds.waitMs, { signal, onWait });
+        if (!release && signal?.aborted) {
+            throw signal.reason instanceof Error ? signal.reason : new DOMException("the caller went away", "AbortError");
+        }
+        return release;
+    }
 
     /**
      * The answer to a rows request (the body read and parsed; the caller signed in).
@@ -118,17 +188,13 @@ export function createRecords(context) {
         if (input.fields !== undefined && input.view !== undefined) {
             throw new OperationError("INVALID_INPUT", "give fields or a view, not both");
         }
-        if (!isPerson(caller)) {
-            throw new OperationError("NOT_ALLOWED", identityBasisOf(caller)?.[0] === "local" ? "this server has no sign-in, and rows go only to a person who signed in (auth.mode oauth, or auth.externalIssuers)" : "rows go only to a person who signed in: an OAuth token with a subject, or a host application's token for its person (auth.externalIssuers); static and signed tokens get none");
+        const refused = recordsRefusal(options, caller, input.source);
+        if (refused) {
+            throw refused;
         }
-        if (!Object.hasOwn(options.sources ?? {}, input.source) || !recordsOfProfile(options, caller.profile).includes(input.source)) {
-            // a source that is not there answers alike: no probing for ids
-            // the caller's own profile by name: a placeholder in angle brackets would reach a caller as "policy.profiles..records"
-            const where = caller.profile ? `in your profile (policy.profiles.${caller.profile}.records)` : "per profile (policy.profiles), and your sign-in has no profile";
-            throw new OperationError("NOT_ALLOWED", `your sign-in may not read the rows of this source; the operator grants it ${where}`);
-        }
+        input = boundInput(caller, input, options.sources);
         const person = /** @type {string} */ (identityKey(caller));
-        const release = places.take(person);
+        const release = await placeFor(person, how.signal);
         if (!release) {
             context.log.refused({ status: 503, path: REST_BASE, reason: refusalReason("BUSY"), limit: bounds.concurrency, ...callerFields(caller) });
             return problem("BUSY", "", { reason: "records", headers: { "retry-after": BUSY_RETRY }, extra: { requestId: requestId(), retryable: true } });
@@ -158,12 +224,15 @@ export function createRecords(context) {
             const rowsShown = resolved.policy.rows !== false;
             // a parameter is a way out only where the source takes one the caller sends (not bound to a claim)
             const sendsParams = Object.values(options.sources?.[input.source]?.params ?? {}).some((p) => p?.claim === undefined);
+            // the limit goes into the problem too (maxRows, maxCells), so a page can say it in its own words
             if (head.rows > maxRows) {
-                throw new OperationError("LIMIT_EXCEEDED", `this source has too many rows to open here (${rowsShown ? `${count(head.rows)}, ` : ""}the limit is ${count(maxRows)}); ${sendsParams ? "filter it with a parameter or " : ""}ask the operator`);
+                await writer.stop();
+                return problemOf(new OperationError("LIMIT_EXCEEDED", `this source has too many rows to open here (${rowsShown ? `${count(head.rows)}, ` : ""}the limit is ${count(maxRows)}); ${sendsParams ? "filter it with a parameter or " : ""}ask the operator`), { extra: { maxRows } });
             }
             const cells = head.rows * chosen.columns.length;
             if (cells > bounds.maxCells) {
-                throw new OperationError("LIMIT_EXCEEDED", `this answer has too many values to open here (${rowsShown ? `${count(cells)} cells, ` : ""}the limit is ${count(bounds.maxCells)}); ask for fewer fields${sendsParams ? ", filter with a parameter" : ""} or ask the operator`);
+                await writer.stop();
+                return problemOf(new OperationError("LIMIT_EXCEEDED", `this answer has too many values to open here (${rowsShown ? `${count(cells)} cells, ` : ""}the limit is ${count(bounds.maxCells)}); ask for fewer fields${sendsParams ? ", filter with a parameter" : ""} or ask the operator`), { extra: { maxCells: bounds.maxCells } });
             }
             const id = requestId();
             const columns = chosen.columns.map((i) => head.columns[i]);
@@ -171,7 +240,8 @@ export function createRecords(context) {
             const prefix = `${JSON.stringify(members).slice(0, -1)},"data":[`;
             writer.write(chosen.columns, PIECE_CHARS);
             const started = Date.now();
-            const line = { ...callerFields(caller), ...(id ? { requestId: id } : {}), source: input.source, profile: caller.profile, rows: head.rows, columns: columns.length };
+            const token = browserBindingOf(caller)?.id;
+            const line = { ...callerFields(caller), ...(id ? { requestId: id } : {}), ...(token ? { token } : {}), source: input.source, profile: caller.profile, rows: head.rows, columns: columns.length };
             const stream = answerStream(prefix, writer, bounds, (outcome) => {
                 release();
                 // a cut answer went out as 200 already: its line has no status, so it is a warning

@@ -76,18 +76,18 @@ export function tokenFault(value) {
 export const tokenProblem = (value) => tokenFault(value)?.text ?? null;
 
 /** What a key is for: output.downloads.key or audit.key. */
-export const KEY_USES = Object.freeze(["downloads", "audit"]);
+export const KEY_USES = Object.freeze(["downloads", "audit", "browser"]);
 
 /**
  * Why a key cannot be used for `use`, or null.
- * @param {"downloads" | "audit"} use
+ * @param {"downloads" | "audit" | "browser"} use
  * @returns {(value: string) => string | null}
  */
 export const keyProblem = (use) => (value) => {
     if (!value || /[\r\n\0]/.test(value)) {
         return value ? "a line break or NUL inside" : "empty";
     }
-    if (use === "downloads" && Buffer.byteLength(value) < KEY_MIN_BYTES) {
+    if ((use === "downloads" || use === "browser") && Buffer.byteLength(value) < KEY_MIN_BYTES) {
         return `shorter than ${KEY_MIN_BYTES} bytes`;
     }
     return use === "audit" && value.length < AUDIT_KEY_MIN ? `shorter than ${AUDIT_KEY_MIN} characters` : null;

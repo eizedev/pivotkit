@@ -133,3 +133,16 @@ export const LINE_SAMPLES = Object.freeze({ dashed: "– –", dotted: "···",
  * @param {string} words
  */
 export const lineLabelText = (type, words) => `{s|${Object.hasOwn(LINE_SAMPLES, type) ? LINE_SAMPLES[/** @type {keyof typeof LINE_SAMPLES} */ (type)] : ""}} ${String(words).replace(/[{}|]/g, "")}`;
+
+/*
+ * A treemap's labels (treemapLabels in chart-style.js). Exported for the browser tests, which derive
+ * from them the smallest tile that must show a label.
+ */
+/** The fewest characters a tile writes of a name cut short; with fewer it writes no label. Four, so a cut name is not a stub ("Ind…" beside "India"). */
+export const TILE_MIN_CHARS = 4;
+/** The end of a text cut short: one character, so a narrow tile keeps more of the name. */
+export const ELLIPSIS = "\u2026";
+/** How much wider a bold text is than textWidth estimates (its weight 600 or more): a tile's name. */
+export const BOLD_WIDTH = 1.05;
+/** The height of a line of a treemap tile's text at `fontSize`, px. */
+export const tileLine = (/** @type {number} */ fontSize) => Math.round(fontSize * 1.35);

@@ -189,3 +189,36 @@ export function loadCheck(loaded, labels, sources = []) {
     }
     return { lines, switchTo: target ? { id: target.id, name: target.name || target.id } : null };
 }
+
+/** The query parameter of a live link's access level (pivotkit-server's link-access.js). */
+export const ACCESS_PARAM = "pk-access";
+
+/**
+ * The parameters as people read them: "customer: acme, year: 2026".
+ * @param {Array<[string, string]>} entries
+ */
+export const paramsText = (entries) =>
+    entries
+        .filter(([name]) => name !== ACCESS_PARAM)
+        .map(([name, value]) => `${name}: ${value}`)
+        .join(", ");
+
+/**
+ * A URL with these query entries set (each replaces one of its name), the rest of it as it is.
+ * @param {string} url
+ * @param {Array<[string, string]>} entries
+ */
+export function withQuery(url, entries) {
+    if (!entries.length) {
+        return url;
+    }
+    try {
+        const u = new URL(url);
+        for (const [name, value] of entries) {
+            u.searchParams.set(name, value);
+        }
+        return u.toString();
+    } catch {
+        return url;
+    }
+}

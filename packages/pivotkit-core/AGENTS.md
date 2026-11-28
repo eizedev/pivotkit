@@ -77,6 +77,7 @@ Reuse these instead of writing a second version:
 | Every place a view names a field | `mapFieldRefs` in `view-file.js` |
 | A loaded file's source id | `sourceIdOf` in `source-id.js` |
 | Grouping names and report words, en and de | `GROUPING_NAMES`, `REPORT_LABELS` in `labels.js` |
+| describeView's words, en and de | `DESCRIBE_LABELS` in `describe-labels.js` |
 | Chart data and the type "auto" stands for | `toSeries`, `autoChartType` in `chart-series.js` |
 | The ECharts option, loaded with the chart | `toEChartsOption` in `chart.js`, also exported by `chart-style.js` |
 | Chart marks for screen, SVG and print | `decorateOption` in `chart-style.js` |
@@ -143,7 +144,7 @@ A new name is one table entry plus its tests:
 | Date grouping or bin unit | `DERIVED` in `derive.js` | |
 | Filter type | `FILTERS` in `filters.js` | |
 | "Show values as" | `SHOW_AS` in `show-as.js` | |
-| Format | `FORMAT_NAMES` and `formatterFor` in `format.js` | its Excel code in `excelNumberFormat` |
+| Format | `FORMAT_NAMES` and `formatterFor` in `format.js` | its Excel code in `excelNumberFormat` (`excel-format.js`) |
 | View key | a section in `view.js`, in `SECTIONS` and `emptyView()` | a migration if old views change |
 
 - An aggregator that stores a value per row sets `keepsValues`. It counts heavier against `work`.

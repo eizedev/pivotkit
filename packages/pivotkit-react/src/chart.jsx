@@ -4,7 +4,8 @@
  * core builds), so a report that never shows a chart does not load it. Colours come from the --pk-* tokens.
  * At most MAX_CATEGORIES categories are drawn (the series come from PivotReport, which also reads
  * them for the tips). The canvas has a text alternative (chart-summary.js), with the reference lines
- * once the chart has drawn them.
+ * once the chart has drawn them. The instance's events and each draw load with ECharts (chart-draw.js):
+ * the first load holds only this frame and the text alternative.
  */
 
 import React, { useEffect, useId, useRef, useState } from "react";
@@ -13,57 +14,9 @@ import { chartSummary } from "./chart-summary.js";
 import { ITEM_TYPES, MAX_CATEGORIES, chartTypeOf } from "./chart-types.js";
 import { fill } from "./labels.js";
 import { lazy } from "./lazy.js";
-import { chartThemeFrom } from "./theme.js";
 
 /** ECharts with the parts the chart draws with (echarts.js), a file of its own in dist/ (build.js). */
 const echarts = lazy(() => import("./echarts.js"));
-
-/** How long a tap's tooltip waits for the second tap that opens its menu, in ms. */
-const TAP_WAIT = 10_000;
-/**
- * How long a click waits for a second one before its menu opens, in ms (#53): a double click opens the
- * rows at once, and its second click has to reach the chart, not the menu over it. A tap opens the
- * menu at once (touch has its own first tap: the tooltip).
- */
-const DOUBLE_WAIT = 300;
-
-/**
- * The tooltip follows the bar, segment or line point under the pointer (`hover` keeps it), not only
- * the category: ECharts draws the tooltip before it reports the element under the pointer, so the
- * element is kept and the tooltip drawn again at the pointer. hideTip first: at the same category
- * ECharts keeps what it drew and would not call the formatter again. An area's fill and a line
- * between its points have no dataIndex: no element. Every move counts, not only mouseover: ECharts
- * reports mouseover only for an element other than the one it last saw under the pointer, and it
- * keeps that one when the pointer leaves in one move (a tap elsewhere) and across a redraw. While
- * `held()` (a point's menu is open) no tooltip is drawn.
- * @param {any} instance  the ECharts instance
- * @param {React.MutableRefObject<{ seriesIndex: number, dataIndex: number } | null>} hover
- * @param {() => boolean} held
- */
-function followPointer(instance, hover, held) {
-    const redraw = (/** @type {any} */ e) => {
-        const at = e?.event;
-        if (at && typeof at.offsetX === "number") {
-            instance.dispatchAction({ type: "hideTip" });
-            if (!held()) instance.dispatchAction({ type: "showTip", x: at.offsetX, y: at.offsetY });
-        }
-    };
-    instance.on("mousemove", (/** @type {any} */ e) => {
-        if (e.componentType === "series" && (e.seriesType === "bar" || e.seriesType === "line") && typeof e.dataIndex === "number") {
-            const last = hover.current;
-            if (last?.seriesIndex !== e.seriesIndex || last?.dataIndex !== e.dataIndex) {
-                hover.current = { seriesIndex: e.seriesIndex, dataIndex: e.dataIndex };
-                redraw(e);
-            }
-        }
-    });
-    instance.on("mouseout", (/** @type {any} */ e) => {
-        if (hover.current) {
-            hover.current = null;
-            redraw(e);
-        }
-    });
-}
 
 /**
  * While a point's menu is open (`menuOpen`) the chart shows no tooltip: it would cover the menu.
@@ -121,18 +74,21 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const summaryId = useId();
     const type = plan ? plan.name : chartTypeOf(result.view.chart);
     const drawAs = plan ? plan.chart : null;
-    // a click's menu, waiting for a second click (DOUBLE_WAIT)
+    // a click's menu, waiting for a second click (chart-draw.js DOUBLE_WAIT)
     const waiting = useRef(/** @type {ReturnType<typeof setTimeout> | undefined} */ (undefined));
     const anchor = useRef(/** @type {HTMLSpanElement | null} */ (null));
     const latest = useRef({ series, onPoint, onInstance, onLines, onLegend, type, menuOpen });
     // the legend and the zoom slider between draws (chart-legend.js); a new window size draws again
     const keeper = useRef(/** @type {any} */ (null));
-    const [zoomed, setZoomed] = useState(0);
+    // the tokens a draw read: changed without a theme switch, they draw again (chart-tokens.js)
+    const tokens = useRef(/** @type {any} */ (null));
+    // counts the draws the instance asks for: a new zoom window, changed tokens
+    const [redraws, setRedraws] = useState(0);
     // the zoom slider's window and place, for its keyboard control (chart-legend.js zoomKeyProps)
     const [zoomKeys, setZoomKeys] = useState(/** @type {any} */ (null));
     // what the text alternative says: the series shown, and whether they are a 100 % stack's shares
     const [shown, setShown] = useState(/** @type {{ series: any, shares: boolean } | null} */ (null));
-    // the ECharts module (echarts.js), with the report's marks (decorate) and the check and merge of the host's chartOptions
+    // the ECharts module (echarts.js), with the instance's events and the draw (chart-draw.js)
     const lib = useRef(/** @type {any} */ (null));
     // the chartOptions whose problems were said: once per value, not on every redraw
     const warned = useRef(/** @type {unknown} */ (undefined));
@@ -149,132 +105,27 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
 
     useEffect(() => {
         let disposed = false;
-        /** @type {ResizeObserver | null} */
-        let ro = null;
-        /** @type {((e: PointerEvent) => void) | null} */
-        let onPress = null;
-        /** @type {Document | null} */
-        let doc = null;
+        /** @type {() => void} */
+        let stop = () => undefined;
         loadECharts().then(
             (echarts) => {
                 if (disposed || !el.current) {
                     return;
                 }
                 lib.current = echarts;
-                const instance = echarts.init(el.current, null, { renderer: "canvas" });
-                chart.current = instance;
-                latest.current.onInstance(instance);
-                /**
-                 * The point an event of ECharts hit: its category and series as the view's paths, its
-                 * value, its names; a slice (a pie's) adds up every column, a tile (a treemap's) is none.
-                 */
-                const pointOf = (/** @type {any} */ p) => {
-                    const s = latest.current.series;
-                    const kind = p.seriesType;
-                    if (!s || kind === "treemap") {
-                        return null;
-                    }
-                    if (kind === "pie") {
-                        const path = s.categoryPaths[p.dataIndex];
-                        return path ? { rowPath: path, colPath: [], valueIndex: s.series[0]?.valueIndex ?? 0, value: p.value, slice: true, rowLabel: s.categories[p.dataIndex] } : null;
-                    }
-                    const seriesEntry = kind === "heatmap" ? s.series.filter((x) => x.valueIndex === s.series[0]?.valueIndex)[p.value?.[0]] : s.series[p.seriesIndex];
-                    const row = kind === "heatmap" ? p.value?.[1] : p.dataIndex;
-                    if (!seriesEntry || !s.categoryPaths[row]) {
-                        return null;
-                    }
-                    // a 100 % stack's part draws its share: the rows go with its value
-                    const value = kind === "heatmap" ? p.value[2] : typeof p.data?.raw === "number" ? p.data.raw : p.value;
-                    return { rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value, rowLabel: s.categories[row], colLabel: seriesEntry.colPath.length ? seriesEntry.name : undefined };
-                };
-                /** The anchor of the point's menu, moved to where the event hit (#53). */
-                const placeAnchor = (/** @type {any} */ p) => {
-                    const at = anchor.current;
-                    if (at && typeof p.event?.offsetX === "number") {
-                        at.style.left = `${p.event.offsetX}px`;
-                        at.style.top = `${p.event.offsetY}px`;
-                    }
-                    return at;
-                };
-                // a double click goes straight to the rows; a slice has none of its own
-                instance.on("dblclick", (p) => {
-                    clearTimeout(waiting.current);
-                    const point = pointOf(p);
-                    if (point && !point.slice) {
-                        instance.dispatchAction({ type: "hideTip" });
-                        latest.current.onPoint({ ...point, direct: true, anchor: placeAnchor(p) });
-                    }
-                });
-                instance.on("click", (p) => {
-                    const point = pointOf(p);
-                    if (!point) {
-                        return;
-                    }
-                    // a touch has no pointer that rests on an element: the first tap on an element shows
-                    // its tooltip, a second tap on it opens its menu
-                    const element = `${p.seriesIndex}:${p.dataIndex}`;
-                    const last = tapped.current;
-                    if (touched.current && (last?.element !== element || Date.now() - last.at > TAP_WAIT)) {
-                        tapped.current = { element, at: Date.now() };
-                        return;
-                    }
-                    tapped.current = null;
-                    // the menu opens at the point: the tooltip would stay over it
-                    const open = () => {
-                        instance.dispatchAction({ type: "hideTip" });
-                        latest.current.onPoint({ ...point, anchor: placeAnchor(p), home: el.current });
-                    };
-                    clearTimeout(waiting.current);
-                    if (touched.current) {
-                        open();
-                    } else {
-                        waiting.current = setTimeout(open, DOUBLE_WAIT);
-                    }
-                });
-                keeper.current = echarts.chartKeeper(instance, { categories: () => latest.current.series?.categories, onLegend: (/** @type {any} */ change) => latest.current.onLegend?.(change), redraw: () => setZoomed((n) => n + 1), onWindow: (/** @type {any} */ control) => setZoomKeys(control ? { ...control, props: echarts.zoomKeyProps } : null) });
-                followPointer(instance, hover, () => latest.current.menuOpen);
-                instance.on("globalout", () => {
-                    hover.current = null;
-                    tapped.current = null;
-                });
-                // a tap beside every element: the next tap on an element shows its tooltip first again
-                instance.getZr().on("click", (/** @type {any} */ e) => {
-                    if (!e.target) {
-                        tapped.current = null;
-                    }
-                });
-                ro =
-                    typeof ResizeObserver === "function"
-                        ? new ResizeObserver(() => {
-                              instance.resize();
-                              setBox(`${instance.getWidth()}x${instance.getHeight()}`);
-                          })
-                        : null;
-                ro?.observe(el.current);
-                // a press: a finger's or not; one outside the chart forgets the tapped element
-                // (composedPath: inside a shadow root the document sees the host as the target)
-                const chartEl = el.current;
-                doc = chartEl.ownerDocument;
-                onPress = (/** @type {PointerEvent} */ e) => {
-                    if (e.composedPath().includes(chartEl)) {
-                        touched.current = e.pointerType === "touch";
-                    } else {
-                        tapped.current = null;
-                    }
-                };
-                doc.addEventListener("pointerdown", onPress, true);
+                // the instance with its events (chart-draw.js, loaded with ECharts)
+                const started = echarts.startChart(el.current, { latest, hover, tapped, touched, waiting, anchor }, { redraw: () => setRedraws((n) => n + 1), onWindow: setZoomKeys, onBox: setBox });
+                chart.current = started.instance;
+                keeper.current = started.keeper;
+                tokens.current = started.tokens;
+                stop = started.stop;
                 setReady(true);
             },
             (err) => setFailed(String(err && err.message ? err.message : err))
         );
         return () => {
             disposed = true;
-            clearTimeout(waiting.current);
-            keeper.current?.dispose();
-            ro?.disconnect();
-            if (onPress) {
-                doc?.removeEventListener("pointerdown", onPress, true);
-            }
+            stop();
             chart.current?.dispose();
             chart.current = null;
             latest.current.onInstance(null);
@@ -287,39 +138,14 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         if (!ready || !chart.current || !root.current) {
             return;
         }
-        // pivotkit-core's option comes with ECharts (echarts.js): only a drawn chart needs it
-        const { toEChartsOption } = lib.current;
-        // the tokens with the lengths the chart reads in px resolved (the title's size, the marks' corners)
-        const style = lib.current.chartStyle(root.current);
-        // the series of the summary and the hints, not computed a second time
-        const colors = lib.current.colorMapFor(colorMap, themeName);
-        const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}), ...(drawAs ? { chart: drawAs } : {}), ...(colors ? { colorMap: colors } : {}) });
-        // a new option draws new marks: the element under the pointer is reported again when it moves
-        hover.current = null;
-        tapped.current = null;
-        // each series' value: a stack's total only where the values add up (chart-tooltip.js valueAddsUp)
-        const values = (series?.series ?? []).map((x) => result.view.values[x.valueIndex]);
-        // the reference lines (chart-tooltip.js chartLines): the tooltip names them, the text
-        // alternative says them, and the Display menu learns which ones the drawn chart can draw
-        const lines = series ? lib.current.chartLines(result, { series, chart: drawAs, labels, locale }) : null;
-        setLinesText(lines?.text ?? "");
-        latest.current.onLines?.(lines?.checks ?? null);
-        const tooltip = { mode: result.view.chart.tooltip, share: result.view.chart.tooltipShare, hover, totalLabel: labels.chartTotal, moreLabel: labels.chartMore, moreInTotalLabel: labels.chartMoreInTotal, values, lines: lines?.lines ?? [] };
-        const doc = root.current.ownerDocument;
-        setShown(series ? lib.current.shownOf(series, option, result.view.chart.hidden, ITEM_TYPES.includes(type)) : null);
-        // the host's chartOptions win over the view's display settings and the report's own styles:
-        // plain JSON only; what is dropped is a developer's mistake, said in the console
-        const clean = chartOptions ? lib.current.cleanChartOptions(chartOptions) : null;
-        if (clean?.problems.length && warned.current !== chartOptions) {
-            warned.current = chartOptions;
-            console.warn(`pivotkit: chartOptions entries left out (only plain JSON, and no markup, addresses or text templates): ${clean.problems.slice(0, 5).join("; ")}${clean.problems.length > 5 ? `; and ${clean.problems.length - 5} more` : ""}`);
-        }
-        // the report's marks, the host's chartOptions over them, the reference lines' labels at their lines
-        const drawn = lib.current.drawOption(chart.current, option, style, doc, { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, ...keeper.current.zoomOf(result, series?.categories ?? [], doc), tooltip, parseColor: lib.current.color.parse }, clean?.options);
-        keeper.current.drawn(drawn.dataZoom);
+        // the option, its reference lines and the report's marks (chart-draw.js, loaded with ECharts)
+        const drawn = lib.current.drawChart(chart.current, root.current, { result, series, labels, locale, themeName, chartOptions, colorMap, drawAs, itemType: ITEM_TYPES.includes(type), maxCategories: MAX_CATEGORIES }, { keeper: keeper.current, tokens: tokens.current, hover, tapped, warned });
+        setLinesText(drawn.lines?.text ?? "");
+        latest.current.onLines?.(drawn.lines?.checks ?? null);
+        setShown(drawn.shown);
         setEvery(drawn.axisEvery);
         // box: the axis labels, a pie and a heatmap are laid out again when the size changes
-    }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, colorMap, drawAs, zoomed, type]);
+    }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, colorMap, drawAs, redraws, type]);
 
     // after the draw: a draw while the menu is open keeps the tooltip away too
     useTooltipHeld(chart, ready, menuOpen);

@@ -6,7 +6,9 @@
  * path; nothing here logs. check-config warns of a secret file other users can read
  * (secretFileWarning). readSecretFile is the one read of a secret's file (static tokens too): a
  * regular file only (a FIFO or a device is never waited for), at most MAX_SECRET_BYTES, and a file
- * in UTF-16 (PowerShell 5.1's ">") named as such.
+ * in UTF-16 (PowerShell 5.1's ">") named as such. A key's file that starts with a UTF-8 byte order
+ * mark is refused (UTF8_BOM_TEXT): the mark would be part of the key, unseen. A token is trimmed,
+ * which removes it.
  */
 
 import { CodedError } from "pivotkit-core/internal";
@@ -27,7 +29,18 @@ export class SecretError extends CodedError {
 export const MAX_SECRET_BYTES = 4096;
 
 /** What a secret file in UTF-16 is told. */
-export const UTF16_TEXT = "looks like UTF-16 (PowerShell 5.1's > writes it); write it with pivotkit-server token new --file <path> --force (a key: key new --for downloads|audit)";
+export const UTF16_TEXT = "looks like UTF-16 (PowerShell 5.1's > writes it); write it with pivotkit-server token new --file <path> --force (a key: key new --for downloads|audit|browser)";
+
+/** What a key's file that starts with a UTF-8 byte order mark is told. */
+const UTF8_BOM_TEXT = "starts with a UTF-8 byte order mark (Windows PowerShell 5.1's -Encoding UTF8 writes one), which would become part of the key; save it as UTF-8 without one, or write it with pivotkit-server key new --for downloads|audit|browser --file <path> --force";
+
+/**
+ * Why a key's text cannot be used as it is read, or null: a UTF-8 byte order mark at its start. A
+ * token is trimmed (secretValue), which removes the mark, so only a key is refused.
+ * @param {string} text  the file's text
+ * @param {string} kind  "token", or another kind of secret
+ */
+export const bomProblem = (text, kind) => (kind !== "token" && text.startsWith("\uFEFF") ? UTF8_BOM_TEXT : null);
 
 /**
  * Whether a file's bytes are UTF-16 rather than UTF-8: a byte order mark FF FE or FE FF, or NUL bytes
@@ -129,6 +142,10 @@ export async function readSecret(ref, options, env = process.env) {
         } catch (e) {
             const code = /** @type {any} */ (e)?.code;
             throw new SecretError(code === "UTF16" ? `${where} ${UTF16_TEXT}` : `${where} cannot be read (${unreadable(code)})`);
+        }
+        const bom = bomProblem(text, "key");
+        if (bom) {
+            throw new SecretError(`${where} ${bom}`);
         }
     }
     const value = secretValue(text, "key");

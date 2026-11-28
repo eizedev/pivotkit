@@ -480,6 +480,13 @@ export function Group({ title, label, menu = false, head, after, children, testI
 }
 
 /**
+ * The role of a menu's item: a plain item, a toggle of its own (`checkbox`) or one of a set of choices.
+ * @param {boolean | undefined} checked  undefined for an item that is not checked or unchecked
+ * @param {boolean} [checkbox]
+ */
+export const menuItemRole = (checked, checkbox) => (checked === undefined ? "menuitem" : checkbox ? "menuitemcheckbox" : "menuitemradio");
+
+/**
  * One option of a menu or of a chip's settings: one line. `hint` is a short second line that belongs
  * to the option (a date unit's example); `reason` says why a disabled option does nothing and shows
  * only while it is disabled (it is state, not an explanation: those go into an "i").
@@ -491,7 +498,7 @@ export function Group({ title, label, menu = false, head, after, children, testI
  */
 export function Option({ onSelect, icon, checked, checkbox = false, children, hint, reason, inMenu = false, disabled, danger, tone, testId, current }) {
     const second = disabled && reason ? reason : hint;
-    const role = inMenu ? (checked === undefined ? "menuitem" : checkbox ? "menuitemcheckbox" : "menuitemradio") : undefined;
+    const role = inMenu ? menuItemRole(checked, checkbox) : undefined;
     // an item of a menu that does nothing now stays in the arrow keys' way (aria-disabled), so its
     // reason is heard (WAI-ARIA Authoring Practices: disabled menu items are focusable)
     const off = inMenu && disabled;

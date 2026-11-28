@@ -8,7 +8,7 @@
  */
 
 import { DEFAULT_THEME } from "pivotkit-core";
-import { decorateOption } from "pivotkit-core/chart";
+import { decorateOption, drawnTiles } from "pivotkit-core/chart";
 import { mergeChartOptions } from "./chart-options.js";
 import { tooltipFormatter, tooltipReferences, valueAddsUp } from "./chart-tooltip.js";
 
@@ -25,13 +25,13 @@ const TOOLTIP_OTHER_LINES = 3;
  * @param {number} [height]  the chart's height in px, for the room around a pie
  * @param {Document} [doc]  the chart's document, for the tooltip's nodes
  * @param {number} [width]  the chart's width in px, for the column names of a heatmap and the category axis
- * @param {{ categoryNames?: string[], axisLabels?: string, zoom?: string, zoomAt?: { start: number, end: number }, timeline?: boolean, touch?: boolean, pixelOf?: (value: number) => number, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, share?: boolean, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined>, lines?: ReturnType<typeof import("pivotkit-core/chart").referenceLines> } }} [extra]
+ * @param {{ categoryNames?: string[], axisLabels?: string, zoom?: string, zoomAt?: { start: number, end: number }, timeline?: boolean, touch?: boolean, pixelOf?: (value: number) => number, tileOf?: (index: number, name: string) => { width: number, height: number } | null, parseColor?: (color: string) => unknown, tooltip?: { mode?: string, share?: boolean, hover?: { current: { seriesIndex: number, dataIndex: number } | null }, totalLabel?: string, moreLabel?: string, moreInTotalLabel?: string, values?: Array<{ agg?: string, showAs?: { type: string, axis?: string } | null } | undefined>, lines?: ReturnType<typeof import("pivotkit-core/chart").referenceLines> } }} [extra]
  *   the categories' whole names (the tooltip's title when the axis writes them shorter), the view's
  *   chart.axisLabels and chart.zoom (the slider, pivotkit-core's chart-zoom.js); tooltip: the view's chart.tooltip and chart.tooltipShare, the chart's hover state (chart.jsx writes the
  *   element under the pointer into `current`, the formatter reads it), the name of a stack's total,
  *   the lines that say how many series were cut, each series' value (whether it adds up) and the
  *   chart's reference lines (pivotkit-core's referenceLines), named at the category;
- *   parseColor: ECharts' colour parser, for a heatmap's colours (screenColor)
+ *   parseColor: ECharts' colour parser, for a heatmap's colours (screenColor) and a treemap's tiles
  * @returns {any}  the option; `axisEvery` (not ECharts') is n when the category axis writes every n-th label
  */
 export function decorate(option, style, height = 480, doc = undefined, width = 800, extra = {}) {
@@ -52,7 +52,7 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
     const references = tooltip.lines?.length ? tooltipReferences(tooltip.lines, (option.series || []).map((/** @type {any} */ s) => String(s.name ?? "")), reference) : [];
     const options = { series, share: Boolean(tooltip.share), seriesTotals, mode: tooltip.mode, totalLabel: tooltip.totalLabel, moreLabel: tooltip.moreLabel, moreInTotalLabel: tooltip.moreInTotalLabel, maxLines, references, hoverOf: () => hover?.current ?? null };
     const readColor = doc && parseColor ? screenColor(doc, parseColor) : undefined;
-    const drawn = decorateOption(option, style, { height, width, ...rest, readColor, tooltipFormatter: doc ? (context) => tooltipFormatter(doc, { ...context, ...options }) : undefined });
+    const drawn = decorateOption(option, style, { height, width, ...rest, readColor, parseColor, tooltipFormatter: doc ? (context) => tooltipFormatter(doc, { ...context, ...options }) : undefined });
     // on the screen the tooltip stays inside the chart
     return doc ? { ...drawn, tooltip: { ...drawn.tooltip, confine: true } } : drawn;
 }
@@ -62,7 +62,8 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
  * them (`hostOptions`, checked, mergeChartOptions), and then the labels of lying reference lines
  * placed at their lines' real heights: after the first draw ECharts knows where each value is
  * (convertToPixel), so the marks are laid out again with it (pivotkit-core's decorateOption,
- * pixelOf) and only the series are set again.
+ * pixelOf) and only the series are set again; a treemap's labels likewise to fit the tiles it drew
+ * (drawnTiles).
  * @param {any} instance  the chart's ECharts instance
  * @param {any} option  pivotkit-core's toEChartsOption
  * @param {{ getPropertyValue(name: string): string }} style
@@ -74,8 +75,8 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
 export function drawOption(instance, option, style, doc, extra, hostOptions) {
     /** @type {any} */
     let own = null;
-    const marked = (/** @type {((v: number) => number) | undefined} */ pixelOf) => {
-        const drawn = decorate(option, style, instance.getHeight(), doc, instance.getWidth(), { ...extra, pixelOf });
+    const marked = (/** @type {((v: number) => number) | undefined} */ pixelOf, /** @type {ReturnType<typeof drawnTiles>} */ tileOf = undefined) => {
+        const drawn = decorate(option, style, instance.getHeight(), doc, instance.getWidth(), { ...extra, pixelOf, tileOf });
         own ??= drawn;
         // the option without the report's own axisEvery, which ECharts does not know
         const rest = { ...drawn };
@@ -88,6 +89,9 @@ export function drawOption(instance, option, style, doc, extra, hostOptions) {
     if (lying && (first.series ?? []).some((/** @type {any} */ s) => s.markLine || s.markPoint)) {
         instance.setOption({ series: marked((value) => instance.convertToPixel({ yAxisIndex: 0 }, value)).series });
     }
+    // a treemap's labels fitted to the tiles it drew
+    const tileOf = drawnTiles(instance);
+    if (tileOf) instance.setOption({ series: marked(undefined, tileOf).series });
     return own;
 }
 
@@ -136,10 +140,10 @@ export function screenColor(doc, parse) {
 
 /**
  * The tokens the chart reads as lengths in px (chartThemeFrom, decorateOption): the title's and the
- * other text's size, the marks' corners, the zoom slider's thickness (a control's, a finger's). A computed custom property keeps the calc(), max() and em it
+ * other text's size, a treemap tile's text size and padding, the marks' corners, the zoom slider's thickness (a control's, a finger's). A computed custom property keeps the calc(), max() and em it
  * was written with, so the report resolves them first.
  */
-export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-chart-text-size", "--pk-radius-chart", "--pk-target", "--pk-target-touch"]);
+export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-chart-text-size", "--pk-chart-tile-size", "--pk-chart-tile-padding", "--pk-radius-chart", "--pk-target", "--pk-target-touch"]);
 
 /**
  * Tokens that are lengths, in px as the report resolves them (em of its font): a probe inside the root
@@ -178,12 +182,21 @@ export function tokenLengths(root, names = LENGTH_TOKENS) {
 
 /**
  * The report's computed style with its length tokens in px: what chartThemeFrom and pivotkit-core's
- * decorateOption read.
+ * decorateOption read. `names` gathers the names read, so a draw knows which tokens it depends on
+ * (chart-tokens.js).
  * @param {HTMLElement} root
- * @returns {{ getPropertyValue(name: string): string }}
+ * @returns {{ getPropertyValue(name: string): string, names: Set<string> }}
  */
 export function chartStyle(root) {
     const style = getComputedStyle(root);
     const lengths = tokenLengths(root);
-    return { getPropertyValue: (name) => lengths[name] ?? style.getPropertyValue(name) };
+    /** @type {Set<string>} */
+    const names = new Set();
+    return {
+        names,
+        getPropertyValue: (name) => {
+            names.add(name);
+            return lengths[name] ?? style.getPropertyValue(name);
+        }
+    };
 }

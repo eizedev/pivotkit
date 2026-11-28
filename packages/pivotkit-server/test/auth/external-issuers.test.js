@@ -310,9 +310,10 @@ test("the identity is ['external', issuer, sub]; token exchange and bound report
         const caller = await of(await mint(privateKey));
         assert.deepEqual(identityBasisOf(caller), ["external", "psu", "alice@example.com"]);
         await assert.rejects(exchangeTokenFor(caller, { url: "https://idp.example/token", clientId: "pivotkit" }), (e) => e.code === "NOT_ALLOWED");
-        // a person of another issuer cannot sign in where the server checks a bound link or store
-        assert.equal(signedInForDelivery(caller), false);
-        assert.equal(linkFor({ bind: "signIn" }, { closed: true, surface: "mcp", results: true, subject: signedInForDelivery(caller) ? caller.subject : null }), null);
+        // a person of another system cannot sign in where the server checks a bound link or store,
+        // even where its name were the server's own issuer
+        assert.equal(signedInForDelivery(caller, { auth: { issuer: "psu" } }), false);
+        assert.equal(linkFor({ bind: "signIn" }, { closed: true, surface: "mcp", results: true, subject: signedInForDelivery(caller, { auth: { issuer: "psu" } }) ? caller.subject : null }), null);
     } finally {
         core.close();
     }

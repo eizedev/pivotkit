@@ -81,7 +81,7 @@ same rules for closed sources.
 | `output.downloads.allowInsecureUrl` | false | Links under an `http://` `http.publicUrl` on a host other than loopback. Without it, the server does not start with such an address while links are on: a link is the credential, and it and its cookie would cross the network in clear text. With it, the start and `check-config` warn. Use it only on a network you trust |
 | `output.downloads.signIn.clientId` | none | The browser client the person signs in with. Not `rest.signIn.clientId`, the [command line's client](sign-in.md#sign-in-cli-operator) |
 | `output.downloads.signIn.clientSecret` | none (a public client with PKCE) | Its secret, a secret reference, sent as HTTP Basic (or in the form where the provider only takes `client_secret_post`) |
-| `output.downloads.signIn.issuer` | `auth.issuer` | May be left out. When given, it must be `auth.issuer` exactly, since a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did. The server does not start otherwise, and `check-config` stops with the same message. One that differs only in spelling (a trailing slash, case in the scheme or host, a default port) says to leave it out. Another issuer is refused with a pointer to [an issuer of its own](#sign-in-issuer) |
+| `output.downloads.signIn.issuer` | `auth.issuer` (with [several issuers](sign-in.md#issuers), the first) | May be left out. When given, it must be that issuer exactly, since a link is bound to the issuer and subject of the caller's token, so the person signs in where the client did. The server does not start otherwise, and `check-config` stops with the same message. One that differs only in spelling (a trailing slash, case in the scheme or host, a default port) says to leave it out. Another issuer is refused with a pointer to [an issuer of its own](#sign-in-issuer) |
 | `output.downloads.signIn.scopes` | `["openid"]` | What the sign-in asks for. Must hold `openid` |
 | `output.downloads.signIn.tokenUrl` | the metadata's `token_endpoint` | The token endpoint the code (and the client secret) goes to, `https://`. Without it, the metadata's endpoint must be on the issuer's own origin. Set it for a provider that keeps it on another host |
 
@@ -91,7 +91,8 @@ same rules for closed sources.
 ### An issuer of its own { #sign-in-issuer }
 
 Some providers give each application an issuer of its own. A download sign-in there would need its
-own issuer, different from `auth.issuer`. pivotkit does not support that yet.
+own issuer, different from `auth.issuer`. pivotkit does not support that yet. With
+[several issuers](sign-in.md#issuers), only the first issuer's people get links bound to a sign-in.
 [#441](https://github.com/eizedev/pivotkit/issues/441) tracks it.
 
 Without `http.publicUrl`:
@@ -144,7 +145,8 @@ Register at the provider:
 
 1. A client for the browser (`signIn.clientId`), public with PKCE or confidential with a secret,
    with the redirect URI `https://reports.example.com/downloads/callback`. That is `http.publicUrl` +
-   `/downloads/callback`, and `check-config` prints it.
+   `/downloads/callback`, and `check-config` prints it. The [viewer page](records.md#records-viewer)
+   of live links signs in with the same client and adds its own redirect URI.
 2. Make the client resolve the same subject as the MCP client: `auth.subjectClaim` (default `sub`) is
    read from both tokens. Providers that give each application its own `sub` need a claim that is the
    same for every application, for example `oid` with Microsoft Entra ID. Check your provider's
@@ -154,7 +156,7 @@ Register at the provider:
 The link holds the person only as a keyed digest of the link's own random part, the issuer and the
 subject. It does not tell who it is for, and two links of one person cannot be tied to each other.
 
-ID tokens must be signed with a key from the issuer's key set: `auth.jwksUri`, else the metadata's
+ID tokens must be signed with a key from the issuer's key set: its `jwksUri`, else the metadata's
 `jwks_uri` on the issuer's origin, as for access tokens (RS256, ES256 and the like). Tokens signed
 with the client secret (HS256) are not accepted. The issuer's metadata, keys and token endpoint are
 requested under the rules of [the server's issuer](mcp.md#oauth), so an issuer on a private address
@@ -195,9 +197,6 @@ the output directory:
   Behind a proxy, set `http.trustProxy`, or every person counts as the proxy's one address.
 - The files go once their link or sign-in expired. They are swept every ten minutes, and on a
   one-time download.
-- Each file is written whole and then hard-linked to its name, so the output directory's file system
-  must support hard links. Local disks and NFS do. Some network or object-store mounts do not, and a
-  one-time download there answers 500.
 
 ## What a result holds { #result }
 

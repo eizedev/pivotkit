@@ -69,6 +69,8 @@ Installation and a first example are in [Getting started with React](../getting-
 | `plugins` | `ReaderPlugin[]` |  | Reader plugins for more formats ([pivotkit-xlsx](plugins.md#pivotkit-xlsx) for Excel); CSV, TSV, text and JSON are built in. [More](#prop-plugins) |
 | `onDataLoad` | `({ cause, source, file, sheet, rows, columns, notes }) => unknown` |  | The data shown changed: a file loaded (returning `false` refuses it), the host's data shown again, one of those undone or redone, or the file shown again after a new mount. [More](#prop-ondataload) |
 | `importWorker` | `() => Worker` |  | Starts a module worker that runs `pivotkit-react/import-worker`, so CSV and JSON files are read off the page. [More](#prop-importworker) |
+| `server` | `{ url, source, getToken, allowParams?, refreshKey? }` |  | The report reads its rows from pivotkit-server with a browser token from `getToken()`, in place of `data`. [More](live-rows.md#server) |
+| `onServerState` | `({ state, source, shown, code?, status?, requestId?, rows?, dataAsOf? }) => void` |  | Each state of a report with `server`: loading, ready, or why no rows came. Never the token. [More](live-rows.md#server) |
 
 Exports: `PivotReport` and these types:
 
@@ -522,7 +524,7 @@ A fixed colour per series or slice name, so a category has the same colour in ev
   browser reads. Any other value is left out.
 - Names match series of bars, lines and areas, and slices of a pie or a donut, without regard to case.
 - A name the chart does not have does nothing. Other series keep the palette's colours.
-- The view's own colours win: Chart settings › Series, the colour beside each series (`chart.colors`).
+- The view's own colours win: Chart settings › Entries, the colour beside each series (`chart.colors`).
 - The chart image, the SVG and the HTML report take the light colours.
 
 The report compares it by value. See [Charts](../concepts/charts.md#fixed-colours).
@@ -767,8 +769,8 @@ The notes, in the order the report shows them, and when:
 | `menus` | tip | The empty report, before the first drag. | |
 | `cells` | tip | A table with values, until a value was opened once. | |
 
-The texts are `labels.tips` and `labels.tipActions` ([Localisation](localisation.md)). The ids in
-`tips`, `dismissedTips` and `onTipDismiss` are those of the tips. Notices cannot be switched off.
+The texts are `labels.tips` and `labels.tipActions` ([Localisation](localisation.md)). The tip ids are
+the export `TIP_IDS`. Notices (`NOTICE_IDS`) always show; `tips` and `dismissedTips` ignore their ids.
 
 The report reads the stored dismissals (`storageKey`) after the first render. This also holds when
 the report is rendered on a server and hydrated. The server and the first client render show the
@@ -808,6 +810,7 @@ loaded view ([parts of a view that were not used](../use/behaviour.md#parts-of-a
 - `dist/menu-texts-de.js` for a German report: the menus' German texts. It loads with the menus, or
   when the locale changes to German.
 - `dist/import-ui.js` with `allowImport`: loading data, on its first use, with `pivotkit-core/import`
+- `dist/chunks/server-module-*.js` with `server`: the network code and the states, on the first read
 
 `dist/index.js` also imports `dist/deferred.js` at once: the German texts of the first render and the
 tips' table. It is a file of its own, so pivotkit-element can load these parts later: its build

@@ -172,8 +172,9 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
     const menus = closure("menus.js");
     const chart = closure("echarts.js");
     // the menus' view changes and the filter's summary, sharing (copy, download, load a view), the
-    // drill-down's table; the chart's marks (with pivotkit-core/chart's label layout) come with ECharts
-    for (const [mod, group, name] of [["src/menu-ops.js", menus, "menus"], ["src/share-actions.js", menus, "menus"], ["src/drill-table.js", menus, "menus"], ["src/chart-decorate.js", chart, "chart"]]) {
+    // drill-down's table; the chart's marks (with pivotkit-core/chart's label layout), its instance
+    // with its events and each draw come with ECharts
+    for (const [mod, group, name] of [["src/menu-ops.js", menus, "menus"], ["src/share-actions.js", menus, "menus"], ["src/drill-table.js", menus, "menus"], ["src/chart-decorate.js", chart, "chart"], ["src/chart-draw.js", chart, "chart"]]) {
         assert.ok(group.has(mod), `${mod} is not in the ${name}`);
         assert.ok(!first.has(mod), `${mod} is in the first load`);
     }
@@ -186,9 +187,16 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
         assert.ok(!text(groups.initial).includes(words), `"${words}" is in the first load`);
     }
     // pivotkit-core/chart (the chart's marks and label layout) and the ECharts option (chart.js, which
-    // pivotkit-core's index.js re-exports too: build.js's chartOffBarrel) load with the chart, never first
+    // pivotkit-core's index.js re-exports too: build.js's barrelOff) load with the chart, never first
     for (const name of ["pivotkit-core/src/chart-style.js", "pivotkit-core/src/chart-layout.js", "pivotkit-core/src/chart.js"]) {
         assert.ok(inputsOf(groups.chart).some((i) => i.includes(name)), `${name} is not in the chart group`);
+        assert.ok(!inputsOf(groups.initial).some((i) => i.includes(name)), `${name} is in the first load`);
+    }
+    // the view's description and its words (describe.js and describe-labels.js, which pivotkit-core's
+    // index.js re-exports too: build.js's barrelOff) load with the HTML report; the Excel number
+    // formats (excel-format.js) with the export
+    for (const [name, group] of [["pivotkit-core/src/describe.js", "report"], ["pivotkit-core/src/describe-labels.js", "report"], ["pivotkit-core/src/excel-format.js", "export"]]) {
+        assert.ok(inputsOf(groups[group]).some((i) => i.includes(name)), `${name} is not in the ${group} group`);
         assert.ok(!inputsOf(groups.initial).some((i) => i.includes(name)), `${name} is in the first load`);
     }
     // the chart data stays first: the chart's text alternative and the tips read it (chart-series.js)
@@ -204,6 +212,19 @@ test("a bundled import of toEChartsOption from pivotkit-core's index.js fails th
     await assert.rejects(bundle('import { toEChartsOption } from "pivotkit-core"; console.log(toEChartsOption);'), /toEChartsOption/);
     const ok = await bundle('import { toEChartsOption } from "pivotkit-core/chart"; console.log(toEChartsOption);');
     assert.equal(ok.errors.length, 0);
+});
+
+test("only pivotkit-report gets describeView from pivotkit-core's index.js: a bundled import elsewhere fails the build", async () => {
+    const bundle = (contents, resolveDir) => esbuild.build({ ...options, entryPoints: undefined, splitting: false, outdir: undefined, stdin: { contents, resolveDir }, write: false, metafile: true, logLevel: "silent" });
+    await assert.rejects(bundle('import { describeView } from "pivotkit-core"; console.log(describeView);', new URL(".", pkgDir).pathname), /describeView/);
+    // a namespace import too: esbuild only warns there, and the name would be undefined at run time
+    await assert.rejects(bundle('import * as core from "pivotkit-core"; console.log(core.describeView);', new URL(".", pkgDir).pathname), /describeView/);
+    await assert.rejects(bundle('import { DESCRIBE_LABELS } from "pivotkit-core"; console.log(DESCRIBE_LABELS);', new URL(".", pkgDir).pathname), /DESCRIBE_LABELS/);
+    // pivotkit-report's own import, with the rest of the index, and one copy of each module
+    const report = await bundle('import { render } from "pivotkit-report"; console.log(render);', new URL(".", pkgDir).pathname);
+    const inputs = Object.keys(report.metafile.inputs);
+    assert.equal(inputs.filter((i) => /pivotkit-core[\\/]src[\\/]describe\.js$/.test(i)).length, 1);
+    assert.equal(inputs.filter((i) => /pivotkit-core[\\/]src[\\/]index\.js$/.test(i)).length, 1);
 });
 
 test("the size check says when its gzip sizes can differ from CI's", () => {
@@ -243,6 +264,20 @@ test("loading data (allow-import) loads on first use: the import UI, its texts a
         assert.ok(!text(groups.initial).includes(words), `"${words}" is in the first load`);
     }
     assert.ok(text(groups.initial).includes("Or load your own data"), "the empty report's line is not in the first load");
+});
+
+test("a report with server-url loads the server's code on first use: the rows' state, the request and the network code are no part of the first load", () => {
+    const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
+    const text = (files) => files.map((f) => built.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "").join("");
+    // use-server-rows.js, server-request.js and server-rows.js, by words only they hold
+    for (const words of ["reading the server's rows failed", "server.getToken must be a function", "/api/v1/sources/records"]) {
+        assert.ok(text(groups.server).includes(words), `"${words}" is not in the server group`);
+        for (const other of ["initial", "menus"]) {
+            assert.ok(!text(groups[other]).includes(words), `"${words}" is in ${other}`);
+        }
+    }
+    // the console line of a report whose server code did not load (PivotReport.jsx ServerGate) stays first
+    assert.ok(text(groups.initial).includes("the server's code did not load"), "the gate's message is not in the first load");
 });
 
 test("the import worker is one file next to dist/, without imports, where the element's code looks for it", async () => {

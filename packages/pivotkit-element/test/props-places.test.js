@@ -36,7 +36,7 @@ test("every property of the table has its getter and setter on the element, read
 });
 
 /** The key of the report's prop a property is passed under, where it is not its own name; null: not on render. */
-const PASSED_AS = { saveTemplates: "onSaveTemplate", sourceId: "source", sourceName: "source", importWorkerUrl: null };
+const PASSED_AS = { saveTemplates: "onSaveTemplate", sourceId: "source", sourceName: "source", importWorkerUrl: null, serverUrl: "server", serverSource: "server", serverParams: "server", getToken: "server" };
 
 test("#props() passes every property of the table to the report under its key", () => {
     const props = bodyOf("    #props() {");

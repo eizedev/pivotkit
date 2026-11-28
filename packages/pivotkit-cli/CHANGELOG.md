@@ -6,6 +6,22 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Changed
+
+- The Corporate template of `pivotkit example templates` sets `--pk-chart-tile-text`, the text on a
+  treemap's tiles ([#984](https://github.com/eizedev/pivotkit/issues/984)).
+
+## [0.7.0] - 2026-11-26
+
+### Changed
+
+- Depends on `pivotkit-core` `^0.11.0`, `pivotkit-node` `^0.2.0`, `pivotkit-report` `^0.7.0` and
+  `pivotkit-xlsx` `^0.8.0`.
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+- The view of `pivotkit example weather` names its month grouping "Month" (`fieldLabels`), as the
+  live demo's start view does. The table's corner no longer reads "Date by month of year ·
+  2023–2025 combined", and the table's own CSV has the column "Month".
+
 ## [0.6.0] - 2026-11-24
 
 ### Fixed
@@ -330,7 +346,8 @@ First release.
   usage error instead of HTML in a `.pdf`.
 - An option that does nothing in the chosen format (`--width` with `csv`) is a warning `ignoredOption`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.6.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.7.0...HEAD
+[0.7.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.6.0...pivotkit-cli@0.7.0
 [0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.5.0...pivotkit-cli@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.4.0...pivotkit-cli@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.3.0...pivotkit-cli@0.4.0

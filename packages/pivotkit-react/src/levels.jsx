@@ -17,7 +17,7 @@ import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { ClearInput } from "./clear-input.jsx";
 import { HelpContext } from "./help.js";
-import { Group } from "./popover.jsx";
+import { Group, menuItemRole } from "./popover.jsx";
 import { SettingInfo } from "./section.jsx";
 import { rowName, searchEntries, searchHits, SEARCH_HITS, stepIndex, typeAheadIndex } from "./menu-topics.js";
 
@@ -202,12 +202,13 @@ export function MenuList({ label, labelledBy, describedBy, className, close, chi
  *   label?: string, className?: string, disabled?: boolean, reason?: string, haspopup?: "menu" | "dialog", level?: string,
  *   description?: string | null, current?: boolean, note?: string, children?: React.ReactNode }} props
  *   `plain`: the text type-ahead matches; `start`: takes Tab first; `level`: the topic it opens;
- *   `note`: a line under the text of an entry that can be chosen, read with it (what a pick does);
+ *   `note`: a line under the text of an entry that can be chosen (what a pick does); it and `reason` are
+ *   read as the entry's description, not as part of its name;
  *   `description`: an explanation a screen reader reads with it (the "i" next to it shows it);
  *   `current`: the entry shown now (the view loaded), with a check and aria-current
  */
 export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, danger, testId, start, plain, label, className, disabled, reason, haspopup, level, description, current, note, children }) {
-    const role = checked === undefined ? "menuitem" : checkbox ? "menuitemcheckbox" : "menuitemradio";
+    const role = menuItemRole(checked, checkbox);
     const reasonId = useId();
     // the line under the text: why it is off, or what choosing it does
     const sub = disabled ? reason : note;
@@ -236,7 +237,8 @@ export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, da
             <span className="pk-option-text">
                 {text}
                 {sub ? (
-                    <span id={reasonId} className="pk-option-hint" data-testid={`${testId ?? id}-${disabled ? "reason" : "note"}`}>
+                    // out of the name (aria-hidden): a screen reader reads it once, as the description (aria-describedby)
+                    <span id={reasonId} className="pk-option-hint" aria-hidden="true" data-testid={`${testId ?? id}-${disabled ? "reason" : "note"}`}>
                         {sub}
                     </span>
                 ) : null}
@@ -301,9 +303,10 @@ function ChoiceItem({ choice: c, onPick, start }) {
  * browser's colour picker, a hidden colour field. The colour applies once it is picked (the field's
  * "change" event), not on every step while the picker is open: one step to undo per colour. The focus
  * comes back to the item. A new colour from outside (the chart drawn again, Undo) is set on the field.
- * @param {{ id: string, value: string, label: string, pick: (color: string) => void }} props
+ * The dot shows `shown`, the colour drawn, where it differs from the field's (a treemap's pale tile).
+ * @param {{ id: string, value: string, shown?: string, label: string, pick: (color: string) => void }} props
  */
-function ColorPick({ id, value, label, pick }) {
+function ColorPick({ id, value, shown, label, pick }) {
     const field = useRef(/** @type {HTMLInputElement | null} */ (null));
     const button = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const latest = useRef(pick);
@@ -330,7 +333,7 @@ function ColorPick({ id, value, label, pick }) {
         <>
             <button ref={button} type="button" role="menuitem" tabIndex={-1} className="pk-icon-btn pk-color-pick" aria-label={value ? `${label}, ${value}` : label} aria-haspopup="dialog" title={label} data-pk-item={id} data-pk-text={label} data-testid={id} onClick={() => field.current?.click()}>
                 {/* a dot in the colour (as the legend's and the tooltip's markers), set through the CSSOM, which a strict Content-Security-Policy allows */}
-                <span className="pk-dot" aria-hidden="true" ref={(el) => el?.style.setProperty("background-color", value || "transparent")} />
+                <span className="pk-dot" aria-hidden="true" ref={(el) => el?.style.setProperty("background-color", shown || value || "transparent")} />
             </button>
             <input ref={field} type="color" className="pk-sr" tabIndex={-1} aria-hidden="true" defaultValue={value || undefined} data-testid={`${id}-field`} />
         </>
@@ -470,7 +473,7 @@ function SearchHits({ hits, labels, onPick, onOpen, close, hasMore }) {
         <>
             <MenuList label={labels.searchResults} close={close} testId="menu-search-hits" lang={labels.lang}>
                 {hits.map((h) => (
-                    <MenuItem key={h.id} id={`hit-${h.id}`} text={h.choice ? h.text : `${h.text}…`} plain={h.text} checked={h.choice?.checked} icon={h.choice ? h.topic.icon : "chevronRight"} hint={h.path || undefined} haspopup={h.choice ? undefined : "dialog"} onSelect={() => (h.choice ? onPick(h.choice) : onOpen(h.topic.id, undefined, h.focus))} />
+                    <MenuItem key={h.id} id={`hit-${h.id}`} text={h.choice ? h.text : `${h.text}…`} plain={h.text} checked={h.choice?.checked} icon={h.choice ? h.topic.icon : "chevronRight"} hint={h.path || undefined} haspopup={h.choice ? undefined : "dialog"} disabled={h.choice?.disabled} reason={h.choice?.reason} note={h.choice?.note} onSelect={() => (h.choice ? onPick(h.choice) : onOpen(h.topic.id, undefined, h.focus))} />
                 ))}
             </MenuList>
             {hasMore ? (

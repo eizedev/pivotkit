@@ -14,7 +14,7 @@
 
 import { access, constants, stat } from "node:fs/promises";
 import { secretFileWarning } from "../secrets.js";
-import { DEFAULT_TOKEN_NAME, onContainerLayer, secretState, tokenShowHint } from "../state.js";
+import { DEFAULT_TOKEN_NAME, RANDOM_KEY_MEANS, onContainerLayer, secretState, tokenShowHint } from "../state.js";
 import { heading, plain, problem, warning } from "./format.js";
 
 /** @type {import("./index.js").Section} */
@@ -35,7 +35,7 @@ export async function section(options, _registry, runtime) {
         if (found.state === "blocked") {
             const text = `${secret.words} cannot be made in ${secret.path}: ${found.why}`;
             if (secret.fromState && secret.use !== "token") {
-                items.push(warning(`${text}; a random key is used, so ${secret.use === "downloads" ? "download links stop working on a restart" : "the same person gets another hash after a restart"}`));
+                items.push(warning(`${text}; a random key is used, so ${RANDOM_KEY_MEANS[/** @type {keyof typeof RANDOM_KEY_MEANS} */ (secret.use)]}`));
             } else {
                 items.push(problem(`${text}${secret.fromState ? `; mount a writable volume at ${plan.stateDir}, or give the token in $${runtime.tokenEnv}` : ""}`, stop));
             }

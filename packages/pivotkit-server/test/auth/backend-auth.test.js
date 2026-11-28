@@ -119,8 +119,8 @@ async function contextOf(options, level = "info") {
 const LOCAL = callerOf("none", undefined);
 const staticToken = callerOf("token", { token: "", clientId: "etl", scopes: [], expiresAt: 0, extra: { allScopes: true } });
 /** A signed-in person (an OAuth caller) with its own access token. */
-const person = (subject, { client = "claude", scopes = ["pivotkit"], expiresAt = Math.floor(Date.now() / 1000) + 3600, token = PERSON_TOKEN, claims = undefined } = {}) =>
-    callerOf("oauth", { token, clientId: client, scopes, expiresAt, extra: { subject, issuer: OAUTH.issuer, ...(claims ? { claims } : {}) } });
+const person = (subject, { client = "claude", scopes = ["pivotkit"], expiresAt = Math.floor(Date.now() / 1000) + 3600, token = PERSON_TOKEN, claims = undefined, issuer = OAUTH.issuer } = {}) =>
+    callerOf("oauth", { token, clientId: client, scopes, expiresAt, extra: { subject, issuer, ...(claims ? { claims } : {}) } });
 const describe = (context, caller = LOCAL, source = "vms", params = undefined) => present(context, "describe_source", { source, ...(params ? { params } : {}) }, caller);
 const failure = (promise) => promise.then(
     () => assert.fail("expected an error"),
@@ -216,6 +216,33 @@ test("header: the value read from its secret on every load (a rotated file works
     } finally {
         await env.close();
     }
+});
+
+test("the sign-in's { env } secrets come from the environment the host passed, not from the process's: at start, on a load, in check-source", async () => {
+    routes.set("/v1/vms", json({ items: VMS }));
+    routes.set("/token", tokenEndpoint());
+    assert.equal(process.env.PIVOTKIT_TEST_API_KEY, undefined);
+    const env = { PIVOTKIT_TEST_API_KEY: HEADER_SECRET };
+    const options = optionsOf({ header: { name: "X-Api-Key", value: { env: "PIVOTKIT_TEST_API_KEY" } } });
+    const lines = [];
+    const context = await createContext({ log: "info", ...options }, { env, stderr: { write: (t) => lines.push(String(t)) } });
+    try {
+        assert.ok(!lines.some((l) => /cannot be made/.test(l)), "no start warning: the passed env holds the secret");
+        await describe(context);
+        assert.equal(asked.at(-1)?.headers["x-api-key"], HEADER_SECRET);
+    } finally {
+        await context.close();
+    }
+    const out = await checkSource(options, "vms", {}, { fetch: httpMeans.fetch, env });
+    assert.ok(out.ok, out.text);
+    // client credentials and the token exchange's probe read their client secret the same way
+    const cc = await checkSource(optionsOf({ clientCredentials: { tokenUrl: tokenUrl(), clientId: "p", clientSecret: { env: "PIVOTKIT_TEST_API_KEY" }, intranet: true } }), "vms", {}, { fetch: httpMeans.fetch, env });
+    assert.ok(cc.ok, cc.text);
+    assert.equal(asked.findLast((a) => a.path === "/token")?.headers.authorization, `Basic ${Buffer.from(`p:${HEADER_SECRET}`).toString("base64")}`);
+    routes.set("/xchg", json({ error: "invalid_request" }, 400));
+    const xchg = await checkSource(optionsOf({ tokenExchange: { tokenUrl: tokenUrl("/xchg"), audience: "a", clientId: "p", clientSecret: { env: "PIVOTKIT_TEST_API_KEY" }, intranet: true } }, { auth: OAUTH }), "vms", {}, { fetch: httpMeans.fetch, env });
+    assert.ok(xchg.ok, xchg.text);
+    clean("check-source", out.text + cc.text + xchg.text);
 });
 
 test("client credentials: a client secret as client_secret_basic, the token kept until 30 s before it expires and shared by every caller, one request for many callers", async (t) => {
@@ -550,7 +577,7 @@ test("token exchange: the token endpoint from the issuer's metadata, only on the
     try {
         const context = await contextOf(optionsOf(auth, { auth: { ...OAUTH, issuer } }));
         try {
-            await describe(context, person("ana"));
+            await describe(context, person("ana", { issuer }));
             assert.equal(asked.filter((a) => a.path === "/oauth/token").length, 1);
         } finally {
             await context.close();
@@ -559,11 +586,52 @@ test("token exchange: the token endpoint from the issuer's metadata, only on the
         metadata = { issuer, token_endpoint: "https://elsewhere.example.test/token" };
         const elsewhere = await contextOf(optionsOf(auth, { auth: { ...OAUTH, issuer } }));
         try {
-            const error = await failure(describe(elsewhere, person("ana")));
+            const error = await failure(describe(elsewhere, person("ana", { issuer })));
             assert.deepEqual([error.code, error.reason], ["SOURCE_UNAVAILABLE", "setup"]);
             assert.ok(elsewhere.lines.some((l) => /names no https:\/\/ token_endpoint on the issuer's origin; set tokenExchange\.tokenUrl/.test(l.message)));
         } finally {
             await elsewhere.close();
+        }
+    } finally {
+        authMeans.discover = original;
+    }
+});
+
+test("token exchange with auth.issuers: a person's token goes to the token endpoint of the issuer that signed them in, never to another issuer's", async () => {
+    routes.set("/v1/vms", json({ items: VMS }));
+    routes.set("/one/token", tokenEndpoint());
+    routes.set("/two/token", tokenEndpoint());
+    const file = secretFile(SECRET);
+    const [one, two] = ["one", "two"].map((name) => `https://auth.example.test:${port}/${name}/`);
+    const original = authMeans.discover;
+    /** @type {string[]} */
+    const read = [];
+    authMeans.discover = async (issuer) => {
+        read.push(issuer);
+        return { issuer, token_endpoint: `${issuer}token` };
+    };
+    const exchange = (issuer) => ({ backend: "platform", path: "/vms", rows: "/items", auth: { tokenExchange: { issuer, audience: "platform-api", clientId: "p", clientSecret: { file }, intranet: true } } });
+    const options = {
+        auth: { mode: "oauth", resource: OAUTH.resource, issuers: [{ issuer: one }, { issuer: two }] },
+        httpSources: { backends: { platform: { url: backendUrl(), intranet: true } } },
+        sources: { vmsOne: { http: exchange(one), policy: POLICY, ttl: 0 }, vmsTwo: { http: exchange(two), policy: POLICY, ttl: 0 } }
+    };
+    try {
+        const context = await contextOf(options);
+        try {
+            const exchanged = () => Object.fromEntries(["/one/token", "/two/token"].map((p) => [p, asked.filter((a) => a.path === p).map((a) => a.form?.subject_token)]));
+            await describe(context, person("ben", { issuer: two }), "vmsTwo");
+            assert.deepEqual(exchanged(), { "/one/token": [], "/two/token": [PERSON_TOKEN] });
+            assert.deepEqual(read, [two], "only the second issuer's metadata is read");
+            // the first issuer's person: the second issuer's source is not there, and nothing is sent
+            const error = await failure(describe(context, person("ana", { issuer: one }), "vmsTwo"));
+            assert.equal(error.code, "SOURCE_NOT_FOUND");
+            assert.deepEqual(exchanged(), { "/one/token": [], "/two/token": [PERSON_TOKEN] });
+            await describe(context, person("ana", { issuer: one }), "vmsOne");
+            assert.deepEqual(exchanged(), { "/one/token": [PERSON_TOKEN], "/two/token": [PERSON_TOKEN] });
+            assert.ok(context.lines.some((l) => /a source whose token exchange serves another issuer's people was asked for/.test(l.message) && l.source === "vmsTwo"), JSON.stringify(context.lines));
+        } finally {
+            await context.close();
         }
     } finally {
         authMeans.discover = original;
@@ -587,7 +655,7 @@ test("token exchange: the issuer's metadata is read under auth.issuer's rules (a
             tokenCache.clear();
             const context = await contextOf(optionsOf(auth, { auth: { ...OAUTH, issuer, ...(intranet ? { intranet } : {}) } }));
             try {
-                await describe(context, person("ana"));
+                await describe(context, person("ana", { issuer }));
             } finally {
                 await context.close();
             }
@@ -600,7 +668,7 @@ test("token exchange: the issuer's metadata is read under auth.issuer's rules (a
     tokenCache.clear();
     const refused = await contextOf(optionsOf(auth, { auth: { ...OAUTH, issuer: `https://127.0.0.1:${port}/` } }));
     try {
-        const error = await failure(describe(refused, person("ana")));
+        const error = await failure(describe(refused, person("ana", { issuer: `https://127.0.0.1:${port}/` })));
         assert.equal(error.code, "SOURCE_UNAVAILABLE");
         assert.ok(refused.lines.some((l) => /the issuer's metadata could not be read for the token endpoint; for an issuer on an internal address set auth\.intranet: true/.test(l.message)), JSON.stringify(refused.lines));
     } finally {
@@ -869,7 +937,7 @@ test("a Bearer answer whose issued_token_type is not an access token is refused;
     try {
         const context = await contextOf(optionsOf({ tokenExchange: { audience: "a", clientId: "p", clientSecret: { file }, intranet: true } }, { auth: { ...OAUTH, issuer } }));
         try {
-            await Promise.all(["a1", "a2", "a3"].map((p) => describe(context, person(p))));
+            await Promise.all(["a1", "a2", "a3"].map((p) => describe(context, person(p, { issuer }))));
             assert.equal(reads, 1);
         } finally {
             await context.close();
@@ -959,6 +1027,6 @@ test("exchangeTokenFor sends a person's token through a guardedFetch only", asyn
         called = true;
         return { status: 200, headers: {}, body: new Uint8Array() };
     };
-    await assert.rejects(exchangeTokenFor(person("ana"), { url: tokenUrl("/xchg"), clientId: "p", clientSecret: "s", fetch: /** @type {any} */ (plain) }), /through a guardedFetch only/);
+    await assert.rejects(exchangeTokenFor(person("ana"), { url: tokenUrl("/xchg"), issuer: OAUTH.issuer, clientId: "p", clientSecret: "s", fetch: /** @type {any} */ (plain) }), /through a guardedFetch only/);
     assert.equal(called, false);
 });

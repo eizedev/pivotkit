@@ -60,6 +60,7 @@ npm run pack:check     # what npm pack would publish, checked
 npm run growth         # functions, unused exports, duplication, docs pages may not grow
 ```
 `npm run growth` compares with `scripts/growth-baseline.json`; when an offender shrinks, `node scripts/growth.js --update` lowers it.
+When it fails, [CONTRIBUTING.md](CONTRIBUTING.md#check-your-change) says what to do; a raised baseline needs its reason in the pull request's whole-change check.
 
 One package, the UI and the browser tests. A package's `AGENTS.md` lists its size and benchmark commands:
 
@@ -137,7 +138,9 @@ Docs site: build and preview commands are in [CONTRIBUTING.md](CONTRIBUTING.md#d
 ## Docs and changelogs
 
 - Docs describe the current state. History goes into changelogs, commits and pull requests.
-- Add an `[Unreleased]` entry to the `CHANGELOG.md` of each package you change.
+- Add an `[Unreleased]` entry to the `CHANGELOG.md` of each package you change. An entry from a
+  contributor's pull request ends with the pull request and the name, after any issue link:
+  `([#787](<issue link>), [#801](<pull request link>), thanks @login)`.
 - Use Conventional Commits with the package as scope: `feat(core): ...`.
 - Describe a change people see on the one page that owns its topic. Rewrite that page's
   section instead of adding a paragraph beside the old one.

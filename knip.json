@@ -14,6 +14,9 @@
     },
     "packages/pivotkit-element": {
       "entry": ["src/{index,element}.js", "test/types/*.tsx"]
+    },
+    "packages/pivotkit-server": {
+      "entry": ["viewer/viewer.js"]
     }
   }
 }

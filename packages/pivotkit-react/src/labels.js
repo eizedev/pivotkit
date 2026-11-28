@@ -13,10 +13,11 @@ import { GROUPING_NAMES, PLURAL_CATEGORIES, PivotkitError, REPORT_LABELS, ROW_CO
 /**
  * Every text of the UI: these and the menus' (menu-labels.js, loaded with the menus; a type import
  * only, so they stay out of the first load).
- * @typedef {typeof en & import("./menu-labels.js").MenuTexts & { unused?: import("./unused-texts.js").UnusedTexts, dataImport?: import("./import-labels.js").ImportTexts }} UiLabels
+ * @typedef {typeof en & import("./menu-labels.js").MenuTexts & { unused?: import("./unused-texts.js").UnusedTexts, dataImport?: import("./import-labels.js").ImportTexts, server?: import("./server-labels.js").ServerTexts }} UiLabels
  *   `unused`: the texts of a view's unused parts (unused-texts.js), loaded when a view has such parts;
  *   `dataImport`: those of loading data (import-labels.js), loaded with the import UI; a host's of
- *   both are kept aside as the menus' are
+ *   both are kept aside as the menus' are; `server`: those of a report with a server (server-labels.js),
+ *   loaded with its network code
  */
 
 export const en = {
@@ -227,6 +228,7 @@ export const en = {
         moved: "{field} moved to {zone}",
         reordered: "order in {zone}",
         sort: "sort of {field}",
+        sortDefault: "default order of {field}",
         group: "grouping of {field}",
         rename: "name of {field}",
         filter: "filter on {field}",

@@ -11,6 +11,9 @@ import { OPERATIONS } from "pivotkit-report/operations";
 /** The rows route's path (records.js). */
 export const RECORDS_PATH = "/sources/records";
 
+/** The exchange route's path: a person's token for a browser token (browser.js). */
+export const BROWSER_TOKEN_PATH = "/sources/records/token";
+
 const VIEW = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
 const FINDING = { severity: "error", code: "unknownField", path: "rows[0]", message: 'unknown field "Regoin"', suggestion: "Region" };
 
@@ -97,7 +100,7 @@ const WORDS = {
  * @property {string} path  under REST_BASE; "{id}" is a path parameter
  * @property {string} summary
  * @property {string} description
- * @property {"json" | "file" | "records"} answer  records: the rows route (records.js), whose `operation` is no operation of the table
+ * @property {"json" | "file" | "records" | "browserToken"} answer  records: the rows route (records.js); browserToken: the exchange route (browser.js); neither `operation` is one of the table
  * @property {boolean} takesSource  the operation's input has a source: data may be sent with it (inline:)
  * @property {{ input: Record<string, unknown>, output: Record<string, unknown> }} example
  */
@@ -125,8 +128,18 @@ export const REST_ROUTES = Object.freeze([
         description: "The rows of one source for a person who signed in (an OAuth token with a subject, or a host application's token for its person), where the caller's profile names the source in records. Only fields at show leave; a field at values or summary is NOT_ALLOWED with notShown, a hidden one answers as an unknown one. A view's filters are not applied. The answer is columnar ({ columns, types, data }) and comes in pieces. Off by default.",
         answer: /** @type {const} */ ("records"),
         example: { input: { source: "sales", fields: ["Region", "Sales"] }, output: { columns: ["Region", "Sales"], types: ["string", "number"], rowCount: 2, dataAsOf: "2026-11-18T08:00:00Z", withheld: ["Customer"], requestId: "Ab3_xY9-k2Q", data: [["North", "South"], [10, 20]] } }
+    },
+    {
+        id: "issueBrowserToken",
+        operation: "browser_token",
+        method: /** @type {const} */ ("POST"),
+        path: BROWSER_TOKEN_PATH,
+        summary: "Get a browser token for the rows of a source",
+        description: "Exchanges a person's token for a short-lived browser token that reads the rows of this source with these params only (POST /sources/records), and nothing else. For a person who may read the source's rows. Call it from the page's backend or the server's viewer page; the page passes the token to the report through getToken().",
+        answer: /** @type {const} */ ("browserToken"),
+        example: { input: { source: "sales", params: { region: "North" } }, output: { token: "eyJhbGciOiJkaXIi...", tokenType: "Bearer", expiresIn: 300, expiresAt: "2026-11-28T08:05:00Z", source: "sales" } }
     }
-].map((route) => Object.freeze({ ...route, takesSource: route.answer !== "records" && Boolean(/** @type {any} */ (OPERATIONS[route.operation].input)?.properties?.source) })));
+].map((route) => Object.freeze({ ...route, takesSource: (route.answer === "json" || route.answer === "file") && Boolean(/** @type {any} */ (OPERATIONS[route.operation].input)?.properties?.source) })));
 
 /** "describe_source" as "describeSource". */
 function camel(name) {

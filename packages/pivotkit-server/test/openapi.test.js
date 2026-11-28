@@ -9,6 +9,7 @@ import { checkInput } from "pivotkit-report/operations";
 import { openApiDocument, REST_ROUTES } from "pivotkit-server/rest";
 import { presentedInput, presentedOutput } from "pivotkit-server/internal";
 import { RECORDS_INPUT, RECORDS_OUTPUT } from "../src/records.js";
+import { BROWSER_TOKEN_INPUT, BROWSER_TOKEN_OUTPUT } from "../src/browser.js";
 import { TOKEN, call, restServer, workspace } from "./helpers.js";
 
 const META = JSON.parse(readFileSync(new URL("./fixtures/openapi-3.1-schema.json", import.meta.url), "utf8"));
@@ -65,10 +66,11 @@ test("docs/openapi.json is what openApiDocument() makes (run node scripts/openap
 test("every example passes its input check and its output schema; the view schema is pivotkit-core's", () => {
     const doc = openApiDocument();
     for (const route of REST_ROUTES) {
-        if (route.answer === "records") {
-            // the rows route is no operation of the table: its own schemas (records.js)
-            assert.doesNotThrow(() => checkInput(RECORDS_INPUT, route.example.input), route.id);
-            const result = new Validator(/** @type {any} */ (structuredClone(RECORDS_OUTPUT)), "2020-12", false).validate(route.example.output);
+        // the rows route and the exchange route are no operations of the table: their own schemas (records.js, browser.js)
+        const own = route.answer === "records" ? [RECORDS_INPUT, RECORDS_OUTPUT] : route.answer === "browserToken" ? [BROWSER_TOKEN_INPUT, BROWSER_TOKEN_OUTPUT] : null;
+        if (own) {
+            assert.doesNotThrow(() => checkInput(own[0], route.example.input), route.id);
+            const result = new Validator(/** @type {any} */ (structuredClone(own[1])), "2020-12", false).validate(route.example.output);
             assert.ok(result.valid, `${route.id}: ${JSON.stringify(result.errors.slice(0, 3))}`);
             continue;
         }

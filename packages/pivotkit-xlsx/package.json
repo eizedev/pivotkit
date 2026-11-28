@@ -1,6 +1,6 @@
 {
   "name": "pivotkit-xlsx",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Reader plugin for pivotkit: load Excel workbooks (.xlsx) into a pivot report in the browser, with checks against ZIP bombs, macros and oversized used ranges before parsing.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",
@@ -58,8 +58,8 @@
   },
   "dependencies": {
     "fflate": "0.8.3",
-    "pivotkit-core": "^0.10.0",
-    "read-excel-file": "9.3.17"
+    "pivotkit-core": "^0.11.0",
+    "read-excel-file": "9.3.20"
   },
   "types": "./types/index.d.ts",
   "publishConfig": {

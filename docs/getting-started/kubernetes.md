@@ -8,7 +8,7 @@ description: Run pivotkit-server with the REST service and the MCP server on Kub
 This page runs the [container image](../reference/container.md) on Kubernetes. One Deployment
 serves the [REST service](../reference/rest.md) at `/api/v1` and the [MCP server](../reference/mcp.md)
 at `/mcp` on port 3333, from one configuration file. The example manifest
-[docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.5.0/docker/kubernetes.example.yaml)
+[docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.6.0/docker/kubernetes.example.yaml)
 holds every part shown below. The sections explain each one.
 
 ## Set it up { #setup }
@@ -16,7 +16,7 @@ holds every part shown below. The sections explain each one.
 1. Download the manifest:
 
     ```bash
-    curl -fsSLO https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.5.0/docker/kubernetes.example.yaml
+    curl -fsSLO https://raw.githubusercontent.com/eizedev/pivotkit/pivotkit-server@0.6.0/docker/kubernetes.example.yaml
     ```
 
 2. Edit your copy. Always set these:
@@ -142,7 +142,7 @@ What each setting is for:
 | User and group 10001, `fsGroup: 10001` | 10001 is the image's user. `fsGroup` makes the volumes readable and `/var/lib/pivotkit` writable for it. It also makes a Secret's files with mode 0440 readable, see [managed secrets](#managed-secrets). `fsGroupChangePolicy: OnRootMismatch` changes the owner of a volume's files only when its top directory does not match yet. So a start does not walk a large volume every time. |
 | The namespace's label `pod-security.kubernetes.io/enforce: restricted` | Kubernetes refuses any pod in the namespace that does not meet the restricted Pod Security Standard: non-root, no privilege escalation, no capabilities, a seccomp profile. Every pod of the example meets it. |
 | `readOnlyRootFilesystem`, no capabilities, `RuntimeDefault` seccomp | The same as `--read-only --cap-drop ALL` in [Run it](../reference/container.md#run). `/tmp` is an `emptyDir`. |
-| Probes with `Host: localhost` | A probe sends the pod's IP address as `Host`, which the server refuses. `/healthz` answers while the process runs, for liveness and startup. `/readyz` answers 200 only when the server can take work: the OAuth issuer is loaded, the workers are up and the output directory is writable ([Health](../reference/container.md#health)). |
+| Probes with `Host: localhost` | A probe sends the pod's IP address as `Host`, which the server refuses. `/healthz` answers while the process runs, for liveness and startup. `/readyz` answers 200 only when the server can take work: an OAuth issuer is loaded ([each on its own](../reference/sign-in.md#issuers)), the workers are up and the output directory is writable ([Health](../reference/container.md#health)). |
 | `terminationGracePeriodSeconds: 30` | After SIGTERM the server takes no new connection. It lets running reports finish for up to 25 seconds (`http.graceMs`). |
 
 A source whose file is missing does not stop the server or `/readyz`. A call to that source answers
@@ -338,7 +338,7 @@ with a tool such as cert-manager.
 
 The controller must pass the request's `Host` on unchanged and write `X-Forwarded-For`. Its time
 limit for an answer must be longer than `compute.queueMs` + `compute.timeMs`, which is 40 seconds
-with the defaults. Check your controller's default.
+with the defaults; the rows route adds `rest.records.waitMs` (5 s). Check your controller's default.
 
 To publish less, give the Ingress the paths `/mcp`, `/api/v1` and `/downloads` instead of `/`. With
 OAuth, add the prefix `/.well-known/oauth-protected-resource`.
@@ -442,7 +442,9 @@ With OAuth, the server takes the access tokens of your identity provider instead
 
 The server loads the issuer's metadata and keys over HTTPS. Until then, `/readyz` answers 503. A
 NetworkPolicy cannot name a host, so allow the addresses that `auth.example.com` resolves to from
-inside the cluster, on port 443. Add the rule to the policy's `egress`:
+inside the cluster, on port 443. With [several issuers](../reference/sign-in.md#issuers), allow
+each one: `/readyz` waits for one only, so a missing rule leaves that issuer's tokens at 503
+unnoticed. Add the rule to the policy's `egress`:
 
 ```yaml
     - to:
@@ -469,7 +471,7 @@ pod stops before the new one starts.
 
 ## The whole manifest { #manifest }
 
-[docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.5.0/docker/kubernetes.example.yaml)
+[docker/kubernetes.example.yaml](https://github.com/eizedev/pivotkit/blob/pivotkit-server@0.6.0/docker/kubernetes.example.yaml)
 holds, in this order:
 
 - the Namespace

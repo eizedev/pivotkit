@@ -81,7 +81,10 @@ function labelLayout(page) {
                     if (tops(rects) > 1 && wide <= el.getBoundingClientRect().width) broken.push(m[0]);
                 }
             }
-            return { text: el.textContent, lines: tops(range.getClientRects()), cut: el.scrollWidth > el.clientWidth + 1, broken };
+            // a header's name that sorts is inline text in its button (its arrow follows the last
+            // word): an inline box has no client width, so the button is what would cut it
+            const box = getComputedStyle(el).display === "inline" ? el.parentElement : el;
+            return { text: el.textContent, lines: tops(range.getClientRects()), cut: box.scrollWidth > box.clientWidth + 1, broken };
         });
     });
 }
@@ -108,8 +111,9 @@ test.describe("at 1440 x 900", () => {
         await report(page, servicesCsv(48, 24), { values: ["cost"] });
         const box = await tableBox(page);
         // the table fits, with room to spare (the report of #584 filled about 60 %): other fonts
-        // than this machine's must not tip it over
-        expect(box.table).toBeLessThan(box.wrap * 0.9);
+        // than this machine's must not tip it over. The sort marks' end padding (#920) takes about
+        // 0.3 % of it
+        expect(box.table).toBeLessThan(box.wrap * 0.92);
         const labels = await labelLayout(page);
         expect(labels.map((l) => l.text)).toEqual(expect.arrayContaining([...ROWS, "Sum of cost", "paymentGateway Total"]));
         expect(labels.filter((l) => l.broken.length > 0).map((l) => `${l.text}: ${l.broken}`)).toEqual([]);

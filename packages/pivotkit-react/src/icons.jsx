@@ -17,6 +17,8 @@ const PATHS = {
     chevronRight: "m9 6 6 6-6 6",
     arrowUp: "M12 19V5M6 11l6-6 6 6",
     arrowDown: "M12 5v14M6 13l6 6 6-6",
+    // a header that sorts but is not sorted (#920): up and down, as tall as an arrow, as heavy as one
+    arrowUpDown: "M7 9l5-5 5 5M7 15l5 5 5-5",
     undo: "M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11",
     redo: "m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13",
     reset: "M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5",
@@ -40,6 +42,9 @@ const PATHS = {
     check: "m5 12 5 5 9-10",
     sortAsc: "M7 4v16M3 8l4-4 4 4M14 6h7M14 12h5M14 18h3",
     sortDesc: "M7 4v16M3 16l4 4 4-4M14 6h3M14 12h5M14 18h7",
+    // a custom order as listed and reversed: the arrow of its direction beside a list of equal lines
+    customAsc: "M7 20V4M3 8l4-4 4 4M14 6h7M14 12h7M14 18h7",
+    customDesc: "M7 4v16M3 16l4 4 4-4M14 6h7M14 12h7M14 18h7",
     panel: "M4 5h16v14H4zM9 5v14",
     layout: "M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z",
     trash: "M5 7h14M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3",
@@ -66,12 +71,13 @@ const PATHS = {
 };
 
 /**
- * @param {{ name: keyof typeof PATHS, size?: number, className?: string }} props
+ * @param {{ name?: keyof typeof PATHS, d?: string, size?: number, className?: string }} props
+ *   d: a path of the code that draws it, for an icon loaded on demand (server-ui.jsx)
  */
-export function Icon({ name, size = 16, className }) {
+export function Icon({ name, d, size = 16, className }) {
     return (
         <svg className={className ? `pk-icon ${className}` : "pk-icon"} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-            <path d={PATHS[name] ?? PATHS.info} />
+            <path d={d ?? (name && PATHS[name]) ?? PATHS.info} />
         </svg>
     );
 }

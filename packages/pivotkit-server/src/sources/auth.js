@@ -29,6 +29,7 @@ import { readSecret, SecretError } from "../secrets.js";
 import { requestId } from "../request-id.js";
 import { GuardedFetchError, guardedFetch, upstreamCauseOf } from "./fetch.js";
 import { canonicalJson } from "./keys.js";
+import { firstIssuerOf } from "../issuer.js";
 import { SourceError } from "./run.js";
 import { headerValueOf } from "../options/headers.js";
 
@@ -215,12 +216,12 @@ const signInFailure = (reason) => new SourceError("SOURCE_UNAVAILABLE", { transi
  * reference, never the value).
  * @param {import("../options/http.js").SecretRef} ref
  * @param {{ at: string, baseDir: string | undefined }} auth
- * @param {{ id: string, log: any }} how
+ * @param {{ id: string, log: any, env?: Record<string, string | undefined> }} how  env: where an { env } secret is read (the context's; default process.env)
  * @param {string} key  which secret of the sign-in
  */
 async function secretOf(ref, auth, how, key) {
     try {
-        return await readSecret(ref, { baseDir: auth.baseDir });
+        return await readSecret(ref, { baseDir: auth.baseDir }, how.env);
     } catch (e) {
         if (e instanceof SecretError) {
             warn(how, `the backend's sign-in cannot be made: ${auth.at}.${key}: ${e.message}`, {}, { once: true });
@@ -323,10 +324,10 @@ function requestFailure(error, how) {
 }
 
 /**
- * The token endpoint of the configured issuer: its metadata's token_endpoint, which must be https://
+ * The token endpoint of a token exchange's issuer: its metadata's token_endpoint, which must be https://
  * on the issuer's own origin (else the operator names it in tokenExchange.tokenUrl).
  * @param {string} issuer
- * @param {import("../issuer.js").IssuerRules} rules  auth.issuer's (auth.intranet)
+ * @param {import("../issuer.js").IssuerRules} rules  the issuers' (auth.intranet)
  * @param {{ id: string, log: any }} how
  */
 async function issuerTokenUrl(issuer, rules, how) {
@@ -376,7 +377,7 @@ async function readTokenUrl(issuer, rules, how) {
 /**
  * Client credentials (RFC 6749 4.4): pivotkit's own access token.
  * @param {Extract<import("../options/http.js").BackendAuth, { kind: "clientCredentials" }>} auth
- * @param {{ id: string, log: any, fetch: typeof guardedFetch, trace?: AuthTrace }} how
+ * @param {{ id: string, log: any, env?: Record<string, string | undefined>, fetch: typeof guardedFetch, trace?: AuthTrace }} how
  * @returns {Promise<{ token: string, until: number }>}
  */
 async function clientCredentials(auth, how) {
@@ -412,7 +413,7 @@ async function clientCredentials(auth, how) {
  * The token exchange (RFC 8693) for the signed-in person.
  * @param {Extract<import("../options/http.js").BackendAuth, { kind: "tokenExchange" }>} auth
  * @param {import("../registry.js").Caller} caller
- * @param {{ id: string, log: any, fetch: typeof guardedFetch, trace?: AuthTrace }} how
+ * @param {{ id: string, log: any, env?: Record<string, string | undefined>, fetch: typeof guardedFetch, trace?: AuthTrace }} how
  * @returns {Promise<{ token: string, until: number }>}
  */
 async function tokenExchange(auth, caller, how) {
@@ -423,7 +424,7 @@ async function tokenExchange(auth, caller, how) {
     const clientSecret = await secretOf(auth.clientSecret, auth, how, "clientSecret");
     let answer;
     try {
-        answer = await exchangeTokenFor(caller, { url, clientId: auth.clientId, clientSecret, ...(auth.audience !== null ? { audience: auth.audience } : {}), ...(auth.resource !== null ? { resource: auth.resource } : {}), ...(auth.scope !== null ? { scope: auth.scope } : {}), timeMs: TOKEN_LIMITS.timeMs, maxBytes: TOKEN_LIMITS.maxBytes, allowPrivate: auth.intranet, allowIpLiterals: auth.allowIpLiterals, fetch: how.fetch });
+        answer = await exchangeTokenFor(caller, { url, issuer: auth.issuer, clientId: auth.clientId, clientSecret, ...(auth.audience !== null ? { audience: auth.audience } : {}), ...(auth.resource !== null ? { resource: auth.resource } : {}), ...(auth.scope !== null ? { scope: auth.scope } : {}), timeMs: TOKEN_LIMITS.timeMs, maxBytes: TOKEN_LIMITS.maxBytes, allowPrivate: auth.intranet, allowIpLiterals: auth.allowIpLiterals, fetch: how.fetch });
     } catch (e) {
         throw requestFailure(e, how);
     }
@@ -457,14 +458,14 @@ function keyOf(auth, caller) {
  * without a signed-in person.
  * @param {import("../options/http.js").BackendAuth | null} auth
  * @param {import("../registry.js").Caller} caller
- * @param {{ signal?: AbortSignal, id: string, log: any, fetch?: typeof guardedFetch, backend?: string, trace?: AuthTrace }} how  backend: the backend's name, on its warnings
+ * @param {{ signal?: AbortSignal, id: string, log: any, env?: Record<string, string | undefined>, fetch?: typeof guardedFetch, backend?: string, trace?: AuthTrace }} how  env: where an { env } secret is read (the context's); backend: the backend's name, on its warnings
  * @returns {Promise<Record<string, string>>}
  */
 export async function backendHeaders(auth, caller, how) {
     if (!auth) {
         return {};
     }
-    const means = { id: how.id, log: how.log, fetch: how.fetch ?? guardedFetch, ...(how.backend ? { backend: how.backend } : {}), ...(how.trace ? { trace: how.trace } : {}) };
+    const means = { id: how.id, log: how.log, env: how.env, fetch: how.fetch ?? guardedFetch, ...(how.backend ? { backend: how.backend } : {}), ...(how.trace ? { trace: how.trace } : {}) };
     if (how.trace) {
         how.trace.kind = auth.kind;
         if (auth.kind === "clientCredentials") {
@@ -519,17 +520,53 @@ export function dropToken(auth, caller, headers) {
  * @param {any} source  options.sources[id]
  */
 export function personBound(options, source) {
-    if (Object.values(source?.params ?? {}).some((p) => p && typeof p === "object" && p.claim !== undefined)) {
-        return true;
-    }
+    return Object.values(source?.params ?? {}).some((p) => p && typeof p === "object" && p.claim !== undefined) || exchangesToken(options, source);
+}
+
+/**
+ * Whether a configured source's backend signs in with a token exchange: it needs the person's own
+ * access token, which a browser token never carries (browser.js refuses such a source).
+ * @param {import("../config.js").ServerOptions} options
+ * @param {any} source  options.sources[id]
+ */
+export const exchangesToken = (options, source) => Boolean(exchangeOf(options, source));
+
+/**
+ * A configured source's token exchange as written (its own http.auth, else its backend's), or
+ * undefined.
+ * @param {import("../config.js").ServerOptions} options
+ * @param {any} source  options.sources[id]
+ * @returns {{ issuer?: string } | undefined}
+ */
+function exchangeOf(options, source) {
     const http = source?.http;
     if (!http) {
-        return false;
+        return undefined;
     }
     const backends = options.httpSources?.backends ?? {};
     const auth = http.auth ?? (typeof http.backend === "string" && Object.hasOwn(backends, http.backend) ? backends[http.backend]?.auth : undefined);
-    return Boolean(auth?.tokenExchange);
+    return auth?.tokenExchange;
 }
+
+/**
+ * The issuer whose people a source's token exchange serves (tokenExchange.issuer, else the server's
+ * first issuer, the only one where it may be left out), or null for a source without one.
+ * @param {import("../config.js").ServerOptions} options
+ * @param {any} source  options.sources[id]
+ * @returns {string | null}
+ */
+export function exchangeIssuerOfSource(options, source) {
+    const exchange = exchangeOf(options, source);
+    return exchange ? (exchange.issuer ?? firstIssuerOf(options)) : null;
+}
+
+/**
+ * Whether a caller may use a source personBound marks: a person (isPerson), and for a token exchange
+ * one whom its issuer signed in (exchangeIssuerOfSource; null: any issuer).
+ * @param {import("../registry.js").Caller} caller
+ * @param {string | null} issuer
+ */
+export const personFits = (caller, issuer) => isPerson(caller) && (issuer === null || caller.issuer === issuer);
 
 /**
  * Whether a caller may use a source personBound marks: a verified OAuth caller with a subject (an
@@ -542,11 +579,11 @@ export const isPerson = (caller) => typeof caller.subject === "string" && caller
  * check-source for a token exchange, which needs a person's token: the token endpoint asked with the
  * client's credentials and no subject token, to see that it answers and does not refuse the client.
  * @param {Extract<import("../options/http.js").BackendAuth, { kind: "tokenExchange" }>} auth
- * @param {{ id: string, log: any, fetch?: typeof guardedFetch, trace: AuthTrace }} how
+ * @param {{ id: string, log: any, env?: Record<string, string | undefined>, fetch?: typeof guardedFetch, trace: AuthTrace }} how  env: where an { env } secret is read
  * @returns {Promise<{ reached: boolean, clientRefused: boolean }>}  reached: it answered as a token endpoint does (400 with an OAuth error)
  */
 export async function probeExchange(auth, how) {
-    const means = { id: how.id, log: how.log, fetch: how.fetch ?? guardedFetch, trace: how.trace };
+    const means = { id: how.id, log: how.log, env: how.env, fetch: how.fetch ?? guardedFetch, trace: how.trace };
     how.trace.kind = auth.kind;
     const url = auth.tokenUrl ?? (await issuerTokenUrl(/** @type {string} */ (auth.issuer), auth.issuerRules, means));
     how.trace.tokenUrl = url;
@@ -617,8 +654,9 @@ export async function secretsOf(auth, options, env) {
  * @param {import("../config.js").ServerOptions} options
  * @param {any} log
  * @param {(source: any) => import("../options/http.js").BackendAuth | null} authOf  a source's compiled sign-in
+ * @param {Record<string, string | undefined>} env  where an { env } secret is read (the context's)
  */
-export async function warnUnreadableSecrets(options, log, authOf) {
+export async function warnUnreadableSecrets(options, log, authOf, env) {
     const seen = new Set();
     for (const source of Object.values(options.sources ?? {})) {
         const auth = source?.http && options.httpSources?.enabled !== false ? authOf(source) : null;
@@ -626,7 +664,7 @@ export async function warnUnreadableSecrets(options, log, authOf) {
             continue;
         }
         seen.add(auth);
-        for (const secret of await secretsOf(auth, options, process.env)) {
+        for (const secret of await secretsOf(auth, options, env)) {
             if (secret.problem) {
                 log.warn(`a backend's sign-in cannot be made: ${secret.at}: ${secret.problem}; its sources answer SOURCE_UNAVAILABLE until it is there`);
             }

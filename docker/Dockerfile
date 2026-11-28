@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 #
 # The container image of pivotkit: the REST service, the MCP server and the command line from one
-# install (docs/reference/container.md). Built from this repository at a release tag, from the root
+# install, with pivotkit-element's built files for the viewer page (docs/reference/container.md). Built from this repository at a release tag, from the root
 # lock file (no install scripts), onto a distroless Node 24 image that runs as a fixed non-root user.
 #
 #   docker build -f docker/Dockerfile -t pivotkit .
@@ -10,6 +10,17 @@
 
 ARG BUILD_IMAGE=node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
 ARG RUNTIME_IMAGE=gcr.io/distroless/nodejs24-debian12:nonroot@sha256:14d42e2511532589a7c7e01a753667a74fcc96266e137e8125006b87b0c32d0a
+
+# pivotkit-element, built from the packages here: pivotkit-server serves its dist/ to the viewer page
+# (/live/). Only the dist and the package.json go into the image, none of what builds them. Built on
+# the build machine's platform: the files are the same JavaScript on every platform
+FROM --platform=$BUILDPLATFORM ${BUILD_IMAGE} AS element
+WORKDIR /src
+COPY package.json package-lock.json ./
+COPY packages/ packages/
+COPY scripts/is-main.js scripts/third-party-licenses.js scripts/
+RUN npm ci --ignore-scripts --no-audit --no-fund --include-workspace-root --workspace pivotkit-element \
+    && node packages/pivotkit-element/build.js
 
 FROM ${BUILD_IMAGE} AS build
 WORKDIR /src
@@ -32,6 +43,9 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund --include-workspace-
     && mkdir -p /app/examples /out \
     && gunzip -c packages/pivotkit-cli/examples/sales.csv.gz > /app/examples/sales.csv \
     && mkdir -m 0700 /state
+# where the install's link node_modules/pivotkit-element points
+COPY --from=element /src/packages/pivotkit-element/package.json /app/packages/pivotkit-element/
+COPY --from=element /src/packages/pivotkit-element/dist /app/packages/pivotkit-element/dist
 
 FROM ${RUNTIME_IMAGE}
 LABEL org.opencontainers.image.title="pivotkit" \

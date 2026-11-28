@@ -13,11 +13,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDragSource } from "./dnd.jsx";
 import { useIsoLayoutEffect } from "./iso.js";
-import { Icon } from "./icons.jsx";
+import { Icon, ZONE_ICON } from "./icons.jsx";
+import { cornerLabel, headerField, scopeOf } from "./header-cells.js";
 import { fieldLabel } from "pivotkit-core";
 import { fill } from "./labels.js";
-import { refLabel, sortText } from "./names.js";
-import { headerSortState, headerSortTarget, nextHeaderSort } from "./view-ops.js";
+import { refLabel, sortGlyph, sortText } from "./names.js";
+import { headerSortState, headerSortTarget, nextHeaderSort, sortOf } from "./view-ops.js";
 import { VIRTUAL_FROM, longestLabels, rowLabelOf, sliceRows, windowOf } from "./virtual.js";
 import { commonCap } from "./label-room.js";
 
@@ -186,6 +187,33 @@ function DraggableHeader({ cell, source, children, className, style, colSpan, ro
             {children}
             <Icon name="grip" size={12} className="pk-th-grip" />
         </th>
+    );
+}
+
+/**
+ * The content of a header cell: a field's name with its zone's icon and, but for a value name repeated
+ * over the columns, its zone's fill (`named`, header-cells.js); a group's toggle; the sort button
+ * (`sorting`) or the text.
+ */
+function HeaderContent({ cell, named, sorting, labels, onToggle }) {
+    return (
+        <span className={named ? `pk-th-content pk-th-field pk-th-zone-${named.zone}${named.fill ? " pk-zone-fill" : ""}` : "pk-th-content"}>
+            {named ? <Icon name={/** @type {any} */ (ZONE_ICON[named.zone])} size={14} className="pk-th-zone" /> : null}
+            {cell.toggle ? <Toggle toggle={cell.toggle} text={cell.text} labels={labels} onToggle={onToggle} /> : null}
+            {sorting ? sorting.content : <span className="pk-th-text">{cell.text}</span>}
+        </span>
+    );
+}
+
+/**
+ * An empty corner heads no cell: a plain cell, not a header without a name. `label` names the fields
+ * on each axis for a screen reader (the empty corner is one cell, its parts merged).
+ */
+function BlankCorner({ className, style, colSpan, rowSpan, label }) {
+    return (
+        <td className={`${className} pk-blank`} style={style} colSpan={colSpan} rowSpan={rowSpan}>
+            {label ? <span className="pk-sr">{label}</span> : null}
+        </td>
     );
 }
 
@@ -463,22 +491,28 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         const column = target.column ? columnNames.get(JSON.stringify(target.column)) : undefined;
         // a sort in words; no entry is the field's default order
         const words = (s) => sortText(view, s ?? { by: hostOrdered(target.field) ? "custom" : "label", order: "asc" }, labels, s?.column ? columnNames.get(JSON.stringify(s.column)) : undefined);
-        // a header keeps its width: its arrow sits in the cell's padding before the text (styles.css
-        // .pk-th-arrow), so twelve months do not widen the table (#70) and a word that fits the
-        // header is not broken for the arrow's room ("Categor" over "y" on a phone)
-        // the arrow of the order in use, else of the one a click gives (shown on hover and focus)
-        const down = state.chosen ? state.order === "descending" : next?.order === "desc";
+        // a header keeps its width: its arrow follows the last word but takes no room, hanging into
+        // the cell's end padding (styles.css .pk-th-arrow), so twelve months do not widen the table
+        // (#70) and a word that fits the header is not broken for the arrow's room ("Categor" over "y")
+        // every sortable header shows a mark, so a reader sees that it sorts (#920): the glyph of the
+        // order in use (a sort chosen here, or a custom order), in the sort colour; else up and down
+        const sorted = state.chosen || state.order === "other";
+        const glyph = sorted ? sortGlyph(sortOf(view, target.field)) : "arrowUpDown";
         const click = () => {
             onSort?.(target.field, next);
             setSortNote(fill(labels.headerSorted, { field, order: words(next) }));
         };
+        // what the next click does: the tooltip, and after the order in use what a screen reader hears
+        const hint = target.ref && next ? fill(next.order === "desc" ? labels.headerSortDesc : labels.headerSortAsc, { value: column ? fill(labels.valueInColumn, { value: refLabel(view, target.ref, labels), column }) : refLabel(view, target.ref, labels) }) : fill(labels.headerSort, { field, order: words(next) });
         return {
             // aria-sort only on the header whose sort was chosen (a custom order too): one at a time (WAI-ARIA APG)
-            sort: state.chosen || state.order === "other" ? state.order : null,
+            sort: sorted ? state.order : null,
             content: (
-                <button type="button" className={`pk-th-sort${state.chosen ? " pk-sorted" : ""}`} title={target.ref && next ? fill(next.order === "desc" ? labels.headerSortDesc : labels.headerSortAsc, { value: column ? fill(labels.valueInColumn, { value: refLabel(view, target.ref, labels), column }) : refLabel(view, target.ref, labels) }) : fill(labels.headerSort, { field, order: words(next) })} onClick={click}>
+                // the order in use, then the next click's, as the button's description (it replaces the
+                // title's), not its name: the name heads every cell below
+                <button type="button" className={`pk-th-sort${sorted ? " pk-sorted" : ""}`} aria-description={sorted ? `${fill(labels.stateSorted, { order: words(sortOf(view, target.field)) })}. ${hint}` : undefined} title={hint} onClick={click}>
                     <span className="pk-th-text">{cell.text}</span>
-                    <Icon name={down ? "arrowDown" : "arrowUp"} size={14} className="pk-th-arrow" />
+                    <Icon name={glyph} size={14} className="pk-th-arrow" />
                 </button>
             )
         };
@@ -515,16 +549,12 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         const className = `pk-th pk-${cell.kind}${totalClass(cell.total)}${subStart(c)}${sticky ? " pk-sticky" : ""}`;
         const target = onSort ? headerSortTarget(view, cell, typeOf) : null;
         const sorting = target ? sortButton(cell, target) : null;
-        const content = (
-            <span className="pk-th-content">
-                {cell.toggle ? <Toggle toggle={cell.toggle} text={cell.text} labels={labels} onToggle={onToggle} /> : null}
-                {sorting ? sorting.content : <span className="pk-th-text">{cell.text}</span>}
-            </span>
-        );
-        const props = { className, style: stickyStyle(c, top), colSpan: cell.colSpan, rowSpan: cell.rowSpan, scope: cell.kind === "colHeader" ? "col" : undefined };
+        // a field's name: its zone's icon, and its fill (header-cells.js)
+        const named = headerField(view, cell, r === grid.headerRows - 1);
+        const content = <HeaderContent cell={cell} named={named} sorting={sorting} labels={labels} onToggle={onToggle} />;
+        const props = { className, style: stickyStyle(c, top), colSpan: cell.colSpan, rowSpan: cell.rowSpan, scope: scopeOf(cell, named) };
         if (cell.kind === "corner" && !cell.field && !cell.text) {
-            // an empty corner names nothing: a plain cell, not a header without a name
-            return <td key={c} className={`${className} pk-blank`} style={props.style} colSpan={cell.colSpan} rowSpan={cell.rowSpan} />;
+            return <BlankCorner key={c} className={className} style={props.style} colSpan={cell.colSpan} rowSpan={cell.rowSpan} label={cornerLabel(view, labels)} />;
         }
         if (cell.kind === "corner" && cell.field) {
             const zone = view.rows.includes(cell.field) ? "rows" : "cols";

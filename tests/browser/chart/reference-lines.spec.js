@@ -343,7 +343,7 @@ test.describe("reference lines", () => {
         });
     }
 
-    for (const width of [1440, 390]) {
+    for (const width of [1440, 470, 390]) {
         test(`at ${width} px no label covers another, with lines close together and far apart`, async ({ page }) => {
             await page.setViewportSize({ width, height: 900 });
             // A's average 25 and a target of 26, B's average 5 and both trends: five labels, two close
@@ -356,14 +356,16 @@ test.describe("reference lines", () => {
                         expect(overlap(boxes[i].box, boxes[j].box), `${JSON.stringify(chart)}: "${boxes[i].label}" and "${boxes[j].label}" overlap`).toBe(false);
                     }
                 }
-                // the labels are inside the chart, and a narrow one names the lines only
+                // the labels are inside the chart; a narrow one names its line where every label fits in 30 %
+                // of the width (470 px), else writes the value only, a trend its name (390 px) (#913)
                 const size = await chartEl.boundingBox();
                 for (const l of boxes) {
                     expect(l.box.x + l.box.width, l.label).toBeLessThanOrEqual(size.width + 1);
                     expect(l.box.x, l.label).toBeGreaterThanOrEqual(-1);
                 }
-                if (width < 480) {
-                    expect(boxes.every((l) => !/\d/.test(l.label)), boxes.map((l) => l.label).join(", ")).toBe(true);
+                if (width < 400) {
+                    expect(boxes.every((l) => l.label === "Trend" || /^\d+$/.test(l.label)), boxes.map((l) => l.label).join(", ")).toBe(true);
+                    expect(boxes.map((l) => l.label)).toContain("26");
                 } else {
                     expect(boxes.map((l) => l.label)).toContain("Target 26");
                 }
@@ -481,7 +483,7 @@ test.describe("reference lines", () => {
 
 /**
  * The high and low points ECharts drew (markPoint): each label's words ("▲ 40"), its box and its dot's
- * middle in the chart's pixels, the dot's fill and the glyph's colour; the plot's box with them.
+ * middle in the chart's pixels, the dot's fill, the glyph's and the value's colour; the plot's box with them.
  */
 const drawnPoints = (chartEl) =>
     chartEl.evaluate(async (el) => {
@@ -499,7 +501,7 @@ const drawnPoints = (chartEl) =>
             if (text.transform) r.applyTransform(text.transform);
             e.updateTransform();
             const [x, y] = e.transform ? [e.transform[4], e.transform[5]] : [e.x, e.y];
-            points.push({ label: `${glyph[1]} ${glyph[2]}`, box: { x: r.x, y: r.y, width: r.width, height: r.height }, dot: { x, y }, fill: e.style.fill, glyph: text.style.rich?.s?.fill ?? null });
+            points.push({ label: `${glyph[1]} ${glyph[2]}`, box: { x: r.x, y: r.y, width: r.width, height: r.height }, dot: { x, y }, fill: e.style.fill, glyph: text.style.rich?.s?.fill ?? text.style.fill ?? null, ink: text.style.fill ?? null });
         }
         return { grid: { x: grid.x, y: grid.y, width: grid.width, height: grid.height }, points };
     });
@@ -511,17 +513,20 @@ test.describe("high and low points (#574)", () => {
     const ON = { average: false, trend: false, target: null, extremes: true };
 
     for (const [width, theme] of [[1440, "light"], [1440, "dark"], [390, "light"], [390, "dark"]]) {
-        test(`lines at ${width} px, ${theme}: a dot in the series' colour at each highest and lowest value, the label inside the plot, none over another`, async ({ page }) => {
+        test(`lines at ${width} px, ${theme}: a dot in the series' colour at each highest and lowest value, the label in the text colour inside the plot, none over another`, async ({ page }) => {
             await page.setViewportSize({ width, height: 900 });
             await page.goto("pages/host.html");
             const chartEl = await mount(page, { type: "line", referenceLines: ON }, { theme });
             const { grid, points } = await drawnPoints(chartEl);
             expect(points.map((p) => p.label).sort()).toEqual(["▲ 40", "▲ 7", "▼ 10", "▼ 3"]);
-            // the dot and the glyph in A's and B's series tokens
+            // the dot in A's and B's series tokens; the glyph and the value in the text colour (#913)
             const of = (label) => points.find((p) => p.label === label);
             expect(await asRgb(page, of("▲ 40").fill)).toBe(await tokenColor(page, "--pk-chart-1"));
-            expect(await asRgb(page, of("▲ 40").glyph)).toBe(await tokenColor(page, "--pk-chart-1"));
             expect(await asRgb(page, of("▼ 3").fill)).toBe(await tokenColor(page, "--pk-chart-2"));
+            for (const label of ["▲ 40", "▼ 3"]) {
+                expect(await asRgb(page, of(label).glyph)).toBe(await tokenColor(page, "--pk-muted"));
+                expect(await asRgb(page, of(label).ink)).toBe(await tokenColor(page, "--pk-muted"));
+            }
             // the highest above its dot, the lowest below it, each at its value
             expect(of("▲ 40").box.y + of("▲ 40").box.height).toBeLessThanOrEqual(of("▲ 40").dot.y);
             expect(of("▼ 10").box.y).toBeGreaterThanOrEqual(of("▼ 10").dot.y);

@@ -1,6 +1,6 @@
 {
   "name": "pivotkit-server",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "pivotkit's reports over HTTP: a REST service with an OpenAPI 3.1 document, and the shared core of the MCP server (sources, exposure policy with profiles, workers, output, token or OAuth sign-in). One command for the REST service, the MCP server and the CLI.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",
@@ -51,6 +51,7 @@
   "files": [
     "bin",
     "src",
+    "viewer",
     "types",
     "README.md",
     "CHANGELOG.md",
@@ -69,17 +70,25 @@
   },
   "dependencies": {
     "echarts": "6.1.0",
-    "jose": "6.2.17",
-    "pivotkit-core": "^0.10.0",
-    "pivotkit-node": "^0.1.0",
-    "pivotkit-report": "^0.6.0",
-    "pivotkit-xlsx": "^0.7.0"
+    "jose": "6.2.18",
+    "pivotkit-core": "^0.11.0",
+    "pivotkit-node": "^0.2.0",
+    "pivotkit-report": "^0.7.0",
+    "pivotkit-xlsx": "^0.8.0"
+  },
+  "peerDependencies": {
+    "pivotkit-element": "^0.11.0"
+  },
+  "peerDependenciesMeta": {
+    "pivotkit-element": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.4.0",
     "@types/node": "24.19.2",
-    "pivotkit-cli": "0.6.0",
-    "pivotkit-mcp": "0.5.0"
+    "pivotkit-cli": "0.7.0",
+    "pivotkit-mcp": "0.6.0"
   },
   "types": "./types/index.d.ts",
   "publishConfig": {

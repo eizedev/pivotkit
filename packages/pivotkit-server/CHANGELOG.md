@@ -6,6 +6,91 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- The browser path ([records](https://pivotkit.eize.dev/reference/records/#records-browser)): `POST
+  /api/v1/sources/records/token` exchanges a person's token for a short-lived browser token that
+  reads the rows of one source with its parameters. Every other route, `/openapi.json` and MCP
+  refuse it. The log names its ID, never its value. An expired one is 401 `INVALID_TOKEN` with
+  `expired: true`.
+- `rest.browser.origins`: pages that read rows with a browser token, with CORS on the rows route
+  only. `rest.browser.minutes` (default 5, at most 60), `rest.browser.key` and
+  `rest.browser.levels`.
+- `create_link` takes `access` (`me`, `signedIn`, `group`), an advisory level signed for the link's
+  source into its query string as `pk-access`. The exchange route checks it; its refusal carries
+  `linkAccess`: `"refused"` or `"invalid"`. A sign-in too large for a browser token is 413
+  `LIMIT_EXCEEDED` with `limit: "token"`. `check-config` warns when `rest.browser.levels` offers
+  `signedIn` beside `me` or `group`.
+- With a state directory, the server makes `secrets/browser.key` where a profile reads rows.
+  `key new --for browser` makes one.
+- `check-config` has a section "Browser path".
+- The viewer page ([records](https://pivotkit.eize.dev/reference/records/#records-viewer)):
+  `rest.browser.viewer` serves `/live/<source>`, the server's own page for a live link. It signs
+  the person in with the download links' client (one more redirect URI, `/live/_/callback`), reads
+  their rights from the access token of that sign-in, and shows the report with a browser token
+  only. No session follows. It needs pivotkit-element installed next to the server, in the range of
+  the new optional peer dependency; the container image holds its built files. A sign-in counts against the person's REST rate limit. The log
+  has a `viewer` line per sign-in. `check-config` names the redirect URI and the scopes, and warns
+  when the page is not served, the sign-in lacks `rest.requiredScopes`, pivotkit-element is missing
+  or too old, or a source's `link` points at the page while it is off.
+- The sign-in cookie of the download links drops an entry too large for a browser on its own.
+- The rows route's 413 `LIMIT_EXCEEDED` holds its limit as `maxRows` or `maxCells`.
+- `auth.issuers`: the server accepts the tokens of up to 10 OAuth issuers, for example two
+  Authentik applications with an issuer each ([#587](https://github.com/eizedev/pivotkit/issues/587)).
+  A token is checked with the keys of the issuer its `iss` names only. Each entry can set its own
+  `jwksUri`, `audience` (in place of the endpoint's) and `requiredScopes` (on top of the
+  endpoint's; without them 403 `insufficient_scope`). The first issuer is the one named to clients.
+  `auth.issuer` works as before; both together are refused. Each issuer loads on its own: a token
+  of an issuer not loaded yet gets 503, the others' pass, and `/readyz` names the waiting issuers.
+- `tokenExchange.issuer`: the issuer whose people a token exchange serves, required with more than
+  one issuer. A person of another issuer does not see such a source, and their token never goes to
+  its token endpoint. `check-config` lists each issuer with its audience and scopes.
+
+### Changed
+
+- A token exchange sends a person's token only when their issuer is the exchange's issuer. A host
+  that builds callers with `callerOf("oauth", ...)` passes the issuer exactly as `auth.issuer` writes
+  it ([#587](https://github.com/eizedev/pivotkit/issues/587)).
+- The messages for a missing or malformed `auth.issuer` name `auth.issuers` too, and the issuer is
+  checked before the download sign-in and the HTTP sources that depend on it.
+
+## [0.6.0] - 2026-11-26
+
+### Changed
+
+- Depends on `pivotkit-core` `^0.11.0`, `pivotkit-node` `^0.2.0`, `pivotkit-report` `^0.7.0` and
+  `pivotkit-xlsx` `^0.8.0`.
+- **Breaking:** a key read from a file that starts with a UTF-8 byte order mark is refused. Before,
+  the mark (U+FEFF) became part of the key. This holds for the secrets given as a `{ "file" }`
+  reference: `output.downloads.key`, `audit.key`, a backend's sign-in, the upload store's headers
+  and the download sign-in's client secret. The start, `check-config` and `key new --if-missing` say
+  so and name the file. Save it as UTF-8 without the mark. Download links made with such a key stop
+  working, and audit hashes made with it change. A token file's mark is still trimmed.
+- A rows request (`POST /api/v1/sources/records`) that finds every place taken waits up to
+  `rest.records.waitMs` (default 5 s, 0 to 60 s) for one, first come first served, before 503
+  `BUSY`. A request that is answered within that time no longer turns the next person away. With the
+  defaults, a slow load (up to `compute.timeMs`, 30 s) or a slow reader (up to
+  `rest.records.writeMs`, 10 s) still outlasts the wait, and the others get 503 `BUSY`. Raise
+  `waitMs` or `rest.records.concurrency` for that. `waitMs: 0` keeps the old behavior. Raise a
+  proxy's time limit for this route by `waitMs`.
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
+### Fixed
+
+- A host that passes `env` to `createContext` or `serve()` gets the `{ env }` secrets of a backend's
+  sign-in and of `output.upload`'s headers from that `env`. They were read from `process.env`, at
+  start and on every load. Static tokens and the download key already used it. A host that passes its
+  own `env` must hold those variables in it.
+- One-time download links and the sign-in of download links work when the output directory's file
+  system has no hard links, such as FAT, exFAT and some SMB mounts. There the server creates the file
+  that marks a link or sign-in used in place. Both failed with 500.
+- `check-config` no longer warns that a later `auth.groupProfiles` entry shows fields an earlier one
+  holds back when the source's policy already shows those fields to both. It compares the levels a
+  person gets in each source, and under `files.policy` where `files.allowDirs` is set.
+- A large REST body (over 2 MiB, for a profile with `data: true`) takes its place per person, as
+  the rate limit counts. Two people who sign in through one OAuth client can each send one at once.
+  Before, they shared one place. A token without a person still counts per token or client.
+
 ## [0.5.0] - 2026-11-24
 
 ### Added
@@ -1153,7 +1238,8 @@ First release.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.5.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.6.0...HEAD
+[0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.5.0...pivotkit-server@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.4.0...pivotkit-server@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.2...pivotkit-server@0.4.0
 [0.3.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.3.1...pivotkit-server@0.3.2

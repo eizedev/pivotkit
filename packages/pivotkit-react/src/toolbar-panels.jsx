@@ -18,6 +18,7 @@ import { Icon } from "./icons.jsx";
 import { fill, hostFailure } from "./labels.js";
 import { Option } from "./popover.jsx";
 import { Section, SettingInfo } from "./section.jsx";
+import { paramsText } from "./share.js";
 import { shareActions } from "./share-actions.js";
 import { SHORTCUTS } from "./tip-state.js";
 import { LevelMenu } from "./levels.jsx";
@@ -99,9 +100,9 @@ function ChartTitle({ title, labels, onDisplay }) {
 }
 
 /**
- * The colour each series or slice is drawn with, by name, from the chart's ECharts option: its own
- * colour where it has one (a fixed one, chart.colors or the host's colorMap), else the palette's of its
- * place, as ECharts gives it.
+ * The colour each series, slice or treemap tile is drawn with, by name, from the chart's ECharts
+ * option: its own colour where it has one (a fixed one, chart.colors or the host's colorMap; a tile's
+ * as pivotkit-core darkened it for its text), else the palette's of its place, as ECharts gives it.
  * @param {any} instance  the chart's ECharts instance
  * @returns {Map<string, string>}
  */
@@ -111,7 +112,7 @@ function colorsDrawn(instance) {
     const palette = Array.isArray(option?.color) ? option.color : [];
     const of = (/** @type {any} */ item, /** @type {number} */ i) => item?.itemStyle?.color ?? palette[i % Math.max(1, palette.length)];
     for (const [i, s] of (option?.series ?? []).entries()) {
-        if (s.type === "pie") {
+        if (s.type === "pie" || s.type === "treemap") {
             (s.data ?? []).forEach((/** @type {any} */ d, /** @type {number} */ j) => out.set(String(d.name), of(d, j)));
         } else {
             out.set(String(s.name), of(s, i));
@@ -195,7 +196,7 @@ function TargetField({ target, labels, locale, format, onTarget }) {
 /**
  * Chart settings: the types (a pick closes it), then how the chart is drawn, in levels as the other
  * menus (levels.jsx, menu-topics.js chartTopics): a row per topic with what is set, each opening its
- * level (Value labels, Legend, Title, Axis, Tooltip, Reference lines with its Target, Series, Layout
+ * level (Value labels, Legend, Title, Axis, Tooltip, Reference lines with its Target, Entries, Layout
  * with the groups of Rows folded or not). Each choice applies at once and the menu stays open, so the
  * chart behind it shows the change; folding the groups closes it.
  */
@@ -207,7 +208,8 @@ export function ChartSettingsPanel({ view, plan, encoded, lineChecks, labels, lo
     const lines = view.chart.referenceLines;
     const plain = plan?.chart && encoded ? referenceLineRules(plan.swap ? swapAxes(view) : view, { ...view.chart, ...plan.chart }, encoded) : { average: true, trend: true, target: true, extremes: true };
     const rules = lineChecks ?? { ...plain, notes: ["table"] };
-    // the colour each series or slice is drawn with, as #rrggbb, read again after each draw of the chart
+    // the colour each series, slice or tile is drawn with, as #rrggbb, read again after each draw of the
+    // chart; a name the draw leaves out (a treemap's hidden tile) keeps the colour it was drawn with last
     const [drawnColors, setDrawnColors] = useState(/** @type {Map<string, string>} */ (new Map()));
     useEffect(() => {
         const instance = colors?.chart?.current;
@@ -215,7 +217,7 @@ export function ChartSettingsPanel({ view, plan, encoded, lineChecks, labels, lo
             return undefined;
         }
         const ctx = instance.getDom?.()?.ownerDocument?.createElement("canvas").getContext("2d") ?? null;
-        const read = () => setDrawnColors(new Map([...colorsDrawn(instance)].map(([name, c]) => [name, hexColor(String(c), ctx) ?? ""])));
+        const read = () => setDrawnColors((before) => new Map([...before, ...[...colorsDrawn(instance)].map(([name, c]) => /** @type {[string, string]} */ ([name, hexColor(String(c), ctx) ?? ""]))]));
         read();
         instance.on("finished", read);
         return () => instance.off("finished", read);
@@ -622,6 +624,17 @@ const entrySource = (t, shown) => {
 const storedSheet = (target, ctx) => (target.storeSource && target.storeSource === ctx.sourceId ? (ctx.sheet ?? null) : (target.storeSheet ?? null));
 
 /**
+ * The note under Share: what leaves the report with a view (filter values can be values of the data).
+ * With a server, a link keeps parameters in its address: it says which, before whose rights apply.
+ * @param {{ canLink?: boolean, keepQuery?: Array<[string, string]> }} share
+ * @param {any} labels
+ */
+function shareNote(share, labels) {
+    const params = share.canLink ? paramsText(share.keepQuery ?? []) : "";
+    return params ? `${fill(labels.shareKeeps, { params })} ${labels.sharePrivacy}` : labels.sharePrivacy;
+}
+
+/**
  * The Views menu in levels: what persists, as one list to scan in groups - "This view" (Save the
  * loaded view under its name, or why not; Save as…), "Shared views" (the host's, for everyone) and
  * "My views" (the user's own: the host's or the browser store's), each shown only when it has entries
@@ -740,7 +753,7 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
                           }
                       ],
                       // what leaves the report with a view: filter values can be values of the data
-                      note: labels.sharePrivacy,
+                      note: shareNote(share, labels),
                       noteId: "share-privacy"
                   }
               ]

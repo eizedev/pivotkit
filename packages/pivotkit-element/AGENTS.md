@@ -50,7 +50,10 @@ The first load holds only the first render and what a click outside a menu does 
 - Group "report": HTML report, SVG and printing. Loaded on first use.
 - Group "template": print template CSS. The element never loads it.
 - A module behind a barrel lands wherever any importer of the barrel loads it.
-- So `chartOffBarrel` drops `toEChartsOption` from pivotkit-core's `index.js`. The chart takes it from `pivotkit-core/chart`.
+- So `barrelOff` drops two lines from pivotkit-core's `index.js` in the element's build.
+- `toEChartsOption`: the chart takes it from `pivotkit-core/chart`.
+- `describe.js`: only pivotkit-report uses it. Its imports of `pivotkit-core` get it back (`REPORT_CORE`).
+- A file only an export uses is a file of its own in pivotkit-core, such as `excel-format.js`.
 - `dist/import-worker.js` is a separate build of one file (`workerOptions`).
 - `test/build.test.js` checks all of this.
 

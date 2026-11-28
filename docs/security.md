@@ -90,10 +90,11 @@ The REST service and the MCP server request only addresses that the operator wri
 configuration or on the command line:
 
 - an [HTTP source](reference/sources.md#http) and its backend sign-in
-- the OAuth issuer's metadata and key set
+- the metadata and key set of each OAuth issuer
 - the token endpoint of a token exchange, and that of the
   [sign-in links](reference/delivery.md#sign-in) of downloads. Each is the issuer's, or the address
-  the operator sets with `tokenUrl`. The sign-in links can have an issuer of their own.
+  the operator sets with `tokenUrl`. The sign-in links use the first issuer; an issuer of their
+  own is not supported yet ([#441](https://github.com/eizedev/pivotkit/issues/441)).
 - an [upload store](reference/delivery.md#upload) and its presign service
 - the OpenAPI document that `pivotkit-server source-from-openapi` reads
 
@@ -544,6 +545,9 @@ gets at each level, and how to set them per client.
     - OAuth 2.1 as the [MCP authorization spec](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)
       describes. The server checks JWT access tokens for signature, issuer, audience (the server
       itself), expiry and algorithm, and never passes them on. Scopes apply per tool and per source.
+      With [more than one issuer](reference/sign-in.md#issuers), a token is checked with the keys,
+      audience and scopes of the issuer its `iss` names only, and every listed issuer is trusted
+      for scopes, groups and claims as `auth.issuer` is.
 
     The server requests the issuer's metadata, its keys and the download sign-in's token endpoint
     under the rules of every other outbound request: no redirects, sizes capped, link-local and
@@ -604,8 +608,8 @@ and the sign-in above hold for it too. What differs:
     - Everyone else keeps 2 MiB. A body declared larger than any caller may send is refused before
       the token is read.
     - Over all callers, the server reads at most two such large bodies at once, one per caller. A
-      caller is a token by its name, or an OAuth client, however many use it. Another body gets 503
-      `BUSY` with `Retry-After`.
+      caller is a person (an OAuth subject, or a static token's name), else the OAuth client of a
+      token without a subject. Two people of one OAuth client can hold both places. Another body gets 503 `BUSY` with `Retry-After`.
     - A file is parsed in a worker under the time, memory and import limits.
     - A `sha256` of its bytes catches a file altered on the way. `rowCount` catches a cut JSON table.
     - The data is never cached, and no exposure policy applies to it.
@@ -633,9 +637,9 @@ and the sign-in above hold for it too. What differs:
     - The rows land in the host application and in the page. From there, the browser is not access
       control ([pivotkit is not access control](#pivotkit-is-not-access-control)).
     - Each answer is bounded before its first byte: rows and cells, at most `rest.records.concurrency`
-      at once and one per person, `compute.timeMs` for the whole request. A reader that stalls for
-      `rest.records.idleMs`, or has not read the answer within `rest.records.writeMs`, loses its
-      place.
+      at once and one per person, `compute.timeMs` for the whole request. Others wait for a place up
+      to `rest.records.waitMs`. A reader that stalls for `rest.records.idleMs`, or has not read the
+      answer within `rest.records.writeMs`, loses its place.
     - Every answer carries `Cache-Control: no-store` ([headers](reference/rest.md#headers)).
 - **No files by path**: `file:` sources are refused, whatever the MCP server's `files.allowDirs` says.
   Inline results are off unless the operator turns them on, since a program can enumerate through
@@ -766,8 +770,9 @@ operator's, never a caller's:
   reference, OAuth client credentials or a token exchange.
     - A secret is never written in the configuration, logged, or printed by `check-config` and
       `check-source`.
-    - A person's own access token goes only to the token endpoint, as the token exchange's
-      `subject_token`. It never goes to a backend: there is no token passthrough.
+    - A person's own access token goes only to the token endpoint of the issuer that signed them
+      in, as the token exchange's `subject_token`. It never goes to a backend: there is no token
+      passthrough.
     - An exchanged token is kept per person, client and scopes. It is never kept longer than the
       person's own token and `maxAgeSeconds`.
     - The token endpoint's `error_description` is dropped.
@@ -779,6 +784,36 @@ operator's, never a caller's:
 - The policy of an HTTP source must hide fields by default, so a field the backend adds later is not
   shown without anyone deciding. Its data is kept per caller and values, never shared between
   callers.
+
+## The browser path { #browser-path }
+
+A page can read a report's rows with a short-lived [browser token](reference/records.md#records-browser)
+instead of the person's own token. That page says what the token reads, how long it lives and how
+it ends. What it means for an operator:
+
+- Your backend makes the exchange, so the page never holds the person's token. A stolen browser
+  token reads one report until it expires.
+- `rest.browser.origins` is a CORS list of its own. Keep `rest.cors.origins` for pages that send a
+  person's token.
+- A link's [access level](reference/records.md#records-access) is advisory. Everyone reads with
+  their own rights.
+
+### The viewer page { #viewer-page }
+
+The [viewer page](reference/records.md#records-viewer) is a page of the server's own origin. It
+holds a browser token, so what may run in it matters:
+
+- Its `Content-Security-Policy` header is the [policy below](#content-security-policy) with
+  `frame-ancestors 'none'`: only the server's own files, no inline script or style, no frames.
+- It escapes every stored text: `branding.name` and a source's title. Its data is a JSON block with
+  `<`, `>` and `&` escaped. Tests run with titles and names that try to break out.
+- It serves only its own script and style and pivotkit-element's built files, from a list made at
+  start. Its sign-in returns only to a `/live/` page of this server.
+- The page gets the browser token alone, never the person's tokens
+  ([how it signs in](reference/records.md#records-viewer)). The token is never in an address, a
+  cookie or the log.
+- With the sign-in client's ID in `rest.audience`, every access token of that client is a REST
+  bearer with the person's rights. Give that client no scopes beyond `rest.requiredScopes`.
 
 ## Parameters in a link { #link-params }
 
@@ -837,7 +872,7 @@ Not covered:
 
 - Browsers without constructable stylesheets fall back to a `<style>` element. That needs
   `style-src 'unsafe-inline'`, since the element has no nonce option.
-- Only the `<meta>` form of the policy was measured, not an HTTP header.
+- The HTTP header form was measured on the [viewer page](#viewer-page) (`tests/browser/viewer.spec.js`).
 - `script-src` must allow the origin that serves `dist/` and its chunks.
 - A page script that sets the element's properties must be a file or carry a nonce.
 

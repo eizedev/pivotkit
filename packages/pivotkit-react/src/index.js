@@ -228,6 +228,13 @@
  *   (`cause` "load"; returning false refuses it, the data stays), the host's data shown again
  *   ("original"), one of those undone or redone ("undo", "redo"), or the file shown again by a report
  *   mounted again with its storageKey ("restore")
+ * @property {import("./server.js").ServerConnection} [server]  the report reads its rows from
+ *   pivotkit-server with a short-lived browser token: `{ url, source, getToken, allowParams }`. The
+ *   page names the server in its own code, never from a link; the parameters come from the page's
+ *   query string, only the names in `allowParams`. It takes the place of `data`
+ * @property {(state: import("./use-server-rows.js").ServerState) => void} [onServerState]  every state
+ *   of a report with a server: loading, ready, refused, linkRefused, expired, large, unreachable, busy;
+ *   with the server's code and request id, never the token
  * @property {() => Worker} [importWorker]  starts a module worker that runs pivotkit-react's
  *   `import-worker` entry, so CSV and JSON files are read off the page; without it they are read on
  *   the page (pivotkit-element brings its own)
@@ -258,3 +265,5 @@
  */
 
 export { PivotReport } from "./PivotReport.jsx";
+// the ids a host may list in `tips` (TIP_IDS) and those of the notices, which always show (NOTICE_IDS)
+export { NOTICE_IDS, TIP_IDS } from "./tip-state.js";

@@ -93,11 +93,12 @@ size through the element.
 | `--pk-shadow-sm`<br>`--pk-scrim`<br>`--pk-scrim-light` | Chip shadow; behind sheets and the drawer; behind the drill-down | see `styles.css` | see `styles.css` |
 | `--pk-total`<br>`--pk-total-strong` | Subtotal and grand total rows and columns | `#eef1f5`<br>`#e9edf3` | `#21252d`<br>`#252a33` |
 | `--pk-danger`<br>`--pk-danger-soft`<br>`--pk-warn`<br>`--pk-focus` | Remove and errors; the card of a filter that shows nothing; a warning in a line of text (the days of a range without data); the focus ring | `#b42318`<br>`#fdecea`<br>`#8a5a00`<br>`#2b5fd9` | `#ff8b80`<br>`#3a1f1d`<br>`#f3c56b`<br>`#84a3ff` |
-| `--pk-radius`<br>`--pk-radius-sm` | Corners of panels and popovers; of buttons, chips and fields | `10px`<br>`7px` | as light |
+| `--pk-radius`<br>`--pk-radius-sm` | Corners of panels, zones and popovers; of buttons, chips, fields and a field's name in the table's header | `8px`<br>`7px` | as light |
 | `--pk-radius-xs`<br>`--pk-radius-mark`<br>`--pk-radius-icon` | Smaller corners, in step with `--pk-radius-sm` (set that one and these follow): links, a list's options, a column's sort button and keys; small parts inside a chip, a cell or a list (a field's grip, a badge, a filter's value, the fold button of a group in the table); a field's type icon | `calc(var(--pk-radius-sm) * 4 / 7)` (4 px)<br>`calc(var(--pk-radius-sm) * 5 / 7)` (5 px)<br>`calc(var(--pk-radius-sm) * 6 / 7)` (6 px) | as light |
 | `--pk-radius-card`<br>`--pk-radius-chart` | The chart's tooltip and the HTML report's chart card; the chart's bars and pie slices (a heatmap's cells three quarters of it) | `8px`<br>`var(--pk-radius-xs)` (4 px) | as light |
 | `--pk-font-mono` | The code font of the text field a view's JSON is pasted into | `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` | as light |
 | `--pk-chart-title-size`<br>`--pk-chart-text-size` | The chart's title; its other text: the axes, the legend and the labels on the marks ([below](#chart-colours)) | `max(16px, var(--pk-font-size))`<br>`var(--pk-small)` | as light |
+| `--pk-chart-tile-size`<br>`--pk-chart-tile-weight`<br>`--pk-chart-tile-padding` | The text on a treemap's tiles: its size, the weight of a tile's name (the value takes `--pk-weight-normal`), the room between it and the tile's edge | `var(--pk-chart-text-size)`<br>`var(--pk-weight-strong)`<br>`8px` | as light |
 | `--pk-focus-width`<br>`--pk-focus-offset`<br>`--pk-glow-width`<br>`--pk-ring-width` | The focus ring's width and its gap to the control (in a list, a cell or a segmented button it sits inside the control, as wide); the soft ring around a focused text field and a zone a field is dragged over; the inset ring of a zone a field is dropped on to remove it (a clickable cell's hover ring is three quarters of it, a file drop's one and a half) | `2px`<br>`2px`<br>`3px`<br>`2px` | as light |
 | `--pk-shadow`<br>`--pk-shadow-lg` | Chips and buttons; popovers, drawer, drag preview | see `styles.css` | see `styles.css` |
 | `--pk-row-h` | Height of a table row | `2.45em` | as light |
@@ -119,11 +120,17 @@ size through the element.
 | `--pk-primary-bg`<br>`--pk-primary-text`<br>`--pk-primary-hover-bg` | The main action of a dialog (Apply, Save, Load): its fill and frame; its text; its fill on hover | `var(--pk-accent)`<br>`var(--pk-accent-text)`<br>`color-mix(in srgb, var(--pk-accent) 88%, var(--pk-text))` | as light |
 | `--pk-tooltip-name-w` | Widest series name in the chart's tooltip; a longer one ends in "…" | `12em` | as light |
 | `--pk-duration`<br>`--pk-ease` | Animations; `0ms` with `prefers-reduced-motion: reduce` | `180ms`<br>`cubic-bezier(0.2, 0.8, 0.2, 1)` | as light |
-| `--pk-type-string`<br>`--pk-type-number`<br>`--pk-type-date`<br>`--pk-type-boolean` | Field type icons | `#6250d6`<br>`#1a7f5a`<br>`#b5560b`<br>`#a3367a` | `#a99dff`<br>`#5fd3a3`<br>`#f2a65a`<br>`#f08cc6` |
+| `--pk-type-string`<br>`--pk-type-number`<br>`--pk-type-date`<br>`--pk-type-boolean` | Field type icons in the field list and on chips. Neutral, so that colour marks the zones only; set one to colour a type | `var(--pk-muted)` each | as light |
+| `--pk-zone-rows`<br>`--pk-zone-columns`<br>`--pk-zone-values`<br>`--pk-zone-filters` | Each zone's colour: its title's icon, its mark in the field list, the icon before a field's name in the table's header, and the tint of its chips and of that name. For icons only, never for text: each keeps 4.6:1 on `--pk-surface-2` (the values colour also on the Grand Total header, `--pk-total-strong`) and 3:1 on its own fill | `#1d5fcc`<br>`#a85a00`<br>`#0b785c`<br>`var(--pk-muted)` | `#8db4ff`<br>`#f2b559`<br>`#5fd6ac`<br>`var(--pk-muted)` |
+| `--pk-zone-tint`<br>`--pk-zone-tint-base` | The fill of a zone's chips, of its marks in the field list and of a field's name in the table's header: an opaque mix of this share of the zone's colour into this base. A filter's chip has no fill. Where the browser has no `color-mix()`, the fill is `--pk-surface-3`; in forced colours it is a frame | `16%`<br>`var(--pk-surface)` | as light |
+| `--pk-control-icon` | A chip's grip, menu arrow and ×. They keep 3:1 on every zone's fill with the default `--pk-muted`, as do a filter's chip and the type icons: a host that lightens `--pk-muted` or this token must check that | `var(--pk-muted)` | as light |
+| `--pk-sort-arrow`<br>`--pk-sort-arrow-rest` | The sort colour: the arrow behind the name of the sorted header in the table and on its chip (drawn bold), a custom order's mark too ([below](#sort-arrows)); the up-down mark behind every other header that sorts, at rest (in `--pk-text` on hover and focus). Each keeps 3:1 on the header and on every zone's fill | `var(--pk-accent)`<br>`var(--pk-muted)` | as light |
+| `--pk-field-hover` | A field's background in the field list on hover | `var(--pk-surface)` | as light |
 | `--pk-chart-1` ... `--pk-chart-8` | Chart series colours, in this order; read by ECharts | `#2a78d6`<br>`#eb6834`<br>`#1baf7a`<br>`#eda100`<br>`#e87ba4`<br>`#008300`<br>`#6250d6`<br>`#e34948` | `#3987e5`<br>`#d95926`<br>`#199e70`<br>`#c98500`<br>`#d55181`<br>`#008300`<br>`#9085e9`<br>`#e66767` |
 | `--pk-chart-axis` | The chart's axis line, apart from the table's lines. Not set, it is `--pk-border` | not set | not set |
 | `--pk-chart-reference` | The chart's reference lines of no series: a target, the lines of a stack's total. A series' own lines take its colour | `var(--pk-muted)` | `var(--pk-muted)` |
 | `--pk-chart-other` | The slice "Other (n)" that holds a pie's smallest slices when their labels have no room | `var(--pk-muted)` | `#6b7280` |
+| `--pk-chart-tile-text`<br>`--pk-chart-tile-contrast` | The text on a treemap's tiles; the contrast it keeps on each tile. A tile too light for the text is drawn darker (lighter for a dark text) just that far; `0` keeps every tile's colour ([below](#chart-colours)) | `#ffffff`<br>`4.6` | as light |
 | `--pk-heat-low`<br>`--pk-heat-high` | Heatmap scale, and a colour scale in the table whose view names no colours (through `--pk-scale-low` and `--pk-scale-high`) | `#eaf1fb`<br>`#2a78d6` | `#1d2735`<br>`#3987e5` |
 | `--pk-layer-z` | The z-index of the layer of menus, sheets and popups, only in a browser without the Popover API ([below](#popovers-above-the-page)) | `50` | as light |
 
@@ -134,6 +141,20 @@ Both themes meet WCAG contrast:
 
 A test of pivotkit-react, `test/contrast.test.js`, checks every pair of the defaults. When you change
 colours, keep those ratios.
+
+### Sort arrows { #sort-arrows }
+
+Every header that sorts shows a mark behind its name. A header that is not sorted shows an up-down
+mark (↕) in `--pk-sort-arrow-rest`. The sorted header shows the arrow of its order (↑ or ↓) in
+`--pk-sort-arrow`, and so does its field's chip. The sort colour is `--pk-accent` by default. Set it
+to give sorted headers a colour of their own, red for example:
+
+```css
+.pk-root { --pk-sort-arrow: #c62828; }   /* pivotkit-react */
+pivot-report { --pk-sort-arrow: #c62828; }   /* the web component */
+```
+
+Keep 3:1 against the header (`--pk-surface-2`) and the zones' fills, in light and dark.
 
 ## Popovers above the page
 
@@ -219,6 +240,10 @@ The chart reads these tokens in the current theme:
 | The heatmap | `--pk-heat-low`/`--pk-heat-high` |
 | The title's size and weight | `--pk-chart-title-size`, `--pk-weight-strong` |
 | Its other text: the axes, the legend, the labels on bars, slices and cells, the heatmap's scale | `--pk-chart-text-size` |
+| The text on a treemap's tiles ([treemap](../use/charts.md#treemap)): its colour and the contrast it keeps; its size, the name's weight and the value's, its padding | `--pk-chart-tile-text`, `--pk-chart-tile-contrast`; `--pk-chart-tile-size`, `--pk-chart-tile-weight`, `--pk-weight-normal`, `--pk-chart-tile-padding` |
+| The numbers on a heatmap's cells: of the two, the one with the higher contrast on the cell if it reaches 4.5:1, else black or white | `--pk-text`, `--pk-surface` |
+| The labels of high and low points, with an outline around the letters | `--pk-muted`, outlined in `--pk-surface` |
+| The labels of reference lines | `--pk-muted` |
 | The corners of bars and pie slices | `--pk-radius-chart` |
 | The corners of the tooltip | `--pk-radius-card` |
 | The tooltip's total line and the series under the pointer | `--pk-border`, `--pk-weight-strong` |
@@ -227,8 +252,27 @@ The chart reads these tokens in the current theme:
 | The axis line | `--pk-chart-axis`, else `--pk-border` |
 | The grid | `--pk-grid`, else `--pk-border` |
 
+Black (`#000000`) and white (`#ffffff`) are fixed values, not tokens. The contrast of `--pk-text`
+and of `--pk-muted` on `--pk-surface` is the theme's: the chart does not change them. It measures a
+translucent text colour, such as `rgba(0, 0, 0, 0.87)`, as drawn on its background. Without a
+`--pk-surface`, the points' labels have no outline.
+
+A treemap writes every tile's text in `--pk-chart-tile-text`, as ECharts does by default. A tile on
+which that colour does not reach `--pk-chart-tile-contrast` (4.6:1) is mixed with black, for a dark
+text with white, only as far as it takes. This holds for the palette and for your own colours
+(`colorMap`, Chart settings › Entries): a pale colour, such as `#d9d9d9`, shows darker on its tile.
+The dot beside a tile in Entries and the tooltip's mark show the tile; the picker opens on your
+colour. Colours are read as the screen draws them, without their alpha. To keep every tile's colour,
+set `--pk-chart-tile-contrast: 0`; the contrast is then yours.
+
+The chart reads these tokens when it draws. It draws again when the theme changes, when a stylesheet
+loads or is removed, and when a `<style>` is added or its text changes, in the page or the report's
+shadow root. A token changed any other way shows at the chart's next draw: a new size, view or
+theme. Such ways are a class on `<html>`, `insertRule()`, `adoptedStyleSheets`, a sheet's `media` or
+`disabled`, and a new root font size under a `rem` token.
+
 The heatmap's colours work in any form the browser reads, `oklch()` too. The chart mixes the colour
-of each cell from them. It takes them as plain sRGB colours: a colour's alpha is dropped, and a
+of each cell from them. It takes them as plain sRGB colours: a scale colour's alpha is dropped, and a
 colour outside sRGB, such as a P3 one, is clipped to its nearest sRGB colour. The HTML report and the SVG of the Export menu get them as the screen draws
 them. pivotkit-report on its own needs a form ECharts reads, see
 [print template](print-template.md#template-design).

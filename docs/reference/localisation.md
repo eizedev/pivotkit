@@ -30,7 +30,8 @@ pivotkit-react exports `LABELS` from its subpath `pivotkit-react/labels`:
 `import { LABELS } from "pivotkit-react/labels"`. It is a subpath of its own, so the report's first
 load does not carry the menus' texts. Its keys are the reference for every text. In pivotkit-react's
 source, they live in `src/labels.js`, `src/labels-de.js`, `src/menu-labels.js`,
-`src/menu-labels-de.js`, `src/unused-texts.js`, `src/unused-texts-de.js` and `src/import-labels.js`.
+`src/menu-labels-de.js`, `src/unused-texts.js`, `src/unused-texts-de.js`, `src/import-labels.js` and
+`src/server-labels.js`.
 
 The texts of the tabs and the zones' section are `table`, `chart`, `tableSettings`, `chartSettings`,
 `zonesTitle`, `zonesHint` and `more`. "+ Add" in each zone is `addField`, named by `addFieldTo`; its
@@ -45,6 +46,9 @@ The report ignores the keys `layout`, `showLayout`, `options` and `chartDisplay`
 console which key holds that text now.
 
 The report's `lang` attribute follows the labels, so screen readers use the right voice.
+
+The HTML report of [pivotkit-report](report.md) writes its filters and its summary in the locale's
+language too, with the locale's numbers ([`describeLabels`](report.md#options)).
 
 The web component loads the German texts of the first render as a file of its own:
 
@@ -99,6 +103,15 @@ The texts of [loading data](../use/load-data.md) are `labels.dataImport`. They c
 - the readers' notes per note code, in `labels.dataImport.notes`
 - a file over a limit, in `overLimit`, with the limit's words in `limitWhat`
 - `workbookCells`, for when a workbook's texts and formats reach `importCells`
+- the decimal mark choice of a column whose numbers fit both marks, such as `1,234`:
+    - `markQuestion` is the question above the choice, with the note's value as written in `{example}`.
+    - `markOf` names the column, in `{column}`. A screen reader reads it right after the question.
+    - `markOption.thousands` and `markOption.decimal` are the two options: the separator read as a
+      thousands separator or as the decimal mark. Both get the characters of the value as written:
+      `{whole}` and `{fraction}` on each side of the separator, and `{value}`, both joined without it.
+    - The decimal text must not show the separator. "“1,234” means 1,234" answers nothing. Spell the
+      mark out instead, as in `"{whole} point {fraction}"`.
+    - Without one of these texts, the preview shows no choice.
 
 They load with the import UI, English and German in one file. A host's own language takes English
 there unless its `labels` give `dataImport`.
@@ -108,6 +121,11 @@ These texts are part of the first load:
 - the Data button's text, `data`
 - its dot's words for a screen reader, `dataLoaded`
 - the empty report's lines and button: `emptyLoad`, `emptyNoData`, `emptyDrop`, `loadData`
+
+The texts of a report with a [server](live-rows.md) are `labels.server`: one heading and text per
+state, the buttons, and the lines for IT support. `{limit}`, `{time}`, `{code}`, `{id}` and `{host}`
+are filled in. They load with the network code, English and German in one file. A host's own
+language takes English there unless its `labels` give `server`.
 
 `labels.dataImport.formatNames` names the formats of the built-in readers and pivotkit-xlsx by the
 reader's `name`. The report shows another plugin's own `label` as it is.

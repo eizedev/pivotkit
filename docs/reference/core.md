@@ -184,14 +184,13 @@ pivotkit-core ships it as `pivotkit-core/schema/view-2.json`, and the site publi
 
 ### Describing data and views
 
-Plain, structured summaries for a log, an approver or an LLM that writes or explains views. They are
-JSON with one short English `text` per part, without a locale, and nothing rendered. Values from the
-data are data, and a prompt should mark them as such.
+Plain, structured summaries for a log, an approver or an LLM that writes or explains views: JSON with
+one short `text` per part, nothing rendered. Values from the data are data; a prompt should mark them as such.
 
 | Function | Returns | What |
 | --- | --- | --- |
-| `describeSource(data, { items })` | `{ rows, fields, text }` | Per field: `name`, `type`, and the `aggregators` and filter types (`filters`) that work on it. Encoded data adds `distinct`, `blanks`, the first `items` and `min`/`max` of numbers and dates (dates as ISO days). `items` holds at most `DESCRIBE_LIMITS.items`, 20, each cut at 80 characters. A schema `{ fields }` or a fields array gives the types only (`rows: null`). Rows that are not encoded throw `INVALID_ARGUMENT`, so `encode()` them first. Field names in the `text`s are cut at 80 characters, as items are. |
-| `describeView(view, schema, { limits })` | object | The view as `normalize` reads it, in parts: `rows`, `cols`, `values` with their names, `filters`, `derived`, `sort` and `display`. Each normalized filter has its `text`: `Region is one of "North", "South" (blanks dropped)`. It adds `valid`, `errors` and `warnings` of `validate`, and `text`, the whole view in one sentence. A part with an error is left out of the parts. The `text` of an invalid view starts with `(invalid: n errors, the parts they name are left out)`. |
+| `describeSource(data, { items })` | `{ rows, fields, text }` | Per field: `name`, `type`, and the `aggregators` and filter types (`filters`) that work on it. Encoded data adds `distinct`, `blanks`, the first `items` and `min`/`max` of numbers and dates (dates as ISO days). `items` holds at most `DESCRIBE_LIMITS.items`, 20, each cut at 80 characters. A schema `{ fields }` or a fields array gives the types only (`rows: null`); each entry of such an array needs a `name` and a `type` (`string`, `number`, `date`, `boolean` or `null`). Rows that are not encoded throw `INVALID_ARGUMENT`, so `encode()` them first. Field names in the `text`s are cut at 80 characters, as items are. |
+| `describeView(view, schema, { limits, labels, locale })` | object | The view as `normalize` reads it, in parts: `rows`, `cols`, `values` with their names, `filters`, `derived`, `sort` and `display`. Each normalized filter has its `text`: `Region is one of "North", "South" (blanks dropped)`. It adds `valid`, `errors` and `warnings` of `validate`, and `text`, the whole view in one sentence. A part with an error is left out of the parts. The `text` of an invalid view starts with `(invalid: n errors, the parts they name are left out)`. `labels` are the words of the texts, English by default ([`DESCRIBE_LABELS`](#helpers)): German writes `Region ist einer der Werte „North“; „South“, ohne leere Werte`: a list's items by "; " and filters by "; und ", as German numbers have a decimal comma. A key or a table entry that `labels` leaves out stays English, at any depth. `labels` that are not an object, or that hold a key `DESCRIBE_LABELS` does not have or a word of the wrong kind (a number for a text, a text for a table, a `lang` that is no language), throw `INVALID_OPTION`. `locale` writes the numbers of filter values as the locale does, without grouping (`1,5` and `2025` for `de-DE`); without it they are as in JSON. Dates stay ISO days. The `errors` and `warnings` stay English. |
 
 ### A view from field names { #view-from-field-names }
 
@@ -462,9 +461,9 @@ area with `stackPercent`.
 | `categoryNames` | The categories' whole names: the tooltip's title where the axis writes them shorter. |
 | `axisLabels` | The view's `chart.axisLabels`. |
 | `tooltipFormatter` | Builds the tooltip's formatter. Leave it out for a chart without a tooltip, such as an SVG. |
-| `readColor` | `(color) => color \| null`: a heatmap colour as ECharts can mix it. ECharts reads hex, `rgb()`, `hsl()` and some names only, and another form, such as `oklch()`, turns the cells black. An end with `null` takes `DEFAULT_THEME.colorScale`'s colour. |
+| `readColor`, `parseColor` | `readColor`: `(color) => color \| null`: a heatmap colour as ECharts can mix it. ECharts reads hex, `rgb()`, `hsl()` and some names only, and another form, such as `oklch()`, turns the cells black. An end with `null` takes `DEFAULT_THEME.colorScale`'s colour. `parseColor`: `(color) => [r, g, b, a] \| null`, such as ECharts' `color.parse`: a treemap's tile in a name or `hsl()` is then darkened for its text too. Without it, only hex and `rgb()` tiles are. |
 | `zoom`, `zoomAt`, `timeline`, `touch` | The zoom slider of a chart on a screen. See below. |
-| `pixelOf` | `(value) => px`: a value's height in the drawn chart, such as ECharts' `convertToPixel` after a first draw. The labels of the reference lines then sit at their lines. |
+| `pixelOf`, `tileOf` | After a first draw. `pixelOf`: `(value) => px`, a value's height in the drawn chart, such as ECharts' `convertToPixel`: the labels of the reference lines then sit at their lines. `tileOf`: `(index, name) => { width, height } \| null`, the tile of a treemap's item `index` named `name`, such as `drawnTiles(chart)` gives: each label then writes what fits its tile. `drawnTiles` gives `null` for an item it cannot match by name, such as in a tree with children. |
 
 It adds the theme's colours from the tokens, and:
 
@@ -480,11 +479,11 @@ It adds the theme's colours from the tokens, and:
 - A legend moved below a narrow chart.
 - The category axis laid out for the chart's size (`categoryLabelLayout`: straight, slanted or every
   n-th, `chart.axisLabels`). The option's `axisEvery` says when every n-th label is written.
-- Room on the right for the values at the end of horizontal bars, and fewer value ticks where a
-  narrow axis needs them.
-- A heatmap's row names and cell numbers where its cells have room.
-- A treemap's labels in `--pk-text` or `--pk-surface`, whichever has the higher contrast on the tile
-  (`labelColorOn(fill, candidates)`). Below 4.5:1, the label gets an outline in the other one.
+- Room on the right for the values at the end of horizontal bars, fewer value ticks on a narrow axis.
+- A heatmap's row names and numbers where its cells have room. Each number takes the one of
+  `--pk-text` and `--pk-surface` with the higher contrast on its cell if it reaches 4.5:1, else
+  `#000000` or `#ffffff` (`labelColorOn`). A treemap's labels and tiles, the labels cut to their
+  tiles with `tileOf`, as [Charts › Treemap](../use/charts.md#treemap) describes.
 
 pivotkit-react adds its DOM tooltip through `tooltipFormatter`. Its `readColor` turns any colour the
 browser reads into `#rrggbb`. pivotkit-report's keeps the colours ECharts reads. Any other one
@@ -537,8 +536,8 @@ The view's display settings are part of the option:
 - The hidden legend entries of `chart.hidden` as `legend.selected`. Without a legend, the option has
   one that is not shown.
 - The reference lines (`chart.referenceLines`) as silent `markLine`s, with the value axis's
-  `dataMin` and `dataMax` reaching them. The high and low points as silent `markPoint`s, their
-  labels kept inside the plot and apart by `decorateOption`.
+  `dataMin` and `dataMax` reaching them. The high and low points as silent `markPoint`s, their labels
+  kept inside the plot and apart by `decorateOption` ([limits](../concepts/charts.md#high-and-low-points)).
 - Fixed colours (`chart.colors`, `colorMap`) as `itemStyle.color` of a series or a slice, and the
   line's and the fill's colour of a line or an area. `tooltip.shareFormatter` writes a share in the
   locale's way.
@@ -633,6 +632,7 @@ files contain and where Excel's number formats cannot follow the grid.
 | `closest(name, candidates)` | "Did you mean": the name of `candidates` closest to `name` as `foldText` folds both, else `null`. The edit distance is at most a third of the name's length, at least 1 and at most 3. A swap of two neighbours is one edit. `HINT_LIMITS` (`{ candidates: 1000, length: 64, distance: 3 }`) bounds it, so a hint costs a few thousand steps per name at most. The view's hints, pivotkit-report's template check and pivotkit-cli's options use it. |
 | `DEFAULT_LABELS` | The texts the engine writes (blank, totals, value names, aggregator names, "show as" names), to override per call with `labels`. |
 | `REPORT_LABELS`, `reportLabels(locale)` | The same texts as a report shows them, per language. `en` has yes/no as words and the aggregators' longer names ("Distinct count"). `de` has "Gesamtergebnis" and "Summe von Units". `reportLabels` gives a locale's texts: German for `"de-DE"`, English for any other. pivotkit-react's report and pivotkit-report use them. |
+| `DESCRIBE_LABELS`, `describeLabels(locale, own)` | The words of `describeView`, English and German. `describeLabels` gives a locale's words: German for `"de-DE"`, English for any other. `own` words go over them at any depth; words that name their language (`lang`) go over that language's. `own` that is not an object, or with a key or a word `describeView` refuses, throws `INVALID_ARGUMENT`. The result is a frozen copy. A table of forms by count (`top`, `invalid`, a range's forms) takes every plural category of its `lang` (`few`, `many`). `and` joins the filters in `describeView`'s `text` ("; and ", German "; und "); `filterList` joins a list of the filters alone, as the HTML report's `{{filters}}` does ("; ", German "; und ", as German lists use "; "). German names one whole unit of a relative range as the engine keeps it: "heute", "gestern", "im Vorjahr", and from an anchor "am Tag davor". pivotkit-report's HTML report uses them for its filters and its summary. |
 | `ROW_COUNT_TEXTS` | The row count in words, English and German, with one form per plural category: `rowsCount` ("8 rows") and `rowsFiltered` ("6 of 8 rows") for when filters leave rows out. pivotkit-react's line under the result and pivotkit-report's HTML report both use them. |
 | `pluralForm(forms, count, lang)`, `PLURAL_CATEGORIES` | The form of a count's words for `count` in the language `lang`, after `Intl.PluralRules`: `forms[category]`, else `forms.other`. `PLURAL_CATEGORIES` lists the categories a count's forms may have. pivotkit-react's labels and pivotkit-report's texts use them. |
 | `numberRepeats(names)` | The names with each one that comes again numbered, case-insensitively: `["Sum of A", "sum of a"]` gives `["Sum of A", "sum of a (2)"]`. The grid, the chart's series and pivotkit-react's chips name a value that is in the view twice this way. |

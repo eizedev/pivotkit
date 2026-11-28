@@ -87,6 +87,21 @@ export function columnText(view, column, encoded, labels, locale, limits) {
 }
 
 /**
+ * The glyph of a sort, one for one order, on a chip and on a table's header (icons.jsx): an arrow up
+ * for A to Z and smallest first, down for Z to A and largest first, and for a custom order a list
+ * beside the arrow of its direction (as listed: up, reversed: down). No entry is the field's own order.
+ * @param {{ by: string, order: string } | null | undefined} sort
+ * @returns {"arrowUp" | "arrowDown" | "customAsc" | "customDesc"}
+ */
+export function sortGlyph(sort) {
+    const desc = sort?.order === "desc";
+    if (sort?.by === "custom") {
+        return desc ? "customDesc" : "customAsc";
+    }
+    return desc ? "arrowDown" : "arrowUp";
+}
+
+/**
  * A sort in words: "Z to A", "Largest Sum of Revenue first", "Custom order".
  * @param {any} view
  * @param {{ by: string, order: string, value?: { field: string | null, agg: string }, column?: any[] }} sort

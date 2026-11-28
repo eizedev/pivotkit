@@ -89,7 +89,7 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         await page.setViewportSize({ width: 1000, height: 900 });
         await settled(chartEl);
         expect(await inChart(chartEl, selected)).toEqual({ Services: false });
-        // Display, Series lists it unchecked; a click there shows it again
+        // Chart settings, Entries lists it unchecked; a click there shows it again
         await chartMenu(report);
         await expect(report.getByTestId("topic-state-series")).toContainText("2 of 3 shown");
         await report.getByTestId("topic-series").click();
@@ -131,7 +131,7 @@ test.describe("the chart's legend, zoom slider and 100 % stacks (#36)", () => {
         await report.getByTestId("topic-layout").click();
         await report.getByTestId("chart-stack-percent").click();
         await expect.poll(() => lastView(page).then((c) => c?.stackPercent)).toBe(true);
-        // a switch keeps its level open, as Series does: Escape goes back, a second Escape closes
+        // a switch keeps its level open, as Entries does: Escape goes back, a second Escape closes
         await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Layout");
         await expect(report.getByTestId("chart-stack-percent")).toHaveAttribute("aria-checked", "true");
         await expect(report.getByTestId("chart-stack-percent")).toBeFocused();
@@ -288,12 +288,12 @@ test.describe("the chart type menu's Display settings in levels (#106)", () => {
         await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Tooltip");
         await page.keyboard.press("Escape");
         await expect(report.getByTestId("topic-tooltip")).toBeFocused();
-        // Reference lines (#48) next, then Series: a switch per series; Space and Enter flip one, the level stays with the focus on it
+        // Reference lines (#48) next, then Entries: a switch per series; Space and Enter flip one, the level stays with the focus on it
         await page.keyboard.press("ArrowDown");
         await expect(report.getByTestId("topic-lines")).toBeFocused();
         await page.keyboard.press("ArrowDown");
         await page.keyboard.press("Enter");
-        await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Series");
+        await expect(report.getByTestId("level-title")).toHaveText("Chart settings › Entries");
         const hardware = report.getByRole("menuitemcheckbox", { name: "Hardware" });
         await expect(hardware).toBeFocused();
         await page.keyboard.press("Space");
@@ -314,7 +314,7 @@ test.describe("the chart type menu's Display settings in levels (#106)", () => {
         await expect(report.getByTestId("view-settings")).toBeFocused();
     });
 
-    test("on a phone each level fits the window: Axis, Series and Layout, and Back returns", async ({ page }) => {
+    test("on a phone each level fits the window: Axis, Entries and Layout, and Back returns", async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         await mount(page, { type: "bar", stacked: true }, { view: { ...VIEW, rows: ["Region"] } });
         const report = page.locator("#zoom-report");

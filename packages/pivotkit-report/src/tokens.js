@@ -31,7 +31,9 @@ export const LIGHT_TOKENS = Object.freeze({
     "--pk-chart-7": "#6250d6",
     "--pk-chart-8": "#e34948",
     "--pk-chart-reference": "var(--pk-muted)",
-    "--pk-chart-other": "var(--pk-muted)"
+    "--pk-chart-other": "var(--pk-muted)",
+    "--pk-chart-tile-text": "#ffffff",
+    "--pk-chart-tile-contrast": "4.6"
 });
 
 /** The dark theme, for a report read on a screen in dark mode (never printed: print is light). */
@@ -60,15 +62,21 @@ export const DARK_TOKENS = Object.freeze({
     "--pk-chart-7": "#9085e9",
     "--pk-chart-8": "#e66767",
     "--pk-chart-reference": "var(--pk-muted)",
-    "--pk-chart-other": "#6b7280"
+    "--pk-chart-other": "#6b7280",
+    "--pk-chart-tile-text": "#ffffff",
+    "--pk-chart-tile-contrast": "4.6"
 });
 
-/** The font weights, the same in both themes: pivotkit-react's scale (test/tokens.test.js compares them). */
+/**
+ * The font weights, the same in both themes: pivotkit-react's scale and the weight of a treemap tile's
+ * name (test/tokens.test.js compares them).
+ */
 export const WEIGHT_TOKENS = Object.freeze({
     "--pk-weight-normal": "400",
     "--pk-weight-medium": "500",
     "--pk-weight-strong": "600",
-    "--pk-weight-bold": "700"
+    "--pk-weight-bold": "700",
+    "--pk-chart-tile-weight": "var(--pk-weight-strong)"
 });
 
 /**

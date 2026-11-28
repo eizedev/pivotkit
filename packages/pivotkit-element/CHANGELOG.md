@@ -6,6 +6,65 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Added
+
+- `server-url`, `server-source` and `server-params` with the property `getToken`: the report reads
+  its rows from pivotkit-server, as pivotkit-react's `server` does. `refresh()` reads them again.
+  Each state is a `pivot-server-state` event. See pivotkit-react's changelog
+  ([#621](https://github.com/eizedev/pivotkit/issues/621)).
+- A load group `server` with a budget of 6.6 KiB gzip: the rows' state, the network code and the
+  states load once `server-url` is set. A page without it loads none of them; the first load is
+  181.7 KiB gzip on an official Node 24 build. The states' style rules reuse the empty report's,
+  and their icons load with them. The menus' budget is 61 KiB, for the share note's parameters.
+
+### Fixed
+
+- The chart draws again when its `--pk-*` tokens change without a theme switch, and measures a
+  translucent text colour as drawn. See pivotkit-react's and pivotkit-core's changelogs
+  ([#1000](https://github.com/eizedev/pivotkit/issues/1000)).
+- Chart settings › Entries of a treemap shows each tile's colour. See pivotkit-react's changelog
+  ([#1009](https://github.com/eizedev/pivotkit/issues/1009)).
+
+## [0.11.0] - 2026-11-26
+
+### Added
+
+- The import preview lets a person pick a column's decimal mark. See pivotkit-react's changelog.
+  The import group grows to 23.7 KiB gzip on an official Node 24 build, its budget to 23.9 KiB
+  ([#787](https://github.com/eizedev/pivotkit/issues/787)).
+- A field's menu has Default order, and Chart settings says what its unclear choices do. See
+  pivotkit-react's changelog. On an official Node 24 build the menus group grows to 60.3 KiB gzip, its budget
+  to 60.3 KiB, and the texts group, with the German menu texts, to 8.7 KiB, its budget to 8.8 KiB
+  ([#916](https://github.com/eizedev/pivotkit/issues/916),
+  [#917](https://github.com/eizedev/pivotkit/issues/917),
+  [#963](https://github.com/eizedev/pivotkit/issues/963)).
+
+### Changed
+
+- Bundles pivotkit-core 0.11.0, pivotkit-react 0.11.0 and pivotkit-report 0.7.0.
+- With all changes below, the first load is 180.0 KiB gzip on an official Node 24 build, in 13 files
+  (was 182.3 KiB), within its budget of 182.5 KiB. On the first chart, 261.8 KiB load with ECharts.
+  The other groups: export 13.2 KiB, report 29.7 KiB. Their budgets rise to 262.0, 13.7 and 29.7 KiB.
+- The zones' colours and the field names in the table's header (see pivotkit-react) are part of the
+  first load ([#920](https://github.com/eizedev/pivotkit/issues/920)).
+- Code the first load does not need loads on demand
+  ([#772](https://github.com/eizedev/pivotkit/issues/772)):
+  - the chart's events and each draw load with ECharts;
+  - pivotkit-core's view description and Excel number formats load with the HTML report;
+  - pivotkit-core's Excel number formats load with the export;
+  - the German words of the HTML report's filters and summary load with the report
+    ([#798](https://github.com/eizedev/pivotkit/issues/798)).
+- pivotkit-core's fix of text on coloured fills and of high and low points beside grouped bars loads
+  with the chart ([#913](https://github.com/eizedev/pivotkit/issues/913),
+  [#914](https://github.com/eizedev/pivotkit/issues/914)).
+- The README says that a minor release of 0.x can break things, with links to Versioning and Upgrading.
+
+### Fixed
+
+- An element added to the page again while a link is in the page's address opens the link. Before,
+  it threw a `TypeError` and showed nothing, as pivotkit-react did
+  ([#735](https://github.com/eizedev/pivotkit/issues/735)).
+
 ## [0.10.0] - 2026-11-24
 
 ### Changed
@@ -627,7 +686,8 @@ First release.
   thousands separators, CSV percentages and calculations as the table shows them, heatmaps without
   grey empty cells.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.10.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.11.0...HEAD
+[0.11.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.10.0...pivotkit-element@0.11.0
 [0.10.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.9.0...pivotkit-element@0.10.0
 [0.9.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.2...pivotkit-element@0.9.0
 [0.8.2]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.8.1...pivotkit-element@0.8.2

@@ -225,6 +225,7 @@ menu as people see it):
 | "A to Z", "Z to A" | a `label` sort |
 | "Largest … first", "Smallest … first" | a `value` sort naming the value. Without a value the sort counts rows. |
 | "Custom order" | a `custom` sort |
+| "Default order" | no entry: the field's entry is removed, and a field order the host gives comes back |
 
 A click on a header of the table writes the same entries
 ([sort with a click on a header](../use/filters.md#sort-with-a-click-on-a-header)):

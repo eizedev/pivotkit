@@ -525,6 +525,34 @@ test("a UTF-16 file says so: token new --if-missing, token show, check-config an
     await assert.rejects(restServer(await loadConfig(config)), (e) => said.test(e.message));
 });
 
+test("a key file that starts with a UTF-8 byte order mark is refused with its reason: key new --if-missing, check-config and every read; a token's is trimmed", async () => {
+    const dir = workspace();
+    const BOM = "\uFEFF";
+    const key = "a-key-that-is-long-enough-for-the-download-links-0123456789";
+    writeFileSync(join(dir, "bom.key"), `${BOM}${key}\r\n`, { mode: 0o600 });
+    writeFileSync(join(dir, "audit.key"), `${BOM}${key}\n`, { mode: 0o600 });
+    writeFileSync(join(dir, "bom.token"), `${BOM}${TOKEN}\r\n`, { mode: 0o600 });
+    const said = /starts with a UTF-8 byte order mark \(Windows PowerShell 5\.1's -Encoding UTF8 writes one\), which would become part of the key/;
+    const kept = runBin(["key", "new", "--for", "downloads", "--file", "bom.key", "--if-missing"], { cwd: dir });
+    assert.equal(kept.status, 1);
+    assert.match(kept.stderr, said);
+    assert.equal(readFileSync(join(dir, "bom.key"), "utf8"), `${BOM}${key}\r\n`, "the file is not changed");
+    const config = join(dir, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "oauth", issuer: "https://login.example.com/", resource: "https://pk.example.com/mcp", tokens: [{ name: "ps", file: "bom.token" }] }, audit: { subject: "hash", key: { file: "audit.key" } }, output: { dir: "out", downloads: { key: { file: "bom.key" } } } }));
+    const check = runBin(["check-config", "--config", config]);
+    const facts = factsOf(check.stdout);
+    assert.match(facts, /PROBLEM: output\.downloads\.key: the file bom\.key starts with a UTF-8 byte order mark/);
+    assert.match(facts, /PROBLEM: audit\.key: the file audit\.key starts with a UTF-8 byte order mark/);
+    assert.doesNotMatch(facts, /the token ps .*byte order mark/, "a token's mark is trimmed");
+    // every read of a key: the same refusal, never the key with U+FEFF in front
+    const { readSecret } = await import("../../src/secrets.js");
+    await assert.rejects(readSecret({ file: "bom.key" }, { baseDir: dir }), (e) => e.code === "SECRET" && said.test(e.message) && !e.message.includes(key));
+    // a token file keeps working: trimmed, as before
+    const token = runBin(["token", "new", "--file", "bom.token", "--if-missing", "--print"], { cwd: dir });
+    assert.equal(token.status, 0, token.stderr);
+    assert.equal(token.stdout.split("\n")[0], TOKEN);
+});
+
 test("a token or key file that is no regular file or too long is refused, never waited for", { skip: !POSIX && "FIFOs are POSIX" }, async (t) => {
     const dir = workspace();
     const made = spawnSync("mkfifo", [join(dir, "fifo.token")]);

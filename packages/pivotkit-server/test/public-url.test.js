@@ -18,7 +18,7 @@ test("http.publicUrl with a path is refused at start, and the message names the 
             assert.match(e.message, /^http\.publicUrl \(or --public-url\): the address has a path/);
             assert.match(e.message, /Write the origin only, such as https:\/\/reports\.example\.com/);
             assert.match(e.message, /a host name of its own/);
-            assert.match(e.message, /\/mcp, \/\.well-known\/, \/api\/v1, \/openapi\.json, \/downloads\/ and \/, and \/icon\.png with branding\.icon$/);
+            assert.match(e.message, /\/mcp, \/\.well-known\/, \/api\/v1, \/openapi\.json, \/downloads\/, \/live\/ and \/, and \/icon\.png with branding\.icon$/);
             return true;
         }, publicUrl);
     }

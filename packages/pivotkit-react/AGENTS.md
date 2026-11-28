@@ -64,6 +64,8 @@ The first load holds only what the first render needs. Everything else loads on 
 - A text the first render shows stays in `labels.js`. No report may show English first.
 - A menus module never imports `chart.jsx`. `export-run.js` gets `loadECharts` through its context.
 - `echarts.js` brings pivotkit-core's `toEChartsOption`, from `pivotkit-core/chart`. `chart.jsx` never imports it.
+- `chart-draw.js` starts the chart's ECharts instance and draws it. It loads with `echarts.js` and
+  imports nothing of the first load. `chart.jsx` passes it what it needs, such as `ITEM_TYPES`.
 - `PivotReport.jsx` imports `deferred.js` as a file of its own: German texts and the tips' table.
   No other module may import it. A hook that needs it gets its value from `PivotReport.jsx`.
 - pivotkit-element bundles `deferred-late.js` in its place. It loads them later.

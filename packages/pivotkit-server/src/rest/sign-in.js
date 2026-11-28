@@ -17,10 +17,10 @@ import { refusalReason } from "../log.js";
 /**
  * The REST service's sign-in.
  * @param {any} context  createContext's
- * @param {{ core: any, mode: "none" | "token" | "oauth", audience: string[], resource: URL, requiredScopes: string[], metadataUrl: string | null, limits: ReturnType<typeof import("../limits.js").createLimits>, slug: string, problem: import("./problem.js").Problem }} how
- *   core: context.auth's; mode: auth.mode; metadataUrl: the Protected Resource Metadata's address under OAuth; slug: the realm of a static token's challenge (branding)
+ * @param {{ core: any, browser: ReturnType<typeof import("../browser.js").createBrowserPath>, mode: "none" | "token" | "oauth", audience: string[], resource: URL, requiredScopes: string[], metadataUrl: string | null, limits: ReturnType<typeof import("../limits.js").createLimits>, slug: string, problem: import("./problem.js").Problem }} how
+ *   core: context.auth's; browser: the browser path's sign-in of the rows route (browser.js); mode: auth.mode; metadataUrl: the Protected Resource Metadata's address under OAuth; slug: the realm of a static token's challenge (branding)
  */
-export function createRestSignIn(context, { core, mode, audience, resource, requiredScopes, metadataUrl, limits, slug, problem }) {
+export function createRestSignIn(context, { core, browser, mode, audience, resource, requiredScopes, metadataUrl, limits, slug, problem }) {
     const authOptions = context.options.auth ?? {};
     let warnedAddress = false;
 
@@ -53,13 +53,26 @@ export function createRestSignIn(context, { core, mode, audience, resource, requ
         // (tokens have at least 32 random characters: the limit slows scripts, guessing gets nowhere)
         const wait = address ? limits.blocked(address) : 0;
         try {
+            // a browser token is read on the rows route only (browser.js); everywhere else it is an unknown token
+            const browserToken = browser.tokenOf(request);
+            if (browserToken !== null) {
+                return { caller: await browser.callerOf(browserToken) };
+            }
             return mode === "token" ? { caller: callerOf(mode, await core.check(request), authOptions) } : await verifyBearer(request);
         } catch (e) {
             if (!(e instanceof AuthRefusal)) {
                 throw e;
             }
+            if (e.expired) {
+                // a token of this server that ran out: not counted against the address, its page renews it
+                return { reason: refusalReason("INVALID_TOKEN", request), refused: problem("INVALID_TOKEN", e.message, { headers: { "www-authenticate": challenge("invalid_token", e.message) }, extra: { expired: true } }) };
+            }
             if (e.status === 503) {
                 return { reason: refusalReason("AUTH_NOT_READY"), refused: problem("AUTH_NOT_READY", e.message, { headers: { "retry-after": "10" } }) };
+            }
+            if (e.error === "insufficient_scope") {
+                // a valid token without its issuer's required scopes (auth.issuers): not a bad token
+                return { reason: refusalReason("INSUFFICIENT_SCOPE"), refused: problem("INSUFFICIENT_SCOPE", e.message, { headers: { "www-authenticate": challenge("insufficient_scope", "insufficient scope", [...requiredScopes, .../** @type {any} */ (e).scopes]) } }) };
             }
             if (wait) {
                 return { reason: refusalReason("RATE_LIMITED"), refused: problem("RATE_LIMITED", "too many refused tokens from this address; wait before you try again", { headers: { "retry-after": String(wait) } }) };
@@ -81,7 +94,17 @@ export function createRestSignIn(context, { core, mode, audience, resource, requ
         if (!bearer.token) {
             throw new AuthRefusal(401, "invalid_token", bearer.refused ?? "no token");
         }
-        const authInfo = await core.verify(bearer.token, { audience, resource });
+        return verifyToken(bearer.token);
+    }
+
+    /**
+     * An OAuth access token, as verifyBearer checks a bearer's: also the viewer page's, from its
+     * sign-in (viewer.js), so a person reads there with the rights the REST service gives them.
+     * @param {string} token
+     * @returns {Promise<SignIn>}  an AuthRefusal is thrown
+     */
+    async function verifyToken(token) {
+        const authInfo = await core.verify(token, { audience, resource });
         if (!requiredScopes.every((s) => authInfo.scopes.includes(s))) {
             return { reason: refusalReason("INSUFFICIENT_SCOPE"), refused: problem("INSUFFICIENT_SCOPE", `this service needs the scopes ${requiredScopes.join(" ")}`, { headers: { "www-authenticate": challenge("insufficient_scope", "insufficient scope") } }) };
         }
@@ -113,5 +136,5 @@ export function createRestSignIn(context, { core, mode, audience, resource, requ
         return problem("INSUFFICIENT_SCOPE", `${operation} needs the scopes ${scopes.join(" ")}`, mode === "oauth" ? { headers: { "www-authenticate": challenge("insufficient_scope", `${operation} needs more scopes`, [...requiredScopes, ...scopes]) } } : {});
     }
 
-    return { authenticate, refuse, insufficientScope };
+    return { authenticate, verifyToken, refuse, insufficientScope };
 }

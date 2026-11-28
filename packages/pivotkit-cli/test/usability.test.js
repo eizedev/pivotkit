@@ -26,12 +26,12 @@ test("the table's own CSV as --data: one error first, the view's fields and the 
     const lines = r.stderr.trimEnd().split("\n");
     assert.match(lines[0], /^error dataMismatch: pivotkit-weather\.csv does not have the fields the view uses$/);
     assert.match(r.stderr, /^ {2}the view uses: City, Date, Mean °C$/m);
-    assert.match(r.stderr, /^ {2}the data has: Date by month of year, Jan, Feb, .*, Dec, Grand Total$/m);
+    assert.match(r.stderr, /^ {2}the data has: Month, Jan, Feb, .*, Dec, Grand Total$/m);
     assert.match(r.stderr, /looks like an exported pivot result \("Grand Total", "Average of Mean °C"\), not the rows the report was made from/);
     assert.match(r.stderr, /^ {2}in the report, take Export → Source data → All rows as CSV, and give that file to --data$/m);
     // the errors that follow from it are counted, not repeated
     assert.doesNotMatch(r.stderr, /unknownField/);
-    assert.match(r.stderr, /^ {2}and 3 more errors from the missing fields \(--json lists them\)$/m);
+    assert.match(r.stderr, /^ {2}and 2 more errors from the missing fields \(--json lists them\)$/m);
     assert.match(lines.at(-1), /^nothing written: the view has errors\.$/);
     assert.equal(existsSync(join(dir, "out.html")), false);
     // --json: the mismatch first, every finding kept
@@ -40,7 +40,7 @@ test("the table's own CSV as --data: one error first, the view's fields and the 
     assert.equal(errors[0].code, "dataMismatch");
     assert.deepEqual(errors[0].missing, ["City", "Date", "Mean °C"]);
     assert.equal(errors[0].pivotResult, true);
-    assert.deepEqual(errors.slice(1).map((f) => f.code).sort(), ["groupingNameTaken", "unknownField", "unknownField"]);
+    assert.deepEqual(errors.slice(1).map((f) => f.code).sort(), ["groupingNoSource", "unknownField", "unknownField", "unknownField", "unknownField"]);
     // validate says the same
     const valid = await run(["validate", "weather.pivotkit.json", "--data", "pivotkit-weather.csv"], { cwd: dir });
     assert.equal(valid.code, 1);
@@ -238,7 +238,7 @@ test("--lenient over a data mismatch: every error counted, and that the report c
     const dir = await tableCsvDir();
     const r = await run(["render", "weather.pivotkit.json", "--data", "pivotkit-weather.csv", "-o", "out.html", "--lenient"], { cwd: dir });
     assert.equal(r.code, 1);
-    assert.match(r.stderr, /^wrote out\.html despite 4 errors \(--lenient\): the data lacks the view's fields, so the report shows none of them$/m);
+    assert.match(r.stderr, /^wrote out\.html despite 6 errors \(--lenient\): the data lacks the view's fields, so the report shows none of them$/m);
     // the way back to the data, also when the file is at hand
     assert.match(r.stderr, /^ {2}or give --data the file the report was made from, if you have it$/m);
 });
