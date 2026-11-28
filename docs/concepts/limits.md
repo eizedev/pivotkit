@@ -31,8 +31,6 @@ the labels. See [Localisation](../reference/localisation.md).
 Dates are **wall-clock time**. pivotkit groups and shows a value as it was written. It never shifts
 the value to the reader's zone.
 
-- Date-rule fields for signed years use ISO text instead of the browser calendar,
-  so years before 1 and after 9999 remain visible and editable.
 - pivotkit takes an ISO string without an offset (`"2026-03-04T10:00"`, `"2026-03-04"`) as written.
 - Write a year before 0 or after 9999 as ECMAScript does, with a sign and six digits:
   `"+010000-01-01"`, or `"-000001-12-31"` for 2 BC. This works within what a `Date` holds
