@@ -82,6 +82,7 @@ nav = [
     { "pivotkit-react props" = "reference/react.md" },
     { "pivotkit-react layout and menus" = "reference/react-layout.md" },
     { "pivotkit-element" = "reference/element.md" },
+    { "Live rows in the browser" = "reference/live-rows.md" },
     { "View file format" = "reference/view-file.md" },
     { "Loading files" = "reference/import.md" },
     { "Plugins" = "reference/plugins.md" },

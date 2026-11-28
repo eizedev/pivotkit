@@ -68,7 +68,7 @@ Each recipe names a task and the page with its worked example. The recipes cover
 | A page without a bundler, with an import map | [bundlers and import maps](../getting-started/react.md#bundlers-and-import-maps) |
 | Some viewers may see only some rows | [pivotkit is not access control](../security.md#pivotkit-is-not-access-control) |
 | A live report over a source only pivotkit-server reaches | [a host backend fetches the rows](../reference/records.md#records-host) |
-| A live report that reads its rows in the browser, with a short-lived token | [React `server`](../reference/react.md#server), [element `server-url`](../reference/element.md#prop-serverurl), [the browser path](../reference/records.md#records-browser) |
+| A live report that reads its rows in the browser, with a short-lived token | [live rows in the browser](../reference/live-rows.md), [the browser path](../reference/records.md#records-browser) |
 | A strict Content-Security-Policy | [security](../security.md#content-security-policy), [element](../reference/element.md#content-security-policy) |
 | Several reports on one page | [FAQ](../faq.md#several-reports-on-one-page) |
 | The report inside a dialog of your page | [Escape and the host page](../reference/react-layout.md#escape-and-the-host-page) |

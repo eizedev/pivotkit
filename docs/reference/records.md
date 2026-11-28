@@ -234,7 +234,7 @@ says why it works this way.
    another system](tokens.md#external-issuers) with a subject).
 2. It exchanges it at `POST /api/v1/sources/records/token` for a browser token. In most setups the
    host application's backend makes this call, so the person's token never reaches the page.
-3. The page reads the rows with the browser token. The [components](react.md#server) do steps 3 and
+3. The page reads the rows with the browser token. The [components](live-rows.md) do steps 3 and
    4 themselves, with the `getToken()` the page gives them.
 4. On expiry the page asks for a new one.
 

@@ -10,7 +10,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 - `server={{ url, source, getToken, allowParams, refreshKey }}`: the report reads its rows from
   pivotkit-server with a short-lived browser token from `getToken()`
-  ([server](https://pivotkit.eize.dev/reference/react/#server)). The address and the source come
+  ([live rows](https://pivotkit.eize.dev/reference/live-rows/)). The address and the source come
   from the page's code, never from a link. The parameters come from the query string, only the names
   in `allowParams`. The token goes into the `Authorization` header only and is renewed before it
   expires or after a 401 ([#621](https://github.com/eizedev/pivotkit/issues/621)).

@@ -85,10 +85,10 @@ pivotkit-react's `build.js`). pivotkit does not support older browsers.
 | `importLimits` |  | `Partial<Limits>` | `limits` | The limits of a file loaded with `allow-import`, merged key by key over `limits`. The page's data keeps `limits`. As the [`importLimits`](react.md#prop-importlimits) prop. |
 | `plugins` |  | `ReaderPlugin[]` |  | Reader plugins for more formats with `allow-import`: [pivotkit-xlsx](plugins.md#pivotkit-xlsx) for Excel. CSV, TSV, text and JSON are built in. |
 | `importWorkerUrl` |  | `string \| URL \| null` | `null`: next to the element's code | Where the import worker of `allow-import` (`dist/import-worker.js`) is served, relative to the page and of the page's origin: for an app that bundles the element and serves the file at a path of its own. A URL of another origin is refused (said once in the console), and files are read on the page. [More](#prop-allowimport) |
-| `serverUrl` | `server-url` | `string` |  | The pivotkit-server the report reads its rows from, in place of `data`, with `server-source` and `getToken`. The page names it; a link never does. [More](#prop-serverurl) |
+| `serverUrl` | `server-url` | `string` |  | The pivotkit-server the report reads its rows from, in place of `data`, with `server-source` and `getToken`. The page names it; a link never does. [More](live-rows.md#element) |
 | `serverSource` | `server-source` | `string` |  | The source whose rows the report reads ("sales"). |
 | `serverParams` | `server-params` | `string` |  | The source's parameters the page's query string may set, comma-separated (`server-params="customer, year"`). None by default. |
-| `getToken` |  | `(request) => token` |  | Gives the browser token for `{ source, params, access }`. [More](#prop-serverurl) |
+| `getToken` |  | `(request) => token` |  | Gives the browser token for `{ source, params, access }`. [More](live-rows.md#element) |
 
 Properties with an attribute reflect it, as native elements do. `report.theme = "dark"` sets
 `theme="dark"`, and `null` removes it.
@@ -187,32 +187,6 @@ Attribute: `source-id`. Type: `string`.
 The id of the data shown, such as "sales". It goes into the [view files](view-file.md) and links the
 report shares. A view made for another source asks before it loads
 ([Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers)).
-
-### `serverUrl` { #prop-serverurl }
-
-Attributes: `server-url`, `server-source`, `server-params`. Property only: `getToken`.
-
-The report reads its rows from [pivotkit-server](records.md#records-browser) with a browser token,
-as the React prop [`server`](react.md#server) does. It shows the server's rows in place of `data`.
-
-```html
-<pivot-report server-url="https://reports.example.com" server-source="sales" server-params="customer"></pivot-report>
-<script type="module">
-  const report = document.querySelector("pivot-report");
-  report.getToken = async (request) => {
-    const answer = await fetch("/my-backend/pivotkit-token", { method: "POST", body: JSON.stringify(request) });
-    if (!answer.ok) throw Object.assign(new Error("refused"), { problem: await answer.json() });
-    return answer.json();
-  };
-</script>
-```
-
-- `getToken` works as in the [React reference](react.md#server). Until it is set, the report waits.
-- `report.refresh()` reads the rows again. The report keeps showing the rows it has meanwhile, and a
-  banner says from when they are if the new read fails.
-- Each state is a `pivot-server-state` event.
-- The page's [Content-Security-Policy](#content-security-policy) needs the server's origin in
-  `connect-src`, and the server needs the page's origin in [`rest.browser.origins`](records.md#records-browser-origins).
 
 ### `allowImport` { #prop-allowimport }
 

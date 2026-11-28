@@ -122,7 +122,7 @@ These texts are part of the first load:
 - its dot's words for a screen reader, `dataLoaded`
 - the empty report's lines and button: `emptyLoad`, `emptyNoData`, `emptyDrop`, `loadData`
 
-The texts of a report with a [server](react.md#server) are `labels.server`: one heading and text per
+The texts of a report with a [server](live-rows.md) are `labels.server`: one heading and text per
 state, the buttons, and the lines for IT support. `{limit}`, `{time}`, `{code}`, `{id}` and `{host}`
 are filled in. They load with the network code, English and German in one file. A host's own
 language takes English there unless its `labels` give `server`.
