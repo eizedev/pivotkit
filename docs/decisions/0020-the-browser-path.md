@@ -43,9 +43,9 @@ page use it. Everything here is open to change before it is accepted.
 ### The token
 
 - An encrypted JWT (RFC 7516, `dir` with `A256GCM`) of the type `pivotkit-browser+jwt`.
-- Its key is derived from a key file in `rest.browser.dir` (by default
-  `<state>/secrets/browser`), made on first use. Without that directory, the key is random per
-  process, so a restart ends every browser token.
+- Its key is derived from `rest.browser.key`, a secret like `output.downloads.key`. With a state
+  directory the server makes it at the first start (`<state>/secrets/browser.key`). Without one, the
+  key is random per process, so a restart ends every browser token.
 - It carries the source, its parameters and the person as the server saw them: the issuer and
   subject, the profile, the scopes, and only the claims the source's parameters are bound to. A
   code source gets the groups and claims too, since its code sees them.
@@ -54,8 +54,9 @@ page use it. Everything here is open to change before it is accepted.
 - The rows route takes it for the source it was made for only. A request with other parameters is
   refused.
 - Every other route, MCP and the download links refuse it as an unknown token.
-- The log names its ID, never its value. `pivotkit-server token revoke <id> --browser` puts one on
-  the deny list in `rest.browser.dir`.
+- The log names its ID, never its value.
+- A new key revokes every browser token within a second, without a restart. A deny list for one
+  token is not built yet.
 
 ### CORS
 
@@ -70,6 +71,7 @@ page use it. Everything here is open to change before it is accepted.
   claim). `rest.browser.levels` lists the levels an instance offers, `["signedIn"]` by default.
 - `create_link` takes the level, and writes it signed into the page's query string as `pk-access`.
   The group and the person are in it only as keyed digests.
+- The key of `pk-access` is derived from `rest.browser.key` for this purpose alone.
 - The exchange route checks it. A link without one opens as signed-in where the instance offers
   that, and is refused otherwise.
 - A level only narrows who opens the link. It is no data boundary: every reader reads with their own
@@ -101,5 +103,6 @@ page use it. Everything here is open to change before it is accepted.
   application.
 - Good: a stolen browser token reads one report for minutes, and tells nothing about its person.
 - Bad: the browser path does not yet serve a source whose backend exchanges the person's token.
-- Bad: a level other than signed-in needs `rest.browser.dir`, or links stop working after a restart.
+- Bad: a level other than signed-in needs `rest.browser.key` or a state directory, or links stop
+  working after a restart. A new key also ends the levels of the links made before it.
 - Bad: an encrypted token cannot be read for debugging. The log has its ID.
