@@ -118,6 +118,8 @@ These changes are on `main` and come with the next release.
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | **Breaking:** `describeSource` takes an array as fields only when each entry has a `name` and a [field type](../reference/core.md), and throws `INVALID_ARGUMENT` otherwise | you call `describeSource` yourself with raw rows, or with a list of fields without a `type` or with a type of your own | pass the data `encode()` returns, or give each field its type |
+| `create_link` takes `access`, a live link's [access level](../reference/records.md#records-access) | an MCP client keeps the tool list of an earlier connection | connect the client again, so it sees the new input |
+| With a state directory, the server makes `secrets/browser.key` where a profile reads rows (`records`) | you back up or mount `secrets/` file by file | keep `browser.key` with the other files, or set `rest.browser.key`. Without it, browser tokens and link levels end on a restart |
 
 ### From 0.10 to 0.11 { #from-0-10 }
 

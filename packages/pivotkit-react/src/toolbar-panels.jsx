@@ -18,6 +18,7 @@ import { Icon } from "./icons.jsx";
 import { fill, hostFailure } from "./labels.js";
 import { Option } from "./popover.jsx";
 import { Section, SettingInfo } from "./section.jsx";
+import { paramsText } from "./share.js";
 import { shareActions } from "./share-actions.js";
 import { SHORTCUTS } from "./tip-state.js";
 import { LevelMenu } from "./levels.jsx";
@@ -622,6 +623,17 @@ const entrySource = (t, shown) => {
 const storedSheet = (target, ctx) => (target.storeSource && target.storeSource === ctx.sourceId ? (ctx.sheet ?? null) : (target.storeSheet ?? null));
 
 /**
+ * The note under Share: what leaves the report with a view (filter values can be values of the data).
+ * With a server, a link keeps parameters in its address: it says which, before whose rights apply.
+ * @param {{ canLink?: boolean, keepQuery?: Array<[string, string]> }} share
+ * @param {any} labels
+ */
+function shareNote(share, labels) {
+    const params = share.canLink ? paramsText(share.keepQuery ?? []) : "";
+    return params ? `${fill(labels.shareKeeps, { params })} ${labels.sharePrivacy}` : labels.sharePrivacy;
+}
+
+/**
  * The Views menu in levels: what persists, as one list to scan in groups - "This view" (Save the
  * loaded view under its name, or why not; Save as…), "Shared views" (the host's, for everyone) and
  * "My views" (the user's own: the host's or the browser store's), each shown only when it has entries
@@ -740,7 +752,7 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
                           }
                       ],
                       // what leaves the report with a view: filter values can be values of the data
-                      note: labels.sharePrivacy,
+                      note: shareNote(share, labels),
                       noteId: "share-privacy"
                   }
               ]

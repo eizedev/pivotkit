@@ -101,6 +101,27 @@ export const SECRET_REF = Object.freeze({ custom: (/** @type {unknown} */ ref) =
 export const CREATABLE_SECRET_REF = Object.freeze({ custom: (/** @type {unknown} */ ref) => secretRefProblems(ref, true) });
 
 /**
+ * Checks a list of browser origins as a browser sends them (scheme, host and port, no path, never
+ * "*"); throws ConfigError naming the entry. rest.cors.origins and rest.browser.origins use it.
+ * @param {string[] | undefined} list
+ * @param {string} path  the option's path
+ * @param {string} example  an origin for the message
+ */
+export function checkOrigins(list, path, example) {
+    for (const [i, origin] of (list ?? []).entries()) {
+        let url = null;
+        try {
+            url = new URL(origin);
+        } catch {
+            // reported below
+        }
+        if (!url || url.origin !== origin || (url.protocol !== "https:" && url.protocol !== "http:")) {
+            throw new ConfigError(`${path}[${i}]: an origin is scheme, host and port as a browser sends it (${example}), without a path${origin === "*" ? '; "*" is not accepted: list each origin' : ""}`);
+        }
+    }
+}
+
+/**
  * Whether two issuer addresses name the same issuer once normalised: the scheme and host in lower
  * case, a default port left out (both as URL parses them), a trailing slash of the path left out.
  * The path's case, the port, the query, the fragment and a user name or password count. Tokens name an issuer exactly, so this only tells a spelling

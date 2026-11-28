@@ -8,7 +8,7 @@
 import { toViewFile, viewFileName, viewFileText } from "pivotkit-core";
 import { copyText, safeFileName, saveBlob } from "./files.js";
 import { fill } from "./labels.js";
-import { linkNow, loadCheck, loadLink, readLinkParam, shareBase, viewFromObject, viewFromText, withLinkParam } from "./share.js";
+import { linkNow, loadCheck, loadLink, paramsText, readLinkParam, shareBase, viewFromObject, viewFromText, withLinkParam, withQuery } from "./share.js";
 import { sheetOfSource } from "./sheet-views.js";
 import { VERSION } from "./version.js";
 
@@ -18,6 +18,7 @@ const here = () => (typeof location !== "undefined" ? location.href : undefined)
 /**
  * @typedef {object} ShareContext  what the report passes (use-share-link.js)
  * @property {boolean} canLink  the host allows links (shareLink) and the page has an address
+ * @property {Array<[string, string]>} [keepQuery]  query entries a copied link keeps (a report with a server: server-request.js keptQuery)
  * @property {(() => void) | undefined} prepare  starts loading pivotkit-core/link, so a copy happens in the click
  * @property {any} view  the view shown
  * @property {string | null} viewName  the loaded view's name
@@ -64,8 +65,11 @@ export function shareActions(ctx, labels) {
                 announce(e && /** @type {any} */ (e).code === "LIMIT_EXCEEDED" ? labels.toastLinkTooLong : fill(labels.error, { message: String(e) }), { tone: "error" });
                 return;
             }
-            const ok = await copyText(withLinkParam(target, linkKey, text), ctx.root.current);
-            announce(ok ? labels.toastLinkCopied : labels.toastCopyFailed, ok ? undefined : { tone: "error" });
+            // a report with a server: the link keeps the parameters it read and its access level
+            const kept = ctx.keepQuery ?? [];
+            const ok = await copyText(withLinkParam(withQuery(target, kept), linkKey, text), ctx.root.current);
+            const named = paramsText(kept);
+            announce(ok ? (named ? fill(labels.toastLinkCopiedWith, { params: named }) : labels.toastLinkCopied) : labels.toastCopyFailed, ok ? undefined : { tone: "error" });
         },
         copyJson: async () => {
             const ok = await copyText(viewFile(), ctx.root.current);

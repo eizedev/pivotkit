@@ -638,6 +638,17 @@
           "idleMs": "integer",
           "writeMs": "integer"
         }
+      },
+      "browser": {
+        "object": {
+          "origins": "strings",
+          "minutes": "integer",
+          "key": {
+            "custom": "fn"
+          },
+          "levels": "strings",
+          "viewer": "boolean"
+        }
       }
     }
   },

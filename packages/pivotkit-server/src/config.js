@@ -17,7 +17,7 @@ import { expiryOf } from "./signed-tokens.js";
 import { FRAGMENTS, composeSlots } from "./options/index.js";
 import { SERVER_LIMITS } from "./server-limits.js";
 import { PAGE } from "./options/branding.js";
-import { CREATE_NEEDS_FILE, ConfigError, configErrorOf } from "./options/shared.js";
+import { CREATE_NEEDS_FILE, ConfigError, checkOrigins, configErrorOf } from "./options/shared.js";
 import { linkParamsProblem } from "./link-params.js";
 
 /** The error of a wrong option (options/shared.js, so a fragment can throw it without importing this module). */
@@ -108,6 +108,7 @@ export { ConfigError } from "./options/shared.js";
  * @property {number} [concurrency]  requests of one caller at once (default 4)
  * @property {{ maxBytes?: number }} [data]  the largest body of a caller that may send data (default 10 MiB, at most 64 MiB)
  * @property {{ maxRows?: number, maxCells?: number, concurrency?: number, waitMs?: number, idleMs?: number, writeMs?: number }} [records]  the rows route's bounds (options/records.js RECORDS_DEFAULTS)
+ * @property {{ origins?: string[], minutes?: number, key?: { env?: string, file?: string, create?: boolean }, levels?: string[], viewer?: boolean }} [browser]  the browser path: browser tokens, the pages that read rows with them and the viewer page (options/browser.js)
  */
 
 /**
@@ -416,17 +417,7 @@ function rules(options, range) {
     if (options.rest?.resource) {
         resourceUrlOf(options.rest.resource, "rest.resource");
     }
-    for (const [i, origin] of (options.rest?.cors?.origins ?? []).entries()) {
-        let url = null;
-        try {
-            url = new URL(origin);
-        } catch {
-            // reported below
-        }
-        if (!url || url.origin !== origin || (url.protocol !== "https:" && url.protocol !== "http:")) {
-            throw new ConfigError(`rest.cors.origins[${i}]: an origin is scheme, host and port as a browser sends it (https://app.example.com), without a path${origin === "*" ? '; "*" is not accepted: list each origin' : ""}`);
-        }
-    }
+    checkOrigins(options.rest?.cors?.origins, "rest.cors.origins", "https://app.example.com");
     if (options.http?.publicUrl) {
         publicUrlOf(options.http.publicUrl);
     }
@@ -478,7 +469,7 @@ function urlOf(text, path) {
 function publicUrlOf(text) {
     const url = resourceUrlOf(text, "http.publicUrl (or --public-url)");
     if (url.pathname !== "/") {
-        throw new ConfigError("http.publicUrl (or --public-url): the address has a path, and pivotkit serves at the root of its host. Write the origin only, such as https://reports.example.com. On a shared host, give pivotkit a host name of its own, such as a subdomain, or route its paths at the root: /mcp, /.well-known/, /api/v1, /openapi.json, /downloads/ and /, and /icon.png with branding.icon");
+        throw new ConfigError("http.publicUrl (or --public-url): the address has a path, and pivotkit serves at the root of its host. Write the origin only, such as https://reports.example.com. On a shared host, give pivotkit a host name of its own, such as a subdomain, or route its paths at the root: /mcp, /.well-known/, /api/v1, /openapi.json, /downloads/, /live/ and /, and /icon.png with branding.icon");
     }
     return url;
 }

@@ -208,8 +208,8 @@ export function createDownloadHandler(context, runtime = {}) {
     // (SIGN_IN_TOO_MANY logs RATE_LIMITED), else by the code
     const log = ({ answer: key, ...entry }) => context.log.download({ via: "link", requestId: requestId() ?? newRequestId(), ...entry, status: entry.ok ? 200 : (ANSWERS[/** @type {keyof typeof ANSWERS} */ (key ?? entry.code)]?.status ?? 500) });
 
-    /** @type {import("./downloads/sign-in.js").SignInRoute} */
-    const linkRoute = { context, settings, state, keys, jar, log, answer, page, markersDir, sweep, issuer, signInRules, env, loopback, callbackUrl: () => `${state.base}${CALLBACK_PATH}` };
+    /** @type {import("./downloads/sign-in.js").SignInRoute & import("./downloads/links.js").LinkRoute} */
+    const linkRoute = { name: "download links", context, settings, state, keys, jar, log, answer, page, markersDir, sweep, issuer, signInRules, env, loopback, callbackUrl: () => `${state.base}${CALLBACK_PATH}` };
     // the link answers start a sign-in; the sign-in answers through the links' token and report checks
     const links = createLinkAnswers(linkRoute, (request, token) => signIn.start(request, token));
     const signIn = createSignInFlow(linkRoute, links);

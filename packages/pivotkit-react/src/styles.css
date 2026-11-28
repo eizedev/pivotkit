@@ -3412,6 +3412,148 @@
 
 /* empty state */
 
+/* a report with a server (server-ui.jsx, #621): a message in place of the report while it shows no
+   rows (a .pk-empty in a frame), a banner above it while it shows rows already, a line over the
+   skeleton when loading takes a while. In --pk-* tokens only. */
+.pk-server-full {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    padding: 32px 20px;
+    border-radius: var(--pk-radius);
+    background: var(--pk-surface);
+}
+
+.pk-server-mark {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--pk-surface-3);
+    color: var(--pk-muted);
+}
+
+.pk-server-accent {
+    background: var(--pk-accent-soft);
+    color: var(--pk-accent);
+}
+
+.pk-server-warn {
+    background: color-mix(in srgb, var(--pk-warn) 14%, var(--pk-surface));
+    color: var(--pk-warn);
+}
+
+.pk-server-words {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* in the message, .pk-empty h2 sizes it */
+.pk-server-title {
+    margin: 0;
+    font-size: 1em;
+    font-weight: var(--pk-weight-strong);
+}
+
+.pk-server-text {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.pk-server-support {
+    margin: 0;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+}
+
+.pk-server-banner {
+    display: flex;
+    gap: 12px;
+    margin: 12px 12px 0;
+    padding: 12px 14px;
+    border: 1px solid var(--pk-border-strong);
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-surface-2);
+}
+
+.pk-server-banner-accent {
+    border-color: color-mix(in srgb, var(--pk-accent) 35%, var(--pk-border));
+    background: var(--pk-note);
+}
+
+.pk-server-banner-warn {
+    border-color: color-mix(in srgb, var(--pk-warn) 45%, var(--pk-border));
+    background: color-mix(in srgb, var(--pk-warn) 8%, var(--pk-surface));
+}
+
+.pk-server-banner .pk-server-mark {
+    width: 32px;
+    height: 32px;
+    background: transparent;
+}
+
+.pk-server-banner .pk-server-words {
+    flex: 1;
+    gap: 4px;
+}
+
+.pk-server-banner .pk-empty-actions {
+    justify-content: flex-start;
+}
+
+.pk-server-slow {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    gap: 12px;
+    width: min(30em, calc(100% - 32px));
+    box-sizing: border-box;
+    padding: 14px 16px;
+    border: 1px solid var(--pk-border);
+    border-radius: var(--pk-radius);
+    background: var(--pk-surface-raised);
+    box-shadow: var(--pk-shadow);
+    line-height: 1.5;
+    animation: pk-fade-in var(--pk-duration) var(--pk-ease);
+}
+
+.pk-server-slow strong {
+    display: block;
+}
+
+.pk-server-spinner {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    box-sizing: border-box;
+    border: 2px solid var(--pk-border-strong);
+    border-top-color: var(--pk-accent);
+    border-radius: 50%;
+    animation: pk-spin calc(var(--pk-duration) * 6) linear infinite;
+}
+
+/* a phone: the message starts at the top, the banner stacks */
+@media (max-width: 560px) {
+    .pk-server-full {
+        align-items: flex-start;
+    }
+
+    .pk-server-banner {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .pk-server-banner .pk-server-mark {
+        display: none;
+    }
+}
+
 .pk-empty {
     display: flex;
     flex-direction: column;
@@ -4179,6 +4321,12 @@
 @keyframes pk-fade-in {
     from {
         opacity: 0;
+    }
+}
+
+@keyframes pk-spin {
+    to {
+        transform: rotate(360deg);
     }
 }
 

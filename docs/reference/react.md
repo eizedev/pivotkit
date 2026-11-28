@@ -69,6 +69,8 @@ Installation and a first example are in [Getting started with React](../getting-
 | `plugins` | `ReaderPlugin[]` |  | Reader plugins for more formats ([pivotkit-xlsx](plugins.md#pivotkit-xlsx) for Excel); CSV, TSV, text and JSON are built in. [More](#prop-plugins) |
 | `onDataLoad` | `({ cause, source, file, sheet, rows, columns, notes }) => unknown` |  | The data shown changed: a file loaded (returning `false` refuses it), the host's data shown again, one of those undone or redone, or the file shown again after a new mount. [More](#prop-ondataload) |
 | `importWorker` | `() => Worker` |  | Starts a module worker that runs `pivotkit-react/import-worker`, so CSV and JSON files are read off the page. [More](#prop-importworker) |
+| `server` | `{ url, source, getToken, allowParams?, refreshKey? }` |  | The report reads its rows from pivotkit-server with a browser token from `getToken()`, in place of `data`. [More](live-rows.md#server) |
+| `onServerState` | `({ state, source, shown, code?, status?, requestId?, rows?, dataAsOf? }) => void` |  | Each state of a report with `server`: loading, ready, or why no rows came. Never the token. [More](live-rows.md#server) |
 
 Exports: `PivotReport` and these types:
 
@@ -808,6 +810,7 @@ loaded view ([parts of a view that were not used](../use/behaviour.md#parts-of-a
 - `dist/menu-texts-de.js` for a German report: the menus' German texts. It loads with the menus, or
   when the locale changes to German.
 - `dist/import-ui.js` with `allowImport`: loading data, on its first use, with `pivotkit-core/import`
+- `dist/chunks/server-module-*.js` with `server`: the network code and the states, on the first read
 
 `dist/index.js` also imports `dist/deferred.js` at once: the German texts of the first render and the
 tips' table. It is a file of its own, so pivotkit-element can load these parts later: its build

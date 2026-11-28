@@ -14,6 +14,15 @@
 import { holds } from "./registry.js";
 
 /**
+ * The scopes every token of a surface needs: REST rest.requiredScopes, else auth.requiredScopes; MCP
+ * auth.requiredScopes.
+ * @param {import("./config.js").ServerOptions} options
+ * @param {"mcp" | "rest"} surface
+ * @returns {string[]}
+ */
+export const requiredScopesOf = (options, surface) => (surface === "rest" ? options.rest?.requiredScopes : undefined) ?? options.auth?.requiredScopes ?? [];
+
+/**
  * The scopes a resource's metadata offers (scopes_supported), or null for none. auth.scopesSupported,
  * when set, is taken as it is (an empty list offers none, unless a scope is required); otherwise the surface's required scopes (REST:
  * rest.requiredScopes, else auth.requiredScopes; MCP: auth.requiredScopes) and, with
@@ -25,7 +34,7 @@ import { holds } from "./registry.js";
  */
 export function offeredScopes(options, surface) {
     const auth = options.auth ?? {};
-    const required = (surface === "rest" ? options.rest?.requiredScopes : undefined) ?? auth.requiredScopes ?? [];
+    const required = requiredScopesOf(options, surface);
     if (auth.scopesSupported) {
         return auth.scopesSupported.length || required.length ? auth.scopesSupported : null;
     }

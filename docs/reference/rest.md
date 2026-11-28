@@ -57,6 +57,7 @@ The routes are RPC-style (`POST /views/validate`), one per operation of the
 | `POST /views/link` | `create_link` | A link that opens the view in the source's report page, with the source's link parameters in the page's query string ([link parameters](../concepts/sharing.md#link-params)) |
 | `POST /schedules/draft` | `draft_schedule` | A draft of a scheduled report for a person to approve. It runs and sends nothing |
 | `POST /sources/records` | none (REST only) | The rows of a source for a person who signed in, where a profile allows it ([below](records.md#records)) |
+| `POST /sources/records/token` | none (REST only) | A short-lived browser token for the rows of one source, in exchange for a person's token ([browser path](records.md#records-browser)) |
 
 `GET /sources/records` and `GET /sources/describe` answer 405 with `Allow: POST`. A source with the
 id `records` or `describe` is still described there for a caller who may use it.
@@ -547,6 +548,7 @@ The server never reads cookies, so no credentials mode is needed: the page sends
 | --- | --- | --- |
 | `rest.cors.origins` | none | Browser origins allowed to call |
 | `rest.cors.maxAge` | 600 | Seconds a browser may keep a preflight's answer |
+| `rest.browser.*` | | The browser path's pages, lifetime, key and access levels ([settings](records.md#records-browser-settings)) |
 
 ## Limits { #limits }
 
@@ -662,10 +664,10 @@ Rows go by status, then by code. The answers of the download links come last.
 | Status | Code | When |
 | --- | --- | --- |
 | 400 | <a id="error-invalid-input"></a>`INVALID_INPUT` | The body is not valid JSON, is no JSON object, or does not fit the route's schema (an unknown key, a wrong type, nested deeper than 64 levels, also inside a view given as JSON text) |
-| 401 | <a id="error-invalid-token"></a>`INVALID_TOKEN` | No token, an unknown or expired one, another scheme, a token in the address |
+| 401 | <a id="error-invalid-token"></a>`INVALID_TOKEN` | No token, an unknown or expired one, another scheme, a token in the address. An expired [browser token](records.md#records-browser) adds `expired: true` |
 | 403 | <a id="error-files-not-allowed"></a>`FILES_NOT_ALLOWED` | A `file:` source |
 | 403 | <a id="error-forbidden-host"></a>`FORBIDDEN_HOST` | A `Host` the server does not answer to (DNS rebinding protection; `http.allowHosts`, `http.publicUrl`) |
-| 403 | <a id="error-forbidden-origin"></a>`FORBIDDEN_ORIGIN` | A browser origin not in `rest.cors.origins` |
+| 403 | <a id="error-forbidden-origin"></a>`FORBIDDEN_ORIGIN` | A browser origin not in `rest.cors.origins`, or one of `rest.browser.origins` without a browser token or off the rows route ([browser path](records.md#records-browser-origins)) |
 | 403 | <a id="error-insufficient-scope"></a>`INSUFFICIENT_SCOPE` | The token lacks a scope the service or the operation needs |
 | 403 | <a id="error-not-allowed"></a>`NOT_ALLOWED` | The file route without `results: true`; `inline:` data from a caller without `data: true`; a code source that refuses the caller (its `SourceError`); `save: false` where the result may not come back inline; the [rows route](records.md#records) for a caller without a person or the right, or for a field below `show` (with `notShown`) |
 | 404 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE` | A code source has no data the caller may see for these values (its own `SourceError`, [code sources](code-sources.md#code-errors)); an HTTP source's backend answered 401, 403 or 404 for the values given ([HTTP sources](sources.md#http-errors)) |

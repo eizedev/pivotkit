@@ -19,6 +19,7 @@ import { BODY_BYTES, connectionLimitsOf, isLoopback, refusedText, serveFetch } f
 import { bodyBytesOf } from "./limits.js";
 import { DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
 import { createRestHandler } from "./rest/handler.js";
+import { createViewerHandler } from "./viewer.js";
 import { bytesText } from "./text.js";
 import { problemsFor } from "./rest/problem.js";
 import { brandingAnswer, docsOf } from "./branding.js";
@@ -167,16 +168,17 @@ function readinessNotes(log) {
 
 /**
  * The problem answer to a body that cannot be read (400) or is too large (413), from the family of
- * its path: the download links, MCP, REST, else the server's own.
- * @param {{ downloads: any, mcp: any, rest: any, problem: (code: string, detail: string) => Response }} families
+ * its path: the server's own pages (download links, viewer page), MCP, REST, else the server's own.
+ * @param {{ pages: any[], mcp: any, rest: any, problem: (code: string, detail: string) => Response }} families
  * @param {400 | 413} status
  * @param {string} path
  * @param {Record<string | symbol, any>} [info]
  */
-function familyProblem({ downloads, mcp, rest, problem }, status, path, info) {
+function familyProblem({ pages, mcp, rest, problem }, status, path, info) {
     const route = path.split("?")[0];
-    if (downloads.handles(route)) {
-        return downloads.problem(status, path, info);
+    const page = pages.find((p) => p.handles(route));
+    if (page) {
+        return page.problem(status, path, info);
     }
     if (mcp && !rest?.handles(route) && mcp.problem) {
         return mcp.problem(status, path, info);
@@ -188,10 +190,39 @@ function familyProblem({ downloads, mcp, rest, problem }, status, path, info) {
 }
 
 /**
+ * /healthz and /readyz, after the Host check: a probe writes no line; /readyz one when readiness changes.
+ * @param {any} context
+ * @param {ReturnType<typeof allowedHosts>} hosts
+ * @param {ReturnType<typeof problemsFor>["hostProblem"]} hostProblem
+ * @returns {(request: Request) => Promise<Response | null>}  null for every other request
+ */
+function healthRoute(context, hosts, hostProblem) {
+    const noteReadiness = readinessNotes(context.log);
+    return async (request) => {
+        const path = new URL(request.url).pathname;
+        if ((request.method !== "GET" && request.method !== "HEAD") || (path !== "/healthz" && path !== "/readyz")) {
+            return null;
+        }
+        const refused = hostRefusal(request, hosts);
+        if (refused) {
+            return hostProblem(context.log, request, refused);
+        }
+        // a probe's answer is not a refusal: no line of its own, none from the HTTP edge's check
+        noteAnswered();
+        if (path === "/healthz") {
+            return Response.json({ ok: true }, { headers: { "cache-control": "no-store" } });
+        }
+        const ready = await context.ready();
+        noteReadiness(ready);
+        return Response.json(ready, { status: ready.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
+    };
+}
+
+/**
  * The combined fetch handler of a set of options: REST and, if enabled, MCP over one context.
  * @param {import("./config.js").ServerOptions} options
- * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown }, loopback: boolean }} runtime
- * @returns {Promise<import("./listen.js").FetchHandler & { context: any, enable: string[], downloads: ReturnType<typeof createDownloadHandler>, close(): Promise<void> }>}
+ * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown }, loopback: boolean, viewerFiles?: { ownDir?: string, elementDir?: string | null } }} runtime
+ * @returns {Promise<import("./listen.js").FetchHandler & { context: any, enable: string[], downloads: ReturnType<typeof createDownloadHandler>, listening(url: string): void, close(): Promise<void> }>}
  */
 export async function createServerHandler(options, runtime) {
     const asked = options.http?.enable;
@@ -208,13 +239,19 @@ export async function createServerHandler(options, runtime) {
     let made = null;
     /** @type {any} */
     let rest = null;
+    /** @type {any} */
+    let viewer = null;
     try {
         // the download links' route: before REST and MCP (a browser's form POST carries an Origin
         // that is not an MCP client's), shared with pivotkit-mcp's handler on this context
         const downloads = createDownloadHandler(context, { env: runtime.env, loopback: runtime.loopback });
         made = downloads;
-        const isDownload = (request) => downloads.handles(new URL(request.url).pathname);
         rest = enable.includes("rest") ? await createRestHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
+        // the viewer page of live links (rest.browser.viewer): it reads the person's rights as the REST service does
+        viewer = rest ? await createViewerHandler(context, rest.viewer, { env: runtime.env, loopback: runtime.loopback, files: runtime.viewerFiles }) : null;
+        // the server's own pages, each with its own sign-in and answers
+        const pages = viewer ? [downloads, viewer] : [downloads];
+        const pageOf = (request) => pages.find((p) => p.handles(new URL(request.url).pathname));
         // the answers of this handler name the operator's documentation (branding.js)
         const { problem, hostProblem } = problemsFor(context.branding.docs);
         // a path nobody serves names the REST service and its OpenAPI document by their full address;
@@ -225,33 +262,14 @@ export async function createServerHandler(options, runtime) {
         const hosts = allowedHosts(options);
         const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
 
-        const noteReadiness = readinessNotes(context.log);
+        const health = healthRoute(context, hosts, hostProblem);
 
-        /** /healthz and /readyz, after the Host check: a probe writes no line; /readyz one when readiness changes. */
-        async function health(request) {
-            const path = new URL(request.url).pathname;
-            if ((request.method !== "GET" && request.method !== "HEAD") || (path !== "/healthz" && path !== "/readyz")) {
-                return null;
-            }
-            const refused = hostRefusal(request, hosts);
-            if (refused) {
-                return hostProblem(context.log, request, refused);
-            }
-            // a probe's answer is not a refusal: no line of its own, none from the HTTP edge's check
-            noteAnswered();
-            if (path === "/healthz") {
-                return Response.json({ ok: true }, { headers: { "cache-control": "no-store" } });
-            }
-            const ready = await context.ready();
-            noteReadiness(ready);
-            return Response.json(ready, { status: ready.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
-        }
-
-        /** The routes, in order: health, download links, REST, MCP. */
+        /** The routes, in order: health, the server's own pages, REST, MCP. */
         const routes = {
             async precheck(request, info) {
-                if (isDownload(request)) {
-                    return downloads.precheck(request, info);
+                const page = pageOf(request);
+                if (page) {
+                    return page.precheck(request, info);
                 }
                 if (rest && isRest(request)) {
                     return rest.precheck(request, info);
@@ -275,8 +293,9 @@ export async function createServerHandler(options, runtime) {
                 if (early) {
                     return early;
                 }
-                if (isDownload(request)) {
-                    return downloads.fetch(request, info);
+                const page = pageOf(request);
+                if (page) {
+                    return page.fetch(request, info);
                 }
                 if (rest && isRest(request)) {
                     return rest.fetch(request, info);
@@ -311,9 +330,13 @@ export async function createServerHandler(options, runtime) {
             fetch: hosted.fetch,
             /** @type {import("./listen.js").FetchHandler["release"]} */
             release: (info) => rest?.release(info),
-            problem: (status, path, info) => familyProblem({ downloads, mcp, rest, problem }, status, path, info),
+            problem: (status, path, info) => familyProblem({ pages, mcp, rest, problem }, status, path, info),
+            /** @param {string} url  the address the server listens on: the pages' base on loopback without http.publicUrl */
+            listening(url) {
+                pages.forEach((p) => p.listening(url));
+            },
             async close() {
-                downloads.close();
+                pages.forEach((p) => p.close());
                 await rest?.close();
                 await mcp?.close();
                 await context.close();
@@ -321,6 +344,7 @@ export async function createServerHandler(options, runtime) {
         };
     } catch (e) {
         made?.close();
+        viewer?.close();
         await rest?.close().catch(() => undefined);
         await context.close();
         throw e;
@@ -331,7 +355,8 @@ export async function createServerHandler(options, runtime) {
  * Serves REST (and MCP) over HTTP. With a state directory (runtime.stateDir, state.js) a token and
  * keys that are missing are made first.
  * @param {import("./config.js").ServerOptions} given
- * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown }, stateDir?: string | null }} runtime
+ * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown }, stateDir?: string | null, viewerFiles?: { ownDir?: string, elementDir?: string | null } }} runtime
+ *   viewerFiles: where the viewer page's files are, in place of its own and pivotkit-element's (tests)
  * @returns {Promise<{ port: number, url: string, context: any, enable: string[], close(): Promise<void> }>}
  */
 export async function serve(given, runtime) {
@@ -341,7 +366,7 @@ export async function serve(given, runtime) {
     if (!isLoopback(host) && (options.auth?.mode ?? "none") === "none" && !options.auth?.allowUnauthenticated) {
         throw new ConfigError(openAddressRefusal(host));
     }
-    const handler = await createServerHandler(options, { env: runtime.env, stderr: runtime.stderr, loopback: isLoopback(host) });
+    const handler = await createServerHandler(options, { env: runtime.env, stderr: runtime.stderr, loopback: isLoopback(host), viewerFiles: runtime.viewerFiles });
     logNotes(handler.context.log, notes);
     let listening;
     try {
@@ -353,7 +378,7 @@ export async function serve(given, runtime) {
         throw e;
     }
     const url = `http://${host.includes(":") ? `[${host}]` : host}:${listening.port}`;
-    handler.downloads.listening(url);
+    handler.listening(url);
     // what would fail on the first call is said now: a source file that is not there, a test issuer
     for (const s of await handler.context.registry.check()) {
         if (!s.exists) {

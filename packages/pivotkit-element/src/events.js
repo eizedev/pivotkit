@@ -15,7 +15,8 @@ export const EVENTS = Object.freeze({
     export: "pivot-export",
     tipDismiss: "pivot-tip-dismiss",
     sourceSwitch: "pivot-source-switch",
-    dataLoad: "pivot-data-load"
+    dataLoad: "pivot-data-load",
+    serverState: "pivot-server-state"
 });
 
 /**

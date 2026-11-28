@@ -6,6 +6,11 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `create_link` takes `access`: the access level of a live link (`me`, `signedIn`, or `group` with
+  `group`). pivotkit-server signs it into the link.
+
 ### Changed
 
 - The SVG and the HTML report draw a treemap's labels as the screen does: white at each tile's top

@@ -33,6 +33,7 @@ import { isInside } from "pivotkit-node/files";
 import { ConfigError, loadConfig, pathOf } from "./config.js";
 import { isLoopback } from "./listen.js";
 import { settingsOf } from "./options/downloads.js";
+import { browserPathUsed } from "./options/browser.js";
 import { keyProblem, tokenProblem } from "./secret-rules.js";
 import { SECRET_BYTES, STILL_EMPTY, SecretFileError, newSecret, placeSecret, untilFilled } from "./secret-file.js";
 
@@ -72,13 +73,28 @@ export const STATE_PARTS = Object.freeze({ secrets: "secrets", out: "out" });
 export const SIGNED_STATE_DIR = "signed";
 
 /** The default files in secrets/, by what they are for. */
-const STATE_FILES = Object.freeze({ token: `${DEFAULT_TOKEN_NAME}.token`, downloads: "downloads.key", audit: "audit.key" });
+const STATE_FILES = Object.freeze({ token: `${DEFAULT_TOKEN_NAME}.token`, downloads: "downloads.key", audit: "audit.key", browser: "browser.key" });
 
 /** What each kind of secret is, for the lines: its words, its bytes and its rule. */
 const KINDS = Object.freeze({
     token: { words: (name) => `the token "${name}"`, bytes: SECRET_BYTES.token, kind: "token", usable: tokenProblem },
     downloads: { words: () => "the download links' key", bytes: SECRET_BYTES.key, kind: "key", usable: keyProblem("downloads") },
-    audit: { words: () => "the audit key", bytes: SECRET_BYTES.key, kind: "key", usable: keyProblem("audit") }
+    audit: { words: () => "the audit key", bytes: SECRET_BYTES.key, kind: "key", usable: keyProblem("audit") },
+    browser: { words: () => "the browser tokens' key", bytes: SECRET_BYTES.key, kind: "key", usable: keyProblem("browser") }
+});
+
+/** What a random key in place of a key that cannot be made means, by its use. */
+export const RANDOM_KEY_MEANS = Object.freeze({
+    downloads: "download links stop working on a restart",
+    audit: "the same person gets another hash after a restart",
+    browser: "browser tokens and the access levels of live links stop working on a restart"
+});
+
+/** Where each key of the state directory goes in the options: its path, and a copy of the options with it set (undefined: a random key). */
+const KEY_PLACES = Object.freeze({
+    downloads: { at: "output.downloads.key", of: (o) => o.output?.downloads?.key, set: (o, key) => ({ ...o, output: { ...o.output, downloads: { ...o.output?.downloads, key } } }) },
+    audit: { at: "audit.key", of: (o) => o.audit?.key, set: (o, key) => ({ ...o, audit: { ...o.audit, key } }) },
+    browser: { at: "rest.browser.key", of: (o) => o.rest?.browser?.key, set: (o, key) => ({ ...o, rest: { ...o.rest, browser: { ...o.rest?.browser, key } } }) }
 });
 
 /**
@@ -141,8 +157,8 @@ export async function configFrom({ flag, fromEnv, stateDir, paths = IMAGE_PATHS 
 
 /**
  * @typedef {object} PlannedSecret  a secret file pivotkit makes where it is missing
- * @property {"token" | "downloads" | "audit"} use
- * @property {string} at  where the configuration names it (auth.tokens[0], output.downloads.key, audit.key)
+ * @property {"token" | "downloads" | "audit" | "browser"} use
+ * @property {string} at  where the configuration names it (auth.tokens[0], output.downloads.key, audit.key, rest.browser.key)
  * @property {string} words  how a line names it ("the token \"admin\"")
  * @property {string} path  absolute
  * @property {boolean} fromState  a default of the state directory (not written in the configuration)
@@ -158,6 +174,28 @@ export async function configFrom({ flag, fromEnv, stateDir, paths = IMAGE_PATHS 
  * @property {PlannedSecret | null} defaultToken  the token of the state directory, when it is used
  * @property {boolean} outInState  output.dir is <state>/out (made by prepareHttpServe, never by the context)
  */
+
+/**
+ * The options with the keys the state directory holds where they are used and none is named: the
+ * downloads' key, the audit's (subject "hash"), and the browser path's, so its tokens and the levels
+ * of live links stay valid over a restart.
+ * @param {Record<string, any>} options
+ * @param {string} secretsDir
+ */
+function withStateKeys(options, secretsDir) {
+    const made = (use) => ({ file: join(secretsDir, STATE_FILES[use]), create: true });
+    let next = options;
+    if (settingsOf(next).enabled && !next.output?.downloads?.key) {
+        next = KEY_PLACES.downloads.set(next, made("downloads"));
+    }
+    if (next.audit?.subject === "hash" && !next.audit.key) {
+        next = KEY_PLACES.audit.set(next, made("audit"));
+    }
+    if (browserPathUsed(next) && !next.rest?.browser?.key) {
+        next = KEY_PLACES.browser.set(next, made("browser"));
+    }
+    return next;
+}
 
 /**
  * The state directory's defaults on the options, and every secret with create: true; reads and
@@ -201,14 +239,7 @@ export function planState(options, { env, host, tokenEnv, stateDir }) {
             auth.signedTokens = { ...auth.signedTokens, dir: join(secretsDir, SIGNED_STATE_DIR) };
             next.auth = auth;
         }
-        const downloads = { ...output.downloads };
-        if (settingsOf(next).enabled && !downloads.key) {
-            downloads.key = { file: join(secretsDir, STATE_FILES.downloads), create: true };
-            next.output = { ...output, downloads };
-        }
-        if (options.audit?.subject === "hash" && !options.audit.key) {
-            next.audit = { ...options.audit, key: { file: join(secretsDir, STATE_FILES.audit), create: true } };
-        }
+        Object.assign(next, withStateKeys(next, secretsDir));
     }
     /** @type {PlannedSecret[]} */
     const secrets = [];
@@ -223,8 +254,9 @@ export function planState(options, { env, host, tokenEnv, stateDir }) {
     if (tokens.length === 1 && secrets[0]) {
         secrets[0].soleAuth = true;
     }
-    add("downloads", "output.downloads.key", next.output?.downloads?.key);
-    add("audit", "audit.key", next.audit?.key);
+    for (const [use, place] of Object.entries(KEY_PLACES)) {
+        add(use, place.at, place.of(next));
+    }
     const defaultToken = secrets.find((s) => s.use === "token" && s.fromState) ?? null;
     const outInState = Boolean(stateDir && next.output?.dir && pathOf(next, next.output.dir) === join(/** @type {string} */ (stateDir), STATE_PARTS.out));
     return { options: next, secrets, stateDir, secretsDir, defaultToken, outInState };
@@ -232,13 +264,8 @@ export function planState(options, { env, host, tokenEnv, stateDir }) {
 
 /** Whether the configuration itself names the reference at `at` (not a default of the state directory). */
 function isWritten(options, at) {
-    if (at === "output.downloads.key") {
-        return Boolean(options.output?.downloads?.key);
-    }
-    if (at === "audit.key") {
-        return Boolean(options.audit?.key);
-    }
-    return Boolean(options.auth?.tokens?.length);
+    const place = Object.values(KEY_PLACES).find((p) => p.at === at);
+    return place ? Boolean(place.of(options)) : Boolean(options.auth?.tokens?.length);
 }
 
 /** The file system facts tests replace: whether this runs in a container, and the mount table. */
@@ -418,7 +445,7 @@ export async function prepareHttpServe(options, { env, host, tokenEnv, stateDir 
     const plan = planState(options, { env, host, tokenEnv, stateDir });
     /** @type {StateNote[]} */
     const notes = [];
-    const next = plan.options;
+    let next = plan.options;
     const unused = unusedTokenText(options, next, env, tokenEnv);
     if (unused) {
         notes.push({ level: "warn", text: unused });
@@ -441,12 +468,9 @@ export async function prepareHttpServe(options, { env, host, tokenEnv, stateDir 
         } catch (e) {
             const why = e instanceof ConfigError ? e.message : whyNot(e);
             if (secret.fromState && secret.use !== "token") {
-                notes.push({ level: "warn", text: `${secret.words} cannot be made in ${secret.path} (${why}): a random key is used, so ${secret.use === "downloads" ? "download links stop working on a restart" : "the same person gets another hash after a restart"}; ${stateDirFix(/** @type {string} */ (plan.stateDir), env)}` });
-                if (secret.use === "downloads") {
-                    next.output = { ...next.output, downloads: { ...next.output?.downloads, key: undefined } };
-                } else {
-                    next.audit = { ...next.audit, key: undefined };
-                }
+                const use = /** @type {keyof typeof KEY_PLACES} */ (secret.use);
+                notes.push({ level: "warn", text: `${secret.words} cannot be made in ${secret.path} (${why}): a random key is used, so ${RANDOM_KEY_MEANS[use]}; ${stateDirFix(/** @type {string} */ (plan.stateDir), env)}` });
+                next = KEY_PLACES[use].set(next, undefined);
                 continue;
             }
             if (secret.fromState) {

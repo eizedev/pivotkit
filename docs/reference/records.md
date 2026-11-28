@@ -1,6 +1,6 @@
 ---
 title: Rows of a source
-description: The REST route POST /api/v1/sources/records - the rows of a source for a person who signed in, so a host application's backend can show a live pivotkit report - how to turn it on, who gets rows, which fields leave, its limits, a host backend that fetches the rows, the log and sizing.
+description: The REST route POST /api/v1/sources/records - the rows of a source for a person who signed in, so a host application's backend can show a live pivotkit report - how to turn it on, who gets rows, which fields leave, its limits, a host backend that fetches the rows, a page that reads them with a browser token, the log and sizing.
 ---
 
 # Rows of a source
@@ -143,7 +143,8 @@ limit wins.
 - Over a row or cell limit, the answer is 413 `LIMIT_EXCEEDED`, for example "this source has too
   many rows to open here (60,000, the limit is 50,000); filter it with a parameter or ask the
   operator". Where the policy hides the row count (`rows: false`), the message leaves the count out.
-  It names a parameter only for a source that takes one the caller sends.
+  It names a parameter only for a source that takes one the caller sends. The problem holds the
+  limit as a number too: `maxRows` or `maxCells`.
 - The server checks the fields and the limits before it writes the first byte.
 - Beyond `concurrency`, a request waits up to `waitMs` for a place, first come first served. After
   that, and at once for a second request of the same person or beyond 32 waiting requests, the
@@ -223,12 +224,177 @@ document.querySelector("pivot-report").data = { columns, types, data };
 - The page holds every row. The browser is not access control: send only what the person may see.
 - The rows' memory: [sizing](#records-sizing).
 
+## A page reads the rows itself { #records-browser }
+
+The page reads the rows from pivotkit-server directly, with a short-lived **browser token**. Your
+backend still makes that token: it holds the person's own token, which never reaches the page.
+[Record 0021](../decisions/0021-the-browser-path.md) says why it works this way.
+
+1. Your backend exchanges the person's token at `POST /api/v1/sources/records/token` for a browser
+   token: OAuth of your issuer, or a [token from another system](tokens.md#external-issuers) with a
+   subject.
+2. The page reads the rows with the browser token, and asks your backend for a new one on expiry.
+   The [components](live-rows.md) do this with the `getToken()` the page gives them.
+
+Without a page of your own, the server's [viewer page](#records-viewer) opens a live link and signs
+the person in itself.
+
+```bash
+curl -s -H "Authorization: Bearer $PERSON_TOKEN" -H "Content-Type: application/json" \
+  -d '{"source":"sales","params":{"customer":"acme"}}' \
+  https://reports.example.com/api/v1/sources/records/token
+```
+
+```json
+{ "token": "eyJhbGciOiJkaXIi…", "tokenType": "Bearer", "expiresIn": 300,
+  "expiresAt": "2026-11-28T10:47:00Z", "source": "sales" }
+```
+
+| Key | Required | What it is |
+| --- | --- | --- |
+| `source` | yes | A source id the person may read rows of (`records` of the person's profile) |
+| `params` | no | The source's parameters. The token holds them, and reads only these |
+| `access` | no | The `pk-access` value of the link's query string: the link's [access level](#records-access) |
+
+The browser token:
+
+- reads `POST /api/v1/sources/records` for its source and parameters only. Another source or other
+  parameters are 403 `NOT_ALLOWED`.
+- is refused as an unknown token everywhere else: every other route, `/openapi.json`, MCP and the
+  exchange route itself. It cannot make another token.
+- lives [`rest.browser.minutes`](#records-browser-settings), never longer than the person's token.
+- is encrypted, read only from the `Authorization` header, and logged by its ID only.
+- carries the person's issuer, subject, profile and scopes, and only the claims the source's
+  parameters are bound to. A code source gets the groups and claims too.
+
+The exchange route refuses a source whose backend exchanges the person's own token. A browser token
+never carries it. Read such a source [through the host's backend](#records-host).
+
+An expired browser token is 401 `INVALID_TOKEN` with `expired: true`. Get a new one. A refused one
+does not count against the address's limit of failed sign-ins. A sign-in with more groups or claims
+than a browser token holds is 413 `LIMIT_EXCEEDED` with `limit: "token"`.
+
+### Pages of another origin { #records-browser-origins }
+
+`rest.browser.origins` lists the pages that read rows with a browser token. The server's own origin
+may always. These origins get CORS on the rows route only, and only with a browser token or for the
+preflight. A person's own token from such a page is 403 `FORBIDDEN_ORIGIN`. `rest.cors.origins` is
+separate and unchanged. Behind a proxy that ends TLS, set `http.publicUrl` to the `https` address:
+the server's own origin comes from it.
+
+### Access levels of a live link { #records-access }
+
+`create_link` takes `access`, the people who may open the link:
+
+| `level` | Who opens the link |
+| --- | --- |
+| `me` | Only the person who made it |
+| `signedIn` | Everyone who signs in and may read the rows (the default) |
+| `group` | The members of `group`, one of the maker's own groups (the `groups` claim) |
+
+A level is advisory, not a data boundary. Rows stay limited to what each person may see, with or
+without the link.
+
+- The level goes signed into the link's query string as `pk-access`, for the link's source only.
+  The person and the group are in it as keyed digests, different for each link.
+- The exchange route checks it. A refusal is 403 `NOT_ALLOWED` with `linkAccess`: `"refused"` when
+  the level shuts this person out, `"invalid"` when the value is not valid, no longer offered, or
+  missing. Then the person needs a new link.
+- `rest.browser.levels` lists the levels an instance offers. A link without `pk-access` opens as
+  `signedIn` where that is offered, and is refused otherwise. So `me` and `group` beside `signedIn`
+  hold only while the link keeps its `pk-access`. `check-config` warns about this mix.
+- A person of an [external issuer](tokens.md#external-issuers) gets `signedIn` links only.
+
+### Settings { #records-browser-settings }
+
+| Key | Default | What it is |
+| --- | --- | --- |
+| `rest.browser.origins` | none | Pages that read rows with a browser token: exact origins, as for `rest.cors.origins` |
+| `rest.browser.minutes` | 5 | How long a browser token lives (1 to 60) |
+| `rest.browser.key` | made in the state directory | The key of the tokens and of `pk-access`: a secret like `output.downloads.key` (`{ "env" }` or `{ "file" }`, 32 bytes or more) |
+| `rest.browser.levels` | `["signedIn"]` | The access levels live links may carry: `me`, `signedIn`, `group` |
+| `rest.browser.viewer` | `false` | The server's own [viewer page](#records-viewer) for live links, at `/live/<source>` |
+
+- With a state directory, the server makes the key at the first start where a profile reads rows
+  (`<state>/secrets/browser.key`). Make one yourself with `pivotkit-server key new --for browser`.
+- Without a key and a state directory, the key is random per process. Browser tokens then end on a
+  restart and differ between replicas, and so do the levels of links. `check-config` warns.
+- A new key ends every browser token within a second, without a restart. It also ends the levels
+  of the links made before it.
+- `check-config` has a section "Browser path". It names the lifetime, the pages, the levels and
+  the key, and the sources the browser path refuses.
+
+### The viewer page { #records-viewer }
+
+The viewer page is pivotkit-server's own page for a live link: `http.publicUrl` + `/live/<source>`.
+It signs the person in, makes the browser token on the server, and shows the report. People see it
+as [Open a shared live report](../use/open-a-shared-report.md).
+
+1. Set `"rest": { "browser": { "viewer": true } }`.
+2. Set the source's `link` to the page: `"link": "https://reports.example.com/live/sales"`.
+   `create_link` then gives that address with the view, the `linkParams` and `pk-access`.
+3. Install pivotkit-element next to pivotkit-server: `npm install pivotkit-element`. The
+   [container image](container.md#oauth) holds it already. The page serves its built files. Without them it answers 503 and the log warns. Its version must be in the range
+   pivotkit-server names as an optional peer dependency; an older report cannot read rows from the
+   server, and the log and `check-config` warn.
+4. The sign-in is the one of [sign-in links](delivery.md#sign-in), with its client
+   `output.downloads.signIn`. At the provider, add the redirect URI
+   `https://reports.example.com/live/_/callback` to that client: `http.publicUrl` +
+   `/live/_/callback`.
+5. The sign-in must give an access token the REST service accepts: list the service's scopes in
+   `output.downloads.signIn.scopes` beside `openid`, such as `["openid", "pivotkit"]`. Its `aud`
+   must be in `rest.audience`: a provider that puts the client ID there, as Authentik does, needs
+   that client ID in the list ([audience](sign-in.md)). The page reads the person's rights
+   from it as from a bearer: `rest.requiredScopes`, the groups, the profile.
+
+```json
+{
+  "sources": { "sales": { "file": "data/sales.csv", "link": "https://reports.example.com/live/sales", "linkParams": ["customer"] } },
+  "output": { "downloads": { "signIn": { "clientId": "pivotkit-web", "scopes": ["openid", "pivotkit"] } } },
+  "rest": { "browser": { "viewer": true, "levels": ["me", "group"] } },
+  "http": { "publicUrl": "https://reports.example.com" }
+}
+```
+
+- Opening the link, a link preview or a HEAD starts no sign-in. The page's script does, and keeps
+  the view of the fragment in the tab's `sessionStorage` meanwhile.
+- The callback checks the ID token as a sign-in link does. The access token of the same answer must
+  name the same issuer and subject. The page gets only the browser token, never the person's tokens.
+- A short cookie, `__Host-pivotkit-live`, holds the sign-in under way. The answer clears it. No
+  session follows: when the report needs a new browser token, the page signs in again. A link over
+  2,048 characters gets "Link too long" (414): its sign-in would not fit the cookie.
+- A used sign-in is marked in the server's memory, so a callback replayed on another replica fails
+  only at the provider, which takes a code once.
+- A sign-in counts against the person's REST rate limit and concurrency (`rest.rateLimit`), as a
+  request to the token route does.
+- A person who may not read the report gets its state, such as "This link is not shared with this
+  account", but neither the title nor the source's parameters. The refusal's text, which may name
+  the required scopes, stays in the log.
+- The page's files carry no version in their names. A browser asks again on every use and gets 304
+  while a file is unchanged.
+- The page needs `auth.mode` `"oauth"` and an `https` `http.publicUrl`. On loopback it may go
+  without one. Its policy allows no inline script or style
+  ([security](../security.md#viewer-page)).
+- `check-config` names the page's address, the redirect URI to register and the scopes. It warns
+  without pivotkit-element or with one outside the range, when `http.enable` leaves out `rest`, when
+  the sign-in's scopes lack `rest.requiredScopes`, and when a source's `link` is a `/live/` address
+  while the page is off.
+- Each sign-in ends with a `viewer` log line: the browser token's ID, or the `code` and `reason` of
+  a refusal.
+
 ## What the log says { #records-log }
 
 Every answer that started ends with a `records` line: the source, the rows and columns, the profile,
 `client` and `ms`, how long the answer took to read. With `audit.subject` it names the person too.
-It never holds a value. An answer cut off has `outcome: "error"` and `reason`: `idle`, `slow` (not
-read within `writeMs`), `client` (the reader left), `timeout` or `error`.
+It never holds a value. The [viewer page](#records-viewer) writes `viewer` lines of its own.
+
+An answer cut off has `outcome: "error"` and a `reason`:
+
+- `idle`
+- `slow`: not read within `writeMs`
+- `client`: the reader left
+- `timeout`
+- `error`
 
 ## Sizing { #records-sizing }
 

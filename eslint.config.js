@@ -29,8 +29,13 @@ export default [
     },
     {
         // tests, benchmarks and tooling run in Node
-        ignores: ["packages/*/src/**", "examples/*/src/**", "examples/element/**"],
+        ignores: ["packages/*/src/**", "packages/pivotkit-server/viewer/**", "examples/*/src/**", "examples/element/**"],
         languageOptions: { globals: { ...globals.node } }
+    },
+    {
+        // the viewer page's script runs in the browser (pivotkit-server's viewer.js serves it)
+        files: ["packages/pivotkit-server/viewer/**/*.js"],
+        languageOptions: { globals: { ...globals.browser } }
     },
     {
         // the engine runs in browsers and Node: only globals both have (no process, Buffer, window)

@@ -18,6 +18,7 @@ import { multipartInputSchema } from "./multipart.js";
 import { REST_ROUTES } from "./routes.js";
 import { NAMED_VIEW_OPERATIONS } from "../views.js";
 import { RECORDS_INPUT, RECORDS_OUTPUT } from "../records.js";
+import { BROWSER_TOKEN_INPUT, BROWSER_TOKEN_OUTPUT } from "../browser.js";
 import { DEFAULT_NAME, DOCS_SITE, docsLink, withDocs } from "../branding.js";
 import { firstIssuerOf } from "../issuer.js";
 
@@ -89,6 +90,34 @@ const NAMED_VIEW_INPUT = {
 
 /** The rows route's name for withViewRef: it takes a view by name, as the operations in NAMED_VIEW_OPERATIONS do. */
 const RECORDS_ROUTE = "records";
+
+/** The routes with an input and output of their own, by their answer: the schemas' name, the 200's words, the problems. */
+const OWN_ROUTES = Object.freeze({
+    records: { schema: "ReadRecords", ok: "The rows, columnar. The answer is written in pieces (no Content-Length).", errors: [400, 401, 403, 404, 413, 415, 422, 429, 503, 504] },
+    browserToken: { schema: "IssueBrowserToken", ok: "The browser token.", errors: [400, 401, 403, 413, 415, 422, 429, 503] }
+});
+
+/**
+ * The operation of a route with an input and output of its own (OWN_ROUTES): the rows route and the
+ * exchange route.
+ * @param {(typeof REST_ROUTES)[number]} route
+ * @param {unknown[] | null} security  the route's security, null without a scheme
+ */
+function ownOperation(route, security) {
+    const own = OWN_ROUTES[/** @type {keyof typeof OWN_ROUTES} */ (route.answer)];
+    return {
+        operationId: route.id,
+        summary: route.summary,
+        description: route.description,
+        tags: ["sources"],
+        ...(security ? { security } : {}),
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: `#/components/schemas/${own.schema}Input` }, example: route.example.input } } },
+        responses: {
+            200: { description: own.ok, content: { "application/json": { schema: { $ref: `#/components/schemas/${own.schema}Output` }, example: route.example.output } } },
+            ...Object.fromEntries(own.errors.map((status) => [status, { $ref: `#/components/responses/Problem${status}` }]))
+        }
+    };
+}
 
 /** An input schema with the view referenced: by name too for the operations and the rows route that take one. */
 function withViewRef(schema, name) {
@@ -188,23 +217,13 @@ export function openApiDocument(options = {}) {
     schemas.ReadRecordsOutput = structuredClone(RECORDS_OUTPUT);
     /** @type {Record<string, any>} */
     const paths = {};
-    for (const route of REST_ROUTES.filter((r) => r.answer === "records")) {
-        paths[`${REST_BASE}${route.path}`] = {
-            post: {
-                operationId: route.id,
-                summary: route.summary,
-                description: route.description,
-                tags: ["sources"],
-                ...(schemeName ? { security: security(route) } : {}),
-                requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/ReadRecordsInput" }, example: route.example.input } } },
-                responses: {
-                    200: { description: "The rows, columnar. The answer is written in pieces (no Content-Length).", content: { "application/json": { schema: { $ref: "#/components/schemas/ReadRecordsOutput" }, example: route.example.output } } },
-                    ...Object.fromEntries([400, 401, 403, 404, 413, 415, 422, 429, 503, 504].map((status) => [status, { $ref: `#/components/responses/Problem${status}` }]))
-                }
-            }
-        };
+    // the exchange route (browser.js): no operation of the table either
+    schemas.IssueBrowserTokenInput = structuredClone(BROWSER_TOKEN_INPUT);
+    schemas.IssueBrowserTokenOutput = structuredClone(BROWSER_TOKEN_OUTPUT);
+    for (const route of REST_ROUTES.filter((r) => Object.hasOwn(OWN_ROUTES, r.answer))) {
+        paths[`${REST_BASE}${route.path}`] = { post: ownOperation(route, schemeName ? security(route) : null) };
     }
-    for (const route of REST_ROUTES.filter((r) => r.answer !== "records")) {
+    for (const route of REST_ROUTES.filter((r) => !Object.hasOwn(OWN_ROUTES, r.answer))) {
         const op = OPERATIONS[route.operation];
         const errors = route.method === "GET" ? (route.path.includes("{") ? [400, 401, 403, 404, 422, 429, 503, 504] : [401, 403, 429, 503]) : [400, 401, 403, 404, 409, 413, 415, 422, 429, 503, 504];
         const okContent =

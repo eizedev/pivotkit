@@ -424,6 +424,7 @@ export const de = {
     copyJson: "Ansicht als JSON kopieren",
     downloadView: "Ansicht herunterladen (.pivotkit.json)",
     sharePrivacy: "Eine Ansicht enthält die Namen der Felder und in ihren Filtern die dort gewählten Werte: Nur dort teilen, wo diese gesehen werden dürfen.",
+    shareKeeps: "Der Link behält {params}. Wer ihn öffnet, sieht die Daten, die das eigene Konto sehen darf.",
     loadView: "Ansichtsdatei öffnen…",
     loadViewHint: "Eine Ansichtsdatei, eine Ansicht als JSON oder einen Link einfügen oder eine .pivotkit.json-Datei wählen.",
     loadViewText: "Ansicht als JSON oder Link",
@@ -467,6 +468,7 @@ export const de = {
     chartFoldSome: "Einige Gruppen zugeklappt",
     toastExported: "{file} exportiert",
     toastLinkCopied: "Link kopiert",
+    toastLinkCopiedWith: "Link kopiert, mit {params}",
     toastJsonCopied: "Ansicht als JSON kopiert",
     toastCopyFailed: "Diese Seite erlaubt kein Kopieren. Stattdessen „Ansicht herunterladen“ verwenden.",
     toastLinkTooLong: "Diese Ansicht ist zu groß für einen Link. Stattdessen „Ansicht herunterladen“ verwenden."

@@ -108,19 +108,45 @@ export function signInIssuer(signIn, rules, first, log) {
 }
 
 /**
- * What the sign-in flow needs of its links (downloads.js makes it).
- * @typedef {import("./links.js").LinkRoute & { settings: any, issuer: ReturnType<typeof signInIssuer> | null, signInRules: import("../issuer.js").IssuerRules, env: Record<string, string | undefined>, loopback: boolean, callbackUrl: () => string }} SignInRoute
- *   issuer: null unless links bind to a sign-in; callbackUrl: where the issuer sends the person back
+ * What the sign-in steps need: the download links' route (downloads.js) or the viewer page's (viewer.js).
+ * @typedef {object} SignInRoute
+ * @property {string} name  how the log names the route ("download links", "viewer page")
+ * @property {any} context
+ * @property {{ signIn: any }} settings  output.downloads' (options/downloads.js settingsOf): the sign-in client
+ * @property {ReturnType<typeof import("./tokens.js").cookieJar>} jar  the route's own cookie
+ * @property {(entry: Record<string, unknown>) => void} log  the route's log line
+ * @property {(request: Request, code: any, headers?: Record<string, string>) => Response} answer  the route's page or problem of a code
+ * @property {() => string | null} markersDir  where a used state is marked; null: in this process only
+ * @property {ReturnType<typeof signInIssuer> | null} issuer  null until the route signs anyone in
+ * @property {import("../issuer.js").IssuerRules} signInRules
+ * @property {Record<string, string | undefined>} env
+ * @property {boolean} loopback
+ * @property {() => string} callbackUrl  where the issuer sends the person back
  */
+
+/** @typedef {"SIGN_IN_NOT_READY" | "SIGN_IN_STALE" | "SIGN_IN_TOO_MANY" | "SIGN_IN_FAILED" | "SIGN_IN_DENIED"} SignInAnswer */
 
 /**
  * Marks a sign-in's state used (placeMarker, as a one-time link): false when it was used already.
- * @param {string} dir  the markers' directory
+ * @param {string | null} dir  the markers' directory; null: `used`, this process's
+ * @param {Map<string, number>} used  the states used in this process without a directory, with their expiry
  * @param {string} stateValue  NONCE_SYNTAX
  * @param {unknown} expiry  the cookie entry's `x` (seconds), when the state stops working anyway
  */
-async function markStateUsed(dir, stateValue, expiry) {
+async function markStateUsed(dir, stateValue, expiry, used) {
     const until = Number.isSafeInteger(expiry) ? /** @type {number} */ (expiry) : Math.floor(Date.now() / 1000) + SIGN_IN_SECONDS;
+    if (dir === null) {
+        // no output directory: the states of this process (a replica of its own refuses the code at the issuer, which takes it once)
+        const now = Math.floor(Date.now() / 1000);
+        for (const [k, x] of used) {
+            if (x <= now) used.delete(k);
+        }
+        if (used.has(stateValue)) {
+            return false;
+        }
+        used.set(stateValue, until);
+        return true;
+    }
     try {
         await mkdir(dir, { recursive: true, mode: 0o700 });
         await placeMarker(join(dir, `${stateValue}.state`), until);
@@ -135,13 +161,15 @@ async function markStateUsed(dir, stateValue, expiry) {
 
 /**
  * Exchanges the code for tokens at the issuer (issuer.js: its address rules, no redirect, a time
- * limit, a size cap): the ID token. Throws SignInError, or the request's error.
+ * limit, a size cap): the ID token and the access token, where the answer has one. Throws
+ * SignInError, or the request's error.
  * @param {SignInRoute} route
  * @param {{ metadata: any, tokenUrl: string }} loaded  the issuer's
  * @param {string} code
  * @param {string} verifier  PKCE's
  */
-async function exchange({ context, settings, env, signInRules, callbackUrl }, loaded, code, verifier) {
+async function exchange(route, loaded, code, verifier) {
+    const { context, settings, env, signInRules, callbackUrl } = route;
     const signIn = settings.signIn;
     const form = new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: callbackUrl(), code_verifier: verifier, client_id: signIn.clientId });
     /** @type {Record<string, string>} */
@@ -160,7 +188,7 @@ async function exchange({ context, settings, env, signInRules, callbackUrl }, lo
         response = await issuerFetch(loaded.tokenUrl, signInRules, { method: "POST", headers, body: form.toString(), maxBytes: ISSUER_LIMITS.tokenBytes, timeMs: ISSUER_LIMITS.tokenMs });
     } catch (e) {
         // the operator's part of a refused request (an address, a redirect) as a warning; the person gets SIGN_IN_FAILED
-        context.log.warn(`download links: the issuer's token endpoint could not be reached: ${/** @type {any} */ (e)?.code ?? "error"}, ${String(/** @type {any} */ (e)?.message ?? e).slice(0, 200)}${issuerHint(e, signInRules)}`);
+        context.log.warn(`${route.name}: the issuer's token endpoint could not be reached: ${/** @type {any} */ (e)?.code ?? "error"}, ${String(/** @type {any} */ (e)?.message ?? e).slice(0, 200)}${issuerHint(e, signInRules)}`);
         throw e;
     }
     if (response.status < 200 || response.status > 299) {
@@ -176,28 +204,33 @@ async function exchange({ context, settings, env, signInRules, callbackUrl }, lo
     if (typeof doc?.id_token !== "string") {
         throw new SignInError("the token endpoint's answer has no id_token");
     }
-    return doc.id_token;
+    // the access token only for the viewer page (viewer.js), which reads the person's rights from it
+    return { idToken: doc.id_token, accessToken: typeof doc.access_token === "string" ? doc.access_token : null };
 }
 
 /**
  * The claims of the person who signed in, or why they cannot be used: the code exchanged, the ID
- * token verified with the issuer's keys, its nonce the cookie's, its azp this client where it must be.
+ * token verified with the issuer's keys, its nonce the cookie's, its azp this client where it must be;
+ * with the access token of the same answer, where it has one.
  * @param {SignInRoute} route
  * @param {{ metadata: any, tokenUrl: string, jwks: any }} loaded
  * @param {string} code
  * @param {{ v: string, nn: string }} entry  the cookie's entry of this sign-in: PKCE's verifier, the nonce
- * @returns {Promise<{ claims: Record<string, any> } | { reason: "token" | "nonce" | "azp" }>}
+ * @returns {Promise<{ claims: Record<string, any>, accessToken: string | null } | { reason: "token" | "nonce" | "azp" }>}
  */
 async function idTokenClaims(route, loaded, code, entry) {
     const { context, settings } = route;
     const options = context.options;
     let claims;
+    let accessToken;
     try {
-        const idToken = await exchange(route, loaded, code, entry.v);
+        const tokens = await exchange(route, loaded, code, entry.v);
+        const idToken = tokens.idToken;
+        accessToken = tokens.accessToken;
         const { jwtVerify } = await import("jose");
         ({ payload: claims } = await jwtVerify(idToken, loaded.jwks, { issuer: settings.signIn.issuer, audience: settings.signIn.clientId, algorithms: options.auth?.algorithms?.length ? options.auth.algorithms : [...DEFAULT_ALGORITHMS], clockTolerance: options.auth?.clockTolerance ?? 30, requiredClaims: ["exp", "nonce"] }));
     } catch (e) {
-        context.log.debug("download links: the sign-in failed", { reason: String(/** @type {any} */ (e)?.code ?? /** @type {any} */ (e)?.message ?? "invalid").slice(0, 120) });
+        context.log.debug(`${route.name}: the sign-in failed`, { reason: String(/** @type {any} */ (e)?.code ?? /** @type {any} */ (e)?.message ?? "invalid").slice(0, 120) });
         return { reason: "token" };
     }
     if (typeof claims.nonce !== "string" || !sameText(claims.nonce, entry.nn)) {
@@ -208,7 +241,7 @@ async function idTokenClaims(route, loaded, code, entry) {
     if ((severalAudiences || claims.azp !== undefined) && claims.azp !== settings.signIn.clientId) {
         return { reason: "azp" };
     }
-    return { claims };
+    return { claims, accessToken };
 }
 
 /** A copy of an answer with the cookie's Set-Cookie header in place of any it had. */
@@ -219,19 +252,24 @@ function withCookie(response, cookie) {
 }
 
 /**
- * The sign-in flow of a context's links.
+ * The steps every sign-in of a route takes: the redirect to the issuer and the callback's state.
+ * A route keeps its own cookie, so a state started by one route never completes at another.
  * @param {SignInRoute} route
- * @param {ReturnType<typeof import("./links.js").createLinkAnswers>} links
+ * @param {(entry: Record<string, unknown>) => boolean} isEntry  whether a cookie entry is a sign-in of this route
  */
-export function createSignInFlow(route, links) {
-    const { context, settings, jar, log, answer, markersDir, issuer, env, loopback } = route;
-    const { tokenOf, reportOf } = links;
-    const subjectClaim = context.options.auth?.subjectClaim ?? "sub";
+export function createSignInSteps(route, isEntry) {
+    const { context, settings, jar, log, answer, markersDir, issuer } = route;
     // the sign-in callbacks per address (SIGN_IN_CALLBACKS)
     const callbacks = createLimits({ rateLimit: SIGN_IN_CALLBACKS });
+    /** @type {Map<string, number>} */
+    const used = new Map();
 
-    /** The redirect of a sign-in link to the issuer: code flow with PKCE, state and nonce kept in the cookie. */
-    async function startSignIn(request, token) {
+    /**
+     * The redirect to the issuer: code flow with PKCE, state and nonce kept in the cookie with `data`.
+     * @param {Request} request
+     * @param {Record<string, unknown>} data  what the callback needs of the sign-in (a link's token, the viewer's address)
+     */
+    async function start(request, data) {
         const loaded = issuer?.loaded();
         if (!loaded || !settings.signIn) {
             log({ bound: "signIn", ok: false, code: "SIGN_IN_NOT_READY" });
@@ -242,7 +280,7 @@ export function createSignInFlow(route, links) {
         const verifier = randomBytes(32).toString("base64url");
         const challenge = createHash("sha256").update(verifier).digest("base64url");
         const map = await jar.read(request);
-        const cookie = await jar.write({ ...map, [`s:${stateValue}`]: { x: Math.floor(Date.now() / 1000) + SIGN_IN_SECONDS, v: verifier, nn: nonce, t: token } });
+        const cookie = await jar.write({ ...map, [`s:${stateValue}`]: { ...data, x: Math.floor(Date.now() / 1000) + SIGN_IN_SECONDS, v: verifier, nn: nonce } });
         const target = new URL(loaded.metadata.authorization_endpoint);
         for (const [k, v] of Object.entries({ response_type: "code", client_id: settings.signIn.clientId, redirect_uri: route.callbackUrl(), scope: settings.signIn.scopes.join(" "), state: stateValue, nonce, code_challenge: challenge, code_challenge_method: "S256" })) {
             target.searchParams.set(k, v);
@@ -255,7 +293,7 @@ export function createSignInFlow(route, links) {
      * the server, or the answer for a stale or replayed one, or one over the address's limit.
      * @param {Request} request
      * @param {string} stateValue
-     * @returns {Promise<{ entry: { t: string, v: string, nn: string, x?: number }, cookie: string } | { response: Response }>}
+     * @returns {Promise<{ entry: Record<string, any> & { v: string, nn: string, x?: number }, cookie: string } | { response: Response }>}
      */
     async function takeState(request, stateValue) {
         const map = await jar.read(request);
@@ -265,10 +303,10 @@ export function createSignInFlow(route, links) {
         const rest = { ...map };
         delete rest[key];
         const cookie = await jar.write(rest);
-        if (!entry || typeof entry.t !== "string" || typeof entry.v !== "string" || typeof entry.nn !== "string") {
+        if (!entry || typeof entry.v !== "string" || typeof entry.nn !== "string" || !isEntry(entry)) {
             // no sign-in of this browser under way (a missing or foreign cookie, a used state): anyone can send that, so the debug log only
             // (a tab left open, a reload, another browser): the page says to open the link again, here
-            context.log.debug("download links: a sign-in callback without its cookie", { via: "link", bound: "signIn", code: "SIGN_IN_FAILED", requestId: requestId() });
+            context.log.debug(`${route.name}: a sign-in callback without its cookie`, { via: "link", bound: "signIn", code: "SIGN_IN_FAILED", requestId: requestId() });
             return { response: answer(request, "SIGN_IN_STALE", { "set-cookie": cookie }) };
         }
         // the state is used once on the server too, not only because the browser drops it from its
@@ -281,33 +319,77 @@ export function createSignInFlow(route, links) {
             log({ bound: "signIn", ok: false, code: ANSWERS.SIGN_IN_TOO_MANY.code, answer: "SIGN_IN_TOO_MANY" });
             return { response: answer(request, "SIGN_IN_TOO_MANY", { "set-cookie": cookie, "retry-after": String(wait) }) };
         }
-        if (!(await markStateUsed(markersDir(), stateValue, entry.x))) {
-            context.log.debug("download links: a sign-in callback with a used state", { via: "link", bound: "signIn", code: "SIGN_IN_FAILED", requestId: requestId() });
+        if (!(await markStateUsed(markersDir(), stateValue, entry.x, used))) {
+            context.log.debug(`${route.name}: a sign-in callback with a used state`, { via: "link", bound: "signIn", code: "SIGN_IN_FAILED", requestId: requestId() });
             return { response: answer(request, "SIGN_IN_STALE", { "set-cookie": cookie }) };
         }
         return { entry, cookie };
     }
 
-    /** The callback of the sign-in: the file only for the person the token is for. */
-    async function callback(request) {
+    /**
+     * The callback's state taken, the provider's error and the code read: what the route completes
+     * the sign-in with, or the answer to send. `fail` logs a failure and answers it with the cleared cookie.
+     * @param {Request} request
+     * @returns {Promise<{ entry: Record<string, any> & { v: string, nn: string }, cookie: string, code: string, fail: (code: SignInAnswer | "LINK_NOT_YOURS", extra?: Record<string, unknown>) => Response } | { response: Response }>}
+     */
+    async function callbackOf(request) {
         const url = new URL(request.url);
         const taken = await takeState(request, url.searchParams.get("state") ?? "");
         if ("response" in taken) {
-            return taken.response;
+            return taken;
         }
         const { entry, cookie } = taken;
+        /** @param {SignInAnswer | "LINK_NOT_YOURS"} code  LINK_NOT_YOURS: a download's own */
         const fail = (code, extra = {}) => {
             log({ bound: "signIn", ok: false, code: /** @type {{ code?: string }} */ (ANSWERS[code]).code ?? code, answer: code, ...extra });
             return answer(request, code, { "set-cookie": cookie });
         };
         if (url.searchParams.has("error")) {
             // read only after this browser's own sign-in matched; the provider's words are never shown
-            return fail("SIGN_IN_DENIED", { reason: "issuer" });
+            return { response: fail("SIGN_IN_DENIED", { reason: "issuer" }) };
         }
         const code = url.searchParams.get("code");
         if (!code || code.length > 2048) {
-            return fail("SIGN_IN_FAILED");
+            return { response: fail("SIGN_IN_FAILED") };
         }
+        return { entry, cookie, code, fail };
+    }
+
+    /**
+     * The person who signed in with a callback's code, or why not (idTokenClaims).
+     * @param {string} code
+     * @param {{ v: string, nn: string }} entry
+     */
+    async function claimsOf(code, entry) {
+        const loaded = issuer?.loaded();
+        if (!loaded || !settings.signIn) {
+            return { reason: /** @type {const} */ ("notReady") };
+        }
+        return idTokenClaims(route, loaded, code, entry);
+    }
+
+    return { start, callbackOf, claimsOf, close: () => callbacks.close() };
+}
+
+/**
+ * The sign-in flow of a context's links.
+ * @param {SignInRoute & import("./links.js").LinkRoute} route
+ * @param {ReturnType<typeof import("./links.js").createLinkAnswers>} links
+ */
+export function createSignInFlow(route, links) {
+    const { context, log, env, loopback } = route;
+    const { tokenOf, reportOf } = links;
+    const subjectClaim = context.options.auth?.subjectClaim ?? "sub";
+    // a download's sign-in holds the link's token
+    const steps = createSignInSteps(route, (entry) => typeof entry.t === "string");
+
+    /** The callback of the sign-in: the file only for the person the token is for. */
+    async function callback(request) {
+        const taken = await steps.callbackOf(request);
+        if ("response" in taken) {
+            return taken.response;
+        }
+        const { entry, cookie, code, fail } = taken;
         const got = await tokenOf(request, entry.t);
         if (got.response) {
             return withCookie(got.response, cookie);
@@ -316,13 +398,9 @@ export function createSignInFlow(route, links) {
         if (payload.b !== "signIn") {
             return fail("SIGN_IN_FAILED");
         }
-        const loaded = issuer?.loaded();
-        if (!loaded || !settings.signIn) {
-            return fail("SIGN_IN_NOT_READY");
-        }
-        const verified = await idTokenClaims(route, loaded, code, entry);
+        const verified = await steps.claimsOf(code, entry);
         if ("reason" in verified) {
-            return fail("SIGN_IN_FAILED", { reason: verified.reason });
+            return verified.reason === "notReady" ? fail("SIGN_IN_NOT_READY") : fail("SIGN_IN_FAILED", { reason: verified.reason });
         }
         const { claims } = verified;
         const subject = subjectOf(claims[subjectClaim]);
@@ -342,5 +420,5 @@ export function createSignInFlow(route, links) {
         return fileAnswer(found.report, "GET", { headers: { "set-cookie": cookie } });
     }
 
-    return { start: startSignIn, callback, close: () => callbacks.close() };
+    return { start: (request, token) => steps.start(request, { t: token }), callback, close: steps.close };
 }

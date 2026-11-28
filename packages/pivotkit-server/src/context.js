@@ -20,6 +20,7 @@ import { createRegistry } from "./registry.js";
 import { checkTemplates } from "./print-template.js";
 import { checkViews } from "./views.js";
 import { callerOf, createAuthCore, identityKey } from "./auth.js";
+import { createBrowserTokens } from "./browser-tokens.js";
 import { offersOf } from "./sources/input.js";
 import { httpSettingsOf } from "./options/http.js";
 import { sourceCacheOf } from "./options/code.js";
@@ -87,6 +88,7 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  * @property {string} version
  * @property {Record<string, string | undefined>} env  where a backend's sign-in reads its { env } secrets (runtime.env, default process.env)
  * @property {(how: { env?: Record<string, string | undefined>, loopback: boolean }) => Promise<any>} auth
+ * @property {ReturnType<typeof createBrowserTokens>} browserTokens  the browser tokens and the key of the link access levels (browser-tokens.js), one per context: REST makes the tokens, and create_link over REST and MCP signs the levels with the same key
  * @property {() => Promise<{ ok: boolean, checks: Record<string, boolean> }>} ready
  * @property {() => Promise<void>} countAutoValues  after start: read each file source the automatic rule applies to and log its "values" fields
  * @property {() => Promise<void>} close
@@ -122,6 +124,91 @@ async function refuseTemplatesAndViews(options, log) {
 }
 
 /**
+ * Makes the missing output directory. outputModes: only the server's user reads it, unless
+ * output.baseUrl serves it. The log names no path (it never does): the operator knows output.dir.
+ * @param {string} wanted
+ * @param {Record<string, any>} output  the options' output
+ * @param {ReturnType<typeof createLog>} log
+ */
+async function makeOutputDir(wanted, output, log) {
+    const why = await cannotCreate(wanted);
+    if (why) {
+        throw new ConfigError(`output.dir: cannot be created: ${whyNot(why)}`);
+    }
+    await mkdir(wanted, { recursive: true, mode: outputModes(output).dir }).catch((e) => {
+        throw new ConfigError(`output.dir: cannot be created: ${whyNot(e?.code)}`);
+    });
+    log.warn(`the output directory did not exist and was created (mode 0${outputModes(output).dir.toString(8)}${output.baseUrl ? " narrowed by the umask: output.baseUrl is served" : ""}); check output.dir if that was not meant`);
+}
+
+/**
+ * The output directory of output.dir, checked and made where it is missing, with its limits: refused
+ * where it would hold what the model may not see, or the operator's own files with an age limit.
+ * @param {Record<string, any>} options
+ * @param {{ registry: Awaited<ReturnType<typeof createRegistry>>, log: ReturnType<typeof createLog>, showPaths: boolean }} how
+ */
+async function outputOf(options, { registry, log, showPaths }) {
+    const wanted = pathOf(options, options.output.dir);
+    // only ENOENT is a missing directory: any other error (a name too long, a symbolic link
+    // loop) is refused with its reason, as check-config reports it
+    const found = await entryOf(wanted);
+    if (found.code) {
+        throw new ConfigError(`output.dir: ${outputRefusal(found.code, options.output.create !== false)}`);
+    }
+    const missing = !found.info;
+    if (missing && (await entryOf(wanted, lstat)).info) {
+        throw new ConfigError("output.dir: a symbolic link to nothing (its target does not exist)");
+    }
+    if (missing && options.output.create === false) {
+        throw new ConfigError("output.dir: not found (create it first, or leave output.create on)");
+    }
+    // where the directory is or will be, checked before anything is made, so a refused start
+    // leaves nothing behind
+    const planned = missing ? await plannedPath(wanted) : await realpath(wanted).catch(() => null);
+    if (!planned || (!missing && !(await stat(planned).catch(() => null))?.isDirectory())) {
+        throw new ConfigError("output.dir: not a directory");
+    }
+    // a directory the model may read files from must not hold what it may not see: the results
+    const insideAllowed = (path) => registry.allow.some((allowed) => isInside(path, allowed) || isInside(allowed, path));
+    if (insideAllowed(planned)) {
+        throw new ConfigError(`output.dir: ${OUTPUT_INSIDE_ALLOWED}`);
+    }
+    if (missing) {
+        await makeOutputDir(wanted, options.output, log);
+    }
+    // a link changed between mkdir and here leaves no real path: refused with its reason
+    const dir = await realpath(wanted).catch((e) => {
+        throw new ConfigError(`output.dir: ${outputRefusal(e?.code, missing)}`);
+    });
+    // what was made may have come out elsewhere (a link changed in between): checked again. The
+    // directories just made stay: deleting them here could hit something that is not ours (the
+    // same link may have moved again), and empty directories hold nothing the model could read
+    if (insideAllowed(dir)) {
+        throw new ConfigError(`output.dir: ${OUTPUT_INSIDE_ALLOWED}`);
+    }
+    // an age limit deletes only files with the output mark (reportsIn in output.js); where the
+    // operator's own files lie, it is refused all the same, so no sweep runs beside them
+    const shared = (await ownFileDirs(options)).includes(dir);
+    for (const key of /** @type {const} */ (["maxAgeDays", "draftMaxAgeDays"])) {
+        if (options.output[key] && shared) {
+            throw new ConfigError(`output.dir: is the configuration's directory or holds a source, template or token file, which output.${key} could delete with the old reports; give the reports a directory of their own`);
+        }
+    }
+    if (shared) {
+        log.warn(SHARED_OUTPUT_TEXT);
+    }
+    const refused = await notWritable(dir);
+    if (refused === "EROFS") {
+        log.warn(`${notWritableText(refused)}; every report will fail with NO_OUTPUT until then`);
+    } else if (refused) {
+        log.warn("output.dir is not writable by the server's user: every report will fail with NO_OUTPUT until its owner or mode is fixed");
+    }
+    // the default age limit only where the reports have a directory of their own: a default the
+    // operator did not set never keeps the server from starting
+    return { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? OUTPUT_DEFAULTS.maxFiles, maxMb: options.output.maxMb ?? OUTPUT_DEFAULTS.maxMb, maxAgeDays: maxAgeDaysOf(options, shared), draftMaxAgeDays: options.output.draftMaxAgeDays ?? OUTPUT_DEFAULTS.draftMaxAgeDays, cleanUp: !shared, showPath: showPaths };
+}
+
+/**
  * Builds the shared context.
  * @param {import("./config.js").ServerOptions} options
  * @param {ContextRuntime} [runtime]
@@ -140,76 +227,7 @@ export async function createContext(options, runtime = {}) {
     await refuseTemplatesAndViews(options, log);
     // a backend's sign-in whose secret cannot be read: said at start, not first to a caller
     await warnUnreadableSecrets(options, log, (source) => httpSettingsOf(source).auth, env);
-    let output = null;
-    if (options.output?.dir) {
-        const wanted = pathOf(options, options.output.dir);
-        // only ENOENT is a missing directory: any other error (a name too long, a symbolic link
-        // loop) is refused with its reason, as check-config reports it
-        const found = await entryOf(wanted);
-        if (found.code) {
-            throw new ConfigError(`output.dir: ${outputRefusal(found.code, options.output.create !== false)}`);
-        }
-        const missing = !found.info;
-        if (missing && (await entryOf(wanted, lstat)).info) {
-            throw new ConfigError("output.dir: a symbolic link to nothing (its target does not exist)");
-        }
-        if (missing && options.output.create === false) {
-            throw new ConfigError("output.dir: not found (create it first, or leave output.create on)");
-        }
-        // where the directory is or will be, checked before anything is made, so a refused start
-        // leaves nothing behind
-        const planned = missing ? await plannedPath(wanted) : await realpath(wanted).catch(() => null);
-        if (!planned || (!missing && !(await stat(planned).catch(() => null))?.isDirectory())) {
-            throw new ConfigError("output.dir: not a directory");
-        }
-        // a directory the model may read files from must not hold what it may not see: the results
-        const insideAllowed = (path) => registry.allow.some((allowed) => isInside(path, allowed) || isInside(allowed, path));
-        if (insideAllowed(planned)) {
-            throw new ConfigError(`output.dir: ${OUTPUT_INSIDE_ALLOWED}`);
-        }
-        if (missing) {
-            const why = await cannotCreate(wanted);
-            if (why) {
-                throw new ConfigError(`output.dir: cannot be created: ${whyNot(why)}`);
-            }
-            // outputModes: only the server's user reads it, unless output.baseUrl serves it. The log
-            // names no path (it never does): the operator knows output.dir
-            await mkdir(wanted, { recursive: true, mode: outputModes(options.output).dir }).catch((e) => {
-                throw new ConfigError(`output.dir: cannot be created: ${whyNot(e?.code)}`);
-            });
-            log.warn(`the output directory did not exist and was created (mode 0${outputModes(options.output).dir.toString(8)}${options.output.baseUrl ? " narrowed by the umask: output.baseUrl is served" : ""}); check output.dir if that was not meant`);
-        }
-        // a link changed between mkdir and here leaves no real path: refused with its reason
-        const dir = await realpath(wanted).catch((e) => {
-            throw new ConfigError(`output.dir: ${outputRefusal(e?.code, missing)}`);
-        });
-        // what was made may have come out elsewhere (a link changed in between): checked again. The
-        // directories just made stay: deleting them here could hit something that is not ours (the
-        // same link may have moved again), and empty directories hold nothing the model could read
-        if (insideAllowed(dir)) {
-            throw new ConfigError(`output.dir: ${OUTPUT_INSIDE_ALLOWED}`);
-        }
-        // an age limit deletes only files with the output mark (reportsIn in output.js); where the
-        // operator's own files lie, it is refused all the same, so no sweep runs beside them
-        const shared = (await ownFileDirs(options)).includes(dir);
-        for (const key of /** @type {const} */ (["maxAgeDays", "draftMaxAgeDays"])) {
-            if (options.output[key] && shared) {
-                throw new ConfigError(`output.dir: is the configuration's directory or holds a source, template or token file, which output.${key} could delete with the old reports; give the reports a directory of their own`);
-            }
-        }
-        if (shared) {
-            log.warn(SHARED_OUTPUT_TEXT);
-        }
-        const refused = await notWritable(dir);
-        if (refused === "EROFS") {
-            log.warn(`${notWritableText(refused)}; every report will fail with NO_OUTPUT until then`);
-        } else if (refused) {
-            log.warn("output.dir is not writable by the server's user: every report will fail with NO_OUTPUT until its owner or mode is fixed");
-        }
-        // the default age limit only where the reports have a directory of their own: a default the
-        // operator did not set never keeps the server from starting
-        output = { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? OUTPUT_DEFAULTS.maxFiles, maxMb: options.output.maxMb ?? OUTPUT_DEFAULTS.maxMb, maxAgeDays: maxAgeDaysOf(options, shared), draftMaxAgeDays: options.output.draftMaxAgeDays ?? OUTPUT_DEFAULTS.draftMaxAgeDays, cleanUp: !shared, showPath: runtime.showPaths ?? false };
-    }
+    const output = options.output?.dir ? await outputOf(options, { registry, log, showPaths: runtime.showPaths ?? false }) : null;
     // the tests' look into the workers, by a key only code that imports compute.js can give (never a setting)
     const computer = createComputer(options.compute, runtime[COMPUTE_HOOKS] === true ? { hooks: true } : {});
     /** Gives back this context's sourceCache.maxMb (set once the context is made, below). */
@@ -231,6 +249,7 @@ export async function createContext(options, runtime = {}) {
         authMode: options.auth?.mode ?? "none",
         version: VERSION,
         env,
+        browserTokens: createBrowserTokens(options, { env }),
 
         /**
          * The authentication every HTTP front end of this context shares, built on first use.

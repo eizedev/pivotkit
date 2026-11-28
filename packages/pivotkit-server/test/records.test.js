@@ -326,6 +326,9 @@ test("LIMIT_EXCEEDED for the server's rows, with its message", async () => {
         assert.equal(answer.status, 413, answer.text);
         assert.equal(answer.data.code, "LIMIT_EXCEEDED");
         assert.equal(answer.data.detail, "this source has too many rows to open here (5, the limit is 4); ask the operator");
+        // the limit as a number, for a page's own words
+        assert.equal(answer.data.maxRows, 4);
+        assert.equal(answer.data.maxCells, undefined);
     } finally {
         await server.close();
     }
@@ -339,6 +342,7 @@ test("LIMIT_EXCEEDED for the server's cells, with its message", async () => {
         assert.equal(answer.status, 413, answer.text);
         assert.equal(answer.data.code, "LIMIT_EXCEEDED");
         assert.equal(answer.data.detail, "this answer has too many values to open here (15 cells, the limit is 10); ask for fewer fields or ask the operator");
+        assert.equal(answer.data.maxCells, 10);
         // fewer fields fit
         assert.equal((await rows(server, token, { source: "sales", fields: ["Region", "Sales"] })).status, 200);
     } finally {

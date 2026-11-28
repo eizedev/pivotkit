@@ -8,6 +8,33 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Added
 
+- The browser path ([records](https://pivotkit.eize.dev/reference/records/#records-browser)): `POST
+  /api/v1/sources/records/token` exchanges a person's token for a short-lived browser token that
+  reads the rows of one source with its parameters. Every other route, `/openapi.json` and MCP
+  refuse it. The log names its ID, never its value. An expired one is 401 `INVALID_TOKEN` with
+  `expired: true`.
+- `rest.browser.origins`: pages that read rows with a browser token, with CORS on the rows route
+  only. `rest.browser.minutes` (default 5, at most 60), `rest.browser.key` and
+  `rest.browser.levels`.
+- `create_link` takes `access` (`me`, `signedIn`, `group`), an advisory level signed for the link's
+  source into its query string as `pk-access`. The exchange route checks it; its refusal carries
+  `linkAccess`: `"refused"` or `"invalid"`. A sign-in too large for a browser token is 413
+  `LIMIT_EXCEEDED` with `limit: "token"`. `check-config` warns when `rest.browser.levels` offers
+  `signedIn` beside `me` or `group`.
+- With a state directory, the server makes `secrets/browser.key` where a profile reads rows.
+  `key new --for browser` makes one.
+- `check-config` has a section "Browser path".
+- The viewer page ([records](https://pivotkit.eize.dev/reference/records/#records-viewer)):
+  `rest.browser.viewer` serves `/live/<source>`, the server's own page for a live link. It signs
+  the person in with the download links' client (one more redirect URI, `/live/_/callback`), reads
+  their rights from the access token of that sign-in, and shows the report with a browser token
+  only. No session follows. It needs pivotkit-element installed next to the server, in the range of
+  the new optional peer dependency; the container image holds its built files. A sign-in counts against the person's REST rate limit. The log
+  has a `viewer` line per sign-in. `check-config` names the redirect URI and the scopes, and warns
+  when the page is not served, the sign-in lacks `rest.requiredScopes`, pivotkit-element is missing
+  or too old, or a source's `link` points at the page while it is off.
+- The sign-in cookie of the download links drops an entry too large for a browser on its own.
+- The rows route's 413 `LIMIT_EXCEEDED` holds its limit as `maxRows` or `maxCells`.
 - `auth.issuers`: the server accepts the tokens of up to 10 OAuth issuers, for example two
   Authentik applications with an issuer each ([#587](https://github.com/eizedev/pivotkit/issues/587)).
   A token is checked with the keys of the issuer its `iss` names only. Each entry can set its own

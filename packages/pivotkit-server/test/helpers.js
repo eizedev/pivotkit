@@ -101,9 +101,9 @@ export function loopbackCert(...names) {
 }
 
 /** The REST service on a free port, its log kept as parsed lines. */
-export async function restServer(options, { env = {}, enable = ["rest"] } = {}) {
+export async function restServer(options, { env = {}, enable = ["rest"], viewerFiles } = {}) {
     const log = [];
-    const server = await serve({ ...options, http: { port: 0, enable, ...options.http } }, { env, stderr: { write: (t) => log.push(...String(t).trim().split("\n").filter(Boolean).map((l) => JSON.parse(l))) } });
+    const server = await serve({ ...options, http: { port: 0, enable, ...options.http } }, { env, viewerFiles, stderr: { write: (t) => log.push(...String(t).trim().split("\n").filter(Boolean).map((l) => JSON.parse(l))) } });
     return { ...server, log, api: `${server.url}/api/v1` };
 }
 

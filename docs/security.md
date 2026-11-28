@@ -785,6 +785,36 @@ operator's, never a caller's:
   shown without anyone deciding. Its data is kept per caller and values, never shared between
   callers.
 
+## The browser path { #browser-path }
+
+A page can read a report's rows with a short-lived [browser token](reference/records.md#records-browser)
+instead of the person's own token. That page says what the token reads, how long it lives and how
+it ends. What it means for an operator:
+
+- Your backend makes the exchange, so the page never holds the person's token. A stolen browser
+  token reads one report until it expires.
+- `rest.browser.origins` is a CORS list of its own. Keep `rest.cors.origins` for pages that send a
+  person's token.
+- A link's [access level](reference/records.md#records-access) is advisory. Everyone reads with
+  their own rights.
+
+### The viewer page { #viewer-page }
+
+The [viewer page](reference/records.md#records-viewer) is a page of the server's own origin. It
+holds a browser token, so what may run in it matters:
+
+- Its `Content-Security-Policy` header is the [policy below](#content-security-policy) with
+  `frame-ancestors 'none'`: only the server's own files, no inline script or style, no frames.
+- It escapes every stored text: `branding.name` and a source's title. Its data is a JSON block with
+  `<`, `>` and `&` escaped. Tests run with titles and names that try to break out.
+- It serves only its own script and style and pivotkit-element's built files, from a list made at
+  start. Its sign-in returns only to a `/live/` page of this server.
+- The page gets the browser token alone, never the person's tokens
+  ([how it signs in](reference/records.md#records-viewer)). The token is never in an address, a
+  cookie or the log.
+- With the sign-in client's ID in `rest.audience`, every access token of that client is a REST
+  bearer with the person's rights. Give that client no scopes beyond `rest.requiredScopes`.
+
 ## Parameters in a link { #link-params }
 
 A link from `create_link` carries the values of the parameters in `sources.<id>.linkParams` in the
@@ -842,7 +872,7 @@ Not covered:
 
 - Browsers without constructable stylesheets fall back to a `<style>` element. That needs
   `style-src 'unsafe-inline'`, since the element has no nonce option.
-- Only the `<meta>` form of the policy was measured, not an HTTP header.
+- The HTTP header form was measured on the [viewer page](#viewer-page) (`tests/browser/viewer.spec.js`).
 - `script-src` must allow the origin that serves `dist/` and its chunks.
 - A page script that sets the element's properties must be a file or carry a nonce.
 

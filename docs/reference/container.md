@@ -7,7 +7,8 @@ description: The pivotkit container image - the REST service, the MCP server and
 
 `ghcr.io/eizedev/pivotkit` runs the [REST service](rest.md), the [MCP server](mcp.md) and the
 [command line](cli.md) from one install. It holds pivotkit-server, pivotkit-mcp and pivotkit-cli at
-the versions of one release. The base is a distroless Node 24 image, with no shell and no package
+the versions of one release, and the built files of pivotkit-element for the
+[viewer page](records.md#records-viewer). The base is a distroless Node 24 image, with no shell and no package
 manager. The image runs as the user 10001.
 
 | Tag | What it is |
@@ -307,6 +308,14 @@ container only):
 For sign-in links, add a browser client at the provider with the redirect URI
 `https://reports.example.com/downloads/callback`. Then set `"signIn": { "clientId": "..." }` in
 `output.downloads`.
+
+The [viewer page](records.md#records-viewer) of live links runs in the image as it is. To use it:
+
+- Route `/live/` to the container too.
+- Set `"rest": { "browser": { "viewer": true } }` and each source's `link` to
+  `https://reports.example.com/live/<source>`.
+- Add the redirect URI `https://reports.example.com/live/_/callback` to the sign-in client.
+- Give the sign-in the REST service's scopes and audience, as the viewer page's steps say.
 
 ## Kubernetes { #kubernetes }
 

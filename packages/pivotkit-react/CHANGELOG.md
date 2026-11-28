@@ -6,6 +6,27 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- `server={{ url, source, getToken, allowParams, refreshKey }}`: the report reads its rows from
+  pivotkit-server with a short-lived browser token from `getToken()`
+  ([live rows](https://pivotkit.eize.dev/reference/live-rows/)). The address and the source come
+  from the page's code, never from a link. The parameters come from the query string, only the names
+  in `allowParams`. The token goes into the `Authorization` header only and is renewed before it
+  expires or after a 401 ([#621](https://github.com/eizedev/pivotkit/issues/621)).
+- Its states: a message in place of the report while it shows no rows (no access, the link not
+  shared with this account or no longer working, a link that does not fit, the sign-in ended, failed
+  or too large, too much data, the server busy or not reachable), a banner above the report when
+  reading rows again fails, and after 3 seconds a line over the skeleton. A line for IT support names
+  the server's code and request id where there is one. `onServerState`
+  gets every state, never the token. The texts are `labels.server`, English and German
+  ([#621](https://github.com/eizedev/pivotkit/issues/621)).
+- Copy link of a report with a server keeps the parameters it read and `pk-access`. The toast and
+  the share note name the parameters ([#621](https://github.com/eizedev/pivotkit/issues/621)).
+- The rows' state, the network code, the states and their texts load on first use
+  (`dist/chunks/server-module-*.js`). A report without `server` loads none of it; a report with one
+  shows its skeleton until it is here.
+
 ### Changed
 
 - A treemap's labels are white at each tile's top left, as in ECharts, and a tile too light for

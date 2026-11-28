@@ -266,6 +266,20 @@ test("loading data (allow-import) loads on first use: the import UI, its texts a
     assert.ok(text(groups.initial).includes("Or load your own data"), "the empty report's line is not in the first load");
 });
 
+test("a report with server-url loads the server's code on first use: the rows' state, the request and the network code are no part of the first load", () => {
+    const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
+    const text = (files) => files.map((f) => built.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "").join("");
+    // use-server-rows.js, server-request.js and server-rows.js, by words only they hold
+    for (const words of ["reading the server's rows failed", "server.getToken must be a function", "/api/v1/sources/records"]) {
+        assert.ok(text(groups.server).includes(words), `"${words}" is not in the server group`);
+        for (const other of ["initial", "menus"]) {
+            assert.ok(!text(groups[other]).includes(words), `"${words}" is in ${other}`);
+        }
+    }
+    // the console line of a report whose server code did not load (PivotReport.jsx ServerGate) stays first
+    assert.ok(text(groups.initial).includes("the server's code did not load"), "the gate's message is not in the first load");
+});
+
 test("the import worker is one file next to dist/, without imports, where the element's code looks for it", async () => {
     const { workerOptions } = await import("../build.js");
     const worker = await esbuild.build({ ...workerOptions, write: false, metafile: true, logLevel: "silent" });

@@ -56,12 +56,15 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "field-list", prop: "fieldList", kind: "string" },
     { attr: "zones", prop: "zones", kind: "string" },
     { attr: "allow-import", prop: "allowImport", kind: "flag" },
+    { attr: "server-url", prop: "serverUrl", kind: "string" },
+    { attr: "server-source", prop: "serverSource", kind: "string" },
+    { attr: "server-params", prop: "serverParams", kind: "string" },
     { attr: "view", prop: "view", kind: "json" },
     { attr: "default-view", prop: "defaultView", kind: "json" }
 ]);
 
-/** Properties without an attribute: objects and arrays a host sets from script, and the import worker's URL. */
-export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "importLimits", "dismissedTips", "chartOptions", "colorMap", "sources", "plugins", "importWorkerUrl"]);
+/** Properties without an attribute: objects and arrays a host sets from script, the import worker's URL, and the server's getToken. */
+export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "importLimits", "dismissedTips", "chartOptions", "colorMap", "sources", "plugins", "importWorkerUrl", "getToken"]);
 
 const THEMES = new Set(["auto", "light", "dark"]);
 
@@ -195,3 +198,10 @@ export function parseJson(text) {
 export function localeOf(locale, lang) {
     return locale?.trim() || lang?.trim() || undefined;
 }
+
+/**
+ * The names of server-params ("customer, year"): the parameters the page's query string may set.
+ * @param {string | undefined} text
+ * @returns {string[]}
+ */
+export const paramNames = (text) => (typeof text === "string" ? text.split(",").map((n) => n.trim()).filter(Boolean) : []);

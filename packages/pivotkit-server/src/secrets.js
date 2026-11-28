@@ -29,10 +29,10 @@ export class SecretError extends CodedError {
 export const MAX_SECRET_BYTES = 4096;
 
 /** What a secret file in UTF-16 is told. */
-export const UTF16_TEXT = "looks like UTF-16 (PowerShell 5.1's > writes it); write it with pivotkit-server token new --file <path> --force (a key: key new --for downloads|audit)";
+export const UTF16_TEXT = "looks like UTF-16 (PowerShell 5.1's > writes it); write it with pivotkit-server token new --file <path> --force (a key: key new --for downloads|audit|browser)";
 
 /** What a key's file that starts with a UTF-8 byte order mark is told. */
-const UTF8_BOM_TEXT = "starts with a UTF-8 byte order mark (Windows PowerShell 5.1's -Encoding UTF8 writes one), which would become part of the key; save it as UTF-8 without one, or write it with pivotkit-server key new --for downloads|audit --file <path> --force";
+const UTF8_BOM_TEXT = "starts with a UTF-8 byte order mark (Windows PowerShell 5.1's -Encoding UTF8 writes one), which would become part of the key; save it as UTF-8 without one, or write it with pivotkit-server key new --for downloads|audit|browser --file <path> --force";
 
 /**
  * Why a key's text cannot be used as it is read, or null: a UTF-8 byte order mark at its start. A

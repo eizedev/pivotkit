@@ -19,6 +19,8 @@ on:
       - "packages/**"
       - "package-lock.json"
       - "scripts/examples.js"
+      - "scripts/is-main.js"
+      - "scripts/third-party-licenses.js"
       - "examples/playground/data/**"
       - "examples/report-templates/**"
       - ".github/workflows/image.yml"
@@ -53,6 +55,9 @@ jobs:
           load: true
           push: false
           tags: pivotkit:test
+      - name: The image's size
+        # in bytes, unpacked, on the job's log: what a change adds to the image shows in its pull request
+        run: docker image inspect --format '{{.Size}}' pivotkit:test
       - name: The command on the PATH
         # distroless has no shell and no /usr/bin/env: the launcher names /nodejs/bin/node
         run: |
@@ -163,6 +168,35 @@ jobs:
           wait_started pk-layer
           docker logs pk-layer 2>&1 | grep -q "lost when the container is removed" || { echo "::error::no container-layer warning"; docker logs pk-layer; exit 1; }
           docker rm -f pk-layer
+      - name: The viewer page with pivotkit-element's files
+        # the image holds pivotkit-element's built files, so the viewer page (rest.browser.viewer) answers
+        # 200, not 503, and serves them. Its issuer is never reached: the page and its files need none
+        # before the sign-in. The keys are made in the state volume; the requests keep the public host
+        run: |
+          set -eu
+          trap 'docker rm -f pk-viewer > /dev/null 2>&1 || true' EXIT
+          work="$RUNNER_TEMP/viewer"
+          mkdir -p "$work"
+          cat > "$work/pivotkit.json" <<'JSON'
+          {
+            "sources": { "example": { "file": "/app/examples/sales.csv", "link": "https://reports.example.com/live/example" } },
+            "auth": { "mode": "oauth", "issuer": "https://login.example.invalid/realms/example", "resource": "https://reports.example.com/mcp" },
+            "output": { "downloads": { "signIn": { "clientId": "pivotkit-web", "scopes": ["openid"] } } },
+            "rest": { "browser": { "viewer": true } },
+            "http": { "publicUrl": "https://reports.example.com" }
+          }
+          JSON
+          chmod 0644 "$work/pivotkit.json"
+          docker run -d --name pk-viewer --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+            -p 127.0.0.1:3335:3333 -v "$work:/config:ro" -v pk-viewer-state:/var/lib/pivotkit pivotkit:test
+          live=http://localhost:3335/live
+          get() { curl -s -o /dev/null -w '%{http_code}' -H 'host: reports.example.com' "$live/$1"; }
+          for i in $(seq 1 30); do test "$(get _/viewer.js)" = "200" && break; sleep 1; done
+          test "$(get _/viewer.js)" = "200" || { echo "::error::the viewer page's files did not answer"; docker logs pk-viewer; exit 1; }
+          test "$(get _/element/index.js)" = "200" || { echo "::error::pivotkit-element's files are not in the image"; docker logs pk-viewer; exit 1; }
+          test "$(get example)" = "200" || { echo "::error::the viewer page did not answer 200"; docker logs pk-viewer; exit 1; }
+          # no warning that pivotkit-element is missing or outside pivotkit-server's range
+          if docker logs pk-viewer 2>&1 | grep -q 'pivotkit-element'; then docker logs pk-viewer; exit 1; fi
       - name: Run it as an operator would, with tokens of your own
         # read-only root, /tmp in memory, no capabilities, no new privileges, the image's own user,
         # the tokens from secret files (docker/pivotkit.secrets.example.json), data read-only,

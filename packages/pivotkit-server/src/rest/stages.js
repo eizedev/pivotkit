@@ -7,7 +7,8 @@
  *   the service's documents (discovery.js), the route (404, 405), the sign-in, the caller's rate
  *   limit and concurrency, then runOperation, and the request's log line.
  * - runOperation: the operation's scopes, the input (readInput: JSON, or a file with it), the checks
- *   of the input, then the answer: present(), the file (answer-file.js) or the rows (records.js).
+ *   of the input, then the answer: present(), the file (answer-file.js), the rows (records.js) or a
+ *   browser token (browser.js).
  * - failureAnswer: an error of runOperation as the problem it answers.
  * - answer: serve with the CORS headers of an allowed origin; an error no stage caught is INTERNAL.
  * - release: gives back the place for a large body that precheck took.
@@ -48,6 +49,7 @@ import { json } from "./problem.js";
  * @property {ReturnType<typeof import("./sign-in.js").createRestSignIn>} signIn
  * @property {ReturnType<typeof import("./discovery.js").createDiscovery>} discovery
  * @property {{ answer(input: any, caller: any, how: any): Promise<Response> }} records  the rows route's (records.js)
+ * @property {ReturnType<typeof import("../browser.js").createBrowserPath>} browser  the exchange route and the browser tokens' origins (browser.js)
  */
 
 /** Where a request keeps its place for a large body (precheck): the function that gives it back. */
@@ -72,19 +74,29 @@ function withCors(response, origin) {
 }
 
 /**
- * The refusal of a request's Host (DNS rebinding) or Origin (rest.cors.origins), or null.
+ * Whether a request's Origin may call the service: one of rest.cors.origins for every route, or,
+ * for the rows route with a browser token, one the browser path allows (browser.js allowsOrigin).
+ * @param {RestService} service
+ * @param {Request} request
+ * @param {string} origin
+ */
+const allowedOrigin = ({ origins, browser }, request, origin) => origins.has(origin) || browser.allowsOrigin(request, origin);
+
+/**
+ * The refusal of a request's Host (DNS rebinding) or Origin (allowedOrigin), or null.
  * @param {RestService} service
  * @param {Request} request
  */
-function refuseHostOrOrigin({ context, problem, hostProblem, hosts, origins }, request) {
+function refuseHostOrOrigin(service, request) {
+    const { context, problem, hostProblem, hosts } = service;
     const refusedHost = hostRefusal(request, hosts);
     if (refusedHost) {
         return hostProblem(context.log, request, refusedHost);
     }
     const origin = request.headers.get("origin");
-    if (origin && !origins.has(origin)) {
+    if (origin && !allowedOrigin(service, request, origin)) {
         context.log.refused({ status: 403, reason: refusalReason("FORBIDDEN_ORIGIN"), origin: origin.slice(0, 100) });
-        return problem("FORBIDDEN_ORIGIN", "this origin may not call the service (rest.cors.origins)");
+        return problem("FORBIDDEN_ORIGIN", "this origin may not call the service (rest.cors.origins; the rows route with a browser token: rest.browser.origins)");
     }
     return null;
 }
@@ -244,7 +256,7 @@ async function serveOpenApi({ rest, problem, signIn, discovery }, request, addre
  * @param {import("../registry.js").Caller} caller
  * @returns {{ leave: () => void } | { refused: Response }}
  */
-function enterLimits({ context, limits, problem }, caller) {
+export function enterLimits({ context, limits, problem }, caller) {
     const limitKey = limitKeyOf(caller);
     const wait = limits.take(limitKey, caller.client);
     if (wait) {
@@ -281,6 +293,10 @@ async function runOperation(service, match, request, caller, entry) {
     if (route.answer === "records") {
         // no operation of the table: its own input, checks and streamed answer (records.js)
         return records.answer(input, caller, { signal: request.signal, entry });
+    }
+    if (route.answer === "browserToken") {
+        // no operation of the table either: a person's token for a browser token (browser.js)
+        return service.browser.exchange(input, caller, { entry });
     }
     // the file route takes no save (its input refuses it): its line never says saved
     Object.assign(entry, inlineLogFields(input, upload), route.answer === "file" ? {} : saveLogFields(route.operation, input));
@@ -333,7 +349,7 @@ export async function answer(service, request, info) {
     const origin = request.headers.get("origin");
     try {
         const response = await serve(service, request, info);
-        return origin && service.origins.has(origin) ? withCors(response, origin) : response;
+        return origin && allowedOrigin(service, request, origin) ? withCors(response, origin) : response;
     } catch (e) {
         service.context.log.error(e, { where: "rest" });
         return service.problem("INTERNAL", "internal error");

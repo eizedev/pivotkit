@@ -491,6 +491,8 @@ export const en = {
     downloadView: "Download view (.pivotkit.json)",
     // said where a view leaves the report as a file, as JSON or as a link
     sharePrivacy: "A view holds the names of fields and, in its filters, the values chosen there: share it only where those may be seen.",
+    // before sharePrivacy, on a report with a server whose link keeps parameters
+    shareKeeps: "The link keeps {params}. Whoever opens it sees the data their own account may see.",
     loadView: "Open view file…",
     loadViewHint: "Paste a view file, a view as JSON or a link, or choose a .pivotkit.json file.",
     loadViewText: "View as JSON or link",
@@ -542,6 +544,8 @@ export const en = {
     // what sharing and the exports said (share-actions.js, export-run.js)
     toastExported: "Exported {file}",
     toastLinkCopied: "Link copied",
+    // a report with a server: the parameters the copied link keeps in its address
+    toastLinkCopiedWith: "Link copied, with {params}",
     toastJsonCopied: "View copied as JSON",
     toastCopyFailed: "This page does not allow copying. Use “Download view” instead.",
     toastLinkTooLong: "This view is too large for a link. Use “Download view” instead."

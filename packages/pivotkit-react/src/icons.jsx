@@ -71,12 +71,13 @@ const PATHS = {
 };
 
 /**
- * @param {{ name: keyof typeof PATHS, size?: number, className?: string }} props
+ * @param {{ name?: keyof typeof PATHS, d?: string, size?: number, className?: string }} props
+ *   d: a path of the code that draws it, for an icon loaded on demand (server-ui.jsx)
  */
-export function Icon({ name, size = 16, className }) {
+export function Icon({ name, d, size = 16, className }) {
     return (
         <svg className={className ? `pk-icon ${className}` : "pk-icon"} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-            <path d={PATHS[name] ?? PATHS.info} />
+            <path d={d ?? (name && PATHS[name]) ?? PATHS.info} />
         </svg>
     );
 }

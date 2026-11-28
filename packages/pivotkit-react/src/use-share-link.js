@@ -167,6 +167,8 @@ function shareContext(props, { view, viewName, data, encoded, limits, root, anno
     const { shareLink, schemaUrl, storageKey, onExport, sources, onSourceSwitch } = props;
     const base = shareBase(shareLink, here()?.href);
     return {
+        // a report with a server: the query entries a copied link keeps (its parameters and access level)
+        keepQuery: /** @type {any} */ (props).live?.kept ?? [],
         canLink: base !== null,
         prepare: base !== null ? () => void loadLink().catch(() => undefined) : undefined,
         view,

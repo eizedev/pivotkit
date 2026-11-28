@@ -520,11 +520,16 @@ export function dropToken(auth, caller, headers) {
  * @param {any} source  options.sources[id]
  */
 export function personBound(options, source) {
-    if (Object.values(source?.params ?? {}).some((p) => p && typeof p === "object" && p.claim !== undefined)) {
-        return true;
-    }
-    return Boolean(exchangeOf(options, source));
+    return Object.values(source?.params ?? {}).some((p) => p && typeof p === "object" && p.claim !== undefined) || exchangesToken(options, source);
 }
+
+/**
+ * Whether a configured source's backend signs in with a token exchange: it needs the person's own
+ * access token, which a browser token never carries (browser.js refuses such a source).
+ * @param {import("../config.js").ServerOptions} options
+ * @param {any} source  options.sources[id]
+ */
+export const exchangesToken = (options, source) => Boolean(exchangeOf(options, source));
 
 /**
  * A configured source's token exchange as written (its own http.auth, else its backend's), or
