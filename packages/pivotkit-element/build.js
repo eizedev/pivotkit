@@ -208,7 +208,7 @@ async function licenses(metafile) {
  *   can make the first load larger.
  * `--size` fails above it.
  */
-export const SIZE_BUDGET_KIB = { initial: 182.5, chart: 262.0, export: 13.7, link: 7.5, menus: 60.4, texts: 8.8, unused: 6.5, import: 23.9, report: 29.7, template: 3, lang: 6.2, tips: 1.8, server: 4.5 };
+export const SIZE_BUDGET_KIB = { initial: 182.5, chart: 262.0, export: 13.7, link: 7.5, menus: 60.4, texts: 8.8, unused: 6.5, import: 23.9, report: 29.7, template: 3, lang: 6.2, tips: 1.8, server: 5 };
 
 /**
  * The load group of each chunk a page loads on demand, by its file name (esbuild's `[name]-[hash]`),

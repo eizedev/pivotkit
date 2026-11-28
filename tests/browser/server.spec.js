@@ -140,3 +140,27 @@ test("the sign-in ends while rows are shown: a banner to reload the page, the ro
     await expect(banner.getByTestId("server-reload")).toBeVisible();
     await expect(live(page).getByTestId("pivot-table")).toContainText("North");
 });
+
+test("a link that no longer works, a request that does not fit, and a sign-in step that failed: each says what helps", async ({ page }) => {
+    await page.route(ROUTE, (route) => route.fulfill(json(400, { code: "INVALID_INPUT", requestId: "q3Zr8mT0aXw" })));
+    await page.goto("pages/element-server.html?pk-access=abc.def&token=invalid");
+    await expect(state(page)).toHaveAttribute("data-state", "linkInvalid");
+    await expect(state(page)).toContainText("Ask the person who shared it for a new link");
+    await page.goto("pages/element-server.html");
+    await expect(state(page)).toHaveAttribute("data-state", "unfit");
+    await expect(state(page)).toContainText("The link does not fit this report");
+    await page.goto("pages/element-server.html?token=fail");
+    await expect(state(page)).toHaveAttribute("data-state", "signIn");
+    await expect(state(page)).not.toContainText("For IT support");
+    await expect(live(page).getByTestId("server-reload")).toBeVisible();
+    await page.goto("pages/element-server.html?token=large&lang=de");
+    await expect(state(page)).toHaveAttribute("data-state", "signInLarge");
+    await expect(state(page)).toContainText("Für den IT-Support: LIMIT_EXCEEDED, Anfrage q3Zr8mT0aXw");
+});
+
+test("busy says how long to wait when the server says so", async ({ page }) => {
+    await page.route(ROUTE, (route) => route.fulfill({ ...json(503, { code: "BUSY", requestId: "q3Zr8mT0aXw" }), headers: { "retry-after": "5" } }));
+    await page.goto("pages/element-server.html");
+    await expect(state(page)).toHaveAttribute("data-state", "busy");
+    await expect(state(page)).toContainText("Try again in 5 seconds");
+});

@@ -29,6 +29,10 @@ const MARK = Object.freeze({
 const LOOK = Object.freeze({
     refused: { icon: MARK.lock, tone: "plain" },
     linkRefused: { icon: MARK.lock, tone: "plain" },
+    linkInvalid: { icon: MARK.lock, tone: "plain" },
+    unfit: { icon: MARK.lock, tone: "plain" },
+    signIn: { icon: MARK.clock, tone: "accent" },
+    signInLarge: { icon: MARK.tooMuch, tone: "warn" },
     expired: { icon: MARK.clock, tone: "accent" },
     large: { icon: MARK.tooMuch, tone: "warn" },
     unreachable: { icon: MARK.unplug, tone: "plain" },

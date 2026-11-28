@@ -6,6 +6,8 @@
  * - The token goes only into the Authorization header. It is never in the address, never in a
  *   state, an event or a message, and nothing here stores it.
  * - The request sends no cookie and no referrer (credentials "omit", referrerPolicy "no-referrer").
+ * - A server over http that is not this machine gets one console warning: the token crosses the
+ *   network in clear text.
  * - A token that is about to expire is not sent: getToken() gives a new one first.
  * - A 401 asks getToken() once more and tries again once. A new key on the server ends a token
  *   before its time and answers as for an unknown one, so it is not only an expired one that asks.
@@ -18,7 +20,10 @@ import { ROWS_PATH } from "./server.js";
 const EARLY_SECONDS = 15;
 
 /**
- * @typedef {"refused" | "linkRefused" | "expired" | "large" | "unreachable" | "busy"} FailedState
+ * @typedef {"refused" | "linkRefused" | "linkInvalid" | "unfit" | "expired" | "signIn" | "signInLarge" | "large" | "unreachable" | "busy"} FailedState
+ *   linkInvalid: the link's access level is not valid, no longer offered or missing; unfit: the
+ *   request does not fit the source (400, 422); signIn: getToken() failed without saying why;
+ *   signInLarge: the sign-in carries too much for a browser token
  */
 
 /**
@@ -27,7 +32,7 @@ const EARLY_SECONDS = 15;
  * @property {string} [code]  the server's error code (NOT_ALLOWED, LIMIT_EXCEEDED, INVALID_TOKEN, BUSY, …)
  * @property {number} [status]  the HTTP status
  * @property {string} [requestId]  the server's request id, to quote to IT support
- * @property {string} host  the server's host, for the line "no answer from …"
+ * @property {string} host  the server's host, for the line "no answer from …"; "" where no request went to the server
  * @property {boolean} [cut]  the answer broke off
  * @property {number} [maxRows]  LIMIT_EXCEEDED: the server's row limit
  * @property {number} [maxCells]  LIMIT_EXCEEDED: the server's limit of values
@@ -83,8 +88,12 @@ function stateOf(status, problem, code) {
     if (status === 401) {
         return "expired";
     }
-    if (status === 403 && problem.linkAccess === true) {
-        return "linkRefused";
+    if (status === 403 && problem.linkAccess) {
+        // "invalid": a new link helps; "refused": the level shuts this account out
+        return problem.linkAccess === "invalid" ? "linkInvalid" : "linkRefused";
+    }
+    if (code === "LIMIT_EXCEEDED" && problem.limit === "token") {
+        return "signInLarge";
     }
     if (status === 413 || code === "LIMIT_EXCEEDED") {
         return "large";
@@ -92,7 +101,10 @@ function stateOf(status, problem, code) {
     if (status === 429 || status === 503) {
         return "busy";
     }
-    // 400 (the page's request does not fit the source), 403, 404 (a source the person may not see is not found)
+    if (status === 400 || status === 422) {
+        return "unfit";
+    }
+    // 403, 404 (a source the person may not see is not found)
     return status >= 400 && status < 500 ? "refused" : "unreachable";
 }
 
@@ -142,6 +154,7 @@ export async function fetchRows(request, how) {
     const { held, signal } = how;
     const send = how.fetch ?? fetch;
     const host = hostOf(request.base);
+    warnPlain(request.base);
     const ask = async () => {
         let given;
         try {
@@ -153,7 +166,8 @@ export async function fetchRows(request, how) {
             if (problem && typeof problem === "object") {
                 return failureOf(Number(problem.status) || 403, problem, host);
             }
-            return /** @type {ServerFailure} */ ({ state: "unreachable", host });
+            // the page's own sign-in step failed: nothing went to the report server yet
+            return /** @type {ServerFailure} */ ({ state: "signIn", host: "" });
         }
         signal?.throwIfAborted();
         held.current = tokenOf(given);
@@ -205,6 +219,18 @@ export async function fetchRows(request, how) {
         return { ok: false, failure: failureOf(answer.status, problem && retryAfter !== null ? { ...problem, retryAfter } : problem, host) };
     }
     return { ok: false, failure: { state: "expired", host } };
+}
+
+/** The addresses warned about: once each. */
+const warned = new Set();
+
+/** One console warning for a server over http that is not this machine. */
+function warnPlain(base) {
+    const u = new URL(base);
+    if (u.protocol === "http:" && !/^(localhost|127(\.\d{1,3}){3}|\[::1\])$/.test(u.hostname) && !warned.has(u.origin)) {
+        warned.add(u.origin);
+        console.warn(`pivotkit: server.url ${u.origin} is http: the browser token crosses the network in clear text. Use https.`);
+    }
 }
 
 /** JSON text as a value, or null. */

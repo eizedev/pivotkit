@@ -96,21 +96,27 @@ test("a token about to expire is renewed before it is sent; a 401 asks once more
     assert.equal(c.sent.length, 2, "no third try");
 });
 
-test("answers that are not the rows: refused, the link's level, too large, busy, broken off, no answer", async () => {
+test("answers that are not the rows: refused, the link's level, a request that does not fit, too large, busy, broken off, no answer", async () => {
     const held = () => ({ current: { token: "t", expiresAt: null } });
     const run = async (...list) => /** @type {any} */ (await fetchRows(request, { getToken: () => async () => "t", held: held(), fetch: answers(...list).send })).failure;
     assert.equal((await run({ status: 403, body: { code: "NOT_ALLOWED", requestId: "r1" } })).state, "refused");
     assert.equal((await run({ status: 404, body: { code: "NOT_FOUND" } })).state, "refused");
+    assert.equal((await run({ status: 400, body: { code: "INVALID_INPUT" } })).state, "unfit");
+    assert.equal((await run({ status: 422, body: { code: "DATA_MISMATCH" } })).state, "unfit");
     assert.deepEqual(await run({ status: 413, body: { code: "LIMIT_EXCEEDED", maxRows: 50000, requestId: "r2" } }), { state: "large", status: 413, host: "reports.example.com", code: "LIMIT_EXCEEDED", requestId: "r2", maxRows: 50000 });
     assert.deepEqual(await run({ status: 503, body: { code: "BUSY" }, headers: { "retry-after": "2" } }), { state: "busy", status: 503, host: "reports.example.com", code: "BUSY", retryAfter: 2 });
     assert.deepEqual(await run({ status: 200, body: '{"columns":["a"],"types":["string"],"data":[["x"' }), { state: "unreachable", host: "reports.example.com", status: 200, cut: true });
     assert.deepEqual(await run(new TypeError("fetch failed")), { state: "unreachable", host: "reports.example.com" });
     assert.equal((await run({ status: 500, body: { code: "INTERNAL" } })).state, "unreachable");
     // the page's exchange refused: its problem says why
-    const refusedLink = await fetchRows(request, { getToken: () => async () => Promise.reject(Object.assign(new Error("no"), { problem: { status: 403, code: "NOT_ALLOWED", linkAccess: true, requestId: "r3" } })), held: { current: null } });
+    const refusedLink = await fetchRows(request, { getToken: () => async () => Promise.reject(Object.assign(new Error("no"), { problem: { status: 403, code: "NOT_ALLOWED", linkAccess: "refused", requestId: "r3" } })), held: { current: null } });
     assert.deepEqual(refusedLink, { ok: false, failure: { state: "linkRefused", status: 403, host: "reports.example.com", code: "NOT_ALLOWED", requestId: "r3" } });
+    // a link whose level is not valid, or a sign-in too large for a token: their own states, not "refused" or "large"
+    assert.equal(failureOf(403, { code: "NOT_ALLOWED", linkAccess: "invalid" }, "h").state, "linkInvalid");
+    assert.equal(failureOf(413, { code: "LIMIT_EXCEEDED", limit: "token" }, "h").state, "signInLarge");
+    // the page's sign-in step failed without saying why: not the report server's fault, and no host to name
     const noBackend = await fetchRows(request, { getToken: () => async () => Promise.reject(new TypeError("fetch failed")), held: { current: null } });
-    assert.equal(/** @type {any} */ (noBackend).failure.state, "unreachable");
+    assert.deepEqual(/** @type {any} */ (noBackend).failure, { state: "signIn", host: "" });
     assert.equal(failureOf(401, null, "h").state, "expired");
 });
 
@@ -128,7 +134,7 @@ test("the states' words: the limit and the time in the report's locale, the supp
         title: "Zu viele Daten für einen Bericht",
         text: "Dieser Bericht hätte mehr als 50.000 Zeilen, ein Bericht zeigt höchstens 50.000. Die Person, die ihn geteilt hat, kann einen Link für weniger Daten schicken, etwa für einen Kunden oder einen Monat.",
         action: null,
-        support: "Für den IT‑Support: LIMIT_EXCEEDED, Anfrage q3Zr8mT0aXw"
+        support: "Für den IT-Support: LIMIT_EXCEEDED, Anfrage q3Zr8mT0aXw"
     });
     assert.equal(stateWords({ state: "large", code: "LIMIT_EXCEEDED", maxCells: 10, host: "h" }, en, { locale: "en-US" }).text, en.large.textValues);
     const expired = stateWords({ state: "expired", code: "INVALID_TOKEN", host: "h" }, en, { locale: "en-US" });
@@ -140,10 +146,31 @@ test("the states' words: the limit and the time in the report's locale, the supp
     assert.equal(later.support, null);
     assert.equal(stateWords({ state: "unreachable", host: "reports.example.com" }, en, { locale: "en-US" }).support, "For IT support: no answer from reports.example.com");
     assert.equal(stateWords({ state: "unreachable", host: "" }, en, { locale: "en-US" }).support, null);
+    // the server said how long to wait
+    assert.equal(stateWords({ state: "busy", code: "BUSY", retryAfter: 2, host: "h" }, de, { locale: "de-DE" }).text, "Gerade laden viele Berichte. In 2 Sekunden erneut versuchen. Passiert es wieder, dem IT-Support Bescheid geben.");
+    assert.equal(stateWords({ state: "busy", code: "BUSY", host: "h" }, en, { locale: "en-US" }).text, en.busy.text);
+    const signIn = stateWords({ state: "signIn", host: "" }, en, { locale: "en-US" });
+    assert.deepEqual([signIn.title, signIn.action, signIn.support], [en.signIn.title, "reload", null]);
+    assert.equal(stateWords({ state: "linkInvalid", code: "NOT_ALLOWED", requestId: "r", host: "h" }, en, { locale: "en-US" }).text, en.linkInvalid.text);
+});
+
+test("the server's texts write IT-Support with a plain hyphen", () => {
+    assert.doesNotMatch(JSON.stringify([en, de]), /\u2011/);
 });
 
 test("the server's texts: English and German have the same keys and placeholders", () => {
     assert.deepEqual(keys(de), keys(en));
     const holes = (t) => keys(t).map((k) => `${k}:${(k.split(".").reduce((o, p) => o[p], t).match(/\{\w+\}/g) ?? []).sort().join("")}`);
     assert.deepEqual(holes(de), holes(en));
+});
+
+test("a server over http that is not this machine gets one console warning; this machine gets none", async (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
+    const read = (base) => fetchRows({ ...request, base }, { getToken: () => async () => "t", held: { current: null }, fetch: answers({ status: 403, body: {} }).send });
+    await read("http://reports.example.com");
+    await read("http://reports.example.com");
+    await read("http://127.0.0.1:8080");
+    await read("https://reports.example.com");
+    assert.equal(warn.mock.callCount(), 1);
+    assert.match(String(warn.mock.calls[0].arguments[0]), /http: the browser token crosses the network in clear text/);
 });
