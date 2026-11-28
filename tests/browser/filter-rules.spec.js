@@ -4,7 +4,7 @@
 // snapshot with plain JavaScript, relative to today as the browser sees it (the data is in UTC).
 import { readFileSync } from "node:fs";
 import { encodeViewLink } from "pivotkit-core/link";
-import { SNAPSHOT_DAY, chipMenu, expect, openLevel, openRules, pickItem, tableRows, test } from "./fixtures.js";
+import { SNAPSHOT_DAY, chipMenu, expect, openLevel, openRules, openZones, pickItem, tableRows, test } from "./fixtures.js";
 import { unpack } from "../../examples/playground/data/sources.js";
 
 const eol = unpack(JSON.parse(readFileSync(new URL("../../examples/playground/data/endoflife.json", import.meta.url), "utf8")));
@@ -309,4 +309,154 @@ test.describe("the Filter level of a date field", () => {
             await page.keyboard.press("Escape");
         }
     });
+});
+
+for (const theme of ["light", "dark"]) for (const width of [1280, 390]) test(`signed expanded-year rules remain visible and editable #97: ${theme}, ${width}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({width, height:900});
+    await page.emulateMedia({colorScheme: theme});
+    await page.goto("pages/host.html");
+    await page.evaluate(async () => {
+        const React = await import("react");
+        const { createRoot } = await import("react-dom/client");
+        const { PivotReport } = await import("pivotkit-react");
+        const section = document.createElement("section");
+        section.id = "expanded-rule-report";
+        document.body.append(section);
+        function Example() {
+            const [view, setView] = React.useState({rows:["Date"], values:[{agg:"count"}], filters:[{field:"Date", type:"compare", op:">=", value:"+010000-02-29"}]});
+            return React.createElement(PivotReport, {data:[{Date:"-000001-01-01"},{Date:"+010000-02-29"}], height:640, view, onViewChange:(next) => { window.__expandedRule = next; setView(next); }});
+        }
+        createRoot(section).render(React.createElement(Example));
+    });
+    await expect(page.locator("#expanded-rule-report .pk-root")).toBeVisible();
+    await openZones(page.locator("#expanded-rule-report"));
+    await page.locator("#expanded-rule-report").getByTestId("chip-menu-Date").click();
+    await page.getByTestId("topic-filter").click();
+    const value = page.getByTestId("rule-item-value");
+    await expect(value).toHaveValue("+010000-02-29");
+    await page.getByTestId("rule-item-op").selectOption("<=");
+    await expect.poll(() => page.evaluate(() => window.__expandedRule?.filters[0]?.op)).toBe("<=");
+    await value.fill("-000001-01-01");
+    await expect.poll(() => page.evaluate(() => window.__expandedRule?.filters[0]?.value)).toBe("-000001-01-01");
+    await page.locator(".pk-chip-menu").screenshot({path:testInfo.outputPath("expanded-year-rule.png")});
+});
+
+for (const theme of ["light", "dark"]) for (const width of [1280, 390]) test(`saved year-zero rules remain visible without year-zero data #97: ${theme}, ${width}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({width, height:900});
+    await page.emulateMedia({colorScheme: theme});
+    await page.goto("pages/host.html");
+    await page.evaluate(async () => {
+        const React = await import("react");
+        const { createRoot } = await import("react-dom/client");
+        const { PivotReport } = await import("pivotkit-react");
+        const section = document.createElement("section");
+        section.id = "expanded-rule-report";
+        document.body.append(section);
+        function Example() {
+            const [view, setView] = React.useState({rows:["Date"], values:[{agg:"count"}], filters:[{field:"Date", type:"compare", op:">=", value:"0000-01-01"}]});
+            return React.createElement(PivotReport, {data:[{Date:"2026-01-01"}], height:640, view, onViewChange:(next) => { window.__expandedRule = next; setView(next); }});
+        }
+        createRoot(section).render(React.createElement(Example));
+    });
+    await expect(page.locator("#expanded-rule-report .pk-root")).toBeVisible();
+    await openZones(page.locator("#expanded-rule-report"));
+    await page.locator("#expanded-rule-report").getByTestId("chip-menu-Date").click();
+    await page.getByTestId("topic-filter").click();
+    const value = page.getByTestId("rule-item-value");
+    await expect(value).toHaveValue("0000-01-01");
+    await page.getByTestId("rule-item-op").selectOption("<=");
+    await expect.poll(() => page.evaluate(() => window.__expandedRule?.filters[0]?.op)).toBe("<=");
+    await value.fill("-000001-01-01");
+    await expect.poll(() => page.evaluate(() => window.__expandedRule?.filters[0]?.value)).toBe("-000001-01-01");
+    await page.locator(".pk-chip-menu").screenshot({path:testInfo.outputPath("year-zero-rule.png")});
+});
+
+
+test("adding a date rule reuses the field span without rescanning its items", async ({ page }) => {
+    await page.goto("pages/host.html");
+    await page.evaluate(async () => {
+        const React = await import("react");
+        const { createRoot } = await import("react-dom/client");
+        const { PivotReport } = await import("pivotkit-react");
+        const section = document.createElement("section");
+        section.id = "date-rule-report";
+        document.body.append(section);
+        createRoot(section).render(React.createElement(PivotReport, {
+            data: Array.from({ length: 28 }, (_, i) => ({ Date: `2020-01-${String(i + 1).padStart(2, "0")}` })),
+            height: 640,
+            defaultView: { rows: ["Date"], values: [{ agg: "count" }] }
+        }));
+    });
+    const report = page.locator("#date-rule-report");
+    await expect(report.locator(".pk-root")).toBeVisible();
+    await openZones(report);
+    await report.getByTestId("chip-menu-Date").click();
+    await page.getByTestId("topic-filter").click();
+    await page.getByTestId("section-rules").click();
+    await page.evaluate(() => {
+        const OriginalDate = window.Date;
+        const middle = OriginalDate.parse("2020-01-15");
+        window.__itemDateReads = 0;
+        window.__restoreDate = () => { window.Date = OriginalDate; };
+        window.Date = new Proxy(OriginalDate, {
+            construct(target, args) {
+                if (args.length === 1 && args[0] === middle) window.__itemDateReads++;
+                return Reflect.construct(target, args);
+            }
+        });
+    });
+    await page.getByTestId("rule-add-item").click();
+    await expect(page.getByTestId("rule-item-value")).toHaveAttribute("type", "date");
+    const reads = await page.evaluate(() => {
+        window.__restoreDate();
+        return window.__itemDateReads;
+    });
+    expect(reads).toBe(0);
+});
+
+for (const refresh of ["array", "dataKey"]) test(`open date editor promotes after ${refresh} refresh and never demotes #374`, async ({ page }) => {
+    await page.goto("pages/host.html");
+    await page.evaluate(async (refresh) => {
+        const React = await import("react");
+        const { createRoot } = await import("react-dom/client");
+        const { PivotReport } = await import("pivotkit-react");
+        const section = document.createElement("section");
+        section.id = "refresh-date-report";
+        document.body.append(section);
+        function Example() {
+            const [data, setData] = React.useState([{ Date: "2026-01-01" }]);
+            const [dataKey, setDataKey] = React.useState(0);
+            window.__refreshDates = (date) => {
+                if (refresh === "array") setData([{ Date: date }]);
+                else {
+                    data[0].Date = date;
+                    setDataKey((key) => key + 1);
+                }
+            };
+            return React.createElement(PivotReport, {
+                data, dataKey: refresh === "dataKey" ? dataKey : undefined, height: 640,
+                defaultView: { rows: ["Date"], values: [{ agg: "count" }], filters: [{ field: "Date", type: "compare", op: ">=", value: "2020-01-01" }] },
+                onViewChange: (view) => { window.__refreshedView = view; }
+            });
+        }
+        createRoot(section).render(React.createElement(Example));
+    }, refresh);
+    const report = page.locator("#refresh-date-report");
+    await expect(report.locator(".pk-root")).toBeVisible();
+    await openZones(report);
+    await report.getByTestId("chip-menu-Date").click();
+    await page.getByTestId("topic-filter").click();
+    const value = page.getByTestId("rule-item-value");
+    await expect(value).toHaveAttribute("type", "date");
+    await value.evaluate((input) => { window.__mountedDateInput = input; });
+    await page.evaluate(() => window.__refreshDates("-000001-01-01"));
+    await expect(value).toHaveAttribute("type", "text");
+    expect(await value.evaluate((input) => input === window.__mountedDateInput)).toBe(true);
+    await expect(value).toHaveValue("2020-01-01");
+    await value.fill("-000001-01-01");
+    await expect.poll(() => page.evaluate(() => window.__refreshedView?.filters[0]?.value)).toBe("-000001-01-01");
+    await page.evaluate(() => window.__refreshDates("2026-01-01"));
+    await expect(report.getByTestId("pivot-table")).toContainText("2026");
+    await expect(value).toHaveAttribute("type", "text");
+    await expect(value).toHaveValue("-000001-01-01");
 });

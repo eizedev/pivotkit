@@ -610,7 +610,7 @@ export function filterState(view, field, state, labels, locale) {
 }
 
 /** A bound of relativeDateRange() as wall-clock ms: a day ("2026-03-01") or a minute ("2026-03-01T14:00"). */
-const boundMs = (text) => Date.parse(text.length > 10 ? `${text}Z` : `${text}T00:00Z`);
+const boundMs = (text) => Date.parse(text.includes("T") ? `${text}Z` : `${text}T00:00Z`);
 
 /**
  * The rows of a date column in the dates of a relative range (pivotkit-core's relativeDateRange:
@@ -622,7 +622,7 @@ const boundMs = (text) => Date.parse(text.length > 10 ? `${text}Z` : `${text}T00
 export function rowsInRange(range, dict, counts) {
     const from = range.from === null ? -Infinity : boundMs(range.from);
     // the end's whole day, or its whole minute
-    const to = boundMs(range.to) + (range.to.length > 10 ? 60_000 : 86_400_000);
+    const to = boundMs(range.to) + (range.to.includes("T") ? 60_000 : 86_400_000);
     let rows = 0;
     for (let code = 0; code < dict.length; code++) {
         const v = dict[code];
@@ -664,18 +664,17 @@ export const dateInputValue = (iso) => {
 };
 
 /**
- * What an `<input type="date">` holds as an ISO day ("+010000-01-01" of "10000-01-01"), or null while
- * it is no whole day of a year from 1 that a Date holds.
+ * Read an HTML date field as a canonical ISO day, or null while incomplete or invalid.
+ * Comparison rules also accept year zero and signed years; other date controls stay positive-only.
  * @param {string} text
  */
-export function dateFromInput(text) {
-    const m = /^(\d{4,})-(\d{2})-(\d{2})$/.exec(text);
-    if (!m || Number(m[1]) < 1) {
-        return null;
-    }
-    const iso = `${isoYear(Number(m[1]))}-${m[2]}-${m[3]}`;
-    // a day the month does not have (30 February) reads as another day
-    return Number.isNaN(dayMs(iso)) || isoDay(dayMs(iso)) !== iso ? null : iso;
+export function dateFromInput(text, { signed = false } = {}) {
+    const m = /^(\d{4,}|[+-]\d{6})(-\d{2}-\d{2})$/.exec(text);
+    if (!m || m[1] === "-000000" || (!signed && (!/^\d/.test(text) || Number(m[1]) < 1))) return null;
+    const iso = `${isoYear(Number(m[1]))}${m[2]}`;
+    const ms = dayMs(iso);
+    // Round-tripping rejects impossible days and dates outside Date's range.
+    return Number.isNaN(ms) || isoDay(ms) !== iso ? null : iso;
 }
 
 /**
@@ -741,4 +740,3 @@ export function pointActions(view, point, encoded, labels, locale, { showRows = 
     }
     return out;
 }
-

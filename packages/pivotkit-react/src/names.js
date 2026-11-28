@@ -336,7 +336,10 @@ export function rangeShare(range, unit, span, locale, today) {
 }
 
 /** The first day of the year, month or day an ISO day falls in. */
-const periodStart = (iso, unit) => (unit === "year" ? `${isoYear(yearOf(iso))}-01-01` : unit === "month" ? `${iso.slice(0, -3)}-01` : iso);
+const periodStart = (iso, unit) => {
+    const first = unit === "year" ? `${isoYear(yearOf(iso))}-01-01` : unit === "month" ? `${iso.slice(0, -3)}-01` : iso;
+    return Number.isNaN(dayMs(first)) ? isoDay(-MAX_DATE_MS) : first;
+};
 
 /** The last day of the year, month or day an ISO day falls in. */
 function periodEnd(iso, unit) {
@@ -431,7 +434,7 @@ function otherRangeText(f, labels, locale, timeZone, now, span, weekStart) {
     }
     // bounds at midnight (a rolling range from a date of its own) are said as days, not as "12:00 AM"
     const days = (range.from === null || range.from.endsWith("T00:00")) && range.to.endsWith("T00:00");
-    const point = (iso) => pointText(days ? iso.slice(0, 10) : iso, locale);
+    const point = (iso) => pointText(days ? iso.split("T")[0] : iso, locale);
     const to = point(range.to);
     return fill(labels.withRange, { text, range: range.from === null ? fill(more.until, { to }) : range.from === range.to ? to : `${point(range.from)} – ${to}` });
 }

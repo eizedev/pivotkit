@@ -231,3 +231,7 @@ Undo takes back every filter and sort step.
 - [The rows behind a number](drill-down.md): which rows a filtered cell holds
 - For developers: [Filters and sorting in a view](../concepts/filters.md), how a view stores what
   this page sets
+
+Dates outside years 1–9999 use a text rule input, accepting signed six-digit ISO years (such as `-000001-01-01` or `+010000-01-01`). Saved year-zero rules also stay editable without matching data. Years combined clamps its first and last year to the supported Date range.
+
+Expanded-year quick choices count the entire day. Timed BCE summaries include the era to distinguish them from CE dates. Source descriptions preserve complete signed days or minutes for layout suggestions.

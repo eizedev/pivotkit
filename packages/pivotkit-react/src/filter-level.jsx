@@ -19,6 +19,7 @@ import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "
 import { CATALOG, LIMITS, fieldLabel, formatter } from "pivotkit-core";
 import { LimitsContext, itemsOf } from "./limits-context.js";
 import { ClearInput } from "./clear-input.jsx";
+import { useDateInput } from "./use-date-input.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { activeIn, useFormName } from "./dom.js";
 import { FILTER_LIST_MAX, keyOf, ValueList } from "./filter.jsx";
@@ -38,6 +39,7 @@ import {
     RULE_TYPES,
     combinedYearsText,
     conditionKind,
+    dateFromInput,
     itemTotals,
     keepsBlanks,
     quickChoice,
@@ -397,6 +399,12 @@ function ItemPicker({ items, value, onChange, label, testId, labels, locale }) {
     );
 }
 
+/** The already-computed field span selects text inputs for dates outside native date controls. */
+const expandedDateField = (kind, span) => kind === "date" && span !== null && [span.min, span.max].some((v) => /^(?:[+-]|0000-)/.test(isoDay(v)));
+
+/** A saved comparison value as the rule field shows it; numbers follow the report locale. */
+const itemRuleText = (value, kind, locale) => value === undefined ? "" : kind === "number" ? numberText(value, locale) : String(value);
+
 /**
  * A rule on the item itself: "Released (Year) [is from] [2022]", "Price [is between] [10] and
  * [20]", for dates also "Released [is in the last] [5] [years]" (a relative range). The value is a
@@ -408,20 +416,20 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
     const narrow = useContext(LayerContext).size === "narrow";
     const words = fk.dates ? labels.dateOps : labels.valueOps;
     const ops = fk.dates ? [...RULE_OPS.compare, "last"] : RULE_OPS.compare;
-    const textOf = (v) => (v === undefined ? "" : fk.item === "number" ? numberText(v, locale) : String(v));
     const compared = rule?.type === "compare" ? rule : null;
     const ranged = rule?.type === "relative" ? rule : null;
+    const expandedDates = useDateInput(compared, ctx.expandedDates);
     const [s, setS] = useState(() => ({
         op: ranged ? "last" : compared ? ruleOp(compared) : ">=",
-        a: textOf(compared?.value),
-        b: textOf(compared?.value2),
+        a: itemRuleText(compared?.value, fk.item, locale),
+        b: itemRuleText(compared?.value2, fk.item, locale),
         count: numberText(ranged?.count ?? 5, locale),
         unit: ranged?.unit ?? "year"
     }));
     const later = useLater();
     const latest = useLatest({ rule, apply, unset });
     const formName = useFormName();
-    const read = (text) => (fk.item === "number" ? parseNumber(text, locale) : fk.item === "date" ? (/^\d{4,}-\d{2}-\d{2}$/.test(text) ? text : null) : text === "" ? null : Number(text));
+    const read = (text) => (fk.item === "number" ? parseNumber(text, locale) : fk.item === "date" ? dateFromInput(text, { signed: true }) : text === "" ? null : Number(text));
     const entryOf = (x) => {
         if (x.op === "last") {
             const n = readNumber(x.count, { kind: "count", max: CATALOG.relativeMaxCount, labels, locale }).value;
@@ -452,7 +460,7 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
     };
     const restore = () => {
         later.cancel();
-        const was = { a: textOf(compared?.value), b: textOf(compared?.value2), count: numberText(ranged?.count ?? 5, locale) };
+        const was = { a: itemRuleText(compared?.value, fk.item, locale), b: itemRuleText(compared?.value2, fk.item, locale), count: numberText(ranged?.count ?? 5, locale) };
         if (s.a === was.a && s.b === was.b && s.count === was.count) {
             return false;
         }
@@ -466,7 +474,7 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
             return <NumberField value={s[key]} onChange={(t) => change({ [key]: t }, true)} onKeyDown={keys} onBlur={later.now} problem={problem} label={label} testId={testId} className="pk-field-label pk-narrow-input" />;
         }
         if (fk.item === "date") {
-            return <input type="date" name={`${formName}-${key}`} value={s[key]} onChange={(e) => change({ [key]: e.target.value })} aria-label={label} data-testid={testId} />;
+            return <input type={expandedDates ? "text" : "date"} name={`${formName}-${key}`} value={s[key]} onChange={(e) => change({ [key]: e.target.value })} aria-label={label} data-testid={testId} />;
         }
         // a grouping: one of its items ("2022", "Mar 2025"), or the view's own when the data has it no more
         const listed = items.filter((i) => typeof i.value === "number");
@@ -1160,7 +1168,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
         setOpenRules(null);
         lost.current = true;
     };
-    const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, say, textOn: textOn(encoded, field), timeZone, hint, items: info.items, noun, scope, quickFilters: quick.filters, focusQuick, act, keepBlanks, keepSections, releaseSections };
+    const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, say, textOn: textOn(encoded, field), timeZone, hint, items: info.items, expandedDates: expandedDateField(fk.item, span), noun, scope, quickFilters: quick.filters, focusQuick, act, keepBlanks, keepSections, releaseSections };
     // "Also keep items without a value": for a field with blank items and a rule on its items (the quick choice among them)
     const blankRows = info.items.find((i) => i.value === null)?.count ?? 0;
     const blanks = blankRows > 0 && (itemRules.length > 0 || quick.filters.length > 0) ? { rows: blankRows, on: keepBlanks } : null;

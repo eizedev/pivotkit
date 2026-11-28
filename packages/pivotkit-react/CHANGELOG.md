@@ -6,6 +6,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- Count complete expanded-year days in relative quick choices.
+
 ## [0.11.0] - 2026-11-26
 
 ### Added
