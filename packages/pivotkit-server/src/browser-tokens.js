@@ -47,7 +47,7 @@ const PURPOSES = Object.freeze({ token: "pivotkit browser: token v1", access: "p
  * @param {Buffer} key
  * @returns {{ token: Uint8Array, access: Buffer }}
  */
-export function browserSubkeysOf(key) {
+function browserSubkeysOf(key) {
     const derive = (purpose) => Buffer.from(hkdfSync("sha256", key, Buffer.alloc(0), purpose, 32));
     return { token: new Uint8Array(derive(PURPOSES.token)), access: derive(PURPOSES.access) };
 }

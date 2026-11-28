@@ -176,6 +176,28 @@ export async function configFrom({ flag, fromEnv, stateDir, paths = IMAGE_PATHS 
  */
 
 /**
+ * The options with the keys the state directory holds where they are used and none is named: the
+ * downloads' key, the audit's (subject "hash"), and the browser path's, so its tokens and the levels
+ * of live links stay valid over a restart.
+ * @param {Record<string, any>} options
+ * @param {string} secretsDir
+ */
+function withStateKeys(options, secretsDir) {
+    const made = (use) => ({ file: join(secretsDir, STATE_FILES[use]), create: true });
+    let next = options;
+    if (settingsOf(next).enabled && !next.output?.downloads?.key) {
+        next = KEY_PLACES.downloads.set(next, made("downloads"));
+    }
+    if (next.audit?.subject === "hash" && !next.audit.key) {
+        next = KEY_PLACES.audit.set(next, made("audit"));
+    }
+    if (browserPathUsed(next) && !next.rest?.browser?.key) {
+        next = KEY_PLACES.browser.set(next, made("browser"));
+    }
+    return next;
+}
+
+/**
  * The state directory's defaults on the options, and every secret with create: true; reads and
  * writes nothing (the start, check-config and `token show` share it). Refuses an output.dir that is
  * the state directory or holds its secrets.
@@ -217,18 +239,7 @@ export function planState(options, { env, host, tokenEnv, stateDir }) {
             auth.signedTokens = { ...auth.signedTokens, dir: join(secretsDir, SIGNED_STATE_DIR) };
             next.auth = auth;
         }
-        const downloads = { ...output.downloads };
-        if (settingsOf(next).enabled && !downloads.key) {
-            downloads.key = { file: join(secretsDir, STATE_FILES.downloads), create: true };
-            next.output = { ...output, downloads };
-        }
-        if (options.audit?.subject === "hash" && !options.audit.key) {
-            next.audit = { ...options.audit, key: { file: join(secretsDir, STATE_FILES.audit), create: true } };
-        }
-        // the browser path: tokens and the levels of live links stay valid over a restart
-        if (browserPathUsed(next) && !next.rest?.browser?.key) {
-            Object.assign(next, KEY_PLACES.browser.set(next, { file: join(secretsDir, STATE_FILES.browser), create: true }));
-        }
+        Object.assign(next, withStateKeys(next, secretsDir));
     }
     /** @type {PlannedSecret[]} */
     const secrets = [];

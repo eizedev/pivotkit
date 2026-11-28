@@ -96,6 +96,28 @@ const OWN_ROUTES = Object.freeze({
     browserToken: { schema: "IssueBrowserToken", ok: "The browser token.", errors: [400, 401, 403, 413, 415, 422, 429, 503] }
 });
 
+/**
+ * The operation of a route with an input and output of its own (OWN_ROUTES): the rows route and the
+ * exchange route.
+ * @param {(typeof REST_ROUTES)[number]} route
+ * @param {unknown[] | null} security  the route's security, null without a scheme
+ */
+function ownOperation(route, security) {
+    const own = OWN_ROUTES[/** @type {keyof typeof OWN_ROUTES} */ (route.answer)];
+    return {
+        operationId: route.id,
+        summary: route.summary,
+        description: route.description,
+        tags: ["sources"],
+        ...(security ? { security } : {}),
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: `#/components/schemas/${own.schema}Input` }, example: route.example.input } } },
+        responses: {
+            200: { description: own.ok, content: { "application/json": { schema: { $ref: `#/components/schemas/${own.schema}Output` }, example: route.example.output } } },
+            ...Object.fromEntries(own.errors.map((status) => [status, { $ref: `#/components/responses/Problem${status}` }]))
+        }
+    };
+}
+
 /** An input schema with the view referenced: by name too for the operations and the rows route that take one. */
 function withViewRef(schema, name) {
     const out = structuredClone(schema);
@@ -198,21 +220,7 @@ export function openApiDocument(options = {}) {
     schemas.IssueBrowserTokenInput = structuredClone(BROWSER_TOKEN_INPUT);
     schemas.IssueBrowserTokenOutput = structuredClone(BROWSER_TOKEN_OUTPUT);
     for (const route of REST_ROUTES.filter((r) => Object.hasOwn(OWN_ROUTES, r.answer))) {
-        const own = OWN_ROUTES[/** @type {keyof typeof OWN_ROUTES} */ (route.answer)];
-        paths[`${REST_BASE}${route.path}`] = {
-            post: {
-                operationId: route.id,
-                summary: route.summary,
-                description: route.description,
-                tags: ["sources"],
-                ...(schemeName ? { security: security(route) } : {}),
-                requestBody: { required: true, content: { "application/json": { schema: { $ref: `#/components/schemas/${own.schema}Input` }, example: route.example.input } } },
-                responses: {
-                    200: { description: own.ok, content: { "application/json": { schema: { $ref: `#/components/schemas/${own.schema}Output` }, example: route.example.output } } },
-                    ...Object.fromEntries(own.errors.map((status) => [status, { $ref: `#/components/responses/Problem${status}` }]))
-                }
-            }
-        };
+        paths[`${REST_BASE}${route.path}`] = { post: ownOperation(route, schemeName ? security(route) : null) };
     }
     for (const route of REST_ROUTES.filter((r) => !Object.hasOwn(OWN_ROUTES, r.answer))) {
         const op = OPERATIONS[route.operation];

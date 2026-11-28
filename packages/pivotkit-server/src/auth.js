@@ -756,6 +756,9 @@ export function profileOf(auth, authInfo) {
  */
 const known = new WeakMap();
 
+/** When a person's token expires, in seconds since the epoch, as browserGrantOf keeps it; null when it says nothing. */
+const tokenExpiry = (at) => (Number.isFinite(at) ? Math.floor(at) : null);
+
 /**
  * Who calls, from the request's verified token: its scopes, how the log names it, its policy
  * profile (profileOf) and, for an OAuth token, its subject, issuer and groups (only when it carries
@@ -782,7 +785,7 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
         // a person signed in at another system: the issuer by name, the person by subject
         const caller = { scopes, client, profile, subject: authInfo.extra.subject, issuer: authInfo.extra.issuer };
         noteAudit(caller, authInfo.extra.audit);
-        known.set(caller, { basis: ["external", String(authInfo.extra.issuer), String(authInfo.extra.subject)], token: null, expiresAt: Number.isFinite(authInfo.expiresAt) ? Math.floor(authInfo.expiresAt) : null });
+        known.set(caller, { basis: ["external", String(authInfo.extra.issuer), String(authInfo.extra.subject)], token: null, expiresAt: tokenExpiry(authInfo.expiresAt) });
         return caller;
     }
     if (authInfo.token === "" || mode === "token") {

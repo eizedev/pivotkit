@@ -40,11 +40,11 @@ import { MCP_TOKEN_ENV } from "./context.js";
 import { SECRET_BYTES, SecretFileError, newSecret, placeSecret, replaceFile, writeBackup } from "./secret-file.js";
 import { DOCS_SITE } from "./options/branding.js";
 
-/** Where the configuration names a key of each use (secret-rules.js KEY_USES), for the hints. */
+/** Where the configuration names a key of each use (secret-rules.js KEY_USES), for the hints; replaced: what a new key ends. */
 const KEY_OPTIONS = Object.freeze({
-    downloads: { option: "output.downloads.key", snippet: (file) => `"output": { "downloads": { "key": { "file": ${JSON.stringify(file)} } } }`, after: "The server reads it again within a second: no restart. Links made with an earlier key stop working." },
+    downloads: { option: "output.downloads.key", snippet: (file) => `"output": { "downloads": { "key": { "file": ${JSON.stringify(file)} } } }`, after: "The server reads it again within a second: no restart. Links made with an earlier key stop working.", replaced: "download links made with the old key stop working within a second" },
     audit: { option: "audit.key", snippet: (file) => `"audit": { "subject": "hash", "key": { "file": ${JSON.stringify(file)} } }`, after: "The server reads it at start: restart it." },
-    browser: { option: "rest.browser.key", snippet: (file) => `"rest": { "browser": { "key": { "file": ${JSON.stringify(file)} } } }`, after: "The server reads it again within a second: no restart. Browser tokens and the access levels of live links made with an earlier key stop working." }
+    browser: { option: "rest.browser.key", snippet: (file) => `"rest": { "browser": { "key": { "file": ${JSON.stringify(file)} } } }`, after: "The server reads it again within a second: no restart. Browser tokens and the access levels of live links made with an earlier key stop working.", replaced: "browser tokens and the access levels of live links made with the old key stop working within a second" }
 });
 
 /** --json and --help: every command has them. */
@@ -501,13 +501,8 @@ async function keyNew(argv, io) {
     const ref = file ? { file: configPath(file, options?.baseDir ?? cwd) } : null;
     const added = values.add ? await changedConfig(resolve(cwd, values.config), values.config, options, (raw) => withKey(raw, values.for, ref, values.config, values["if-missing"] && sameFileIn(options))) : null;
     const secret = await secretOf(values, SECRET_BYTES.key, "key", keyProblem(values.for), cwd);
-    const warnings = [...secret.warnings];
-    if (secret.replaced && values.for === "downloads") {
-        warnings.push(`${values.file} replaced: download links made with the old key stop working within a second`);
-    }
-    if (secret.replaced && values.for === "browser") {
-        warnings.push(`${values.file} replaced: browser tokens and the access levels of live links made with the old key stop working within a second`);
-    }
+    const ended = /** @type {{ replaced?: string }} */ (use).replaced;
+    const warnings = [...secret.warnings, ...(secret.replaced && ended ? [`${values.file} replaced: ${ended}`] : [])];
     const written = added && !("done" in added) ? await writeConfig(added, values) : null;
     const backup = written?.backup ?? null;
     warnings.push(...(added && "notes" in added ? added.notes : []), ...(written?.warnings ?? []));
