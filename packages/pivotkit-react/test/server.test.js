@@ -106,6 +106,11 @@ test("answers that are not the rows: refused, the link's level, a request that d
     assert.equal((await run({ status: 422, body: { code: "DATA_MISMATCH" } })).state, "unfit");
     assert.deepEqual(await run({ status: 413, body: { code: "LIMIT_EXCEEDED", maxRows: 50000, requestId: "r2" } }), { state: "large", status: 413, host: "reports.example.com", code: "LIMIT_EXCEEDED", requestId: "r2", maxRows: 50000 });
     assert.deepEqual(await run({ status: 503, body: { code: "BUSY" }, headers: { "retry-after": "2" } }), { state: "busy", status: 503, host: "reports.example.com", code: "BUSY", retryAfter: 2 });
+    // a wait in whole seconds only: an empty header or a number in another spelling is no wait
+    for (const odd of ["", " ", "1e1", "2.5", "-1"]) {
+        assert.equal((await run({ status: 503, body: { code: "BUSY" }, headers: { "retry-after": odd } })).retryAfter, undefined, JSON.stringify(odd));
+    }
+    assert.equal((await run({ status: 429, body: { code: "RATE_LIMITED" }, headers: { "retry-after": " 7 " } })).retryAfter, 7);
     assert.deepEqual(await run({ status: 200, body: '{"columns":["a"],"types":["string"],"data":[["x"' }), { state: "unreachable", host: "reports.example.com", status: 200, cut: true });
     assert.deepEqual(await run(new TypeError("fetch failed")), { state: "unreachable", host: "reports.example.com" });
     assert.equal((await run({ status: 500, body: { code: "INTERNAL" } })).state, "unreachable");

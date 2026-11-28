@@ -234,8 +234,9 @@ export async function fetchRows(request, how) {
             continue;
         }
         const problem = parsed && typeof parsed === "object" ? /** @type {Record<string, any>} */ (parsed) : null;
-        const retryAfter = answer.headers.get("retry-after");
-        return { ok: false, failure: failureOf(answer.status, problem && retryAfter !== null ? { ...problem, retryAfter } : problem, host) };
+        // a wait in whole seconds only: an empty header, a date or "1e1" is no wait
+        const retryAfter = answer.headers.get("retry-after")?.trim();
+        return { ok: false, failure: failureOf(answer.status, problem && /^\d+$/.test(retryAfter ?? "") ? { ...problem, retryAfter } : problem, host) };
     }
     return { ok: false, failure: { state: "expired", host } };
 }
