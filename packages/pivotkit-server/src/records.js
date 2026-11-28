@@ -219,12 +219,15 @@ export function createRecords(context) {
             const rowsShown = resolved.policy.rows !== false;
             // a parameter is a way out only where the source takes one the caller sends (not bound to a claim)
             const sendsParams = Object.values(options.sources?.[input.source]?.params ?? {}).some((p) => p?.claim === undefined);
+            // the limit goes into the problem too (maxRows, maxCells), so a page can say it in its own words
             if (head.rows > maxRows) {
-                throw new OperationError("LIMIT_EXCEEDED", `this source has too many rows to open here (${rowsShown ? `${count(head.rows)}, ` : ""}the limit is ${count(maxRows)}); ${sendsParams ? "filter it with a parameter or " : ""}ask the operator`);
+                await writer.stop();
+                return problemOf(new OperationError("LIMIT_EXCEEDED", `this source has too many rows to open here (${rowsShown ? `${count(head.rows)}, ` : ""}the limit is ${count(maxRows)}); ${sendsParams ? "filter it with a parameter or " : ""}ask the operator`), { extra: { maxRows } });
             }
             const cells = head.rows * chosen.columns.length;
             if (cells > bounds.maxCells) {
-                throw new OperationError("LIMIT_EXCEEDED", `this answer has too many values to open here (${rowsShown ? `${count(cells)} cells, ` : ""}the limit is ${count(bounds.maxCells)}); ask for fewer fields${sendsParams ? ", filter with a parameter" : ""} or ask the operator`);
+                await writer.stop();
+                return problemOf(new OperationError("LIMIT_EXCEEDED", `this answer has too many values to open here (${rowsShown ? `${count(cells)} cells, ` : ""}the limit is ${count(bounds.maxCells)}); ask for fewer fields${sendsParams ? ", filter with a parameter" : ""} or ask the operator`), { extra: { maxCells: bounds.maxCells } });
             }
             const id = requestId();
             const columns = chosen.columns.map((i) => head.columns[i]);
