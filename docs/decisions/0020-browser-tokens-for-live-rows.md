@@ -1,7 +1,7 @@
 ---
 title: A browser token for the rows of one report
 description: The browser reads a report's rows with a separate short-lived token the server makes for one source, never with a passed-on access token. The components get it through getToken(). This amends 0010 and 0015 for the rows route.
-status: proposed
+status: accepted
 date: 2026-11-28
 ---
 

@@ -1,7 +1,7 @@
 ---
 title: The browser path for live reports
 description: How the browser reads a report's rows with the token of 0020 - the exchange route, what the token carries, CORS of its own, access levels for live links, the components' server connection and the viewer page.
-status: proposed
+status: accepted
 date: 2026-11-28
 ---
 

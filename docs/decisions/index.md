@@ -41,5 +41,5 @@ link each other. [0001](0001-record-decisions.md) has the rules.
 | [0017](0017-report-snapshots-carry-rows.md) | Report snapshots may carry rows | proposed | 2026-11-18 |
 | [0018](0018-upgrading-page-for-the-newest-release.md) | The upgrading page covers the newest release | accepted | 2026-11-23 |
 | [0019](0019-more-than-one-oauth-issuer.md) | More than one OAuth issuer, each checked on its own | accepted | 2026-11-28 |
-| [0020](0020-browser-tokens-for-live-rows.md) | A browser token for the rows of one report | proposed | 2026-11-28 |
-| [0021](0021-the-browser-path.md) | The browser path for live reports | proposed | 2026-11-28 |
+| [0020](0020-browser-tokens-for-live-rows.md) | A browser token for the rows of one report | accepted | 2026-11-28 |
+| [0021](0021-the-browser-path.md) | The browser path for live reports | accepted | 2026-11-28 |
