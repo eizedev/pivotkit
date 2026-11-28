@@ -398,6 +398,9 @@ function ItemPicker({ items, value, onChange, label, testId, labels, locale }) {
     );
 }
 
+/** The already-computed field span selects text inputs for dates outside native date controls. */
+const expandedDateField = (kind, span) => kind === "date" && span !== null && [span.min, span.max].some((v) => /^(?:[+-]|0000-)/.test(isoDay(v)));
+
 /** A saved comparison value as the rule field shows it; numbers follow the report locale. */
 const itemRuleText = (value, kind, locale) => value === undefined ? "" : kind === "number" ? numberText(value, locale) : String(value);
 
@@ -414,7 +417,7 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
     const ops = fk.dates ? [...RULE_OPS.compare, "last"] : RULE_OPS.compare;
     const compared = rule?.type === "compare" ? rule : null;
     const ranged = rule?.type === "relative" ? rule : null;
-    const [expandedDates] = useState(() => [compared?.value, compared?.value2].some((v) => /^(?:[+-]|0000-)/.test(String(v))) || (fk.item === "date" && items.some((i) => typeof i.value === "number" && (new Date(i.value).getUTCFullYear() < 1 || new Date(i.value).getUTCFullYear() > 9999))));
+    const [expandedDates] = useState(() => [compared?.value, compared?.value2].some((v) => /^(?:[+-]|0000-)/.test(String(v))) || ctx.expandedDates);
     const [s, setS] = useState(() => ({
         op: ranged ? "last" : compared ? ruleOp(compared) : ">=",
         a: itemRuleText(compared?.value, fk.item, locale),
@@ -1164,7 +1167,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
         setOpenRules(null);
         lost.current = true;
     };
-    const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, say, textOn: textOn(encoded, field), timeZone, hint, items: info.items, noun, scope, quickFilters: quick.filters, focusQuick, act, keepBlanks, keepSections, releaseSections };
+    const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, say, textOn: textOn(encoded, field), timeZone, hint, items: info.items, expandedDates: expandedDateField(fk.item, span), noun, scope, quickFilters: quick.filters, focusQuick, act, keepBlanks, keepSections, releaseSections };
     // "Also keep items without a value": for a field with blank items and a rule on its items (the quick choice among them)
     const blankRows = info.items.find((i) => i.value === null)?.count ?? 0;
     const blanks = blankRows > 0 && (itemRules.length > 0 || quick.filters.length > 0) ? { rows: blankRows, on: keepBlanks } : null;

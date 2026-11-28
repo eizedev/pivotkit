@@ -370,3 +370,46 @@ for (const theme of ["light", "dark"]) for (const width of [1280, 390]) test(`sa
     await expect.poll(() => page.evaluate(() => window.__expandedRule?.filters[0]?.value)).toBe("-000001-01-01");
     await page.locator(".pk-chip-menu").screenshot({path:testInfo.outputPath("year-zero-rule.png")});
 });
+
+
+test("adding a date rule reuses the field span without rescanning its items", async ({ page }) => {
+    await page.goto("pages/host.html");
+    await page.evaluate(async () => {
+        const React = await import("react");
+        const { createRoot } = await import("react-dom/client");
+        const { PivotReport } = await import("pivotkit-react");
+        const section = document.createElement("section");
+        section.id = "date-rule-report";
+        document.body.append(section);
+        createRoot(section).render(React.createElement(PivotReport, {
+            data: Array.from({ length: 28 }, (_, i) => ({ Date: `2020-01-${String(i + 1).padStart(2, "0")}` })),
+            height: 640,
+            defaultView: { rows: ["Date"], values: [{ agg: "count" }] }
+        }));
+    });
+    const report = page.locator("#date-rule-report");
+    await expect(report.locator(".pk-root")).toBeVisible();
+    await openZones(report);
+    await report.getByTestId("chip-menu-Date").click();
+    await page.getByTestId("topic-filter").click();
+    await page.getByTestId("section-rules").click();
+    await page.evaluate(() => {
+        const OriginalDate = window.Date;
+        const middle = OriginalDate.parse("2020-01-15");
+        window.__itemDateReads = 0;
+        window.__restoreDate = () => { window.Date = OriginalDate; };
+        window.Date = new Proxy(OriginalDate, {
+            construct(target, args) {
+                if (args.length === 1 && args[0] === middle) window.__itemDateReads++;
+                return Reflect.construct(target, args);
+            }
+        });
+    });
+    await page.getByTestId("rule-add-item").click();
+    await expect(page.getByTestId("rule-item-value")).toHaveAttribute("type", "date");
+    const reads = await page.evaluate(() => {
+        window.__restoreDate();
+        return window.__itemDateReads;
+    });
+    expect(reads).toBe(0);
+});
