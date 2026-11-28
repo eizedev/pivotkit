@@ -1,5 +1,5 @@
 /*
- * check-config's section for the browser path (browser.js, records 0019 and 0020), once a profile
+ * check-config's section for the browser path (browser.js, records 0020 and 0021), once a profile
  * reads rows (records): the exchange route, how long a browser token lives, the
  * pages that may read rows with one, the access levels live links may carry, and the key.
  *

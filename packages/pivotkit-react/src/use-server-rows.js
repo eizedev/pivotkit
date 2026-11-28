@@ -1,5 +1,5 @@
 /*
- * The rows of a report with a `server` (record 0020): read from pivotkit-server with the page's
+ * The rows of a report with a `server` (record 0021): read from pivotkit-server with the page's
  * getToken(), again when the request changes (source, the query's parameters, the link's access
  * level, `refreshKey`) or the person asks to try again. The report keeps showing the rows it has
  * while it reads new ones, and when reading them fails (the banner says from when they are).

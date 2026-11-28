@@ -90,10 +90,11 @@ The REST service and the MCP server request only addresses that the operator wri
 configuration or on the command line:
 
 - an [HTTP source](reference/sources.md#http) and its backend sign-in
-- the OAuth issuer's metadata and key set
+- the metadata and key set of each OAuth issuer
 - the token endpoint of a token exchange, and that of the
   [sign-in links](reference/delivery.md#sign-in) of downloads. Each is the issuer's, or the address
-  the operator sets with `tokenUrl`. The sign-in links can have an issuer of their own.
+  the operator sets with `tokenUrl`. The sign-in links use the first issuer; an issuer of their
+  own is not supported yet ([#441](https://github.com/eizedev/pivotkit/issues/441)).
 - an [upload store](reference/delivery.md#upload) and its presign service
 - the OpenAPI document that `pivotkit-server source-from-openapi` reads
 
@@ -544,6 +545,9 @@ gets at each level, and how to set them per client.
     - OAuth 2.1 as the [MCP authorization spec](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)
       describes. The server checks JWT access tokens for signature, issuer, audience (the server
       itself), expiry and algorithm, and never passes them on. Scopes apply per tool and per source.
+      With [more than one issuer](reference/sign-in.md#issuers), a token is checked with the keys,
+      audience and scopes of the issuer its `iss` names only, and every listed issuer is trusted
+      for scopes, groups and claims as `auth.issuer` is.
 
     The server requests the issuer's metadata, its keys and the download sign-in's token endpoint
     under the rules of every other outbound request: no redirects, sizes capped, link-local and
@@ -766,8 +770,9 @@ operator's, never a caller's:
   reference, OAuth client credentials or a token exchange.
     - A secret is never written in the configuration, logged, or printed by `check-config` and
       `check-source`.
-    - A person's own access token goes only to the token endpoint, as the token exchange's
-      `subject_token`. It never goes to a backend: there is no token passthrough.
+    - A person's own access token goes only to the token endpoint of the issuer that signed them
+      in, as the token exchange's `subject_token`. It never goes to a backend: there is no token
+      passthrough.
     - An exchanged token is kept per person, client and scopes. It is never kept longer than the
       person's own token and `maxAgeSeconds`.
     - The token endpoint's `error_description` is dropped.

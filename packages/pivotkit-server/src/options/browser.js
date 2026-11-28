@@ -1,5 +1,5 @@
 /*
- * The options of the browser path (records 0019 and 0020): the browser token a person's token is
+ * The options of the browser path (records 0020 and 0021): the browser token a person's token is
  * exchanged for (POST /api/v1/sources/records/token), and the pages that may read rows with it.
  *
  *   "rest": { "browser": { "origins": ["https://intranet.example.com"], "minutes": 5,

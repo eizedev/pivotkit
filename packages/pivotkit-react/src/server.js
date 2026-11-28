@@ -1,5 +1,5 @@
 /*
- * The `server` connection's first-load part (record 0020): what to ask the server for, read from the
+ * The `server` connection's first-load part (record 0021): what to ask the server for, read from the
  * page's own configuration and its address, without a DOM. The network code, the texts and the
  * states' parts load on first use (server-module.js, through loadServer), so a page without a server
  * loads none of it.

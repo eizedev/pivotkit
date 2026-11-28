@@ -1,5 +1,5 @@
 /*
- * The access level of a live link (record 0020): who may open it. create_link writes it signed into
+ * The access level of a live link (record 0021): who may open it. create_link writes it signed into
  * the page's query string as `pk-access`; the page's backend or the page passes it on to the
  * exchange route (browser.js), which checks it before it makes a browser token.
  *

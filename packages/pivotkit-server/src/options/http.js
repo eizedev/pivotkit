@@ -17,7 +17,7 @@
 
 import { CREDENTIAL_HEADERS, HEADER_NAME, HEADER_VALUE, SECRET_NAME, checkHeaderName, connectionHeader } from "./headers.js";
 import { createHash } from "node:crypto";
-import { issuerRulesOf } from "../issuer.js";
+import { issuerRulesOf, issuersOf } from "../issuer.js";
 import { resolvePolicy } from "../policy.js";
 import { canonicalJson } from "../sources/keys.js";
 import { compileTemplate } from "../sources/template.js";
@@ -66,7 +66,7 @@ export const NAME = "http";
  * @typedef {object} BackendAuthOptions  exactly one of header, clientCredentials, tokenExchange
  * @property {{ name?: string, prefix?: string, value: SecretRef }} [header]  a static header from a secret
  * @property {{ tokenUrl: string, clientId: string, clientSecret?: SecretRef, assertion?: SecretRef, scope?: string, audience?: string, resource?: string, intranet?: boolean }} [clientCredentials]
- * @property {{ tokenUrl?: string, clientId: string, clientSecret: SecretRef, audience?: string, resource?: string, scope?: string, maxAgeSeconds?: number, intranet?: boolean }} [tokenExchange]
+ * @property {{ issuer?: string, tokenUrl?: string, clientId: string, clientSecret: SecretRef, audience?: string, resource?: string, scope?: string, maxAgeSeconds?: number, intranet?: boolean }} [tokenExchange]  issuer: whose people's tokens it exchanges (exchangeIssuerOf)
  */
 
 /** The defaults of a backend's sign-in. */
@@ -93,7 +93,7 @@ const AUTH = {
     object: {
         header: { object: { name: "string", prefix: "string", value: SECRET_REF } },
         clientCredentials: { object: { tokenUrl: "string", clientId: "string", clientSecret: SECRET_REF, assertion: SECRET_REF, scope: "string", audience: "string", resource: "string", intranet: "boolean" } },
-        tokenExchange: { object: { tokenUrl: "string", clientId: "string", clientSecret: SECRET_REF, audience: "string", resource: "string", scope: "string", maxAgeSeconds: "integer", intranet: "boolean" } }
+        tokenExchange: { object: { issuer: "string", tokenUrl: "string", clientId: "string", clientSecret: SECRET_REF, audience: "string", resource: "string", scope: "string", maxAgeSeconds: "integer", intranet: "boolean" } }
     }
 };
 
@@ -209,7 +209,7 @@ export const pointerKeys = (text) => (text === "" ? [] : text.slice(1).split("/"
  * for messages.
  * @typedef {{ kind: "header", at: string, hash: string, name: string, prefix: string, value: SecretRef, baseDir: string | undefined }
  *   | { kind: "clientCredentials", at: string, hash: string, tokenUrl: string, clientId: string, clientSecret: SecretRef | null, assertion: SecretRef | null, scope: string | null, audience: string | null, resource: string | null, intranet: boolean, allowIpLiterals: boolean, baseDir: string | undefined }
- *   | { kind: "tokenExchange", at: string, hash: string, tokenUrl: string | null, issuer: string | null, issuerRules: import("../issuer.js").IssuerRules, clientId: string, clientSecret: SecretRef, scope: string | null, audience: string | null, resource: string | null, maxAgeSeconds: number, intranet: boolean, allowIpLiterals: boolean, baseDir: string | undefined }} BackendAuth
+ *   | { kind: "tokenExchange", at: string, hash: string, tokenUrl: string | null, issuer: string, issuerRules: import("../issuer.js").IssuerRules, clientId: string, clientSecret: SecretRef, scope: string | null, audience: string | null, resource: string | null, maxAgeSeconds: number, intranet: boolean, allowIpLiterals: boolean, baseDir: string | undefined }} BackendAuth
  */
 
 /** A text of the sign-in's settings (a client id, a scope): no control characters, at most `max`. */
@@ -321,8 +321,8 @@ export function backendAuthOf(options, auth, at, headers) {
         ...common,
         kind: /** @type {const} */ ("tokenExchange"),
         tokenUrl: x.tokenUrl !== undefined ? tokenUrlOf(x.tokenUrl, `${at}.tokenExchange.tokenUrl`, allowIpLiterals) : null,
-        issuer: options.auth?.issuer ?? null,
-        // the issuer's metadata (its default token endpoint) is read under auth.issuer's rules (issuer.js)
+        issuer: exchangeIssuerOf(options, x, `${at}.tokenExchange.issuer`),
+        // the issuer's metadata (its default token endpoint) is read under the issuers' rules (issuer.js)
         issuerRules: issuerRulesOf(options),
         clientId: x.clientId,
         clientSecret: x.clientSecret,
@@ -333,6 +333,28 @@ export function backendAuthOf(options, auth, at, headers) {
         intranet: x.intranet === true,
         allowIpLiterals
     });
+}
+
+/**
+ * The issuer whose people's tokens a token exchange sends to its token endpoint: tokenExchange.issuer,
+ * which must be one of the server's issuers exactly, else the server's only issuer. With more than
+ * one issuer it must be written: a client id and secret belong to one token endpoint, and a person's
+ * token never goes to another issuer's. Throws ConfigError.
+ * @param {import("../config.js").ServerOptions} options
+ * @param {{ issuer?: string }} exchange  tokenExchange
+ * @param {string} at  tokenExchange.issuer's place, for messages
+ * @returns {string}
+ */
+export function exchangeIssuerOf(options, exchange, at) {
+    const issuers = issuersOf(options).map((e) => e.issuer);
+    if (exchange.issuer !== undefined && !issuers.includes(exchange.issuer)) {
+        throw new ConfigError(`${at}: ${JSON.stringify(exchange.issuer.slice(0, 200))} is not one of the server's issuers (${issuers.join(", ")}); write it exactly as there`);
+    }
+    // with auth.mode "oauth" there is at least one issuer: options/issuer.js runs before this fragment
+    if (exchange.issuer === undefined && issuers.length > 1) {
+        throw new ConfigError(`${at}: the server accepts tokens of ${issuers.length} issuers; name the one whose people's tokens this exchange sends to its token endpoint (${issuers.join(", ")})`);
+    }
+    return exchange.issuer ?? issuers[0] ?? "";
 }
 
 /** Each HTTP source's settings, by its configured object. */

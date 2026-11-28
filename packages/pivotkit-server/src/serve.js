@@ -136,6 +136,36 @@ async function releaseMismatch(e, { mcp, server } = installedVersions(), docs = 
 }
 
 /**
+ * The log lines of /readyz's answers, each only when it changes: whether the server is ready (it
+ * starts out so), and which OAuth issuers are not loaded yet (their tokens get 503, the others' pass).
+ * @param {any} log
+ * @returns {(ready: { ok: boolean, reason?: string, waiting?: string[] }) => void}
+ */
+function readinessNotes(log) {
+    let wasReady = true;
+    let wasWaiting = "";
+    return (ready) => {
+        if (ready.ok !== wasReady) {
+            wasReady = ready.ok;
+            if (ready.ok) {
+                log.info("ready again: the server takes work");
+            } else {
+                log.warn(`not ready: ${ready.reason}`);
+            }
+        }
+        const waiting = (ready.waiting ?? []).join(", ");
+        if (waiting !== wasWaiting) {
+            wasWaiting = waiting;
+            if (waiting) {
+                log.warn(`oauth: the tokens of these issuers get 503 until their metadata loads (the lines before name their addresses): ${waiting}`);
+            } else {
+                log.info("oauth: every issuer's metadata is loaded");
+            }
+        }
+    };
+}
+
+/**
  * The problem answer to a body that cannot be read (400) or is too large (413), from the family of
  * its path: the download links, MCP, REST, else the server's own.
  * @param {{ downloads: any, mcp: any, rest: any, problem: (code: string, detail: string) => Response }} families
@@ -195,8 +225,7 @@ export async function createServerHandler(options, runtime) {
         const hosts = allowedHosts(options);
         const isRest = (request) => rest?.handles(new URL(request.url).pathname) ?? false;
 
-        /** Whether /readyz last found the server ready (it starts out so): a line is written only when that changes. */
-        let wasReady = true;
+        const noteReadiness = readinessNotes(context.log);
 
         /** /healthz and /readyz, after the Host check: a probe writes no line; /readyz one when readiness changes. */
         async function health(request) {
@@ -214,14 +243,7 @@ export async function createServerHandler(options, runtime) {
                 return Response.json({ ok: true }, { headers: { "cache-control": "no-store" } });
             }
             const ready = await context.ready();
-            if (ready.ok !== wasReady) {
-                wasReady = ready.ok;
-                if (ready.ok) {
-                    context.log.info("ready again: the server takes work");
-                } else {
-                    context.log.warn(`not ready: ${ready.reason}`);
-                }
-            }
+            noteReadiness(ready);
             return Response.json(ready, { status: ready.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
         }
 

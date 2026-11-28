@@ -1,4 +1,4 @@
-// One element that reads its rows from a server (server-url, record 0020) under the strict CSP: the
+// One element that reads its rows from a server (server-url, record 0021) under the strict CSP: the
 // server is this origin's /pk-test-server, whose rows route server.spec.js answers. The page's
 // getToken() logs what it was asked and gives a token; ?token=none gives nothing (the sign-in ended),
 // ?token=once a token the first time only, ?token=link and ?token=invalid the exchange route's

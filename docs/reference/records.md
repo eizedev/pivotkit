@@ -228,7 +228,7 @@ document.querySelector("pivot-report").data = { columns, types, data };
 
 The page reads the rows from pivotkit-server directly, with a short-lived **browser token**. Your
 backend still makes that token: it holds the person's own token, which never reaches the page.
-[Record 0020](../decisions/0020-the-browser-path.md) says why it works this way.
+[Record 0021](../decisions/0021-the-browser-path.md) says why it works this way.
 
 1. Your backend exchanges the person's token at `POST /api/v1/sources/records/token` for a browser
    token: OAuth of your issuer, or a [token from another system](tokens.md#external-issuers) with a

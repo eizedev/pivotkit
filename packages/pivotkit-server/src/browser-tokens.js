@@ -1,5 +1,5 @@
 /*
- * Browser tokens (records 0019 and 0020): the short-lived token a page reads one report's rows with.
+ * Browser tokens (records 0020 and 0021): the short-lived token a page reads one report's rows with.
  * An encrypted JWT (RFC 7516 compact form, alg "dir", enc "A256GCM", typ "pivotkit-browser+jwt"):
  * only this server makes or reads one, and no script in the page reads the person in it.
  *

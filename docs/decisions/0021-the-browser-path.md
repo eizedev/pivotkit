@@ -1,18 +1,18 @@
 ---
 title: The browser path for live reports
-description: How the browser reads a report's rows with the token of 0019 - the exchange route, what the token carries, CORS of its own, access levels for live links, the components' server connection and the viewer page.
+description: How the browser reads a report's rows with the token of 0020 - the exchange route, what the token carries, CORS of its own, access levels for live links, the components' server connection and the viewer page.
 status: proposed
 date: 2026-11-28
 ---
 
-# 0020 The browser path for live reports
+# 0021 The browser path for live reports
 
 Sources: [#621](https://github.com/eizedev/pivotkit/issues/621),
 [the decision on #621](https://github.com/eizedev/pivotkit/issues/621#issuecomment-7231514614)
 
 ## Context and Problem Statement
 
-[0019](0019-browser-tokens-for-live-rows.md) decides that the browser reads a report's rows with a
+[0020](0020-browser-tokens-for-live-rows.md) decides that the browser reads a report's rows with a
 separate short-lived token. This record says how the server makes and checks that token, which
 pages may use it, who may open a live link, and how the components and the server's own viewer
 page use it. Everything here is open to change before it is accepted.

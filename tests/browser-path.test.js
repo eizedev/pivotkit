@@ -1,4 +1,4 @@
-// The components' network code (pivotkit-react's server-rows.js, record 0020) against a real
+// The components' network code (pivotkit-react's server-rows.js, record 0021) against a real
 // pivotkit-server: the page's getToken() exchanges a person's token for a browser token, the rows
 // come back as columnar data, and an answer that is not the rows becomes the state the report
 // shows. Persons sign in with an external issuer's token (record 0014), as in the server's tests.

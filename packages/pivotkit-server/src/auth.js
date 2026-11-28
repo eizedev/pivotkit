@@ -8,12 +8,15 @@
  *   request (rotation without a restart); compared as SHA-256 digests in constant time. A bearer no
  *   static token matches may be a signed token the server issued (signed-tokens.js, by its ID in the
  *   log).
- * - "oauth": an OAuth 2.1 protected resource: the issuer's metadata (RFC 8414 or OpenID Connect
- *   discovery), access tokens as JWTs checked against the issuer's JWKS with jose (signature, issuer,
- *   audience, expiry, algorithms; no "none", no HMAC). Each endpoint checks its own audience. The
- *   metadata is fetched in the background with retries; until it is there, `ready()` is false.
- *   Every request to the issuer goes through issuer.js (guardedFetch's rules; a loopback or private
- *   issuer only with auth.intranet).
+ * - "oauth": an OAuth 2.1 protected resource: one or more issuers (auth.issuer or auth.issuers),
+ *   each with its metadata (RFC 8414 or OpenID Connect discovery); access tokens as JWTs checked
+ *   against the JWKS of the issuer they name with jose (signature, issuer, audience, expiry,
+ *   algorithms; no "none", no HMAC). Each endpoint checks its own audience, unless the issuer has
+ *   one of its own. The metadata is fetched in the background with retries, each issuer's on its
+ *   own: `ready()` is true once one issuer's is there, and a token of an issuer not loaded yet gets
+ *   503 while the loaded issuers' tokens pass (one unreachable provider does not take every sign-in
+ *   down). Every request to an issuer goes through issuer.js (guardedFetch's rules; a loopback or
+ *   private issuer only with auth.intranet).
  *
  * The token itself is never logged, never passed on, never part of a message. A caller (callerOf)
  * never holds it: this module keeps an OAuth caller's token in a module-private WeakMap, and the one
@@ -32,7 +35,7 @@ import { ConfigError, DEFAULT_ALGORITHMS, pathOf } from "./config.js";
 import { auditText, auditedText, noteAudit } from "./log.js";
 import { AUDIT_KEY_MIN, TOKEN_DISTINCT_MIN, TOKEN_MIN, TOKEN_SYNTAX, keyProblem, tokenFault } from "./secret-rules.js";
 import { UTF16_TEXT, readSecret, readSecretFile, secretValue, unreadable } from "./secrets.js";
-import { discover, issuerRulesOf, jwksUriOf, refuseIssuerScheme, remoteKeySet } from "./issuer.js";
+import { issuerKeys, issuerRulesOf, issuersOf, refuseIssuerScheme } from "./issuer.js";
 import { guardedFetch, isGuardedFetch } from "./sources/fetch.js";
 import { claimNamesOf, claimsOf } from "./sources/params.js";
 import { SIGNED_TOKEN, SignedTokenError, createSignedVerifier, expiryOf, keyring, looksSigned, signedStore } from "./signed-tokens.js";
@@ -48,8 +51,8 @@ export const MAKE_TOKEN = "pivotkit-server token new (with --file <path> it writ
 /** The command that makes a key for output.downloads.key or audit.key, for the messages. */
 export const makeKey = (use) => `pivotkit-server key new --for ${use} --file <path>`;
 
-/** How often the issuer's metadata is read again (a changed jwks_uri), and the least time between two reads for a token with an unknown key. */
-export const METADATA_REFRESH = Object.freeze({ everyMs: 3_600_000, unknownKeyMs: 60_000 });
+/** How often an issuer's metadata is read again: issuer.js's. */
+export { METADATA_REFRESH } from "./issuer.js";
 
 /** What a request without a token is told: plain words, since PowerShell's ErrorDetails drops what looks like a tag. */
 const NO_TOKEN_TEXT = "no token; send Authorization: Bearer YOUR_TOKEN";
@@ -556,91 +559,75 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
         };
     }
 
-    // oauth
-    const issuer = /** @type {string} */ (auth.issuer);
-    refuseIssuerScheme(auth);
+    return oauthCore(options, { env, log });
+}
+
+/** What a token the server cannot check is told: the same words for an unknown issuer, a bad signature, another audience. */
+const NOT_FOR_THIS_SERVER = "the access token is not valid for this server";
+
+/**
+ * The OAuth sign-in (auth.mode "oauth"): each issuer of issuersOf with its own metadata and key set
+ * (issuer.js issuerKeys). A token is routed by its unverified iss to the issuer it names, exactly,
+ * and checked with that issuer's keys only, never another's: an unknown iss is refused like a bad
+ * signature. The audience is the issuer's own when it has one, else the endpoint's; the issuer's
+ * required scopes come on top of the endpoint's (403 insufficient_scope without them).
+ * @param {import("./config.js").ServerOptions} options
+ * @param {{ env: Record<string, string | undefined>, log: any }} runtime
+ */
+async function oauthCore(options, { env, log }) {
+    const auth = options.auth ?? {};
+    refuseIssuerScheme(options);
     const algorithms = auth.algorithms?.length ? auth.algorithms : [...DEFAULT_ALGORITHMS];
     const audit = await auditOf(options, { env, log });
     // the claims a caller holds: only those the sources' params name (sources/params.js claimsOf)
     const claimNames = claimNamesOf(options.sources);
-    const { jwtVerify } = await import("jose");
+    const { decodeJwt } = await import("jose");
     const rules = issuerRulesOf(options);
-    /** @type {any} */
-    let state = { metadata: null, jwks: null, jwksUri: null };
-    // when a token with an unknown key last made the metadata be read again
-    let unknownAt = 0;
-    /** @type {Promise<boolean> | null} */
-    let inflight = null;
+    const keys = new Map(issuersOf(options).map((entry) => [entry.issuer, issuerKeys(entry, rules, log)]));
+    const all = [...keys.values()];
+    await Promise.all(all.map((k) => k.start()));
+    // ready once one issuer is loaded; each token waits only for its own issuer
+    const ready = () => all.some((k) => k.ready());
+    const waiting = () => all.filter((k) => !k.ready()).map((k) => k.entry);
 
-    /** Reads the issuer's metadata; a new key set only when its jwks_uri changed, so keys stay cached. Whether the key set changed. */
-    async function load() {
-        const metadata = await discover(issuer, rules);
-        const jwksUri = jwksUriOf(metadata, issuer, auth.jwksUri);
-        if (jwksUri === state.jwksUri) {
-            state = { ...state, metadata };
-            return false;
-        }
-        const first = !state.jwks;
-        state = { metadata, jwksUri, jwks: await remoteKeySet(jwksUri, rules, log) };
-        log.info(first ? "oauth: issuer metadata loaded" : "oauth: the issuer's jwks_uri changed; keys are read from the new one", { issuer });
-        return true;
-    }
-
-    /** Reads the metadata again (the hourly refresh, a token with an unknown key); a failure keeps what is loaded. */
-    const refresh = () =>
-        load().catch((e) => {
-            log.warn(`oauth: the issuer's metadata could not be read again, keeping the loaded one: ${String(e?.message ?? e).slice(0, 600)}`);
-            return false;
-        });
-    let delay = 2000;
-    let timer = null;
-    let closed = false;
-    const attempt = () =>
-        load().catch((e) => {
-            if (closed) {
-                return;
-            }
-            log.warn(`oauth: the issuer's metadata could not be loaded, trying again in ${delay / 1000} s: ${String(e?.message ?? e).slice(0, 600)}`);
-            timer = setTimeout(attempt, delay);
-            timer.unref?.();
-            delay = Math.min(delay * 2, 60_000);
-        });
-    await attempt();
-    const refreshing = setInterval(() => {
-        if (state.jwks) {
-            refresh();
-        }
-    }, METADATA_REFRESH.everyMs);
-    refreshing.unref?.();
-
-    /**
-     * Verifies a token. One signed with a key the set does not hold reads the metadata again (at most
-     * once a minute) and, when the key set moved to another jwks_uri, is tried once more.
-     */
-    async function verifyJwt(token, audience) {
-        const how = { issuer, audience, algorithms, clockTolerance: auth.clockTolerance ?? 30, ...(auth.requireTyp ? { typ: auth.requireTyp } : {}), requiredClaims: ["exp"] };
+    /** The key set of the issuer a token names in iss, or null (not a JWT, no iss, an issuer not configured). */
+    const keysOf = (token) => {
         try {
-            return await jwtVerify(token, state.jwks, how);
-        } catch (e) {
-            if (e?.code !== "ERR_JWKS_NO_MATCHING_KEY" || Date.now() - unknownAt < METADATA_REFRESH.unknownKeyMs) {
-                throw e;
-            }
-            // one read for the requests that come at once; the wait starts only after a read that
-            // found nothing new (or failed), so a made-up key cannot hold back a real rotation
-            inflight ??= refresh().finally(() => {
-                inflight = null;
-            });
-            if (!(await inflight)) {
-                unknownAt = Date.now();
-                throw e;
-            }
-            return jwtVerify(token, state.jwks, how);
+            const iss = decodeJwt(token).iss;
+            return typeof iss === "string" ? (keys.get(iss) ?? null) : null;
+        } catch {
+            return null;
         }
-    }
+    };
+    /** Whether a token must wait: no issuer is loaded yet, or the issuer it names in iss is not (as /readyz and the MCP endpoint's gate say). */
+    const waitsFor = (token) => !ready() || keysOf(token)?.ready() === false;
+    /**
+     * The loaded key set to check a token with, or an AuthRefusal: 503 while no issuer or the
+     * token's own is loaded, then 401 for a token of no configured issuer.
+     */
+    const readyKeysOf = (token) => {
+        if (waitsFor(token)) {
+            throw new AuthRefusal(503, "temporarily_unavailable", "the server is waiting for its authorization server");
+        }
+        const held = keysOf(token);
+        if (held) {
+            return held;
+        }
+        log.debug("oauth: token refused", { reason: "UNKNOWN_ISSUER", expected: { issuers: [...keys.keys()] } });
+        throw new AuthRefusal(401, "invalid_token", NOT_FOR_THIS_SERVER);
+    };
+    /** A 403 insufficient_scope for a token without its issuer's own required scopes (auth.issuers[i].requiredScopes). */
+    const refuseIssuerScopes = (entry, scopes) => {
+        if (!entry.requiredScopes.every((s) => scopes.includes(s))) {
+            log.debug("oauth: token refused", { reason: "ISSUER_SCOPES", expected: { issuer: entry.issuer, scopes: entry.requiredScopes } });
+            throw Object.assign(new AuthRefusal(403, "insufficient_scope", `tokens of this issuer need the scopes ${entry.requiredScopes.join(" ")}`), { scopes: entry.requiredScopes });
+        }
+    };
 
     return {
-        mode,
-        issuer,
+        mode: "oauth",
+        /** The first issuer: the one the server names to clients. */
+        issuer: all[0].entry.issuer,
         /**
          * How the log names a person signed in elsewhere (a download link's sign-in), as a call's log
          * line names them: auditText with the operator's audit setting and key; null with audit off.
@@ -648,10 +635,23 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
          * @param {string | null | undefined} subject
          */
         auditName: (iss, subject) => auditText(audit, iss, subject),
-        /** Whether the issuer's metadata and keys are loaded. */
-        ready: () => Boolean(state.jwks),
-        /** The issuer's metadata document, once loaded. */
-        metadata: () => state.metadata,
+        /** Whether one issuer's metadata and keys are loaded, at least. */
+        ready,
+        /** The entries of the issuers whose metadata and keys are not loaded yet, in the operator's order. */
+        waiting,
+        /**
+         * Whether a token gets 503: no issuer is loaded, or the one it names in iss (unverified) is not.
+         * @param {string} token
+         */
+        waitsFor,
+        /**
+         * The required scopes of the issuer a token names in iss, unverified (auth.issuers[i].requiredScopes;
+         * empty for another token): what a 403 insufficient_scope asks for on top of the endpoint's.
+         * @param {string} token
+         */
+        issuerScopes: (token) => keysOf(token)?.entry.requiredScopes ?? [],
+        /** The first issuer's metadata document, once loaded. */
+        metadata: () => all[0].metadata(),
         /**
          * Checks an access token for one endpoint's audience.
          * @param {string} token
@@ -659,18 +659,20 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
          * @returns {Promise<AuthInfo>}  or throws AuthRefusal
          */
         async verify(token, { audience, resource }) {
-            if (!state.jwks) {
-                throw new AuthRefusal(503, "temporarily_unavailable", "the server is waiting for its authorization server");
-            }
+            const held = readyKeysOf(token);
+            const { entry } = held;
+            const expected = { issuer: entry.issuer, audience: entry.audience ?? audience };
             let payload;
             try {
-                ({ payload } = await verifyJwt(token, audience));
+                ({ payload } = await held.verify(token, { audience: expected.audience, algorithms, clockTolerance: auth.clockTolerance ?? 30, ...(auth.requireTyp ? { typ: auth.requireTyp } : {}), requiredClaims: ["exp"] }));
             } catch (e) {
                 // why a token failed stays here (a message would help someone who tries tokens); the
                 // operator sees it with --log debug: jose's code and the claim, never the token
-                log.debug("oauth: token refused", { reason: String(e?.code ?? e?.name ?? "invalid").slice(0, 60), ...(e?.claim ? { claim: String(e.claim).slice(0, 40) } : {}), expected: { issuer, audience } });
-                throw new AuthRefusal(401, "invalid_token", "the access token is not valid for this server");
+                log.debug("oauth: token refused", { reason: String(e?.code ?? e?.name ?? "invalid").slice(0, 60), ...(e?.claim ? { claim: String(e.claim).slice(0, 40) } : {}), expected });
+                throw new AuthRefusal(401, "invalid_token", NOT_FOR_THIS_SERVER);
             }
+            const scopes = scopesOf(payload, auth.scopeClaim);
+            refuseIssuerScopes(entry, scopes);
             const subject = subjectOf(payload[auth.subjectClaim ?? "sub"]);
             const iss = typeof payload.iss === "string" ? payload.iss : null;
             const groups = groupsOf(payload, auth);
@@ -679,7 +681,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             const info = {
                 token,
                 clientId: String(payload.azp ?? payload.client_id ?? "client").slice(0, 80),
-                scopes: scopesOf(payload, auth.scopeClaim),
+                scopes,
                 expiresAt: /** @type {number} */ (payload.exp),
                 resource,
                 extra: { subject, issuer: iss, ...("groups" in groups ? { groups: groups.groups } : { groupsUnknown: true }), audit: auditText(audit, iss, subject), ...(claims ? { claims } : {}) }
@@ -693,10 +695,8 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             return info;
         },
         close() {
-            closed = true;
-            clearInterval(refreshing);
-            if (timer) {
-                clearTimeout(timer);
+            for (const k of all) {
+                k.close();
             }
         }
     };
@@ -872,17 +872,21 @@ export function callerView(caller) {
 /**
  * The RFC 8693 token exchange for a signed-in person: the caller's own access token goes as the
  * subject_token to the token endpoint named here, and nowhere else. Needs an OAuth caller with a
- * subject (NOT_ALLOWED otherwise). The answer is the token endpoint's, unread, with when the
+ * subject whose token the named issuer issued (NOT_ALLOWED otherwise). The answer is the token endpoint's, unread, with when the
  * caller's own token expires (subjectExpiresAt, seconds since 1970), which an exchanged token must
  * not outlive.
  * @param {import("./registry.js").Caller} caller
- * @param {{ url: string, clientId: string, clientSecret?: string, audience?: string, resource?: string, scope?: string, signal?: AbortSignal, timeMs?: number, maxBytes?: number, allowPrivate?: boolean, allowIpLiterals?: boolean, fetch?: typeof guardedFetch }} request  fetch: a guardedFetch (createGuardedFetch's: sources/auth.js passes httpMeans.fetch, which the tests replace with one trusting their certificate); anything else is refused
+ * @param {{ url: string, issuer: string, clientId: string, clientSecret?: string, audience?: string, resource?: string, scope?: string, signal?: AbortSignal, timeMs?: number, maxBytes?: number, allowPrivate?: boolean, allowIpLiterals?: boolean, fetch?: typeof guardedFetch }} request  fetch: a guardedFetch (createGuardedFetch's: sources/auth.js passes httpMeans.fetch, which the tests replace with one trusting their certificate); anything else is refused
  * @returns {Promise<import("./sources/fetch.js").GuardedResponse & { subjectExpiresAt: number | null }>}
  */
 export async function exchangeTokenFor(caller, request) {
     const entry = caller && typeof caller === "object" ? known.get(caller) : undefined;
     if (!entry?.token || !entry.basis || entry.basis[0] === "token" || entry.basis[0] === "local") {
         throw new OperationError("NOT_ALLOWED", "this source needs a signed-in person (an OAuth token with a subject)");
+    }
+    // a person's token goes to its own issuer's token endpoint only (an OAuth caller's basis is [issuer, subject])
+    if (typeof request.issuer !== "string" || entry.basis[0] !== request.issuer) {
+        throw new OperationError("NOT_ALLOWED", "this source exchanges the tokens of another issuer than the one that signed you in");
     }
     const form = new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", subject_token: entry.token, subject_token_type: "urn:ietf:params:oauth:token-type:access_token", requested_token_type: "urn:ietf:params:oauth:token-type:access_token" });
     for (const key of /** @type {const} */ (["audience", "resource", "scope"])) {

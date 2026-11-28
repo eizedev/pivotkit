@@ -118,7 +118,8 @@ export { ConfigError } from "./options/shared.js";
  * @property {Array<{ name: string, env?: string, file?: string, create?: boolean, scopes?: string[], profile?: string, expires?: string }>} [tokens]  create: make a missing file at start (state.js); expires: a date or date-time with a zone, refused from then on
  * @property {{ dir?: string, maxDays?: number }} [signedTokens]  the signed tokens the server issues itself (options/signed.js)
  * @property {Array<{ issuer: string, typ: string, maxMinutes?: number, scopes: string[], profiles?: string[], profile?: string, keys: Array<{ kid: string, publicKey: { env?: string, file?: string } }> }>} [externalIssuers]  tokens another system issues for its signed-in person (options/external.js)
- * @property {string} [issuer]
+ * @property {string} [issuer]  the one issuer; auth.issuers lists more (options/issuer.js)
+ * @property {Array<{ issuer: string, jwksUri?: string, audience?: string[], requiredScopes?: string[] }>} [issuers]  the issuers whose tokens the server accepts, the first the one it names to clients (options/issuer.js)
  * @property {string} [resource]
  * @property {string[]} [audience]
  * @property {string[]} [algorithms]
@@ -374,12 +375,10 @@ function rules(options, range) {
         }
     }
     if (options.auth?.mode === "oauth") {
-        for (const key of ["issuer", "resource"]) {
-            if (!options.auth[key]) {
-                throw new ConfigError(`auth.${key}: needed for auth.mode "oauth"`);
-            }
+        // the issuer, auth.issuer or the list auth.issuers, is options/issuer.js's
+        if (!options.auth.resource) {
+            throw new ConfigError('auth.resource: needed for auth.mode "oauth"');
         }
-        urlOf(options.auth.issuer, "auth.issuer");
         resourceUrlOf(options.auth.resource, "auth.resource");
         for (const alg of options.auth.algorithms ?? []) {
             if (/^(none|HS\d+)$/i.test(alg)) {

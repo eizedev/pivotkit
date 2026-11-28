@@ -1,5 +1,5 @@
 /*
- * The browser path (records 0019 and 0020): a person's token exchanged for a browser token, and the
+ * The browser path (records 0020 and 0021): a person's token exchanged for a browser token, and the
  * sign-in of the rows route with one.
  *
  * POST /api/v1/sources/records/token, in this order:

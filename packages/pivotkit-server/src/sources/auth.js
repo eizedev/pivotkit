@@ -29,6 +29,7 @@ import { readSecret, SecretError } from "../secrets.js";
 import { requestId } from "../request-id.js";
 import { GuardedFetchError, guardedFetch, upstreamCauseOf } from "./fetch.js";
 import { canonicalJson } from "./keys.js";
+import { firstIssuerOf } from "../issuer.js";
 import { SourceError } from "./run.js";
 import { headerValueOf } from "../options/headers.js";
 
@@ -323,10 +324,10 @@ function requestFailure(error, how) {
 }
 
 /**
- * The token endpoint of the configured issuer: its metadata's token_endpoint, which must be https://
+ * The token endpoint of a token exchange's issuer: its metadata's token_endpoint, which must be https://
  * on the issuer's own origin (else the operator names it in tokenExchange.tokenUrl).
  * @param {string} issuer
- * @param {import("../issuer.js").IssuerRules} rules  auth.issuer's (auth.intranet)
+ * @param {import("../issuer.js").IssuerRules} rules  the issuers' (auth.intranet)
  * @param {{ id: string, log: any }} how
  */
 async function issuerTokenUrl(issuer, rules, how) {
@@ -423,7 +424,7 @@ async function tokenExchange(auth, caller, how) {
     const clientSecret = await secretOf(auth.clientSecret, auth, how, "clientSecret");
     let answer;
     try {
-        answer = await exchangeTokenFor(caller, { url, clientId: auth.clientId, clientSecret, ...(auth.audience !== null ? { audience: auth.audience } : {}), ...(auth.resource !== null ? { resource: auth.resource } : {}), ...(auth.scope !== null ? { scope: auth.scope } : {}), timeMs: TOKEN_LIMITS.timeMs, maxBytes: TOKEN_LIMITS.maxBytes, allowPrivate: auth.intranet, allowIpLiterals: auth.allowIpLiterals, fetch: how.fetch });
+        answer = await exchangeTokenFor(caller, { url, issuer: auth.issuer, clientId: auth.clientId, clientSecret, ...(auth.audience !== null ? { audience: auth.audience } : {}), ...(auth.resource !== null ? { resource: auth.resource } : {}), ...(auth.scope !== null ? { scope: auth.scope } : {}), timeMs: TOKEN_LIMITS.timeMs, maxBytes: TOKEN_LIMITS.maxBytes, allowPrivate: auth.intranet, allowIpLiterals: auth.allowIpLiterals, fetch: how.fetch });
     } catch (e) {
         throw requestFailure(e, how);
     }
@@ -528,15 +529,44 @@ export function personBound(options, source) {
  * @param {import("../config.js").ServerOptions} options
  * @param {any} source  options.sources[id]
  */
-export function exchangesToken(options, source) {
+export const exchangesToken = (options, source) => Boolean(exchangeOf(options, source));
+
+/**
+ * A configured source's token exchange as written (its own http.auth, else its backend's), or
+ * undefined.
+ * @param {import("../config.js").ServerOptions} options
+ * @param {any} source  options.sources[id]
+ * @returns {{ issuer?: string } | undefined}
+ */
+function exchangeOf(options, source) {
     const http = source?.http;
     if (!http) {
-        return false;
+        return undefined;
     }
     const backends = options.httpSources?.backends ?? {};
     const auth = http.auth ?? (typeof http.backend === "string" && Object.hasOwn(backends, http.backend) ? backends[http.backend]?.auth : undefined);
-    return Boolean(auth?.tokenExchange);
+    return auth?.tokenExchange;
 }
+
+/**
+ * The issuer whose people a source's token exchange serves (tokenExchange.issuer, else the server's
+ * first issuer, the only one where it may be left out), or null for a source without one.
+ * @param {import("../config.js").ServerOptions} options
+ * @param {any} source  options.sources[id]
+ * @returns {string | null}
+ */
+export function exchangeIssuerOfSource(options, source) {
+    const exchange = exchangeOf(options, source);
+    return exchange ? (exchange.issuer ?? firstIssuerOf(options)) : null;
+}
+
+/**
+ * Whether a caller may use a source personBound marks: a person (isPerson), and for a token exchange
+ * one whom its issuer signed in (exchangeIssuerOfSource; null: any issuer).
+ * @param {import("../registry.js").Caller} caller
+ * @param {string | null} issuer
+ */
+export const personFits = (caller, issuer) => isPerson(caller) && (issuer === null || caller.issuer === issuer);
 
 /**
  * Whether a caller may use a source personBound marks: a verified OAuth caller with a subject (an

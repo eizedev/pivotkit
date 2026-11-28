@@ -5,7 +5,7 @@ status: proposed
 date: 2026-11-28
 ---
 
-# 0019 A browser token for the rows of one report
+# 0020 A browser token for the rows of one report
 
 Sources: [#621](https://github.com/eizedev/pivotkit/issues/621),
 [the decision on #621](https://github.com/eizedev/pivotkit/issues/621#issuecomment-7231514614)
@@ -32,7 +32,7 @@ Chosen option: a separate short-lived token. Decided on #621:
 - The host's backend, or the server's own viewer page, exchanges the person's token at
   pivotkit-server for a browser token.
 - The server makes it with its own key. It is valid only for reading the rows of the report it was
-  made for, for a few minutes, and it can be revoked. [0020](0020-the-browser-path.md) refines
+  made for, for a few minutes, and it can be revoked. [0021](0021-the-browser-path.md) refines
   both: the token is encrypted with the key, not signed, and a new key revokes every token at once.
   A deny list for one token is not built.
 - At the start, the browser path accepts only this token, never a passed-on access token of the
@@ -42,7 +42,7 @@ Chosen option: a separate short-lived token. Decided on #621:
 
 Reason recorded on #621: a script in the page can read a token in the browser. A passed-on token
 also works for the host itself and everything else with the same audience. A separate token only
-reads this report, ends on its own and can be revoked (all at once, as 0020 refines it). It works the
+reads this report, ends on its own and can be revoked (all at once, as 0021 refines it). It works the
 same for every host, with or without its own identity provider.
 
 ### What this changes in earlier records
@@ -61,4 +61,4 @@ same for every host, with or without its own identity provider.
 - Bad: the page asks for a new token every few minutes. `getToken()` is called again when a token
   expires.
 - Bad: the server needs a key of its own for these tokens, beside its other keys.
-- [0020](0020-the-browser-path.md) records how the browser path is built around this token.
+- [0021](0021-the-browser-path.md) records how the browser path is built around this token.

@@ -1,5 +1,5 @@
 /*
- * Reading a report's rows from pivotkit-server with a browser token (record 0020), without a DOM:
+ * Reading a report's rows from pivotkit-server with a browser token (record 0021), without a DOM:
  * the token from the page's getToken(), the rows route, and what an answer that is not the rows
  * means for the person (a state). Loaded on first use with the states' parts (server-module.js).
  *

@@ -1,4 +1,4 @@
-// The browser path (records 0019 and 0020): a person's token exchanged at POST
+// The browser path (records 0020 and 0021): a person's token exchanged at POST
 // /api/v1/sources/records/token for a short-lived browser token, which reads the rows of that one
 // source with those params only, from a page on rest.browser.origins or the server's own origin.
 // Every other route, MCP and /openapi.json refuse the token as unknown; the log names its ID only.

@@ -278,8 +278,8 @@ test("check-config: the issuer's rules, and a PROBLEM for an issuer on a private
     const checked = await checkConfig(options({}));
     const refused = { ...checked, text: factsOf(checked.text) };
     assert.match(refused.text, /\nIssuer requests:\n {2}https only, no redirects, metadata up to 256 KiB, keys up to 256 KiB\n {2}loopback and private addresses: refused \(set auth\.intranet: true for an issuer in your LAN or cluster\)\n/);
-    // the server starts and keeps trying: callers get 503 meanwhile
-    assert.match(refused.text, /PROBLEM: auth\.issuer: localhost resolves to (127\.0\.0\.1|::1), a loopback or private address, which the server refuses without auth\.intranet: true -> the server starts; callers get 503 until the issuer can be reached/);
+    // the server starts and keeps trying: the issuer's tokens get 503 meanwhile
+    assert.match(refused.text, /PROBLEM: auth\.issuer: localhost resolves to (127\.0\.0\.1|::1), a loopback or private address, which the server refuses without auth\.intranet: true -> the server starts; the issuer's tokens get 503 until it can be reached/);
     assert.ok(refused.problems >= 1);
     assert.equal(refused.stops, 0);
     const allowed = await checkConfig(options({ intranet: true }));
@@ -349,7 +349,7 @@ test("a key-set answer jose would refuse (500, or 200 without a keys list) count
 test("check-config: an issuer on a metadata address is a PROBLEM the server starts with, never one that stops it", async () => {
     const result = await checkConfig({ sources: SOURCES, baseDir: workspace(), auth: { mode: "oauth", issuer: "https://169.254.169.254/", resource: REST_RESOURCE, intranet: true } }, { http: true, env: {} });
     const text = factsOf(result.text);
-    assert.match(text, /^PROBLEM: auth\.issuer: 169\.254\.169\.254, which is never connected to \(link-local, metadata, multicast or unspecified\) -> the server starts; callers get 503 until the issuer can be reached$/m);
+    assert.match(text, /^PROBLEM: auth\.issuer: 169\.254\.169\.254, which is never connected to \(link-local, metadata, multicast or unspecified\) -> the server starts; the issuer's tokens get 503 until it can be reached$/m);
     assert.equal(result.stops, 0);
     assert.match(text.split("\n")[0], /the server starts, but not everything will work\.$/);
     assert.doesNotMatch(text, /does not start/);
@@ -362,7 +362,7 @@ test("check-config: a private issuer without auth.intranet is one PROBLEM, and i
     await withLookup(["127.0.0.1"], async () => {
         const result = await checkConfig({ sources: SOURCES, baseDir: workspace(), auth: { mode: "oauth", issuer, resource: REST_RESOURCE } }, { http: true, env: {}, discover });
         const lines = factsOf(result.text).split("\n");
-        assert.deepEqual(lines.filter((l) => l.startsWith("PROBLEM: auth.issuer")), [`PROBLEM: auth.issuer: 127.0.0.1, a loopback or private address, which the server refuses without auth.intranet: true -> the server starts; callers get 503 until the issuer can be reached`]);
+        assert.deepEqual(lines.filter((l) => l.startsWith("PROBLEM: auth.issuer")), [`PROBLEM: auth.issuer: 127.0.0.1, a loopback or private address, which the server refuses without auth.intranet: true -> the server starts; the issuer's tokens get 503 until it can be reached`]);
         assert.deepEqual(lines.filter((l) => l.startsWith("WARNING") && l.includes("auth.issuer")), [], result.text);
         assert.equal(result.problems, 1, result.text);
     });

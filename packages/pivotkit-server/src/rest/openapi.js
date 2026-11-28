@@ -20,6 +20,7 @@ import { NAMED_VIEW_OPERATIONS } from "../views.js";
 import { RECORDS_INPUT, RECORDS_OUTPUT } from "../records.js";
 import { BROWSER_TOKEN_INPUT, BROWSER_TOKEN_OUTPUT } from "../browser.js";
 import { DEFAULT_NAME, DOCS_SITE, docsLink, withDocs } from "../branding.js";
+import { firstIssuerOf } from "../issuer.js";
 
 const require = createRequire(import.meta.url);
 
@@ -173,7 +174,7 @@ export function openApiDocument(options = {}) {
         const scopes = Object.fromEntries([...new Set([...required, ...Object.values(auth.toolScopes ?? {}).flat(), ...(auth.scopesSupported ?? [])])].map((s) => [s, `the scope ${s}`]));
         securitySchemes.oauth = issuer?.authorization_endpoint && issuer?.token_endpoint
             ? { type: "oauth2", description: `An access token of ${issuer.issuer} for the resource ${options.resource ?? REST_BASE}.`, flows: { authorizationCode: { authorizationUrl: issuer.authorization_endpoint, tokenUrl: issuer.token_endpoint, scopes } } }
-            : { type: "openIdConnect", openIdConnectUrl: `${String(auth.issuer ?? "").replace(/\/$/, "")}/.well-known/openid-configuration`, description: `An access token for the resource ${options.resource ?? REST_BASE}.` };
+            : { type: "openIdConnect", openIdConnectUrl: `${String(firstIssuerOf({ auth }) ?? "").replace(/\/$/, "")}/.well-known/openid-configuration`, description: `An access token for the resource ${options.resource ?? REST_BASE}.` };
     }
     const schemeName = Object.keys(securitySchemes)[0];
     const security = (route) => (schemeName ? [{ [schemeName]: mode === "oauth" ? [...required, ...(auth.toolScopes?.[route.operation] ?? [])] : [] }] : []);

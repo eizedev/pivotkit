@@ -1,4 +1,4 @@
-// A report that reads its rows from a server (record 0020): the web component with server-url on
+// A report that reads its rows from a server (record 0021): the web component with server-url on
 // pages/element/server.html, under the strict Content-Security-Policy (connect-src 'self'). This spec
 // answers the server's rows route; tests/browser-path.test.js runs the same network code against a
 // real pivotkit-server. The states, the banner above rows already shown, the line over a slow

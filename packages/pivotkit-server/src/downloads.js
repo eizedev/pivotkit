@@ -10,7 +10,8 @@
  *   directory agree); the same browser may repeat it for two minutes. "signIn": GET signs the person
  *   in at the issuer (code flow, PKCE, state, nonce) and the callback sends the file only to the
  *   person whose subject the token holds. The issuer's metadata, keys and token endpoint are
- *   requested through issuer.js, under the rules of auth.issuer (signIn.issuer is auth.issuer).
+ *   requested through issuer.js, under the rules of the server's issuers (signIn.issuer is the first
+ *   of them, issuer.js firstIssuerOf).
  * - Nothing here logs a token, a code, a state, a cookie or a path.
  *
  * This file mounts the route and gives delivery.js its links. downloads/ holds the parts: tokens.js
@@ -20,7 +21,7 @@
 import { join } from "node:path";
 import { publicOriginOf } from "./config.js";
 import { insecurePublicHost, insecureUrlText, settingsOf } from "./options/downloads.js";
-import { issuerRulesOf } from "./issuer.js";
+import { issuerRulesOf, issuersOf } from "./issuer.js";
 import { allowedHosts, hostRefusal, hostRefusedLine } from "./checks.js";
 import { isLoopback } from "./listen.js";
 import { outputDir } from "./output.js";
@@ -168,9 +169,9 @@ export function createDownloadHandler(context, runtime = {}) {
     const keys = keySource(settings, options, env);
     const active = settings.enabled;
     const issuerRules = issuerRulesOf(options);
-    // the operator's tokenUrl is an origin the operator wrote, like auth.issuer's
+    // the operator's tokenUrl is an origin the operator wrote, like the issuers'
     const signInRules = settings.signIn?.tokenUrl ? Object.freeze({ ...issuerRules, origins: [...issuerRules.origins, new URL(settings.signIn.tokenUrl).origin] }) : issuerRules;
-    const issuer = active && settings.bind === "signIn" && settings.signIn ? signInIssuer(settings.signIn, issuerRules, options.auth?.jwksUri, context.log) : null;
+    const issuer = active && settings.bind === "signIn" && settings.signIn ? signInIssuer(settings.signIn, issuerRules, issuersOf(options)[0], context.log) : null;
     /** @type {any} */
     const state = { settings, keys, base: publicOrigin, handler: null };
     const secure = () => (state.base ?? "").startsWith("https:");

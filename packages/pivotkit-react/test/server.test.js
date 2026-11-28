@@ -1,4 +1,4 @@
-// A report with a `server` (record 0020): what it asks for, read from the page's own configuration
+// A report with a `server` (record 0021): what it asks for, read from the page's own configuration
 // and its query string only; how answers that are not the rows become states; their words. The
 // same code against a real pivotkit-server is in the repository's tests/browser-path.test.js.
 import { test } from "node:test";

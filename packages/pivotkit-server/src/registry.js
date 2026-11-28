@@ -13,7 +13,7 @@ import { cleanText } from "pivotkit-core/import";
 import { OperationError } from "pivotkit-report/operations";
 import { pathOf, serverLimitsOf } from "./config.js";
 import { fieldKey, resolvePolicy } from "./policy.js";
-import { isPerson, personBound } from "./sources/auth.js";
+import { exchangeIssuerOfSource, isPerson, personBound, personFits } from "./sources/auth.js";
 import { FILE_PREFIX, INLINE_ID, KINDS, kindOf } from "./sources/index.js";
 import { resolveFilePath } from "./sources/file.js";
 import { resolveInline } from "./sources/inline.js";
@@ -176,15 +176,16 @@ export async function createRegistry(options, { log = null } = {}) {
     // httpSources.enabled: false leaves every HTTP source out, as if it were not configured
     const sources = new Map(Object.entries(options.sources ?? {}).filter(([, s]) => !(s.http && options.httpSources?.enabled === false)));
     const filePolicy = resolvePolicy(options.policy, files.policy, undefined, { file: true });
-    // the sources only a signed-in person can use (a token exchange, a claim): no schedule, and not
-    // there for a caller without a subject
-    const bound = new Set([...sources.entries()].filter(([, s]) => personBound(options, s)).map(([id]) => id));
-    /** Whether a caller may use a source: its scopes, and a person for a bound one. */
-    const usable = (caller, id, source) => holds(caller, source.scopes) && (!bound.has(id) || isPerson(caller));
-    /** The operator's line when a caller without a subject asks for such a source (the caller reads "not found"). */
+    // the sources only a signed-in person can use (a token exchange, a claim), each with the issuer
+    // whose people its token exchange serves (null: any): no schedule, and not there for a caller
+    // without a subject or of another issuer
+    const bound = new Map([...sources.entries()].filter(([, s]) => personBound(options, s)).map(([id, s]) => [id, exchangeIssuerOfSource(options, s)]));
+    /** Whether a caller may use a source: its scopes, and a person (of its exchange's issuer) for a bound one. */
+    const usable = (caller, id, source) => holds(caller, source.scopes) && (!bound.has(id) || personFits(caller, bound.get(id) ?? null));
+    /** The operator's line when a caller without a subject, or of another issuer, asks for such a source (the caller reads "not found"). */
     const hidden = (caller, id) => {
-        if (bound.has(id) && holds(caller, sources.get(id)?.scopes) && !isPerson(caller)) {
-            log?.info(`a source only a signed-in person can use was asked for, and the caller's token has no subject (auth.subjectClaim); it answered "not found"`, { source: id });
+        if (bound.has(id) && holds(caller, sources.get(id)?.scopes) && !personFits(caller, bound.get(id) ?? null)) {
+            log?.info(isPerson(caller) ? `a source whose token exchange serves another issuer's people was asked for (tokenExchange.issuer); it answered "not found"` : `a source only a signed-in person can use was asked for, and the caller's token has no subject (auth.subjectClaim); it answered "not found"`, { source: id });
         }
     };
     /** The profile a caller's policy takes, if any. */
