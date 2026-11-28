@@ -846,8 +846,11 @@ your own page on a REST-only server too ([your own name and links](branding.md#p
 take work, and 503 otherwise:
 
 - The 200 answer is `{ "ok": true, "checks": { "auth": true, "workers": true, "output": true } }`:
-  the OAuth issuer loaded, workers up, the output directory writable.
+  an OAuth issuer loaded ([of several](sign-in.md#issuers), one), workers up, the output directory
+  writable.
 - The 503 answer has `reason` in fixed words (`"the OAuth issuer's metadata is not loaded; see the log"`).
+- Both name the OAuth issuers not loaded yet in `waiting`, by their option: `["auth.issuer"]` with
+  one issuer, `["auth.issuers[1].issuer"]` with several.
 
 Both answer `HEAD` too.
 

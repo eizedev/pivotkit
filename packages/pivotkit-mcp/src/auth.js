@@ -5,10 +5,10 @@
  * - "token": 401 with `WWW-Authenticate: Bearer realm="pivotkit-mcp"` (the name's slug, branding.name,
  *   before "-mcp") and an OAuth error body;
  * - "oauth": the endpoint is an OAuth 2.1 protected resource (MCP authorization, revision
- *   2026-07-28): Protected Resource Metadata (RFC 9728) with the issuer as authorization server, the
+ *   2026-07-28): Protected Resource Metadata (RFC 9728) with the first issuer as authorization server, the
  *   SDK's requireBearerAuth for the 401 and 403 challenges (insufficient_scope for missing scopes),
  *   403 access_denied for a person whose token does not carry their groups (auth.groupProfiles),
- *   503 until the issuer's metadata is loaded. Its audience is auth.resource (the REST service has
+ *   503 until the token's own issuer is loaded. Its audience is auth.resource (the REST service has
  *   its own).
  *
  * The token itself is never logged, never passed on, never part of a message.
@@ -16,7 +16,7 @@
 
 import { OAuthError, getOAuthProtectedResourceMetadataUrl, oauthMetadataResponse, requireBearerAuth } from "@modelcontextprotocol/server";
 import { groupRefusal, offeredScopes } from "pivotkit-server";
-import { AuthRefusal, brandingOfContext, docsLink } from "pivotkit-server/internal";
+import { AuthRefusal, bearerOf, brandingOfContext, docsLink, everyIssuerScoped } from "pivotkit-server/internal";
 
 /** The client of each answer that refused a verified token for its person's groups, for the log line. */
 const refusedClients = new WeakMap();
@@ -70,7 +70,7 @@ export async function createAuth(context, runtime) {
     const resource = new URL(/** @type {string} */ (auth.resource));
     const audience = auth.audience?.length ? auth.audience : [resource.href.replace(/\/$/, ""), resource.href];
     const requiredScopes = auth.requiredScopes ?? [];
-    if (!requiredScopes.length) {
+    if (!everyIssuerScoped(options, requiredScopes)) {
         context.log.warn("auth.requiredScopes is empty: any token of the issuer for this audience is accepted");
     }
     const resourceMetadataUrl = getOAuthProtectedResourceMetadataUrl(resource);
@@ -80,19 +80,35 @@ export async function createAuth(context, runtime) {
             try {
                 return await core.verify(token, { audience, resource });
             } catch (e) {
-                throw e instanceof AuthRefusal ? new OAuthError("invalid_token", e.message) : e;
+                // a valid token without its issuer's required scopes (auth.issuers) is the SDK's 403
+                throw e instanceof AuthRefusal ? new OAuthError(e.error === "insufficient_scope" ? "insufficient_scope" : "invalid_token", e.message) : e;
             }
         }
     };
     // the audience is checked by the core (resource or a configured audience); the verifier then
     // reports the canonical resource, so the SDK's own resource check agrees with it
-    const gateOf = requireBearerAuth({ verifier, requiredScopes, resourceMetadataUrl, expectedResource: resource });
+    // one gate per set of scopes a 403 asks for: the endpoint's, and an issuer's own on top for its
+    // tokens (auth.issuers[i].requiredScopes), so the challenge names every scope the token lacks
+    /** @type {Map<string, ReturnType<typeof requireBearerAuth>>} */
+    const gates = new Map();
+    /** @param {Request} request */
+    const gateOf = (request) => {
+        const bearer = bearerOf(request);
+        const scopes = [...new Set([...requiredScopes, ...("token" in bearer ? core.issuerScopes(bearer.token) : [])])];
+        const key = scopes.join(" ");
+        if (!gates.has(key)) {
+            gates.set(key, requireBearerAuth({ verifier, requiredScopes: scopes, resourceMetadataUrl, expectedResource: resource }));
+        }
+        return /** @type {ReturnType<typeof requireBearerAuth>} */ (gates.get(key))(request);
+    };
     return {
         mode,
         resourceMetadataUrl,
         /** @param {Request} request */
         async gate(request) {
-            if (!core.ready()) {
+            // no issuer loaded yet, or not the one this token names: the loaded issuers' tokens pass
+            const bearer = bearerOf(request);
+            if (!core.ready() || ("token" in bearer && core.waitsFor(bearer.token))) {
                 return json(503, { error: "temporarily_unavailable", error_description: "the server is waiting for its authorization server" }, { "retry-after": "10" });
             }
             if (new URL(request.url).searchParams.has("access_token")) {

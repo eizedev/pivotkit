@@ -38,6 +38,7 @@ import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { OperationError } from "pivotkit-report/operations";
 import { isExternalCaller } from "./auth.js";
+import { firstIssuerOf, issuersOf } from "./issuer.js";
 import { outputDir, writeOutput } from "./output.js";
 import { linksOf, subjectBindingOf } from "./downloads.js";
 import { filenameOf } from "./downloads/files.js";
@@ -106,11 +107,14 @@ export function storeFor(store, { closed, surface, results, draft, signedIn = fa
 
 /**
  * Whether a caller can open a report bound to its sign-in (a signIn link or store): an issuer and a
- * subject the server's own sign-in can check. A person of an external issuer has both, but signs in
- * elsewhere, so a bound report would reach nobody or the wrong check: such a caller is not signed in here.
+ * subject the server's own sign-in can check, which signs in at the server's first issuer
+ * (options/downloads.js). A person of an external issuer, or of another of auth.issuers, has both
+ * but signs in elsewhere, so a bound report would reach nobody or the wrong check: such a caller is
+ * not signed in here. With one issuer every verified caller is that issuer's.
  * @param {import("./registry.js").Caller | undefined} caller
+ * @param {{ auth?: import("./config.js").AuthOptions } | undefined} options
  */
-export const signedInForDelivery = (caller) => Boolean(caller?.subject && caller?.issuer) && !isExternalCaller(/** @type {any} */ (caller));
+export const signedInForDelivery = (caller, options) => Boolean(caller?.subject && caller?.issuer) && (issuersOf(options ?? {}).length < 2 || caller?.issuer === firstIssuerOf(options ?? {})) && !isExternalCaller(/** @type {any} */ (caller));
 
 /** "it works for 60 minutes", in the note's words. */
 const forMinutes = (minutes) => `${minutes} minute${minutes === 1 ? "" : "s"}`;
@@ -137,7 +141,7 @@ function noteOf(bound, minutes) {
 export async function deliver(context, file, how) {
     const closed = how.sourceClosed !== false;
     const store = uploadSettingsOf(context.options ?? {});
-    const signedIn = signedInForDelivery(how.caller);
+    const signedIn = signedInForDelivery(how.caller, context.options);
     if (storeFor(store, { closed, surface: how.surface, results: how.policy?.results === true, draft: how.draft === true, signedIn })) {
         // a signIn store gets the person's binding (the HMAC a sign-in link holds, never the subject), so it can scope the report
         const subject = store?.bind === "signIn" && signedIn ? await subjectBindingOf(context, /** @type {string} */ (how.caller.issuer), /** @type {string} */ (how.caller.subject)) : null;
