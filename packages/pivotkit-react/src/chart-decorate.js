@@ -62,8 +62,8 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
  * them (`hostOptions`, checked, mergeChartOptions), and then the labels of lying reference lines
  * placed at their lines' real heights: after the first draw ECharts knows where each value is
  * (convertToPixel), so the marks are laid out again with it (pivotkit-core's decorateOption,
- * pixelOf) and only the series are set again; a treemap's labels likewise at the middle of the tiles it
- * drew (drawnTiles).
+ * pixelOf) and only the series are set again; a treemap's labels likewise to fit the tiles it drew
+ * (drawnTiles).
  * @param {any} instance  the chart's ECharts instance
  * @param {any} option  pivotkit-core's toEChartsOption
  * @param {{ getPropertyValue(name: string): string }} style
@@ -89,7 +89,7 @@ export function drawOption(instance, option, style, doc, extra, hostOptions) {
     if (lying && (first.series ?? []).some((/** @type {any} */ s) => s.markLine || s.markPoint)) {
         instance.setOption({ series: marked((value) => instance.convertToPixel({ yAxisIndex: 0 }, value)).series });
     }
-    // a treemap's labels in the middle of the tiles it drew
+    // a treemap's labels fitted to the tiles it drew
     const tileOf = drawnTiles(instance);
     if (tileOf) instance.setOption({ series: marked(undefined, tileOf).series });
     return own;

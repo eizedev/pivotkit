@@ -125,13 +125,12 @@ shows. A fixed colour per name keeps it the same in every chart.
   Chart settings › Entries, with the colour beside each series.
 - The host's `colorMap` prop (`colorMap` property of the web component) sets them for every view:
   `{ Failed: "#e3000f", Success: ["#287233", "#4caf50"] }`. A list of two is one colour for the light
-  theme and one for the dark.
+  theme and one for the dark, after the theme the report shows.
 - The view's colour wins over the host's. A name in neither keeps the palette's colour.
-- Names match series of bars, lines and areas, and slices of a pie or a donut, without regard to case.
-  A heatmap has no series to colour.
-- A view's colour is one colour for both themes. A host's pair `[light, dark]` follows the theme
-  the report shows.
-- A view's colour is `#rgb` or `#rrggbb`. The host's is hex of 3, 4, 6 or 8 digits, `rgb()`,
+- Names match series of bars, lines and areas, slices of a pie or a donut, and tiles of a treemap,
+  without regard to case. A heatmap has no series to colour.
+- A treemap draws a colour too pale for its text darker ([Theming](../reference/theming.md#chart-colours)).
+- A view's colour is `#rgb` or `#rrggbb`, one colour for both themes. The host's is hex of 3, 4, 6 or 8 digits, `rgb()`,
   `rgba()`, `hsl()`, `hsla()` or a CSS name. In a browser the name must be one it reads. Other values
   are left out.
 - The chart image, the SVG, the HTML report and a print show the colours. Files take the host's

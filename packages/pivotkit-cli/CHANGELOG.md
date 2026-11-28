@@ -6,6 +6,11 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Changed
+
+- The Corporate template of `pivotkit example templates` sets `--pk-chart-tile-text`, the text on a
+  treemap's tiles ([#984](https://github.com/eizedev/pivotkit/issues/984)).
+
 ## [0.7.0] - 2026-11-26
 
 ### Changed

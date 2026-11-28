@@ -183,7 +183,7 @@ export function chartSvg(result, { echarts, style, width, height, locale, labels
         if (!Array.isArray(first.yAxis) && first.yAxis?.type === "value" && (first.series ?? []).some((/** @type {any} */ s) => s.markLine || s.markPoint)) {
             chart.setOption({ series: marked((v) => chart.convertToPixel({ yAxisIndex: 0 }, v)).series });
         }
-        // a treemap's labels in the middle of the tiles it drew, as on the screen
+        // a treemap's labels fitted to the tiles it drew, as on the screen
         const tileOf = drawnTiles(chart);
         if (tileOf) chart.setOption({ series: marked(undefined, tileOf).series });
         svg = chart.renderToSVGString();

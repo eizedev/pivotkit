@@ -98,8 +98,8 @@ export const TEXT_CONTRAST = 4.5;
  * reaches TEXT_CONTRAST (a mid blue between the theme's two), white or black: the one on the best ink's
  * side where it reaches TEXT_CONTRAST, else the other. One of them always reaches 4.58:1 on an opaque
  * colour. A fill it cannot read (not hex or rgb()) gives
- * the first candidate. Used for a heatmap's cell numbers; decorateOption puts a treemap's labels on a
- * background of their own instead (treemapLabels in chart-style.js).
+ * the first candidate. Used for a heatmap's cell numbers; a treemap keeps one text colour and darkens its
+ * tiles instead (tileFill).
  * @param {string} fill
  * @param {string[]} candidates
  */
@@ -127,7 +127,7 @@ export const hexOf = (/** @type {number[]} */ rgb) => `#${rgb.map((v) => Math.ro
  * tile's own colour where the ink reaches it, else that colour mixed, a hundredth at a time, with black
  * (a light ink) or white (a dark ink), only as far as the ink needs. Where no mix reaches `floor` (a
  * grey ink and a high floor), black or white. A floor of 1 or less, and a colour or ink it cannot read
- * (not hex or rgb()), keep the tile's colour.
+ * (not hex or rgb()), keep the tile's colour; alpha is not read, so both count as opaque.
  * @param {string} tile
  * @param {string} ink
  * @param {number} floor

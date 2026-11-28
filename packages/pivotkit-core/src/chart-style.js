@@ -99,11 +99,17 @@ function fitText(text, width, fontSize) {
 }
 
 /**
- * A number from a token, else `fallback`: a font weight (1 to 1000) or a contrast.
+ * A number from a token, else `fallback`: a font weight (1 to 1000) or a contrast (0 or more).
  * @param {string} text
  * @param {number} fallback
+ * @param {number} [max]
  */
-const numberOr = (text, fallback) => (text !== "" && Number.isFinite(Number(text)) ? Number(text) : fallback);
+const numberOr = (text, fallback, max = Infinity) => {
+    const n = text === "" ? NaN : Number(text);
+    return Number.isFinite(n) && n >= 0 && n <= max ? n : fallback;
+};
+/** A font weight from a token (1 to 1000), else `fallback`. */
+const weightOr = (/** @type {string} */ text, /** @type {number} */ fallback) => numberOr(text, fallback, 1000) || fallback;
 
 /**
  * How a treemap writes on its tiles, from the tokens: the text's colour (--pk-chart-tile-text), the
@@ -127,7 +133,7 @@ function tileLookOf(v, { fontSize, readColor, parseColor }) {
         floor: numberOr(v("--pk-chart-tile-contrast"), DEFAULT_THEME.tileContrast),
         fontSize: pxOf(v("--pk-chart-tile-size")) ?? fontSize,
         padding: pxOf(v("--pk-chart-tile-padding")) ?? DEFAULT_THEME.tilePadding,
-        weights: /** @type {[number, number]} */ ([numberOr(v("--pk-chart-tile-weight"), numberOr(v("--pk-weight-strong"), DEFAULT_THEME.strongWeight)), numberOr(v("--pk-weight-normal"), DEFAULT_THEME.normalWeight)]),
+        weights: /** @type {[number, number]} */ ([weightOr(v("--pk-chart-tile-weight"), weightOr(v("--pk-weight-strong"), DEFAULT_THEME.strongWeight)), weightOr(v("--pk-weight-normal"), DEFAULT_THEME.normalWeight)]),
         tileColor
     };
 }
@@ -143,7 +149,8 @@ function tileLookOf(v, { fontSize, readColor, parseColor }) {
  * @param {any} s  the treemap's series
  * @param {{ ink: string, floor: number, fontSize: number, padding: number, weights: [number, number], tileColor: (color: string) => string }} look
  *   ink: the text's colour; floor: the contrast it keeps; weights: the name's and the value's;
- *   tileColor: a tile's colour as contrastOf reads it (hex or rgb()), or as it is
+ *   tileColor: a colour as contrastOf reads it (hex or rgb()), or as it is; the ink is read so too, so a
+ *   named or hsl() ink keeps its contrast
  * @param {((index: number, name: string) => { width: number, height: number } | null) | undefined} tileOf
  * @returns {{ label: any, data: any[] }}
  */
@@ -157,9 +164,10 @@ function treemapLabels(s, { ink, floor, fontSize, padding, weights, tileColor },
     const words = (/** @type {string[]} */ lines) => [styled("name", lines[0]), ...lines.slice(1).map((t) => styled("value", t))].join("\n");
     const label = { ...s.label, position: "insideTopLeft", padding, color: ink, rich, ...(format ? { formatter: (/** @type {any} */ p) => words(String(format(p)).split("\n")) } : {}) };
     const bold = weights[0] >= 600 ? BOLD_WIDTH : 1;
+    const shownInk = tileColor(ink);
     const data = (Array.isArray(s.data) ? s.data : []).map((/** @type {any} */ d, /** @type {number} */ i) => {
         const own = d.itemStyle?.color;
-        const item = typeof own === "string" ? { ...d, itemStyle: { ...d.itemStyle, color: tileFill(tileColor(own), ink, floor) } } : d;
+        const item = typeof own === "string" ? { ...d, itemStyle: { ...d.itemStyle, color: tileFill(tileColor(own), shownInk, floor) } } : d;
         const tile = format && tileOf ? tileOf(i, d.name) : null;
         if (!tile || !format) return item;
         const width = tile.width - 2 * padding;

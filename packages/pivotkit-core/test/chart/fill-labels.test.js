@@ -104,6 +104,18 @@ test("treemap: a host's colour in any form ECharts reads (a name, hsl(), #rgb) i
     }
 });
 
+test("treemap: a named text colour is read through parseColor, so the tiles still keep the contrast; a weight out of 1 to 1000 falls back", () => {
+    const r = computePivot(REGIONS, { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" }, formatting: { locale: "en-US" } });
+    const style = lightWith({ "--pk-chart-tile-text": "white", "--pk-chart-tile-weight": "0", "--pk-weight-normal": "5000" });
+    const parseColor = (/** @type {string} */ c) => (c === "white" ? [255, 255, 255, 1] : /^#[0-9a-f]{6}$/i.test(c) ? [0, 1, 2].map((i) => parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16)).concat(1) : null);
+    const [s] = decorateOption(toEChartsOption(r, { theme: chartThemeFrom(style) }), style, { width: 800, height: 480, parseColor }).series;
+    assert.equal(s.label.color, "white");
+    for (const t of tilesOf(s)) assert.ok(/** @type {number} */ (contrastOf("#ffffff", t.fill)) >= 4.6, `${t.name}: ${t.fill}`);
+    const [plain] = drawn(r, lightWith()).series;
+    assert.equal(s.label.rich.name.fontWeight, plain.label.rich.name.fontWeight);
+    assert.equal(s.label.rich.value.fontWeight, plain.label.rich.value.fontWeight);
+});
+
 test("treemap: the tokens set the text's colour, its contrast, size, weights and padding; --pk-chart-tile-contrast 0 keeps every colour", () => {
     const r = computePivot(REGIONS, { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }], chart: { type: "treemap" }, formatting: { locale: "en-US" } });
     const palette = PALETTE(THEME_TOKENS.light);

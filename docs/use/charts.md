@@ -81,15 +81,16 @@ report: the report itself, field list included, is at least 1,024 pixels wide.
 ![A treemap of 20 countries by population, each tile named with its value](../assets/screenshots/chart-treemap-light.png#only-light)
 ![A treemap of 20 countries by population, each tile named with its value](../assets/screenshots/chart-treemap-dark.png#only-dark)
 
-- Each tile shows its name in bold and its value below it, at its top left, in white on every tile.
-- A tile too light for white text is drawn darker, just enough for 4.6:1. Your own colours too
-  (Chart settings › Entries, `colorMap`). Entries keeps the colour you set; the tooltip shows the tile's.
+- Each tile shows its name in bold and its value below it, at its top left, in one text colour.
+- A tile too light for that text is drawn darker, just enough for it to read.
 - A name wider than its tile ends in "…" after at least 4 characters; a value that does not fit is
-  left out. A tile with less room, or lower than a line, shows no text. Point at or tap a tile for both.
+  left out. A tile with less room, or lower than a line, shows no text; on a phone that is most small
+  tiles. Point at or tap a tile for both.
 - A row with a total of 0 or less gets no tile.
 - The colours only tell the tiles apart. They do not stand for a value.
 - The text's colour, size and weight, its padding and the contrast are tokens ([Theming](../reference/theming.md#chart-colours)).
-- It has no legend. **Chart settings › Entries** hides a tile or sets its colour.
+- It has no legend. **Chart settings › Entries** hides a tile or sets its colour, which a pale tile
+  shows darker too; Entries and the tooltip show the colour you set and the one drawn.
 - With a field on Columns, a tile adds up every column, as a pie does.
 - A click on a tile opens no rows.
 
