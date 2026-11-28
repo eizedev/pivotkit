@@ -19,7 +19,7 @@
 
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
 import { BODY_BYTES, ConfigError, DEFAULT_PORT, callerOf, serveFetch } from "pivotkit-server";
-import { DOWNLOAD_BODY_BYTES, publicOriginOf, SIGNED_IN, allowedHosts, brandingAnswer, brandingOfContext, pageRedirect, hostProblem, hostRefusal, hostRefusedLine, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, createRouteHandler, isLoopback, limitKeyOf, logNotes, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, startFields, takeSignIn } from "pivotkit-server/internal";
+import { DOWNLOAD_BODY_BYTES, firstIssuerOf, publicOriginOf, SIGNED_IN, allowedHosts, brandingAnswer, brandingOfContext, pageRedirect, hostProblem, hostRefusal, hostRefusedLine, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, createRouteHandler, isLoopback, limitKeyOf, logNotes, noteProtocolRefusal, openAddressRefusal, prepareHttpServe, refusalReason, refusedText, startFields, takeSignIn } from "pivotkit-server/internal";
 import { MCP_TOKEN_ENV, createMcpContext } from "./context.js";
 import { createAuth, refusedClientOf } from "./auth.js";
 import { pageCsp, quickStartPage } from "./page.js";
@@ -219,7 +219,7 @@ export async function createHttpHandler(context, runtime = {}) {
                 return notFound();
             }
             const endpoint = publicOrigin ? `${publicOrigin}${ENDPOINT}` : `${url.protocol}//${url.host}${ENDPOINT}`;
-            const html = quickStartPage({ endpoint, version: context.version, auth: auth.mode, issuer: auth.mode === "oauth" ? context.options.auth?.issuer : null, sources: page.sources ? context.registry.titles().filter((s) => !s.scopes.length) : null, branding });
+            const html = quickStartPage({ endpoint, version: context.version, auth: auth.mode, issuer: auth.mode === "oauth" ? firstIssuerOf(context.options) : null, sources: page.sources ? context.registry.titles().filter((s) => !s.scopes.length) : null, branding });
             return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": pageCsp(branding), "cache-control": "no-store" } });
         }
         if (url.pathname !== ENDPOINT) {

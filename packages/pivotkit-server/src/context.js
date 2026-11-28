@@ -33,6 +33,22 @@ import { resolvePolicy, withStats } from "./policy.js";
 const NOT_READY = Object.freeze({ auth: "the OAuth issuer's metadata is not loaded", workers: "no compute worker is running", output: "the output directory is not writable" });
 
 /**
+ * /readyz's answer: ok when every check passed, else why not in fixed words without an address (the
+ * log has the details); `waiting` names the options of the OAuth issuers not loaded yet, whose
+ * tokens get 503.
+ * @param {Record<keyof typeof NOT_READY, boolean>} checks
+ * @param {string[]} waiting
+ */
+function readyAnswer(checks, waiting) {
+    const ok = Object.values(checks).every(Boolean);
+    const reason = Object.entries(checks)
+        .filter(([, passed]) => !passed)
+        .map(([name]) => NOT_READY[/** @type {keyof typeof NOT_READY} */ (name)])
+        .join("; ");
+    return { ok, checks, ...(ok ? {} : { reason: `${reason}; see the log` }), ...(waiting.length ? { waiting } : {}) };
+}
+
+/**
  * Why an output directory inside (or holding) an allowed directory is refused: the reason alone,
  * which the start's ConfigError and check-config's PROBLEM line each put their own prefix before.
  */
@@ -228,21 +244,20 @@ export async function createContext(options, runtime = {}) {
             return auth;
         },
 
-        /** Whether the server can take work: the issuer loaded (OAuth), workers up, output writable. */
+        /**
+         * Whether the server can take work: an issuer loaded (OAuth), workers up, output writable.
+         * `waiting` names the issuers not loaded yet: their tokens get 503, the others' pass.
+         */
         async ready() {
             const core = auth ? await auth.catch(() => null) : null;
+            // by the option that names each, never its address (the log has that)
+            const waiting = (core?.waiting?.() ?? []).map((/** @type {{ key: string }} */ e) => e.key);
             const checks = {
                 auth: core ? core.ready() : !auth,
                 workers: computer.size() > 0,
                 output: output ? await writable(output.dir) : true
             };
-            const ok = Object.values(checks).every(Boolean);
-            // why not, in fixed words without an address: the log has the details
-            const reason = Object.entries(checks)
-                .filter(([, passed]) => !passed)
-                .map(([name]) => NOT_READY[/** @type {keyof typeof NOT_READY} */ (name)])
-                .join("; ");
-            return ok ? { ok, checks } : { ok, checks, reason: `${reason}; see the log` };
+            return readyAnswer(checks, waiting);
         },
 
         /**

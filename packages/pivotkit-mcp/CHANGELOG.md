@@ -6,6 +6,12 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Added
+
+- The MCP endpoint accepts the tokens of every issuer in `auth.issuers`
+  ([#587](https://github.com/eizedev/pivotkit/issues/587)). Its resource metadata names the first.
+  A token without its issuer's own required scopes gets 403 `insufficient_scope`.
+
 ## [0.6.0] - 2026-11-26
 
 ### Changed

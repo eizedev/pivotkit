@@ -122,6 +122,7 @@
                 },
                 "tokenExchange": {
                   "object": {
+                    "issuer": "string",
                     "tokenUrl": "string",
                     "clientId": "string",
                     "clientSecret": {
@@ -512,6 +513,17 @@
       "scopeProfiles": {
         "map": "string"
       },
+      "issuers": {
+        "list": {
+          "object": {
+            "issuer": "string",
+            "jwksUri": "string",
+            "audience": "strings",
+            "requiredScopes": "strings"
+          }
+        }
+      },
+      "intranet": "boolean",
       "groupsClaim": "string",
       "groupsSeparator": "string",
       "groupProfiles": {
@@ -524,7 +536,6 @@
       },
       "defaultProfile": "string",
       "offerSourceScopes": "boolean",
-      "intranet": "boolean",
       "signedTokens": {
         "object": {
           "dir": "string",
@@ -608,14 +619,14 @@
         }
       },
       "concurrency": "integer",
-      "data": {
-        "object": {
-          "maxBytes": "integer"
-        }
-      },
       "signIn": {
         "object": {
           "clientId": "string"
+        }
+      },
+      "data": {
+        "object": {
+          "maxBytes": "integer"
         }
       },
       "records": {
@@ -672,6 +683,7 @@
                 },
                 "tokenExchange": {
                   "object": {
+                    "issuer": "string",
                     "tokenUrl": "string",
                     "clientId": "string",
                     "clientSecret": {
