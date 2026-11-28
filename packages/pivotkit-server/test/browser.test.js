@@ -327,7 +327,7 @@ test("access levels: create_link signs the level into the link, and the exchange
     const local = await localIssuer();
     const dir = workspace({ "sales.csv": CSV });
     const server = await restServer({
-        sources: { sales: { file: "data/sales.csv", link: `${PAGE}/report`, policy: { fields: { Customer: "hide" } } } },
+        sources: { sales: { file: "data/sales.csv", link: `${PAGE}/report`, policy: { fields: { Customer: "hide" } } }, team: { load: async () => [{ Region: "North", Sales: 1 }], link: `${PAGE}/team`, policy: { default: "show" } } },
         policy: { profiles: PROFILES },
         auth: { mode: "oauth", issuer: local.url, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"], defaultProfile: "staff" },
         rest: { browser: { levels: ["me", "group"] } },
@@ -336,8 +336,8 @@ test("access levels: create_link signs the level into the link, and the exchange
     });
     const as = (sub, groups = []) => local.token({ claims: { client_id: "host-app", groups }, aud: "https://pk.example.com/api/v1", sub });
     /** A link of `level` made by ana, and its pk-access value. */
-    const linkOf = async (access) => {
-        const made = await call(`${server.api}/views/link`, { token: await as("ana", ["sales-team"]), body: { source: "sales", view: { rows: ["Region"] }, access } });
+    const linkOf = async (access, source = "sales") => {
+        const made = await call(`${server.api}/views/link`, { token: await as("ana", ["sales-team"]), body: { source, view: { rows: ["Region"] }, access } });
         return { made, value: made.data.url ? new URL(made.data.url.split("#")[0]).searchParams.get(ACCESS_PARAM) : null };
     };
     try {
@@ -351,7 +351,20 @@ test("access levels: create_link signs the level into the link, and the exchange
         assert.equal(bob.status, 403);
         assert.equal(bob.data.code, "NOT_ALLOWED");
         // the link shuts bob out, not his rights: a page says so in its own words
-        assert.equal(bob.data.linkAccess, true);
+        assert.equal(bob.data.linkAccess, "refused");
+        // two links of one person share no value, and a value works only for its own source
+        const again = await linkOf({ level: "me" });
+        assert.notEqual(JSON.parse(Buffer.from(String(again.value).split(".")[0], "base64url").toString()).d, JSON.parse(Buffer.from(String(mine.value).split(".")[0], "base64url").toString()).d);
+        const moved = await exchange(server, await as("ana"), { source: "team", access: mine.value });
+        assert.equal(moved.status, 403);
+        assert.equal(moved.data.linkAccess, "invalid", "a value of another link: ask for a new one");
+        assert.equal((await exchange(server, await as("ana"), { source: "team", access: (await linkOf({ level: "me" }, "team")).value })).status, 200);
+        // a sign-in with more groups than a token holds (a code source sees them): its own limit, not the rows'
+        const many = Array.from({ length: 100 }, (_, i) => `${"g".repeat(90)}-${i}`);
+        const crowded = await exchange(server, await as("ana", many), { source: "team", access: (await linkOf({ level: "me" }, "team")).value });
+        assert.equal(crowded.status, 413, JSON.stringify(crowded.data));
+        assert.equal(crowded.data.code, "LIMIT_EXCEEDED");
+        assert.equal(crowded.data.limit, "token");
 
         const team = await linkOf({ level: "group", group: "sales-team" });
         assert.equal(team.made.status, 200, JSON.stringify(team.made.data));
@@ -363,8 +376,10 @@ test("access levels: create_link signs the level into the link, and the exchange
         assert.equal((await exchange(server, await as("bob", ["sales-team"]), { source: "sales", access: changed })).status, 403);
         assert.equal((await linkOf({ level: "group", group: "admins" })).made.status, 403);
         assert.equal((await linkOf({ level: "signedIn" })).made.status, 403);
-        // without signedIn on offer, a link without a level opens for nobody
-        assert.equal((await exchange(server, await as("ana"), { source: "sales" })).status, 403);
+        // without signedIn on offer, a link without a level opens for nobody: the link is not as it was shared
+        const bare = await exchange(server, await as("ana"), { source: "sales" });
+        assert.equal(bare.status, 403);
+        assert.equal(bare.data.linkAccess, "invalid");
         assert.equal((await linkOf({ level: "everyone" })).made.status, 400);
     } finally {
         await server.close();
@@ -435,6 +450,9 @@ test("check-config shows the browser path: lifetime, pages, levels and the key",
     assert.match(set, /access levels of live links: me, signedIn/);
     assert.match(set, /key from \$BK/);
     assert.doesNotMatch(set, /not set|PROBLEM/);
+    // signedIn beside me: a link without its level opens for every signed-in person
+    assert.match(set, /rest\.browser\.levels offers signedIn beside me or group: .* me and group are advisory/);
+    assert.doesNotMatch(await section({ browser: { levels: ["me", "group"], key: { env: "BK" } } }, { BK: BROWSER_KEY }), /advisory/);
     const short = await section({ browser: { key: { env: "BK" } } }, { BK: "short" });
     assert.match(short, /rest\.browser\.key is shorter than 32 bytes; make one with: pivotkit-server key new --for browser/);
     const off = factsOf((await checkConfig({ ...options, policy: {}, rest: { browser: { minutes: 5 } } }, { http: true, rest: true, env: { OPS: TOKEN }, name: "pivotkit-server" })).text);

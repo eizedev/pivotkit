@@ -11,7 +11,8 @@
  *
  * A PROBLEM for a key that cannot be used: no browser token is made then. A WARNING for a random key
  * (tokens and levels end on a restart and differ between replicas), for rest.browser while no profile
- * reads rows, and for a source whose backend exchanges the person's token: the browser path refuses it.
+ * reads rows, for a source whose backend exchanges the person's token: the browser path refuses it, and
+ * for signedIn beside me or group: a link without its level then opens for every signed-in person.
  *
  * check/index.js says what a section returns.
  */
@@ -35,6 +36,9 @@ export async function section(options, _registry, runtime) {
     items.push(plain(`browser tokens live ${settings.minutes} minute${settings.minutes === 1 ? "" : "s"}, never longer than the person's own token`));
     items.push(plain(settings.origins.length ? `pages that read rows with one: ${settings.origins.join(", ")} (rest.browser.origins), and the server's own` : "pages that read rows with one: only the server's own (rest.browser.origins lists others)"));
     items.push(plain(`access levels of live links: ${settings.levels.join(", ")} (rest.browser.levels)`));
+    if (settings.levels.includes("signedIn") && settings.levels.length > 1) {
+        items.push(warning("rest.browser.levels offers signedIn beside me or group: a live link without its pk-access opens for every person who signs in, so me and group are advisory; each person still reads only the rows their own rights allow"));
+    }
     const unusable = { effect: "the server starts; nobody gets a browser token until it can be read" };
     if (settings.key) {
         items.push(plain(`key from ${secretText(options, settings.key)}`));

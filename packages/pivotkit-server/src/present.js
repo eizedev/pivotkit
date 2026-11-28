@@ -516,7 +516,7 @@ const STEPS = {
         const resolved = await resolveFor(context, args, caller, { ...how, link: true });
         if (args.access !== undefined && resolved.link) {
             // the level of a live link, signed into its query (link-access.js); the exchange route checks it
-            const value = await linkAccessOf(context.browserTokens.keys, context.options, caller, args.access);
+            const value = await linkAccessOf(context.browserTokens.keys, context.options, caller, args.source, args.access);
             resolved.link = { ...resolved.link, url: withLinkQuery(resolved.link.url, [[ACCESS_PARAM, value]]) };
         }
         const { outcome, policy, ...read } = await compute(context, "create_link", args, resolved, caller, { ...how, link: true });

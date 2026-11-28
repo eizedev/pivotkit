@@ -4165,7 +4165,7 @@
                   "signedIn",
                   "group"
                 ],
-                "description": "me: only you; signedIn: every person who signs in; group: the members of one of your groups."
+                "description": "Advisory, not a data boundary: me: only you; signedIn: every person who signs in; group: the members of one of your groups. Rows stay limited to what each reader may see."
               },
               "group": {
                 "type": "string",

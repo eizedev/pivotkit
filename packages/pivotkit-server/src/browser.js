@@ -11,7 +11,8 @@
  * 5. the token (browser-tokens.js), rest.browser.minutes long, never past the person's own token.
  *
  * The answer is { token, tokenType, expiresIn, expiresAt, source }. A refusal by the link's access
- * level is NOT_ALLOWED with `linkAccess: true`, so a page tells it from missing rights. The request's
+ * level is NOT_ALLOWED with `linkAccess` ("refused" or "invalid"), so a page tells it from missing
+ * rights. A token too large for the sign-in is LIMIT_EXCEEDED with `limit: "token"`. The request's
  * log line names the token's ID, never its value. A browser token cannot make another one: only the rows route reads it.
  */
 
@@ -95,16 +96,25 @@ export function createBrowserPath(context) {
         // the parameters as the source's rules take them for this person, before a token holds them
         await context.registry.resolve(input.source, caller, { files: false, surface: "rest" }, params);
         try {
-            await checkLinkAccess(tokens.keys, options, caller, input.access);
+            await checkLinkAccess(tokens.keys, options, caller, input.source, input.access);
         } catch (e) {
-            // the link's level shuts this person out, which is not the source's rights: `linkAccess` tells a page which it is
-            if (e instanceof OperationError) {
-                return problemOf(e, { extra: { linkAccess: true } });
+            // the link's level, not the source's rights: `linkAccess` tells a page which it is, and whether a new link helps
+            if (e instanceof OperationError && "linkAccess" in e) {
+                return problemOf(e, { extra: { linkAccess: e.linkAccess } });
             }
             throw e;
         }
         const claims = Object.values(source?.params ?? {}).flatMap((p) => (p && typeof p === "object" && typeof p.claim === "string" ? [p.claim] : []));
-        const issued = await tokens.issue(caller, { source: input.source, params, code: typeof source?.load === "function", claims });
+        let issued;
+        try {
+            issued = await tokens.issue(caller, { source: input.source, params, code: typeof source?.load === "function", claims });
+        } catch (e) {
+            // the sign-in carries too much for a token, which is not the rows' limit: `limit` says which
+            if (e instanceof OperationError && e.code === "LIMIT_EXCEEDED") {
+                return problemOf(e, { extra: { limit: "token" } });
+            }
+            throw e;
+        }
         if (!issued) {
             throw new OperationError("NOT_ALLOWED", "a browser token is made for a person who signed in");
         }
