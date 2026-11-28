@@ -195,6 +195,11 @@ test.describe("chart extras (#54)", () => {
         // North: the dot shows the tile (above), the field and the name keep the gold set
         const north = level.getByRole("menuitem", { name: "Colour of North, #ffd700" });
         await expect(north.locator("xpath=following-sibling::input[1]")).toHaveValue("#ffd700");
+        // a hidden tile leaves the chart, and keeps its colour in the list, to be shown again
+        await level.getByRole("menuitemcheckbox", { name: "East" }).click();
+        await expect.poll(() => lastChart(page).then((c) => c?.hidden)).toEqual(["East"]);
+        await settled(chartEl);
+        await expect(level.getByRole("menuitem", { name: `Colour of East, ${tiles.East}` }).locator(".pk-dot")).toHaveCSS("background-color", rgbOf(tiles.East));
     });
 
     test("Display › Tooltip › Share in the tooltip: a bar's share of its category, a slice's share of the pie", async ({ page }) => {

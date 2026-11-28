@@ -42,8 +42,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ([#1000](https://github.com/eizedev/pivotkit/issues/1000)).
 - Chart settings › Entries of a treemap shows each tile's colour beside it. Before, a tile in the
   palette's colour had an empty swatch and its colour field started at black, and a pale colour set
-  there showed lighter than its tile. The colour field keeps the colour set
-  ([#1009](https://github.com/eizedev/pivotkit/issues/1009)).
+  there showed lighter than its tile. The picker opens on the colour set, and a hidden tile keeps
+  its colour in the list ([#1009](https://github.com/eizedev/pivotkit/issues/1009)).
 
 ## [0.11.0] - 2026-11-26
 
