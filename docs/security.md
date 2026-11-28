@@ -93,7 +93,8 @@ configuration or on the command line:
 - the metadata and key set of each OAuth issuer
 - the token endpoint of a token exchange, and that of the
   [sign-in links](reference/delivery.md#sign-in) of downloads. Each is the issuer's, or the address
-  the operator sets with `tokenUrl`. The sign-in links can have an issuer of their own.
+  the operator sets with `tokenUrl`. The sign-in links use the first issuer; an issuer of their
+  own is not supported yet ([#441](https://github.com/eizedev/pivotkit/issues/441)).
 - an [upload store](reference/delivery.md#upload) and its presign service
 - the OpenAPI document that `pivotkit-server source-from-openapi` reads
 

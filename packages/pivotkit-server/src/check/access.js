@@ -20,7 +20,7 @@
 
 import { pathOf, restResourceOf } from "../config.js";
 import { inertTokensText } from "../auth.js";
-import { everyIssuerScoped, issuerSchemeProblem, issuersOf } from "../issuer.js";
+import { everyIssuerScoped, firstSchemeProblem, issuersOf } from "../issuer.js";
 import { TOKEN_MIN, tokenFault } from "../secret-rules.js";
 import { connectionLimitsOf, isLoopback } from "../listen.js";
 import { UTF16_TEXT, madeAtStart, readSecretFile, secretFileWarning, secretValue, unreadable } from "../secrets.js";
@@ -110,7 +110,7 @@ export async function section(options, _registry, runtime) {
         }
         items.push(requiredScopesLine(options));
         // the start's own test (auth.js createAuthCore)
-        const schemeProblem = issuerSchemeProblem(options);
+        const schemeProblem = firstSchemeProblem(options);
         if (schemeProblem) {
             items.push(problem(schemeProblem, stop));
         }

@@ -22,7 +22,7 @@ import { heading, plain, problem, warning } from "./format.js";
 export const ISSUER_MS = 3000;
 
 /** What a PROBLEM of the issuer's host does: the server starts, the sign-in does not work. */
-const NO_SIGN_IN = { effect: "the server starts; callers get 503 until the issuer can be reached" };
+const NO_SIGN_IN = { effect: "the server starts; the issuer's tokens get 503 until it can be reached" };
 
 /**
  * What keeps the server from reaching the host of an address the operator wrote (check/host.js): a
@@ -92,14 +92,17 @@ async function reachItems(options, runtime) {
     const issuers = new Map();
     // an issuer the start refuses for its scheme is a PROBLEM already (check/access.js); the other
     // issuers are still checked, each on its own
-    const usable = (issuer) => issuerSchemeProblem({ auth: { issuer, allowInsecureIssuer: options.auth?.allowInsecureIssuer } }) === null;
-    for (const [i, { issuer, key }] of (options.auth?.mode === "oauth" ? issuersOf(options) : []).entries()) {
-        if (!usable(issuer)) {
+    const entries = options.auth?.mode === "oauth" ? issuersOf(options) : [];
+    // each issuer waits on its own (auth.js): the others' tokens pass meanwhile
+    const who = entries.length > 1 ? "its tokens get 503 until it loads, the other issuers' pass" : "callers get 503 until it loads";
+    for (const [i, entry] of entries.entries()) {
+        if (issuerSchemeProblem(entry, options) !== null) {
             continue;
         }
+        const { issuer, key } = entry;
         // download links (signed in) use the first issuer (options/downloads.js)
         const links = i === 0 && runtime.http && downloadSettingsOf(options).signIn ? "; download links (signed in) answer 503 too" : "";
-        issuers.set(issuer, [key, `callers get 503 until it loads${links}`]);
+        issuers.set(issuer, [key, `${who}${links}`]);
     }
     const out = [];
     for (const [issuer, [key, until]] of issuers) {

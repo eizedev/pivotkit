@@ -9,14 +9,14 @@
             "docs/privacy.md": [503],
             "docs/reference/cli.md": [751],
             "docs/reference/core.md": [674],
-            "docs/reference/mcp.md": [999],
+            "docs/reference/mcp.md": [1000],
             "docs/reference/react.md": [861],
-            "docs/reference/rest.md": [972],
-            "docs/reference/sources.md": [984],
-            "docs/security.md": [896],
+            "docs/reference/rest.md": [973],
+            "docs/reference/sources.md": [985],
+            "docs/security.md": [901],
             "docs/use/charts.md": [487]
         },
-        "totalLines": 24162
+        "totalLines": 24313
     },
     "functions": {
         "complexity": {
@@ -136,7 +136,7 @@
             "packages/pivotkit-react/src/zones.jsx Function 'Zones'": [143],
             "packages/pivotkit-report/src/template.js Function 'parseTemplate'": [190],
             "packages/pivotkit-server/src/compute.js Function 'createComputer'": [342],
-            "packages/pivotkit-server/src/context.js Async function 'createContext'": [154],
+            "packages/pivotkit-server/src/context.js Async function 'createContext'": [150],
             "packages/pivotkit-server/src/listen.js Async arrow function": [126],
             "packages/pivotkit-server/src/listen.js Async function 'serveFetch'": [217],
             "packages/pivotkit-server/src/openapi-source.js Function 'parametersOf'": [144],

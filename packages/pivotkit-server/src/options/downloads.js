@@ -11,7 +11,7 @@
 import { docsLink, docsOf } from "./branding.js";
 import { firstIssuerOf, issuersOf } from "../issuer.js";
 import { isLoopback } from "pivotkit-node/rest";
-import { ConfigError, CREATABLE_SECRET_REF, HTTPS_ISSUER_TEXT, SECRET_REF, throwRange } from "./shared.js";
+import { ConfigError, CREATABLE_SECRET_REF, HTTPS_ISSUER_TEXT, SECRET_REF, sameIssuer, throwRange } from "./shared.js";
 
 export const NAME = "downloads";
 
@@ -79,26 +79,6 @@ export function settingsOf(options) {
 
 /** The docs' entry on a download sign-in with an issuer of its own, under the documentation's base. */
 const ISSUER_OF_ITS_OWN = "reference/delivery/#sign-in-issuer";
-
-/**
- * Whether two issuer addresses name the same issuer once normalised: the scheme and host in lower
- * case, a default port left out (both as URL parses them), a trailing slash of the path left out.
- * The path's case, the port, the query, the fragment and a user name or password count. Tokens name an issuer exactly, so this only tells a spelling
- * difference from another issuer, for the message.
- * @param {string} a
- * @param {string | undefined} b
- */
-export function sameIssuer(a, b) {
-    if (!b || !URL.canParse(a) || !URL.canParse(b)) {
-        return false;
-    }
-    const norm = (text) => {
-        const url = new URL(text);
-        // a user name or password is part of the address (and refused elsewhere): never a spelling difference
-        return JSON.stringify([url.protocol, url.username, url.password, url.host, url.pathname.replace(/\/+$/, ""), url.search, url.hash]);
-    };
-    return norm(a) === norm(b);
-}
 
 /** Whether a text is an https:// address (an http:// one where the operator allows a test issuer). */
 const httpsOrAllowed = (text, insecure) => {

@@ -14,8 +14,7 @@
 
 import { CLIENT_ID_SYNTAX } from "pivotkit-node/rest";
 import { MAX_ISSUERS } from "../issuer.js";
-import { sameIssuer } from "./downloads.js";
-import { ConfigError } from "./shared.js";
+import { ConfigError, sameIssuer } from "./shared.js";
 
 export const NAME = "issuer";
 

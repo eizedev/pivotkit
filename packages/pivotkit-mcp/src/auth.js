@@ -106,7 +106,9 @@ export async function createAuth(context, runtime) {
         resourceMetadataUrl,
         /** @param {Request} request */
         async gate(request) {
-            if (!core.ready()) {
+            // no issuer loaded yet, or not the one this token names: the loaded issuers' tokens pass
+            const bearer = bearerOf(request);
+            if (!core.ready() || ("token" in bearer && core.waitsFor(bearer.token))) {
                 return json(503, { error: "temporarily_unavailable", error_description: "the server is waiting for its authorization server" }, { "retry-after": "10" });
             }
             if (new URL(request.url).searchParams.has("access_token")) {

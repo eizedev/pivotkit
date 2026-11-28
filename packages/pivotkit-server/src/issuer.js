@@ -99,25 +99,33 @@ export const firstIssuerOf = (options) => issuersOf(options)[0]?.issuer ?? null;
 export const everyIssuerScoped = (options, endpointScopes) => endpointScopes.length > 0 || issuersOf(options).every((e) => e.requiredScopes.length > 0);
 
 /**
- * Why the start refuses an issuer's scheme, or null: plain http without auth.allowInsecureIssuer.
- * The scheme is read as a URL reads it, in any case.
+ * Why the start refuses one issuer's scheme, or null: plain http without auth.allowInsecureIssuer
+ * (which applies to every issuer). The scheme is read as a URL reads it, in any case.
+ * @param {Pick<IssuerEntry, "issuer" | "key">} entry
  * @param {{ auth?: import("./config.js").AuthOptions }} options
  * @returns {string | null}
  */
-export function issuerSchemeProblem(options) {
+export function issuerSchemeProblem(entry, options) {
     if (options.auth?.allowInsecureIssuer) {
         return null;
     }
-    const plain = issuersOf(options).find(({ issuer }) => URL.canParse(String(issuer)) && new URL(String(issuer)).protocol !== "https:");
-    return plain ? `${plain.key}: ${HTTPS_ISSUER_TEXT}` : null;
+    const text = String(entry.issuer);
+    return URL.canParse(text) && new URL(text).protocol !== "https:" ? `${entry.key}: ${HTTPS_ISSUER_TEXT}` : null;
 }
+
+/**
+ * The first issuer whose scheme the start refuses (issuerSchemeProblem), or null.
+ * @param {{ auth?: import("./config.js").AuthOptions }} options
+ * @returns {string | null}
+ */
+export const firstSchemeProblem = (options) => issuersOf(options).map((entry) => issuerSchemeProblem(entry, options)).find((p) => p !== null) ?? null;
 
 /**
  * The start's refusal of an issuer's scheme (issuerSchemeProblem), as a ConfigError.
  * @param {{ auth?: import("./config.js").AuthOptions }} options
  */
 export function refuseIssuerScheme(options) {
-    const problem = issuerSchemeProblem(options);
+    const problem = firstSchemeProblem(options);
     if (problem) {
         throw new ConfigError(problem);
     }

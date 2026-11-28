@@ -93,7 +93,7 @@ npm run bench:records -w pivotkit-server   # memory and CPU of the rows route, f
 - A bearer goes through the static tokens first. Only an unmatched JWT reaches the signed check.
 - A signed token's identity is `["signed", id]`. Its ID is the client in the log.
 - `issuersOf` in `src/issuer.js` is the one reader of `auth.issuer` and `auth.issuers`. The first is the one named to clients.
-- An OAuth token is routed by its `iss` to one issuer's keys (`issuerKeys`), never tried with another's.
+- An OAuth token is routed by its `iss` to one issuer's keys (`issuerKeys`), never tried with another's. It waits (503) only for that issuer to load.
 - `exchangeTokenFor` sends a token only to the exchange's own issuer (`tokenExchange.issuer`).
 - `src/external-issuers.js` verifies tokens of `auth.externalIssuers` with `createSignedVerifier`, one per issuer.
 - Such a token is routed by its `iss`. Its identity is `["external", issuer, sub]`. The issuer is the client in the log.

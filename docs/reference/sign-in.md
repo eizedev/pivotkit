@@ -83,7 +83,8 @@ missing one (404 `SOURCE_NOT_FOUND`).
 A server can accept the tokens of up to 10 OAuth issuers. Authentik, for example, gives each
 application an issuer of its own: a host application's portal and the MCP client each sign in at
 their own provider. List the issuers in `auth.issuers` instead of `auth.issuer` and `auth.jwksUri`
-(both together are refused):
+(both together are refused). List first the provider that MCP clients, `pivotkit login` and the
+download sign-in use, because the server names only the first one to clients:
 
 ```json
 "auth": {
@@ -100,8 +101,10 @@ their own provider. List the issuers in `auth.issuers` instead of `auth.issuer` 
 - A token is checked with the keys of the issuer its `iss` names, exactly as written there, and
   with no other issuer's keys. A token of an issuer that is not listed is refused.
 - Each entry takes `issuer` (required), `jwksUri`, `audience` and `requiredScopes`. Its `audience`
-  replaces the endpoint's (`auth.audience`, `rest.audience`) for its tokens, on both endpoints. Its
-  `requiredScopes` add to the endpoint's; a token without them gets 403 `insufficient_scope`.
+  replaces the endpoint's (`auth.audience`, `rest.audience`) for its tokens on both endpoints, so
+  one of its tokens reaches both MCP and REST. Leave it unset where the provider can issue the
+  endpoints' own audiences. Its `requiredScopes` add to the endpoint's; a token without them gets
+  403 `insufficient_scope`.
 - Give each issuer a pivotkit scope in `requiredScopes`. Where its `audience` is another
   application's client ID, every token issued to that application is otherwise valid here.
 - The first issuer is the one the server names to clients: the Protected Resource Metadata, the
@@ -112,8 +115,13 @@ their own provider. List the issuers in `auth.issuers` instead of `auth.issuer` 
 - Every listed issuer is trusted as fully as `auth.issuer`: the scopes, groups, client IDs and
   claims its tokens carry pick profiles (`scopeProfiles`, `groupProfiles`, `clientProfiles`) and
   fill parameters bound to claims, as the first issuer's do. List only issuers whose admins you
-  trust with that. A client ID is the same client at every issuer.
-- `/readyz`, REST and `/mcp` answer 503 until every issuer's metadata and keys are loaded.
+  trust with that. A client ID is the same client at every issuer. `subjectClaim`, `groupsClaim`,
+  `scopeClaim`, `intranet` and `allowInsecureIssuer` apply to every issuer. Issuers that name a
+  person in different claims, such as Entra ID's `oid` beside Authentik's `sub`, are not supported
+  yet.
+- Each issuer's metadata and keys load on their own. A token of an issuer that is not loaded yet
+  gets 503, and the other issuers' tokens pass. `/readyz` answers 200 once one issuer is loaded and
+  names the others' options in `waiting`, such as `auth.issuers[1].issuer`. The log warns about them, as `check-config` does.
 - A [token exchange](sources.md#http-auth) serves the people of one issuer, named in
   `tokenExchange.issuer`. A person of another issuer does not see the source.
 - `check-config` lists each issuer with its own audience and scopes.

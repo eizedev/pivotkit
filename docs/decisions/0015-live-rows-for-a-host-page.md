@@ -45,7 +45,8 @@ path and the server's viewer page. 3 is snapshots of uploaded data
   for answers as a field that does not exist.
 - The server does not apply a view's filters. Filters are no permission, so every `show` row of
   the source leaves.
-- Only a person gets rows: an OAuth token with a subject from the configured issuer, or a token from
+- Only a person gets rows: an OAuth token with a subject from a configured issuer
+  ([0019](0019-more-than-one-oauth-issuer.md)), or a token from
   an [external issuer](0014-external-token-issuers.md) with a subject. Static tokens, server-signed
   tokens and callers without sign-in get `NOT_ALLOWED`. A machine token with a subject looks like a
   person, so the operator gives no such client a profile with `records`.

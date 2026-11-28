@@ -39,8 +39,10 @@ issuer's tokens with that issuer's keys only.
   to one token endpoint. A person of another issuer does not see the source, and their token never
   goes there. #587 proposed a list of issuers per source; one issuer per exchange is the narrower
   start, and a list can come later without a break.
-- `/readyz`, REST and MCP answer 503 until every issuer's metadata and keys are loaded, so the
-  endpoints agree with the readiness check.
+- Each issuer loads on its own. A token waits only for the issuer its `iss` names: 503 while that
+  issuer's metadata and keys are not loaded, while the loaded issuers' tokens pass. `/readyz` is 200
+  once one issuer is loaded and names the others. One unreachable provider must not take every
+  sign-in down.
 - Links bound to a sign-in go to the first issuer's people only, until
   [#441](https://github.com/eizedev/pivotkit/issues/441) gives the download sign-in an issuer of its
   own.
@@ -54,10 +56,13 @@ the listed issuers.
 - A token exchange for the people of several issuers, with a client per issuer.
 - Profiles or caps per issuer. Every listed issuer is trusted as `auth.issuer` is: its scopes,
   groups, client IDs and claims pick profiles and fill claim-bound parameters.
-- Whether tokens of a loaded issuer should pass while another issuer is still unreachable.
 
 ### Consequences
 
 - Good: two providers' clients reach one server without a change at the provider.
 - Bad: a client ID that exists at two issuers gets the same `clientProfiles` entry at both.
-- Bad: the server is ready only when every issuer's metadata and keys are loaded.
+- Bad: an entry's `audience` applies to both MCP and REST. For that issuer the split into an MCP and
+  a REST audience is gone: one of its tokens reaches both endpoints. Leave it unset where the
+  provider can issue the endpoints' own audiences.
+- Bad: a readiness probe that waits for `/readyz` does not see an issuer that is still unreachable;
+  the body and a warning name it.

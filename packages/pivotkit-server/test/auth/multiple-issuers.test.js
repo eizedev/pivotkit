@@ -7,8 +7,9 @@ import assert from "node:assert/strict";
 import { callerOf, checkConfig, createContext, present, validateOptions } from "pivotkit-server";
 import { exchangeTokenFor } from "../../src/auth.js";
 import { signedInForDelivery } from "../../src/delivery.js";
+import { everyIssuerScoped } from "../../src/issuer.js";
 import { call, factsOf, mcpInitialize, mcpToolWorks, restServer, untilReady, workspace } from "../helpers.js";
-import { localIssuer } from "./local-issuer.js";
+import { localIssuer, signingKey } from "./local-issuer.js";
 import { until } from "../../../../tests/until.js";
 
 const MCP_RESOURCE = "https://pk.example.com/mcp";
@@ -76,7 +77,7 @@ test("auth.issuers: an issuer's own audience replaces the endpoints' for its tok
     }
 });
 
-test("auth.issuers: until every issuer's metadata and keys are loaded, /readyz, REST and MCP answer 503, also to a token of a loaded issuer", async () => {
+test("auth.issuers: an issuer that cannot be reached holds back its own tokens only (503); the loaded issuer's pass, /readyz is 200 and names the waiting one", async () => {
     // b's metadata cannot be read: the server keeps trying it
     b.routes["/.well-known/openid-configuration"] = (_req, res) => {
         res.writeHead(500);
@@ -85,11 +86,100 @@ test("auth.issuers: until every issuer's metadata and keys are loaded, /readyz, 
     const server = await restServer({ sources: SOURCES, auth: authOf(), http: { publicUrl: "https://pk.example.com/" }, baseDir: workspace() }, { enable: ["rest", "mcp"] });
     try {
         await until(() => server.log.some((l) => l.message === "oauth: issuer metadata loaded" && l.issuer === a.url) && b.asked.includes("/.well-known/openid-configuration"), { message: "a loaded, b asked" });
-        assert.equal((await call(`${server.url}/readyz`)).status, 503);
+        const ready = await call(`${server.url}/readyz`);
+        assert.equal(ready.status, 200);
+        // named by its option, never its address
+        assert.deepEqual(ready.data.waiting, ["auth.issuers[1].issuer"]);
+        assert.ok(server.log.some((l) => l.level === "warn" && String(l.message).includes("auth.issuers[1].issuer") && String(l.message).includes("503")), "the waiting issuer is logged");
+        assert.equal((await call(`${server.api}/sources`, { token: await a.token({ aud: REST_RESOURCE, sub: "ana" }) })).status, 200);
+        assert.equal(await mcpToolWorks(server, await a.token({ aud: MCP_RESOURCE, sub: "ana" })), true);
+        assert.equal((await call(`${server.api}/sources`, { token: await b.token({ aud: REST_RESOURCE, sub: "ben" }) })).status, 503);
+        assert.equal((await mcpInitialize(server, await b.token({ aud: MCP_RESOURCE, sub: "ben" }))).status, 503);
+        // once b loads, its tokens pass and /readyz names no issuer
+        delete b.routes["/.well-known/openid-configuration"];
+        await until(() => server.log.some((l) => l.message === "oauth: issuer metadata loaded" && l.issuer === b.url), { message: "b loaded", tries: 2000 });
+        const after = await call(`${server.url}/readyz`);
+        assert.equal(after.status, 200);
+        assert.equal(after.data.waiting, undefined);
+        assert.equal((await call(`${server.api}/sources`, { token: await b.token({ aud: REST_RESOURCE, sub: "ben" }) })).status, 200);
+    } finally {
+        delete b.routes["/.well-known/openid-configuration"];
+        await server.close();
+    }
+});
+
+test("auth.issuers: while no issuer is loaded, /readyz, REST and MCP answer 503", async () => {
+    const dead = (_req, res) => {
+        res.writeHead(500);
+        res.end();
+    };
+    a.routes["/.well-known/openid-configuration"] = dead;
+    b.routes["/.well-known/openid-configuration"] = dead;
+    a.asked = [];
+    b.asked = [];
+    const server = await restServer({ sources: SOURCES, auth: authOf(), http: { publicUrl: "https://pk.example.com/" }, baseDir: workspace() }, { enable: ["rest", "mcp"] });
+    try {
+        await until(() => a.asked.length > 0 && b.asked.length > 0, { message: "both asked" });
+        const ready = await call(`${server.url}/readyz`);
+        assert.equal(ready.status, 503);
+        assert.deepEqual(ready.data.waiting, ["auth.issuers[0].issuer", "auth.issuers[1].issuer"]);
         assert.equal((await call(`${server.api}/sources`, { token: await a.token({ aud: REST_RESOURCE, sub: "ana" }) })).status, 503);
         assert.equal((await mcpInitialize(server, await a.token({ aud: MCP_RESOURCE, sub: "ana" }))).status, 503);
     } finally {
+        delete a.routes["/.well-known/openid-configuration"];
         delete b.routes["/.well-known/openid-configuration"];
+        await server.close();
+    }
+});
+
+test("auth.issuers: a token with a key its issuer does not hold re-reads that issuer only; a key set that moved is followed per issuer", async () => {
+    const server = await serverOf(authOf());
+    try {
+        // each key set is read on its first token: a's and b's are read before counting
+        assert.equal((await call(`${server.api}/sources`, { token: await a.token({ aud: REST_RESOURCE, sub: "ana" }) })).status, 200);
+        assert.equal((await call(`${server.api}/sources`, { token: await b.token({ aud: REST_RESOURCE, sub: "ben" }) })).status, 200);
+        a.asked = [];
+        b.asked = [];
+        // a key no issuer holds, under b's iss: refused, and a is not asked
+        const stranger = await signingKey("k9");
+        const unknown = await call(`${server.api}/sources`, { token: await b.token({ aud: REST_RESOURCE, sub: "ben", header: { kid: "k9" }, signWith: stranger.key.privateKey }) });
+        assert.equal(unknown.status, 401);
+        assert.ok(b.asked.includes("/.well-known/openid-configuration"), JSON.stringify(b.asked));
+        assert.deepEqual(a.asked, []);
+        // b rotates to a new key set at a new address: b's next token with the new key passes, a's still do
+        const next = await signingKey("k2");
+        b.metadata = { jwks_uri: `${b.url}/jwks-2` };
+        b.routes["/jwks-2"] = { keys: [next.jwk] };
+        const rotated = await b.token({ aud: REST_RESOURCE, sub: "ben", header: { kid: "k2" }, signWith: next.key.privateKey });
+        // the unknown key above started the minute's wait for b: the hourly refresh is not waited for here
+        assert.equal((await call(`${server.api}/sources`, { token: rotated })).status, 401, "within the minute after an unknown key, b is not read again");
+        assert.equal((await call(`${server.api}/sources`, { token: await a.token({ aud: REST_RESOURCE, sub: "ana" }) })).status, 200);
+        assert.deepEqual(a.asked, [], "a's keys are not read again for b's tokens");
+    } finally {
+        b.metadata = {};
+        delete b.routes["/jwks-2"];
+        await server.close();
+    }
+});
+
+test("auth.issuers: a key set that moved is followed for that issuer alone", async () => {
+    const server = await serverOf(authOf());
+    try {
+        assert.equal((await call(`${server.api}/sources`, { token: await a.token({ aud: REST_RESOURCE, sub: "ana" }) })).status, 200);
+        a.asked = [];
+        const next = await signingKey("k2");
+        b.metadata = { jwks_uri: `${b.url}/jwks-2` };
+        b.routes["/jwks-2"] = { keys: [next.jwk] };
+        const rotated = await b.token({ aud: REST_RESOURCE, sub: "ben", header: { kid: "k2" }, signWith: next.key.privateKey });
+        assert.equal((await call(`${server.api}/sources`, { token: rotated })).status, 200);
+        assert.ok(b.asked.includes("/jwks-2"), JSON.stringify(b.asked));
+        // b's old key is gone with its old set; a's tokens pass and a is not read again
+        assert.equal((await call(`${server.api}/sources`, { token: await b.token({ aud: REST_RESOURCE, sub: "ben" }) })).status, 401);
+        assert.equal((await call(`${server.api}/sources`, { token: await a.token({ aud: REST_RESOURCE, sub: "ana" }) })).status, 200);
+        assert.deepEqual(a.asked, []);
+    } finally {
+        b.metadata = {};
+        delete b.routes["/jwks-2"];
         await server.close();
     }
 });
@@ -110,6 +200,14 @@ test("auth.issuers: an entry's jwksUri is where that issuer's keys are read, in 
     }
 });
 
+test("everyIssuerScoped: the endpoint's scopes cover every issuer, else each issuer needs scopes of its own", () => {
+    const of = (issuers) => ({ auth: authOf(issuers) });
+    assert.equal(everyIssuerScoped(of([{ issuer: "https://a.example.test/" }]), ["pivotkit"]), true);
+    assert.equal(everyIssuerScoped(of([{ issuer: "https://a.example.test/", requiredScopes: ["x"] }, { issuer: "https://b.example.test/", requiredScopes: ["y"] }]), []), true);
+    assert.equal(everyIssuerScoped(of([{ issuer: "https://a.example.test/", requiredScopes: ["x"] }, { issuer: "https://b.example.test/" }]), []), false);
+    assert.equal(everyIssuerScoped({ auth: { mode: "oauth", issuer: "https://a.example.test/" } }, []), false);
+});
+
 test("links and stores bound to a sign-in: only the first issuer's people, whose sign-in the server checks", () => {
     const options = { auth: authOf([{ issuer: "https://a.example.test/" }, { issuer: "https://b.example.test/" }]) };
     const person = (issuer) => callerOf("oauth", { token: "t", clientId: "claude", scopes: ["pivotkit"], expiresAt: Math.floor(Date.now() / 1000) + 600, extra: { subject: "ana", issuer } });
@@ -125,6 +223,9 @@ test("options: auth.issuers is a list of distinct https issuers, not beside auth
     assert.doesNotThrow(() => validateOptions({ auth: authOf(two, { allowInsecureIssuer: undefined }) }));
     assert.throws(() => validateOptions({ auth: { ...authOf(two), issuer: one.issuer } }), /auth\.issuer: set it in the entries of auth\.issuers, or leave auth\.issuers out; not both/);
     assert.throws(() => validateOptions({ auth: authOf([]) }), /auth\.issuers: 1 to 10 issuers/);
+    const many = (n) => Array.from({ length: n }, (_, i) => ({ issuer: `https://i${i}.example.test/` }));
+    assert.doesNotThrow(() => validateOptions({ auth: authOf(many(10)) }));
+    assert.throws(() => validateOptions({ auth: authOf(many(11)) }), /auth\.issuers: 1 to 10 issuers/);
     assert.throws(() => validateOptions({ auth: authOf([one, one]) }), /auth\.issuers\[1\]\.issuer: is there twice/);
     assert.throws(() => validateOptions({ auth: authOf([one, { issuer: "https://A.example.test/" }]) }), /auth\.issuers\[1\]\.issuer: is "https:\/\/a\.example\.test\/" in another spelling/);
     assert.throws(() => validateOptions({ auth: authOf([{ issuer: "ftp://a.example.test/" }]) }), /auth\.issuers\[0\]\.issuer: .*an https:\/\/ address/);

@@ -12,8 +12,9 @@
  *   with its metadata (RFC 8414 or OpenID Connect discovery); access tokens as JWTs checked against
  *   the JWKS of the issuer they name with jose (signature, issuer, audience, expiry, algorithms; no
  *   "none", no HMAC). Each endpoint checks its own audience, unless the issuer has one of its own.
- *   The metadata is fetched in the background with retries; until every issuer's is there,
- *   `ready()` is false. Every request to an issuer goes through issuer.js (guardedFetch's rules; a
+ *   The metadata is fetched in the background with retries, each issuer's on its own: `ready()` is
+ *   true once one issuer's is there, and a token of an issuer not loaded yet gets 503 while the
+ *   loaded issuers' tokens pass (one unreachable provider does not take every sign-in down). Every request to an issuer goes through issuer.js (guardedFetch's rules; a
  *   loopback or private issuer only with auth.intranet).
  *
  * The token itself is never logged, never passed on, never part of a message. A caller (callerOf)
@@ -582,7 +583,9 @@ async function oauthCore(options, { env, log }) {
     const keys = new Map(issuersOf(options).map((entry) => [entry.issuer, issuerKeys(entry, rules, log)]));
     const all = [...keys.values()];
     await Promise.all(all.map((k) => k.start()));
-    const ready = () => all.every((k) => k.ready());
+    // ready once one issuer is loaded; each token waits only for its own issuer
+    const ready = () => all.some((k) => k.ready());
+    const waiting = () => all.filter((k) => !k.ready()).map((k) => k.entry);
 
     /** The key set of the issuer a token names in iss, or null (not a JWT, no iss, an issuer not configured). */
     const keysOf = (token) => {
@@ -593,13 +596,14 @@ async function oauthCore(options, { env, log }) {
             return null;
         }
     };
+    /** Whether a token must wait: no issuer is loaded yet, or the issuer it names in iss is not (as /readyz and the MCP endpoint's gate say). */
+    const waitsFor = (token) => !ready() || keysOf(token)?.ready() === false;
     /**
-     * The loaded key set to check a token with, or an AuthRefusal: 503 while any issuer is not
-     * loaded yet (as /readyz and the MCP endpoint's gate say), then 401 for a token of no
-     * configured issuer.
+     * The loaded key set to check a token with, or an AuthRefusal: 503 while no issuer or the
+     * token's own is loaded, then 401 for a token of no configured issuer.
      */
     const readyKeysOf = (token) => {
-        if (!ready()) {
+        if (waitsFor(token)) {
             throw new AuthRefusal(503, "temporarily_unavailable", "the server is waiting for its authorization server");
         }
         const held = keysOf(token);
@@ -628,8 +632,15 @@ async function oauthCore(options, { env, log }) {
          * @param {string | null | undefined} subject
          */
         auditName: (iss, subject) => auditText(audit, iss, subject),
-        /** Whether every issuer's metadata and keys are loaded. */
+        /** Whether one issuer's metadata and keys are loaded, at least. */
         ready,
+        /** The entries of the issuers whose metadata and keys are not loaded yet, in the operator's order. */
+        waiting,
+        /**
+         * Whether a token gets 503: no issuer is loaded, or the one it names in iss (unverified) is not.
+         * @param {string} token
+         */
+        waitsFor,
         /**
          * The required scopes of the issuer a token names in iss, unverified (auth.issuers[i].requiredScopes;
          * empty for another token): what a 403 insufficient_scope asks for on top of the endpoint's.

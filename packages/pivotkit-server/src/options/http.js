@@ -350,7 +350,7 @@ export function exchangeIssuerOf(options, exchange, at) {
     if (exchange.issuer !== undefined && !issuers.includes(exchange.issuer)) {
         throw new ConfigError(`${at}: ${JSON.stringify(exchange.issuer.slice(0, 200))} is not one of the server's issuers (${issuers.join(", ")}); write it exactly as there`);
     }
-    // without an issuer, options/issuer.js refuses the configuration after this fragment
+    // with auth.mode "oauth" there is at least one issuer: options/issuer.js runs before this fragment
     if (exchange.issuer === undefined && issuers.length > 1) {
         throw new ConfigError(`${at}: the server accepts tokens of ${issuers.length} issuers; name the one whose people's tokens this exchange sends to its token endpoint (${issuers.join(", ")})`);
     }
