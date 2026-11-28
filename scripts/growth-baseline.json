@@ -3,7 +3,7 @@
         "pages": {
             "docs/concepts/charts.md": [318],
             "docs/concepts/limits.md": [430],
-            "docs/getting-started/kubernetes.md": [486],
+            "docs/getting-started/kubernetes.md": [488],
             "docs/learn.md": [458],
             "docs/model-data.md": [571],
             "docs/privacy.md": [503],
@@ -11,12 +11,12 @@
             "docs/reference/core.md": [674],
             "docs/reference/mcp.md": [1000],
             "docs/reference/react.md": [861],
-            "docs/reference/rest.md": [973],
+            "docs/reference/rest.md": [975],
             "docs/reference/sources.md": [985],
             "docs/security.md": [901],
             "docs/use/charts.md": [487]
         },
-        "totalLines": 24313
+        "totalLines": 24325
     },
     "functions": {
         "complexity": {
