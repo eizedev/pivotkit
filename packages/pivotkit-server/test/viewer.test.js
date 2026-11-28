@@ -217,7 +217,7 @@ test("viewer: a link only for its maker, opened by another person, says it is no
         assert.equal(bob.data.problem.linkAccess, "refused");
         assert.ok(bob.data.problem.requestId);
         // the refused person learns nothing of the report: its title stays out of the page
-        assert.doesNotMatch(bob.html, /class="title">Sales/);
+        assert.doesNotMatch(bob.html, /class="title"/);
         // a person whose profile reads no rows is refused by their rights, with or without the link
         const plain = await signedIn(viewer, "/live/sales", "carol", { groups: ["plain"] });
         assert.equal(plain.data.problem.code, "NOT_ALLOWED");

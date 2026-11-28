@@ -224,9 +224,9 @@ export async function createViewerHandler(context, rest, runtime = {}) {
         const rights = await rightsOf(rest, verified, context);
         const shown = "caller" in rights ? await tokenFor(rest, problemOf, input, rights.caller) : { data: rights.data, line: { ok: false, ...rights.line } };
         log(shown.line);
-        // a person refused learns nothing of the report: the heading is the operator's name then
+        // a person refused learns nothing of the report: no title then, and the window's is the operator's name
         const heading = shown.data.token ? input.title : brand.name;
-        return viewerPage(brand, languageOf(request), { heading, report: true, headers: { "set-cookie": cookie }, data: { step: "report", to: entry.to, source: input.source, params: input.names, ...shown.data } });
+        return viewerPage(brand, languageOf(request), { heading, report: true, title: Boolean(shown.data.token), headers: { "set-cookie": cookie }, data: { step: "report", to: entry.to, source: input.source, params: input.names, ...shown.data } });
     }
 
     /** The answer of a request after its precheck. */

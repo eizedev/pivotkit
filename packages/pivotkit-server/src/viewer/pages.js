@@ -92,8 +92,8 @@ const blockJson = (data) => JSON.stringify(data).replace(/</g, "\\u003c").replac
  * person may see it), a message or the report, and the data block the script reads.
  * @param {{ name: string, icon: unknown }} brand  branding.js's
  * @param {"en" | "de"} lang
- * @param {{ heading: string, text?: string, again?: boolean, report?: boolean, data?: Record<string, unknown>, status?: number, headers?: Record<string, string>, head?: boolean }} how
- *   report: the page holds the report (the heading is its title); again: the button that signs in again; head: a HEAD's answer (no body)
+ * @param {{ heading: string, text?: string, again?: boolean, report?: boolean, data?: Record<string, unknown>, status?: number, headers?: Record<string, string>, head?: boolean, title?: boolean }} how
+ *   report: the page holds the report (the heading is its title, shown unless title is false); again: the button that signs in again; head: a HEAD's answer (no body)
  */
 export function viewerPage(brand, lang, how) {
     const t = TEXTS[lang];
@@ -104,7 +104,7 @@ export function viewerPage(brand, lang, how) {
     const message = how.report
         ? `<div id="report" class="report"></div>`
         : `<section class="message"><h1>${escapeHtml(how.heading)}</h1>${how.text ? `<p>${escapeHtml(how.text)}</p>` : ""}${how.again ? `<p><button type="button" data-action="sign-in">${escapeHtml(t.again)}</button></p>` : ""}${reference}<noscript><p>${escapeHtml(t.script)}</p></noscript></section>`;
-    const title = how.report ? `<h1 class="title">${escapeHtml(how.heading)}</h1>` : "";
+    const title = how.report && how.title !== false ? `<h1 class="title">${escapeHtml(how.heading)}</h1>` : "";
     const html = `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><meta name="referrer" content="no-referrer"><title>${escapeHtml(how.heading)} - ${brandLine}</title>${brand.icon ? `<link rel="icon" type="image/png" href="${ICON_PATH}">` : ""}<link rel="stylesheet" href="${OWN_PATH}/viewer.css"><script type="module" src="${OWN_PATH}/viewer.js"></script></head><body><header class="bar"><p class="brand">${icon}<span>${brandLine}</span></p>${title}</header><main>${message}</main><script type="application/json" id="pk-live">${blockJson({ lang, ...(how.data ?? {}) })}</script></body></html>`;
     return new Response(how.head ? null : html, { status, headers: { ...BASE_HEADERS, "content-security-policy": VIEWER_CSP, "content-type": "text/html; charset=utf-8", ...(how.headers ?? {}) } });
 }
