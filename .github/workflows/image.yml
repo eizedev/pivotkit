@@ -53,6 +53,9 @@ jobs:
           load: true
           push: false
           tags: pivotkit:test
+      - name: The image's size
+        # in bytes, unpacked, on the job's log: what a change adds to the image shows in its pull request
+        run: docker image inspect --format '{{.Size}}' pivotkit:test
       - name: The command on the PATH
         # distroless has no shell and no /usr/bin/env: the launcher names /nodejs/bin/node
         run: |
