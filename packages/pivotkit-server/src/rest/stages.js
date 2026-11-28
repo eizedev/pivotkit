@@ -256,7 +256,7 @@ async function serveOpenApi({ rest, problem, signIn, discovery }, request, addre
  * @param {import("../registry.js").Caller} caller
  * @returns {{ leave: () => void } | { refused: Response }}
  */
-function enterLimits({ context, limits, problem }, caller) {
+export function enterLimits({ context, limits, problem }, caller) {
     const limitKey = limitKeyOf(caller);
     const wait = limits.take(limitKey, caller.client);
     if (wait) {

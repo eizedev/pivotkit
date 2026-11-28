@@ -76,6 +76,14 @@
     "pivotkit-report": "^0.7.0",
     "pivotkit-xlsx": "^0.8.0"
   },
+  "peerDependencies": {
+    "pivotkit-element": "^0.11.0"
+  },
+  "peerDependenciesMeta": {
+    "pivotkit-element": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.4.0",
     "@types/node": "24.19.2",

@@ -26,6 +26,7 @@ The report works as every pivotkit report does: move fields, filter, show a char
 | --- | --- | --- |
 | **This link is not shared with this account** | The person who shared the link made it for themselves or for a group you are not in. | Ask them to share it with you, or sign in with another account. |
 | **This link no longer works** | The link is not complete, or belongs to another report. | Ask for a new link. |
+| **Link too long** | The link carries more settings than the sign-in can take. | Ask for a link with fewer settings. |
 | **No access to this data** | Your account may not see the data of this report. | Ask the person who shared it, or your IT support. |
 | **Not signed in**, **Sign-in failed** or **Sign-in page out of date** | You cancelled the sign-in, it did not complete, or the page used it already. | Choose **Sign in again**. |
 | **The sign-in for this report did not work** | The sign-in service let you in, but the report server could not read your rights. | Reload the page. If it keeps happening, tell your IT support. |

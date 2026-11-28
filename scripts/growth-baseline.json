@@ -13,10 +13,10 @@
             "docs/reference/react.md": [864],
             "docs/reference/rest.md": [977],
             "docs/reference/sources.md": [985],
-            "docs/security.md": [929],
+            "docs/security.md": [931],
             "docs/use/charts.md": [487]
         },
-        "totalLines": 24905
+        "totalLines": 24930
     },
     "functions": {
         "complexity": {

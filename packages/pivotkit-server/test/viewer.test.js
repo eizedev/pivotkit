@@ -8,13 +8,15 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { SignJWT } from "jose";
 import { checkConfig, validateOptions } from "pivotkit-server";
 import { ACCESS_PARAM } from "../src/link-access.js";
 import { VIEWER_CSP } from "../src/viewer/pages.js";
-import { viewerAssets } from "../src/viewer/assets.js";
+import { elementProblem, viewerAssets } from "../src/viewer/assets.js";
+import { cookieJar } from "../src/downloads/tokens.js";
 import { call, factsOf, restServer, tempDir, untilReady, workspace } from "./helpers.js";
 import { localIssuer } from "./auth/local-issuer.js";
 import { until } from "../../../tests/until.js";
@@ -74,7 +76,7 @@ function viewerFiles() {
 }
 
 /** A server with the viewer page on, its sign-in client the download links', its issuer loaded. */
-async function viewerServer({ browser = {}, top = {}, files = viewerFiles() } = {}) {
+async function viewerServer({ browser = {}, top = {}, rest = {}, files = viewerFiles() } = {}) {
     const dir = workspace({ "sales.csv": CSV });
     const server = await restServer(
         {
@@ -85,7 +87,7 @@ async function viewerServer({ browser = {}, top = {}, files = viewerFiles() } = 
             policy: { profiles: { staff: { records: ["sales", "team"], fields: { Region: "show", Sales: "show" } }, plain: { fields: { Region: "show" } } } },
             auth: { mode: "oauth", issuer: provider.url, resource: `${PUBLIC}/mcp`, allowInsecureIssuer: true, requiredScopes: ["pivotkit"], defaultProfile: "staff", groupProfiles: [{ group: "plain", profile: "plain" }] },
             output: { dir: "out", downloads: { key: { env: "DL_KEY" }, signIn: { clientId: CLIENT_ID, scopes: ["openid", "pivotkit"] } } },
-            rest: { browser: { key: { env: "BROWSER_KEY" }, viewer: true, levels: ["me", "signedIn"], ...browser } },
+            rest: { browser: { key: { env: "BROWSER_KEY" }, viewer: true, levels: ["me", "signedIn"], ...browser }, ...rest },
             branding: { name: HOSTILE_NAME },
             http: { publicUrl: PUBLIC },
             baseDir: dir,
@@ -103,7 +105,7 @@ async function viewerServer({ browser = {}, top = {}, files = viewerFiles() } = 
             return r.status !== 503 && r;
         }, { message: "the sign-in issuer did not load", tries: 100, every: 30 });
     const callback = (code, state, cookie, headers = {}) => fetch(`${server.url}/live/_/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`, { headers: { cookie, ...headers } });
-    return { server, local, start, callback };
+    return { server, dir, local, start, callback };
 }
 
 /** The provider's sign-in page, as a person passes it: a code for `sub`, with what `grant` changes. */
@@ -190,6 +192,9 @@ test("viewer: the link's page signs nobody in; the sign-in's callback answers th
         const replay = await viewer.callback(code, state, cookieOf(redirect));
         assert.equal(replay.status, 400);
         assert.equal(dataOf(await replay.text()).answer, "SIGN_IN_STALE");
+        // marked in this process, never in the output directory: nothing there for the download links' sweep
+        const markers = join(viewer.dir, "out", ".pivotkit-downloads");
+        assert.deepEqual(existsSync(markers) ? readdirSync(markers).filter((f) => f.endsWith(".state")) : [], []);
         // a download's sign-in never completes here: each route has its own cookie
         assert.equal((await viewer.callback(code, state, cookieOf(redirect).replace("pivotkit-live", "pivotkit-dl"))).status, 400);
     } finally {
@@ -216,8 +221,12 @@ test("viewer: a link only for its maker, opened by another person, says it is no
         assert.equal(bob.data.problem.code, "NOT_ALLOWED");
         assert.equal(bob.data.problem.linkAccess, "refused");
         assert.ok(bob.data.problem.requestId);
-        // the refused person learns nothing of the report: its title stays out of the page
+        // the refused person learns nothing of the report beyond the link they hold: no title, no
+        // parameters of the source, no text of the refusal (the report shows its own)
         assert.doesNotMatch(bob.html, /class="title"/);
+        assert.deepEqual([bob.data.source, bob.data.params], [undefined, undefined]);
+        assert.deepEqual(Object.keys(bob.data.problem).sort(), ["code", "linkAccess", "requestId", "status"]);
+        assert.equal(bob.data.problem.status, 403);
         // a person whose profile reads no rows is refused by their rights, with or without the link
         const plain = await signedIn(viewer, "/live/sales", "carol", { groups: ["plain"] });
         assert.equal(plain.data.problem.code, "NOT_ALLOWED");
@@ -241,6 +250,11 @@ test("viewer: an access token the REST service refuses, a missing one, or one of
         // without the service's scope: refused by the person's rights
         const scope = await signedIn(viewer, "/live/sales", "alice", { scope: "openid" });
         assert.equal(scope.data.problem.code, "INSUFFICIENT_SCOPE");
+        // the page gets the code, never the refusal's text, which names the service's scopes
+        assert.deepEqual(Object.keys(scope.data.problem).sort(), ["code", "requestId", "status"]);
+        assert.doesNotMatch(scope.html, /pivotkit|"detail"|"title"/, "the required scope's name and the refusal's text stay out");
+        assert.deepEqual([scope.data.source, scope.data.params], [undefined, undefined]);
+        assert.ok(server.log.some((l) => l.event === "viewer" && l.code === "INSUFFICIENT_SCOPE" && l.reason), "the log keeps why");
         // the access token names another person than the ID token: never read with either
         const crossed = await signedIn(viewer, "/live/sales", "alice", { accessSub: "mallory" });
         assert.equal(crossed.data.failed, true);
@@ -273,11 +287,18 @@ test("viewer: stored titles and branding are escaped in every page; the sign-in 
         assert.doesNotMatch(blockHtml, /<!--|alert\(9\)<\/script>/);
         assert.match(html, /<h1 class="title">Sales &#60;\/script&#62;&#60;script&#62;alert\(1\)&#60;\/script&#62; &#34;&#62;&#60;img/);
         // the sign-in returns to a page of this route only: never another address
-        for (const to of ["https://evil.example/live/sales", "//evil.example/live/sales", "/live/../api/v1/sources", "/live/_/callback", "/downloads/x", "/live/sales#x", `/live/sales?${"a".repeat(2100)}`]) {
+        for (const to of ["https://evil.example/live/sales", "//evil.example/live/sales", "/live/../api/v1/sources", "/live/_/callback", "/downloads/x", "/live/sales#x"]) {
             const r = await fetch(`${server.url}/live/_/sign-in?to=${encodeURIComponent(to)}`, { redirect: "manual" });
             assert.equal(r.status, 404, to);
             assert.equal(r.headers.get("location"), null);
         }
+        // a link too long for the sign-in's cookie: said as such, before any sign-in starts
+        const long = await fetch(`${server.url}/live/_/sign-in?to=${encodeURIComponent(`/live/sales?${"a".repeat(2100)}`)}`, { redirect: "manual" });
+        assert.equal(long.status, 414);
+        assert.equal(long.headers.get("location"), null);
+        assert.equal(long.headers.get("set-cookie"), null);
+        assert.match(await long.text(), /Link too long/);
+        assert.ok(server.log.some((l) => l.event === "viewer" && l.status === 414));
         // files: the page's own and the element's built ones, nothing else
         for (const [path, status] of [["/live/_/viewer.js", 200], ["/live/_/viewer.css", 200], ["/live/_/element/index.js", 200], ["/live/_/element/chunks/a.js", 200], ["/live/_/element/secret.txt", 404], ["/live/_/element/../own/viewer.js", 404], ["/live/_/element/%2e%2e/own/viewer.js", 404]]) {
             const r = await fetch(`${server.url}${path}`);
@@ -287,6 +308,17 @@ test("viewer: stored titles and branding are escaped in every page; the sign-in 
                 assert.equal(r.headers.get("x-content-type-options"), "nosniff");
             }
         }
+        // the names carry no version: asked again on every use, 304 while the file is the same
+        const first = await fetch(`${server.url}/live/_/element/index.js`);
+        assert.equal(first.headers.get("cache-control"), "no-cache");
+        const etag = first.headers.get("etag") ?? "";
+        assert.match(etag, /^"[A-Za-z0-9_-]{27}"$/);
+        const same = await fetch(`${server.url}/live/_/element/index.js`, { headers: { "if-none-match": `W/${etag}` } });
+        assert.equal(same.status, 304);
+        assert.equal(await same.text(), "");
+        const other = await fetch(`${server.url}/live/_/element/index.js`, { headers: { "if-none-match": '"an-older-build"' } });
+        assert.equal(other.status, 200);
+        assert.notEqual((await fetch(`${server.url}/live/_/element/chunks/a.js`)).headers.get("etag"), etag, "each file its own");
         // a POST is not the page's
         assert.equal((await fetch(`${server.url}/live/sales`, { method: "POST" })).status, 405);
         // German where the browser's first language is
@@ -324,6 +356,42 @@ test("viewer: a long link signs in; parallel sign-ins keep the newest in a cooki
     } finally {
         await server.close();
     }
+});
+
+test("viewer: a sign-in counts against the person's REST rate limit, as the exchange route does", async () => {
+    const viewer = await viewerServer({ rest: { rateLimit: { perMinute: 1, burst: 1 } } });
+    const { server } = viewer;
+    try {
+        const first = await signedIn(viewer, "/live/sales", "alice");
+        assert.ok(first.data.token?.token, JSON.stringify(first.data));
+        const second = await signedIn(viewer, "/live/sales", "alice");
+        assert.equal(second.data.token, undefined);
+        assert.equal(second.data.problem.code, "RATE_LIMITED");
+        assert.equal(second.data.problem.status, 429);
+        assert.ok(Number.isFinite(second.data.problem.retryAfter), "the report waits as the server says");
+        // counted per person: another one still gets a token
+        assert.ok((await signedIn(viewer, "/live/sales", "bob")).data.token?.token);
+    } finally {
+        await server.close();
+    }
+});
+
+test("viewer: an entry too large for the sign-in's cookie alone is dropped, not sent in a cookie a browser refuses", async () => {
+    const jar = cookieJar(async () => ({ cookie: Buffer.alloc(32, 1) }), true, "live");
+    const x = Math.floor(Date.now() / 1000) + 600;
+    assert.match(await jar.write({ a: { x, to: "a".repeat(5000) } }), /^__Host-pivotkit-live=; Max-Age=0/);
+    const kept = await jar.write({ a: { x: x - 1, to: "a".repeat(5000) }, b: { x, to: "b" } });
+    assert.ok(kept.split(";")[0].length <= 4096);
+    assert.deepEqual(Object.keys(await jar.read(new Request("https://x/", { headers: { cookie: kept.split(";")[0] } }))), ["b"]);
+});
+
+test("viewer: a pivotkit-element outside the range pivotkit-server needs is named, with both versions", () => {
+    const dir = tempDir("old-element");
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "pivotkit-element", version: "0.1.0" }));
+    assert.match(String(elementProblem(join(dir, "package.json"))), /^pivotkit-element 0\.1\.0 is installed, but the viewer page needs \^\d+\.\d+\.\d+: its report cannot read rows/);
+    // the one of this repository is in the range
+    assert.equal(elementProblem(fileURLToPath(new URL("../../pivotkit-element/package.json", import.meta.url))), null);
+    assert.equal(elementProblem(null), null, "not installed: viewerAssets says so");
 });
 
 test("viewer: the page's own files and pivotkit-element's built ones, from where they are installed", async () => {
@@ -371,4 +439,17 @@ test("check-config: the viewer page's address, what to register at the provider,
     };
     const text = factsOf((await checkConfig(options, { http: true, rest: true, env: { BROWSER_KEY }, name: "pivotkit-server" })).text);
     assert.match(text, /^ {2}viewer page: https:\/\/reports\.example\.com\/live\/<source> \(rest\.browser\.viewer\); a source's link opens it when it is that address\n {4}register https:\/\/reports\.example\.com\/live\/_\/callback at the provider for the client pivotkit-web\n {4}the sign-in asks for openid pivotkit \(output\.downloads\.signIn\.scopes\): its access token must be one the REST service accepts: its aud in rest\.audience, with rest\.requiredScopes$/m);
+    assert.doesNotMatch(text, /http\.enable|does not ask for|rest\.browser\.viewer is off/);
+
+    // not served, a sign-in without the REST service's scopes
+    const unserved = factsOf((await checkConfig({ ...options, rest: { ...options.rest, requiredScopes: ["pivotkit", "reports.read"] } }, { http: true, rest: false, env: { BROWSER_KEY }, name: "pivotkit-server" })).text);
+    assert.match(unserved, /WARNING \(Browser path\): the viewer page is part of the REST service, which this server does not serve \(http\.enable\)/);
+    assert.match(unserved, /WARNING \(Browser path\): output\.downloads\.signIn\.scopes does not ask for reports\.read \(rest\.requiredScopes\)/);
+
+    // a source's link to the page while it is off, with the browser path on or off
+    const off = { ...options, rest: { browser: { key: { env: "BROWSER_KEY" } } } };
+    for (const given of [off, { ...off, rest: {}, policy: { profiles: { staff: {} } } }]) {
+        const said = factsOf((await checkConfig(given, { http: true, rest: true, env: { BROWSER_KEY }, name: "pivotkit-server" })).text);
+        assert.match(said, /WARNING \(Browser path\): the link of sales is an address of the viewer page \(\/live\/<source>\), but rest\.browser\.viewer is off: the link answers 404/);
+    }
 });

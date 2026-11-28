@@ -168,8 +168,9 @@ export function cookieJar(keyOf, secure, route = "dl") {
             let entries = Object.entries(map)
                 .sort((a, b) => a[1].x - b[1].x)
                 .slice(-COOKIE_ENTRIES);
-            // 44: the signature and its dot
-            while (entries.length > 1 && b64(JSON.stringify(Object.fromEntries(entries))).length + 44 > COOKIE_VALUE_CHARS) {
+            // 44: the signature and its dot. An entry too large alone goes too: a browser would drop
+            // the whole cookie, so the sign-in fails as stale instead of the cookie being lost silently
+            while (entries.length && b64(JSON.stringify(Object.fromEntries(entries))).length + 44 > COOKIE_VALUE_CHARS) {
                 entries = entries.slice(1);
             }
             const attributes = `Path=/; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;

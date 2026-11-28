@@ -803,8 +803,8 @@ it ends. What it means for an operator:
 The [viewer page](reference/records.md#records-viewer) is a page of the server's own origin. It
 holds a browser token, so what may run in it matters:
 
-- Its `Content-Security-Policy` header allows only the server's own files: no inline script or
-  style, no frames around it (`frame-ancestors 'none'`), no forms, no other origin to connect to.
+- Its `Content-Security-Policy` header is the [policy below](#content-security-policy) with
+  `frame-ancestors 'none'`: only the server's own files, no inline script or style, no frames.
 - It escapes every stored text: `branding.name` and a source's title. Its data is a JSON block with
   `<`, `>` and `&` escaped. Tests run with titles and names that try to break out.
 - It serves only its own script and style and pivotkit-element's built files, from a list made at
@@ -812,6 +812,8 @@ holds a browser token, so what may run in it matters:
 - The page gets the browser token alone, never the person's tokens
   ([how it signs in](reference/records.md#records-viewer)). The token is never in an address, a
   cookie or the log.
+- With the sign-in client's ID in `rest.audience`, every access token of that client is a REST
+  bearer with the person's rights. Give that client no scopes beyond `rest.requiredScopes`.
 
 ## Parameters in a link { #link-params }
 
@@ -870,7 +872,7 @@ Not covered:
 
 - Browsers without constructable stylesheets fall back to a `<style>` element. That needs
   `style-src 'unsafe-inline'`, since the element has no nonce option.
-- Only the `<meta>` form of the policy was measured, not an HTTP header.
+- The HTTP header form was measured on the [viewer page](#viewer-page) (`tests/browser/viewer.spec.js`).
 - `script-src` must allow the origin that serves `dist/` and its chunks.
 - A page script that sets the element's properties must be a file or carry a nonce.
 

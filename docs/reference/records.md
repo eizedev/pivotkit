@@ -334,7 +334,9 @@ as [Open a shared live report](../use/open-a-shared-report.md).
 2. Set the source's `link` to the page: `"link": "https://reports.example.com/live/sales"`.
    `create_link` then gives that address with the view, the `linkParams` and `pk-access`.
 3. Install pivotkit-element next to pivotkit-server: `npm install pivotkit-element`. The page serves
-   its built files. Without them it answers 503 and the log warns.
+   its built files. Without them it answers 503 and the log warns. Its version must be in the range
+   pivotkit-server names as an optional peer dependency; an older report cannot read rows from the
+   server, and the log and `check-config` warn.
 4. The sign-in is the one of [sign-in links](delivery.md#sign-in), with its client
    `output.downloads.signIn`. At the provider, add the redirect URI
    `https://reports.example.com/live/_/callback` to that client: `http.publicUrl` +
@@ -359,20 +361,40 @@ as [Open a shared live report](../use/open-a-shared-report.md).
 - The callback checks the ID token as a sign-in link does. The access token of the same answer must
   name the same issuer and subject. The page gets only the browser token, never the person's tokens.
 - A short cookie, `__Host-pivotkit-live`, holds the sign-in under way. The answer clears it. No
-  session follows: when the report needs a new browser token, the page signs in again.
+  session follows: when the report needs a new browser token, the page signs in again. A link over
+  2,048 characters gets "Link too long" (414): its sign-in would not fit the cookie.
+- A used sign-in is marked in the server's memory, so a callback replayed on another replica fails
+  only at the provider, which takes a code once.
+- A sign-in counts against the person's REST rate limit and concurrency (`rest.rateLimit`), as a
+  request to the token route does.
+- A person who may not read the report gets its state, such as "This link is not shared with this
+  account", but neither the title nor the source's parameters. The refusal's text, which may name
+  the required scopes, stays in the log.
+- The page's files carry no version in their names. A browser asks again on every use and gets 304
+  while a file is unchanged.
 - The page needs `auth.mode` `"oauth"` and an `https` `http.publicUrl`. On loopback it may go
   without one. Its policy allows no inline script or style
   ([security](../security.md#viewer-page)).
-- `check-config` names the page's address, the redirect URI to register and the scopes, and warns
-  without pivotkit-element.
+- `check-config` names the page's address, the redirect URI to register and the scopes. It warns
+  without pivotkit-element or with one outside the range, when `http.enable` leaves out `rest`, when
+  the sign-in's scopes lack `rest.requiredScopes`, and when a source's `link` is a `/live/` address
+  while the page is off.
+- Each sign-in ends with a `viewer` log line: the browser token's ID, or the `code` and `reason` of
+  a refusal.
 
 ## What the log says { #records-log }
 
 Every answer that started ends with a `records` line: the source, the rows and columns, the profile,
 `client` and `ms`, how long the answer took to read. With `audit.subject` it names the person too.
-It never holds a value. A sign-in on the [viewer page](#records-viewer) ends with a `viewer` line:
-the browser token's ID, or the `code` and `reason` of a refusal. An answer cut off has `outcome: "error"` and `reason`: `idle`, `slow` (not
-read within `writeMs`), `client` (the reader left), `timeout` or `error`.
+It never holds a value. The [viewer page](#records-viewer) writes `viewer` lines of its own.
+
+An answer cut off has `outcome: "error"` and a `reason`:
+
+- `idle`
+- `slow`: not read within `writeMs`
+- `client`: the reader left
+- `timeout`
+- `error`
 
 ## Sizing { #records-sizing }
 

@@ -7,7 +7,10 @@
  *    tab's sessionStorage and goes to /live/_/sign-in?to=<the link's path and query>.
  * 2. The sign-in is the download links' (downloads/sign-in.js): the same client
  *    (output.downloads.signIn), the code flow with PKCE, state and nonce in a short cookie of this
- *    route's own, cleared with the answer. No session outlives it.
+ *    route's own, cleared with the answer. No session outlives it. A used state is marked in this
+ *    process only, never in the output directory: nothing there is left for the download links'
+ *    sweep, which runs only while they are on (a replica's replay still fails at the issuer, which
+ *    takes a code once).
  * 3. The callback checks the ID token as a download's does, then reads the person's rights from the
  *    access token of the same answer, as the REST service reads a bearer's (audience, scopes,
  *    groups), for the same issuer and subject. With them it asks the exchange route's own steps
@@ -30,17 +33,15 @@ import { issuerRulesOf, issuersOf } from "./issuer.js";
 import { isLoopback } from "./listen.js";
 import { browserSettingsOf } from "./options/browser.js";
 import { settingsOf } from "./options/downloads.js";
-import { outputDir } from "./output.js";
 import { newRequestId, requestId } from "./request-id.js";
 import { createRouteHandler } from "./route-handler.js";
 import { problemsFor } from "./rest/problem.js";
 import { linkParamsOf } from "./link-params.js";
 import { ACCESS_PARAM } from "./link-access.js";
 import { cookieJar, keySource } from "./downloads/tokens.js";
-import { join } from "node:path";
 import { createSignInSteps, signInIssuer } from "./downloads/sign-in.js";
 import { OWN_PATH, STATUSES, TEXTS, VIEWER_PATH, answerPage, languageOf, viewerPage } from "./viewer/pages.js";
-import { viewerAssets } from "./viewer/assets.js";
+import { elementProblem, viewerAssets } from "./viewer/assets.js";
 
 export { VIEWER_PATH } from "./viewer/pages.js";
 
@@ -56,6 +57,22 @@ const LINK_CHARS = 2048;
 
 /** A link's path and query as the sign-in takes it back: a page of this route, never another address. */
 const LINK_SYNTAX = /^\/live\/([A-Za-z0-9][A-Za-z0-9_.-]{0,63})(\?[^#\s]*)?$/;
+
+/**
+ * The members of a refusal the report reads to show its state (pivotkit-react's server-rows.js):
+ * the page gets those, never the problem's text, which may name the service's scopes or setup.
+ */
+const PAGE_PROBLEM = ["status", "code", "linkAccess", "limit", "maxRows", "maxCells", "retryAfter"];
+
+/**
+ * A refusal as the page gets it: PAGE_PROBLEM's members and the request's id.
+ * @param {Record<string, unknown>} problem
+ * @param {number} status  the answer's
+ */
+function pageProblem(problem, status) {
+    const kept = Object.fromEntries(PAGE_PROBLEM.filter((k) => problem[k] !== undefined).map((k) => [k, problem[k]]));
+    return { ...kept, status, requestId: requestId() ?? newRequestId() };
+}
 
 /** The route family of the page's refused lines. */
 const VIEWER_FAMILY = Object.freeze({ path: VIEWER_PATH });
@@ -102,6 +119,8 @@ async function viewerSetup(context, runtime) {
     const issuer = enabled && downloads.signIn ? signInIssuer(downloads.signIn, issuerRules, issuersOf(options)[0], context.log) : null;
     if (enabled && assets && !assets.ready) {
         context.log.warn("viewer page: pivotkit-element is not installed next to pivotkit-server (or not built), so /live/ answers 503; install pivotkit-element");
+    } else if (enabled && !runtime.files && elementProblem()) {
+        context.log.warn(`viewer page: ${elementProblem()}`);
     }
     if (enabled && !state.base && !loopback) {
         context.log.warn("viewer page: http.publicUrl is not set and the server listens on an address other than loopback, so /live/ answers 404; set http.publicUrl");
@@ -117,7 +136,8 @@ async function viewerSetup(context, runtime) {
         jar: cookieJar(keySource(downloads, options, env), (state.base ?? "").startsWith("https:"), "live"),
         log,
         answer: (request, code, headers) => answerPage(brand, request, code, headers),
-        markersDir: () => (outputDir(context) ? join(/** @type {string} */ (outputDir(context)), ".pivotkit-downloads") : null),
+        // in this process only (the file's header)
+        markersDir: () => null,
         issuer,
         signInRules,
         env,
@@ -155,7 +175,7 @@ async function rightsOf(rest, verified, context) {
     if ("refused" in signedIn) {
         // valid, without this service's scopes or the person's groups: the person may not read here
         const problem = await signedIn.refused.json();
-        return { data: { problem: { ...problem, requestId: requestId() ?? newRequestId() } }, line: { status: signedIn.refused.status, code: problem.code, reason: signedIn.reason } };
+        return { data: { problem: pageProblem(problem, signedIn.refused.status) }, line: { status: signedIn.refused.status, code: problem.code, reason: signedIn.reason } };
     }
     const subject = subjectOf(claims[context.options.auth?.subjectClaim ?? "sub"]);
     if (!subject || claims.iss !== signedIn.caller.issuer || subject !== signedIn.caller.subject) {
@@ -169,33 +189,43 @@ async function rightsOf(rest, verified, context) {
  * The browser token of a person who signed in, as the exchange route answers it: the page's data
  * with the token, or with a problem the report shows as its state (the link not shared with this
  * account, no access), and the log line.
- * @param {{ exchange(input: Record<string, any>, caller: any, how: { entry: Record<string, unknown> }): Promise<Response> }} rest
+ * @param {{ enter(caller: any): { leave: () => void } | { refused: Response }, exchange(input: Record<string, any>, caller: any, how: { entry: Record<string, unknown> }): Promise<Response> }} rest
  * @param {(e: unknown) => Response} problemOf
  * @param {ReturnType<typeof linkInputOf>} input
  * @param {any} caller
  */
 async function tokenFor(rest, problemOf, input, caller) {
     const entry = /** @type {Record<string, unknown>} */ ({});
+    // the person's rate limit and concurrency, as the exchange route counts them over REST
+    const entered = rest.enter(caller);
     let answer;
-    try {
-        answer = await rest.exchange({ source: input.source, params: input.params, ...(input.access !== undefined ? { access: input.access } : {}) }, caller, { entry });
-    } catch (e) {
-        if (!(e instanceof OperationError)) {
-            throw e;
+    if ("refused" in entered) {
+        answer = entered.refused;
+    } else {
+        try {
+            answer = await rest.exchange({ source: input.source, params: input.params, ...(input.access !== undefined ? { access: input.access } : {}) }, caller, { entry });
+        } catch (e) {
+            if (!(e instanceof OperationError)) {
+                throw e;
+            }
+            answer = problemOf(e);
+        } finally {
+            entered.leave();
         }
-        answer = problemOf(e);
     }
     const body = await answer.json();
     if (answer.ok) {
         return { data: { token: { token: body.token, expiresAt: body.expiresAt } }, line: { ok: true, token: entry.token } };
     }
-    return { data: { problem: { ...body, requestId: requestId() ?? newRequestId() } }, line: { ok: false, status: answer.status, code: body.code, ...(body.linkAccess ? { linkAccess: body.linkAccess } : {}) } };
+    const retryAfter = Number(answer.headers.get("retry-after") ?? NaN);
+    const problem = pageProblem({ ...body, ...(Number.isFinite(retryAfter) ? { retryAfter } : {}) }, answer.status);
+    return { data: { problem }, line: { ok: false, status: answer.status, code: body.code, ...(body.linkAccess ? { linkAccess: body.linkAccess } : {}) } };
 }
 
 /**
  * The viewer page of a context.
  * @param {any} context
- * @param {{ verifyToken(token: string): Promise<{ caller: any } | { refused: Response, reason: string }>, exchange(input: Record<string, any>, caller: any, how: { entry: Record<string, unknown> }): Promise<Response> }} rest  the REST service's sign-in and exchange route (rest/handler.js)
+ * @param {{ verifyToken(token: string): Promise<{ caller: any } | { refused: Response, reason: string }>, enter(caller: any): { leave: () => void } | { refused: Response }, exchange(input: Record<string, any>, caller: any, how: { entry: Record<string, unknown> }): Promise<Response> }} rest  the REST service's sign-in, its limits and the exchange route (rest/handler.js)
  * @param {{ env?: Record<string, string | undefined>, loopback?: boolean, files?: Parameters<typeof viewerAssets>[0] }} [runtime]  files: other directories of the page's files (tests)
  */
 export async function createViewerHandler(context, rest, runtime = {}) {
@@ -224,9 +254,12 @@ export async function createViewerHandler(context, rest, runtime = {}) {
         const rights = await rightsOf(rest, verified, context);
         const shown = "caller" in rights ? await tokenFor(rest, problemOf, input, rights.caller) : { data: rights.data, line: { ok: false, ...rights.line } };
         log(shown.line);
-        // a person refused learns nothing of the report: no title then, and the window's is the operator's name
-        const heading = shown.data.token ? input.title : brand.name;
-        return viewerPage(brand, languageOf(request), { heading, report: true, title: Boolean(shown.data.token), headers: { "set-cookie": cookie }, data: { step: "report", to: entry.to, source: input.source, params: input.names, ...shown.data } });
+        // a person refused learns nothing of the report beyond the link they hold: no title then (the
+        // window's is the operator's name), and not the parameters the source takes
+        const given = Boolean(shown.data.token);
+        const heading = given ? input.title : brand.name;
+        const report = given ? { source: input.source, params: input.names } : {};
+        return viewerPage(brand, languageOf(request), { heading, report: true, title: given, headers: { "set-cookie": cookie }, data: { step: "report", to: entry.to, ...report, ...shown.data } });
     }
 
     /** The answer of a request after its precheck. */
@@ -243,15 +276,20 @@ export async function createViewerHandler(context, rest, runtime = {}) {
         if (path.startsWith(`${OWN_PATH}/`)) {
             if (path === SIGN_IN_PATH && !head) {
                 const to = url.searchParams.get("to") ?? "";
-                if (to.length > LINK_CHARS || !LINK_SYNTAX.test(to)) {
+                if (!LINK_SYNTAX.test(to)) {
                     return answerPage(brand, request, "NOT_FOUND");
+                }
+                if (to.length > LINK_CHARS) {
+                    // its entry would not fit the sign-in's cookie, so the sign-in could never complete
+                    log({ ok: false, answer: "LINK_TOO_LONG", reason: "link" });
+                    return answerPage(brand, request, "LINK_TOO_LONG");
                 }
                 return steps.start(request, { k: "live", to });
             }
             if (path === VIEWER_CALLBACK_PATH && !head) {
                 return callback(request);
             }
-            const file = await assets?.answer(path.slice(OWN_PATH.length + 1), head);
+            const file = await assets?.answer(path.slice(OWN_PATH.length + 1), head, request.headers.get("if-none-match"));
             return file ?? answerPage(brand, request, "NOT_FOUND");
         }
         const id = path.slice(VIEWER_PATH.length + 1);

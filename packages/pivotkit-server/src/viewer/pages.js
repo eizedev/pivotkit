@@ -31,6 +31,7 @@ export const TEXTS = Object.freeze({
         reference: "Request id",
         answers: {
             NOT_FOUND: { heading: "Page not found", text: "There is no such report page. Check that the whole link was copied." },
+            LINK_TOO_LONG: { heading: "Link too long", text: "This link is longer than the sign-in can take. Ask for a link with fewer settings." },
             SIGN_IN_FAILED: { heading: "Sign-in failed", text: "The sign-in did not complete. Sign in again to open the report." },
             SIGN_IN_DENIED: { heading: "Not signed in", text: "The sign-in was cancelled or the sign-in service refused it. Sign in again to open the report." },
             SIGN_IN_STALE: { heading: "Sign-in page out of date", text: "This sign-in was already used, took too long, or was started in another browser. Sign in again to open the report." },
@@ -51,6 +52,7 @@ export const TEXTS = Object.freeze({
         reference: "Anfrage-ID",
         answers: {
             NOT_FOUND: { heading: "Seite nicht gefunden", text: "Diese Berichtsseite gibt es nicht. Prüfen Sie, ob der ganze Link kopiert wurde." },
+            LINK_TOO_LONG: { heading: "Link zu lang", text: "Dieser Link ist länger, als die Anmeldung annimmt. Bitten Sie um einen Link mit weniger Einstellungen." },
             SIGN_IN_FAILED: { heading: "Anmeldung fehlgeschlagen", text: "Die Anmeldung wurde nicht abgeschlossen. Melden Sie sich erneut an, um den Bericht zu öffnen." },
             SIGN_IN_DENIED: { heading: "Nicht angemeldet", text: "Die Anmeldung wurde abgebrochen oder vom Anmeldedienst abgelehnt. Melden Sie sich erneut an, um den Bericht zu öffnen." },
             SIGN_IN_STALE: { heading: "Anmeldeseite veraltet", text: "Diese Anmeldung wurde schon verwendet, hat zu lange gedauert oder wurde in einem anderen Browser begonnen. Melden Sie sich erneut an, um den Bericht zu öffnen." },
@@ -66,7 +68,7 @@ export const TEXTS = Object.freeze({
 });
 
 /** The status of each answer that is not the report. */
-export const STATUSES = Object.freeze({ NOT_FOUND: 404, SIGN_IN_FAILED: 400, SIGN_IN_DENIED: 400, SIGN_IN_STALE: 400, SIGN_IN_TOO_MANY: 429, SIGN_IN_NOT_READY: 503, FORBIDDEN_HOST: 403, METHOD_NOT_ALLOWED: 405, BODY_TOO_LARGE: 413, UNAVAILABLE: 503, INTERNAL: 500 });
+export const STATUSES = Object.freeze({ NOT_FOUND: 404, LINK_TOO_LONG: 414, SIGN_IN_FAILED: 400, SIGN_IN_DENIED: 400, SIGN_IN_STALE: 400, SIGN_IN_TOO_MANY: 429, SIGN_IN_NOT_READY: 503, FORBIDDEN_HOST: 403, METHOD_NOT_ALLOWED: 405, BODY_TOO_LARGE: 413, UNAVAILABLE: 503, INTERNAL: 500 });
 
 /** The answers that offer to sign in again. */
 const SIGN_IN_AGAIN = new Set(["SIGN_IN_FAILED", "SIGN_IN_DENIED", "SIGN_IN_STALE", "SIGN_IN_TOO_MANY", "SIGN_IN_NOT_READY"]);

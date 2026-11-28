@@ -28,8 +28,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `rest.browser.viewer` serves `/live/<source>`, the server's own page for a live link. It signs
   the person in with the download links' client (one more redirect URI, `/live/_/callback`), reads
   their rights from the access token of that sign-in, and shows the report with a browser token
-  only. No session follows. It needs pivotkit-element installed next to the server. The log has a
-  `viewer` line per sign-in; `check-config` names the redirect URI and the scopes.
+  only. No session follows. It needs pivotkit-element installed next to the server, in the range of
+  the new optional peer dependency. A sign-in counts against the person's REST rate limit. The log
+  has a `viewer` line per sign-in. `check-config` names the redirect URI and the scopes, and warns
+  when the page is not served, the sign-in lacks `rest.requiredScopes`, pivotkit-element is missing
+  or too old, or a source's `link` points at the page while it is off.
+- The sign-in cookie of the download links drops an entry too large for a browser on its own.
 - The rows route's 413 `LIMIT_EXCEEDED` holds its limit as `maxRows` or `maxCells`.
 - `auth.issuers`: the server accepts the tokens of up to 10 OAuth issuers, for example two
   Authentik applications with an issuer each ([#587](https://github.com/eizedev/pivotkit/issues/587)).

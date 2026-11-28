@@ -37,7 +37,8 @@ import { createRecords } from "../records.js";
 import { createBrowserPath } from "../browser.js";
 import { createRestSignIn } from "./sign-in.js";
 import { PRM_PATH, createDiscovery } from "./discovery.js";
-import { answer, precheck, release } from "./stages.js";
+import { answer, enterLimits, precheck, release } from "./stages.js";
+import { requiredScopesOf } from "../scopes.js";
 
 /**
  * The REST service of a context.
@@ -55,7 +56,7 @@ export async function createRestHandler(context, runtime = {}) {
     const mode = authOptions.mode ?? "none";
     const core = await context.auth({ env: runtime.env, loopback: runtime.loopback ?? isLoopback(options.http?.host ?? "127.0.0.1") });
     const resource = new URL(restResourceOf(options));
-    const requiredScopes = rest.requiredScopes ?? authOptions.requiredScopes ?? [];
+    const requiredScopes = requiredScopesOf(options, "rest");
     if (mode === "oauth" && !everyIssuerScoped(context.options, requiredScopes) && !Object.keys(authOptions.toolScopes ?? {}).length) {
         context.log.warn("REST: no required scopes (rest.requiredScopes, auth.requiredScopes) and no auth.toolScopes: any token of the issuer for the REST audience gets everything its profile allows");
     }
@@ -114,8 +115,9 @@ export async function createRestHandler(context, runtime = {}) {
 
     return {
         handles,
-        // the viewer page's part (viewer.js): a person's access token checked as a bearer's, and the exchange route's steps
-        viewer: { verifyToken: service.signIn.verifyToken, exchange: browser.exchange },
+        // the viewer page's part (viewer.js): a person's access token checked as a bearer's, the
+        // person's rate limit and concurrency as on every REST request, and the exchange route's steps
+        viewer: { verifyToken: service.signIn.verifyToken, enter: (caller) => enterLimits(service, caller), exchange: browser.exchange },
         openapi: service.discovery.openapi,
         precheck: routes.precheck,
         fetch: routes.fetch,

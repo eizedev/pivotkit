@@ -60,14 +60,16 @@ if (data.step === "start") {
 /**
  * The report of a live link: pivot-report with the server's rows. Its first getToken() is the
  * sign-in's answer (a token, or the refusal the report shows as its state); a later one signs in again.
- * @param {{ to: string, source: string, params: string[], lang: string, token?: unknown, problem?: unknown, failed?: boolean }} page
+ * A refused person's page names neither the source nor its parameters: the report then takes the
+ * source from the link they opened, and shows the refusal.
+ * @param {{ to: string, source?: string, params?: string[], lang: string, token?: unknown, problem?: unknown, failed?: boolean }} page
  */
 async function showReport(page) {
     await import("./element/index.js");
     const report = document.createElement("pivot-report");
     report.setAttribute("server-url", location.origin);
-    report.setAttribute("server-source", page.source);
-    if (page.params.length) {
+    report.setAttribute("server-source", page.source ?? new URL(page.to, location.origin).pathname.split("/")[2]);
+    if (page.params?.length) {
         report.setAttribute("server-params", page.params.join(","));
     }
     // Copy link: this page's address with the link's parameters and access level, the view in the fragment
