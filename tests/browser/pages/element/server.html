@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="STRICT_CSP" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>pivot-report reading its rows from a server</title>
+<script type="module" src="./element-server.js"></script>
+<script type="module" src="../packages/pivotkit-element/dist/index.js"></script>
+</head>
+<body>
+<pivot-report id="live" server-source="sales" server-params="customer" share-link height="640"></pivot-report>
+</body>
+</html>
