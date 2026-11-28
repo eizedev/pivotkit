@@ -76,26 +76,11 @@ Two more features are off until the host turns them on:
 
 | Topic | Page |
 | --- | --- |
-| Getting started: install, first report, saved views, clicks | [Getting started with React](https://pivotkit.eize.dev/getting-started/react/) |
-| Loading files and the source data | [Load your own data](https://pivotkit.eize.dev/use/load-data/), [the table or the rows](https://pivotkit.eize.dev/use/export/#the-table-or-the-rows-behind-it) |
-| Bundlers, import maps, PowerShell Universal | [Bundlers and import maps](https://pivotkit.eize.dev/getting-started/react/#bundlers-and-import-maps), [PowerShell Universal](https://pivotkit.eize.dev/getting-started/react/#powershell-universal) |
-| Every prop | [Props](https://pivotkit.eize.dev/reference/react/#props), [props in detail](https://pivotkit.eize.dev/reference/react/#props-in-detail) |
-| Controlled and uncontrolled | [Controlled and uncontrolled](https://pivotkit.eize.dev/reference/react/#controlled-and-uncontrolled) |
-| Tips, layout, menus | [Tips](https://pivotkit.eize.dev/reference/react/#tips), [Layout](https://pivotkit.eize.dev/reference/react/#layout), [Menus](https://pivotkit.eize.dev/reference/react/#menus), [files the package loads](https://pivotkit.eize.dev/reference/react/#files-the-package-loads) |
-| The view | [Views and saved views](https://pivotkit.eize.dev/concepts/views/) |
-| Saved and shared views, links | [Templates and shared views](https://pivotkit.eize.dev/concepts/templates/), [Sharing](https://pivotkit.eize.dev/concepts/sharing/), [View file format](https://pivotkit.eize.dev/reference/view-file/) |
-| Field names, descriptions, defaults | [Field descriptions and names](https://pivotkit.eize.dev/concepts/fields/) |
-| Charts, `colorMap` and `chartOptions` | [Charts](https://pivotkit.eize.dev/concepts/charts/#chartoptions-for-developers) |
-| Theming: the `--pk-*` tokens | [Theming](https://pivotkit.eize.dev/reference/theming/) |
-| Languages and labels | [Localisation](https://pivotkit.eize.dev/reference/localisation/) |
-| Limits | [Locale, time zones, limits and errors](https://pivotkit.eize.dev/concepts/limits/#limits) |
-| Performance | [Performance](https://pivotkit.eize.dev/reference/react/#performance) |
-| Security | [Security](https://pivotkit.eize.dev/security/) |
-| Browser support | [Browser support](https://pivotkit.eize.dev/browser-support/) |
-| Recipes | [Recipes](https://pivotkit.eize.dev/embed/recipes/) |
-| What the people using the report can do | [Use a report](https://pivotkit.eize.dev/use/), [Keyboard and screen readers](https://pivotkit.eize.dev/use/keyboard/) |
-| Try it | [Live demo](https://pivotkit.eize.dev/demo/), [feature list](https://pivotkit.eize.dev/features/), [FAQ](https://pivotkit.eize.dev/faq/) |
-| Changes | [CHANGELOG](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-react/CHANGELOG.md) |
+| Getting started | [React guide](https://pivotkit.eize.dev/getting-started/react/) |
+| Reference | [React props, events and layout](https://pivotkit.eize.dev/reference/react/), [Theming](https://pivotkit.eize.dev/reference/theming/), [Localisation](https://pivotkit.eize.dev/reference/localisation/) |
+| Views and data | [Views](https://pivotkit.eize.dev/concepts/views/), [Fields](https://pivotkit.eize.dev/concepts/fields/), [Charts](https://pivotkit.eize.dev/concepts/charts/), [Loading data](https://pivotkit.eize.dev/use/load-data/) |
+| Security and compatibility | [Security](https://pivotkit.eize.dev/security/), [Browser support](https://pivotkit.eize.dev/browser-support/), [Limits](https://pivotkit.eize.dev/concepts/limits/) |
+| Changelog | [CHANGELOG](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-react/CHANGELOG.md) |
 
 ## License
 
