@@ -253,7 +253,8 @@ The chart reads these tokens in the current theme:
 | The grid | `--pk-grid`, else `--pk-border` |
 
 Black (`#000000`) and white (`#ffffff`) are fixed values, not tokens. The contrast of `--pk-text`
-and of `--pk-muted` on `--pk-surface` is the theme's: the chart does not change them. Without a
+and of `--pk-muted` on `--pk-surface` is the theme's: the chart does not change them. It measures a
+translucent text colour, such as `rgba(0, 0, 0, 0.87)`, as drawn on its background. Without a
 `--pk-surface`, the points' labels have no outline.
 
 A treemap writes every tile's text in `--pk-chart-tile-text`, as ECharts does by default. A tile on
@@ -264,8 +265,14 @@ Entries keeps the colour you set; the tooltip's mark shows the tile as drawn. Bo
 as the screen draws them, without their alpha. To keep every tile's colour as it is, set
 `--pk-chart-tile-contrast: 0`; the contrast is then yours.
 
+The chart reads these tokens when it draws. It draws again when the theme changes, when a stylesheet
+loads or is removed, and when a `<style>` is added or its text changes, in the page or the report's
+shadow root. A token changed any other way shows at the chart's next draw: a new size, view or
+theme. Such ways are a class on `<html>`, `insertRule()`, `adoptedStyleSheets`, a sheet's `media` or
+`disabled`, and a new root font size under a `rem` token.
+
 The heatmap's colours work in any form the browser reads, `oklch()` too. The chart mixes the colour
-of each cell from them. It takes them as plain sRGB colours: a colour's alpha is dropped, and a
+of each cell from them. It takes them as plain sRGB colours: a scale colour's alpha is dropped, and a
 colour outside sRGB, such as a P3 one, is clipped to its nearest sRGB colour. The HTML report and the SVG of the Export menu get them as the screen draws
 them. pivotkit-report on its own needs a form ECharts reads, see
 [print template](print-template.md#template-design).

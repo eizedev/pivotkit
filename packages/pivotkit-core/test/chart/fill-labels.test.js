@@ -37,6 +37,26 @@ test("labelColorOn: the theme's ink that reads best; where neither reaches 4.5:1
     assert.deepEqual(unreadable(measured), []);
 });
 
+test("contrast with a translucent ink (#1000): measured as drawn, mixed with what is under it", () => {
+    // rgba(0, 0, 0, 0.87) on white draws a dark grey (33, 33, 33), not black
+    const grey = contrastOf("rgb(33.15, 33.15, 33.15)", "#ffffff");
+    for (const ink of ["rgba(0, 0, 0, 0.87)", "rgb(0 0 0 / 87%)", "rgba(0,0,0,.87)"]) {
+        assert.ok(Math.abs(/** @type {number} */ (contrastOf(ink, "#ffffff")) - /** @type {number} */ (grey)) < 1e-9, ink);
+    }
+    assert.ok(/** @type {number} */ (contrastOf("rgba(0, 0, 0, 0.87)", "#ffffff")) < 21);
+    // hex with alpha: #0008 and #00000088 are black at 8/15 and 136/255
+    assert.equal(contrastOf("#0008", "#ffffff"), contrastOf("#00000088", "#ffffff"));
+    assert.ok(/** @type {number} */ (contrastOf("#00000088", "#ffffff")) < /** @type {number} */ (contrastOf("#000000", "#ffffff")));
+    // an opaque ink measures as before, either way round
+    assert.equal(contrastOf("#1a1d23", "#eda100"), contrastOf("#eda100", "#1a1d23"));
+    // on a mid blue an opaque black would read 4.8:1, black at 60 % does not: labelColorOn takes black
+    // instead of the translucent ink
+    assert.ok(/** @type {number} */ (contrastOf("rgba(0, 0, 0, 0.6)", "#2a78d6")) < 4.5);
+    assert.equal(labelColorOn("#2a78d6", ["rgba(0, 0, 0, 0.6)", "#ffffff"]), "#000000");
+    // a translucent light ink stays on the light side: white, where white reads
+    assert.equal(labelColorOn("#6250d6", ["#1a1d23", "rgba(255, 255, 255, 0.5)"]), "#ffffff");
+});
+
 /** A tile's colour and its label's, as decorateOption gives them: every tile of the series. */
 const tilesOf = (/** @type {any} */ s) => s.data.map((/** @type {any} */ d) => ({ name: d.name, ink: s.label.color, fill: d.itemStyle.color }));
 /** A style of the light theme's tokens with `extra` over them. */

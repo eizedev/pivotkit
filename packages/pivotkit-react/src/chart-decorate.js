@@ -182,12 +182,21 @@ export function tokenLengths(root, names = LENGTH_TOKENS) {
 
 /**
  * The report's computed style with its length tokens in px: what chartThemeFrom and pivotkit-core's
- * decorateOption read.
+ * decorateOption read. `names` gathers the names read, so a draw knows which tokens it depends on
+ * (chart-tokens.js).
  * @param {HTMLElement} root
- * @returns {{ getPropertyValue(name: string): string }}
+ * @returns {{ getPropertyValue(name: string): string, names: Set<string> }}
  */
 export function chartStyle(root) {
     const style = getComputedStyle(root);
     const lengths = tokenLengths(root);
-    return { getPropertyValue: (name) => lengths[name] ?? style.getPropertyValue(name) };
+    /** @type {Set<string>} */
+    const names = new Set();
+    return {
+        names,
+        getPropertyValue: (name) => {
+            names.add(name);
+            return lengths[name] ?? style.getPropertyValue(name);
+        }
+    };
 }

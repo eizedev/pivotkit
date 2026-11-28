@@ -13,6 +13,7 @@ import { cleanChartOptions } from "./chart-options.js";
 import { colorMapFor } from "./chart-colors.js";
 import { chartStyle, drawOption } from "./chart-decorate.js";
 import { chartKeeper, shownOf, zoomKeyProps } from "./chart-legend.js";
+import { tokenWatcher } from "./chart-tokens.js";
 import { chartLines } from "./chart-tooltip.js";
 
 /** How long a tap's tooltip waits for the second tap that opens its menu, in ms. */
@@ -105,10 +106,13 @@ function pointOf(p, s) {
  * @param {HTMLElement} el  the chart's element
  * @param {ChartRefs} refs
  * @param {{ redraw: () => void, onWindow: (control: any) => void, onBox: (box: string) => void }} on
- *   redraw: the zoom slider's window needs a new layout; onWindow: the slider's window and place, for
- *   its keyboard control (zoomKeyProps with it), or null; onBox: the canvas size changed
- * @returns {{ instance: any, keeper: ReturnType<typeof chartKeeper>, stop: () => void }}  stop: a
- *   waiting click's menu and the events off, before the instance is disposed
+ *   redraw: draw again (the zoom slider's window needs a new layout, or the tokens changed);
+ *   onWindow: the slider's window and place, for its keyboard control (zoomKeyProps with it), or
+ *   null; onBox: the canvas size changed
+ * @returns {{ instance: any, keeper: ReturnType<typeof chartKeeper>, tokens: ReturnType<typeof tokenWatcher>, stop: () => void }}
+ *   tokens: draws the chart again (`redraw`) when the tokens a draw read change without a theme
+ *   switch (chart-tokens.js); stop: a waiting click's menu and the events off, before the instance is
+ *   disposed
  */
 export function startChart(el, refs, on) {
     const { latest, hover, tapped, touched, waiting, anchor } = refs;
@@ -189,12 +193,15 @@ export function startChart(el, refs, on) {
         }
     };
     doc.addEventListener("pointerdown", onPress, true);
+    const tokens = tokenWatcher(el, on.redraw);
     return {
         instance,
         keeper,
+        tokens,
         stop: () => {
             clearTimeout(waiting.current);
             keeper.dispose();
+            tokens.dispose();
             ro?.disconnect();
             doc.removeEventListener("pointerdown", onPress, true);
         }
@@ -210,8 +217,9 @@ export function startChart(el, refs, on) {
  *   chartOptions?: Record<string, unknown> | null, colorMap?: unknown, drawAs: { type: string, stacked: boolean, horizontal: boolean } | null,
  *   itemType: boolean, maxCategories: number }} chart  chart.jsx's props; itemType: the type draws items, not series
  *   (chart-types.js ITEM_TYPES); maxCategories: chart-types.js MAX_CATEGORIES
- * @param {{ keeper: ReturnType<typeof chartKeeper>, hover: ChartRefs["hover"], tapped: ChartRefs["tapped"], warned: { current: unknown } }} refs
- *   warned: the chartOptions whose problems were said, once per value
+ * @param {{ keeper: ReturnType<typeof chartKeeper>, tokens?: ReturnType<typeof tokenWatcher>, hover: ChartRefs["hover"], tapped: ChartRefs["tapped"], warned: { current: unknown } }} refs
+ *   tokens: startChart's, told which tokens this draw read; warned: the chartOptions whose problems
+ *   were said, once per value
  * @returns {{ lines: ReturnType<typeof chartLines> | null, shown: ReturnType<typeof shownOf> | null, axisEvery: number }}
  *   lines: the reference lines drawn; shown: what the text alternative says; axisEvery: n when the
  *   category axis writes every n-th label only
@@ -244,5 +252,6 @@ export function drawChart(instance, root, chart, refs) {
     // the report's marks, the host's chartOptions over them, the reference lines' labels at their lines
     const drawn = drawOption(instance, option, style, doc, { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels, ...refs.keeper.zoomOf(result, series?.categories ?? [], doc), tooltip, parseColor: color.parse }, clean?.options);
     refs.keeper.drawn(drawn.dataZoom);
+    refs.tokens?.drawn(root, style.names);
     return { lines, shown, axisEvery: drawn.axisEvery };
 }

@@ -13,6 +13,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   `--pk-chart-tile-text`, `--pk-chart-tile-contrast`, `--pk-chart-tile-size`,
   `--pk-chart-tile-weight` and `--pk-chart-tile-padding` ([#984](https://github.com/eizedev/pivotkit/issues/984)).
 
+### Fixed
+
+- The chart draws again when the `--pk-*` tokens it was drawn with change without a theme switch: a
+  stylesheet that loads or is removed after the first draw, or a `<style>` added or written into
+  later. Before, it kept the old colours until the next theme switch
+  ([#1000](https://github.com/eizedev/pivotkit/issues/1000)).
+
 ## [0.11.0] - 2026-11-26
 
 ### Added
