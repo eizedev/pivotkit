@@ -16,6 +16,7 @@ import { numberFormat } from "./intl.js";
 import { fill, pluralForm } from "./labels.js";
 import { isPlainObject, optionsOf, resolveLocale } from "./util.js";
 import { normalize, validate, viewFields } from "./view.js";
+import { FIELD_TYPES } from "./view-file.js";
 
 /** The most items a field's summary lists, and the characters of each. */
 export const DESCRIBE_LIMITS = Object.freeze({ items: 20, text: 80 });
@@ -57,14 +58,15 @@ const nameText = (name) => /** @type {string} */ (valueText(name, "string"));
  * The fields of a data set: type, and with encoded data the number of rows, distinct items, blanks,
  * the first items and the smallest and largest value; the aggregators and filter types each works
  * with. `options.items` caps the items listed per field (default DESCRIBE_LIMITS.items).
- * Rows that are not encoded (objects without a `name`) throw INVALID_ARGUMENT: encode() them first.
+ * Rows that are not encoded throw INVALID_ARGUMENT: encode() them first.
  * @param {unknown} data  encoded data, a schema { fields } or an array of { name, type }
  * @param {{ items?: number }} [options]
  * @returns {{ rows: number | null, fields: FieldSummary[], text: string }}
  */
 export function describeSource(data, options) {
     options = optionsOf(options, "describeSource");
-    if (Array.isArray(data) && data.length > 0 && !data.some((f) => isPlainObject(f) && typeof f.name === "string")) {
+    const isFieldDef = (f) => isPlainObject(f) && typeof f.name === "string" && typeof f.type === "string" && FIELD_TYPES.includes(f.type);
+    if (Array.isArray(data) && data.length > 0 && !data.every(isFieldDef)) {
         throw new PivotkitError("INVALID_ARGUMENT", "describeSource takes encoded data, a schema or an array of { name, type }; encode() the rows first");
     }
     const cap = Number.isInteger(options.items) && /** @type {number} */ (options.items) >= 0 ? /** @type {number} */ (options.items) : DESCRIBE_LIMITS.items;
