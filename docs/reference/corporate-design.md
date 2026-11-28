@@ -77,6 +77,7 @@ Minimal follows the theme of the site you read this in. The chart keeps its ligh
     | `--pk-chart-1` ... `--pk-chart-8` | The chart's series, and data bars (`--pk-chart-1`) |
     | `--pk-chart-reference` (not set) | A target line and the lines of a stack's total; `--pk-muted` when not set |
     | `--pk-chart-other` (not set) | A pie's slice "Other (n)"; `--pk-muted` when not set |
+    | `--pk-chart-tile-text` | The text on a treemap's tiles; a tile too light for it is drawn darker ([theming](theming.md#chart-colours)) |
     | `--pk-heat-low`, `--pk-heat-high` | The heatmap |
     | `--pk-scale-low`, `--pk-scale-high` (and `--pk-scale-mid`, not set) | A colour scale in the table whose view names no colours; Corporate takes the heat colours for them |
 

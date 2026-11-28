@@ -5,7 +5,8 @@
  * styles.css): the colour scale its --pk-heat-low and --pk-heat-high, light for low and strong for
  * high, so it says "more", not "good" or "bad" (Excel's red, yellow, green reads the wrong way round
  * for a temperature or a cost); the data bars its --pk-chart-1; the sizes its --pk-chart-title-size,
- * --pk-chart-text-size, --pk-radius-chart and --pk-radius-card at the least font size, 14 px.
+ * --pk-chart-text-size, --pk-radius-chart, --pk-radius-card and --pk-chart-tile-padding at the least
+ * font size, 14 px; a treemap's text its --pk-chart-tile-text and --pk-chart-tile-contrast.
  */
 
 export const DEFAULT_THEME = Object.freeze({
@@ -13,8 +14,16 @@ export const DEFAULT_THEME = Object.freeze({
     colorScale: Object.freeze(["#eaf1fb", "#2a78d6"]),
     /** data bar colour when a view names none */
     dataBar: "#2a78d6",
-    /** font weight of a chart's title and group labels */
+    /** font weight of a chart's title and group labels, and of a treemap tile's name */
     strongWeight: 600,
+    /** font weight of plain text in a chart: a treemap tile's value */
+    normalWeight: 400,
+    /** colour of the text on a treemap's tiles */
+    tileText: "#ffffff",
+    /** contrast (WCAG 2) the text on a treemap's tiles keeps: a tile too light for it is darkened that far */
+    tileContrast: 4.6,
+    /** room around the text on a treemap's tiles, px */
+    tilePadding: 8,
     /** font size of a chart's title, px */
     titleSize: 16,
     /** font size of a chart's other text (axes, legend, labels), px: the 14 px minimum */

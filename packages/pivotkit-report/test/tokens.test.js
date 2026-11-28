@@ -20,13 +20,14 @@ test("the light and the dark tokens are pivotkit-react's, name for name", () => 
     const dark = tokensOf(':where(.pk-root[data-pk-theme="dark"])');
     for (const [name, value] of Object.entries(LIGHT_TOKENS)) assert.equal(value, light[name], `light ${name}`);
     // the colour scale's tokens are declared once, in the light rule: they refer to the heat tokens of
-    // either theme; every other dark token is declared in the dark rule
-    const inherited = new Set(["--pk-scale-low", "--pk-scale-high"]);
+    // either theme; so is a treemap tile's text, the same in both; every other dark token is declared
+    // in the dark rule
+    const inherited = new Set(["--pk-scale-low", "--pk-scale-high", "--pk-chart-tile-text", "--pk-chart-tile-contrast"]);
     for (const [name, value] of Object.entries(DARK_TOKENS)) assert.equal(value, inherited.has(name) ? light[name] : dark[name], `dark ${name}`);
     for (const name of inherited) assert.equal(dark[name], undefined, `${name} is not declared again for dark`);
     assert.deepEqual(Object.keys(DARK_TOKENS), Object.keys(LIGHT_TOKENS));
-    // the font weights: every step of the scale, the same values
-    const weights = Object.fromEntries(Object.entries(light).filter(([name]) => name.startsWith("--pk-weight-")));
+    // the font weights: every step of the scale and a treemap tile's name, the same values
+    const weights = Object.fromEntries(Object.entries(light).filter(([name]) => name.startsWith("--pk-weight-") || name === "--pk-chart-tile-weight"));
     assert.deepEqual(WEIGHT_TOKENS, weights);
     // the corners the report draws
     for (const [name, value] of Object.entries(SHAPE_TOKENS)) assert.equal(value, light[name], `shape ${name}`);
@@ -56,6 +57,13 @@ test("DEFAULT_THEME's chart sizes are the light tokens' at the least font size, 
     assert.equal(DEFAULT_THEME.textSize, 14, "the chart's text at the 14 px minimum");
     assert.equal(DEFAULT_THEME.markRadius, px("--pk-radius-chart", light));
     assert.equal(DEFAULT_THEME.cardRadius, px("--pk-radius-card", light));
+    assert.equal(DEFAULT_THEME.tilePadding, px("--pk-chart-tile-padding", light));
+    assert.equal(DEFAULT_THEME.textSize, px("--pk-chart-tile-size", light), "a tile's text at the chart's text size");
+    // a treemap's text and its contrast without tokens: the light ones
+    assert.equal(DEFAULT_THEME.tileText, light["--pk-chart-tile-text"]);
+    assert.equal(String(DEFAULT_THEME.tileContrast), light["--pk-chart-tile-contrast"]);
+    assert.equal(String(DEFAULT_THEME.strongWeight), light["--pk-weight-strong"]);
+    assert.equal(String(DEFAULT_THEME.normalWeight), light["--pk-weight-normal"]);
 });
 
 test("the HTML report draws its chart card with the corner token, and a host's corner reaches it", async () => {

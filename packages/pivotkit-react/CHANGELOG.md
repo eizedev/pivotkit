@@ -6,6 +6,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- A treemap's labels are white at each tile's top left, as in ECharts, and a tile too light for
+  them is drawn darker, just enough for 4.6:1. See pivotkit-core's changelog. New tokens:
+  `--pk-chart-tile-text`, `--pk-chart-tile-contrast`, `--pk-chart-tile-size`,
+  `--pk-chart-tile-weight` and `--pk-chart-tile-padding` ([#984](https://github.com/eizedev/pivotkit/issues/984)).
+
 ### Fixed
 
 - The chart draws again when the `--pk-*` tokens it was drawn with change without a theme switch: a

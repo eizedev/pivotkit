@@ -172,13 +172,19 @@ test("a combo and a treemap reach the SVG (#518)", async () => {
     for (const region of ["North", "South", "West"]) {
         assert.ok(tiles.includes(region), `${region}: ${tiles.join(" | ")}`);
     }
-    // each label in its tile's middle (#913): its name and value as far above as below the tile's centre
-    const lines = [...t.text.matchAll(/<text [^>]*y="([-\d.e]+)" transform="translate\(([^)]+)\)"[^>]*>([^<]*)<\/text>/g)].map(([, y, at, text]) => ({ y: Number(y), at, text }));
+    // each label at its tile's top left (#984): its name in bold, its value below it, both white, the
+    // padding (8 px) from the tile's left edge
+    const lines = [...t.text.matchAll(/<text [^>]*x="([-\d.e]+)" y="([-\d.e]+)" transform="translate\(([^)]+)\)" fill="([^"]+)"[^>]*font-weight="(\d+)">([^<]*)<\/text>/g)].map(([, x, y, at, fill, weight, text]) => ({ x: Number(x), y: Number(y), at, fill, weight, text }));
     for (const region of ["North", "South", "West"]) {
         const name = lines.find((l) => l.text === region);
         const value = lines.find((l) => l !== name && l.at === name?.at);
-        assert.ok(name && value && Math.abs(name.y + value.y) <= 1, `${region}: ${JSON.stringify([name, value])}`);
+        assert.ok(name && value && name.x === 8 && value.x === 8 && name.y < value.y && name.y < 30, `${region}: ${JSON.stringify([name, value])}`);
+        assert.deepEqual([name.fill, name.weight, value.fill, value.weight], ["#ffffff", "600", "#ffffff", "400"]);
     }
+    // a host's colour in a name, too light for white, drawn darker; the text still white on it
+    const gold = await render(treemap, SALES, { format: "svg", echarts, ...FIXED, colorMap: { North: "gold" } });
+    assert.ok(!/fill="(?:gold|#ffd700)"/i.test(gold.text), "gold darkened");
+    assert.ok(gold.text.includes('fill="#877200"'), "gold mixed with black to 4.6:1");
 });
 
 test("100 % stacked bars and hidden series reach the SVG (#36)", async () => {
