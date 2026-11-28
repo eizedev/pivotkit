@@ -304,7 +304,9 @@ test("browser tokens: expiry, another key, a changed byte, and what they keep of
     assert.deepEqual(coded.grant.caller.groups, ["sales-team"], "a code source sees the groups");
     assert.deepEqual(coded.grant.caller.claims, { region: "north", tenant: "t1" });
 
-    const changed = `${issued.token.slice(0, -2)}${issued.token.endsWith("A") ? "B" : "A"}A`;
+    // one character of the ciphertext changed: its first carries six bits of data (the tag's last has padding bits)
+    const parts = issued.token.split(".");
+    const changed = [...parts.slice(0, 3), `${parts[3][0] === "A" ? "B" : "A"}${parts[3].slice(1)}`, parts[4]].join(".");
     await assert.rejects(tokens.read(changed), { code: "INVALID" });
     await assert.rejects(createBrowserTokens(options, { now: () => now }).read(issued.token), { code: "INVALID" }, "another process's random key");
     now += 5 * 60 * 1000 + 1000;
